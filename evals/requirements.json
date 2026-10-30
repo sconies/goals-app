@@ -1,0 +1,39 @@
+{
+  "slice": "1 · Goals, plans and check-ins",
+  "requirements": [
+    { "id": "PLAN-SHAPE", "area": "Plans", "text": "Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint." },
+    { "id": "FORECAST", "area": "Plans", "text": "Forecast is the last three weeks' slope projected to the end of the cycle, and only shown with enough data." },
+    { "id": "REBASELINE", "area": "Plans", "text": "Changing a plan after check-ins start re-baselines it and keeps the original visible." },
+    { "id": "STATUS-BANDS", "area": "Status rules", "text": "Metric: on track at 95% of planned progress or more, at risk 80–95%, off track below 80%." },
+    { "id": "STATUS-DIRECTION", "area": "Status rules", "text": "Lower-is-better metrics are judged the same way as higher-is-better ones." },
+    { "id": "RANGE", "area": "Status rules", "text": "Range: at risk inside the warning margin or after one breach; off track after two weeks out of range." },
+    { "id": "MILESTONE", "area": "Status rules", "text": "Milestone: a stage up to 2 weeks late is at risk, more is off track; an overdue stage counts as late." },
+    { "id": "OWNER-CALL", "area": "Status rules", "text": "The owner's call is the official status shown everywhere, with the calculated status beside it." },
+    { "id": "GREENER", "area": "Check-in", "text": "A call greener than the calculation needs a reason and is flagged on the goal." },
+    { "id": "REASON-BEHIND", "area": "Check-in", "text": "A reason (cause and explanation) is required when behind plan (below 95%)." },
+    { "id": "REASON-AHEAD", "area": "Check-in", "text": "A reason is required when 120% or more ahead, and the check-in asks whether the target should change." },
+    { "id": "PATH-TO-GREEN", "area": "Check-in", "text": "At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed." },
+    { "id": "CHECKIN-STATUS-VS-PLAN", "area": "Check-in", "text": "The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed." },
+    { "id": "ONE-PER-WEEK", "area": "Check-in", "text": "One check-in per goal per week; editing replaces it." },
+    { "id": "OWNER-ONLY", "area": "Check-in", "text": "Only the goal's owner can post its check-in." },
+    { "id": "STALE", "area": "Status rules", "text": "No owner check-in for 14 days shows as Stale, never as on track." },
+    { "id": "HIERARCHY", "area": "Goals", "text": "A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses." },
+    { "id": "GOAL-CREATE", "area": "Goals", "text": "A lead can create a metric, range or milestone goal with a plan, and invalid input is explained." },
+    { "id": "GOAL-PAGE", "area": "Goals", "text": "The goal page shows status strip, why, path to green, chart with plan/forecast/path back, and check-in history." },
+    { "id": "PERSIST", "area": "Platform", "text": "Changes are saved and survive a reload; demo data can be reset." },
+    { "id": "PHONE", "area": "Platform", "text": "Every screen works at phone width (390px) with no horizontal scrolling." },
+    { "id": "A11Y", "area": "Platform", "text": "No serious or critical accessibility violations (axe-core); status is shape plus word, never colour alone." },
+    { "id": "NO-ERRORS", "area": "Platform", "text": "No console or page errors on any screen." }
+  ],
+  "notYetBuilt": [
+    "Leadership view and team review (inspection)",
+    "Target-change approval by the sponsor",
+    "Dependencies between goals",
+    "Jira linking (context only)",
+    "Slack check-ins and nudges",
+    "AI drafts and explanations (beta)",
+    "Key-goal flags",
+    "Data integrations (Power BI, Grafana, ServiceNow)",
+    "Sign-in and permissions"
+  ]
+}
