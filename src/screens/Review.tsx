@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { openProposal, type GoalAttention } from '../domain/attention';
+import { openProposal, pendingSummary, type GoalAttention } from '../domain/attention';
 import { causeLabel } from '../domain/checkin';
 import { fmt, gapText, weekLabel } from '../domain/format';
 import { valueSeries } from '../domain/plan';
@@ -19,8 +19,10 @@ export function Review() {
   // Fix the order when the review opens, so handled items don't jump around.
   const [order] = useState(() => q.items.map((a) => a.goal.id));
   const items = order.map((id) => q.items.find((a) => a.goal.id === id) ?? null).filter((a): a is GoalAttention => !!a);
+  const [params] = useSearchParams();
+  const asked = items.findIndex((a) => a.goal.id === params.get('goal'));
   const firstOpen = items.findIndex((a) => !q.handled.has(a.goal.id));
-  const [index, setIndex] = useState(firstOpen < 0 ? items.length : firstOpen);
+  const [index, setIndex] = useState(asked >= 0 ? asked : firstOpen < 0 ? items.length : firstOpen);
   const current = items[index];
 
   if (app.viewer.profile !== 'sponsor') {
@@ -34,10 +36,14 @@ export function Review() {
     );
   }
 
+  // Next open item after this one, then any skipped earlier; the summary only when nothing is left.
+  const open = (a: GoalAttention) => !q.handled.has(a.goal.id) && a.goal.id !== current?.goal.id;
   const advance = () => {
-    const nextOpen = items.findIndex((a, i) => i > index && !q.handled.has(a.goal.id) && a.goal.id !== current?.goal.id);
-    setIndex(nextOpen < 0 ? items.length : nextOpen);
+    const after = items.findIndex((a, i) => i > index && open(a));
+    const before = items.findIndex((a, i) => i < index && open(a));
+    setIndex(after >= 0 ? after : before >= 0 ? before : items.length);
   };
+  const skipped = items.filter((a) => !q.handled.has(a.goal.id));
 
   return (
     <div className="review">
@@ -59,7 +65,14 @@ export function Review() {
           <div className="bar ok" style={{ flex: 1, maxWidth: 240 }} aria-hidden="true"><i style={{ width: `${q.total ? (q.done / q.total) * 100 : 100}%` }} /></div>
           <button className="iconbtn" onClick={() => nav('/')} aria-label="Close review">✕</button>
         </div>
-        {current ? <ReviewCard key={current.goal.id} a={current} handled={q.handled.has(current.goal.id)} onDone={advance} onSkip={() => setIndex((i) => Math.min(items.length, i + 1))} /> : <ReviewDone />}
+        {current ? <ReviewCard key={current.goal.id} a={current} handled={q.handled.has(current.goal.id)} onDone={advance} onSkip={() => setIndex((i) => Math.min(items.length, i + 1))} />
+          : skipped.length ? (
+            <div className="celebrate" role="status">
+              <h1 className="title-xl">{skipped.length} still open</h1>
+              <p className="muted">You skipped {skipped.length === 1 ? 'one goal' : `${skipped.length} goals`}. Each needs a call before the review is done.</p>
+              <div className="row" style={{ justifyContent: 'center' }}><button className="btn primary big-btn" onClick={() => setIndex(items.indexOf(skipped[0]!))}>Back to {skipped[0]!.goal.title}</button></div>
+            </div>
+          ) : <ReviewDone />}
       </div>
     </div>
   );
@@ -101,6 +114,9 @@ function ReviewCard({ a, handled, onDone, onSkip }: { a: GoalAttention; handled:
   const decisions = app.snapshot.decisions.filter((d) => d.goalId === g.id && d.week === app.week);
   const series = valueSeries(app.checkInsOf(g));
   const ptg = latest?.pathToGreen;
+  const top = a.flags.find((f) => f.kind !== 'due');
+  // A proposed plan change has its own section below, so the lede doesn't repeat it.
+  const planChangeOnly = top?.kind === 'proposal' && !!g.pending && !proposal;
 
   const decide = async (kind: Decision['kind']) => {
     if (busy) return;
@@ -120,7 +136,16 @@ function ReviewCard({ a, handled, onDone, onSkip }: { a: GoalAttention; handled:
       <div className="row" style={{ gap: 6 }}>{a.flags.filter((f) => f.kind !== 'due').map((f) => <FlagPill key={f.kind} f={f} />)}</div>
       <h1 className="title-xl">{g.title}</h1>
       <span className="row small muted" style={{ gap: 8 }}><Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name} · {app.team(g.teamId)?.name}{latest ? ` · checked in week ${latest.week}` : ''}</span>
-      <p className="lede">{a.flags.find((f) => f.kind !== 'due')?.detail}</p>
+      <p className="lede">{planChangeOnly ? `${app.person(g.pending!.byId)?.name.split(' ')[0] ?? 'The owner'} wants to change the plan. It’s ${LABEL[st.status].toLowerCase()} today.` : top?.detail}</p>
+
+      {g.pending && !proposal && (
+        <section className="owner-says path">
+          <span className="label">{app.person(g.pending.byId)?.name.split(' ')[0] ?? 'The owner'} proposes a plan change · week {g.pending.week}</span>
+          <p><strong>{pendingSummary(g)}</strong></p>
+          <p>“{g.pending.reason}”</p>
+          <span className="tiny muted">Approving re-baselines the plan from this week. The original stays on the chart.</span>
+        </section>
+      )}
 
       <div className="numbers">
         <div><span className="tiny muted">Status</span><Chip k={st.status} />{assessment.calc !== st.status && st.status !== 'stale' && <span className="tiny muted">Numbers say {LABEL[assessment.calc].toLowerCase()}</span>}</div>
@@ -150,6 +175,7 @@ function ReviewCard({ a, handled, onDone, onSkip }: { a: GoalAttention; handled:
         </section>
       )}
 
+
       {decisions.length > 0 && <div className="note-good small">{decisions.map((d) => DECISION_LABEL[d.kind] + (d.note ? `: “${d.note}”` : '')).join(' · ')}</div>}
 
       <div className="decide">
@@ -163,6 +189,11 @@ function ReviewCard({ a, handled, onDone, onSkip }: { a: GoalAttention; handled:
             <>
               <button className="btn primary big-btn" disabled={busy} onClick={() => decide('approve-target')}>Approve {fmt(proposal.proposeTarget as number, g)}</button>
               <button className="btn big-btn" disabled={busy} onClick={() => decide('decline-target')}>Keep {fmt(g.plan.target, g)}</button>
+            </>
+          ) : g.pending ? (
+            <>
+              <button className="btn primary big-btn" disabled={busy} onClick={() => decide('approve-change')}>Approve change</button>
+              <button className="btn big-btn" disabled={busy} onClick={() => decide('decline-change')}>Keep as is</button>
             </>
           ) : (
             <button className="btn primary big-btn" disabled={busy} onClick={() => decide('acknowledge')}>{handled ? 'Seen again' : 'Seen · no action'}</button>

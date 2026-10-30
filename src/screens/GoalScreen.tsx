@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useApp } from '../app/state';
+import { pendingSummary } from '../domain/attention';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, gapText, kindLabel, weekLabel } from '../domain/format';
 import { valueSeries } from '../domain/plan';
@@ -36,8 +37,9 @@ export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
       <Avatar p={who ?? { name: c.actorId, initials: '?' }} size="sm" />
       <div className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
         <span className="small"><strong>{who?.name ?? c.actorId}</strong> {c.summary.charAt(0).toLowerCase() + c.summary.slice(1)}{showGoal && goal ? <> · <Link className="linkish" to={'/goals/' + goal.id}>{goal.title}</Link></> : null}</span>
+        {c.entity === 'note' && <p className="note-text">{c.diffs[0]?.to}</p>}
         <span className="tiny muted">{whenText(c.at, app.today)}</span>
-        {diffs.length > 0 && (
+        {diffs.length > 0 && c.entity !== 'note' && (
           <>
             <button className="linkish tiny" style={{ alignSelf: 'flex-start' }} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? 'Hide changes' : `Show ${diffs.length === 1 ? 'the change' : diffs.length + ' changes'}`}</button>
             {open && (
@@ -78,7 +80,9 @@ function GoalView({ goal }: { goal: Goal }) {
   const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>('activity');
   const flags = att.flags.filter((f) => f.kind !== 'due');
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
-  const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind));
+  const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind) && !(f.kind === 'proposal' && goal.pending));
+  const sponsor = app.snapshot.people.find((p) => p.profile === 'sponsor');
+  const proposer = goal.pending ? app.person(goal.pending.byId) : undefined;
   const lastBy = latest ? app.person(latest.authorId) : undefined;
 
   const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? 'No value yet' : fmt(a.actual, goal);
@@ -114,6 +118,14 @@ function GoalView({ goal }: { goal: Goal }) {
           {' '}{latest ? <>Updated by {lastBy?.name}, {timeAgo(latest.postedAt, app.today)}.</> : 'No check-ins yet.'}
         </span>
       </section>
+
+      {goal.pending && (
+        <div className="pending-note small" role="status">
+          <span><strong>Plan change proposed:</strong> {pendingSummary(goal)}. {proposer?.name.split(' ')[0] ?? 'The owner'}: “{goal.pending.reason}” Waiting for {sponsor?.name ?? 'the sponsor'}; the current plan stays until then.</span>
+          {app.viewer.profile === 'sponsor' ? <Link className="linkish small" to={'/review?goal=' + goal.id}>Decide</Link>
+            : (app.viewer.id === goal.pending.byId || isOwner) && <button type="button" className="linkish small" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>}
+        </div>
+      )}
 
       {(notes.length > 0 || (latest?.why && latest.why !== 'On plan.') || ptg) && (
         <section className="why" aria-label="What’s going on">
@@ -164,6 +176,7 @@ function GoalView({ goal }: { goal: Goal }) {
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}{n ? <span className="tabcount">{n}</span> : null}</button>
           ))}
         </div>
+        {tab === 'activity' && <NoteComposer goal={goal} />}
         {tab === 'activity' && (changes.length ? <ol className="changes">{changes.map((c) => <ChangeItem key={c.id} c={c} />)}</ol> : <p className="small muted">No changes yet.</p>)}
         {tab === 'check-ins' && (own.length ? (
           <ol className="cilist">
@@ -190,5 +203,31 @@ function GoalView({ goal }: { goal: Goal }) {
         )}
       </section>
     </div>
+  );
+}
+
+/** A mid-week note: anything worth knowing that isn't a check-in. Logged like every other save. */
+function NoteComposer({ goal }: { goal: Goal }) {
+  const app = useApp();
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const post = async () => {
+    if (text.trim().length < 2 || saving) return;
+    setSaving(true);
+    try {
+      await app.addNote(goal, text);
+      setText('');
+      app.toast('Note added.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post(); }}>
+      <label className="field"><span className="sr">Add a note</span>
+        <textarea className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a note: news, a risk, a thank-you" aria-label="Add a note" />
+      </label>
+      {text.trim() && <div className="row"><button className="btn primary sm" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post note'}</button></div>}
+    </form>
   );
 }

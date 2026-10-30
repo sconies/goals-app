@@ -1,6 +1,6 @@
-# Eval scorecard · 2 · Profiles, journeys and the change log
+# Eval scorecard · 3 · Updating a goal
 
-Run 2026-10-30 21:11 UTC.
+Run 2026-10-30 22:08 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -8,13 +8,13 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 | # | Journey | Score | entry | one-action | progress | budget | errors | finish | attention | parity | a11y | logged | Steps (phone · desktop) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | Weekly check-in, all due goals in one pass | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 17) |
+| 1 | Weekly check-in, all due goals in one pass | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 17) |
 | 2 | What needs me? Home shows what’s due, off track, stale or slipping | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 3 | Weekly review: work the queue to zero and make the calls | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 13) |
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 11 · 10 (budget 12) |
 | 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 9 · 9 (budget 11) |
-| 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 2 · 2 (budget 3) |
-| 7 | Propose a target change and get it approved | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 14) |
+| 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 3) |
+| 7 | Propose a target change and get it approved | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
 | 8 | Chase stale goals | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 9 | See how my team’s work maps to the goals | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 10 | Close the cycle with a retro | **0** | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | 0 · 0 (budget 0) |
@@ -36,13 +36,16 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**30 of 30 pass**. Spec scenarios 56/56.
+**33 of 33 pass**. Spec scenarios 56/56.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
 | ✅ | **PLAN-SHAPE** Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint. | Plans | 3 | U4 |
 | ✅ | **FORECAST** Forecast is the last three weeks' slope projected to the end of the cycle, and only shown with enough data. | Plans | 2 | — |
 | ✅ | **REBASELINE** Changing a plan after check-ins start re-baselines it and keeps the original visible. | Plans | 1 | U6, U7 |
+| ✅ | **PLAN-CHANGE** Once check-ins have started, the owner proposes a plan change with a reason; it waits for the sponsor's approval in the review, and the current plan stands until then. | Plans | 0 | U7 |
+| ✅ | **CARRY-OVER** When a check-in still needs a reason or a path back, last week's are offered back: 'Still true' carries them over, 'It's changed' opens them for editing. | Check-ins | 0 | U1 |
+| ✅ | **NOTES** Anyone can add a mid-week note to a goal; it shows in the goal's activity and is logged. | Change log | 0 | U6 |
 | ✅ | **STATUS-BANDS** Metric: on track at 95% of planned progress or more, at risk 80–95%, off track below 80%. | Status rules | 8 | — |
 | ✅ | **STATUS-DIRECTION** Lower-is-better metrics are judged the same way as higher-is-better ones. | Status rules | 3 | — |
 | ✅ | **RANGE** Range: at risk inside the warning margin or after one breach; off track after two weeks out of range. | Status rules | 6 | — |

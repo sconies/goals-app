@@ -20,8 +20,8 @@ In the demo, the **Viewing as** bar at the top switches role in one tap (Team le
 | 3 | Weekly review: work the queue to zero and make the calls | Sponsor | Software can't create follow-through, but it can make the review fast and every decision recorded | 10/10 |
 | 4 | Set up a goal, step by step | Lead | Bad goals going in is the second failure; typed goals with a plan preview counter it | 10/10 |
 | 5 | Load your own data and switch between it and the example: type people into a table, paste rows from a spreadsheet, or upload the Excel template; goals can come later | Coach | Without it nobody can try the tool on their own goals | 10/10 |
-| 6 | Understand a goal and its change history | Anyone | Trust needs "last updated by" and a log nobody can edit | 10/10 |
-| 7 | Propose a target change and get it approved | Owner, then sponsor | Well-ahead goals should move their target, with the original plan kept | 10/10 |
+| 6 | Understand a goal and its change history, and add a mid-week note | Anyone | Trust needs "last updated by" and a log nobody can edit | 10/10 |
+| 7 | Propose a target or plan change and get it approved | Owner, then sponsor | Plans should move when reality does, but not silently: the sponsor approves and the original is kept | 10/10 |
 | 8 | Chase stale goals | Coach | Decay is silent; the coach needs a short list and one place to start | 10/10 |
 | 9 | See how my team's work maps to the goals | Contributor | Individual contributors hear about goals monthly while managers think it's weekly | 10/10 |
 | 10 | Close the cycle with a retro | Coach and leads | Silent endings fall when cycles close with an explicit continue, change or stop | Not built |
@@ -42,6 +42,17 @@ A journey scores a point only if the criterion holds on **both** a phone and a d
 8. **Parity**: the same journey completes on a phone and a desktop; on a phone it may be reached differently, but nothing is missing.
 9. **Accessibility**: no serious axe-core issues, and primary buttons at least 44px tall on a phone.
 10. **Logged**: the change it makes is in the change log with who, when, and before → after.
+
+## Updating a goal
+
+There are four ways to update a goal, from most to least frequent:
+
+| What | Where | What happens |
+|---|---|---|
+| Weekly number | Check-in | On plan: type the number (or tap "Same as last week") and post. Status is set from the numbers; "Change" opens the owner's call. The chart is behind "Show chart". |
+| Still behind | Check-in | Last week's reason and path back are shown. "Still true" carries them over in one tap (asking for a new week if the old one has passed); "It's changed" opens them for editing. |
+| Something worth knowing mid-week | Goal page · Activity | "Add a note". It goes into the activity and the change log. |
+| Name, owner, links, or the plan itself | Goal page · Edit | One short screen. Before check-ins start, changes save directly. After, a plan change (start, target, shape, limit, stages) needs a reason and goes to the sponsor; the current plan stands until it's approved, and approving it keeps the original on the chart. |
 
 ## Design principles behind them
 

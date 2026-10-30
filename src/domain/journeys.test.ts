@@ -1,10 +1,11 @@
 // @vitest-environment node
-import { attentionFor, attentionList, openProposal } from './attention';
+import { attentionFor, attentionList, openProposal, pendingSummary } from './attention';
+import { planChanged, withPlanOf } from './goal';
 import { checkInChange, goalChange } from './changes';
 import { emptyDraft, toCheckIn } from './checkin';
 import { buildWorkspace, GOALS_TEMPLATE, parseTable, PEOPLE_TEMPLATE } from './importer';
 import { onTimeStreak, weekProgress } from './progress';
-import { reviewQueue, withApprovedTarget } from './review';
+import { reviewQueue, withApprovedChange, withApprovedTarget } from './review';
 import { seed } from '../data/seed';
 import type { Goal, MetricGoal } from './types';
 
@@ -121,5 +122,34 @@ describe('import', () => {
     });
     expect(r.issues.map((i) => `${i.table} ${i.row}`)).toEqual(['Goals 2', 'Goals 3', 'Goals 4']);
     expect(r.issues[0]!.message).toMatch(/Nobody/);
+  });
+});
+
+describe('plan changes after check-ins start', () => {
+  const lead = goal('lead') as MetricGoal;
+  const proposed: MetricGoal = { ...lead, plan: { ...lead.plan, target: lead.plan.target - 0.5 } };
+  const pending = { proposed, byId: lead.ownerId, at: '2026-10-30T10:00:00.000Z', week: 9, reason: 'The new tooling makes the stretch reachable.' };
+  it('spots a plan change but not a rename', () => {
+    expect(planChanged(lead, proposed)).toBe(true);
+    expect(planChanged(lead, { ...lead, title: 'Renamed' })).toBe(false);
+    expect(withPlanOf({ ...lead, title: 'Renamed' }, proposed)).toMatchObject({ title: 'Renamed', plan: proposed.plan });
+  });
+  it('flags the proposal and approving it re-baselines, keeping the original plan', () => {
+    const g: Goal = { ...lead, pending };
+    expect(pendingSummary(g)).toMatch(/^Target .+ → .+/);
+    expect(attentionFor(g, { ...s, goals: s.goals.map((x) => (x.id === g.id ? g : x)) }, cycle, today).flags.map((f) => f.kind)).toContain('proposal');
+    const approved = withApprovedChange(g, 9) as MetricGoal;
+    expect(approved.plan.target).toBe(proposed.plan.target);
+    expect(approved.originalPlan).toEqual(lead.originalPlan ?? lead.plan);
+    expect(approved.rebaselinedWeek).toBe(9);
+    expect(approved.pending).toBeNull();
+  });
+  it('reopens a goal already reviewed this week until the sponsor answers the proposal', () => {
+    const g: Goal = { ...lead, pending };
+    const earlier = { id: 'd1', goalId: lead.id, checkInId: null, week: 9, kind: 'acknowledge' as const, byId: 'elena', at: '2026-10-30T09:00:00.000Z', note: '' };
+    const s2 = { ...s, goals: s.goals.map((x) => (x.id === g.id ? g : x)), decisions: [...s.decisions, earlier] };
+    expect(reviewQueue(s2, cycle, today, 9).handled.has(lead.id)).toBe(false);
+    const answered = { ...earlier, id: 'd2', kind: 'approve-change' as const, at: '2026-10-30T11:00:00.000Z' };
+    expect(reviewQueue({ ...s2, decisions: [...s2.decisions, answered] }, cycle, today, 9).handled.has(lead.id)).toBe(true);
   });
 });

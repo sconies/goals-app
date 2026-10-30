@@ -104,7 +104,7 @@ const navTo = async (h, p, label) => {
 const J = [];
 const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
 
-journey('U1', ['CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
+journey('U1', ['CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
   // Sam: two goals due and both on plan. Number, post, next: three interactions a goal.
   let p = h.use(await newPage(device, 'sam'));
   await p.goto(url('/'));
@@ -140,23 +140,30 @@ journey('U1', ['CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-
   await see(p, 'You’re all set for week 7', 'posted check-ins survive a reload');
   await p.context().close();
 
-  // Maya: behind plan, so the reason and the path to green are asked for, and posting can't skip them.
+  // Maya: behind plan, so the reason and the path to green are needed. Last week's are offered back:
+  // "Still true" carries them over in one tap, and posting can't skip the choice.
   p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/check-in'));
   await h.fill(p.getByLabel('This week’s value'), '29.0');
   h.set('attention', await p.locator('.verdict[data-tone=off]').isVisible(), 'behind plan is not flagged in the verdict');
-  await p.getByRole('button', { name: /Finish the last step/ }).click({ force: true });
-  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Still needed' }).isVisible(), 'an incomplete post says nothing');
-  await h.click(p.getByRole('button', { name: 'Blocked by a dependency' }));
-  await h.fill(p.getByLabel('What happened'), 'Brain is waiting on Security’s repo access.');
-  await h.fill(p.getByPlaceholder('The one or two things that close the gap'), 'Interim read-only scope for the Brain');
-  await h.click(p.getByRole('group', { name: 'Back on plan by' }).getByRole('button', { name: 'Week 9' }));
+  await see(p, 'Last week you said', 'last week’s reason and path are offered back');
+  await p.locator('.focus-foot button[type=submit]').click({ force: true });
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Choose one to carry on' }).isVisible(), 'an incomplete post says nothing');
+  await h.click(p.getByRole('button', { name: 'Still true', exact: true }));
+  if (await p.getByText('The week you gave has passed').isVisible().catch(() => false)) await h.click(p.getByRole('group', { name: /Back on plan by|passed/ }).getByRole('button').first());
   await h.checkpoint('behind');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Posted');
   s = await h.snapshot();
   const c = s.changes.filter((x) => x.actorId === 'maya' && x.action === 'posted').pop();
-  h.set('logged', !!c && c.diffs.some((d) => d.field === 'Path to green' && /Week|week 9/.test(d.to)), 'Maya’s check-in with its path to green is not in the log');
+  h.set('logged', !!c && c.diffs.some((d) => d.field === 'Path to green') && c.diffs.some((d) => /Brain/.test(d.to)), 'Maya’s carried-over reason and path are not in the log');
+  // "It’s changed" opens last week's words for editing instead.
+  const next = p.getByRole('button', { name: /Next: / });
+  if (await next.isVisible().catch(() => false)) await next.click();
+  if (await p.getByRole('button', { name: 'It’s changed' }).isVisible().catch(() => false)) {
+    await p.getByRole('button', { name: 'It’s changed' }).click();
+    if (!(await p.getByLabel('What happened').inputValue()).length && !(await p.getByLabel('What changes').inputValue().catch(() => '')).length) fail('“It’s changed” did not prefill last week’s words');
+  }
   await p.context().close();
 });
 
@@ -300,7 +307,7 @@ journey('U5', ['WORKSPACES', 'CHANGE-LOG', 'PROFILES'], 'Load your own data and 
   await p.context().close();
 }, ['attention']);
 
-journey('U6', ['GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], 'Understand a goal and its change history', 3, async (h, device) => {
+journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], 'Understand a goal and its change history', 3, async (h, device) => {
   const p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/goals'));
   await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
@@ -312,27 +319,47 @@ journey('U6', ['GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], 'Understan
   h.set('logged', await p.locator('.diffs ins').first().isVisible(), 'a change does not show its before and after');
   h.set('finish', true);
   h.set('progress', await p.locator('.stagelist').isVisible(), 'the stages are not shown');
+  // A mid-week note goes straight into the goal's activity, logged like every other save.
+  await h.fill(p.getByLabel('Add a note'), 'Vendor confirmed the SEC-88 fix ships Tuesday.');
+  await h.click(p.getByRole('button', { name: 'Post note' }));
+  await see(p, 'Vendor confirmed the SEC-88 fix ships Tuesday.', 'the note shows in the activity');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'note' && c.actorId === 'maya' && c.goalId === 'access' && c.diffs.some((d) => /SEC-88 fix/.test(d.to))), 'the note is not in the change log');
   await p.goto(url('/goals/review'));
   await see(p, 'Target changed in week 4: 75% → 95%', 'the re-baseline is explained on the chart');
   await p.context().close();
 }, ['errors', 'budget']);
 
-journey('U7', ['REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG'], 'Propose a target change and get it approved', 14, async (h, device) => {
+journey('U7', ['REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE'], 'Propose a target change and get it approved', 16, async (h, device) => {
   let p = h.use(await newPage(device, 'sam'));
   await p.goto(url('/'));
   await h.inView(p.getByRole('link', { name: /Start check-in/ }), 'entry', 'Start check-in');
   await h.click(p.getByRole('link', { name: /Start check-in/ }));
   await h.fill(p.getByLabel('This week’s value'), '90');
   await see(p, 'Why is it so far ahead?');
+  // Last week's reason is offered back; this week's is different, so edit it.
+  await h.click(p.getByRole('button', { name: 'It’s changed', exact: true }));
   await h.click(p.getByRole('button', { name: 'Change landed early' }));
   await h.fill(p.getByLabel('What happened'), 'Monorepo support shipped, so every repo gets AI review.');
   await h.click(p.getByRole('button', { name: 'Propose a new target' }));
   await h.fill(p.getByLabel('Proposed target'), '90');
-  await p.getByRole('button', { name: /Finish the last step|Post/ }).click({ force: true });
+  await p.locator('.focus-foot button[type=submit]').click({ force: true });
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'beyond the current one' }).isVisible(), 'a target below the current one is not explained');
   await h.fill(p.getByLabel('Proposed target'), '99');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Posted');
+  // A plan change from the edit screen: once check-ins have started it is proposed, with a reason, not saved.
+  await p.goto(url('/goals/lead'));
+  await h.click(p.getByRole('link', { name: 'Edit' }));
+  await h.fill(p.getByLabel(/^Target/), '1.5');
+  await p.locator('.focus-foot button[type=submit]').click({ force: true });
+  h.set('errors', await p.locator('textarea.invalid[aria-label="Why change it?"]').isVisible() && await p.getByRole('button', { name: 'Say why it should change' }).isVisible(), 'a plan change without a reason is not explained');
+  await h.fill(p.getByLabel('Why change it?'), 'The merge queue cut lead time faster than planned; 1.5 days is reachable.');
+  await h.checkpoint('edit');
+  await h.click(p.getByRole('button', { name: 'Propose change' }));
+  await see(p, 'Plan change proposed', 'the goal page shows the proposal waiting');
+  let s = await h.snapshot();
+  if (s.goals.find((g) => g.id === 'lead').plan.target !== 2) fail('the proposed target was applied before approval');
   // Same browser, other profile: the sponsor.
   await p.goto(url('/'));
   await p.locator('.me:visible, .profilebtn:visible').first().click();
@@ -341,19 +368,36 @@ journey('U7', ['REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG'], 'Propose a
   await p.goto(url('/review'));
   await p.locator('.review-card').waitFor();
   await h.progressShown('review');
-  for (let i = 0; i < 10; i++) {
-    if (await p.getByRole('button', { name: 'Approve 99%' }).isVisible().catch(() => false)) break;
-    await p.getByRole('button', { name: 'Skip for now' }).click();
-  }
+  const reach = async (name) => {
+    for (let i = 0; i < 12; i++) {
+      await p.locator('.review-card, .celebrate').first().waitFor();
+      if (await p.getByRole('button', { name }).isVisible().catch(() => false)) return;
+      await p.getByRole('button', { name: 'Skip for now' }).click();
+    }
+    fail(`never reached “${name}” in the review`);
+  };
+  await reach('Approve 99%');
   h.set('attention', await p.locator('.review-card .flag-proposal').isVisible(), 'the proposal is not flagged');
   await h.checkpoint('proposal');
   await h.click(p.getByRole('button', { name: 'Approve 99%' }));
+  await p.waitForTimeout(250);
+  // The goal page's "Decide" link opens the review on that goal.
+  await p.goto(url('/goals/lead'));
+  await h.click(p.getByRole('link', { name: 'Decide' }));
+  await reach('Approve change');
+  await see(p, 'Target 2.0 days → 1.5 days', 'the review card says what the plan change is');
+  await h.checkpoint('plan change');
+  await h.click(p.getByRole('button', { name: 'Approve change' }));
   await p.goto(url('/goals/review'));
   await see(p, 'Target changed in week 7: 75% → 99%', 'the approved target re-baselines the plan, keeping the original');
   h.set('finish', true);
-  const s = await h.snapshot();
+  s = await h.snapshot();
   const c = s.changes.find((x) => x.action === 'approved' && x.actorId === 'elena' && x.goalId === 'review' && /99%/.test(x.summary));
   h.set('logged', !!c && c.diffs.some((d) => d.field === 'Target' && d.from === '95%' && d.to === '99%'), 'the approval is not logged with the old and new target');
+  const lead = s.goals.find((g) => g.id === 'lead');
+  const proposed = s.changes.find((x) => x.action === 'proposed' && x.actorId === 'sam' && x.goalId === 'lead');
+  const approved = s.changes.find((x) => x.actorId === 'elena' && x.goalId === 'lead' && /plan change/.test(x.summary));
+  h.set('logged', lead.plan.target === 1.5 && !lead.pending && lead.originalPlan?.target === 2 && !!proposed && proposed.diffs.some((d) => d.field === 'Why') && !!approved, 'the plan change is not applied, kept as original, or logged');
   await p.context().close();
 });
 

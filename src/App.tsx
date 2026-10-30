@@ -3,6 +3,7 @@ import { AppProvider } from './app/state';
 import type { Store } from './data/store';
 import { Activity } from './screens/Activity';
 import { CheckInFlow } from './screens/CheckInFlow';
+import { GoalEdit } from './screens/GoalEdit';
 import { GoalScreen } from './screens/GoalScreen';
 import { GoalsScreen } from './screens/GoalsScreen';
 import { GoalWizard } from './screens/GoalWizard';
@@ -23,7 +24,7 @@ export function Routed() {
         <Route path="/goals" element={<GoalsScreen />} />
         <Route path="/goals/new" element={<GoalWizard />} />
         <Route path="/goals/:goalId" element={<GoalScreen />} />
-        <Route path="/goals/:goalId/edit" element={<GoalWizard />} />
+        <Route path="/goals/:goalId/edit" element={<GoalEdit />} />
         <Route path="/activity" element={<Activity />} />
         <Route path="/workspace" element={<WorkspaceHome />} />
         <Route path="/workspace/new" element={<ImportWizard />} />

@@ -1,5 +1,5 @@
 {
-  "slice": "2 · Profiles, journeys and the change log",
+  "slice": "3 · Updating a goal",
   "requirements": [
     {
       "id": "PLAN-SHAPE",
@@ -15,6 +15,21 @@
       "id": "REBASELINE",
       "area": "Plans",
       "text": "Changing a plan after check-ins start re-baselines it and keeps the original visible."
+    },
+    {
+      "id": "PLAN-CHANGE",
+      "area": "Plans",
+      "text": "Once check-ins have started, the owner proposes a plan change with a reason; it waits for the sponsor's approval in the review, and the current plan stands until then."
+    },
+    {
+      "id": "CARRY-OVER",
+      "area": "Check-ins",
+      "text": "When a check-in still needs a reason or a path back, last week's are offered back: 'Still true' carries them over, 'It's changed' opens them for editing."
+    },
+    {
+      "id": "NOTES",
+      "area": "Change log",
+      "text": "Anyone can add a mid-week note to a goal; it shows in the goal's activity and is logged."
     },
     {
       "id": "STATUS-BANDS",
@@ -202,7 +217,8 @@
       "id": "U7",
       "rank": 7,
       "title": "Propose a target change and get it approved",
-      "who": "Owner, then sponsor"
+      "who": "Owner, then sponsor",
+      "budget": 16
     },
     {
       "id": "U8",

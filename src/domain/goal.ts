@@ -77,6 +77,23 @@ export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
   return e;
 }
 
+/** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
+export function planChanged(a: Goal, b: Goal): boolean {
+  if (a.kind !== b.kind) return true;
+  if (a.kind === 'metric' && b.kind === 'metric') return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape;
+  if (a.kind === 'range' && b.kind === 'range') return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.margin !== b.range.margin;
+  if (a.kind === 'milestone' && b.kind === 'milestone') return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
+  return false;
+}
+
+/** The goal with only its plan taken from another version: names, owner and links stay as they are. */
+export function withPlanOf(base: Goal, plan: Goal): Goal {
+  if (base.kind === 'metric' && plan.kind === 'metric') return { ...base, plan: plan.plan };
+  if (base.kind === 'range' && plan.kind === 'range') return { ...base, range: plan.range };
+  if (base.kind === 'milestone' && plan.kind === 'milestone') return { ...base, stages: plan.stages };
+  return base;
+}
+
 /**
  * Build the goal from a valid draft. When an existing metric goal's plan changes after
  * check-ins have started, the first plan is kept as the original and the change is dated.

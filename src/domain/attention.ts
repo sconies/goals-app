@@ -68,6 +68,23 @@ export function worseningTrend(goal: Goal, cycle: Cycle, checkIns: CheckIn[]): s
   return slipped ? `${slipped.name} slipped to ${weekLabel(slipped.expectedWeek, cycle.weeks)} at the last check-in.` : null;
 }
 
+/** "Target 2.0 days → 1.5 days" for a goal's pending change. */
+export function pendingSummary(goal: Goal): string {
+  const p = goal.pending?.proposed;
+  if (!p) return '';
+  const parts: string[] = [];
+  if (goal.kind === 'metric' && p.kind === 'metric') {
+    if (goal.plan.target !== p.plan.target) parts.push(`target ${fmt(goal.plan.target, goal)} → ${fmt(p.plan.target, p)}`);
+    if (goal.plan.start !== p.plan.start) parts.push(`start ${fmt(goal.plan.start, goal)} → ${fmt(p.plan.start, p)}`);
+    if (goal.plan.shape !== p.plan.shape) parts.push('plan shape');
+  } else if (goal.kind === 'range' && p.kind === 'range') {
+    if (goal.range.limit !== p.range.limit) parts.push(`limit ${fmt(goal.range.limit, goal)} → ${fmt(p.range.limit, p)}`);
+    if (goal.range.margin !== p.range.margin) parts.push('warning margin');
+  } else if (goal.kind === 'milestone' && p.kind === 'milestone') parts.push('stages and due weeks');
+  const text = parts.join(', ') || 'plan';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function attentionFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): GoalAttention {
   const status = goalStatus(goal, cycle, s.checkIns, today);
   const { latest, week } = status;
@@ -87,6 +104,7 @@ export function attentionFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date)
   if (trend) add('trend', 'Worsening trend', trend, 'risk');
   const proposal = openProposal(goal, s.checkIns, s.decisions);
   if (proposal && goal.kind === 'metric') add('proposal', 'Target change proposed', `${fmt(goal.plan.target, goal)} → ${fmt(proposal.proposeTarget as number, goal)}, waiting for the sponsor.`, 'info');
+  else if (goal.pending) add('proposal', 'Plan change proposed', `${pendingSummary(goal)}, waiting for the sponsor. “${goal.pending.reason}”`, 'info');
   if (status.greener && latest && status.status !== 'stale') add('greener', 'Greener than calculated', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
   if (week >= 1 && status.status !== 'done' && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', 'Check-in due', `Due before the review in week ${week}.`, 'info');
 

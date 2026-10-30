@@ -13,7 +13,7 @@ export interface GoalRow extends W {
   kind: Goal['kind']; io: Goal['io']; headline: boolean; guardrail: boolean; effect: number | null; source: string; definition: string;
   unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null;
   original_plan: MetricPlan | null; rebaselined_week: number | null; range_bound: 'atMost' | 'atLeast' | null; range_limit: number | null;
-  range_margin: number | null; created_at: string;
+  range_margin: number | null; created_at: string; pending?: Goal['pending'];
 }
 export interface CheckInRow extends W {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
@@ -49,6 +49,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
     created_at: g.createdAt || new Date().toISOString(),
+    pending: g.pending ?? null,
   };
   const stages = g.kind === 'milestone' ? g.stages.map((s) => ({ workspace_id: ws, id: s.id, goal_id: g.id, name: s.name, due_week: s.dueWeek })) : [];
   return { goal, stages };
@@ -58,6 +59,7 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
   const common = {
     id: r.id, cycleId: r.cycle_id, teamId: r.team_id, ownerId: r.owner_id, parentId: r.parent_id, title: r.title, io: r.io,
     headline: r.headline, guardrail: r.guardrail, effect: num(r.effect), source: r.source, definition: r.definition, createdAt: iso(r.created_at),
+    ...(r.pending ? { pending: r.pending } : {}),
   };
   if (r.kind === 'metric') {
     const op = r.original_plan;

@@ -74,6 +74,17 @@ interface GoalBase {
   source: string;
   definition: string;
   createdAt: string;
+  /** A change to the plan or target waiting for the sponsor, once check-ins have started. */
+  pending?: PendingChange | null;
+}
+
+export interface PendingChange {
+  /** The goal as it would be if the change is approved. */
+  proposed: Goal;
+  byId: Id;
+  at: string;
+  week: number;
+  reason: string;
 }
 
 export interface MetricGoal extends GoalBase {
@@ -157,9 +168,9 @@ export interface Change {
   at: string;
   actorId: Id;
   goalId: Id | null;
-  entity: 'goal' | 'check-in' | 'decision' | 'workspace';
+  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note';
   entityId: Id;
-  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset';
+  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted';
   summary: string;
   diffs: Diff[];
 }
@@ -170,7 +181,7 @@ export interface Decision {
   goalId: Id;
   checkInId: Id | null;
   week: number;
-  kind: 'approve-target' | 'decline-target' | 'acknowledge' | 'ask';
+  kind: 'approve-target' | 'decline-target' | 'approve-change' | 'decline-change' | 'acknowledge' | 'ask';
   byId: Id;
   at: string;
   note: string;

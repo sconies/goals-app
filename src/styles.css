@@ -259,6 +259,11 @@ select.input { padding-right: 28px; }
 .bignum:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 .bignum input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 34px; line-height: 44px; font-weight: 700; letter-spacing: -0.02em; }
 .bignum-unit { font-size: 18px; color: var(--muted); font-weight: 600; }
+.callline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.carry { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.carry p { margin: 0; font-size: 14px; line-height: 1.45; }
+.carry .label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: none; }
+.carry.kept { background: transparent; }
 .verdict { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .stagerow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--line-2); }
 .stagerow:first-child { border-top: 0; }
@@ -458,3 +463,10 @@ svg.chart { display: block; overflow: visible; }
   .kindcards { grid-template-columns: 1fr; }
   .arrow { display: none; }
 }
+
+/* A proposed plan change waiting for the sponsor. */
+.pending-note { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 8px; background: var(--accent-wash); color: var(--fg); }
+.pending-note > span { min-width: 0; }
+.note-compose { display: flex; flex-direction: column; gap: 8px; }
+.note-compose .row { justify-content: flex-end; }
+.note-text { margin: 2px 0 0; font-size: 14px; line-height: 1.45; color: var(--fg); white-space: pre-wrap; }
