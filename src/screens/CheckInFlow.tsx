@@ -46,7 +46,7 @@ export function CheckInFlow() {
   return (
     <div className="focus">
       <div className="focus-top">
-        <span className="small strong">Check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
+        <span className="small strong">Check-in{queue.length > 1 ? ` ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         {queue.length > 1 && <div className="dots" aria-hidden="true">{queue.map((id, i) => <i key={id} className={i < index ? 'done' : i === index ? 'now' : ''} />)}</div>}
         <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft">✕</button>
       </div>
@@ -140,7 +140,7 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
     ...(needsMore ? [{ label: e.needsPath ? (e.reason ? 'Why and the path back' : 'Path back') : 'Why', done: mode !== 'ask' && !e.missing.some((m) => /why|path|target/.test(m)) }] : []),
   ];
   const nextLabel = !hasValue ? 'Enter the number'
-    : mode === 'ask' ? 'Choose one for last week’s note'
+    : mode === 'ask' ? 'Confirm last week’s note'
       : e.missing.some((m) => m.startsWith('why your call')) ? 'Say why it’s greener'
         : e.missing.some((m) => m.startsWith('why it’s')) ? 'Add why'
           : e.missing.includes('path to green') ? (draft.ptgWhat.trim().length >= MIN_PATH ? 'Pick the week it’s back' : 'Add the path back')
@@ -167,25 +167,25 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
       <GoalHead goal={goal} previous={previous} teamLine={goal.headline ? 'Headline goal' : team?.name} />
       {restored && <div className="restored small">Restored your unsaved answers.</div>}
 
-      <Section n={1} title={goal.kind === 'milestone' ? 'Where does each stage stand?' : 'What’s the number this week?'} done={hasValue}>
+      <Section n={1} numbered={needsMore} title={goal.kind === 'milestone' ? 'Where does each stage stand?' : 'What’s the number this week?'} hint={goal.source ? `From ${goal.source}` : undefined} done={hasValue}>
         {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (
-          <>
+          <div className="stack">
             <label className="bignum">
               <span className="sr">This week’s value</span>
               <input inputMode="decimal" autoComplete="off" autoFocus value={draft.value} onChange={(ev) => set({ value: ev.target.value })}
                 placeholder="Type it here" aria-describedby="value-hint" aria-label="This week’s value" />
               {goal.unit && <span className="bignum-unit">{goal.unit}</span>}
             </label>
-            <span id="value-hint" className="row small muted" style={{ gap: 8 }}>
-              {previous?.value != null ? <>Last week {fmt(previous.value, goal)}{!draft.value && <button type="button" className="linkish small" onClick={() => set({ value: String(previous.value) })}>Same as last week</button>}</> : 'First check-in'}
-              {goal.source && <span>· from {goal.source}</span>}
+            <span id="value-hint" className="valuehint hint">
+              <span>{previous?.value != null ? `Last week ${fmt(previous.value, goal)}` : 'First check-in this cycle'}</span>
+              {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Use {fmt(previous.value, goal)}</button>}
             </span>
-          </>
+          </div>
         )}
         {hasValue && <Verdict goal={goal} e={e} />}
         {hasValue && (showCall ? (
-          <div className="stack" style={{ gap: 8 }}>
-            <span className="small strong" id="call-label">Your call <span className="muted" style={{ fontWeight: 400 }}>· the official status</span></span>
+          <div className="stack">
+            <span className="field-label" id="call-label">Status</span>
             <div className="row nowrap" role="group" aria-labelledby="call-label">
               {(e.calc === 'done' ? ['done', 'on', 'risk', 'off'] as Status[] : ['on', 'risk', 'off'] as Status[]).map((k) => (
                 <button key={k} type="button" className={'callbtn ' + k} aria-pressed={e.status === k} onClick={() => set({ status: k })}>
@@ -193,44 +193,47 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
                 </button>
               ))}
             </div>
-            {e.status !== e.calc && <span className="small muted">{e.greener ? `Greener than the numbers (${LABEL[e.calc]}), so say why.` : `Redder than the numbers (${LABEL[e.calc]}). That’s fine: you know more.`}</span>}
+            <span className="hint">{e.status === e.calc ? 'Matches the numbers. You can pick another if you know more.' : e.greener ? `The numbers say ${LABEL[e.calc].toLowerCase()}, so say why it’s better.` : `The numbers say ${LABEL[e.calc].toLowerCase()}. Your call counts.`}</span>
             {e.greener && (
               <label className="field">
-                <span className="small strong">Why is it greener than the numbers?</span>
+                <span className="field-label">Why is it better than the numbers?</span>
                 <input className={'input' + (tried && draft.greenerWhy.trim().length < MIN_REASON ? ' invalid' : '')} value={draft.greenerWhy} onChange={(ev) => set({ greenerWhy: ev.target.value })} placeholder="e.g. The fix ships Monday and closes the gap" />
               </label>
             )}
           </div>
         ) : (
-          <span className="small callline"><Chip k={e.status} /> <span className="muted">is your call, matching the numbers.</span> <button type="button" className="linkish small" onClick={() => setCallOpen(true)}>Change</button></span>
+          <div className="callline"><span className="muted">Status</span><Chip k={e.status} /><span className="muted">matches the numbers</span><button type="button" className="linkish tap" onClick={() => setCallOpen(true)}>Change</button></div>
         ))}
       </Section>
 
       {needsMore && (
-        <Section n={2} title={reasonTitle} done={steps[1]?.done ?? false}>
+        <Section n={2} numbered title={reasonTitle} done={steps[1]?.done ?? false}>
           {mode === 'ask' && previous && (
             <div className="carry">
-              <span className="label">Last week you said</span>
-              {e.reason && priorCauseOk && <p><strong>{causeLabel(previous.cause)}:</strong> {previous.why}</p>}
-              {e.needsPath && previous.pathToGreen && <p><strong>Path back by {weekLabel(previous.pathToGreen.byWeek, cycle.weeks)}:</strong> {previous.pathToGreen.what}</p>}
-              <div className="row">
+              <span className="field-label">Last week you said</span>
+              <blockquote>
+                {e.reason && priorCauseOk && <p><strong>{causeLabel(previous.cause)}.</strong> {previous.why}</p>}
+                {e.needsPath && previous.pathToGreen && <p><strong>Back on plan by {weekLabel(previous.pathToGreen.byWeek, cycle.weeks)}.</strong> {previous.pathToGreen.what}</p>}
+              </blockquote>
+              <div className="actions">
                 <button type="button" className="btn" onClick={() => { set(fromLast()); setCarry('kept'); }}>Still true</button>
                 <button type="button" className="btn" onClick={() => { set(fromLast()); setCarry('edit'); }}>It’s changed</button>
               </div>
-              {tried && <span className="small tone-off" role="alert">Choose one to carry on.</span>}
+              {tried && <span className="hint tone-off" role="alert">Choose one to carry on.</span>}
             </div>
           )}
           {mode === 'kept' && (
-            <div className="carry kept">
-              {e.reason && <p><strong>{causeLabel(draft.cause)}:</strong> {draft.why}</p>}
-              {e.needsPath && <p><strong>Path back:</strong> {draft.ptgWhat}</p>}
+            <div className="carry">
+              <blockquote>
+                {e.reason && <p><strong>{causeLabel(draft.cause)}.</strong> {draft.why}</p>}
+                {e.needsPath && <p><strong>{draft.ptgBy != null ? `Back on plan by ${weekLabel(draft.ptgBy, cycle.weeks)}.` : 'Path back.'}</strong> {draft.ptgWhat}</p>}
+              </blockquote>
               {e.needsPath && draft.ptgBy == null && (
-                <div className="field"><span className="small strong tone-risk" id="ptg-by">The week you gave has passed. Back on plan by when?</span>
+                <div className="field"><span className="field-label tone-risk" id="ptg-by">The week you gave has passed. Back on plan by when?</span>
                   <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} onPick={(w) => set({ ptgBy: w })} />
                 </div>
               )}
-              {e.needsPath && draft.ptgBy != null && <span className="small muted">Back on plan by {weekLabel(draft.ptgBy, cycle.weeks)}</span>}
-              <button type="button" className="linkish small" style={{ alignSelf: 'flex-start' }} onClick={() => setCarry('edit')}>Edit</button>
+              <div><button type="button" className="linkish tap" onClick={() => setCarry('edit')}>Edit these words</button></div>
             </div>
           )}
           {mode === 'edit' && (
@@ -248,14 +251,14 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
                 </>
               )}
               {e.needsPath && (
-                <div className="stack" style={{ gap: 10 }}>
-                  <label className="field"><span className="small strong">What changes to get back on plan</span>
+                <div className="stack" style={{ gap: 'var(--s4)' }}>
+                  <label className="field"><span className="field-label">What changes to get back on plan</span>
                     <input className={'input' + (tried && draft.ptgWhat.trim().length < MIN_PATH ? ' invalid' : '')} value={draft.ptgWhat} onChange={(ev) => set({ ptgWhat: ev.target.value })} placeholder="The one or two things that close the gap" aria-label="What changes" />
                   </label>
-                  <div className="field"><span className="small strong" id="ptg-by">Back on plan by</span>
+                  <div className="field"><span className="field-label" id="ptg-by">Back on plan by</span>
                     <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} onPick={(w) => set({ ptgBy: w })} />
                   </div>
-                  <label className="field"><span className="small">Needs a decision or help? <span className="muted">Optional · goes to the review</span></span>
+                  <label className="field"><span className="field-label">Need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional</span></span>
                     <input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Elena: approve an interim scope" />
                   </label>
                 </div>
@@ -263,17 +266,17 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
             </>
           )}
           {e.asksTarget && goal.kind === 'metric' && mode !== 'ask' && (
-            <div className="stack" style={{ gap: 8 }}>
-              <span className="small strong">Should the target change?</span>
+            <div className="stack">
+              <span className="field-label">Should the target change?</span>
               <div className="row" role="group" aria-label="Target">
                 <button type="button" className="pill" aria-pressed={!raise} onClick={() => { setRaise(false); set({ proposeTarget: '' }); }}>Keep {fmt(goal.plan.target, goal)}</button>
                 <button type="button" className="pill" aria-pressed={raise} onClick={() => setRaise(true)}>Propose a new target</button>
               </div>
               {raise && (
                 <label className="field" style={{ maxWidth: 240 }}>
-                  <span className="small">Proposed target</span>
+                  <span className="field-label">Proposed target</span>
                   <span className="row nowrap"><input className="input" inputMode="decimal" value={draft.proposeTarget} onChange={(ev) => set({ proposeTarget: ev.target.value })} aria-label="Proposed target" />{goal.unit && <span className="muted">{goal.unit}</span>}</span>
-                  <span className="tiny muted">The sponsor approves it in the review.</span>
+                  <span className="hint">The sponsor decides in the weekly review.</span>
                 </label>
               )}
             </div>
@@ -282,8 +285,8 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
       )}
 
       {hasValue && (showNext
-        ? <label className="field"><span className="small strong">Next step before next week <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span><input className="input" value={draft.next} onChange={(ev) => set({ next: ev.target.value })} placeholder="One thing that will move this" /></label>
-        : <button type="button" className="linkish small" style={{ alignSelf: 'flex-start' }} onClick={() => setShowNext(true)}>+ Add a next step (optional)</button>)}
+        ? <label className="field"><span className="field-label">Next step <span className="muted" style={{ fontWeight: 400 }}>Optional</span></span><input className="input" value={draft.next} onChange={(ev) => set({ next: ev.target.value })} placeholder="One thing that will move this before next week" /></label>
+        : <div><button type="button" className="linkish tap" onClick={() => setShowNext(true)}>Add a next step</button></div>)}
 
       <div className="focus-foot">
         {steps.length > 1 && (
@@ -291,8 +294,8 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
             {steps.map((st) => <li key={st.label} className={st.done ? 'done' : tried ? 'missing' : ''}><span aria-hidden="true">{st.done ? '✓' : '○'}</span>{st.label}</li>)}
           </ul>
         )}
+        {tried && e.missing.length > 0 && <span className="hint tone-off" role="alert">Still needed: {e.missing.join(', ')}</span>}
         <button className="btn primary big-btn" type="submit" aria-disabled={!e.canPost || saving || mode === 'ask'}>{saving ? 'Posting…' : nextLabel}</button>
-        {tried && e.missing.length > 0 && <span className="small tone-off" role="alert">Still needed: {e.missing.join(', ')}</span>}
       </div>
     </form>
   );
@@ -308,11 +311,15 @@ function WeekPicks({ week, weeks, value, onPick }: { week: number; weeks: number
   );
 }
 
-function Section({ n, title, done, children }: { n: number; title: string; done: boolean; children: React.ReactNode }) {
+/** One question. Numbered only when the check-in has more than one. */
+function Section({ n, numbered, title, hint, done, children }: { n: number; numbered?: boolean; title: string; hint?: string; done: boolean; children: React.ReactNode }) {
   return (
     <section className={'qsection' + (done ? ' done' : '')} aria-label={title}>
-      <h2 className="qtitle"><span className="qnum" aria-hidden="true">{done ? '✓' : n}</span>{title}</h2>
-      <div className="stack" style={{ gap: 10 }}>{children}</div>
+      <div className="stack" style={{ gap: 'var(--s1)' }}>
+        <h2 className="qtitle">{numbered && <span className="qnum" aria-hidden="true">{done ? '✓' : n}</span>}{title}</h2>
+        {hint && <span className="hint">{hint}</span>}
+      </div>
+      <div className="qbody">{children}</div>
     </section>
   );
 }
@@ -320,11 +327,11 @@ function Section({ n, title, done, children }: { n: number; title: string; done:
 function GoalHead({ goal, previous, teamLine }: { goal: Goal; previous: CheckIn | null; teamLine?: string }) {
   const app = useApp();
   return (
-    <div className="stack" style={{ gap: 4 }}>
-      {teamLine && <span className="small muted">{teamLine}</span>}
+    <div className="goalhead">
+      {teamLine && <span className="eyebrow">{teamLine}</span>}
       <h1 className="title-xl">{goal.title}</h1>
-      {previous && <span className="small muted">Last check-in: week {previous.week} · <Chip k={previous.status} /></span>}
-      {!previous && app.week > 1 && <span className="small muted">No check-in yet this cycle</span>}
+      {previous && <span className="row hint" style={{ gap: 'var(--s2)' }}><Chip k={previous.status} />at the week {previous.week} check-in</span>}
+      {!previous && app.week > 1 && <span className="hint">No check-in yet this cycle</span>}
     </div>
   );
 }
@@ -337,24 +344,29 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
   const history = app.checkInsOf(goal).filter((c) => c.week < app.week && c.value != null).map((c) => ({ week: c.week, value: c.value as number }));
   const series = a.kind !== 'milestone' && a.actual != null ? [...history, { week: app.week, value: a.actual }] : history;
   const [chart, setChart] = useState(false);
-  let sentence = gap.long + '.';
-  if (a.kind === 'metric' && goal.kind === 'metric' && a.ratio != null) {
-    const ahead = a.ratio >= 1;
-    sentence = `${ahead ? 'Ahead of' : 'Behind'} this week’s plan of ${fmt(a.plan, goal)}`
-      + (a.forecastMisses && a.forecast != null ? `${ahead ? ', but' : ', and'} at the recent pace it ends near ${fmt(a.forecast, goal)}, short of the ${fmt(goal.plan.target, goal)} target.`
-        : a.forecast != null ? `, and on course for ${fmt(goal.plan.target, goal)}.` : '.');
-  } else if (a.kind === 'range' && goal.kind === 'range') sentence = `${gap.long}. The limit is ${targetText(goal)}.`;
+  // Number first, then one plain sentence; a forecast line only when it tells you something.
+  let title = gap.short, line = gap.long + '.', forecast: { text: string; warn: boolean } | null = null;
+  if (a.kind === 'metric' && goal.kind === 'metric' && a.ratio != null && a.actual != null) {
+    title = a.ratio >= 1 ? 'Ahead of plan' : 'Behind plan';
+    line = `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${app.week}.`;
+    if (a.forecast != null) forecast = a.forecastMisses
+      ? { text: `At this pace it ends near ${fmt(a.forecast, goal)}, short of the ${fmt(goal.plan.target, goal)} target.`, warn: true }
+      : { text: `At this pace it reaches the ${fmt(goal.plan.target, goal)} target.`, warn: false };
+  } else if (a.kind === 'range' && goal.kind === 'range') line = `${gap.long}. The limit is ${targetText(goal)}.`;
   const hasChart = a.kind !== 'milestone';
   return (
     <div className="verdict" data-tone={gap.tone} role="status">
-      <div className="row between nowrap">
-        <span className={'strong tone-' + gap.tone}>{gap.short}</span>
-        {hasChart && <button type="button" className="linkish small" aria-expanded={chart} onClick={() => setChart(!chart)}>{chart ? 'Hide chart' : 'Show chart'}</button>}
+      <div className="verdict-head">
+        <span className={'tone-' + gap.tone}>{title}</span>
+        {hasChart && <button type="button" className="linkish tap small" aria-expanded={chart} onClick={() => setChart(!chart)}>{chart ? 'Hide chart' : 'Show chart'}</button>}
       </div>
-      <span className="small">{sentence}</span>
-      {chart && a.kind === 'metric' && goal.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={a.forecast} height={150} />}
-      {chart && a.kind === 'range' && goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={140} />}
-      {a.kind === 'milestone' && <StageList a={a} />}
+      <span>{line}</span>
+      {forecast && (forecast.warn ? <span className="forecast"><span aria-hidden="true">↘</span>{forecast.text}</span> : <span className="muted">{forecast.text}</span>)}
+      {chart && <div className="chartwrap">
+        {a.kind === 'metric' && goal.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={a.forecast} height={150} />}
+        {a.kind === 'range' && goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={140} />}
+      </div>}
+      {a.kind === 'milestone' && <div className="chartwrap"><StageList a={a} /></div>}
     </div>
   );
 }

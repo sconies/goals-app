@@ -55,13 +55,13 @@ export function Review() {
         {items.map((a, i) => (
           <button key={a.goal.id} className="rail-item" aria-current={i === index ? 'true' : undefined} onClick={() => setIndex(i)}>
             <span className={'rail-mark ' + (q.handled.has(a.goal.id) ? 'done' : a.flags[0]?.tone)} aria-hidden="true">{q.handled.has(a.goal.id) ? '✓' : ''}</span>
-            <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="ellipsis strong">{a.goal.title}</span><span className="tiny muted">{a.flags.filter((f) => f.kind !== 'due').map((f) => f.label).slice(0, 2).join(' · ')}</span></span>
+            <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="ellipsis strong">{a.goal.title}</span><span className="tiny muted">{a.flags.filter((f) => f.kind !== 'due').map((f) => f.label).slice(0, 2).join(', ')}</span></span>
           </button>
         ))}
       </aside>
       <div className="review-main">
         <div className="focus-top">
-          <span className="small strong">Review · {Math.min(q.done + (current && !q.handled.has(current.goal.id) ? 1 : 0), q.total)} of {q.total}</span>
+          <span className="small strong">Review {Math.min(q.done + (current && !q.handled.has(current.goal.id) ? 1 : 0), q.total)} of {q.total}</span>
           <div className="bar ok" style={{ flex: 1, maxWidth: 240 }} aria-hidden="true"><i style={{ width: `${q.total ? (q.done / q.total) * 100 : 100}%` }} /></div>
           <button className="iconbtn" onClick={() => nav('/')} aria-label="Close review">✕</button>
         </div>
@@ -91,7 +91,7 @@ function ReviewDone() {
       <p className="muted">{mine.length ? `${mine.length} ${mine.length === 1 ? 'call' : 'calls'} recorded. Owners see them on their goals.` : 'Nothing needed a call.'} {onTrack} of {app.snapshot.goals.length} goals are on track.</p>
       {mine.length > 0 && (
         <ul className="summary-list">
-          {mine.map((d) => <li key={d.id}><span className="strong">{app.goal(d.goalId)?.title}</span><span className="small muted">{DECISION_LABEL[d.kind]}{d.note ? ` · “${d.note}”` : ''}</span></li>)}
+          {mine.map((d) => <li key={d.id}><span className="strong">{app.goal(d.goalId)?.title}</span><span className="small muted">{DECISION_LABEL[d.kind]}{d.note ? `: “${d.note}”` : ''}</span></li>)}
         </ul>
       )}
       <div className="row" style={{ justifyContent: 'center' }}><Link ref={ref} className="btn primary big-btn" to="/">Back to home</Link><Link className="btn" to="/goals">See all goals</Link></div>
@@ -131,61 +131,71 @@ function ReviewCard({ a, handled, onDone, onSkip }: { a: GoalAttention; handled:
     }
   };
 
+  const proposer = g.pending ? app.person(g.pending.byId)?.name.split(' ')[0] ?? 'The owner' : '';
+  const firstName = owner?.name.split(' ')[0] ?? 'the owner';
   return (
     <article className="review-card">
-      <div className="row" style={{ gap: 6 }}>{a.flags.filter((f) => f.kind !== 'due').map((f) => <FlagPill key={f.kind} f={f} />)}</div>
-      <h1 className="title-xl">{g.title}</h1>
-      <span className="row small muted" style={{ gap: 8 }}><Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name} · {app.team(g.teamId)?.name}{latest ? ` · checked in week ${latest.week}` : ''}</span>
-      <p className="lede">{planChangeOnly ? `${app.person(g.pending!.byId)?.name.split(' ')[0] ?? 'The owner'} wants to change the plan. It’s ${LABEL[st.status].toLowerCase()} today.` : top?.detail}</p>
+      <header className="review-head">
+        <div className="row" style={{ gap: 'var(--s3)' }}>{a.flags.filter((f) => f.kind !== 'due').map((f) => <FlagPill key={f.kind} f={f} />)}</div>
+        <h1 className="title-xl">{g.title}</h1>
+        <span className="row hint" style={{ gap: 'var(--s2)' }}>
+          <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name}, {app.team(g.teamId)?.name}
+          <Link className="linkish tap" to={'/goals/' + g.id}>Open goal</Link>
+        </span>
+      </header>
 
+      {!planChangeOnly && <p className="lede">{top?.detail}</p>}
       {g.pending && !proposal && (
-        <section className="owner-says path">
-          <span className="label">{app.person(g.pending.byId)?.name.split(' ')[0] ?? 'The owner'} proposes a plan change · week {g.pending.week}</span>
-          <p><strong>{pendingSummary(g)}</strong></p>
-          <p>“{g.pending.reason}”</p>
-          <span className="tiny muted">Approving re-baselines the plan from this week. The original stays on the chart.</span>
+        <section className="proposal" aria-label="Proposed plan change">
+          <span className="proposal-change">{pendingSummary(g)}</span>
+          <p className="lede">“{g.pending.reason}”</p>
+          <span className="hint">{proposer} proposed this in week {g.pending.week}. If you approve, the old plan stays on the chart for comparison.</span>
         </section>
       )}
 
       <div className="numbers">
-        <div><span className="tiny muted">Status</span><Chip k={st.status} />{assessment.calc !== st.status && st.status !== 'stale' && <span className="tiny muted">Numbers say {LABEL[assessment.calc].toLowerCase()}</span>}</div>
-        <div><span className="tiny muted">{assessment.kind === 'milestone' ? 'Stages' : 'Latest'}</span><span className="big">{assessment.kind === 'milestone' ? `${assessment.doneCount} of ${assessment.stages.length}` : assessment.actual == null || g.kind === 'milestone' ? '—' : fmt(assessment.actual, g)}</span></div>
-        <div><span className="tiny muted">Against plan</span><span className={'big tone-' + gap.tone}>{gap.short}</span></div>
+        <div><span className="hint">Status</span><Chip k={st.status} />{assessment.calc !== st.status && st.status !== 'stale' && <span className="hint">Numbers say {LABEL[assessment.calc].toLowerCase()}</span>}</div>
+        <div><span className="hint">{assessment.kind === 'milestone' ? 'Stages' : 'Latest'}</span><span className="big">{assessment.kind === 'milestone' ? `${assessment.doneCount} of ${assessment.stages.length}` : assessment.actual == null || g.kind === 'milestone' ? '—' : fmt(assessment.actual, g)}</span></div>
+        <div><span className="hint">Against plan</span><span className={'big tone-' + gap.tone}>{gap.short}</span></div>
       </div>
 
       <details className="disclose" open={g.kind !== 'milestone'}>
-        <summary>Chart and stages</summary>
+        <summary>{g.kind === 'milestone' ? 'Stages' : 'Chart'}</summary>
         {g.kind === 'metric' && assessment.kind === 'metric' && <figure style={{ margin: 0 }}><MetricChart goal={g} weeks={app.cycle.weeks} week={app.week} series={series} forecast={assessment.forecast} ptgBy={ptg?.byWeek ?? null} height={180} /><MetricLegend goal={g} forecast={assessment.forecast != null} ptg={!!ptg} /></figure>}
         {g.kind === 'range' && <RangeChart goal={g} weeks={app.cycle.weeks} week={app.week} series={series} height={170} />}
         {assessment.kind === 'milestone' && <StageList a={assessment} />}
       </details>
 
-      {latest && latest.why && latest.why !== 'On plan.' && latest.why !== a.flags.find((f) => f.kind !== 'due')?.detail && (
+      {latest && latest.why && latest.why !== 'On plan.' && latest.why !== top?.detail && (
         <section className="owner-says">
-          <span className="label">{owner?.name.split(' ')[0]} says{latest.cause ? ` · ${causeLabel(latest.cause)}` : ''}</span>
-          <p>{latest.why}</p>
-          {latest.greenerWhy && <p className="small"><strong>Why greener:</strong> {latest.greenerWhy}</p>}
+          <span className="field-label">{firstName} said in week {latest.week}</span>
+          <p>{latest.cause && <strong>{causeLabel(latest.cause)}. </strong>}{latest.why}</p>
+          {latest.greenerWhy && <p className="hint">Why it’s better than the numbers: {latest.greenerWhy}</p>}
         </section>
       )}
       {ptg && (
         <section className="owner-says path">
-          <span className="label">Path to green · back on plan by {weekLabel(ptg.byWeek, app.cycle.weeks)}{ptg.byWeek < app.week ? ' · missed' : ''}</span>
+          <span className="field-label">Back on plan by {weekLabel(ptg.byWeek, app.cycle.weeks)}{ptg.byWeek < app.week ? ' (missed)' : ''}</span>
           <p>{ptg.what}</p>
           {ptg.needs && <p className="needs"><strong>Needs you:</strong> {ptg.needs}</p>}
         </section>
       )}
 
-
-      {decisions.length > 0 && <div className="note-good small">{decisions.map((d) => DECISION_LABEL[d.kind] + (d.note ? `: “${d.note}”` : '')).join(' · ')}</div>}
+      {decisions.length > 0 && <div className="calm small">✓ {decisions.map((d) => DECISION_LABEL[d.kind] + (d.note ? `: “${d.note}”` : '')).join('; ')}</div>}
 
       <div className="decide">
-        {(asking || note) ? (
-          <label className="field"><span className="small strong">{asking ? `Your question for ${owner?.name.split(' ')[0]}` : 'Note for the owner'}</span>
+        {(asking || note) && (
+          <label className="field"><span className="field-label">{asking ? `Your question for ${firstName}` : `Note for ${firstName}`}</span>
             <input className="input" autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} placeholder={asking ? 'e.g. What would it take to land the interim scope by week 8?' : 'Optional'} />
           </label>
-        ) : <button type="button" className="linkish small" onClick={() => setNote(' ')} style={{ alignSelf: 'flex-start' }}>+ Add a note for the owner</button>}
+        )}
         <div className="row decide-buttons">
-          {proposal && g.kind === 'metric' ? (
+          {asking ? (
+            <>
+              <button className="btn primary big-btn" disabled={busy} onClick={() => decide('ask')}>Send question</button>
+              <button className="btn big-btn" disabled={busy} onClick={() => { setAsking(false); setNote(''); }}>Cancel</button>
+            </>
+          ) : proposal && g.kind === 'metric' ? (
             <>
               <button className="btn primary big-btn" disabled={busy} onClick={() => decide('approve-target')}>Approve {fmt(proposal.proposeTarget as number, g)}</button>
               <button className="btn big-btn" disabled={busy} onClick={() => decide('decline-target')}>Keep {fmt(g.plan.target, g)}</button>
@@ -196,12 +206,19 @@ function ReviewCard({ a, handled, onDone, onSkip }: { a: GoalAttention; handled:
               <button className="btn big-btn" disabled={busy} onClick={() => decide('decline-change')}>Keep as is</button>
             </>
           ) : (
-            <button className="btn primary big-btn" disabled={busy} onClick={() => decide('acknowledge')}>{handled ? 'Seen again' : 'Seen · no action'}</button>
+            <>
+              <button className="btn primary big-btn" disabled={busy} onClick={() => decide('acknowledge')}>{handled ? 'Seen again' : 'Seen, no action'}</button>
+              <button className="btn big-btn" disabled={busy} onClick={() => decide('ask')}>Ask a question</button>
+            </>
           )}
-          <button className="btn big-btn" disabled={busy} onClick={() => decide('ask')}>{asking ? 'Send question' : 'Ask a question'}</button>
-          <button className="btn ghost" onClick={onSkip}>Skip for now</button>
         </div>
-        <Link className="small linkish" to={'/goals/' + g.id}>Open the full goal page</Link>
+        {!asking && (
+          <div className="quiet-links">
+            {(proposal || g.pending) && <button type="button" className="linkish" onClick={() => decide('ask')}>Ask a question</button>}
+            {!note && <button type="button" className="linkish" onClick={() => setNote(' ')}>Add a note</button>}
+            <button type="button" className="linkish" onClick={onSkip}>Skip for now</button>
+          </div>
+        )}
       </div>
       {g.guardrail && <Tag>Guardrail</Tag>}
     </article>

@@ -118,7 +118,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
           <strong className="ellipsis">{title}</strong>
-          <span className="tiny muted ellipsis">{app.ws.kind === 'example' ? 'Example data' : app.ws.name} · week {app.week} of {app.cycle.weeks}</span>
+          <span className="tiny muted ellipsis">{app.ws.kind === 'example' ? 'Example data' : app.ws.name}, week {app.week} of {app.cycle.weeks}</span>
         </span>
         <button className="profilebtn" onClick={() => setSheet('profile')}>
           <Avatar p={app.viewer} />
@@ -145,7 +145,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <Avatar p={app.viewer} />
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
               <b className="ellipsis">{app.viewer.name}</b>
-              <span className="tiny muted">{PROFILE_LABEL[app.viewer.profile]} · switch</span>
+              <span className="tiny muted">{PROFILE_LABEL[app.viewer.profile]}</span>
             </span>
           </button>
         </nav>
@@ -172,7 +172,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
           <button className="menuitem" onClick={() => setSheet('workspace')}>{NAV.workspace.icon}<span className="stack" style={{ gap: 0 }}><span className="strong">Switch workspace</span><span className="tiny muted">{app.ws.name}</span></span></button>
-          <button className="menuitem" onClick={() => setSheet('profile')}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">Switch profile</span><span className="tiny muted">{app.viewer.name} · {PROFILE_LABEL[app.viewer.profile]}</span></span></button>
+          <button className="menuitem" onClick={() => setSheet('profile')}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">Switch profile</span><span className="tiny muted">{app.viewer.name}, {PROFILE_LABEL[app.viewer.profile].toLowerCase()}</span></span></button>
         </div>
       </Sheet>
       <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)} />

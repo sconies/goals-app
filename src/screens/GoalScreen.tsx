@@ -19,11 +19,11 @@ export function GoalScreen() {
   return <GoalView key={goal.id} goal={goal} />;
 }
 
-/** "3 h ago · 30 Oct, 18:02" for recent changes; just the date and time for older ones. */
+/** "3 h ago (30 Oct, 18:02)" for recent changes; just the date and time for older ones. */
 function whenText(iso: string, now: Date) {
   const abs = new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const rel = timeAgo(iso, now);
-  return /ago|now|yesterday/.test(rel) ? `${rel} · ${abs}` : abs;
+  return /ago|now|yesterday/.test(rel) ? `${rel} (${abs})` : abs;
 }
 
 export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
@@ -36,7 +36,7 @@ export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
     <li className={'change change-' + c.entity}>
       <Avatar p={who ?? { name: c.actorId, initials: '?' }} size="sm" />
       <div className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
-        <span className="small"><strong>{who?.name ?? c.actorId}</strong> {c.summary.charAt(0).toLowerCase() + c.summary.slice(1)}{showGoal && goal ? <> · <Link className="linkish" to={'/goals/' + goal.id}>{goal.title}</Link></> : null}</span>
+        <span className="small"><strong>{who?.name ?? c.actorId}</strong> {c.summary.charAt(0).toLowerCase() + c.summary.slice(1)}{showGoal && goal ? <> on <Link className="linkish" to={'/goals/' + goal.id}>{goal.title}</Link></> : null}</span>
         {c.entity === 'note' && <p className="note-text">{c.diffs[0]?.to}</p>}
         <span className="tiny muted">{whenText(c.at, app.today)}</span>
         {diffs.length > 0 && c.entity !== 'note' && (
@@ -96,13 +96,13 @@ function GoalView({ goal }: { goal: Goal }) {
       <div className="row between" style={{ alignItems: 'flex-start' }}>
         <span className="stack" style={{ gap: 6, minWidth: 0 }}>
           <h1 className="title-xl">{goal.title}</h1>
-          <span className="row" style={{ gap: 6 }}>
+          <span className="row hint" style={{ gap: 'var(--s2)' }}>
+            <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name}{team ? `, ${team.name}` : ''}
             <Tag>{kindLabel(goal)}</Tag>
-            <span className="row small muted" style={{ gap: 6 }}><Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name}{team ? ' · ' + team.name : ''}</span>
           </span>
         </span>
         <div className="actions">
-          {isOwner && week > 0 && <Link className={'btn' + (due || flags.length ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? 'Check in · due' : 'Check in'}</Link>}
+          {isOwner && week > 0 && <Link className={'btn' + (due || flags.length ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Check in'}</Link>}
           <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>
         </div>
       </div>
@@ -113,17 +113,22 @@ function GoalView({ goal }: { goal: Goal }) {
           <span className="big">{headlineNumber}</span>
           <span className={'strong tone-' + gap.tone}>{st.status === 'stale' ? 'No recent check-in' : gap.short}</span>
         </div>
-        <span className="small muted">
-          {st.status === 'stale' ? `No owner check-in for ${st.daysSinceCheckIn ?? 14}+ days, so this status can’t be trusted.` : gap.long + (a.kind === 'metric' && goal.kind === 'metric' && latest ? `; plan for week ${a.week} was ${fmt(a.plan, goal)}` : '') + '.'}
-          {' '}{latest ? <>Updated by {lastBy?.name}, {timeAgo(latest.postedAt, app.today)}.</> : 'No check-ins yet.'}
-        </span>
+        {st.status === 'stale'
+          ? <span className="hint">No check-in for {st.daysSinceCheckIn ?? 14}+ days, so this status can’t be trusted.</span>
+          : a.kind === 'metric' && goal.kind === 'metric' && latest ? <span className="hint">Plan for week {a.week} was {fmt(a.plan, goal)}.</span> : null}
+        <span className="hint">{latest ? `Updated by ${lastBy?.name}, ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>
       </section>
 
       {goal.pending && (
-        <div className="pending-note small" role="status">
-          <span><strong>Plan change proposed:</strong> {pendingSummary(goal)}. {proposer?.name.split(' ')[0] ?? 'The owner'}: “{goal.pending.reason}” Waiting for {sponsor?.name ?? 'the sponsor'}; the current plan stays until then.</span>
-          {app.viewer.profile === 'sponsor' ? <Link className="linkish small" to={'/review?goal=' + goal.id}>Decide</Link>
-            : (app.viewer.id === goal.pending.byId || isOwner) && <button type="button" className="linkish small" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>}
+        <div className="pending-note" role="status">
+          <span className="arow-icon" aria-hidden="true">◷</span>
+          <span className="grow">
+            <strong>Proposed: {pendingSummary(goal).charAt(0).toLowerCase() + pendingSummary(goal).slice(1)}</strong>
+            <span>“{goal.pending.reason}” <span className="muted">{proposer?.name.split(' ')[0] ?? 'The owner'}</span></span>
+            <span className="hint">Waiting for {sponsor?.name.split(' ')[0] ?? 'the sponsor'}. The current plan stays until then.</span>
+          </span>
+          {app.viewer.profile === 'sponsor' ? <Link className="linkish tap" to={'/review?goal=' + goal.id}>Decide</Link>
+            : (app.viewer.id === goal.pending.byId || isOwner) && <button type="button" className="linkish tap" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>}
         </div>
       )}
 
@@ -134,13 +139,13 @@ function GoalView({ goal }: { goal: Goal }) {
           ))}
           {latest?.why && latest.why !== 'On plan.' && (
             <div className="quote-block">
-              <span className="label">{owner?.name.split(' ')[0]}, week {latest.week}{latest.cause ? ' · ' + causeLabel(latest.cause) : ''}</span>
-              <p>{latest.why}</p>
+              <span className="field-label">{owner?.name.split(' ')[0]} said in week {latest.week}</span>
+              <p>{latest.cause && <strong>{causeLabel(latest.cause)}. </strong>}{latest.why}</p>
             </div>
           )}
           {ptg && (
             <div className="quote-block">
-              <span className="label">Path to green · back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' · missed' : ''}</span>
+              <span className="field-label">Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</span>
               <p>{ptg.what}</p>
               {ptg.needs && <p className="needs"><strong>Needs:</strong> {ptg.needs}</p>}
             </div>
@@ -196,7 +201,7 @@ function GoalView({ goal }: { goal: Goal }) {
             {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {cycle.weeks}, {directionLabel(goal)}</dd><dt>Plan</dt><dd>{goal.plan.shape === 'back' ? 'Back-loaded' : goal.plan.shape === 'stepped' ? 'Three steps' : 'Straight line'}</dd></>}
             {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}</dd></>}
             {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ')}</dd></>}
-            <dt>Feeds into</dt><dd>{goal.headline ? 'This is the headline goal' : parent ? parent.title + (goal.effect != null ? ` · estimated effect ${goal.effect}` : '') : 'Nothing'}</dd>
+            <dt>Feeds into</dt><dd>{goal.headline ? 'This is the headline goal' : parent ? parent.title + (goal.effect != null ? `, estimated effect ${goal.effect}` : '') : 'Nothing'}</dd>
             <dt>Data source</dt><dd>{goal.source || 'Entered by the owner'}</dd>
             <dt>Rules</dt><dd>{goal.kind === 'metric' ? 'On track at 95% of planned progress or more; at risk from 80%. Reason needed when behind or 20% ahead.' : goal.kind === 'range' ? 'At risk inside the margin or after one breach; off track after two weeks out.' : 'Up to 2 weeks late is at risk; more is off track.'}</dd>
           </dl>
@@ -225,9 +230,9 @@ function NoteComposer({ goal }: { goal: Goal }) {
   return (
     <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post(); }}>
       <label className="field"><span className="sr">Add a note</span>
-        <textarea className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a note: news, a risk, a thank-you" aria-label="Add a note" />
+        <textarea className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a note for the team" aria-label="Add a note" />
       </label>
-      {text.trim() && <div className="row"><button className="btn primary sm" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post note'}</button></div>}
+      {text.trim() && <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post note'}</button>}
     </form>
   );
 }

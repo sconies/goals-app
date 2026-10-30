@@ -208,7 +208,7 @@ journey('U3', ['REVIEW', 'ATTENTION', 'CHANGE-LOG', 'PROFILES'], 'Weekly review:
       await h.fill(p.getByPlaceholder(/What would it take/), 'Can the golden path ship before the GPU quota?');
       await h.click(p.getByRole('button', { name: 'Send question' }));
     } else {
-      await h.click(p.getByRole('button', { name: /Seen · no action|Approve/ }).first());
+      await h.click(p.getByRole('button', { name: /Seen, no action|Approve/ }).first());
     }
     items++;
     await p.locator('.review-card, .celebrate').first().waitFor();
@@ -353,11 +353,11 @@ journey('U7', ['REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANG
   await h.click(p.getByRole('link', { name: 'Edit' }));
   await h.fill(p.getByLabel(/^Target/), '1.5');
   await p.locator('.focus-foot button[type=submit]').click({ force: true });
-  h.set('errors', await p.locator('textarea.invalid[aria-label="Why change it?"]').isVisible() && await p.getByRole('button', { name: 'Say why it should change' }).isVisible(), 'a plan change without a reason is not explained');
+  h.set('errors', await p.locator('textarea.invalid[aria-label="Why change it?"]').isVisible() && await p.getByRole('alert').filter({ hasText: 'Say why' }).isVisible(), 'a plan change without a reason is not explained');
   await h.fill(p.getByLabel('Why change it?'), 'The merge queue cut lead time faster than planned; 1.5 days is reachable.');
   await h.checkpoint('edit');
   await h.click(p.getByRole('button', { name: 'Propose change' }));
-  await see(p, 'Plan change proposed', 'the goal page shows the proposal waiting');
+  await see(p, 'Proposed: target 2.0 days → 1.5 days', 'the goal page shows the proposal waiting');
   let s = await h.snapshot();
   if (s.goals.find((g) => g.id === 'lead').plan.target !== 2) fail('the proposed target was applied before approval');
   // Same browser, other profile: the sponsor.

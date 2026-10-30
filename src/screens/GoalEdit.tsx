@@ -58,57 +58,61 @@ function EditSheet({ goal }: { goal: Goal }) {
     }
   };
 
-  const label = saving ? 'Saving…' : !valid && tried ? 'Fix the highlighted fields' : proposing ? (reasonOk ? 'Propose change' : 'Say why it should change') : 'Save changes';
+  const label = saving ? 'Saving…' : !valid && tried ? 'Fix the highlighted fields' : proposing ? 'Propose change' : 'Save changes';
 
   return (
     <div className="focus">
       <div className="focus-top">
-        <span className="small strong">Edit goal</span>
+        <span className="field-label">Edit goal</span>
         <span />
         <button className="iconbtn" onClick={back} aria-label="Close and keep the draft">✕</button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}
         {goal.pending && (
-          <div className="pending-note small" role="status">
-            <span><strong>Waiting for {sponsor?.name ?? 'the sponsor'}:</strong> {pendingSummary(goal)}. “{goal.pending.reason}”</span>
-            <button type="button" className="linkish small" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>
+          <div className="pending-note" role="status">
+            <span className="grow">
+              <strong>{pendingSummary(goal)}</strong>
+              <span className="hint">Proposed, waiting for {sponsor?.name.split(' ')[0] ?? 'the sponsor'}. Proposing again replaces it.</span>
+            </span>
+            <button type="button" className="linkish tap" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>
           </div>
         )}
 
         <label className="field">
-          <span className="small strong">Name</span>
-          <input className="input big-input" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
+          <span className="field-label">Name</span>
+          <input className="input" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
           {err('title')}
         </label>
 
-        <section className="stack" style={{ gap: 10 }} aria-labelledby="plan-h">
-          <span className="row between nowrap">
+        <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="plan-h">
+          <div className="stack" style={{ gap: 'var(--s1)' }}>
             <h2 className="block-title" id="plan-h">{goal.kind === 'metric' ? 'Plan' : goal.kind === 'range' ? 'Limit' : 'Stages'}</h2>
-            {started && <span className="tiny muted">Changes go to {sponsor?.name.split(' ')[0] ?? 'the sponsor'} for approval</span>}
-          </span>
+            {started && <span className="hint">Check-ins have started, so a change here goes to {sponsor?.name.split(' ')[0] ?? 'the sponsor'} to approve.</span>}
+          </div>
           {goal.kind === 'metric' && (
             <>
-              <div className="row nowrap" style={{ alignItems: 'flex-start' }}>
-                <label className="field" style={{ flex: '1 1 120px' }}><span className="small strong">Start</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
-                <span className="arrow" aria-hidden="true">→</span>
-                <label className="field" style={{ flex: '1 1 120px' }}><span className="small strong">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}</label>
+              <div className="pair">
+                <label className="field"><span className="field-label">Start{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
+                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}</label>
               </div>
-              <div className="seg" role="group" aria-label="How progress comes">
-                {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}
+              <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
+                <div className="seg full" role="group" aria-labelledby="shape-l">
+                  {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}
+                </div>
               </div>
             </>
           )}
           {goal.kind === 'range' && (
             <div className="row" style={{ alignItems: 'flex-start' }}>
-              <div className="field"><span className="small strong" id="bound">Must stay</span>
+              <div className="field"><span className="field-label" id="bound">Must stay</span>
                 <div className="seg" role="group" aria-labelledby="bound">
                   <button type="button" aria-pressed={d.bound === 'atMost'} onClick={() => set({ bound: 'atMost' })}>At most</button>
                   <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
                 </div>
               </div>
-              <label className="field" style={{ flex: '1 1 110px' }}><span className="small strong">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
-              <label className="field" style={{ flex: '1 1 110px' }}><span className="small strong">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} />{err('margin')}</label>
+              <label className="field" style={{ flex: '1 1 110px' }}><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
+              <label className="field" style={{ flex: '1 1 110px' }}><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} />{err('margin')}</label>
             </div>
           )}
           {goal.kind === 'milestone' && (
@@ -126,40 +130,40 @@ function EditSheet({ goal }: { goal: Goal }) {
           )}
           {proposing && (
             <label className="field">
-              <span className="small strong">Why change it?</span>
+              <span className="field-label">Why change it?</span>
               <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="One sentence the sponsor can decide on" aria-label="Why change it?" />
-              <span className="tiny muted">Goes to the weekly review. The current plan stays until it’s approved.</span>
+              {tried && !reasonOk ? <span className="hint tone-off" role="alert">Say why, in a sentence, so the sponsor can decide.</span> : <span className="hint">The current plan stays until it’s approved.</span>}
             </label>
           )}
         </section>
 
-        <section className="stack" style={{ gap: 10 }} aria-labelledby="fit-h">
+        <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="fit-h">
           <h2 className="block-title" id="fit-h">Owner and links</h2>
-          <div className="row" style={{ alignItems: 'flex-start' }}>
-            <label className="field" style={{ flex: '1 1 180px' }}><span className="small strong">Owner</span>
+          <div className="pair">
+            <label className="field"><span className="field-label">Owner</span>
               <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
             </label>
-            <label className="field" style={{ flex: '1 1 180px' }}><span className="small strong">Team</span>
+            <label className="field"><span className="field-label">Team</span>
               <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
             </label>
           </div>
           {!d.headline && (
-            <label className="field"><span className="small strong">Feeds into</span>
+            <label className="field"><span className="field-label">Feeds into</span>
               <select className="input" value={d.parentId} onChange={(e) => set({ parentId: e.target.value })}>
                 <option value="">Nothing (stands alone)</option>
                 {parents.map((g) => <option key={g.id} value={g.id}>{g.title}{g.headline ? ' · headline' : ''}</option>)}
               </select>
             </label>
           )}
-          <details className="disclose"><summary>More: effect, guardrail, source, definition</summary>
+          <details className="disclose"><summary>More details</summary>
             {!d.headline && d.parentId && (
-              <label className="field" style={{ maxWidth: 300 }}><span className="small strong">How much it moves “{parent?.title}”</span>
+              <label className="field" style={{ maxWidth: 300 }}><span className="field-label">How much it moves “{parent?.title}”</span>
                 <input className="input" inputMode="decimal" value={d.effect} onChange={(e) => set({ effect: e.target.value })} />{err('effect')}
               </label>
             )}
             <label className="check"><input type="checkbox" checked={d.guardrail} onChange={(e) => set({ guardrail: e.target.checked })} /><span>It’s a guardrail</span></label>
-            <label className="field"><span className="small strong">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} /></label>
-            <label className="field"><span className="small strong">Definition</span><textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} /></label>
+            <label className="field"><span className="field-label">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} /></label>
+            <label className="field"><span className="field-label">Definition</span><textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} /></label>
           </details>
         </section>
 
