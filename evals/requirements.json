@@ -1,39 +1,268 @@
 {
-  "slice": "1 · Goals, plans and check-ins",
+  "slice": "2 · Profiles, journeys and the change log",
   "requirements": [
-    { "id": "PLAN-SHAPE", "area": "Plans", "text": "Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint." },
-    { "id": "FORECAST", "area": "Plans", "text": "Forecast is the last three weeks' slope projected to the end of the cycle, and only shown with enough data." },
-    { "id": "REBASELINE", "area": "Plans", "text": "Changing a plan after check-ins start re-baselines it and keeps the original visible." },
-    { "id": "STATUS-BANDS", "area": "Status rules", "text": "Metric: on track at 95% of planned progress or more, at risk 80–95%, off track below 80%." },
-    { "id": "STATUS-DIRECTION", "area": "Status rules", "text": "Lower-is-better metrics are judged the same way as higher-is-better ones." },
-    { "id": "RANGE", "area": "Status rules", "text": "Range: at risk inside the warning margin or after one breach; off track after two weeks out of range." },
-    { "id": "MILESTONE", "area": "Status rules", "text": "Milestone: a stage up to 2 weeks late is at risk, more is off track; an overdue stage counts as late." },
-    { "id": "OWNER-CALL", "area": "Status rules", "text": "The owner's call is the official status shown everywhere, with the calculated status beside it." },
-    { "id": "GREENER", "area": "Check-in", "text": "A call greener than the calculation needs a reason and is flagged on the goal." },
-    { "id": "REASON-BEHIND", "area": "Check-in", "text": "A reason (cause and explanation) is required when behind plan (below 95%)." },
-    { "id": "REASON-AHEAD", "area": "Check-in", "text": "A reason is required when 120% or more ahead, and the check-in asks whether the target should change." },
-    { "id": "PATH-TO-GREEN", "area": "Check-in", "text": "At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed." },
-    { "id": "CHECKIN-STATUS-VS-PLAN", "area": "Check-in", "text": "The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed." },
-    { "id": "ONE-PER-WEEK", "area": "Check-in", "text": "One check-in per goal per week; editing replaces it." },
-    { "id": "OWNER-ONLY", "area": "Check-in", "text": "Only the goal's owner can post its check-in." },
-    { "id": "STALE", "area": "Status rules", "text": "No owner check-in for 14 days shows as Stale, never as on track." },
-    { "id": "HIERARCHY", "area": "Goals", "text": "A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses." },
-    { "id": "GOAL-CREATE", "area": "Goals", "text": "A lead can create a metric, range or milestone goal with a plan, and invalid input is explained." },
-    { "id": "GOAL-PAGE", "area": "Goals", "text": "The goal page shows status strip, why, path to green, chart with plan/forecast/path back, and check-in history." },
-    { "id": "PERSIST", "area": "Platform", "text": "Changes are saved and survive a reload; demo data can be reset." },
-    { "id": "PHONE", "area": "Platform", "text": "Every screen works at phone width (390px) with no horizontal scrolling." },
-    { "id": "A11Y", "area": "Platform", "text": "No serious or critical accessibility violations (axe-core); status is shape plus word, never colour alone." },
-    { "id": "NO-ERRORS", "area": "Platform", "text": "No console or page errors on any screen." }
+    {
+      "id": "PLAN-SHAPE",
+      "area": "Plans",
+      "text": "Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint."
+    },
+    {
+      "id": "FORECAST",
+      "area": "Plans",
+      "text": "Forecast is the last three weeks' slope projected to the end of the cycle, and only shown with enough data."
+    },
+    {
+      "id": "REBASELINE",
+      "area": "Plans",
+      "text": "Changing a plan after check-ins start re-baselines it and keeps the original visible."
+    },
+    {
+      "id": "STATUS-BANDS",
+      "area": "Status rules",
+      "text": "Metric: on track at 95% of planned progress or more, at risk 80–95%, off track below 80%."
+    },
+    {
+      "id": "STATUS-DIRECTION",
+      "area": "Status rules",
+      "text": "Lower-is-better metrics are judged the same way as higher-is-better ones."
+    },
+    {
+      "id": "RANGE",
+      "area": "Status rules",
+      "text": "Range: at risk inside the warning margin or after one breach; off track after two weeks out of range."
+    },
+    {
+      "id": "MILESTONE",
+      "area": "Status rules",
+      "text": "Milestone: a stage up to 2 weeks late is at risk, more is off track; an overdue stage counts as late."
+    },
+    {
+      "id": "OWNER-CALL",
+      "area": "Status rules",
+      "text": "The owner's call is the official status shown everywhere, with the calculated status beside it."
+    },
+    {
+      "id": "GREENER",
+      "area": "Check-in",
+      "text": "A call greener than the calculation needs a reason and is flagged on the goal."
+    },
+    {
+      "id": "REASON-BEHIND",
+      "area": "Check-in",
+      "text": "A reason (cause and explanation) is required when behind plan (below 95%)."
+    },
+    {
+      "id": "REASON-AHEAD",
+      "area": "Check-in",
+      "text": "A reason is required when 120% or more ahead, and the check-in asks whether the target should change."
+    },
+    {
+      "id": "PATH-TO-GREEN",
+      "area": "Check-in",
+      "text": "At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed."
+    },
+    {
+      "id": "CHECKIN-STATUS-VS-PLAN",
+      "area": "Check-in",
+      "text": "The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed."
+    },
+    {
+      "id": "ONE-PER-WEEK",
+      "area": "Check-in",
+      "text": "One check-in per goal per week; editing replaces it."
+    },
+    {
+      "id": "OWNER-ONLY",
+      "area": "Check-in",
+      "text": "Only the goal's owner can post its check-in."
+    },
+    {
+      "id": "STALE",
+      "area": "Status rules",
+      "text": "No owner check-in for 14 days shows as Stale, never as on track."
+    },
+    {
+      "id": "HIERARCHY",
+      "area": "Goals",
+      "text": "A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses."
+    },
+    {
+      "id": "GOAL-CREATE",
+      "area": "Goals",
+      "text": "A lead can create a metric, range or milestone goal with a plan, and invalid input is explained."
+    },
+    {
+      "id": "GOAL-PAGE",
+      "area": "Goals",
+      "text": "The goal page shows status strip, why, path to green, chart with plan/forecast/path back, and check-in history."
+    },
+    {
+      "id": "PERSIST",
+      "area": "Platform",
+      "text": "Changes are saved and survive a reload; demo data can be reset."
+    },
+    {
+      "id": "PHONE",
+      "area": "Platform",
+      "text": "Every screen works at phone width (390px) with no horizontal scrolling."
+    },
+    {
+      "id": "A11Y",
+      "area": "Platform",
+      "text": "No serious or critical accessibility violations (axe-core); status is shape plus word, never colour alone."
+    },
+    {
+      "id": "NO-ERRORS",
+      "area": "Platform",
+      "text": "No console or page errors on any screen."
+    },
+    {
+      "id": "PROFILES",
+      "area": "Profiles",
+      "text": "Each profile (team lead, sponsor, coach, contributor) gets its own home with one clear next thing to do."
+    },
+    {
+      "id": "ATTENTION",
+      "area": "Attention",
+      "text": "Off track, stale, a worsening trend, a missed or missing path to green, and pending proposals are flagged where the user starts, with the reason in one line."
+    },
+    {
+      "id": "REVIEW",
+      "area": "Review",
+      "text": "The sponsor works the review queue to zero, one goal at a time; every call is recorded and an approved target re-baselines the plan."
+    },
+    {
+      "id": "CHANGE-LOG",
+      "area": "Change log",
+      "text": "Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged."
+    },
+    {
+      "id": "DRAFTS",
+      "area": "Focus",
+      "text": "Unsaved answers survive leaving a flow and are offered back when the user returns."
+    },
+    {
+      "id": "WORKSPACES",
+      "area": "Data",
+      "text": "The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back."
+    },
+    {
+      "id": "MOTION",
+      "area": "Platform",
+      "text": "Motion is subtle and never blocks; it switches off under reduced motion. Loading shows a skeleton, not a blank page."
+    }
   ],
   "notYetBuilt": [
-    "Leadership view and team review (inspection)",
-    "Target-change approval by the sponsor",
+    "Close the cycle with a retro (journey 10)",
     "Dependencies between goals",
-    "Jira linking (context only)",
-    "Slack check-ins and nudges",
-    "AI drafts and explanations (beta)",
-    "Key-goal flags",
-    "Data integrations (Power BI, Grafana, ServiceNow)",
-    "Sign-in and permissions"
+    "Jira context",
+    "Slack check-in cards and reminders",
+    "AI coaching on a draft (beta)",
+    "Sign-in and per-person permissions",
+    "Data integrations (Power BI, Grafana, ServiceNow)"
+  ],
+  "journeys": [
+    {
+      "id": "U1",
+      "rank": 1,
+      "title": "Weekly check-in, all due goals in one pass",
+      "who": "Team lead"
+    },
+    {
+      "id": "U2",
+      "rank": 2,
+      "title": "What needs me? Home shows what's due, off track, stale or slipping",
+      "who": "Team lead"
+    },
+    {
+      "id": "U3",
+      "rank": 3,
+      "title": "Weekly review: work the queue to zero and make the calls",
+      "who": "Sponsor"
+    },
+    {
+      "id": "U4",
+      "rank": 4,
+      "title": "Set up a goal, step by step",
+      "who": "Team lead"
+    },
+    {
+      "id": "U5",
+      "rank": 5,
+      "title": "Load your own data and switch between it and the example",
+      "who": "Goals coach"
+    },
+    {
+      "id": "U6",
+      "rank": 6,
+      "title": "Understand a goal and its change history",
+      "who": "Anyone"
+    },
+    {
+      "id": "U7",
+      "rank": 7,
+      "title": "Propose a target change and get it approved",
+      "who": "Owner, then sponsor"
+    },
+    {
+      "id": "U8",
+      "rank": 8,
+      "title": "Chase stale goals",
+      "who": "Goals coach"
+    },
+    {
+      "id": "U9",
+      "rank": 9,
+      "title": "See how my team's work maps to the goals",
+      "who": "Contributor"
+    },
+    {
+      "id": "U10",
+      "rank": 10,
+      "title": "Close the cycle with a retro",
+      "who": "Coach and leads"
+    }
+  ],
+  "easeCriteria": [
+    {
+      "id": "entry",
+      "text": "Starts from the person's home, with the way in visible without scrolling"
+    },
+    {
+      "id": "one-action",
+      "text": "Every step shows exactly one primary action"
+    },
+    {
+      "id": "progress",
+      "text": "The person can see how far along they are (ring, steps or count)"
+    },
+    {
+      "id": "budget",
+      "text": "Done within the interaction budget for the journey"
+    },
+    {
+      "id": "errors",
+      "text": "An incomplete step says what's missing, in place, instead of failing silently"
+    },
+    {
+      "id": "finish",
+      "text": "Finishing is confirmed, with the next thing offered"
+    },
+    {
+      "id": "attention",
+      "text": "Anything off track, stale or slipping in the journey is flagged with its reason"
+    },
+    {
+      "id": "parity",
+      "text": "The same journey completes on a 390px phone and a 1440px desktop"
+    },
+    {
+      "id": "a11y",
+      "text": "No serious accessibility issues; primary buttons are at least 44px tall on a phone"
+    },
+    {
+      "id": "logged",
+      "text": "The change it makes is in the change log with who, when and before → after"
+    }
   ]
 }

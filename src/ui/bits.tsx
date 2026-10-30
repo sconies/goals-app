@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { Link } from 'react-router';
+import type { Flag, GoalAttention } from '../domain/attention';
 import { LABEL } from '../domain/status';
-import type { DisplayStatus, Person } from '../domain/types';
+import type { DisplayStatus, Person, Profile } from '../domain/types';
 
 /** Status is shape plus word, never colour alone. */
 export function StatusShape({ k }: { k: DisplayStatus }) {
@@ -27,14 +29,23 @@ export const Tag = ({ children }: { children: ReactNode }) => <span className="c
 
 export const Dot = ({ k }: { k: DisplayStatus }) => <span className={'dot ' + chipClass(k)} aria-hidden="true" />;
 
-export const Avatar = ({ p, small }: { p: Person; small?: boolean }) => (
-  <span className={'avatar' + (small ? ' sm' : '')} aria-hidden="true">{p.initials}</span>
+export const Avatar = ({ p, size }: { p: Pick<Person, 'initials' | 'name'>; size?: 'sm' | 'lg' }) => (
+  <span className={'avatar' + (size ? ' ' + size : '')} aria-hidden="true" data-hue={hue(p.name)}>{p.initials}</span>
 );
+const hue = (s: string) => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 6;
 
-export function Header({ eyebrow, title, sub, actions }: { eyebrow?: string; title: string; sub?: string; actions?: ReactNode }) {
+export const PROFILE_LABEL: Record<Profile, string> = { lead: 'Team lead', sponsor: 'Sponsor', coach: 'Goals coach', contributor: 'Contributor' };
+export const PROFILE_HELP: Record<Profile, string> = {
+  lead: 'Owns goals and checks in each week',
+  sponsor: 'Runs the weekly review and makes the calls',
+  coach: 'Sets up workspaces and keeps the rhythm going',
+  contributor: 'Follows the goals their work feeds',
+};
+
+export function Header({ eyebrow, title, sub, actions }: { eyebrow?: ReactNode; title: string; sub?: ReactNode; actions?: ReactNode }) {
   return (
     <header className="hdr">
-      <div className="stack" style={{ gap: 2 }}>
+      <div className="stack" style={{ gap: 2, minWidth: 0 }}>
         {eyebrow && <span className="eyebrow">{eyebrow}</span>}
         <h1>{title}</h1>
         {sub && <p>{sub}</p>}
@@ -59,6 +70,88 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
     <div className="card flat stack">
       <span className="h3">{title}</span>
       {children}
+    </div>
+  );
+}
+
+/** A ring that fills as work gets done. The number in the middle is what's left. */
+export function ProgressRing({ done, total, size = 56, label }: { done: number; total: number; size?: number; label?: string }) {
+  const r = (size - 8) / 2, c = 2 * Math.PI * r, frac = total ? done / total : 1;
+  const complete = total > 0 && done >= total;
+  return (
+    <span className={'ring' + (complete ? ' complete' : '')} style={{ width: size, height: size }} role="img" aria-label={label ?? `${done} of ${total} done`}>
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} className="ring-track" />
+        {frac > 0 && <circle cx={size / 2} cy={size / 2} r={r} className="ring-fill" strokeDasharray={`${c * frac} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />}
+      </svg>
+      <span className="ring-text" aria-hidden="true">
+        {complete ? <svg viewBox="0 0 16 16" width={size / 2.6} height={size / 2.6}><path d="m3.5 8.5 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> : `${done}/${total}`}
+      </span>
+    </span>
+  );
+}
+
+/** Where you are in a flow: a bar with "Step 2 of 4 · label". */
+export function Steps({ at, of, label }: { at: number; of: number; label?: string }) {
+  return (
+    <div className="steps" aria-label={`Step ${at} of ${of}${label ? ': ' + label : ''}`}>
+      <div className="steps-bar" aria-hidden="true">
+        {Array.from({ length: of }, (_, i) => <i key={i} className={i < at - 1 ? 'done' : i === at - 1 ? 'now' : ''} />)}
+      </div>
+      <span className="tiny muted">Step {at} of {of}{label ? ' · ' + label : ''}</span>
+    </div>
+  );
+}
+
+export function FlagPill({ f }: { f: Flag }) {
+  const k: DisplayStatus = f.tone === 'off' ? 'off' : f.tone === 'risk' ? 'risk' : f.tone === 'stale' ? 'stale' : 'planned';
+  return <Chip k={k} label={f.label} className={'flag flag-' + f.kind} />;
+}
+
+/** A goal that needs someone: coloured edge, the reason in one line, one action. */
+export function AttentionCard({ a, action, to }: { a: GoalAttention; action?: ReactNode; to: string }) {
+  const top = a.flags.find((f) => f.kind !== 'due') ?? a.flags[0];
+  if (!top) return null;
+  return (
+    <div className={'acard tone-edge-' + top.tone}>
+      <Link to={to} className="acard-main">
+        <span className="row" style={{ gap: 6 }}>{a.flags.filter((f) => f.kind !== 'due').slice(0, 2).map((f) => <FlagPill key={f.kind} f={f} />)}</span>
+        <span className="strong acard-title">{a.goal.title}</span>
+        <span className="small acard-why">{top.detail}</span>
+      </Link>
+      {action && <div className="acard-action">{action}</div>}
+    </div>
+  );
+}
+
+export function timeAgo(iso: string, now: Date): string {
+  const s = Math.max(0, (now.getTime() - Date.parse(iso)) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  const d = Math.round(s / 86400);
+  if (d < 14) return d === 1 ? 'yesterday' : d + ' days ago';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+/** A panel that slides up on a phone and drops down as a popover on a desktop. */
+export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.activeElement as HTMLElement | null;
+    ref.current?.querySelector<HTMLElement>('button, a, input, select')?.focus();
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('keydown', key); prev?.focus?.(); };
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div className="sheet-wrap" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} ref={ref} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-head"><span className="h3">{title}</span><button className="iconbtn" onClick={onClose} aria-label="Close">✕</button></div>
+        <div className="sheet-body">{children}</div>
+      </div>
     </div>
   );
 }

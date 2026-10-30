@@ -3,12 +3,17 @@
 
 export type Id = string;
 
+/** What a person does in the goals process. It decides their home screen and what they act on. */
+export type Profile = 'lead' | 'sponsor' | 'coach' | 'contributor';
+
 export interface Person {
   id: Id;
   name: string;
+  /** Job title, shown under the name. */
   role: string;
   initials: string;
   teamId: Id | null;
+  profile: Profile;
 }
 
 export interface Team {
@@ -25,6 +30,8 @@ export interface Cycle {
   startDate: string;
   /** Weeks in the cycle; checkpoints are weeks 0..weeks. */
   weeks: number;
+  /** Day of the weekly review, 0 = Monday. Check-ins are due before it. */
+  reviewDay: number;
 }
 
 export type PlanShape = 'straight' | 'back' | 'stepped';
@@ -137,10 +144,51 @@ export interface CheckIn {
   dataFlagged: boolean;
 }
 
+/** A field that changed: values are already formatted for reading. */
+export interface Diff {
+  field: string;
+  from: string;
+  to: string;
+}
+
+/** One saved change. Drafts are never logged; anything that leaves draft is. */
+export interface Change {
+  id: Id;
+  at: string;
+  actorId: Id;
+  goalId: Id | null;
+  entity: 'goal' | 'check-in' | 'decision' | 'workspace';
+  entityId: Id;
+  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset';
+  summary: string;
+  diffs: Diff[];
+}
+
+/** A sponsor's call in the weekly review, on a goal or a proposal in a check-in. */
+export interface Decision {
+  id: Id;
+  goalId: Id;
+  checkInId: Id | null;
+  week: number;
+  kind: 'approve-target' | 'decline-target' | 'acknowledge' | 'ask';
+  byId: Id;
+  at: string;
+  note: string;
+}
+
+export interface Workspace {
+  id: Id;
+  name: string;
+  kind: 'example' | 'own';
+  createdAt: string;
+}
+
 export interface Snapshot {
   people: Person[];
   teams: Team[];
   cycles: Cycle[];
   goals: Goal[];
   checkIns: CheckIn[];
+  decisions: Decision[];
+  changes: Change[];
 }

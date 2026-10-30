@@ -8,7 +8,7 @@ import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/d
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
 import { seed } from '../src/data/seed';
 
-const cycle: Cycle = { id: 'c', name: 'Eval cycle', startDate: '2026-09-07', weeks: 13 };
+const cycle: Cycle = { id: 'c', name: 'Eval cycle', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
 const base = { cycleId: 'c', teamId: 't', ownerId: 'o', io: 'input' as const, headline: false, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '' };
 const up: MetricGoal = { ...base, id: 'up', title: 'Up', kind: 'metric', unit: '%', decimals: 0, plan: { start: 20, target: 72, shape: 'straight' }, originalPlan: null, rebaselinedWeek: null };
 const down: MetricGoal = { ...up, id: 'down', title: 'Down', unit: 'days', decimals: 1, plan: { start: 34, target: 8, shape: 'straight' } };

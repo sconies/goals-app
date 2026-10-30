@@ -1,24 +1,33 @@
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { AppProvider } from './app/state';
 import type { Store } from './data/store';
-import { CheckInScreen } from './screens/CheckInScreen';
-import { GoalEditor } from './screens/GoalEditor';
+import { Activity } from './screens/Activity';
+import { CheckInFlow } from './screens/CheckInFlow';
 import { GoalScreen } from './screens/GoalScreen';
 import { GoalsScreen } from './screens/GoalsScreen';
-import { Header } from './ui/bits';
+import { GoalWizard } from './screens/GoalWizard';
+import { Home } from './screens/Home';
+import { Review } from './screens/Review';
+import { ImportWizard, WorkspaceHome } from './screens/Workspace';
+import { Empty } from './ui/bits';
 import { Shell } from './ui/Shell';
 
 export function Routed() {
   return (
     <Shell>
       <Routes>
-        <Route path="/" element={<CheckInScreen />} />
-        <Route path="/check-in/:goalId" element={<CheckInScreen />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/check-in" element={<CheckInFlow />} />
+        <Route path="/check-in/:goalId" element={<CheckInFlow />} />
+        <Route path="/review" element={<Review />} />
         <Route path="/goals" element={<GoalsScreen />} />
-        <Route path="/goals/new" element={<GoalEditor />} />
+        <Route path="/goals/new" element={<GoalWizard />} />
         <Route path="/goals/:goalId" element={<GoalScreen />} />
-        <Route path="/goals/:goalId/edit" element={<GoalEditor />} />
-        <Route path="*" element={<Header title="Page not found" />} />
+        <Route path="/goals/:goalId/edit" element={<GoalWizard />} />
+        <Route path="/activity" element={<Activity />} />
+        <Route path="/workspace" element={<WorkspaceHome />} />
+        <Route path="/workspace/new" element={<ImportWizard />} />
+        <Route path="*" element={<div className="page narrow"><Empty title="Page not found" /></div>} />
       </Routes>
     </Shell>
   );
