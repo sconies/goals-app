@@ -18,6 +18,13 @@ export function GoalScreen() {
   return <GoalView key={goal.id} goal={goal} />;
 }
 
+/** "3 h ago · 30 Oct, 18:02" for recent changes; just the date and time for older ones. */
+function whenText(iso: string, now: Date) {
+  const abs = new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const rel = timeAgo(iso, now);
+  return /ago|now|yesterday/.test(rel) ? `${rel} · ${abs}` : abs;
+}
+
 export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
   const app = useApp();
   const who = app.person(c.actorId);
@@ -29,7 +36,7 @@ export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
       <Avatar p={who ?? { name: c.actorId, initials: '?' }} size="sm" />
       <div className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
         <span className="small"><strong>{who?.name ?? c.actorId}</strong> {c.summary.charAt(0).toLowerCase() + c.summary.slice(1)}{showGoal && goal ? <> · <Link className="linkish" to={'/goals/' + goal.id}>{goal.title}</Link></> : null}</span>
-        <span className="tiny muted">{timeAgo(c.at, app.today)} · {new Date(c.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+        <span className="tiny muted">{whenText(c.at, app.today)}</span>
         {diffs.length > 0 && (
           <>
             <button className="linkish tiny" style={{ alignSelf: 'flex-start' }} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? 'Hide changes' : `Show ${diffs.length === 1 ? 'the change' : diffs.length + ' changes'}`}</button>
@@ -70,6 +77,8 @@ function GoalView({ goal }: { goal: Goal }) {
   const changes = app.snapshot.changes.filter((c) => c.goalId === goal.id).slice().reverse();
   const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>('activity');
   const flags = att.flags.filter((f) => f.kind !== 'due');
+  // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
+  const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind));
   const lastBy = latest ? app.person(latest.authorId) : undefined;
 
   const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? 'No value yet' : fmt(a.actual, goal);
@@ -94,35 +103,36 @@ function GoalView({ goal }: { goal: Goal }) {
         </div>
       </div>
 
-      <section className={'story tone-edge-' + (st.status === 'off' ? 'off' : st.status === 'risk' ? 'risk' : st.status === 'stale' ? 'stale' : 'on')}>
-        <div className="row" style={{ gap: 10 }}>
+      <section className="story" data-tone={st.status}>
+        <div className="statusline">
           <Chip k={st.status} />
           <span className="big">{headlineNumber}</span>
-          <span className={'strong tone-' + gap.tone}>{st.status === 'stale' ? 'Stale' : gap.short}</span>
+          <span className={'strong tone-' + gap.tone}>{st.status === 'stale' ? 'No recent check-in' : gap.short}</span>
         </div>
-        <span className="small">{st.status === 'stale' ? `No owner check-in for ${st.daysSinceCheckIn ?? 14}+ days, so the status can’t be trusted.` : gap.long + (a.kind === 'metric' && goal.kind === 'metric' && latest ? ` · plan for week ${a.week} was ${fmt(a.plan, goal)}` : '')}.</span>
-        <span className="tiny muted">{latest ? <>Last updated by {lastBy?.name} · {timeAgo(latest.postedAt, app.today)}{st.greener ? ' · owner’s call is greener than the numbers' : ''}</> : 'No check-ins yet'}</span>
+        <span className="small muted">
+          {st.status === 'stale' ? `No owner check-in for ${st.daysSinceCheckIn ?? 14}+ days, so this status can’t be trusted.` : gap.long + (a.kind === 'metric' && goal.kind === 'metric' && latest ? `; plan for week ${a.week} was ${fmt(a.plan, goal)}` : '') + '.'}
+          {' '}{latest ? <>Updated by {lastBy?.name}, {timeAgo(latest.postedAt, app.today)}.</> : 'No check-ins yet.'}
+        </span>
       </section>
 
-      {flags.length > 0 && (
-        <section className="flags" aria-label="Needs attention">
-          {flags.map((f) => (
-            <div key={f.kind} className={'flagrow tone-edge-' + f.tone}><FlagPill f={f} /><span className="small">{f.detail}</span></div>
+      {(notes.length > 0 || (latest?.why && latest.why !== 'On plan.') || ptg) && (
+        <section className="why" aria-label="What’s going on">
+          {notes.map((f) => (
+            <p key={f.kind} className="note-line" data-tone={f.tone}><FlagPill f={f} /> <span>{f.detail}</span></p>
           ))}
-        </section>
-      )}
-
-      {ptg && (
-        <section className="owner-says path">
-          <span className="label">Path to green · back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' · missed' : ''}</span>
-          <p>{ptg.what}</p>
-          {ptg.needs && <p className="needs"><strong>Needs:</strong> {ptg.needs}</p>}
-        </section>
-      )}
-      {latest?.why && latest.why !== 'On plan.' && (
-        <section className="owner-says">
-          <span className="label">{owner?.name.split(' ')[0]} says · week {latest.week}{latest.cause ? ' · ' + causeLabel(latest.cause) : ''}</span>
-          <p>{latest.why}</p>
+          {latest?.why && latest.why !== 'On plan.' && (
+            <div className="quote-block">
+              <span className="label">{owner?.name.split(' ')[0]}, week {latest.week}{latest.cause ? ' · ' + causeLabel(latest.cause) : ''}</span>
+              <p>{latest.why}</p>
+            </div>
+          )}
+          {ptg && (
+            <div className="quote-block">
+              <span className="label">Path to green · back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' · missed' : ''}</span>
+              <p>{ptg.what}</p>
+              {ptg.needs && <p className="needs"><strong>Needs:</strong> {ptg.needs}</p>}
+            </div>
+          )}
         </section>
       )}
 

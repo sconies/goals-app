@@ -144,7 +144,7 @@ journey('U1', ['CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-
   p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/check-in'));
   await h.fill(p.getByLabel('This week’s value'), '29.0');
-  h.set('attention', await p.locator('.verdict.tone-edge-off').isVisible(), 'behind plan is not flagged in the verdict');
+  h.set('attention', await p.locator('.verdict[data-tone=off]').isVisible(), 'behind plan is not flagged in the verdict');
   await p.getByRole('button', { name: /Finish the last step/ }).click({ force: true });
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Still needed' }).isVisible(), 'an incomplete post says nothing');
   await h.click(p.getByRole('button', { name: 'Blocked by a dependency' }));
@@ -166,10 +166,10 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   await see(p, 'Needs attention');
   await h.checkpoint('home');
   h.set('progress', await p.locator('.hero .ring').isVisible(), 'no weekly progress ring');
-  const cards = p.locator('.acard');
+  const cards = p.locator('.arow');
   if ((await cards.count()) < 2) fail('expected at least two attention cards for Maya');
-  const reasons = await cards.locator('.acard-why').allInnerTexts();
-  h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.acard.tone-edge-risk, .acard.tone-edge-off').count() > 0, 'attention cards lack a reason or a coloured edge');
+  const reasons = await cards.locator('.arow-why').allInnerTexts();
+  h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon').count() > 0, 'attention rows lack a reason or a status icon');
   await h.inView(cards.first(), 'entry', 'the first attention card');
   await see(p, 'late', 'an overdue check-in is called late');
   await h.click(cards.first().getByRole('link', { name: 'Check in' }));
@@ -264,15 +264,26 @@ journey('U5', ['WORKSPACES', 'CHANGE-LOG', 'PROFILES'], 'Load your own data and 
   await h.fill(p.getByLabel('Workspace name'), 'Platform Engineering');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await see(p, 'Who’s involved?');
-  // A bad row is explained before anything is saved.
-  await p.getByLabel(/People \(paste/).fill('Name\tTeam\nAna Silva\t');
-  h.set('errors', await p.getByText('Row 2: Ana Silva has no team.').isVisible(), 'a row with no team is not explained');
-  await h.click(p.getByRole('button', { name: 'Fill with the example rows' }));
-  await see(p, '4 people read');
-  await h.checkpoint('people');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
-  await h.click(p.getByRole('button', { name: 'Fill with the example rows' }));
-  await see(p, '3 goals read');
+  // A person without a team is explained on their row before anything is saved.
+  await p.getByLabel('Person 1: name').fill('Ana Silva');
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Ana Silva has no team.' }).isVisible(), 'a row with no team is not explained');
+  // Pasting rows from a spreadsheet fills the table.
+  await p.getByLabel('Person 1: name').evaluate((el) => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'Name\tTeam\tRole\nAna Silva\tPlatform\tsponsor\nBen Ortiz\tPlatform\tlead');
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  if ((await p.getByLabel('Person 2: name').inputValue()) !== 'Ben Ortiz') fail('pasted rows did not fill the table');
+  // The Excel template downloads, and uploading it back reads both sheets.
+  const [download] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: /Download the template/ }).click()]);
+  const file = path.join(OUT, `template-${device}.xlsx`);
+  await download.saveAs(file);
+  await p.locator('input[type=file]').first().setInputFiles(file);
+  await see(p, '4 people, plus a goals sheet');
+  h.count; await h.click(p.getByRole('button', { name: /Continue/ }));
+  await see(p, 'Bring them from a spreadsheet');
+  await see(p, 'Deploy lead time');
+  await h.checkpoint('goals');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.checkpoint('check');
   await h.click(p.getByRole('button', { name: 'Create workspace' }));
@@ -292,10 +303,10 @@ journey('U5', ['WORKSPACES', 'CHANGE-LOG', 'PROFILES'], 'Load your own data and 
 journey('U6', ['GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], 'Understand a goal and its change history', 3, async (h, device) => {
   const p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/goals'));
-  await h.inView(p.locator('.acard').first(), 'entry', 'the first goal');
-  await h.click(p.locator('.acard-main', { hasText: 'Repo-access controls' }));
-  await see(p, 'Last updated by');
-  h.set('attention', await p.locator('.flagrow.tone-edge-off').isVisible(), 'the off-track flag and its reason are not shown');
+  await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
+  await h.click(p.locator('.arow-main', { hasText: 'Repo-access controls' }));
+  await see(p, 'Updated by');
+  h.set('attention', await p.locator('.story[data-tone=off] .chip.off').isVisible() && await p.locator('.why .note-line').count() > 0, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
   await h.click(p.getByRole('button', { name: /Show .*change/ }).first());
   h.set('logged', await p.locator('.diffs ins').first().isVisible(), 'a change does not show its before and after');
@@ -359,7 +370,7 @@ journey('U8', ['STALE', 'ATTENTION', 'PROFILES'], 'Chase stale goals', 1, async 
   await h.click(p.getByRole('link', { name: /Start with Self-service/ }));
   await p.waitForURL(/\/goals\/env$/);
   await p.locator('.story').waitFor();
-  h.set('attention', await p.locator('.flagrow.tone-edge-stale').isVisible(), 'stale is not flagged on the goal');
+  h.set('attention', await p.locator('.story[data-tone=stale] .chip.stale').isVisible() && await p.getByText('can’t be trusted').isVisible(), 'stale is not flagged on the goal');
   h.set('progress', await p.locator('.story').isVisible(), 'no status story');
   h.set('finish', true);
   await p.context().close();

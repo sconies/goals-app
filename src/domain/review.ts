@@ -17,6 +17,14 @@ export function reviewQueue(s: Snapshot, cycle: Cycle, today: Date, week: number
   return { items, handled, done, total: items.length };
 }
 
+/** How a decision reads in the change log, after the person's name. */
+export const DECISION_LOG: Record<Decision['kind'], string> = {
+  'approve-target': 'Approved the target change',
+  'decline-target': 'Kept the current target',
+  acknowledge: 'Reviewed it: no action needed',
+  ask: 'Asked the owner a question',
+};
+
 export const DECISION_LABEL: Record<Decision['kind'], string> = {
   'approve-target': 'Approved the target change',
   'decline-target': 'Kept the current target',

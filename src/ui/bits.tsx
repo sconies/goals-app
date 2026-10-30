@@ -103,27 +103,33 @@ export function Steps({ at, of, label }: { at: number; of: number; label?: strin
   );
 }
 
+const flagStatus = (f: Flag): DisplayStatus => (f.tone === 'off' ? 'off' : f.tone === 'risk' ? 'risk' : f.tone === 'stale' ? 'stale' : 'planned');
+
+/** A flag as words with its status icon: no filled pill, so a list stays calm. */
 export function FlagPill({ f }: { f: Flag }) {
-  const k: DisplayStatus = f.tone === 'off' ? 'off' : f.tone === 'risk' ? 'risk' : f.tone === 'stale' ? 'stale' : 'planned';
-  return <Chip k={k} label={f.label} className={'flag flag-' + f.kind} />;
+  return <span className={'flag flag-' + f.kind} data-tone={f.tone}><StatusShape k={flagStatus(f)} />{f.label}</span>;
 }
 
-/** A goal that needs someone: coloured edge, the reason in one line, one action. */
+/** One goal that needs someone, as a list row: status icon, name, the reason in one line, one action. */
 export function AttentionCard({ a, action, to }: { a: GoalAttention; action?: ReactNode; to: string }) {
-  const top = a.flags.find((f) => f.kind !== 'due') ?? a.flags[0];
+  const flags = a.flags.filter((f) => f.kind !== 'due');
+  const top = flags[0] ?? a.flags[0];
   if (!top) return null;
   return (
-    <div className={'acard tone-edge-' + top.tone}>
-      <Link to={to} className="acard-main">
-        <span className="row" style={{ gap: 6 }}>{a.flags.filter((f) => f.kind !== 'due').slice(0, 2).map((f) => <FlagPill key={f.kind} f={f} />)}</span>
-        <span className="strong acard-title">{a.goal.title}</span>
-        <span className="small acard-why">{top.detail}</span>
+    <div className="arow" data-tone={top.tone}>
+      <span className="arow-icon" data-tone={top.tone}><StatusShape k={flagStatus(top)} /></span>
+      <Link to={to} className="arow-main">
+        <span className="arow-title">{a.goal.title}</span>
+        <span className="arow-why"><span className="arow-flags">{flags.slice(0, 2).map((f) => f.label).join(' · ')}</span>{flags.length ? ' — ' : ''}{top.detail}</span>
       </Link>
-      {action && <div className="acard-action">{action}</div>}
+      {action && <div className="arow-action">{action}</div>}
     </div>
   );
 }
 
+const DATE_FMT: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+
+/** "3 h ago" for recent changes, a plain date for older ones. */
 export function timeAgo(iso: string, now: Date): string {
   const s = Math.max(0, (now.getTime() - Date.parse(iso)) / 1000);
   if (s < 60) return 'just now';
@@ -131,7 +137,7 @@ export function timeAgo(iso: string, now: Date): string {
   if (s < 86400) return Math.round(s / 3600) + ' h ago';
   const d = Math.round(s / 86400);
   if (d < 14) return d === 1 ? 'yesterday' : d + ' days ago';
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString('en-GB', DATE_FMT);
 }
 
 /** A panel that slides up on a phone and drops down as a popover on a desktop. */

@@ -24,7 +24,7 @@ export function GoalsScreen() {
           <h1 className="title-xl">Goals</h1>
           <span className="small muted">Week {app.week} of {app.cycle.weeks} · {app.cycle.name}</span>
         </span>
-        <Link className="btn primary" to="/goals/new">New goal</Link>
+        <Link className="btn" to="/goals/new">+ New goal</Link>
       </div>
       <div className="seg tabs" role="tablist" aria-label="Show">
         {tabs.map(([k, l, n]) => (
@@ -35,7 +35,7 @@ export function GoalsScreen() {
       </div>
 
       {show === 'attention' ? (
-        att.length ? <div className="acards">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
+        att.length ? <div className="alist">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
           : <div className="calm"><span aria-hidden="true">✓</span> Nothing is off track, stale or slipping.</div>
       ) : (
         <>

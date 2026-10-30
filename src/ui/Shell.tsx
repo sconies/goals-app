@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { weekProgress } from '../domain/progress';
 import { reviewQueue } from '../domain/review';
@@ -70,6 +70,30 @@ function WorkspaceSheet({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
+const ROLE_SHORT: Record<Profile, string> = { lead: 'Team lead', sponsor: 'Sponsor', coach: 'Coach', contributor: 'Contributor' };
+
+/** Demo control: which role's view this is, switchable in one tap. Each role has its own home and navigation. */
+function RoleBar({ onPeople }: { onPeople: () => void }) {
+  const app = useApp();
+  const nav = useNavigate();
+  const roles = (['lead', 'sponsor', 'coach', 'contributor'] as Profile[]).filter((r) => app.snapshot.people.some((x) => x.profile === r));
+  const pick = (r: Profile) => {
+    const person = app.snapshot.people.find((x) => x.profile === r);
+    if (!person || r === app.viewer.profile) return;
+    app.setViewer(person.id);
+    nav('/');
+  };
+  return (
+    <div className="rolebar">
+      <span className="rolebar-label" id="rolebar-label">Viewing as</span>
+      <div className="seg rolebar-seg" role="group" aria-labelledby="rolebar-label">
+        {roles.map((r) => <button key={r} aria-pressed={app.viewer.profile === r} onClick={() => pick(r)}>{ROLE_SHORT[r]}</button>)}
+      </div>
+      <button className="rolebar-person" onClick={onPeople}><Avatar p={app.viewer} size="sm" /><span className="ellipsis">{app.viewer.name}</span><span aria-hidden="true">⌄</span><span className="sr">Switch to someone else</span></button>
+    </div>
+  );
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   const app = useApp();
   const { pathname } = useLocation();
@@ -125,7 +149,10 @@ export function Shell({ children }: { children: ReactNode }) {
             </span>
           </button>
         </nav>
-        <main className="work" ref={work} id="main">{children}</main>
+        <main className="work" ref={work} id="main">
+          {!focusMode && <RoleBar onPeople={() => setSheet('profile')} />}
+          {children}
+        </main>
       </div>
       <nav className="tabbar" aria-label="Main">
         {tabs.map((id) => (

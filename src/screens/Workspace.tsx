@@ -2,9 +2,10 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { useDraft } from '../app/drafts';
-import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE, thisMonday, type ImportIssue } from '../domain/importer';
+import { buildWorkspace, parseTable, thisMonday, type ImportIssue } from '../domain/importer';
+import { downloadTemplate, readSpreadsheet } from '../app/spreadsheet';
 import type { Profile } from '../domain/types';
-import { Avatar, PROFILE_LABEL, ProgressRing, Steps } from '../ui/bits';
+import { Avatar, PROFILE_LABEL, Steps } from '../ui/bits';
 
 export function WorkspaceHome() {
   const app = useApp();
@@ -46,20 +47,62 @@ export function WorkspaceHome() {
   );
 }
 
-interface ImportDraft { step: number; name: string; startDate: string; people: string; goals: string }
+interface PersonRow { name: string; title: string; team: string; profile: Profile }
+interface ImportDraft { step: number; name: string; startDate: string; people: PersonRow[]; objectives: Record<string, string>; goals: string; goalsMode: 'later' | 'file' }
 
-/** Load your own data: name it, paste people, paste goals, check, create. */
+const blankRow = (): PersonRow => ({ name: '', title: '', team: '', profile: 'contributor' });
+const PROFILE_WORDS: Record<string, Profile> = { lead: 'lead', 'team lead': 'lead', sponsor: 'sponsor', coach: 'coach', 'goals coach': 'coach', contributor: 'contributor' };
+
+/** Rows of a pasted or uploaded people table, matched to our columns by header when there is one. */
+function rowsFromTable(tsv: string): { rows: PersonRow[]; objectives: Record<string, string> } {
+  const table = parseTable(tsv);
+  const first = (table[0] ?? []).map((h) => h.toLowerCase());
+  const hasHeader = first.includes('name');
+  const col = (names: string[], fallback: number) => {
+    const i = first.findIndex((h) => names.includes(h));
+    return hasHeader ? i : fallback;
+  };
+  const ci = { name: col(['name'], 0), team: col(['team'], 1), profile: col(['profile', 'role'], 2), title: col(['job title', 'title'], -1), objective: col(['team objective', 'objective'], -1) };
+  const objectives: Record<string, string> = {};
+  const rows = (hasHeader ? table.slice(1) : table).map((r) => {
+    const get = (i: number) => (i >= 0 ? r[i] ?? '' : '');
+    if (get(ci.objective) && get(ci.team)) objectives[get(ci.team)] = get(ci.objective);
+    return { name: get(ci.name), team: get(ci.team), title: get(ci.title), profile: PROFILE_WORDS[get(ci.profile).toLowerCase()] ?? 'contributor' };
+  }).filter((r) => r.name || r.team);
+  return { rows, objectives };
+}
+
+const peopleTsv = (rows: PersonRow[], objectives: Record<string, string>) =>
+  ['Name\tJob title\tTeam\tProfile\tTeam objective', ...rows.filter((r) => r.name.trim() || r.team.trim()).map((r) => [r.name, r.title, r.team, r.profile, objectives[r.team] ?? ''].join('\t'))].join('\n');
+
+/** Load your own data: name it, add people (type, paste or upload), optionally goals, then create. */
 export function ImportWizard() {
   const app = useApp();
   const nav = useNavigate();
-  const [d, set, clear] = useDraft<ImportDraft>(app.ws.id + ':import', () => ({ step: 0, name: '', startDate: thisMonday(app.today), people: '', goals: '' }));
+  const [d, set, clear] = useDraft<ImportDraft>(app.ws.id + ':import', () => ({ step: 0, name: '', startDate: thisMonday(app.today), people: [blankRow(), blankRow(), blankRow()], objectives: {}, goals: '', goalsMode: 'later' }));
   const [suffix] = useState(() => Math.random().toString(36).slice(2, 6));
   const [busy, setBusy] = useState(false);
+  const [fileNote, setFileNote] = useState('');
   const [created, setCreated] = useState<{ people: number; goals: number; teams: number } | null>(null);
-  const result = buildWorkspace({ name: d.name, startDate: d.startDate, people: d.people, goals: d.goals, now: app.today, idSuffix: suffix });
+  const goals = d.goalsMode === 'file' ? d.goals : '';
+  const result = buildWorkspace({ name: d.name, startDate: d.startDate, people: peopleTsv(d.people, d.objectives), goals, now: app.today, idSuffix: suffix });
   const issues = (t: ImportIssue['table']) => result.issues.filter((i) => i.table === t);
   const blocking = (t: ImportIssue['table']) => issues(t).filter((i) => !/becomes a contributor|using straight/.test(i.message));
-  const canNext = [d.name.trim().length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate), d.people.trim() !== '' && !blocking('People').length, !blocking('Goals').length, true][d.step]!;
+  const filled = d.people.filter((r) => r.name.trim() || r.team.trim());
+  const canNext = [d.name.trim().length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate), filled.length > 0 && !blocking('People').length, d.goalsMode === 'later' || (!!d.goals.trim() && !blocking('Goals').length), true][d.step]!;
+
+  const upload = async (file: File) => {
+    try {
+      const got = await readSpreadsheet(file);
+      const patch: Partial<ImportDraft> = {};
+      if (got.people) { const r = rowsFromTable(got.people); patch.people = r.rows.length ? r.rows : d.people; patch.objectives = r.objectives; }
+      if (got.goals) { patch.goals = got.goals; patch.goalsMode = 'file'; }
+      set(patch);
+      setFileNote(`Read ${file.name}: ${got.people ? rowsFromTable(got.people).rows.length + ' people' : 'no people sheet'}${got.goals ? ', plus a goals sheet' : ''}.`);
+    } catch (e) {
+      setFileNote(`Couldn’t read ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
 
   const create = async () => {
     setBusy(true);
@@ -77,16 +120,17 @@ export function ImportWizard() {
     return (
       <div className="focus">
         <div className="celebrate" role="status">
-          <ProgressRing done={1} total={1} size={88} />
+          <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
           <h1 className="title-xl">{d.name || 'Your workspace'} is ready</h1>
-          <p className="muted">{created.people} people, {created.teams} teams and {created.goals} goals. You’re viewing it as {app.viewer.name}. Switch back to the example any time from the workspace menu.</p>
-          <div className="row" style={{ justifyContent: 'center' }}><Link className="btn primary big-btn" to="/">Go to home</Link><Link className="btn" to="/goals">See the goals</Link></div>
+          <p className="muted">{created.people} people in {created.teams} teams{created.goals ? `, and ${created.goals} goals` : ''}. You’re viewing it as {app.viewer.name}. Switch back to the example any time from the workspace menu.</p>
+          <div className="row" style={{ justifyContent: 'center' }}><Link className="btn primary big-btn" to={created.goals ? '/' : '/goals/new'}>{created.goals ? 'Go to home' : 'Set up the first goal'}</Link><Link className="btn" to="/">Home</Link></div>
         </div>
       </div>
     );
   }
 
   const LABELS = ['Name', 'People', 'Goals', 'Check and create'];
+  const rowIssue = (i: number) => issues('People').find((x) => x.row === i + 2)?.message;
   return (
     <div className="focus">
       <div className="focus-top">
@@ -106,33 +150,75 @@ export function ImportWizard() {
         {d.step === 1 && (
           <>
             <h1 className="qtitle big">Who’s involved?</h1>
-            <p className="muted small">Copy rows from a spreadsheet and paste them here, or upload a CSV. Columns: Name, Job title, Team, Profile (lead, sponsor, coach or contributor), Team objective.</p>
-            <Paste label="People" value={d.people} onChange={(v) => set({ people: v })} template={PEOPLE_TEMPLATE} />
-            <Preview count={result.snapshot.people.length} noun="person" plural="people" issues={issues('People')} rows={result.snapshot.people.slice(0, 6).map((p) => `${p.name} · ${PROFILE_LABEL[p.profile]} · ${result.snapshot.teams.find((t) => t.id === p.teamId)?.name ?? ''}`)} />
+            <p className="muted small">Type names in, or paste rows straight from a spreadsheet into the table. Each person’s role decides what they see.</p>
+            <div className="people-grid" role="table" aria-label="People">
+              <div className="pg-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Team</span><span role="columnheader">Role</span><span /></div>
+              {d.people.map((r, i) => (
+                <div key={i} className="pg-row" role="row">
+                  <input className="input" aria-label={`Person ${i + 1}: name`} value={r.name} placeholder="Name"
+                    onChange={(e) => set({ people: d.people.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) })}
+                    onPaste={(e) => {
+                      const t = e.clipboardData.getData('text');
+                      if (!/[\t\n]/.test(t)) return;
+                      e.preventDefault();
+                      const got = rowsFromTable(t);
+                      set({ people: [...d.people.slice(0, i), ...got.rows, ...d.people.slice(i + got.rows.length)].filter((x, k, arr) => x.name || x.team || k >= arr.length - 1), objectives: { ...d.objectives, ...got.objectives } });
+                    }} />
+                  <input className="input" aria-label={`Person ${i + 1}: team`} value={r.team} placeholder="Team" list="teams"
+                    onChange={(e) => set({ people: d.people.map((x, k) => (k === i ? { ...x, team: e.target.value } : x)) })} />
+                  <select className="input" aria-label={`Person ${i + 1}: role`} value={r.profile}
+                    onChange={(e) => set({ people: d.people.map((x, k) => (k === i ? { ...x, profile: e.target.value as Profile } : x)) })}>
+                    {(['lead', 'sponsor', 'coach', 'contributor'] as Profile[]).map((p) => <option key={p} value={p}>{PROFILE_LABEL[p]}</option>)}
+                  </select>
+                  <button type="button" className="iconbtn" aria-label={`Remove person ${i + 1}`} onClick={() => set({ people: d.people.length > 1 ? d.people.filter((_, k) => k !== i) : [blankRow()] })}>✕</button>
+                  {rowIssue(i) && <span className="pg-issue tiny tone-off" role="alert">{rowIssue(i)}</span>}
+                </div>
+              ))}
+              <datalist id="teams">{[...new Set(d.people.map((r) => r.team).filter(Boolean))].map((t) => <option key={t} value={t} />)}</datalist>
+            </div>
+            <div className="row">
+              <button type="button" className="btn sm" onClick={() => set({ people: [...d.people, blankRow()] })}>+ Add a person</button>
+              <UploadButton onFile={upload} />
+              <button type="button" className="btn sm ghost" onClick={() => void downloadTemplate()}>Download the template (.xlsx)</button>
+            </div>
+            {fileNote && <span className="small muted" role="status">{fileNote}</span>}
+            <span className="small muted">{filled.length} {filled.length === 1 ? 'person' : 'people'} · {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}{result.snapshot.people.some((p) => p.profile === 'lead') ? '' : ' · tip: give each team a team lead'}</span>
           </>
         )}
         {d.step === 2 && (
           <>
-            <h1 className="qtitle big">What are the goals? <span className="muted" style={{ fontWeight: 400 }}>Optional</span></h1>
-            <p className="muted small">Paste them now, or skip and set them up in the app. Columns: Goal, Team, Owner, Type (metric, range, milestone), Unit, Start, Target, Plan, Limit, Must stay, Margin, Stages (“Name@week; Name@week”), Feeds into, Headline, Effect, Source.</p>
-            <Paste label="Goals" value={d.goals} onChange={(v) => set({ goals: v })} template={GOALS_TEMPLATE} />
-            <Preview count={result.snapshot.goals.length} noun="goal" plural="goals" issues={issues('Goals')} rows={result.snapshot.goals.slice(0, 6).map((g) => `${g.title}${g.headline ? ' · headline' : ''} · ${result.snapshot.people.find((p) => p.id === g.ownerId)?.name}`)} />
+            <h1 className="qtitle big">Goals</h1>
+            <div className="kindcards">
+              <button type="button" className="kindcard" aria-pressed={d.goalsMode === 'later'} onClick={() => set({ goalsMode: 'later' })}>
+                <span className="strong">Set them up in the app</span><span className="small">Each lead adds their goals step by step. Recommended for a first try.</span>
+              </button>
+              <button type="button" className="kindcard" aria-pressed={d.goalsMode === 'file'} onClick={() => set({ goalsMode: 'file' })}>
+                <span className="strong">Bring them from a spreadsheet</span><span className="small">Use the Goals sheet of the template.</span>
+              </button>
+            </div>
+            {d.goalsMode === 'file' && (
+              <div className="stack">
+                <div className="row"><UploadButton onFile={upload} label={d.goals ? 'Upload a different file' : 'Upload the spreadsheet'} /><button type="button" className="btn sm ghost" onClick={() => void downloadTemplate()}>Download the template (.xlsx)</button></div>
+                {fileNote && <span className="small muted" role="status">{fileNote}</span>}
+                {result.snapshot.goals.length > 0 && <ul className="preview">{result.snapshot.goals.map((g) => <li key={g.id}>{g.title}{g.headline ? ' · headline' : ''} · {result.snapshot.people.find((p) => p.id === g.ownerId)?.name}</li>)}</ul>}
+                {issues('Goals').map((i) => <span key={i.row + i.message} className="small tone-off">Row {i.row}: {i.message}</span>)}
+              </div>
+            )}
           </>
         )}
         {d.step === 3 && (
           <>
             <h1 className="qtitle big">Ready to create “{d.name}”?</h1>
             <div className="summary-card">
-              <p><strong>{result.snapshot.people.length}</strong> people in <strong>{result.snapshot.teams.length}</strong> teams, and <strong>{result.snapshot.goals.length}</strong> goals.</p>
+              <p><strong>{result.snapshot.people.length}</strong> people in <strong>{result.snapshot.teams.length}</strong> teams{result.snapshot.goals.length ? <>, and <strong>{result.snapshot.goals.length}</strong> goals</> : '; goals get set up in the app'}.</p>
               <p className="small muted">The cycle starts {new Date(d.startDate + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })} and runs 13 weeks. Creating it is logged.</p>
-              {result.issues.length > 0 && <p className="small tone-risk">{result.issues.length} note{result.issues.length > 1 ? 's' : ''} from the check: {result.issues.map((i) => i.message).join(' ')}</p>}
+              {result.issues.length > 0 && <p className="small tone-risk">{result.issues.map((i) => i.message).join(' ')}</p>}
             </div>
           </>
         )}
         <div className="focus-foot">
           {d.step > 0 && <button type="button" className="btn" onClick={() => set({ step: d.step - 1 })}>Back</button>}
           <span style={{ flex: 1 }} />
-          {d.step === 2 && !d.goals.trim() && <button type="button" className="btn" onClick={() => set({ step: 3 })}>Skip goals</button>}
           <button className="btn primary big-btn" type="submit" disabled={!canNext || busy} aria-disabled={!canNext || busy}>{busy ? 'Creating…' : d.step < 3 ? 'Continue →' : 'Create workspace'}</button>
         </div>
       </form>
@@ -140,30 +226,13 @@ export function ImportWizard() {
   );
 }
 
-function Paste({ label, value, onChange, template }: { label: string; value: string; onChange: (v: string) => void; template: string }) {
+function UploadButton({ onFile, label = 'Upload a spreadsheet' }: { onFile: (f: File) => void; label?: string }) {
   const file = useRef<HTMLInputElement>(null);
   return (
-    <div className="stack" style={{ gap: 8 }}>
-      <label className="field"><span className="sr">{label}</span>
-        <textarea className="input mono" rows={7} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label + ' (paste from a spreadsheet)'} placeholder={template.split('\n').slice(0, 2).join('\n')} spellCheck={false} />
-      </label>
-      <div className="row">
-        <button type="button" className="btn sm" onClick={() => file.current?.click()}>Upload a CSV</button>
-        <input ref={file} type="file" accept=".csv,.tsv,.txt,text/csv" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) onChange(await f.text()); }} />
-        <button type="button" className="btn sm ghost" onClick={() => onChange(template)}>Fill with the example rows</button>
-        <a className="btn sm ghost" download={label.toLowerCase() + '-template.csv'} href={'data:text/csv;charset=utf-8,' + encodeURIComponent(template.replace(/\t/g, ','))}>Download a template</a>
-      </div>
-    </div>
-  );
-}
-
-function Preview({ count, noun, plural, issues, rows }: { count: number; noun: string; plural: string; issues: ImportIssue[]; rows: string[] }) {
-  if (!count && !issues.length) return null;
-  return (
-    <div className="stack" style={{ gap: 6 }} role="status">
-      {count > 0 && <span className="small strong tone-on">✓ {count} {count === 1 ? noun : plural} read</span>}
-      {rows.length > 0 && <ul className="preview">{rows.map((r) => <li key={r}>{r}</li>)}{count > rows.length && <li className="muted">and {count - rows.length} more</li>}</ul>}
-      {issues.map((i) => <span key={i.row + i.message} className="small tone-off">Row {i.row}: {i.message}</span>)}
-    </div>
+    <>
+      <button type="button" className="btn sm" onClick={() => file.current?.click()}>{label}</button>
+      <input ref={file} type="file" accept=".xlsx,.csv,.tsv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden aria-label={label}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }} />
+    </>
   );
 }

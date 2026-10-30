@@ -123,7 +123,7 @@ function ReviewCard({ a, handled, onDone, onSkip }: { a: GoalAttention; handled:
       <p className="lede">{a.flags.find((f) => f.kind !== 'due')?.detail}</p>
 
       <div className="numbers">
-        <div><span className="tiny muted">Status</span><Chip k={st.status} /><span className="tiny muted">Numbers: {LABEL[assessment.calc]}</span></div>
+        <div><span className="tiny muted">Status</span><Chip k={st.status} />{assessment.calc !== st.status && st.status !== 'stale' && <span className="tiny muted">Numbers say {LABEL[assessment.calc].toLowerCase()}</span>}</div>
         <div><span className="tiny muted">{assessment.kind === 'milestone' ? 'Stages' : 'Latest'}</span><span className="big">{assessment.kind === 'milestone' ? `${assessment.doneCount} of ${assessment.stages.length}` : assessment.actual == null || g.kind === 'milestone' ? '—' : fmt(assessment.actual, g)}</span></div>
         <div><span className="tiny muted">Against plan</span><span className={'big tone-' + gap.tone}>{gap.short}</span></div>
       </div>
@@ -135,7 +135,7 @@ function ReviewCard({ a, handled, onDone, onSkip }: { a: GoalAttention; handled:
         {assessment.kind === 'milestone' && <StageList a={assessment} />}
       </details>
 
-      {latest && latest.why && latest.why !== 'On plan.' && (
+      {latest && latest.why && latest.why !== 'On plan.' && latest.why !== a.flags.find((f) => f.kind !== 'due')?.detail && (
         <section className="owner-says">
           <span className="label">{owner?.name.split(' ')[0]} says{latest.cause ? ` · ${causeLabel(latest.cause)}` : ''}</span>
           <p>{latest.why}</p>

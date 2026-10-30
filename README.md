@@ -16,7 +16,7 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-Switch profile from the avatar (bottom of the sidebar, or top right on a phone). Good places to start:
+Pick a role in the **Viewing as** bar at the top; each role opens its own home. Use the name beside it, or the avatar, to pick a specific person. Good places to start:
 
 - **Maya Chen** (team lead): owns the headline goal, with a check-in due.
 - **Elena Ruiz** (sponsor): has a review queue waiting.

@@ -7,9 +7,16 @@ import { valueSeries } from '../domain/plan';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
 import { reviewQueue } from '../domain/review';
 import { assessPosted } from '../domain/status';
-import type { Goal } from '../domain/types';
+import type { Goal, Profile } from '../domain/types';
 import { AttentionCard, Chip, Dot, PROFILE_LABEL, ProgressRing } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
+
+const ROLE_PURPOSE: Record<Profile, string> = {
+  lead: 'Your check-ins, and anything in your area that needs you.',
+  sponsor: 'Your weekly review, and the calls only you can make.',
+  coach: 'Setting people up, and keeping the weekly rhythm going.',
+  contributor: 'How your team’s goals are doing, and what they feed.',
+};
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -59,7 +66,7 @@ function LeadHome() {
   return (
     <>
       <section className="hero">
-        <ProgressRing done={p.done.length} total={p.goals.length} size={72} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
+        <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
         <div className="hero-body">
           {p.due.length ? (
             <>
@@ -107,7 +114,7 @@ function AttentionSection({ list, empty, limit = 3, title = 'Needs attention' }:
         {list.length > limit && <Link className="small linkish" to="/goals?show=attention">Show all {list.length}</Link>}
       </div>
       {list.length ? (
-        <div className="acards">
+        <div className="alist">
           {list.slice(0, limit).map((a) => (
             <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id}
               action={a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path')
@@ -130,7 +137,7 @@ function SponsorHome() {
   return (
     <>
       <section className="hero">
-        <ProgressRing done={q.done} total={q.total} size={72} label={`${q.done} of ${q.total} review items handled`} />
+        <ProgressRing done={q.done} total={q.total} size={56} label={`${q.done} of ${q.total} review items handled`} />
         <div className="hero-body">
           <span className="eyebrow">{reviewWhen(app)} · {checkedIn} of {all.length} goals checked in</span>
           {left ? (
@@ -188,13 +195,13 @@ function CoachHome() {
   return (
     <>
       <section className="hero">
-        <ProgressRing done={done} total={all.length} size={72} label={`${done} of ${all.length} goals checked in this week`} />
+        <ProgressRing done={done} total={all.length} size={56} label={`${done} of ${all.length} goals checked in this week`} />
         <div className="hero-body">
           <span className="eyebrow">{reviewWhen(app)} · {done} of {all.length} goals checked in</span>
           {app.ws.kind === 'example' && !own.length ? (
             <>
               <h2 className="hero-title">Load your own data</h2>
-              <span className="muted">Paste people and goals from a spreadsheet. About 5 min, and the example stays here to compare.</span>
+              <span className="muted">Type, paste or upload your people; goals can come later. About 3 min, and the example stays here to compare.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to="/workspace/new">Load your data →</Link></div>
             </>
           ) : stale.length ? (
@@ -242,8 +249,9 @@ export function Home() {
   return (
     <div className="page narrow">
       <div className="page-head">
+        <span className="eyebrow role-eyebrow" data-profile={app.viewer.profile}>{PROFILE_LABEL[app.viewer.profile]} view</span>
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
-        <span className="muted small">{PROFILE_LABEL[app.viewer.profile]} · {app.ws.kind === 'example' ? 'Example data' : app.ws.name}</span>
+        <span className="muted small">{ROLE_PURPOSE[app.viewer.profile]}</span>
       </div>
       {app.viewer.profile === 'sponsor' ? <SponsorHome /> : app.viewer.profile === 'coach' ? <CoachHome /> : app.viewer.profile === 'contributor' ? <ContributorHome /> : <LeadHome />}
     </div>

@@ -9,7 +9,7 @@ Four profiles use the tool. Each has its own home and its own next thing to do:
 | Goals coach | Sets up workspaces and keeps the rhythm going | Load your data, then goals that have gone quiet |
 | Contributor | Follows the goals their work feeds | Their team's objective and goals |
 
-In the demo anyone can switch profile from the avatar menu; sign-in comes later.
+In the demo, the **Viewing as** bar at the top switches role in one tap (Team lead, Sponsor, Coach, Contributor) and opens that role's home; the person menu beside it picks someone specific. Sign-in comes later.
 
 ## The ten journeys, by priority
 
@@ -19,7 +19,7 @@ In the demo anyone can switch profile from the avatar menu; sign-in comes later.
 | 2 | "What needs me?": home shows what's due, off track, stale or slipping | Lead | Attention is the scarce resource; problems must find the person, not the other way round | 10/10 |
 | 3 | Weekly review: work the queue to zero and make the calls | Sponsor | Software can't create follow-through, but it can make the review fast and every decision recorded | 10/10 |
 | 4 | Set up a goal, step by step | Lead | Bad goals going in is the second failure; typed goals with a plan preview counter it | 10/10 |
-| 5 | Load your own data and switch between it and the example | Coach | Without it nobody can try the tool on their own goals | 10/10 |
+| 5 | Load your own data and switch between it and the example: type people into a table, paste rows from a spreadsheet, or upload the Excel template; goals can come later | Coach | Without it nobody can try the tool on their own goals | 10/10 |
 | 6 | Understand a goal and its change history | Anyone | Trust needs "last updated by" and a log nobody can edit | 10/10 |
 | 7 | Propose a target change and get it approved | Owner, then sponsor | Well-ahead goals should move their target, with the original plan kept | 10/10 |
 | 8 | Chase stale goals | Coach | Decay is silent; the coach needs a short list and one place to start | 10/10 |
@@ -60,3 +60,9 @@ For focus, assuming everyone gets distracted at times:
 - **Small, honest rewards**: a progress ring that fills, a drawn tick on posting, a week-done screen, an on-time streak counted from the owner's own check-ins. No confetti.
 - **Easy to resume**: drafts are saved as you type and offered back ("Pick up where you left off").
 - **Calm motion**: 150–200ms, on state changes only, never blocking; off under reduced motion. A skeleton while loading, then a clear error with Try again.
+
+Visual language (revised after review):
+
+- **Flat, list-first.** In the style of Linear and Stripe: lists with hairline dividers, 8px corners, no cards inside cards, and no coloured edges or tinted boxes.
+- **Status is an icon plus a word**, coloured, without a filled pill. Flags read as text ("Off track · Worsening trend — the reason").
+- **Say it once.** The goal page has one status line, then only the flags that add something new (a trend, a missed path, a proposal), the owner's note, and the path back.

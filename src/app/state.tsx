@@ -3,7 +3,7 @@ import { attentionFor, type GoalAttention } from '../domain/attention';
 import { checkInChange, goalChange, type Lookup } from '../domain/changes';
 import { toCheckIn, type Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
-import { DECISION_LABEL, withApprovedTarget } from '../domain/review';
+import { DECISION_LOG, withApprovedTarget } from '../domain/review';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { Change, CheckIn, Cycle, Decision, Goal, Person, Snapshot, Team, Workspace } from '../domain/types';
 import { applyCommit, EXAMPLE, newId, type Commit, type Store } from '../data/store';
@@ -174,7 +174,7 @@ export function AppProvider({ store, today = realNow, children }: { store: Store
         const d: Decision = { id: newId('dec'), goalId: goal.id, checkInId: checkIn?.id ?? null, week, kind, byId: viewer.id, at: stamp(), note: note.trim() };
         const changes: Change[] = [];
         const goals: Goal[] = [];
-        let summary: string = DECISION_LABEL[kind];
+        let summary: string = DECISION_LOG[kind];
         const diffs = note.trim() ? [{ field: 'Note', from: '—', to: note.trim() }] : [];
         if (kind === 'approve-target' && checkIn?.proposeTarget != null && goal.kind === 'metric') {
           goals.push(withApprovedTarget(goal, checkIn.proposeTarget, week));

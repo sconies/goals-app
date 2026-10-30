@@ -279,7 +279,7 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
     ? `${gap.long}. The plan for this week is ${fmt(a.plan, goal)}.` + (a.forecastMisses && a.forecast != null ? ` At this pace it ends near ${fmt(a.forecast, goal)}, short of ${fmt(goal.plan.target, goal)}.` : '')
     : a.kind === 'range' && goal.kind === 'range' ? `${gap.long}. The limit is ${targetText(goal)}.` : gap.long + '.';
   return (
-    <div className={'verdict tone-edge-' + (gap.tone === 'ahead' ? 'info' : gap.tone)} role="status">
+    <div className="verdict" data-tone={gap.tone} role="status">
       <div className="row between nowrap">
         <span className={'strong tone-' + gap.tone}>{gap.short}</span>
         <Chip k={e.calc} label={'Numbers say: ' + LABEL[e.calc]} />

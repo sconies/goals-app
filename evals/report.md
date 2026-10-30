@@ -1,6 +1,6 @@
 # Eval scorecard · 2 · Profiles, journeys and the change log
 
-Run 2026-10-30 18:11 UTC.
+Run 2026-10-30 21:11 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -12,7 +12,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 2 | What needs me? Home shows what’s due, off track, stale or slipping | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 3 | Weekly review: work the queue to zero and make the calls | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 13) |
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 11 · 10 (budget 12) |
-| 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 11 · 11 (budget 11) |
+| 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 9 · 9 (budget 11) |
 | 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 2 · 2 (budget 3) |
 | 7 | Propose a target change and get it approved | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 14) |
 | 8 | Chase stale goals | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
