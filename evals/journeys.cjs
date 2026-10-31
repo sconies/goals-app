@@ -140,30 +140,27 @@ journey('U1', ['CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO
   await see(p, 'You’re all set for week 7', 'posted check-ins survive a reload');
   await p.context().close();
 
-  // Maya: behind plan, so the reason and the path to green are needed. Last week's are offered back:
-  // "Still true" carries them over in one tap, and posting can't skip the choice.
+  // Maya: behind plan. One question per screen: the number, then last week's note offered back.
+  // "Still true" carries it over and posts; an empty number is explained in place.
   p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/check-in'));
+  await p.locator('.focus-foot button[type=submit]').click();
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Type this week’s number' }).isVisible(), 'an empty number says nothing');
   await h.fill(p.getByLabel('This week’s value'), '29.0');
   h.set('attention', await p.locator('.verdict[data-tone=off]').isVisible(), 'behind plan is not flagged in the verdict');
-  await see(p, 'Last week you said', 'last week’s reason and path are offered back');
-  await p.locator('.focus-foot button[type=submit]').click({ force: true });
-  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Choose one to carry on' }).isVisible(), 'an incomplete post says nothing');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'Is last week’s note still true?', 'last week’s reason and path are offered back');
+  await h.progressShown('carry');
+  await h.checkpoint('carry');
   await h.click(p.getByRole('button', { name: 'Still true', exact: true }));
-  if (await p.getByText('The week you gave has passed').isVisible().catch(() => false)) await h.click(p.getByRole('group', { name: /Back on plan by|passed/ }).getByRole('button').first());
-  await h.checkpoint('behind');
-  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  if (await p.getByRole('group', { name: 'Back on plan by' }).isVisible().catch(() => false)) {
+    await h.click(p.getByRole('group', { name: 'Back on plan by' }).getByRole('button').first());
+    await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  }
   await see(p, 'Posted');
   s = await h.snapshot();
   const c = s.changes.filter((x) => x.actorId === 'maya' && x.action === 'posted').pop();
   h.set('logged', !!c && c.diffs.some((d) => d.field === 'Path to green') && c.diffs.some((d) => /Brain/.test(d.to)), 'Maya’s carried-over reason and path are not in the log');
-  // "It’s changed" opens last week's words for editing instead.
-  const next = p.getByRole('button', { name: /Next: / });
-  if (await next.isVisible().catch(() => false)) await next.click();
-  if (await p.getByRole('button', { name: 'It’s changed' }).isVisible().catch(() => false)) {
-    await p.getByRole('button', { name: 'It’s changed' }).click();
-    if (!(await p.getByLabel('What happened').inputValue()).length && !(await p.getByLabel('What changes').inputValue().catch(() => '')).length) fail('“It’s changed” did not prefill last week’s words');
-  }
   await p.context().close();
 });
 
@@ -330,15 +327,16 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   await p.context().close();
 }, ['errors', 'budget']);
 
-journey('U7', ['REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE'], 'Propose a target change and get it approved', 16, async (h, device) => {
+journey('U7', ['REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE'], 'Propose a target change and get it approved', 18, async (h, device) => {
   let p = h.use(await newPage(device, 'sam'));
   await p.goto(url('/'));
   await h.inView(p.getByRole('link', { name: /Start check-in/ }), 'entry', 'Start check-in');
   await h.click(p.getByRole('link', { name: /Start check-in/ }));
   await h.fill(p.getByLabel('This week’s value'), '90');
-  await see(p, 'Why is it so far ahead?');
+  await h.click(p.getByRole('button', { name: 'Next' }));
   // Last week's reason is offered back; this week's is different, so edit it.
-  await h.click(p.getByRole('button', { name: 'It’s changed', exact: true }));
+  await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
+  await see(p, 'Why is it ahead?');
   await h.click(p.getByRole('button', { name: 'Change landed early' }));
   await h.fill(p.getByLabel('What happened'), 'Monorepo support shipped, so every repo gets AI review.');
   await h.click(p.getByRole('button', { name: 'Propose a new target' }));

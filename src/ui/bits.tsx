@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Flag, GoalAttention } from '../domain/attention';
@@ -152,12 +153,14 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     return () => { document.removeEventListener('keydown', key); prev?.focus?.(); };
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // Rendered at the top of the page so a phone shows it as a bottom sheet over everything.
+  return createPortal(
     <div className="sheet-wrap" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title} ref={ref} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head"><span className="h3">{title}</span><button className="iconbtn" onClick={onClose} aria-label="Close">✕</button></div>
         <div className="sheet-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

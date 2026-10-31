@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-10-30 22:22 UTC.
+Run 2026-10-31 00:34 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -14,7 +14,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 11 · 10 (budget 12) |
 | 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 9 · 9 (budget 11) |
 | 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 3) |
-| 7 | Propose a target change and get it approved | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
+| 7 | Propose a target change and get it approved | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 17 · 17 (budget 18) |
 | 8 | Chase stale goals | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 9 | See how my team’s work maps to the goals | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 10 | Close the cycle with a retro | **0** | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | 0 · 0 (budget 0) |
