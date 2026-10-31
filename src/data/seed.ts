@@ -41,6 +41,11 @@ const head = metric(common('head', 'pm', 'maya', 'Intake-to-delivery time', 'Jir
   definition: 'Median days from a request being accepted at intake to it being live in production',
 });
 const reviewOriginal = { start: 30, target: 75, shape: 'straight' as const };
+// A second outcome, so the leader view shows more than one tree.
+const cost = metric(common('cost', 'infra', 'jonas', 'Cloud spend per developer', 'FinOps dashboard'), 'USD', 0, 410, 330, {
+  io: 'output', headline: true, parentId: null,
+  definition: 'Monthly cloud bill for developer environments and CI, divided by active developers',
+});
 
 const goals: Goal[] = [
   head,
@@ -55,6 +60,9 @@ const goals: Goal[] = [
     stages: [{ id: 'tm', name: 'Threat model', dueWeek: 2 }, { id: 'dc', name: 'Data classification', dueWeek: 4 }, { id: 'ac', name: 'Access controls built', dueWeek: 6 }, { id: 'ap', name: 'Approval granted', dueWeek: 6 }] } satisfies MilestoneGoal,
   { ...common('brain', 'brain', 'leo', 'Brain data model and AI infrastructure live', 'Jira BRN epics'), effect: 1, kind: 'milestone',
     stages: [{ id: 'dm', name: 'Data model v1', dueWeek: 3 }, { id: 'pr', name: 'Private repo indexing', dueWeek: 7 }, { id: 'gi', name: 'AI infrastructure GA', dueWeek: 9 }, { id: 'ap', name: 'Assistant pilot', dueWeek: 12 }] } satisfies MilestoneGoal,
+  cost,
+  metric({ ...common('idle', 'infra', 'jonas', 'Idle environments shut down within 2 hours', 'Platform API'), parentId: 'cost', effect: 40 }, '%', 0, 30, 90),
+  metric({ ...common('cache', 'sre', 'kofi', 'Build cache hit rate', 'CI telemetry'), parentId: 'cost', effect: 25 }, '%', 0, 50, 76),
 ];
 
 /** Weekly values, weeks 1.. as posted. */
@@ -67,6 +75,9 @@ const values: Record<string, number[]> = {
   cfr: [10.8, 11.0, 10.6, 10.9, 11.2, 12.6],
   env: [38, 42, 46, 50],
   scan: [54, 58, 62, 66, 70, 74, 78],
+  cost: [404, 398, 391, 385, 379, 373, 366],
+  idle: [35, 39, 44, 48, 52, 55, 57],
+  cache: [52, 54, 56, 58, 60, 62, 65],
 };
 
 /** Stage updates by week for the milestones. */
@@ -106,6 +117,10 @@ const notes: Record<string, { ahead?: Note; behind?: Note; path?: { what: string
   env: {
     behind: { cause: 'slower', why: 'The golden path template needed a second review from Security before launch.' },
     path: { what: 'Ship the template once Security signs off this week.', in: 1 },
+  },
+  idle: {
+    behind: { cause: 'slower', why: 'The shutdown job skips environments with an open debug session, and most have one by Friday.' },
+    path: { what: 'Close idle debug sessions after 30 minutes, then rerun the shutdown job.', in: 3 },
   },
   access: {
     behind: { cause: 'external', why: 'The access-review tooling vendor delivered late, so SEC-88 moved from week 6 to week 9.' },

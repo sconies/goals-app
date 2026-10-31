@@ -192,34 +192,46 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   await p.context().close();
 }, ['errors', 'logged']);
 
-journey('U3', ['REVIEW', 'ATTENTION', 'CHANGE-LOG', 'PROFILES'], 'Weekly review: work the queue to zero and make the calls', 13, async (h, device) => {
+journey('U3', ['REVIEW', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG', 'PROFILES'], 'Weekly review: work the queue to zero and make the calls', 13, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
+  // The goals view opens on the outcomes: each headline goal with its forecast, then what feeds it, worst first.
+  await p.goto(url('/goals'));
+  await p.locator('.outcome-card').first().waitFor();
+  const cards = await p.locator('.outcome-card').count();
+  const firstRow = p.locator('.outcome').first().locator('.trow').first();
+  h.set('attention', cards >= 2 && await p.getByText(/At this pace/).first().isVisible() && (await firstRow.getAttribute('data-tone')) === 'off' && (await firstRow.locator('.trow-why').innerText()).length > 15,
+    'the outcome tree does not lead with the worst goal and its reason');
   await p.goto(url('/'));
   await see(p, 'things need you');
   await h.inView(p.getByRole('link', { name: /Start review/ }), 'entry', 'Start review');
   await h.checkpoint('home');
   await h.click(p.getByRole('link', { name: /Start review/ }));
-  await p.locator('.review-card').waitFor();
+  // The review walks the goal pages themselves, one at a time, with the call at the bottom.
+  await p.locator('.reviewbar').waitFor();
   await h.progressShown('review');
   let items = 0;
-  while (items < 12) {
-    const card = p.locator('.review-card');
-    if (!(await card.isVisible().catch(() => false))) break;
-    h.set('attention', (await card.locator('.flag').count()) > 0 && (await card.locator('.lede').innerText()).length > 15, 'a review card has no flag or reason');
+  while (items < 12 && /review=1/.test(p.url())) {
+    await p.locator('.decide').waitFor();
+    const reason = await p.locator('.request, .why, .story .hint').allInnerTexts();
+    h.set('attention', await p.locator('.story .chip').isVisible() && reason.join(' ').length > 30, 'a goal in the review has no status or reason');
     await h.checkpoint('item ' + (items + 1));
+    const here = p.url();
     if (items === 1) {
       // Ask a question: the first click asks for the question; sending it without one is refused.
-      await h.click(p.getByRole('button', { name: 'Ask a question' }));
+      await h.click(p.getByRole('button', { name: 'Ask a question' }).first());
       await p.getByRole('button', { name: 'Send question' }).click();
       h.set('errors', await p.getByPlaceholder(/What would it take/).isVisible(), 'asking without a question is not caught');
       await h.fill(p.getByPlaceholder(/What would it take/), 'Can the golden path ship before the GPU quota?');
       await h.click(p.getByRole('button', { name: 'Send question' }));
+    } else if (await p.getByRole('button', { name: 'Ask for a check-in' }).isVisible().catch(() => false)) {
+      await h.click(p.getByRole('button', { name: 'Ask for a check-in' }));
+      await h.click(p.getByRole('button', { name: 'Send question' }));
     } else {
-      await h.click(p.getByRole('button', { name: /Seen, no action|Approve/ }).first());
+      await h.click(p.locator('.decide .btn.primary'));
     }
     items++;
-    await p.locator('.review-card, .celebrate').first().waitFor();
-    await p.waitForTimeout(200);
+    await p.waitForURL((u) => u.href !== here);
+    await p.waitForTimeout(150);
   }
   await see(p, 'Review done for week 7');
   h.set('finish', await p.getByRole('link', { name: 'Back to home' }).isVisible(), 'no way on from the review summary');
@@ -316,12 +328,13 @@ journey('U5', ['WORKSPACES', 'CHANGE-LOG', 'PROFILES'], 'Load your own data and 
 
 journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], 'Understand a goal and its change history', 3, async (h, device) => {
   const p = h.use(await newPage(device, 'maya'));
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?show=attention'));
   await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
   await h.click(p.locator('.arow-main', { hasText: 'Repo-access controls' }));
   await see(p, 'Updated by');
   h.set('attention', await p.locator('.story[data-tone=off] .chip.off').isVisible() && await p.locator('.why .note-line').count() > 0, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
+  await h.click(p.getByRole('tab', { name: /Activity/ }));
   await h.click(p.getByRole('button', { name: /Show .*change/ }).first());
   h.set('logged', await p.locator('.diffs ins').first().isVisible(), 'a change does not show its before and after');
   h.set('finish', true);
@@ -337,7 +350,7 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   await p.context().close();
 }, ['errors', 'budget']);
 
-journey('U7', ['REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE'], 'Propose a target change and get it approved', 18, async (h, device) => {
+journey('U7', ['INSPECT-ACT', 'REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE'], 'Propose a target change and get it approved', 18, async (h, device) => {
   let p = h.use(await newPage(device, 'sam'));
   await p.goto(url('/'));
   await h.inView(p.getByRole('link', { name: /Start check-in/ }), 'entry', 'Start check-in');
@@ -373,29 +386,28 @@ journey('U7', ['REASON-AHEAD', 'REVIEW', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANG
   await p.locator('.me:visible, .profilebtn:visible').first().click();
   await p.getByRole('dialog').getByRole('button', { name: /Elena Ruiz/ }).click();
   await see(p, 'Good afternoon, Elena');
+  // The review opens on the goal pages; next moves along until the proposal.
   await p.goto(url('/review'));
-  await p.locator('.review-card').waitFor();
+  await p.locator('.reviewbar').waitFor();
   await h.progressShown('review');
-  const reach = async (name) => {
-    for (let i = 0; i < 12; i++) {
-      await p.locator('.review-card, .celebrate').first().waitFor();
-      if (await p.getByRole('button', { name }).isVisible().catch(() => false)) return;
-      await p.getByRole('button', { name: 'Skip for now' }).click();
-    }
-    fail(`never reached “${name}” in the review`);
-  };
-  await reach('Approve 99%');
-  h.set('attention', await p.locator('.review-card .flag-proposal').isVisible(), 'the proposal is not flagged');
+  for (let i = 0; i < 12; i++) {
+    await p.locator('.decide').waitFor();
+    await p.waitForTimeout(100);
+    if (await p.getByRole('button', { name: 'Approve 99%' }).isVisible().catch(() => false)) break;
+    const here = p.url();
+    await p.getByRole('button', { name: 'Next goal' }).click();
+    await p.waitForURL((u) => u.href !== here);
+  }
+  h.set('attention', await p.locator('.request').filter({ hasText: 'proposes a new target' }).isVisible(), 'the proposal is not shown as the request');
   await h.checkpoint('proposal');
   await h.click(p.getByRole('button', { name: 'Approve 99%' }));
   await p.waitForTimeout(250);
-  // The goal page's "Decide" link opens the review on that goal.
+  // Inspecting a goal outside the review: the call is on the goal page itself.
   await p.goto(url('/goals/lead'));
-  await h.click(p.getByRole('link', { name: 'Decide' }));
-  await reach('Approve change');
-  await see(p, 'Target 2.0 days → 1.5 days', 'the review card says what the plan change is');
+  await see(p, 'Target 2.0 days → 1.5 days', 'the goal page says what the plan change is');
   await h.checkpoint('plan change');
   await h.click(p.getByRole('button', { name: 'Approve change' }));
+  await see(p, 'Approved the plan change');
   await p.goto(url('/goals/review'));
   await see(p, 'Target changed in week 7: 75% → 99%', 'the approved target re-baselines the plan, keeping the original');
   h.set('finish', true);
@@ -433,7 +445,7 @@ journey('U9', ['PROFILES', 'HIERARCHY', 'OWNER-ONLY'], 'See how my team’s work
   await p.goto(url('/'));
   await see(p, 'Your team’s goals');
   await h.inView(p.locator('.gline').first(), 'entry', 'the team’s goals');
-  await see(p, 'Headline goal');
+  await see(p, 'Outcomes');
   h.set('attention', await p.locator('.gline .dot.risk, .gline .dot.off, .gline .dot.on').count() > 0, 'goal status is not shown');
   await h.checkpoint('contributor home');
   await h.click(p.locator('.gline').first());

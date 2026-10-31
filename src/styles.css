@@ -531,3 +531,44 @@ svg.chart { display: block; overflow: visible; }
 }
 .sheet-wrap { background: rgba(5, 8, 14, .55); }
 .sheet-body { padding: 0 var(--s4) var(--s4); }
+
+/* ---------- leader view: outcome trees and inspection ---------- */
+.outcome { display: flex; flex-direction: column; gap: var(--s3); }
+.outcome + .outcome { margin-top: var(--s4); }
+.outcome-card { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4) var(--s5); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: inherit; text-decoration: none; }
+.outcome-card:hover { border-color: var(--line-strong); }
+.outcome-title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); font-size: var(--t-xl); line-height: 28px; font-weight: 700; letter-spacing: -0.015em; }
+.outcome-title .asks { margin: 0; }
+.outcome-now { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }
+.outcome .mix { height: 6px; }
+.tree { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.tree > li + li { border-top: 1px solid var(--line-2); }
+.tree.sub { border: 0; border-radius: 0; border-top: 1px solid var(--line-2); background: transparent; padding-left: var(--s5); }
+.trow { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: var(--s3); align-items: start; padding: var(--s3) var(--s4); color: inherit; text-decoration: none; }
+.trow:hover { background: var(--surface-2); }
+.trow-icon { padding-top: 3px; display: inline-flex; }
+.trow-icon svg { width: 14px; height: 14px; }
+.trow-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trow-title { font-weight: 600; }
+.trow-why { font-size: var(--t-sm); line-height: 20px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.trow-now { display: flex; flex-direction: column; align-items: flex-end; font-size: var(--t-sm); line-height: 20px; white-space: nowrap; }
+.asks { display: inline-block; margin-right: var(--s2); padding: 0 var(--s2); border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-size: var(--t-xs); font-weight: 700; line-height: 18px; }
+.request { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4) 0; border-bottom: 1px solid var(--line); }
+.request p { margin: 0; font-size: var(--t-md); line-height: 24px; }
+.request-ask { font-size: var(--t-lg) !important; line-height: 26px !important; font-weight: 600; }
+.decide.inline { position: static; margin: 0; padding: 0; border: 0; background: transparent; }
+.reviewbar { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: var(--s3); margin: calc(-1 * var(--s3)) 0 0; padding: var(--s2) 0; background: var(--bg); border-bottom: 1px solid var(--line); }
+.reviewbar .bar { flex: 1; max-width: 220px; }
+.reviewbar .iconbtn:first-of-type { margin-left: auto; }
+.reviewbar .iconbtn:disabled { opacity: .35; }
+@container app (max-width: 760px) {
+  .outcome-card { padding: var(--s4); }
+  .tree.sub { padding-left: var(--s4); }
+  .trow { padding: var(--s3); }
+  .reviewbar .hint { display: none; }
+}
+
+/* In focused flows the bottom of a phone holds the main buttons, so messages appear at the top. */
+@container app (max-width: 760px) {
+  .focus-mode .toasts { bottom: auto; top: calc(var(--s3) + env(safe-area-inset-top, 0px)); }
+}

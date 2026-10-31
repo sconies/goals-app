@@ -8,8 +8,10 @@ import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/pro
 import { reviewQueue } from '../domain/review';
 import { assessPosted } from '../domain/status';
 import type { Goal, Profile } from '../domain/types';
-import { AttentionCard, Chip, Dot, PROFILE_LABEL, ProgressRing } from '../ui/bits';
+import { AttentionCard, Dot, PROFILE_LABEL, ProgressRing } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
+import { outcomeTrees } from '../domain/tree';
+import { OutcomeCard, worstFirst } from './Inspect';
 
 const ROLE_PURPOSE: Record<Profile, string> = {
   lead: 'Your check-ins, and anything in your area that needs you.',
@@ -130,7 +132,6 @@ function AttentionSection({ list, empty, limit = 3, title = 'Needs attention' }:
 function SponsorHome() {
   const app = useApp();
   const q = reviewQueue(app.snapshot, app.cycle, app.today, app.week);
-  const head = app.snapshot.goals.find((g) => g.headline);
   const all = app.snapshot.goals;
   const checkedIn = all.filter((g) => app.checkInsOf(g).some((c) => c.week === app.week)).length;
   const left = q.total - q.done;
@@ -155,32 +156,23 @@ function SponsorHome() {
           )}
         </div>
       </section>
-      {head && <HeadlineGlance g={head} />}
-      <AttentionSection list={q.items} empty="Nothing is off track, stale or slipping." />
+      <Outcomes />
     </>
   );
 }
 
-function HeadlineGlance({ g }: { g: Goal }) {
+/** Every outcome at a glance, each linking to its tree. */
+function Outcomes() {
   const app = useApp();
-  const st = app.statusOf(g);
-  const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
-  const gap = gapText(g, a);
+  const { trees } = outcomeTrees(app.snapshot.goals, worstFirst(app));
+  if (!trees.length) return null;
   return (
     <section className="block">
-      <h2 className="block-title">Headline goal</h2>
-      <Link to={'/goals/' + g.id} className="headline-card">
-        <span className="stack" style={{ gap: 4, minWidth: 0 }}>
-          <span className="strong">{g.title}</span>
-          <span className="row" style={{ gap: 8 }}>
-            <Chip k={st.status} />
-            {a.kind === 'metric' && g.kind === 'metric' && a.actual != null && <span className="big">{fmt(a.actual, g)}</span>}
-            <span className={'small strong tone-' + gap.tone}>{gap.short}</span>
-          </span>
-          <span className="small muted">{gap.long}</span>
-        </span>
-        {g.kind !== 'milestone' && <Spark goal={g} weeks={app.cycle.weeks} series={valueSeries(app.checkInsOf(g))} />}
-      </Link>
+      <div className="row between">
+        <h2 className="block-title">{trees.length === 1 ? 'Outcome' : 'Outcomes'}</h2>
+        <Link className="small linkish" to="/goals">See the goals feeding {trees.length === 1 ? 'it' : 'them'}</Link>
+      </div>
+      {trees.map((t) => <OutcomeCard key={t.goal.id} node={t} />)}
     </section>
   );
 }
@@ -227,7 +219,6 @@ function ContributorHome() {
   const app = useApp();
   const team = app.team(app.viewer.teamId ?? '');
   const goals = app.snapshot.goals.filter((g) => g.teamId === app.viewer.teamId);
-  const head = app.snapshot.goals.find((g) => g.headline);
   return (
     <>
       <section className="hero">
@@ -238,7 +229,7 @@ function ContributorHome() {
         </div>
       </section>
       {goals.length > 0 && <section className="block"><h2 className="block-title">Your team’s goals</h2><div className="glist">{goals.map((g) => <GoalLine key={g.id} g={g} />)}</div></section>}
-      {head && <HeadlineGlance g={head} />}
+      <Outcomes />
     </>
   );
 }

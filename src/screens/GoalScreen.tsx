@@ -5,11 +5,12 @@ import { pendingSummary } from '../domain/attention';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, gapText, kindLabel, weekLabel } from '../domain/format';
 import { valueSeries } from '../domain/plan';
-import { assessMilestone, assessPosted, LABEL, worst } from '../domain/status';
+import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import type { Change, Goal } from '../domain/types';
 import { Avatar, Chip, Empty, FlagPill, Tag, timeAgo } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
-import { GoalLine } from './Home';
+import { DecideBar, RequestBlock, ReviewBar, TreeRows, useReview, worstFirst } from './Inspect';
+import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 
 export function GoalScreen() {
   const app = useApp();
@@ -71,13 +72,19 @@ function GoalView({ goal }: { goal: Goal }) {
   const owner = app.person(goal.ownerId);
   const team = app.team(goal.teamId);
   const parent = goal.parentId ? app.goal(goal.parentId) : undefined;
-  const children = app.snapshot.goals.filter((g) => g.parentId === goal.id);
+  const path = ancestors(goal, app.snapshot.goals);
+  const subtree = outcomeTrees(app.snapshot.goals, worstFirst(app)).trees.flatMap(function find(n): TreeNode[] { return n.goal.id === goal.id ? [n] : n.children.flatMap(find); })[0]
+    ?? { goal, children: app.snapshot.goals.filter((g) => g.parentId === goal.id).map((c) => ({ goal: c, children: [] })) };
+  const children = subtree.children.map((n) => n.goal);
+  const isSponsor = app.viewer.profile === 'sponsor';
+  const rv = useReview(goal.id);
+  const fc = forecastText(goal, a, cycle.weeks);
   const series = valueSeries(own);
   const ptg = latest?.pathToGreen ?? null;
   const isOwner = app.viewer.id === goal.ownerId;
   const due = att.flags.some((f) => f.kind === 'due');
   const changes = app.snapshot.changes.filter((c) => c.goalId === goal.id).slice().reverse();
-  const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>('activity');
+  const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>('check-ins');
   const flags = att.flags.filter((f) => f.kind !== 'due');
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
   const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind) && !(f.kind === 'proposal' && goal.pending));
@@ -89,9 +96,10 @@ function GoalView({ goal }: { goal: Goal }) {
 
   return (
     <div className="page">
+      <ReviewBar goalId={goal.id} />
       <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/goals">Goals</Link>
-        {parent && <><span aria-hidden="true">›</span><Link to={'/goals/' + parent.id}>{parent.title}</Link></>}
+        {path.map((p) => <span key={p.id} className="row" style={{ gap: 'var(--s1)' }}><span aria-hidden="true">›</span><Link to={'/goals/' + p.id}>{p.title}</Link></span>)}
       </nav>
       <div className="row between" style={{ alignItems: 'flex-start' }}>
         <span className="stack" style={{ gap: 6, minWidth: 0 }}>
@@ -101,25 +109,31 @@ function GoalView({ goal }: { goal: Goal }) {
             <Tag>{kindLabel(goal)}</Tag>
           </span>
         </span>
-        <div className="actions">
-          {isOwner && week > 0 && <Link className={'btn' + (due ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Post an update'}</Link>}
-          <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>
-        </div>
+        {(isOwner || app.viewer.profile === 'coach') && (
+          <div className="actions">
+            {isOwner && week > 0 && <Link className={'btn' + (due ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Post an update'}</Link>}
+            <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>
+          </div>
+        )}
       </div>
 
       <section className="story" data-tone={st.status}>
         <div className="statusline">
           <Chip k={st.status} />
           <span className="big">{headlineNumber}</span>
-          <span className={'strong tone-' + gap.tone}>{st.status === 'stale' ? 'No recent check-in' : gap.short}</span>
+          <span className={'strong tone-' + (st.status === 'stale' ? 'stale' : gap.tone)}>{st.status === 'stale' ? 'No recent check-in' : gap.short}</span>
         </div>
         {st.status === 'stale'
           ? <span className="hint">No check-in for {st.daysSinceCheckIn ?? 14}+ days, so this status can’t be trusted.</span>
           : a.kind === 'metric' && goal.kind === 'metric' && latest ? <span className="hint">Plan for week {a.week} was {fmt(a.plan, goal)}.</span> : null}
+        {fc && st.status !== 'stale' && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
         <span className="hint">{latest ? `Updated by ${lastBy?.name}, ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>
       </section>
 
-      {goal.pending && (
+      {isSponsor && <RequestBlock goal={goal} a={att} />}
+      {isSponsor && !rv.active && (att.flags.some((f) => f.kind !== 'due') || !!goal.pending) && <DecideBar goal={goal} a={att} inReview={false} />}
+
+      {goal.pending && !isSponsor && (
         <div className="pending-note" role="status">
           <span className="arow-icon" aria-hidden="true">◷</span>
           <span className="grow">
@@ -127,8 +141,7 @@ function GoalView({ goal }: { goal: Goal }) {
             <span>“{goal.pending.reason}” <span className="muted">{proposer?.name.split(' ')[0] ?? 'The owner'}</span></span>
             <span className="hint">Waiting for {sponsor?.name.split(' ')[0] ?? 'the sponsor'}. The current plan stays until then.</span>
           </span>
-          {app.viewer.profile === 'sponsor' ? <Link className="linkish tap" to={'/review?goal=' + goal.id}>Decide</Link>
-            : (app.viewer.id === goal.pending.byId || isOwner) && <button type="button" className="linkish tap" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>}
+          {(app.viewer.id === goal.pending.byId || isOwner) && <button type="button" className="linkish tap" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>}
         </div>
       )}
 
@@ -147,7 +160,7 @@ function GoalView({ goal }: { goal: Goal }) {
             <div className="quote-block">
               <span className="field-label">Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</span>
               <p>{ptg.what}</p>
-              {ptg.needs && <p className="needs"><strong>Needs:</strong> {ptg.needs}</p>}
+              {ptg.needs && !isSponsor && <p className="needs"><strong>Needs:</strong> {ptg.needs}</p>}
             </div>
           )}
         </section>
@@ -167,17 +180,17 @@ function GoalView({ goal }: { goal: Goal }) {
 
       {children.length > 0 && (
         <section className="block">
-          <div className="row between"><h2 className="block-title">Feeding this goal</h2><Chip k={worst(children.map((c) => app.statusOf(c).status))} label={'Worst: ' + LABEL[worst(children.map((c) => app.statusOf(c).status))]} /></div>
-          <div className="mix" role="img" aria-label={(['on', 'risk', 'off', 'stale', 'done'] as const).map((k) => `${children.filter((c) => app.statusOf(c).status === k).length} ${LABEL[k].toLowerCase()}`).join(', ')}>
-            {(['on', 'risk', 'off', 'stale', 'done'] as const).map((k) => { const n = children.filter((c) => app.statusOf(c).status === k).length; return n ? <i key={k} className={'mix-' + k} style={{ flexGrow: n }} /> : null; })}
+          <div className="row between"><h2 className="block-title">Feeding this goal</h2><span className="hint">Worst first</span></div>
+          <div className="mix" role="img" aria-label={(['off', 'risk', 'stale', 'on', 'done'] as const).map((k) => `${children.filter((c) => app.statusOf(c).status === k).length} ${LABEL[k].toLowerCase()}`).join(', ')}>
+            {(['off', 'risk', 'stale', 'on', 'done'] as const).map((k) => { const n = children.filter((c) => app.statusOf(c).status === k).length; return n ? <i key={k} className={'mix-' + k} style={{ flexGrow: n }} /> : null; })}
           </div>
-          <div className="glist">{children.map((c) => <GoalLine key={c.id} g={c} />)}</div>
+          <TreeRows nodes={subtree.children} />
         </section>
       )}
 
       <section className="block">
         <div className="seg tabs" role="tablist" aria-label="More about this goal">
-          {([['activity', 'Activity', changes.length], ['check-ins', 'Check-ins', own.length], ['details', 'Details', 0]] as const).map(([k, l, n]) => (
+          {([['check-ins', 'Check-ins', own.length], ['activity', 'Activity', changes.length], ['details', 'Details', 0]] as const).map(([k, l, n]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}{n ? <span className="tabcount">{n}</span> : null}</button>
           ))}
         </div>
@@ -201,12 +214,13 @@ function GoalView({ goal }: { goal: Goal }) {
             {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {cycle.weeks}, {directionLabel(goal)}</dd><dt>Plan</dt><dd>{goal.plan.shape === 'back' ? 'Back-loaded' : goal.plan.shape === 'stepped' ? 'Three steps' : 'Straight line'}</dd></>}
             {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}</dd></>}
             {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ')}</dd></>}
-            <dt>Feeds into</dt><dd>{goal.headline ? 'This is the headline goal' : parent ? parent.title + (goal.effect != null ? `, estimated effect ${goal.effect}` : '') : 'Nothing'}</dd>
+            <dt>Feeds into</dt><dd>{goal.headline ? 'This is an outcome: other goals feed it' : parent ? parent.title + (goal.effect != null ? `, estimated effect ${goal.effect}` : '') : 'Nothing'}</dd>
             <dt>Data source</dt><dd>{goal.source || 'Entered by the owner'}</dd>
             <dt>Rules</dt><dd>{goal.kind === 'metric' ? 'On track at 95% of planned progress or more; at risk from 80%. Reason needed when behind or 20% ahead.' : goal.kind === 'range' ? 'At risk inside the margin or after one breach; off track after two weeks out.' : 'Up to 2 weeks late is at risk; more is off track.'}</dd>
           </dl>
         )}
       </section>
+      {isSponsor && rv.active && <DecideBar goal={goal} a={att} inReview />}
     </div>
   );
 }

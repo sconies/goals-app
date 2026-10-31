@@ -17,7 +17,7 @@ In the demo, the **Viewing as** bar at the top switches role in one tap (Team le
 |---|---|---|---|---|
 | 1 | Weekly check-in: every due goal, one at a time, then done | Lead | Update decay is the main way goal tools die; the check-in must take under a minute | 10/10 |
 | 2 | "What needs me?": home shows what's due, off track, stale or slipping | Lead | Attention is the scarce resource; problems must find the person, not the other way round | 10/10 |
-| 3 | Weekly review: work the queue to zero and make the calls | Sponsor | Software can't create follow-through, but it can make the review fast and every decision recorded | 10/10 |
+| 3 | Weekly review: work the queue to zero on the goal pages | Sponsor | Software can't create follow-through, but it can make the review fast and every decision recorded | 10/10 |
 | 4 | Set up a goal, step by step | Lead | Bad goals going in is the second failure; typed goals with a plan preview counter it | 10/10 |
 | 5 | Load your own data and switch between it and the example: type people into a table, paste rows from a spreadsheet, or upload the Excel template; goals can come later | Coach | Without it nobody can try the tool on their own goals | 10/10 |
 | 6 | Understand a goal and its change history, and add a mid-week note | Anyone | Trust needs "last updated by" and a log nobody can edit | 10/10 |
@@ -42,6 +42,15 @@ A journey scores a point only if the criterion holds on **both** a phone and a d
 8. **Parity**: the same journey completes on a phone and a desktop; on a phone it may be reached differently, but nothing is missing.
 9. **Accessibility**: no serious axe-core issues, and primary buttons at least 44px tall on a phone.
 10. **Logged**: the change it makes is in the change log with who, when, and before → after.
+
+## The leader view
+
+The sponsor, or a more senior leader, starts on **Goals**, which opens on the outcomes:
+
+- Each headline goal is a card with its number, target, an "at this pace" forecast, and a bar showing how the goals feeding it are doing. Several outcomes stack.
+- Under each card, the goals feeding it are listed worst first. Each row has a one-line reason, "Needs you" where the sponsor is asked for something, and "Was on track in week 5" when it got worse at the last check-in.
+- Opening a goal is the inspection. What's asked comes first ("Aisha asks you: Approve an interim read-only scope"), with the call right under it: approve or keep, agree, ask a question, or ask for a check-in on a stale goal. Then the why, the chart, the goals feeding it, and the check-ins week by week.
+- The weekly review is the same goal pages, worst first, in a fixed order. A slim bar shows progress, with previous and next. Each call moves on to the next open goal; skipping is allowed, and the summary waits until every goal has a call.
 
 ## Updating a goal
 

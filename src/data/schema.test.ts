@@ -53,6 +53,9 @@ describe('database schema', () => {
   it('allows one check-in per goal per week', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('dup', 'triage', 'maya', 7, 'on', 'on')`));
   it('refuses an at-risk check-in without a path to green', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x1', 'triage', 'maya', 8, 'risk', 'risk')`));
   it('refuses a greener call without a reason', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x2', 'triage', 'maya', 8, 'on', 'off')`));
-  it('refuses a second headline goal in a cycle', () => reject(`insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io, headline, plan_start, plan_target, plan_shape) values ('h2', 'cycle', 'pm', 'maya', 'Another headline', 'metric', 'output', true, 1, 2, 'straight')`));
+  it('allows several outcomes (headline goals) in a cycle', async () => {
+    const n = await db.query<{ n: number }>('select count(*)::int as n from okr_goals where headline');
+    expect(n.rows[0]!.n).toBeGreaterThan(1);
+  });
   it('refuses a metric goal without a plan', () => reject(`insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io) values ('m2', 'cycle', 'pm', 'maya', 'No plan', 'metric', 'input')`));
 });

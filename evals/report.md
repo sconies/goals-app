@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-10-31 01:21 UTC.
+Run 2026-10-31 02:31 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -10,11 +10,11 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Weekly check-in, all due goals in one pass | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 17) |
 | 2 | What needs me? Home shows what’s due, off track, stale or slipping | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
-| 3 | Weekly review: work the queue to zero and make the calls | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 13) |
+| 3 | Weekly review: work the queue to zero and make the calls | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 13) |
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 11 · 10 (budget 12) |
 | 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 9 · 9 (budget 11) |
-| 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 3) |
-| 7 | Propose a target change and get it approved | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 17 · 17 (budget 18) |
+| 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 3) |
+| 7 | Propose a target change and get it approved | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 18) |
 | 8 | Chase stale goals | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 9 | See how my team’s work maps to the goals | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 10 | Close the cycle with a retro | **0** | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | 0 · 0 (budget 0) |
@@ -36,7 +36,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**34 of 34 pass**. Spec scenarios 56/56.
+**36 of 36 pass**. Spec scenarios 56/56.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -74,6 +74,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **DRAFTS** Unsaved answers survive leaving a flow and are offered back when the user returns. | Focus | 0 | U1, U4 |
 | ✅ | **WORKSPACES** The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back. | Data | 0 | U5 |
 | ✅ | **MOTION** Motion is subtle and never blocks; it switches off under reduced motion. Loading shows a skeleton, not a blank page. | Platform | 0 | P1, P2 |
+| ✅ | **OUTCOME-TREE** The goals view opens on the outcomes: every headline goal with its number, target and forecast, then the goals feeding it, worst first, each with a one-line reason. Several outcomes stack. | Leader view | 0 | U3 |
+| ✅ | **INSPECT-ACT** The sponsor makes the call on the goal page itself: what's asked is shown first, then approve, keep, agree or ask. The weekly review walks the same goal pages in a fixed order, with next and previous, and moves on after each call. | Leader view | 0 | U7 |
 
 ## Platform checks
 

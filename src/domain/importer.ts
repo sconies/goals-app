@@ -149,7 +149,6 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
     else if (goal.headline) issues.push({ table: 'Goals', row, message: `“${goal.title}” is a headline goal, so it can’t feed into another goal.` });
     else goal.parentId = parent.id;
   }
-  if (goals.filter((x) => x.headline).length > 1) issues.push({ table: 'Goals', row: 1, message: 'Only one goal can be the headline goal.' });
 
   return { snapshot: { people, teams, cycles: [cycle], goals, checkIns: [], decisions: [], changes: [] }, issues };
 }

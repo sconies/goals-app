@@ -96,7 +96,7 @@ function RoleBar({ onPeople }: { onPeople: () => void }) {
 
 export function Shell({ children }: { children: ReactNode }) {
   const app = useApp();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | null>(null);
   const order = ORDER[app.viewer.profile];
   const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.length;
@@ -108,7 +108,7 @@ export function Shell({ children }: { children: ReactNode }) {
   useEffect(() => { window.scrollTo?.(0, 0); work.current?.scrollTo?.(0, 0); }, [pathname]);
   const title = order.filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? 'Goals';
 
-  const focusMode = /^\/(check-in|review)(\/|$)|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$/.test(pathname);
+  const focusMode = /^\/(check-in|review)(\/|$)|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$/.test(pathname) || /[?&]review=1/.test(search);
   return (
     <div className={'app' + (focusMode ? ' focus-mode' : '')}>
       <div className="mtop">

@@ -170,6 +170,16 @@
       "id": "MOTION",
       "area": "Platform",
       "text": "Motion is subtle and never blocks; it switches off under reduced motion. Loading shows a skeleton, not a blank page."
+    },
+    {
+      "id": "OUTCOME-TREE",
+      "area": "Leader view",
+      "text": "The goals view opens on the outcomes: every headline goal with its number, target and forecast, then the goals feeding it, worst first, each with a one-line reason. Several outcomes stack."
+    },
+    {
+      "id": "INSPECT-ACT",
+      "area": "Leader view",
+      "text": "The sponsor makes the call on the goal page itself: what's asked is shown first, then approve, keep, agree or ask. The weekly review walks the same goal pages in a fixed order, with next and previous, and moves on after each call."
     }
   ],
   "notYetBuilt": [
@@ -197,7 +207,7 @@
     {
       "id": "U3",
       "rank": 3,
-      "title": "Weekly review: work the queue to zero and make the calls",
+      "title": "Weekly review: work the queue to zero on the goal pages",
       "who": "Sponsor"
     },
     {
