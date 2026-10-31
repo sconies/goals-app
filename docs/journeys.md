@@ -51,6 +51,7 @@ There are four ways to update a goal, from most to least frequent:
 |---|---|---|
 | Weekly number | Check-in | One question per screen. On plan: type the number (or tap "Use 66%") and post. Status comes from the numbers; "Change" opens a sheet for the owner's call. The chart is behind "Show chart". Milestone stages are rows; tap one to mark it done or late. |
 | Still behind | Check-in | After the number, "Is last week's note still true?" "Still true" posts it as it was (asking for a new week if the old one has passed). "Something changed" goes through why, then the way back, one screen each. |
+| A new number between check-ins | Goal page · Post an update | The same check-in flow. After this week's check-in it replaces that week's number and status; the change log keeps the before and after. |
 | Something worth knowing mid-week | Goal page · Activity | "Add a note". It goes into the activity and the change log. |
 | Name, owner, links, or the plan itself | Goal page · Edit | One short screen. Before check-ins start, changes save directly. After, a plan change (start, target, shape, limit, stages) needs a reason and goes to the sponsor; the current plan stands until it's approved, and approving it keeps the original on the chart. |
 

@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-10-31 00:34 UTC.
+Run 2026-10-31 01:21 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -8,7 +8,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 | # | Journey | Score | entry | one-action | progress | budget | errors | finish | attention | parity | a11y | logged | Steps (phone · desktop) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | Weekly check-in, all due goals in one pass | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 17) |
+| 1 | Weekly check-in, all due goals in one pass | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 17) |
 | 2 | What needs me? Home shows what’s due, off track, stale or slipping | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 3 | Weekly review: work the queue to zero and make the calls | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 13) |
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 11 · 10 (budget 12) |
@@ -36,7 +36,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**33 of 33 pass**. Spec scenarios 56/56.
+**34 of 34 pass**. Spec scenarios 56/56.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -57,6 +57,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **PATH-TO-GREEN** At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. | Check-in | 4 | U1 |
 | ✅ | **CHECKIN-STATUS-VS-PLAN** The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed. | Check-in | 1 | U1 |
 | ✅ | **ONE-PER-WEEK** One check-in per goal per week; editing replaces it. | Check-in | 0 | U1 |
+| ✅ | **UPDATE-ANYTIME** The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after. | Check-in | 0 | U1 |
 | ✅ | **OWNER-ONLY** Only the goal's owner can post its check-in. | Check-in | 0 | U9 |
 | ✅ | **STALE** No owner check-in for 14 days shows as Stale, never as on track. | Status rules | 6 | U2, U8 |
 | ✅ | **HIERARCHY** A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses. | Goals | 3 | U4, U9 |

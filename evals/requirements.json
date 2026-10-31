@@ -87,6 +87,11 @@
       "text": "One check-in per goal per week; editing replaces it."
     },
     {
+      "id": "UPDATE-ANYTIME",
+      "area": "Check-in",
+      "text": "The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after."
+    },
+    {
       "id": "OWNER-ONLY",
       "area": "Check-in",
       "text": "Only the goal's owner can post its check-in."

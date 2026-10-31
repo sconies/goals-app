@@ -21,6 +21,7 @@ export function CheckInFlow() {
   });
   const [index, setIndex] = useState(0);
   const [justPosted, setJustPosted] = useState<CheckIn | null>(null);
+  const [updated, setUpdated] = useState(false);
   const goal = queue[index] ? app.goal(queue[index]) : undefined;
 
   if (app.week < 1) {
@@ -50,9 +51,9 @@ export function CheckInFlow() {
         <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft">✕</button>
       </div>
       {justPosted ? (
-        <Posted goal={goal} c={justPosted} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
+        <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (
-        <GoalCheckIn key={goal.id} goal={goal} onPosted={(c) => setJustPosted(c)} />
+        <GoalCheckIn key={goal.id} goal={goal} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} />
       )}
     </div>
   );
@@ -79,13 +80,13 @@ function AllDone({ first }: { first?: boolean }) {
   );
 }
 
-function Posted({ goal, c, left, nextTitle, onNext }: { goal: Goal; c: CheckIn; left: number; nextTitle?: string; onNext: () => void }) {
+function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: CheckIn; updated: boolean; left: number; nextTitle?: string; onNext: () => void }) {
   const btn = useRef<HTMLButtonElement>(null);
   useEffect(() => btn.current?.focus(), []);
   return (
     <div className="celebrate" role="status">
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
-      <h1 className="title-xl">Posted</h1>
+      <h1 className="title-xl">{updated ? 'Update posted' : 'Posted'}</h1>
       <p className="row muted" style={{ justifyContent: 'center', gap: 'var(--s2)' }}>{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}<Chip k={c.status} /></p>
       <div className="row" style={{ justifyContent: 'center' }}>
         <button ref={btn} className="btn primary big-btn" onClick={onNext}>{left ? `Next: ${nextTitle}` : 'Finish'}</button>
@@ -101,13 +102,12 @@ type Step = 'measure' | 'carry' | 'why' | 'way';
  * One goal's check-in, one question per screen: the number; last week's note if it still applies;
  * why; the way back. An on-plan goal is just the number. The button always names the next step.
  */
-function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) => void }) {
+function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, updated: boolean) => void }) {
   const app = useApp();
   const { week, cycle } = app;
   const own = app.checkInsOf(goal);
   const existing = own.find((c) => c.week === week) ?? null;
   const previous = [...own].reverse().find((c) => c.week < week) ?? null;
-  const [editing, setEditing] = useState(!existing);
   const [draft, set, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => (existing ? draftFrom(existing) : emptyDraft(goal, previous)));
   const [raise, setRaise] = useState(draft.proposeTarget !== '');
   const [tried, setTried] = useState(false);
@@ -119,17 +119,6 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
   const [trail, setTrail] = useState<Step[]>([]);
   const e = evaluate(goal, cycle, week, draft, app.snapshot.checkIns);
   const team = app.team(goal.teamId);
-
-  if (existing && !editing) {
-    return (
-      <div className="focus-body">
-        <GoalHead goal={goal} previous={null} />
-        <p className="row" style={{ gap: 'var(--s2)' }}><Chip k={existing.status} />posted for week {week}</p>
-        {existing.why !== 'On plan.' && <p className="muted">{existing.why}</p>}
-        <div className="actions"><button className="btn primary" onClick={() => setEditing(true)}>Edit this check-in</button><Link className="linkish tap" to={'/goals/' + goal.id}>Open the goal</Link></div>
-      </div>
-    );
-  }
 
   const valueOk = goal.kind === 'milestone' || !e.missing.some((m) => m.includes('value'));
   const needsWhy = valueOk && !!e.reason;
@@ -158,7 +147,7 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
     try {
       const c = await app.postCheckIn(goal, raise ? d : { ...d, proposeTarget: '' }, existing);
       clear();
-      onPosted(c);
+      onPosted(c, !!existing);
     } catch {
       setSaving(false);
     }
@@ -190,12 +179,13 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn) =>
   };
   const somethingChanged = () => { set(fromLast()); go(needsWhy ? 'why' : 'way'); };
 
-  const label = saving ? 'Posting…' : last ? (existing ? 'Update check-in' : 'Post check-in') : 'Next';
+  const label = saving ? 'Posting…' : last ? (existing ? 'Post update' : 'Post check-in') : 'Next';
   const stepNo = plan.indexOf(step) + 1;
 
   return (
     <form className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
-      <GoalHead goal={goal} previous={previous} compact={step !== 'measure'} teamLine={goal.headline ? 'Headline goal' : team?.name} steps={plan.length > 1 ? { at: stepNo, of: plan.length } : undefined} />
+      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.headline ? 'Headline goal' : team?.name} steps={plan.length > 1 ? { at: stepNo, of: plan.length } : undefined} />
+      {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This replaces it; the change log keeps both.</p>}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
       {step === 'measure' && (

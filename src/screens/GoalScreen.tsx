@@ -102,7 +102,7 @@ function GoalView({ goal }: { goal: Goal }) {
           </span>
         </span>
         <div className="actions">
-          {isOwner && week > 0 && <Link className={'btn' + (due || flags.length ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Check in'}</Link>}
+          {isOwner && week > 0 && <Link className={'btn' + (due ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Post an update'}</Link>}
           <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>
         </div>
       </div>

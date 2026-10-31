@@ -87,7 +87,7 @@ export function checkInChange(before: CheckIn | null, after: CheckIn, g: Goal, a
   return {
     id, at: after.postedAt, actorId, goalId: g.id, entity: 'check-in', entityId: after.id,
     action: before ? 'edited' : 'posted',
-    summary: before ? `Edited the week ${after.week} check-in: ${list(diffs)}` : `Checked in for week ${after.week}: ${headline}`,
+    summary: before ? `Posted an update for week ${after.week}: ${headline}` : `Checked in for week ${after.week}: ${headline}`,
     diffs,
   };
 }

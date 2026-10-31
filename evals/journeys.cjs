@@ -104,7 +104,7 @@ const navTo = async (h, p, label) => {
 const J = [];
 const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
 
-journey('U1', ['CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
+journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
   // Sam: two goals due and both on plan. Number, post, next: three interactions a goal.
   let p = h.use(await newPage(device, 'sam'));
   await p.goto(url('/'));
@@ -138,6 +138,16 @@ journey('U1', ['CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO
   await p.goto(url('/'));
   await p.reload();
   await see(p, 'You’re all set for week 7', 'posted check-ins survive a reload');
+  // An update between check-ins is the same check-in flow, started from the goal page; it replaces the week's number and is logged.
+  await p.goto(url('/goals/review'));
+  await h.click(p.getByRole('link', { name: 'Post an update' }));
+  await see(p, 'You checked in for week 7 already', 'an update says it replaces this week’s check-in');
+  await h.fill(p.getByLabel('This week’s value'), '69');
+  await h.click(p.getByRole('button', { name: 'Post update' }));
+  await see(p, 'Update posted');
+  s = await h.snapshot();
+  const upd = s.changes.filter((c) => c.actorId === 'sam' && c.goalId === 'review' && c.action === 'edited').pop();
+  h.set('logged', !!upd && /update for week 7/.test(upd.summary) && upd.diffs.some((d) => d.field === 'Value' && d.from === '70%' && d.to === '69%'), 'the off-cycle update is not logged with the old and new number');
   await p.context().close();
 
   // Maya: behind plan. One question per screen: the number, then last week's note offered back.
