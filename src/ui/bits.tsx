@@ -143,14 +143,27 @@ export function timeAgo(iso: string, now: Date): string {
 /** A panel that slides up on a phone and drops down as a popover on a desktop. */
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  // The latest onClose, so a parent passing a new function each render doesn't re-run the focus effect.
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
-    ref.current?.querySelector<HTMLElement>('button, a, input, select')?.focus();
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const focusables = () => [...(ref.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select, textarea') ?? [])];
+    (focusables().find((el) => !el.matches('.sheet-head .iconbtn')) ?? focusables()[0])?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { close.current(); return; }
+      if (e.key !== 'Tab') return;
+      // Keep Tab inside the sheet while it's open.
+      const els = focusables();
+      if (!els.length) return;
+      const first = els[0]!, last = els[els.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     document.addEventListener('keydown', key);
     return () => { document.removeEventListener('keydown', key); prev?.focus?.(); };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   // Rendered at the top of the page so a phone shows it as a bottom sheet over everything.
   return createPortal(

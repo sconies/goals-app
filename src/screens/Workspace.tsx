@@ -58,6 +58,7 @@ export function WorkspaceHome() {
           </div>
         ))}
       </section>
+      {admin && <FeedbackList />}
       {editing && <PersonSheet person={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
   );
@@ -68,10 +69,12 @@ function PersonSheet({ person, onClose }: { person: Person | null; onClose: () =
   const [p, setP] = useState<Person>(person ?? { id: newId('p'), name: '', role: '', initials: '', teamId: app.viewer.teamId ?? app.snapshot.teams[0]?.id ?? null, admin: false });
   const [tried, setTried] = useState(false);
   const self = person?.id === app.viewer.id;
+  const dup = app.snapshot.people.find((x) => x.id !== p.id && !!p.name.trim() && x.name.trim().toLowerCase() === p.name.trim().toLowerCase());
   const lastAdmin = !!person?.admin && app.snapshot.people.filter((x) => x.admin).length === 1;
   const save = async () => {
     setTried(true);
     if (!p.name.trim()) return;
+    if (app.snapshot.people.some((x) => x.id !== p.id && x.name.trim().toLowerCase() === p.name.trim().toLowerCase())) return;
     await app.savePerson({ ...p, name: p.name.trim(), role: p.role.trim(), initials: initials(p.name.trim()) }, person);
     app.toast(person ? 'Saved' : `Added ${p.name.trim()}`);
     onClose();
@@ -96,8 +99,34 @@ function PersonSheet({ person, onClose }: { person: Person | null; onClose: () =
           <span className="stack" style={{ gap: 0 }}><span>Admin</span><span className="hint">{lastAdmin ? (self ? 'You’re the only admin, so you stay one.' : 'The only admin stays one.') : 'Can add people, change settings and make others admins.'}</span></span>
         </label>
         {tried && !p.name.trim() && <span className="hint tone-off" role="alert">Add a name.</span>}
+        {tried && dup && <span className="hint tone-off" role="alert">{dup.name} is already here. Add a middle initial so people can tell you apart.</span>}
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></div>
       </form>
     </Sheet>
+  );
+}
+
+/** For admins: what people said through the feedback button, newest first. */
+function FeedbackList() {
+  const app = useApp();
+  const list = (app.snapshot.feedback ?? []).slice().sort((a, b) => b.at.localeCompare(a.at));
+  if (!list.length) return null;
+  const counts = (['good', 'meh', 'bad'] as const).map((m) => list.filter((f) => f.mood === m).length);
+  return (
+    <section className="block">
+      <h2 className="block-title">Feedback <span className="hint">· {list.length}</span></h2>
+      <p className="hint">{counts[0]} say it helps, {counts[1]} it’s OK, {counts[2]} it gets in the way.</p>
+      <ul className="changes">
+        {list.slice(0, 20).map((f) => (
+          <li key={f.id} className="change">
+            <Avatar p={app.person(f.personId) ?? { name: '?', initials: '?' }} size="sm" />
+            <span className="stack" style={{ gap: 2, minWidth: 0 }}>
+              <span className="small"><strong>{app.person(f.personId)?.name ?? 'Someone'}</strong> · {f.mood === 'good' ? 'It helps' : f.mood === 'meh' ? 'It’s OK' : 'It gets in the way'} · <span className="muted">{f.path}</span></span>
+              {f.text && <span className="note-text">{f.text}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

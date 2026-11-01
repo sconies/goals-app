@@ -2,13 +2,17 @@
 
 export interface TemplateGoal {
   title: string;
-  kind: 'metric' | 'milestone';
+  kind: 'metric' | 'milestone' | 'range';
   unit: string;
   start: string;
   target: string;
   plan?: 'straight' | 'back-loaded' | 'stepped';
   /** Milestones: "Design@3; Pilot@7; Launch@12". */
   stages?: string;
+  /** Ranges: the limit, which side it must stay, and how close counts as a warning. */
+  limit?: string;
+  bound?: 'at most' | 'at least';
+  margin?: string;
 }
 
 export interface Template {

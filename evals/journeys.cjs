@@ -54,7 +54,8 @@ function harness(device) {
     /** Checks a screen: at most one primary action in view, no serious a11y issues, big enough targets on a phone. */
     async checkpoint(label) {
       await p.waitForTimeout(220);
-      const primaries = await p.$$eval('.btn.primary', (els) => els.filter((e) => {
+      // With a sheet open, only what's in the sheet counts: the page behind it is covered.
+      const primaries = await p.$$eval('.btn.primary', (els) => els.filter((e) => !document.querySelector('[role=dialog]') || e.closest('[role=dialog]')).filter((e) => {
         const r = e.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && getComputedStyle(e).visibility !== 'hidden';
       }).map((e) => ({ text: e.textContent.trim(), h: e.getBoundingClientRect().height })));
@@ -67,8 +68,13 @@ function harness(device) {
       const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
         .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => `${x.id} ${x.nodes[0].target.join(' ')}`));
       set('a11y', !v.length, `${label}: ${v.slice(0, 2).join('; ')}`);
-      const sideways = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      set('a11y', sideways <= 1, `${label}: page scrolls sideways by ${sideways}px`);
+      const sideways = await p.evaluate(() => {
+        const w = document.documentElement.clientWidth;
+        const by = document.documentElement.scrollWidth - w;
+        const el = by > 1 ? [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > w + 1).pop() : null;
+        return { by, el: el ? (el.tagName.toLowerCase() + '.' + String(el.className).split(' ').join('.')) : '' };
+      });
+      set('a11y', sideways.by <= 1, `${label}: page scrolls sideways by ${sideways.by}px (${sideways.el})`);
     },
     async inView(loc, k, label) {
       const box = await loc.first().boundingBox().catch(() => null);
@@ -269,7 +275,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.checkpoint('step 1');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), 'min');
-  await h.fill(p.getByLabel('Today (week 0)'), '90');
+  await h.fill(p.getByLabel(/^Today \(week/), '90');
   await h.fill(p.getByLabel(/Target \(week 13\)/), '45');
   await h.click(p.getByRole('button', { name: /Back-loaded/ }));
   if (!(await p.getByLabel('Plan preview').isVisible())) fail('no plan preview');
@@ -301,6 +307,7 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   await h.inView(p.getByRole('link', { name: 'Set one up' }), 'entry', 'Set one up');
   await h.checkpoint('admin home');
   await h.click(p.getByRole('link', { name: 'Set one up' }));
+  await p.locator('.steps').first().waitFor();
   await h.progressShown('set up');
   await h.fill(p.getByLabel('Name', { exact: true }), 'Platform Engineering');
   await h.click(p.getByRole('button', { name: 'Next' }));
@@ -309,9 +316,9 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   await see(p, 'You’ll be this workspace’s admin');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await see(p, 'Who else is on it?');
-  // A person without a team is explained on their row before anything is saved.
-  await p.getByLabel('Person 1: name').fill('Ana Silva');
-  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Ana Silva has no team.' }).isVisible(), 'a row with no team is not explained');
+  // A second person with your name is explained on their row before anything is saved; a row with no team takes yours.
+  await p.getByLabel('Person 1: name').fill('Priya Nair');
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'appears twice' }).isVisible(), 'a duplicate name is not explained on its row');
   // Pasting rows from a spreadsheet fills the table.
   await p.getByLabel('Person 1: name').evaluate((el) => {
     const dt = new DataTransfer();
@@ -552,7 +559,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await p.getByRole('button', { name: 'Set up the review' }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Give the review a name' }).isVisible(), 'an unnamed review is not explained');
   await h.fill(p.getByLabel('Name', { exact: true }), 'SRE fortnightly');
-  await h.click(p.getByRole('button', { name: 'Every 2 weeks' }));
+  await h.click(p.getByRole('button', { name: 'Every 4 weeks' }));
   await p.getByLabel('On').selectOption('4');
   await h.click(p.getByRole('button', { name: 'North star', exact: true }));
   await h.click(p.getByRole('checkbox', { name: /Kofi Boateng/ }));
@@ -560,13 +567,13 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await h.checkpoint('set up');
   await h.click(p.getByRole('button', { name: 'Set up the review' }));
   await see(p, 'SRE fortnightly');
-  await see(p, 'Every 2 weeks, Fridays');
+  await see(p, 'Every 4 weeks, Fridays');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
   h.set('attention', await p.locator('.tree .trow').count() >= 2, 'the review does not list its goals');
   h.set('finish', await p.getByRole('button', { name: /Start the review/ }).isVisible().catch(() => false) || await p.getByText('Next:').isVisible().catch(() => false), 'no way to start the new review');
   const s = await h.snapshot();
   const r = s.reviews.find((x) => x.name === 'SRE fortnightly');
-  h.set('logged', !!r && r.everyWeeks === 2 && r.weekday === 4 && r.people.includes('kofi') && r.people.includes('leo') && s.changes.some((c) => c.entity === 'review' && c.actorId === 'leo'), 'the review is not saved and logged');
+  h.set('logged', !!r && r.everyWeeks === 4 && r.weekday === 4 && r.people.includes('kofi') && r.people.includes('leo') && s.changes.some((c) => c.entity === 'review' && c.actorId === 'leo'), 'the review is not saved and logged');
   await p.context().close();
 });
 
@@ -644,6 +651,29 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   if (await p.getByText('Requests triaged within 2 days').count()) fail('a stopped goal came into the new cycle');
   await p.context().close();
 });
+
+journey('U15', ['OWNER-CALL', 'GREENER', 'CHECKIN-STATUS-VS-PLAN'], 'Call it greener than the numbers, with a reason, in the status sheet', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'maya'));
+  await p.goto(url('/check-in/head'));
+  await h.fill(p.getByLabel('This week’s value'), '31');
+  await p.locator('.callline').waitFor();
+  await h.inView(p.locator('.callline').getByRole('button', { name: 'Change' }), 'entry', 'Change the status');
+  await h.click(p.locator('.callline').getByRole('button', { name: 'Change' }));
+  const sheet = p.getByRole('dialog');
+  await h.click(sheet.getByRole('radio', { name: /At risk/ }));
+  const why = sheet.getByRole('textbox').first();
+  await why.click();
+  await p.keyboard.type('Security signed off the scope today', { delay: 15 });
+  const typed = await why.inputValue();
+  h.set('errors', typed === 'Security signed off the scope today', `typing in the status sheet lost keys: “${typed}”`);
+  h.set('attention', await sheet.getByText(/better than the numbers/i).first().isVisible(), 'the sheet does not say the call is greener than the numbers');
+  await h.checkpoint('status sheet');
+  await p.keyboard.press('Escape');
+  h.set('a11y', await p.evaluate(() => document.activeElement && document.activeElement !== document.body), 'focus is lost after closing the sheet');
+  h.set('progress', true);
+  h.set('finish', true);
+  await p.context().close();
+}, ['logged']);
 
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {

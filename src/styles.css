@@ -76,7 +76,7 @@ p { margin: 0; }
 .alist > *:nth-child(2) { animation-delay: .03s; } .alist > *:nth-child(3) { animation-delay: .06s; }
 .btn, .callbtn, .pill, .nav, .kindcard, .gline, .arow-main, .menuitem, .rail-item, .seg button, .tabbar a, .tabbar button { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, transform .1s; }
 .btn:active, .callbtn:active, .pill:active, .kindcard:active { transform: scale(.98); }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .tick svg path { stroke-dashoffset: 0; } }
 
 /* ---------- loading ---------- */
 .boot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; animation: fade .2s .15s both; }
@@ -565,7 +565,7 @@ svg.chart { display: block; overflow: visible; }
   .outcome-card { padding: var(--s4); }
   .tree.sub { padding-left: var(--s4); }
   .trow { padding: var(--s3); }
-  .reviewbar .hint { display: none; }
+  .reviewbar .hint { white-space: nowrap; }
 }
 
 /* In focused flows the bottom of a phone holds the main buttons, so messages appear at the top. */
@@ -612,3 +612,17 @@ svg.chart { display: block; overflow: visible; }
 .result-hit { background: var(--on-bg); color: var(--on-fg); }
 .result-partly { background: var(--risk-bg); color: var(--risk-fg); }
 .result-missed { background: var(--off-bg); color: var(--off-fg); }
+button.nav { border: 0; background: transparent; width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.side .feedback-nav { margin-top: auto; color: var(--muted); }
+.side .feedback-nav + .me { margin-top: 0; }
+@media (max-width: 640px) { .seg.tabs { flex-wrap: wrap; overflow: visible; } }
+
+/* Skip link: first thing on the page for keyboard users, visible only when focused. */
+.skip { position: absolute; left: 8px; top: -60px; z-index: 100; padding: 10px 14px; border-radius: 8px; background: var(--surface); color: var(--fg); box-shadow: 0 2px 8px rgba(0,0,0,.2); font-weight: 600; }
+.skip:focus { top: 8px; }
+/* The demo bar at tablet widths: the person summary gives way first. */
+@media (max-width: 1100px) { .rolebar-person .ellipsis { display: none; } }
+@media (min-width: 641px) and (max-width: 900px) { .rolebar { padding: 8px 16px; gap: 8px; flex-wrap: wrap; } .rolebar-label { display: none; } }
+h1[tabindex='-1']:focus { outline: none; }
+.page-head.row { flex-wrap: wrap; row-gap: var(--s2); }
+.page-head.row > .stack { min-width: 0; flex: 1 1 220px; }

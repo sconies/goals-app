@@ -110,3 +110,29 @@ export const DECISION_LABEL: Record<Decision['kind'], string> = {
   note: 'Note',
   action: 'Action',
 };
+
+/**
+ * The owner's answer to a question from a review: their first comment or check-in on the goal after it
+ * was asked. A question with no answer is still open.
+ */
+export function answerOf(ask: Decision, s: Snapshot): { text: string; at: string; byId: string } | null {
+  const goal = s.goals.find((g) => g.id === ask.goalId);
+  if (!goal) return null;
+  const c = s.changes.find((x) => x.goalId === goal.id && x.actorId === goal.ownerId && x.at > ask.at && (x.entity === 'note' || x.entity === 'check-in'));
+  if (!c) return null;
+  const said = c.diffs.find((d) => d.field === 'Comment' || d.field === 'Note' || d.field === 'Why' || d.field === 'Reason');
+  return { text: said?.to ?? c.summary, at: c.at, byId: c.actorId };
+}
+
+/** Questions from reviews on a person's goals that they haven't answered yet. */
+export function openQuestions(personId: string, s: Snapshot): Decision[] {
+  const mine = new Set(s.goals.filter((g) => g.ownerId === personId).map((g) => g.id));
+  return s.decisions.filter((d) => d.kind === 'ask' && mine.has(d.goalId) && !answerOf(d, s));
+}
+
+/** The tree and level watches that cover a goal for a person, not counting a watch on the goal itself. */
+export function coveringWatches(personId: string, goal: Goal, s: Snapshot): Watch[] {
+  return s.watches.filter((w) => w.personId === personId && (
+    (w.kind === 'level' && w.ref === goal.level) ||
+    (w.kind === 'tree' && w.ref !== goal.id && treeOf(w.ref, s.goals).some((g) => g.id === goal.id))));
+}

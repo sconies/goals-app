@@ -208,3 +208,26 @@ describe('goals', () => {
     expect(early.originalPlan).toBeNull();
   });
 });
+
+describe('typed numbers', () => {
+  it('reads decimal commas, thousands, units and percentages', async () => {
+    const { parseNumber } = await import('./checkin');
+    expect(parseNumber('29,4')).toBe(29.4);
+    expect(parseNumber('1,250')).toBe(1250);
+    expect(parseNumber('1,250.5')).toBe(1250.5);
+    expect(parseNumber('62%')).toBe(62);
+    expect(parseNumber('29.4 days')).toBe(29.4);
+    expect(parseNumber(' -3 ')).toBe(-3);
+  });
+  it('refuses what is not a number', async () => {
+    const { parseNumber } = await import('./checkin');
+    for (const bad of ['0x1F', '1e308', 'abc', '1.2.3', '99999999999999']) expect(parseNumber(bad)).toBeNull();
+  });
+  it('explains impossible and surprising values', async () => {
+    const { valueProblem } = await import('./checkin');
+    expect(valueProblem('-5', 30, 'days')?.block).toBe(true);
+    expect(valueProblem('120', 60, '%')?.block).toBe(false);
+    expect(valueProblem('294', 29.4, 'days')?.text).toMatch(/Last week was 29.4/);
+    expect(valueProblem('29.6', 29.4, 'days')).toBeNull();
+  });
+});

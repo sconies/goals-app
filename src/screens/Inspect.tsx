@@ -5,10 +5,10 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { fmt, gapText, LEVEL_LABEL } from '../domain/format';
 import { daysSince } from '../domain/plan';
-import { reviewSession, watchOf } from '../domain/review';
+import { coveringWatches, reviewSession, watchOf } from '../domain/review';
 import { assessPosted, checkInsFor, LABEL, RANK } from '../domain/status';
 import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
-import type { Goal } from '../domain/types';
+import type { Goal, Level, Watch } from '../domain/types';
 import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
 
 /* ---------- review order: fixed when a session starts, so moving between goals doesn't reshuffle it ---------- */
@@ -67,6 +67,10 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
   if (!rv.active || !rv.review || !rv.session) return null;
+  if (!rv.review.people.includes(app.viewer.id)) {
+    return <div className="decide"><span className="hint">You’re looking at {rv.review.name}. Join it from the review’s page to say something.</span><div className="row decide-buttons"><button className="btn big-btn" onClick={rv.next}>Next goal</button></div></div>;
+  }
+  const own = goal.ownerId === app.viewer.id;
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
   const said = rv.session.said.filter((d) => d.goalId === goal.id);
   const call = async (kind: 'acknowledge' | 'note' | 'ask' | 'action') => {
@@ -85,11 +89,13 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
     <div className="decide">
       {said.length > 0 && <span className="calm small">✓ Covered: {said.map((d) => d.note || 'seen').join('; ')}</span>}
       {mode && (
+        <form onSubmit={(e) => { e.preventDefault(); void call(mode); }}>
         <label className="field"><span className="field-label">{label[mode]}</span>
           <input className={'input' + (tried && text.trim().length < 3 ? ' invalid' : '')} autoFocus value={text} onChange={(e) => setText(e.target.value)}
             placeholder={mode === 'ask' ? 'e.g. What would it take to land the interim scope by week 8?' : mode === 'action' ? 'Who does what, by when' : 'What the review said'} />
           {tried && text.trim().length < 3 && <span className="hint tone-off" role="alert">Write a few words first.</span>}
         </label>
+        </form>
       )}
       <div className="row decide-buttons">
         {mode ? (
@@ -106,7 +112,7 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
       </div>
       {!mode && (
         <div className="quiet-links">
-          <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner}</button>
+          {!own && <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner}</button>}
           <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>
           <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>
         </div>
@@ -118,21 +124,30 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
 /* ---------- watching ---------- */
 function descendantsOf(goal: Goal, app: ReturnType<typeof useApp>): Goal[] {
   const out: Goal[] = [];
-  const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { out.push(c); walk(c.id); } };
+  const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { if (out.includes(c) || c.id === goal.id) continue; out.push(c); walk(c.id); } };
   walk(goal.id);
   return out;
 }
 
-/** Watch this goal, or it and everything feeding it; or stop. */
+/** Watch this goal, or it and everything feeding it; or stop. Says what else is covering it. */
 export function WatchButton({ goal }: { goal: Goal }) {
   const app = useApp();
   const [open, setOpen] = useState(false);
   const w = watchOf(app.viewer.id, goal, app.snapshot);
+  const covers = coveringWatches(app.viewer.id, goal, app.snapshot);
+  const coverText = (x: Watch) => x.kind === 'level' ? `every ${LEVEL_LABEL[x.ref as Level]} goal` : `${app.goal(x.ref)?.title ?? 'a goal'} and what feeds it`;
   const feeding = descendantsOf(goal, app).length;
   const label = w === null ? 'Watch' : w !== 'via' && w.kind === 'tree' ? 'Watching all' : 'Watching';
   const doWatch = async (kind: 'goal' | 'tree') => {
     await app.watch(kind, goal.id);
+    if (kind === 'tree' && w && w !== 'via' && w.kind === 'goal') await app.unwatch(w.id);
     app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`);
+    setOpen(false);
+  };
+  const stop = async (x: Watch) => {
+    await app.unwatch(x.id);
+    const still = covers.filter((c) => c.id !== x.id);
+    app.toast(still.length ? `Stopped. Still watching it as part of ${coverText(still[0]!)}.` : `Stopped watching ${goal.title}`);
     setOpen(false);
   };
   return (
@@ -142,12 +157,12 @@ export function WatchButton({ goal }: { goal: Goal }) {
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title={goal.title}>
         <div className="stack" style={{ gap: 'var(--s3)' }}>
-          {w === 'via' && <p className="hint">You’re watching it through a tree or a level. Change that on Watching.</p>}
+          {covers.length > 0 && <p className="hint">You’re watching it as part of {covers.map(coverText).join(' and ')}.</p>}
           <div className="optlist">
             {w === null && <button className="opt" onClick={() => void doWatch('goal')}><span>Watch this goal</span><span className="hint">See its changes on Watching</span></button>}
-            {w === null && feeding > 0 && <button className="opt" onClick={() => void doWatch('tree')}><span>Watch it and everything feeding it</span><span className="hint">{feeding} more {feeding === 1 ? 'goal' : 'goals'}</span></button>}
-            {w && w !== 'via' && <button className="opt" onClick={async () => { await app.unwatch(w.id); app.toast(`Stopped watching ${goal.title}`); setOpen(false); }}><span>Stop watching</span></button>}
-            {w === 'via' && <Link className="opt" to="/watching" onClick={() => setOpen(false)}><span>Go to Watching</span></Link>}
+            {feeding > 0 && !(w && w !== 'via' && w.kind === 'tree') && <button className="opt" onClick={() => void doWatch('tree')}><span>{w ? 'Also watch everything feeding it' : 'Watch it and everything feeding it'}</span><span className="hint">{feeding} more {feeding === 1 ? 'goal' : 'goals'}</span></button>}
+            {w && w !== 'via' && <button className="opt" onClick={() => void stop(w)}><span>Stop watching {w.kind === 'tree' ? 'it and what feeds it' : 'this goal'}</span></button>}
+            {covers.map((c) => <button key={c.id} className="opt" onClick={() => void stop(c)}><span>Stop watching {coverText(c)}</span></button>)}
           </div>
         </div>
       </Sheet>

@@ -5,11 +5,12 @@ import { attentionList } from '../domain/attention';
 import { fmt, gapText } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
-import { reviewSession, watchedGoals } from '../domain/review';
+import { openQuestions, reviewSession, watchedGoals } from '../domain/review';
+import { daysSince } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { assessPosted } from '../domain/status';
 import type { Goal } from '../domain/types';
-import { AttentionCard, Dot, ProgressRing } from '../ui/bits';
+import { AttentionCard, Avatar, Dot, ProgressRing } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
 import { TreeRow, worstFirst } from './Inspect';
 
@@ -63,7 +64,9 @@ function MyWeek() {
   return (
     <>
       <section className="hero">
-        <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
+        {p.goals.length > 0 && !(myReview && !p.due.length && !wrapLeft.length)
+          ? <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
+          : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={56} label={`${myReview.done} of ${myReview.total} goals covered in ${myReview.review.name}`} /> : null}
         <div className="hero-body">
           {p.due.length ? (
             <>
@@ -108,11 +111,14 @@ function MyWeek() {
               <span className="eyebrow">Week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
               <h2 className="hero-title">Nothing to do this week</h2>
               <span className="muted">You don’t own a goal. Watch the ones you care about, or set one up in about 3 minutes.</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary" to="/goals">Find goals to watch</Link><Link className="btn" to="/goals/new">Set up a goal</Link></div>
+              <div className="row" style={{ marginTop: 8 }}>{app.snapshot.goals.length
+                ? <><Link className="btn primary" to="/goals">Find goals to watch</Link><Link className="btn" to="/goals/new">Set up a goal</Link></>
+                : <Link className="btn primary" to="/goals/new">Set up the first goal</Link>}</div>
             </>
           )}
         </div>
       </section>
+      <ForYou />
       {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
       {rest.length > 0 && (
         <section className="block">
@@ -121,6 +127,44 @@ function MyWeek() {
         </section>
       )}
     </>
+  );
+}
+
+/** What other people said to you: questions from reviews you haven't answered, and recent comments on your goals. */
+function ForYou() {
+  const app = useApp();
+  const asks = openQuestions(app.viewer.id, app.snapshot);
+  const mine = new Set(app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id).map((g) => g.id));
+  const comments = app.snapshot.changes.filter((c) => c.entity === 'note' && c.goalId && mine.has(c.goalId) && c.actorId !== app.viewer.id && daysSince(c.at, app.today) <= 7).slice(-3).reverse();
+  if (!asks.length && !comments.length) return null;
+  return (
+    <section className="block">
+      <h2 className="block-title">For you</h2>
+      <ul className="changes">
+        {asks.map((d) => {
+          const r = app.snapshot.reviews.find((x) => x.id === d.reviewId);
+          return (
+            <li key={d.id} className="change">
+              <Avatar p={app.person(d.byId) ?? { name: '?', initials: '?' }} size="sm" />
+              <span className="stack" style={{ gap: 2, minWidth: 0 }}>
+                <span className="small"><strong>{app.person(d.byId)?.name.split(' ')[0]} asked</strong>{r ? ` in ${r.name}` : ''} about <Link className="linkish" to={`/goals/${d.goalId}?tab=comments`}>{app.goal(d.goalId)?.title}</Link></span>
+                <span className="note-text">{d.note}</span>
+                <Link className="linkish small" to={`/goals/${d.goalId}?tab=comments`}>Answer</Link>
+              </span>
+            </li>
+          );
+        })}
+        {comments.map((c) => (
+          <li key={c.id} className="change">
+            <Avatar p={app.person(c.actorId) ?? { name: '?', initials: '?' }} size="sm" />
+            <span className="stack" style={{ gap: 2, minWidth: 0 }}>
+              <span className="small"><strong>{app.person(c.actorId)?.name.split(' ')[0]} commented</strong> on <Link className="linkish" to={`/goals/${c.goalId}?tab=comments`}>{app.goal(c.goalId!)?.title}</Link></span>
+              <span className="note-text">{c.diffs[0]?.to}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

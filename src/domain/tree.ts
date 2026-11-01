@@ -7,7 +7,8 @@ import type { CheckIn, Goal, Status } from './types';
 export interface TreeNode { goal: Goal; children: TreeNode[] }
 
 /** Every tree: goals with nothing above them, each with what feeds it. Siblings are ordered by `order`.
-    `loose` are team-level goals with nothing above and nothing feeding them: not linked to anything. */
+    `loose` are goals with nothing above and nothing feeding them: not linked to anything.
+    Goals caught in a loop (which saving prevents, but old data might hold) are shown as trees of their own. */
 export function outcomeTrees(goals: Goal[], order: (a: Goal, b: Goal) => number): { trees: TreeNode[]; loose: Goal[] } {
   const byParent = new Map<string, Goal[]>();
   for (const g of goals) if (g.parentId) byParent.set(g.parentId, [...(byParent.get(g.parentId) ?? []), g]);
@@ -18,10 +19,23 @@ export function outcomeTrees(goals: Goal[], order: (a: Goal, b: Goal) => number)
   };
   const ids = new Set(goals.map((g) => g.id));
   const tops = goals.filter((g) => !g.parentId || !ids.has(g.parentId)).sort(order);
-  const isLoose = (g: Goal) => g.level === 'team' && !byParent.has(g.id);
+  const isLoose = (g: Goal) => !byParent.has(g.id);
   const trees = tops.filter((g) => !isLoose(g)).map(grow);
   for (const g of tops) seen.add(g.id);
+  for (const g of goals) if (!seen.has(g.id)) trees.push(grow(g));
   return { trees, loose: tops.filter(isLoose) };
+}
+
+/** Whether making `goal` feed `parentId` would make a loop: the parent is the goal or feeds into it. */
+export function makesLoop(goalId: string, parentId: string | null, goals: Goal[]): boolean {
+  let p = parentId;
+  const seen = new Set<string>();
+  while (p && !seen.has(p)) {
+    if (p === goalId) return true;
+    seen.add(p);
+    p = goals.find((g) => g.id === p)?.parentId ?? null;
+  }
+  return false;
 }
 
 export function descendants(n: TreeNode): Goal[] {

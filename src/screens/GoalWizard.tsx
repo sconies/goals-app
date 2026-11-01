@@ -51,7 +51,9 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const stepErrors = (i: number) => STEP_FIELDS[i]!.filter((k) => errors[k]);
   const showErr = (k: keyof GoalErrors) => tried.includes(step) && errors[k] ? <span className="tiny tone-off" role="alert">{errors[k]}</span> : null;
   const top = useRef<HTMLDivElement>(null);
-  useEffect(() => { top.current?.querySelector<HTMLElement>('input, button.kindcard')?.focus(); }, [step]);
+  // After “Change …” on the summary, Continue comes straight back to it.
+  const [fromSummary, setFromSummary] = useState(false);
+  useEffect(() => { top.current?.querySelector<HTMLElement>('input, select, textarea, button.kindcard')?.focus(); }, [step]);
 
   const go = (to: number) => {
     if (to > step) {
@@ -64,7 +66,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
     const bad = [0, 1, 2].find((i) => stepErrors(i).length);
     if (bad != null) { setTried([0, 1, 2]); set({ step: bad }); return; }
     setSaving(true);
-    const g = buildGoal(d, cycle, { id: existing?.id ?? newId('goal'), createdAt: existing?.createdAt ?? new Date().toISOString() }, existing, started, week);
+    const g = buildGoal(d, cycle, { id: existing?.id ?? newId('goal'), createdAt: existing?.createdAt ?? app.stamp() }, existing, started, week);
     try {
       await app.saveGoal(g, existing);
       clear();
@@ -100,8 +102,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
         <Steps at={step + 1} of={4} label={STEP_LABELS[step]} />
         <button className="iconbtn" onClick={() => nav(existing ? '/goals/' + existing.id : '/goals')} aria-label="Close and keep the draft">✕</button>
       </div>
-      <form className="focus-body" onSubmit={(e) => { e.preventDefault(); if (step < 3) go(step + 1); else void publish(); }} noValidate>
-        {restored && step === 0 && <div className="restored small">Restored your unsaved draft. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></div>}
+      <form className="focus-body" onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromSummary ? 3 : step + 1); else void publish(); }} noValidate>
+        {restored && <div className="restored small">Restored your unsaved draft. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></div>}
 
         {step === 0 && (
           <>
@@ -138,7 +140,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
             {d.kind === 'metric' && (
               <>
                 <div className="row" style={{ alignItems: 'flex-start' }}>
-                  <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Today (week 0)</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>
+                  <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Today (week {existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>
                   <span className="arrow" aria-hidden="true">→</span>
                   <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Target (week {cycle.weeks})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}</label>
                 </div>
@@ -234,7 +236,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                     : d.kind === 'milestone' ? <>{d.stages.filter((s) => s.name).length} stages, the last due week {Math.max(0, ...d.stages.map((s) => parseNumber(s.dueWeek) ?? 0))}.</> : null}
               </p>
               <p className="small muted">{d.level !== 'team' ? `${LEVEL_LABEL[d.level]} level. ` : ''}{parent ? `It feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}.` : 'It’s at the top of its own tree.'}{d.guardrail ? ' Guardrail.' : ''}</p>
-              <div className="row">{[0, 1, 2].map((i) => <button key={i} type="button" className="linkish small" onClick={() => go(i)}>Change {STEP_LABELS[i]!.toLowerCase()}</button>)}</div>
+              <div className="row">{[0, 1, 2].map((i) => <button key={i} type="button" className="linkish small" onClick={() => { setFromSummary(true); go(i); }}>Change {STEP_LABELS[i]!.toLowerCase()}</button>)}</div>
             </div>
             {[0, 1, 2].some((i) => stepErrors(i).length) && <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>}
           </>

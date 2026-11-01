@@ -5,6 +5,7 @@ import { toCheckIn, type Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import { makesLoop } from '../domain/tree';
 import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
 import { applyCommit, EXAMPLE, newId, type Commit, type Mode, type Store } from '../data/store';
 
@@ -54,8 +55,12 @@ export interface AppState {
   savePerson(person: Person, before: Person | null): Promise<void>;
   /** An owner's retro on one of their goals at the end of the cycle. */
   saveRetro(goal: Goal, retro: Retro, before: Retro | null): Promise<void>;
+  /** Feedback about the app itself, from the screen it was sent from. Not in the change log. */
+  sendFeedback(mood: 'good' | 'meh' | 'bad', text: string, path: string): Promise<void>;
   /** Admins: start the next cycle with the goals that carry on. Returns the new cycle's name. */
   startNextCycle(): Promise<string>;
+  /** Now, as an ISO timestamp on the app's today. Use for anything saved. */
+  stamp(): string;
   toasts: Toast[];
   toast(text: string, kind?: Toast['kind']): void;
   storeKind: Store['kind'];
@@ -185,11 +190,13 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       goal: (id) => sc.goals.find((g) => g.id === id),
       teamName: (id) => sc.teams.find((t) => t.id === id)?.name ?? id,
     };
-    const stamp = () => new Date().toISOString();
+    // Records are stamped with the real time of day, moved to the app's today (the demo and the evals pin today to a date).
+    const skewDays = Math.round((now.getTime() - Date.now()) / 86_400_000);
+    const stamp = () => new Date(Date.now() + skewDays * 86_400_000).toISOString();
 
     return {
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot: sc, cycle, week, today: now, viewer, lookup, toasts, toast, storeKind: store.kind,
+      ws, workspaces, snapshot: sc, cycle, week, today: now, viewer, lookup, stamp, toasts, toast, storeKind: store.kind,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
@@ -213,12 +220,16 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       checkInsOf: (g) => checkInsFor(g, sc.checkIns),
       postCheckIn: async (goal, draft, existing) => {
-        const c = toCheckIn(goal, cycle, week, draft, sc.checkIns, viewer.id, new Date(), existing?.id ?? newId('ci'));
+        const c = toCheckIn(goal, cycle, week, draft, sc.checkIns, viewer.id, new Date(stamp()), existing?.id ?? newId('ci'));
         const change = checkInChange(existing, c, goal, viewer.id, newId('chg'));
         await commit({ checkIns: [c], changes: change ? [change] : [] });
         return c;
       },
       saveGoal: async (after, before, why) => {
+        if (makesLoop(after.id, after.parentId, sc.goals)) {
+          toast('That would make a loop: the goal it feeds already feeds into it. Pick another.', 'error');
+          throw new Error('loop');
+        }
         const change = goalChange(before, after, lookup, viewer.id, stamp(), newId('chg'));
         if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
         await commit({ goals: [after], changes: change ? [change] : [] });
@@ -264,6 +275,9 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
           ...(!before || before.next !== retro.next ? [{ field: 'Next cycle', from: before ? (before.next === 'carry' ? 'Carry on' : 'Stop') : '—', to: retro.next === 'carry' ? 'Carry on' : 'Stop' }] : []),
         ];
         await commit({ retros: [retro], changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'retro', entityId: retro.id, action: before ? 'edited' : 'posted', summary: `Wrapped up ${goal.title}: ${RESULT_LABEL[retro.result].toLowerCase()}`, diffs }] });
+      },
+      sendFeedback: async (mood, text, path) => {
+        await commit({ feedback: [{ id: newId('fb'), personId: viewer.id, path, mood, text: text.trim(), at: stamp() }], changes: [] });
       },
       startNextCycle: async () => {
         const at = stamp();

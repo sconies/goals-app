@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL, weekLabel } from '../domain/format';
@@ -82,7 +82,8 @@ function GoalView({ goal }: { goal: Goal }) {
   const isOwner = app.viewer.id === goal.ownerId;
   const due = att.flags.some((f) => f.kind === 'due');
   const changes = app.snapshot.changes.filter((c) => c.goalId === goal.id).slice().reverse();
-  const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>('check-ins');
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>(params.get('tab') === 'comments' ? 'activity' : 'check-ins');
   const flags = att.flags.filter((f) => f.kind !== 'due');
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
   const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind));

@@ -44,6 +44,8 @@ export interface MetricPlan {
   start: number;
   target: number;
   shape: PlanShape;
+  /** The week the plan starts from: 0, or the week a goal was set up mid-cycle. */
+  fromWeek?: number;
 }
 
 export interface RangePlan {
@@ -232,6 +234,18 @@ export interface Snapshot {
   watches: Watch[];
   reviews: Review[];
   retros: Retro[];
+  /** What people said about the app itself, from the feedback button. */
+  feedback?: Feedback[];
+}
+
+export interface Feedback {
+  id: Id;
+  personId: Id;
+  /** The screen it was sent from. */
+  path: string;
+  mood: 'good' | 'meh' | 'bad';
+  text: string;
+  at: string;
 }
 
 /** How a goal ended the cycle, in its owner's words, and what happens to it next. */

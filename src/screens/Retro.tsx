@@ -144,7 +144,7 @@ function RetroForm({ goal }: { goal: Goal }) {
     if (!ok || busy) return;
     setBusy(true);
     try {
-      await app.saveRetro(goal, { id: before?.id ?? newId('retro'), goalId: goal.id, cycleId: app.cycle.id, result, learned: learned.trim(), next, byId: app.viewer.id, at: new Date().toISOString() }, before);
+      await app.saveRetro(goal, { id: before?.id ?? newId('retro'), goalId: goal.id, cycleId: app.cycle.id, result, learned: learned.trim(), next, byId: app.viewer.id, at: app.stamp() }, before);
       app.toast(`Wrapped up ${goal.title}`);
       nav(mineLeft.length && !before ? `/retro/${mineLeft[0]!.id}` : '/retro');
     } catch { setBusy(false); }

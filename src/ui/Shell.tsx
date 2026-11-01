@@ -113,10 +113,39 @@ function DemoBar({ onPeople }: { onPeople: () => void }) {
   );
 }
 
+const MOODS = [['good', 'It helps'], ['meh', 'It’s OK'], ['bad', 'It gets in the way']] as const;
+
+/** What someone thinks of the app, from wherever they are. Two taps; the words are optional. */
+function FeedbackSheet({ onClose, path }: { onClose: () => void; path: string }) {
+  const app = useApp();
+  const [mood, setMood] = useState<'good' | 'meh' | 'bad' | null>(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    if (!mood || busy) return;
+    setBusy(true);
+    try { await app.sendFeedback(mood, text, path); app.toast('Thanks. Your admins can read it on Workspace.'); onClose(); } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title="How is the app working for you?">
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void send(); }}>
+        <div className="seg full" role="group" aria-label="How it's working">
+          {MOODS.map(([k, l]) => <button key={k} type="button" aria-pressed={mood === k} onClick={() => setMood(k)}>{l}</button>)}
+        </div>
+        <label className="field"><span className="field-label">Anything to add? <span className="hint">optional</span></span>
+          <textarea className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="What were you trying to do?" />
+        </label>
+        <span className="hint">Sent with your name and this screen ({path}).</span>
+        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit" disabled={!mood || busy}>Send</button></div>
+      </form>
+    </Sheet>
+  );
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   const app = useApp();
   const { pathname, search } = useLocation();
-  const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | null>(null);
+  const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | 'feedback' | null>(null);
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
   const order = navFor(ownsGoals);
   const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.length;
@@ -126,12 +155,23 @@ export function Shell({ children }: { children: ReactNode }) {
   const tabs = order.slice(0, 4);
   const more = order.slice(4);
   const work = useRef<HTMLElement>(null);
-  useEffect(() => { window.scrollTo?.(0, 0); work.current?.scrollTo?.(0, 0); }, [pathname]);
-  const title = order.filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? 'Goals';
+  const title = order.filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : 'Goals');
+  const first = useRef(true);
+  useEffect(() => {
+    window.scrollTo?.(0, 0); work.current?.scrollTo?.(0, 0);
+    document.title = `${title} · ${app.ws.name}`;
+    // After moving to another page, put focus on its heading so screen readers announce where you are.
+    if (first.current) { first.current = false; return; }
+    const active = document.activeElement;
+    if (active && active !== document.body && !active.closest('nav, .tabbar, .side, .sheet')) return; // a field already took focus
+    const h = document.querySelector<HTMLElement>('main h1, .focus h1, .focus-body h1');
+    if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+  }, [pathname, title, app.ws.name]);
 
-  const focusMode = /^\/(check-in|review)(\/|$)|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$/.test(pathname) || /[?&]review=1/.test(search);
+  const focusMode = /^\/check-in(\/|$)|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   return (
     <div className={'app' + (focusMode ? ' focus-mode' : '')}>
+      <a className="skip" href="#main">Skip to content</a>
       <div className="mtop">
         <button className="wsbtn" onClick={() => setSheet('workspace')}>
           <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{app.ws.name.slice(0, 1).toUpperCase()}</span>
@@ -162,6 +202,7 @@ export function Shell({ children }: { children: ReactNode }) {
               {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
             </Link>
           ))}
+          <button className="nav feedback-nav" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span>Send feedback</span></button>
           <button className="me" onClick={() => setSheet('profile')}>
             <Avatar p={app.viewer} />
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
@@ -193,11 +234,13 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
           <button className="menuitem" onClick={() => setSheet('workspace')}>{NAV.workspace.icon}<span className="stack" style={{ gap: 0 }}><span className="strong">Switch workspace</span><span className="tiny muted">{app.ws.name}</span></span></button>
+          <button className="menuitem" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span className="strong">Send feedback</span></button>
           <button className="menuitem" onClick={() => setSheet('profile')}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}</span></span></button>
         </div>
       </Sheet>
       <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)} />
       <WorkspaceSheet open={sheet === 'workspace'} onClose={() => setSheet(null)} />
+      {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} path={pathname} />}
       <div className="toasts" role="status" aria-live="polite">
         {app.toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.kind === 'success' ? '✓ ' : ''}{t.text}</div>)}
       </div>

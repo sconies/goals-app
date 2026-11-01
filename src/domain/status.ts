@@ -170,7 +170,7 @@ export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today:
   if (latest?.status === 'done') status = 'done';
   else if (week === 0) status = 'planned';
   else if (latest && days != null && days < RULES.staleDays) status = latest.status;
-  else if (!latest && daysSince(cycle.startDate, today) < RULES.staleDays) status = 'none';
+  else if (!latest && daysSince(goal.createdAt && goal.createdAt.slice(0, 10) > cycle.startDate ? goal.createdAt : cycle.startDate, today) < RULES.staleDays) status = 'none';
   else status = 'stale';
   const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
   return { status, calc, latest, greener, daysSinceCheckIn: days, week };

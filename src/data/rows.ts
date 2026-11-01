@@ -1,6 +1,6 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
-import type { Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro } from '../domain/types';
+import type { Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback } from '../domain/types';
 
 type W = { workspace_id: string };
 export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string }
@@ -11,7 +11,7 @@ export interface StageRow extends W { id: string; goal_id: string; name: string;
 export interface GoalRow extends W {
   id: string; cycle_id: string; team_id: string; owner_id: string; parent_id: string | null; title: string;
   kind: Goal['kind']; io: Goal['io']; headline: boolean; level: Level; guardrail: boolean; effect: number | null; source: string; definition: string;
-  unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null;
+  unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null;
   original_plan: MetricPlan | null; rebaselined_week: number | null; range_bound: 'atMost' | 'atLeast' | null; range_limit: number | null;
   range_margin: number | null; created_at: string; pending?: Goal['pending'];
 }
@@ -45,7 +45,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     id: g.id, cycle_id: g.cycleId, team_id: g.teamId, owner_id: g.ownerId, parent_id: g.parentId, title: g.title, kind: g.kind, io: g.io,
     headline: false, level: g.level, guardrail: g.guardrail, effect: g.effect, source: g.source, definition: g.definition,
     unit: g.kind === 'milestone' ? null : g.unit, decimals: g.kind === 'milestone' ? null : g.decimals,
-    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null,
+    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : null,
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
     created_at: g.createdAt || new Date().toISOString(),
@@ -65,7 +65,7 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     const op = r.original_plan;
     return {
       ...common, kind: 'metric', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0),
-      plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight' },
+      plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}) },
       originalPlan: op ? { start: Number(op.start), target: Number(op.target), shape: op.shape } : null, rebaselinedWeek: r.rebaselined_week,
     };
   }
@@ -116,3 +116,7 @@ export interface RetroRow extends W {
 }
 export const retroToRow = (ws: string, r: Retro): RetroRow => ({ workspace_id: ws, id: r.id, goal_id: r.goalId, cycle_id: r.cycleId, result: r.result, learned: r.learned, next: r.next, by_id: r.byId, at: r.at });
 export const retroFromRow = (r: RetroRow): Retro => ({ id: r.id, goalId: r.goal_id, cycleId: r.cycle_id, result: r.result, learned: r.learned, next: r.next, byId: r.by_id, at: iso(r.at) });
+
+export interface FeedbackRow extends W { id: string; person_id: string; path: string; mood: Feedback['mood']; text: string; at: string }
+export const feedbackToRow = (ws: string, f: Feedback): FeedbackRow => ({ workspace_id: ws, id: f.id, person_id: f.personId, path: f.path, mood: f.mood, text: f.text, at: f.at });
+export const feedbackFromRow = (r: FeedbackRow): Feedback => ({ id: r.id, personId: r.person_id, path: r.path, mood: r.mood, text: r.text, at: iso(r.at) });

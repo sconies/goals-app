@@ -40,7 +40,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const replanning = !!built && started && planChanged(goal, built);
   const reasonOk = d.reason.trim().length >= MIN_REASON;
   const below = new Set<string>();
-  const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { below.add(c.id); walk(c.id); } };
+  const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { if (below.has(c.id) || c.id === goal.id) continue; below.add(c.id); walk(c.id); } };
   walk(goal.id);
   const parents = app.snapshot.goals.filter((g) => g.id !== goal.id && !below.has(g.id));
   const parent = app.goal(d.parentId);

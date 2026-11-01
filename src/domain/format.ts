@@ -19,9 +19,9 @@ export function fmtDiff(v: number, g: Numeric): string {
 export const weekLabel = (w: number, weeks: number) => (w >= weeks ? 'cycle end' : 'week ' + w);
 
 export function kindLabel(g: Goal): string {
-  if (g.kind === 'milestone') return 'Milestone';
-  if (g.kind === 'range') return 'Keep within a range';
-  return 'Move a metric';
+  if (g.kind === 'milestone') return 'Hit dated stages';
+  if (g.kind === 'range') return 'Keep a number in range';
+  return 'Move a number';
 }
 
 export function directionLabel(g: Goal): string {

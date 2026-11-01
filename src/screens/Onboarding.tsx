@@ -49,7 +49,7 @@ export function peopleFromTable(tsv: string): { rows: PersonRow[]; objectives: R
 }
 
 function peopleTsv(me: PersonRow, rows: PersonRow[], objectives: Record<string, string>) {
-  const all = [me, ...rows.filter((r) => r.name.trim() || r.team.trim())];
+  const all = [me, ...rows.filter((r) => r.name.trim() || r.team.trim()).map((r) => ({ ...r, team: r.team.trim() || me.team }))];
   return ['Name\tJob title\tTeam\tAdmin\tTeam objective', ...all.map((r) => [r.name, r.title, r.team, r.admin ? 'yes' : '', objectives[r.team] ?? ''].join('\t'))].join('\n');
 }
 
@@ -59,8 +59,8 @@ function goalsTsv(d: SetupDraft) {
   const people = [d.me, ...d.people];
   const teamOf = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === owner.trim().toLowerCase())?.team ?? d.me.team;
   const row = (g: GoalRow, headline: boolean) => [
-    g.title, teamOf(g.owner), g.owner, g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'milestone' ? '' : g.start, g.kind === 'milestone' ? '' : g.target,
-    g.plan ?? 'straight', '', '', '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : '', '', '',
+    g.title, teamOf(g.owner), g.owner, g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
+    g.plan ?? 'straight', g.kind === 'range' ? g.limit ?? '' : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : '', '', '',
   ].join('\t');
   const goals = d.goals.filter((g) => g.title.trim());
   return ['Goal\tTeam\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
@@ -107,7 +107,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
   const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(d.me, d.people, d.objectives), goals: goalsTsv(d), now: setup.today, idSuffix: suffix });
   const issues = (t: ImportIssue['table'], blocking = true) => result.issues.filter((i) => i.table === t && (!blocking || !/using straight/.test(i.message)));
-  const personIssue = (i: number) => issues('People').find((x) => x.row === i + 3)?.message;
+  // peopleTsv drops empty rows, so map each table row to its line in the sheet: header 1, you 2, then the rest.
+  const filled = d.people.map((r, k) => (r.name.trim() || r.team.trim() ? k : -1)).filter((k) => k >= 0);
+  const personIssue = (i: number) => { const at = filled.indexOf(i); return at < 0 ? undefined : issues('People').find((x) => x.row === at + 3)?.message; };
   const goalIssue = (row: number) => issues('Goals').find((x) => x.row === row)?.message;
   const owners = [d.me, ...d.people].filter((p) => p.name.trim()).map((p) => p.name.trim());
   const skipGoalSteps = d.template === 'file' || d.template === 'later';
@@ -187,7 +189,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
         <button className="iconbtn" onClick={close} aria-label="Close and keep what you’ve typed">✕</button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
-        {restored && d.step === 0 && <p className="hint">Picked up where you left off. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></p>}
+        {restored && <p className="hint">Picked up where you left off. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></p>}
 
         {d.step === 0 && (
           <section className="qsection">
@@ -334,7 +336,8 @@ function GoalFields({ g, owners, onChange, issue, headline }: { g: GoalRow; owne
       {!headline && (
         <div className="seg full" role="group" aria-label="Kind of goal">
           <button type="button" aria-pressed={g.kind === 'metric'} onClick={() => onChange({ kind: 'metric' })}>A number</button>
-          <button type="button" aria-pressed={g.kind === 'milestone'} onClick={() => onChange({ kind: 'milestone', stages: g.stages || 'Design@3; Pilot@7; Launch@12' })}>Dated stages</button>
+          <button type="button" aria-pressed={g.kind === 'range'} onClick={() => onChange({ kind: 'range', bound: g.bound ?? 'at most' })}>A limit</button>
+          <button type="button" aria-pressed={g.kind === 'milestone'} onClick={() => onChange({ kind: 'milestone', stages: g.stages || 'Design@3; Pilot@7; Launch@12' })}>Stages</button>
         </div>
       )}
       {g.kind === 'metric' ? (
@@ -342,6 +345,15 @@ function GoalFields({ g, owners, onChange, issue, headline }: { g: GoalRow; owne
           <label className="field"><span className="field-label">Today</span><input className="input" inputMode="decimal" value={g.start} onChange={(e) => onChange({ start: e.target.value })} aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': today'} /></label>
           <label className="field"><span className="field-label">Target</span><input className="input" inputMode="decimal" value={g.target} onChange={(e) => onChange({ target: e.target.value })} aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': target'} /></label>
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, days" aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': unit'} /></label>
+        </div>
+      ) : g.kind === 'range' ? (
+        <div className="trio">
+          <label className="field"><span className="field-label">Must stay</span>
+            <select className="input" value={g.bound ?? 'at most'} onChange={(e) => onChange({ bound: e.target.value as 'at most' | 'at least' })} aria-label={(g.title || 'Goal') + ': must stay'}><option value="at most">At most</option><option value="at least">At least</option></select>
+          </label>
+          <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={g.limit ?? ''} onChange={(e) => onChange({ limit: e.target.value })} aria-label={(g.title || 'Goal') + ': limit'} /></label>
+          <label className="field"><span className="field-label">Warn within</span><input className="input" inputMode="decimal" value={g.margin ?? ''} onChange={(e) => onChange({ margin: e.target.value })} placeholder="1" aria-label={(g.title || 'Goal') + ': warn within'} /></label>
+          <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, ms" aria-label={(g.title || 'Goal') + ': unit'} /></label>
         </div>
       ) : (
         <label className="field"><span className="field-label">Stages and the week each is due</span>

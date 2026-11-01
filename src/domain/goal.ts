@@ -106,7 +106,7 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
   };
   const num = (s: string) => parseNumber(s) as number;
   if (d.kind === 'metric') {
-    const plan: MetricPlan = { start: num(d.start), target: num(d.target), shape: d.shape };
+    const plan: MetricPlan = { start: num(d.start), target: num(d.target), shape: d.shape, ...(existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}) };
     let originalPlan: MetricPlan | null = null, rebaselinedWeek: number | null = null;
     if (existing?.kind === 'metric') {
       originalPlan = existing.originalPlan;

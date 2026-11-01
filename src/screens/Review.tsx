@@ -5,7 +5,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { WEEKDAY } from '../domain/progress';
-import { DECISION_LABEL, goalsIn, reviewSession, type ReviewSession } from '../domain/review';
+import { answerOf, goalsIn, reviewSession, type ReviewSession } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
 import type { Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
@@ -14,6 +14,7 @@ import { saveReviewOrder, TreeRow, worstFirst } from './Inspect';
 
 const dateText = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
+const goalsN = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
 
 /** The old single review now lives on the reviews page. */
 export function ReviewRedirect() {
@@ -48,7 +49,7 @@ function ReviewLine({ s }: { s: ReviewSession }) {
     <Link className="arow" to={`/reviews/${s.review.id}`} data-tone={thisWeek && s.done < s.total ? 'info' : undefined}>
       <span className="arow-main">
         <span className="arow-title">{s.review.name}</span>
-        <span className="arow-why">{cadence(s.review)}. {s.total} {s.total === 1 ? 'goal' : 'goals'}, {s.review.people.length} {s.review.people.length === 1 ? 'person' : 'people'}.</span>
+        <span className="arow-why">{cadence(s.review)}. {goalsN(s.total)}, {s.review.people.length} {s.review.people.length === 1 ? 'person' : 'people'}.</span>
         <span className="arow-why">{thisWeek ? (s.done >= s.total ? `Done this week (${dateText(s.date)})` : `This week, ${dateText(s.date)}: ${s.done} of ${s.total} covered`) : `Next on ${dateText(s.date)}`}</span>
       </span>
     </Link>
@@ -71,6 +72,13 @@ export function ReviewHome() {
   };
   const done = s.total > 0 && s.done >= s.total;
   const people = review.people.map((id) => app.person(id)).filter((p) => !!p);
+  const inIt = review.people.includes(app.viewer.id);
+  const canChange = inIt || app.viewer.admin;
+  const join = async () => { await app.saveReview({ ...review, people: [...review.people, app.viewer.id] }, review); app.toast(`You’re in ${review.name}`); };
+  const asks = s.said.filter((d) => d.kind === 'ask');
+  const actions = s.said.filter((d) => d.kind === 'action');
+  const notes = s.said.filter((d) => d.kind === 'note');
+  const seen = s.said.filter((d) => d.kind === 'acknowledge');
   return (
     <div className="page narrow">
       <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link></nav>
@@ -79,27 +87,39 @@ export function ReviewHome() {
         <div className="hero-body">
           <span className="eyebrow">{cadence(review)}</span>
           <h1 className="hero-title">{review.name}</h1>
-          <span className="muted">{done ? `Done for ${dateText(s.date)}. ${s.said.length} ${s.said.length === 1 ? 'thing' : 'things'} said.` : `${thisWeek ? 'This week' : 'Next'}: ${dateText(s.date)}. ${s.total} goals, worst and stalest first.`}</span>
+          <span className="muted">{done ? `Done for ${dateText(s.date)}: ${goalsN(s.done)} covered${asks.length ? `, ${asks.length} ${asks.length === 1 ? 'question' : 'questions'}` : ''}${actions.length ? `, ${actions.length} ${actions.length === 1 ? 'action' : 'actions'}` : ''}.` : `${thisWeek ? 'This week' : 'Next'}: ${dateText(s.date)}. ${goalsN(s.total)}, worst and stalest first.${thisWeek ? '' : ' You can start early; it counts for that session.'}`}</span>
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
-            {!done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? 'Continue the review' : 'Start the review'}</button>}
-            <Link className="btn" to={`/reviews/${review.id}/edit`}>Change it</Link>
+            {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? 'Continue the review' : 'Start the review'}</button>}
+            {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
+            {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Change it</Link>}
           </div>
         </div>
       </section>
       {s.said.length > 0 && (
         <section className="block">
           <h2 className="block-title">What was said</h2>
-          <ul className="changes">
-            {s.said.slice().sort((a, b) => a.at.localeCompare(b.at)).map((d) => (
-              <li key={d.id} className="change">
-                <Avatar p={app.person(d.byId) ?? { name: '?', initials: '?' }} size="sm" />
-                <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-                  <span className="small"><strong>{DECISION_LABEL[d.kind]}</strong> on <Link className="linkish" to={`/goals/${d.goalId}`}>{app.goal(d.goalId)?.title}</Link></span>
-                  {d.note && <span className="note-text">{d.note}</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {[['Questions for owners', asks], ['Actions', actions], ['Notes', notes]].map(([title, list]) => (list as typeof asks).length > 0 && (
+            <div key={title as string} className="stack" style={{ gap: 'var(--s1)' }}>
+              <span className="field-label">{title as string}</span>
+              <ul className="changes">
+                {(list as typeof asks).map((d) => {
+                  const ans = d.kind === 'ask' ? answerOf(d, app.snapshot) : null;
+                  const g = app.goal(d.goalId);
+                  return (
+                    <li key={d.id} className="change">
+                      <Avatar p={app.person(d.byId) ?? { name: '?', initials: '?' }} size="sm" />
+                      <span className="stack" style={{ gap: 2, minWidth: 0 }}>
+                        <span className="small"><Link className="linkish" to={`/goals/${d.goalId}`}>{g?.title}</Link>{d.kind === 'ask' && g ? <span className="muted"> · for {app.person(g.ownerId)?.name.split(' ')[0]}</span> : null}</span>
+                        {d.note && <span className="note-text">{d.note}</span>}
+                        {d.kind === 'ask' && (ans ? <span className="small"><strong>{app.person(ans.byId)?.name.split(' ')[0]} answered:</strong> {ans.text}</span> : <span className="hint">Not answered yet</span>)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+          {seen.length > 0 && <p className="hint">Seen with nothing to add: {seen.map((d) => app.goal(d.goalId)?.title).filter(Boolean).join(', ')}.</p>}
         </section>
       )}
       <section className="block">
@@ -125,7 +145,7 @@ export function ReviewEdit() {
   const nav = useNavigate();
   const { reviewId } = useParams();
   const existing = reviewId ? app.snapshot.reviews.find((r) => r.id === reviewId) ?? null : null;
-  const [r, setR] = useState<ReviewT>(() => existing ?? { id: newId('rev'), name: '', everyWeeks: 1, weekday: app.cycle.reviewDay, scope: { goals: [], trees: [], levels: [] }, people: [app.viewer.id], createdBy: app.viewer.id, createdAt: new Date().toISOString() });
+  const [r, setR] = useState<ReviewT>(() => existing ?? { id: newId('rev'), name: '', everyWeeks: 1, weekday: app.cycle.reviewDay, scope: { goals: [], trees: [], levels: [] }, people: [app.viewer.id], createdBy: app.viewer.id, createdAt: app.stamp() });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
@@ -159,11 +179,11 @@ export function ReviewEdit() {
         </label>
         <section className="stack" style={{ gap: 'var(--s3)' }} aria-labelledby="when-h">
           <h2 className="block-title" id="when-h">When</h2>
-          <div className="pair">
+          <div className="stack" style={{ gap: 'var(--s3)' }}>
             <div className="field"><span className="field-label" id="every-l">How often</span>
-              <div className="seg full" role="group" aria-labelledby="every-l">{WEEKS.map((n) => <button key={n} type="button" aria-pressed={r.everyWeeks === n} onClick={() => set({ everyWeeks: n })}>{n === 1 ? 'Weekly' : `Every ${n} weeks`}</button>)}</div>
+              <div className="seg full" role="group" aria-labelledby="every-l">{WEEKS.map((n) => <button key={n} type="button" aria-pressed={r.everyWeeks === n} onClick={() => set({ everyWeeks: n })}>{n === 1 ? 'Every week' : `Every ${n} weeks`}</button>)}</div>
             </div>
-            <label className="field"><span className="field-label">On</span>
+            <label className="field" style={{ maxWidth: 260 }}><span className="field-label">On</span>
               <select className="input" value={r.weekday} onChange={(e) => set({ weekday: Number(e.target.value) })}>{WEEKDAY.slice(0, 5).map((d, i) => <option key={d} value={i}>{d}</option>)}</select>
             </label>
           </div>
@@ -171,7 +191,7 @@ export function ReviewEdit() {
         <section className="stack" style={{ gap: 'var(--s3)' }} aria-labelledby="goals-h">
           <div className="stack" style={{ gap: 'var(--s1)' }}>
             <h2 className="block-title" id="goals-h">Which goals</h2>
-            <span className="hint">{covered.length} {covered.length === 1 ? 'goal' : 'goals'} so far. Mix levels, whole trees and single goals.</span>
+            <span className="hint">{goalsN(covered.length)} so far. Mix levels, whole trees and single goals.</span>
           </div>
           <div className="field"><span className="field-label" id="lv-l">Every goal at a level</span>
             <div className="row" role="group" aria-labelledby="lv-l">{LEVELS.map((l) => <button key={l} type="button" className="pill" aria-pressed={r.scope.levels.includes(l)} onClick={() => set({ scope: { ...r.scope, levels: toggle(r.scope.levels, l) } })}>{LEVEL_LABEL[l]}</button>)}</div>
@@ -179,7 +199,7 @@ export function ReviewEdit() {
           {tops.length > 0 && (
             <div className="field"><span className="field-label" id="tr-l">A goal and everything feeding it</span>
               <div className="optlist" role="group" aria-labelledby="tr-l">
-                {tops.map((g) => <button key={g.id} type="button" role="checkbox" className="opt" aria-checked={r.scope.trees.includes(g.id)} onClick={() => set({ scope: { ...r.scope, trees: toggle(r.scope.trees, g.id) } })}><span>{g.title}</span><span className="hint">{goalsIn({ goals: [], trees: [g.id], levels: [] }, app.snapshot.goals).length} goals</span></button>)}
+                {tops.map((g) => <button key={g.id} type="button" role="checkbox" className="opt" aria-checked={r.scope.trees.includes(g.id)} onClick={() => set({ scope: { ...r.scope, trees: toggle(r.scope.trees, g.id) } })}><span>{g.title}</span><span className="hint">{goalsN(goalsIn({ goals: [], trees: [g.id], levels: [] }, app.snapshot.goals).length)}</span></button>)}
               </div>
             </div>
           )}
@@ -192,7 +212,7 @@ export function ReviewEdit() {
         <section className="stack" style={{ gap: 'var(--s3)' }} aria-labelledby="ppl-h">
           <h2 className="block-title" id="ppl-h">Who takes part</h2>
           <div className="optlist" role="group" aria-labelledby="ppl-h">
-            {app.snapshot.people.map((p) => <button key={p.id} type="button" role="checkbox" className="opt" aria-checked={r.people.includes(p.id)} onClick={() => set({ people: toggle(r.people, p.id) })}><span className="row" style={{ gap: 'var(--s2)' }}><Avatar p={p} size="sm" />{p.name}</span><span className="hint">{app.team(p.teamId ?? '')?.name ?? ''}</span></button>)}
+            {app.snapshot.people.map((p) => <button key={p.id} type="button" role="checkbox" className="opt" aria-checked={r.people.includes(p.id)} disabled={!!existing && p.id === existing.createdBy && r.people.includes(p.id) && app.viewer.id !== existing.createdBy && !app.viewer.admin} onClick={() => set({ people: toggle(r.people, p.id) })}><span className="row" style={{ gap: 'var(--s2)' }}><Avatar p={p} size="sm" />{p.name}</span><span className="hint">{app.team(p.teamId ?? '')?.name ?? ''}</span></button>)}
           </div>
         </section>
         <div className="focus-foot">

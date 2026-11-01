@@ -41,7 +41,9 @@ export function shapeProgress(shape: PlanShape, week: number, weeks: number): nu
 }
 
 export function planAt(plan: MetricPlan, week: number, weeks: number): number {
-  return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week, weeks);
+  const from = Math.min(plan.fromWeek ?? 0, weeks - 1);
+  if (week <= from) return plan.start;
+  return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week - from, weeks - from);
 }
 
 export interface Point {

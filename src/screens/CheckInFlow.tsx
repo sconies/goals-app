@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { checkInDraftKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, draftFrom, emptyDraft, evaluate, MIN_PATH, MIN_REASON, type Draft, type Evaluation } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, draftFrom, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
 import { onTimeStreak, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, MilestoneGoal, Status } from '../domain/types';
@@ -69,11 +69,12 @@ function AllDone({ first }: { first?: boolean }) {
     <div className="focus">
       <div className="celebrate" role="status">
         <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} />
-        <h1 className="title-xl">{first && !p.done.length ? 'Nothing to check in' : `Week ${app.week} is done`}</h1>
-        <p className="muted">{!p.goals.length ? 'You don’t own any goals this cycle.' : p.goals.length === 1 ? 'Your goal is checked in for the review.' : p.goals.length === 2 ? 'Both your goals are checked in for the review.' : `All ${p.goals.length} of your goals are checked in for the review.`}</p>
-        {streak >= 2 && <p className="streak big">{streak} weeks in a row on time</p>}
+        <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : p.due.length ? `${p.done.length} of ${p.goals.length} checked in` : `Week ${app.week} is done`}</h1>
+        <p className="muted">{!p.goals.length ? 'You don’t own any goals this cycle.' : p.due.length ? `Still to do: ${p.due.map((g) => g.title).join(', ')}.` : p.goals.length === 1 ? 'Your goal is checked in for the review.' : p.goals.length === 2 ? 'Both your goals are checked in for the review.' : `All ${p.goals.length} of your goals are checked in for the review.`}</p>
+        {streak >= 2 && !p.due.length && <p className="streak big">{streak} weeks in a row on time</p>}
         <div className="row" style={{ justifyContent: 'center' }}>
-          <Link ref={ref} className="btn primary big-btn" to="/">Back to home</Link>
+          {p.due.length > 0 && <Link className="btn primary big-btn" to={`/check-in/${p.due[0]!.id}`}>Check in on {p.due[0]!.title}</Link>}
+          <Link ref={ref} className={'btn big-btn' + (p.due.length ? '' : ' primary')} to="/">Back to home</Link>
         </div>
       </div>
     </div>
@@ -112,7 +113,8 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showNext, setShowNext] = useState(!!draft.next);
-  const [showNeeds, setShowNeeds] = useState(!!draft.needs);
+  const [showNeedsOpen, setShowNeeds] = useState(!!draft.needs);
+  const showNeeds = showNeedsOpen || !!draft.needs.trim();
   const [statusOpen, setStatusOpen] = useState(false);
   const [step, setStep] = useState<Step>('measure');
   const [trail, setTrail] = useState<Step[]>([]);
@@ -126,7 +128,9 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
   const priorCauseOk = !!previous?.cause && (e.reason === 'ahead' ? CAUSES_AHEAD : CAUSES_BEHIND).some(([k]) => k === previous.cause);
   const priorWhy = needsWhy && priorCauseOk && !!previous?.why && previous.why !== 'On plan.';
   const priorWay = needsWay && !!previous?.pathToGreen;
-  const canCarry = !existing && !!previous && (needsWhy || needsWay) && (!needsWhy || priorWhy) && (!needsWay || priorWay);
+  // Once the owner has written their own reason or path, last week's is no longer offered (or pasted over it).
+  const edited = (!!draft.why.trim() && draft.why !== previous?.why) || (!!draft.ptgWhat.trim() && draft.ptgWhat !== previous?.pathToGreen?.what) || (!!draft.cause && draft.cause !== previous?.cause);
+  const canCarry = !existing && !edited && !!previous && (needsWhy || needsWay) && (!needsWhy || priorWhy) && (!needsWay || priorWay);
   const fromLast = (): Partial<Draft> => ({
     ...(priorWhy ? { cause: previous!.cause, why: previous!.why } : {}),
     ...(priorWay ? { ptgWhat: previous!.pathToGreen!.what, ptgBy: previous!.pathToGreen!.byWeek > week ? previous!.pathToGreen!.byWeek : null, needs: previous!.pathToGreen!.needs } : {}),
@@ -176,7 +180,12 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
     if (check.canPost) void post(d);
     else go(check.missing.some((m) => m.startsWith('why it’s')) ? 'why' : 'way');
   };
-  const somethingChanged = () => { set(fromLast()); go(needsWhy ? 'why' : 'way'); };
+  const somethingChanged = () => {
+    // Start from last week's words so they can be edited; the help request only if they open it again.
+    const f = fromLast();
+    set({ ...f, needs: '' });
+    go(needsWhy ? 'why' : 'way');
+  };
 
   const label = saving ? 'Posting…' : last ? (existing ? 'Post update' : 'Post check-in') : 'Next';
   const stepNo = plan.indexOf(step) + 1;
@@ -201,12 +210,16 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
                   placeholder="Type it here" aria-describedby="value-hint" aria-label="This week’s value" aria-invalid={tried && !valueOk} />
                 {goal.unit && <span className="bignum-unit">{goal.unit}</span>}
               </label>
-              {tried && !valueOk
+              {(() => {
+                const pr = valueProblem(draft.value, previous?.value ?? null, goal.unit);
+                if (pr && (tried || (!pr.block && draft.value.trim()) || (pr.block && draft.value.trim() && parseNumber(draft.value) != null))) return <span className={'hint ' + (pr.block ? 'tone-off' : 'tone-risk')} role={pr.block ? 'alert' : 'status'}>{pr.text}</span>;
+                return null;
+              })() ?? (tried && !valueOk
                 ? <span className="hint tone-off" role="alert">Type this week’s number.</span>
                 : <span id="value-hint" className="valuehint hint">
                     <span>{previous?.value != null ? `Last week ${fmt(previous.value, goal)}` : 'First check-in this cycle'}</span>
                     {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Use {fmt(previous.value, goal)}</button>}
-                  </span>}
+                  </span>)}
             </div>
           )}
           {valueOk && (goal.kind !== 'milestone' || draft.stages.length > 0) && (
@@ -316,7 +329,7 @@ function StatusSheet({ open, onClose, e, draft, set, milestoneDone }: { open: bo
           <label className="field">
             <span className="field-label">Why is it better than the numbers?</span>
             <input className={'input' + (tried && !okWhy ? ' invalid' : '')} autoFocus value={draft.greenerWhy} onChange={(ev) => set({ greenerWhy: ev.target.value })} placeholder="e.g. The fix ships Monday and closes the gap" />
-            {tried && !okWhy && <span className="hint tone-off" role="alert">Write a sentence so the sponsor knows why.</span>}
+            {tried && !okWhy && <span className="hint tone-off" role="alert">Write a sentence so people watching know why.</span>}
           </label>
         )}
         <button type="button" className="btn primary big-btn" onClick={() => { if (!okWhy) { setTried(true); return; } onClose(); }}>Done</button>
