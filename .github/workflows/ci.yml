@@ -1,0 +1,94 @@
+# Every pull request: typecheck, unit tests, the full eval suite (journeys on a phone and a desktop),
+# and a screenshot comparison against the base branch. Merges to main also apply database migrations.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, tests and evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run typecheck
+      - run: npm test
+      - name: Evals
+        run: npm run evals
+      - name: Scorecard
+        if: always()
+        run: test -f evals/report.md && cat evals/report.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evals
+          path: |
+            evals/report.md
+            evals/out/*.png
+            evals/out/results.json
+          if-no-files-found: ignore
+
+  screens:
+    name: Screens that look different
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build this branch and the base branch
+        run: |
+          npx vite build --logLevel warn
+          git worktree add ../base "origin/${{ github.base_ref }}"
+          (cd ../base && npm ci --ignore-scripts && npx vite build --logLevel warn)
+      - name: Capture and compare
+        run: |
+          npx vite preview --port 4318 --strictPort &
+          npx vite preview --port 4320 --strictPort --outDir ../base/dist &
+          npx wait-on -t 60000 http://localhost:4318 http://localhost:4320 || sleep 10
+          node evals/visual.mjs capture http://localhost:4320 visual/before
+          node evals/visual.mjs capture http://localhost:4318 visual/after
+          node evals/visual.mjs compare visual/before visual/after visual/changes
+          cat visual/changes/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-changes
+          path: visual/changes
+          if-no-files-found: ignore
+
+  migrate:
+    name: Apply database migrations
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/migrate.mjs

@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-10-31 02:31 UTC.
+Run 2026-11-01 16:00 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
