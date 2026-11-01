@@ -63,14 +63,19 @@ evals/          requirements, scenarios, journeys, runner, latest report
 
 ## Data
 
-Today the app saves to the browser (`BrowserStore`). The `Store` interface in `src/data/store.ts` is the seam for a shared database. The schema in `supabase/migrations/` enforces these invariants itself:
+The app has two stores behind one contract, `Store` in `src/data/store.ts`:
+
+- **Shared data (Supabase).** Used when `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` are set; copy `.env.example` to `.env` to use them. The data lives in the `okr_` tables of the family-hq project. The first load into empty tables seeds the demo data. Add `?store=browser` to the URL to work on a private copy instead.
+- **Browser only (`BrowserStore`).** Used when those values are not set, and always by the evals.
+
+The schema in `supabase/migrations/` enforces these invariants itself:
 
 - one check-in per goal per week;
 - a path to green for At risk and Off track;
 - a reason for a greener call;
 - one headline goal per cycle.
 
-Row-level security is on with no policies, so nothing is readable until sign-in arrives.
+`0002_demo_access.sql` lets the app's public key read and write the `okr_` tables, and only those, until sign-in arrives. The demo data is invented. Anyone with the page can change it, so don't enter real goals until sign-in arrives.
 
 ## Not in this slice yet
 

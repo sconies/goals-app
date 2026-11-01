@@ -1,36 +1,37 @@
 -- Slice 1: goals, plans and check-ins. Mirrors src/domain/types.ts.
+-- Tables carry an okr_ prefix so they can share a Supabase project with other apps.
 -- The status rules stay in the app (src/domain); the database keeps the records and the invariants.
 
-create table teams (
+create table okr_teams (
   id text primary key,
   name text not null,
   lead_id text,
   objective text not null default ''
 );
 
-create table people (
+create table okr_people (
   id text primary key,
   name text not null,
   role text not null default '',
   initials text not null,
-  team_id text references teams (id)
+  team_id text references okr_teams (id) on delete set null
 );
 
-alter table teams add constraint teams_lead_fk foreign key (lead_id) references people (id) deferrable initially deferred;
+alter table okr_teams add constraint okr_teams_lead_fk foreign key (lead_id) references okr_people (id) on delete set null deferrable initially deferred;
 
-create table cycles (
+create table okr_cycles (
   id text primary key,
   name text not null,
   start_date date not null,
   weeks int not null default 13 check (weeks between 1 and 52)
 );
 
-create table goals (
+create table okr_goals (
   id text primary key,
-  cycle_id text not null references cycles (id),
-  team_id text not null references teams (id),
-  owner_id text not null references people (id),
-  parent_id text references goals (id),
+  cycle_id text not null references okr_cycles (id),
+  team_id text not null references okr_teams (id),
+  owner_id text not null references okr_people (id),
+  parent_id text references okr_goals (id),
   title text not null check (length(trim(title)) >= 3),
   kind text not null check (kind in ('metric', 'range', 'milestone')),
   io text not null check (io in ('input', 'output')),
@@ -58,20 +59,20 @@ create table goals (
 );
 
 -- One headline goal per cycle.
-create unique index goals_one_headline on goals (cycle_id) where headline;
+create unique index okr_one_headline on okr_goals (cycle_id) where headline;
 
-create table stages (
+create table okr_stages (
   id text not null,
-  goal_id text not null references goals (id) on delete cascade,
+  goal_id text not null references okr_goals (id) on delete cascade,
   name text not null,
   due_week int not null check (due_week >= 1),
   primary key (goal_id, id)
 );
 
-create table check_ins (
+create table okr_check_ins (
   id text primary key,
-  goal_id text not null references goals (id) on delete cascade,
-  author_id text not null references people (id),
+  goal_id text not null references okr_goals (id) on delete cascade,
+  author_id text not null references okr_people (id),
   week int not null check (week >= 1),
   posted_at timestamptz not null default now(),
   value numeric,
@@ -99,13 +100,13 @@ create table check_ins (
   )
 );
 
-create index check_ins_goal_week on check_ins (goal_id, week);
+create index okr_check_ins_goal_week on okr_check_ins (goal_id, week);
 
--- Row-level security is on with no policies: nothing is readable until sign-in lands and
--- policies grant access by person. Never open these tables to anonymous users.
-alter table teams enable row level security;
-alter table people enable row level security;
-alter table cycles enable row level security;
-alter table goals enable row level security;
-alter table stages enable row level security;
-alter table check_ins enable row level security;
+-- Row-level security is on. With no policies nothing is readable; 0002 opens the okr_ tables
+-- (and only those) for the demo until sign-in lands.
+alter table okr_teams enable row level security;
+alter table okr_people enable row level security;
+alter table okr_cycles enable row level security;
+alter table okr_goals enable row level security;
+alter table okr_stages enable row level security;
+alter table okr_check_ins enable row level security;

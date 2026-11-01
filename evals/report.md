@@ -1,6 +1,6 @@
 # Eval scorecard · 1 · Goals, plans and check-ins
 
-Run 2026-10-30 16:14 UTC. **23 of 23 requirements pass**. Spec scenarios 56/56; browser journeys 14/14.
+Run 2026-10-30 16:39 UTC. **23 of 23 requirements pass**. Spec scenarios 56/56; browser journeys 14/14.
 
 | | Requirement | Area | Scenarios | Journeys |
 |---|---|---|---|---|

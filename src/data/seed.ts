@@ -124,8 +124,8 @@ export function seed(today: Date): Snapshot {
   const startDate = new Date(start).toISOString().slice(0, 10);
   const label = new Date(start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const cycle: Cycle = { id: 'cycle', name: 'Platform cycle from ' + label, startDate, weeks: 13 };
-  const created = new Date(start - 5 * DAY).toISOString();
-  const allGoals = goals.map((g) => ({ ...g, createdAt: created }));
+  // Distinct creation times keep the goals in this order wherever they are stored.
+  const allGoals = goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString() }));
 
   const postedAt = (week: number) => {
     const planned = start + week * 7 * DAY + 2 * DAY + 10 * 3_600_000;
