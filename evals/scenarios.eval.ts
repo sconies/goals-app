@@ -8,8 +8,8 @@ import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/d
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
 import { seed } from '../src/data/seed';
 
-const cycle: Cycle = { id: 'c', name: 'Eval cycle', startDate: '2026-09-07', weeks: 13 };
-const base = { cycleId: 'c', teamId: 't', ownerId: 'o', io: 'input' as const, headline: false, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '' };
+const cycle: Cycle = { id: 'c', name: 'Eval cycle', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
+const base = { cycleId: 'c', teamId: 't', ownerId: 'o', io: 'input' as const, level: 'team' as const, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '' };
 const up: MetricGoal = { ...base, id: 'up', title: 'Up', kind: 'metric', unit: '%', decimals: 0, plan: { start: 20, target: 72, shape: 'straight' }, originalPlan: null, rebaselinedWeek: null };
 const down: MetricGoal = { ...up, id: 'down', title: 'Down', unit: 'days', decimals: 1, plan: { start: 34, target: 8, shape: 'straight' } };
 const cfr: RangeGoal = { ...base, id: 'cfr', title: 'CFR', kind: 'range', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 12, margin: 1 } };
@@ -130,7 +130,13 @@ describe('what a check-in must say', () => {
   it(R('PATH-TO-GREEN', 'the back-on-plan week must be in the future'), () => expect(evaluate(up, cycle, 5, draft({ value: String(at(0.9)), ...why, ptgWhat: 'Restart the rollout', ptgBy: 5 }), []).canPost).toBe(false));
   it(R('PATH-TO-GREEN', 'an off-track call with a reason and path posts, and keeps the decision needed'), () => {
     const c = toCheckIn(up, cycle, 5, draft({ value: String(at(0.5)), ...why, ...path, needs: 'VP: approve scope' }), [], 'o', new Date(), 'x');
-    expect(c.pathToGreen).toEqual({ what: 'Restart the rollout', byWeek: 8, needs: 'VP: approve scope' });
+    expect(c.pathToGreen).toEqual({ what: 'Restart the rollout', byWeek: 8, needs: 'VP: approve scope', state: 'plan' });
+  });
+  it(R('PATH-TO-GREEN', 'an owner who is still investigating can post without inventing a date'), () => {
+    const d = draft({ value: String(at(0.5)), ...why, ptgWhat: 'Looking into why intake doubled', ptgBy: null, ptgState: 'investigating' });
+    expect(evaluate(up, cycle, 5, d, []).missing).toEqual([]);
+    expect(toCheckIn(up, cycle, 5, d, [], 'o', new Date(), 'x').pathToGreen).toMatchObject({ byWeek: null, state: 'investigating' });
+    expect(evaluate(up, cycle, 5, { ...d, ptgState: 'plan' }, []).missing).toEqual(['path to green']);
   });
   it(R('PATH-TO-GREEN', 'calling an on-plan goal at risk still needs a path to green'), () => expect(evaluate(up, cycle, 5, draft({ value: String(at(1)), status: 'risk' }), []).missing).toEqual(['path to green']));
   it(R('GREENER', 'calling an off-track goal on track needs a reason for the greener call'), () => {

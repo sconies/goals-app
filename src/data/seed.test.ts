@@ -38,17 +38,27 @@ describe('demo data', () => {
 });
 
 describe('browser store', () => {
-  it('seeds once, saves goals and replaces a check-in for the same week', async () => {
+  it('seeds the example once, commits changes with their log, and resets', async () => {
     const store = new BrowserStore(() => new Date('2026-10-30T12:00:00Z'));
-    const s = await store.load();
+    const s = await store.load('example');
     const c = s.checkIns.find((x) => x.goalId === 'triage' && x.week === 7)!;
-    await store.saveCheckIn({ ...c, id: 'new', value: 64 });
-    const again = await new BrowserStore().load();
+    const change = { id: 'chg1', at: c.postedAt, actorId: 'maya', goalId: 'triage', entity: 'check-in' as const, entityId: 'new', action: 'edited' as const, summary: 'x', diffs: [] };
+    await store.commit('example', { checkIns: [{ ...c, id: 'new', value: 64 }], changes: [change] });
+    const again = await new BrowserStore().load('example');
     const week7 = again.checkIns.filter((x) => x.goalId === 'triage' && x.week === 7);
     expect(week7).toHaveLength(1);
     expect(week7[0]!.value).toBe(64);
-    await store.saveGoal({ ...s.goals[0]!, title: 'Renamed' });
-    expect((await store.load()).goals[0]!.title).toBe('Renamed');
-    expect((await store.reset()).goals[0]!.title).toBe('Intake-to-delivery time');
+    expect(again.changes.at(-1)!.id).toBe('chg1');
+    await store.commit('example', { goals: [{ ...s.goals[0]!, title: 'Renamed' }], changes: [] });
+    expect((await store.load('example')).goals[0]!.title).toBe('Renamed');
+    expect((await store.resetExample()).goals[0]!.title).toBe('Intake-to-delivery time');
+  });
+  it('keeps your own workspaces apart from the example', async () => {
+    const store = new BrowserStore(() => new Date('2026-10-30T12:00:00Z'));
+    const mine = { id: 'ws_mine', name: 'Mine', kind: 'own' as const, createdAt: '2026-10-30T00:00:00Z' };
+    await store.createWorkspace(mine, { people: [], teams: [], cycles: [], goals: [], checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [] });
+    expect((await store.workspaces()).map((w) => w.id)).toEqual(['example', 'ws_mine']);
+    expect((await store.load('ws_mine')).goals).toHaveLength(0);
+    expect((await store.load('example')).goals.length).toBeGreaterThan(5);
   });
 });

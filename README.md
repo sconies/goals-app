@@ -1,15 +1,13 @@
 # Goals
 
-An internal goals (OKR) tool for team leads, built slice by slice. It grew out of the clickable prototype and keeps its design. Status rules come from the build spec.
+An internal goals (OKR) tool for team leads, built slice by slice from the prototype and the build spec.
 
-**Slice 1: goals, plans and check-ins.** In this slice a lead can:
+**Slice 2: profiles, journeys and the change log.**
 
-- create a goal of one of three types: move a metric along a plan, keep within a range, or reach dated milestones;
-- connect input goals to a headline goal across teams;
-- post a weekly check-in that follows the spec's rules: the reason, the path to green, and the greener-call flag;
-- read each goal on its own page.
-
-The app runs on demo data from an AI-native developer platform. That data sits seven weeks into a live 13-week cycle, wherever today falls.
+- **Four profiles:** team lead, sponsor, goals coach and contributor. Each has its own home and its own next thing to do.
+- **Ten user journeys:** the top five score 10/10 on the ease test, on both phone and desktop. See [docs/journeys.md](docs/journeys.md).
+- **Change log:** every save (goal, plan, check-in, note, decision, workspace) records who, when, and each field's before and after. Drafts are kept as you type but never logged.
+- **Workspaces:** the example data and your own, loaded from a spreadsheet, kept apart, with a switcher between them.
 
 ## Run it
 
@@ -18,7 +16,14 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-Pick a person under **Demo · viewing as** in the sidebar. Maya Chen owns the headline goal, Leo Park owns a slipping milestone, and Sam Patel's goal is well ahead. **Reset demo data** starts again.
+Pick a role in the **Viewing as** bar at the top; each role opens its own home. Use the name beside it, or the avatar, to pick a specific person. Good places to start:
+
+- **Maya Chen** (team lead): owns the headline goal, with a check-in due.
+- **Elena Ruiz** (sponsor): has a review queue waiting.
+- **Priya Nair** (goals coach): can load your own data.
+- **Tom Reid** (contributor): follows his team's goals.
+
+**Workspace → Reset the example** starts the example again.
 
 Add `?today=2026-10-30` to the URL to pin the clock.
 
@@ -28,7 +33,7 @@ Add `?today=2026-10-30` to the URL to pin the clock.
 |---|---|
 | `npm test` | Unit tests for the rules, the demo data, the browser store and the database schema (in PGlite, real Postgres) |
 | `npm run typecheck` | TypeScript, strict |
-| `npm run evals` | The eval suite: the spec scenarios and the browser journeys, written up as a scorecard in `evals/report.md` |
+| `npm run evals` | The eval suite: the spec scenarios, the ten user journeys scored on the ease test (phone and desktop), and platform checks, written up in `evals/report.md` |
 
 ### The evals
 
@@ -53,10 +58,12 @@ The scenarios were checked against deliberately broken rules (a different on-tra
 ## Where things are
 
 ```
-src/domain/     the rules: plans, forecast, status per goal type, check-in requirements, goal validation (pure, tested)
-src/data/       demo data, the store contract and the browser store
-src/screens/    Check-in, Goals, Goal page, Goal editor
-src/ui/         shell, status chips (shape + word), charts
+src/domain/     the rules: plans, status, check-ins, attention, review, change log, progress, import (pure, tested)
+src/data/       demo data, the store contract, the browser and Supabase stores
+src/app/        app state (workspaces, profiles, saves that log) and drafts
+src/screens/    Home (per profile), Check-in, Review, Goals, Goal page, Goal setup, Activity, Workspace
+src/ui/         shell, status chips (shape + word), progress ring, charts
+docs/           the user journeys and the ease test
 supabase/       the Postgres schema for when the data moves to Supabase
 evals/          requirements, scenarios, journeys, runner, latest report
 ```
@@ -65,7 +72,7 @@ evals/          requirements, scenarios, journeys, runner, latest report
 
 The app has two stores behind one contract, `Store` in `src/data/store.ts`:
 
-- **Shared data (Supabase).** Used when `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` are set; copy `.env.example` to `.env` to use them. The data lives in the `okr_` tables of the family-hq project. The first load into empty tables seeds the demo data. Add `?store=browser` to the URL to work on a private copy instead.
+- **Shared data (Supabase).** Used when `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` are set; copy `.env.example` to `.env` to use them. The data lives in the `okr_` tables of the family-hq project, and every row carries its workspace. The first load into empty tables seeds the example. Reads are paged past Supabase's 1,000-row limit, requests time out after 12 seconds with a Try again screen, and failed saves say so. Add `?store=browser` to the URL to work on a private copy instead.
 - **Browser only (`BrowserStore`).** Used when those values are not set, and always by the evals.
 
 The schema in `supabase/migrations/` enforces these invariants itself:
@@ -73,20 +80,19 @@ The schema in `supabase/migrations/` enforces these invariants itself:
 - one check-in per goal per week;
 - a path to green for At risk and Off track;
 - a reason for a greener call;
-- one headline goal per cycle.
+- one headline goal per cycle;
+- the change log can be added to but never edited (only the example's log is cleared when it is reset).
 
 `0002_demo_access.sql` lets the app's public key read and write the `okr_` tables, and only those, until sign-in arrives. The demo data is invented. Anyone with the page can change it, so don't enter real goals until sign-in arrives.
 
-## Not in this slice yet
+## Not built yet
 
-- Leadership view and team review
-- Target-change approval
-- Dependencies
+- Closing the cycle with a retro (journey 10)
+- Dependencies between goals
 - Jira context
-- Slack
-- AI drafts (beta)
-- Key-goal flags
+- Slack check-in cards and reminders
+- AI coaching on a draft (beta)
+- Sign-in and per-person permissions
 - Data integrations
-- Sign-in
 
 All numbers in the demo data are invented.

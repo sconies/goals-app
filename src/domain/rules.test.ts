@@ -4,8 +4,8 @@ import { emptyDraft, evaluate, toCheckIn, type Draft } from './checkin';
 import { blankGoal, buildGoal, validateGoal } from './goal';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 
-const cycle: Cycle = { id: 'c1', name: 'Q4', startDate: '2026-09-07', weeks: 13 };
-const base = { cycleId: 'c1', teamId: 't', ownerId: 'p', io: 'input' as const, headline: false, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '2026-09-01T00:00:00Z' };
+const cycle: Cycle = { id: 'c1', name: 'Q4', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
+const base = { cycleId: 'c1', teamId: 't', ownerId: 'p', io: 'input' as const, level: 'team' as const, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '2026-09-01T00:00:00Z' };
 const metric = (start: number, target: number, shape: 'straight' | 'back' | 'stepped' = 'straight'): MetricGoal =>
   ({ ...base, id: 'm', title: 'M', kind: 'metric', unit: '%', decimals: 0, plan: { start, target, shape }, originalPlan: null, rebaselinedWeek: null });
 const range: RangeGoal = { ...base, id: 'r', title: 'CFR', kind: 'range', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 12, margin: 1 } };
@@ -206,5 +206,28 @@ describe('goals', () => {
     expect(g3.originalPlan).toEqual(g1.plan);
     const early = buildGoal({ ...d, target: '80' }, cycle, { id: 'g', createdAt: 'x' }, g1, false, 0) as MetricGoal;
     expect(early.originalPlan).toBeNull();
+  });
+});
+
+describe('typed numbers', () => {
+  it('reads decimal commas, thousands, units and percentages', async () => {
+    const { parseNumber } = await import('./checkin');
+    expect(parseNumber('29,4')).toBe(29.4);
+    expect(parseNumber('1,250')).toBe(1250);
+    expect(parseNumber('1,250.5')).toBe(1250.5);
+    expect(parseNumber('62%')).toBe(62);
+    expect(parseNumber('29.4 days')).toBe(29.4);
+    expect(parseNumber(' -3 ')).toBe(-3);
+  });
+  it('refuses what is not a number', async () => {
+    const { parseNumber } = await import('./checkin');
+    for (const bad of ['0x1F', '1e308', 'abc', '1.2.3', '99999999999999']) expect(parseNumber(bad)).toBeNull();
+  });
+  it('explains impossible and surprising values', async () => {
+    const { valueProblem } = await import('./checkin');
+    expect(valueProblem('-5', 30, 'days')?.block).toBe(true);
+    expect(valueProblem('120', 60, '%')?.block).toBe(false);
+    expect(valueProblem('294', 29.4, 'days')?.text).toMatch(/Last week was 29.4/);
+    expect(valueProblem('29.6', 29.4, 'days')).toBeNull();
   });
 });

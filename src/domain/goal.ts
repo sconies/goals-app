@@ -1,6 +1,6 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
-import type { Cycle, Goal, GoalKind, Io, MetricPlan, PlanShape } from './types';
+import type { Cycle, Goal, GoalKind, Io, Level, MetricPlan, PlanShape } from './types';
 
 export interface GoalDraft {
   kind: GoalKind;
@@ -8,10 +8,11 @@ export interface GoalDraft {
   teamId: string;
   ownerId: string;
   io: Io;
-  headline: boolean;
+  level: Level;
   guardrail: boolean;
   parentId: string;
   effect: string;
+  whyHelps: string;
   source: string;
   definition: string;
   unit: string;
@@ -27,7 +28,7 @@ export interface GoalDraft {
 
 export function blankGoal(teamId: string, ownerId: string, parentId: string): GoalDraft {
   return {
-    kind: 'metric', title: '', teamId, ownerId, io: 'input', headline: false, guardrail: false, parentId, effect: '',
+    kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '',
     source: '', definition: '', unit: '%', decimals: '0', start: '', target: '', shape: 'straight',
     bound: 'atMost', limit: '', margin: '1', stages: [{ id: 's1', name: '', dueWeek: '' }],
   };
@@ -36,8 +37,8 @@ export function blankGoal(teamId: string, ownerId: string, parentId: string): Go
 export function draftOf(g: Goal): GoalDraft {
   const d = blankGoal(g.teamId, g.ownerId, g.parentId ?? '');
   Object.assign(d, {
-    kind: g.kind, title: g.title, io: g.io, headline: g.headline, guardrail: g.guardrail,
-    effect: g.effect == null ? '' : String(g.effect), source: g.source, definition: g.definition,
+    kind: g.kind, title: g.title, io: g.io, level: g.level, guardrail: g.guardrail,
+    effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', source: g.source, definition: g.definition,
   });
   if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape });
   if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), margin: String(g.range.margin) });
@@ -77,19 +78,36 @@ export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
   return e;
 }
 
+/** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
+export function planChanged(a: Goal, b: Goal): boolean {
+  if (a.kind !== b.kind) return true;
+  if (a.kind === 'metric' && b.kind === 'metric') return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape;
+  if (a.kind === 'range' && b.kind === 'range') return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.margin !== b.range.margin;
+  if (a.kind === 'milestone' && b.kind === 'milestone') return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
+  return false;
+}
+
+/** The goal with only its plan taken from another version: names, owner and links stay as they are. */
+export function withPlanOf(base: Goal, plan: Goal): Goal {
+  if (base.kind === 'metric' && plan.kind === 'metric') return { ...base, plan: plan.plan };
+  if (base.kind === 'range' && plan.kind === 'range') return { ...base, range: plan.range };
+  if (base.kind === 'milestone' && plan.kind === 'milestone') return { ...base, stages: plan.stages };
+  return base;
+}
+
 /**
  * Build the goal from a valid draft. When an existing metric goal's plan changes after
  * check-ins have started, the first plan is kept as the original and the change is dated.
  */
 export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; createdAt: string }, existing: Goal | null, checkInsStarted: boolean, week: number): Goal {
   const common = {
-    id: base.id, cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.headline ? 'output' as const : d.io,
-    headline: d.headline, guardrail: d.guardrail, parentId: d.headline ? null : d.parentId || null,
-    effect: d.headline ? null : parseNumber(d.effect), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
+    id: base.id, cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.io,
+    level: d.level, guardrail: d.guardrail, parentId: d.parentId || null,
+    effect: d.parentId ? parseNumber(d.effect) : null, ...(d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {}), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
   };
   const num = (s: string) => parseNumber(s) as number;
   if (d.kind === 'metric') {
-    const plan: MetricPlan = { start: num(d.start), target: num(d.target), shape: d.shape };
+    const plan: MetricPlan = { start: num(d.start), target: num(d.target), shape: d.shape, ...(existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}) };
     let originalPlan: MetricPlan | null = null, rebaselinedWeek: number | null = null;
     if (existing?.kind === 'metric') {
       originalPlan = existing.originalPlan;

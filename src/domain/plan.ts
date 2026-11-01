@@ -41,7 +41,9 @@ export function shapeProgress(shape: PlanShape, week: number, weeks: number): nu
 }
 
 export function planAt(plan: MetricPlan, week: number, weeks: number): number {
-  return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week, weeks);
+  const from = Math.min(plan.fromWeek ?? 0, weeks - 1);
+  if (week <= from) return plan.start;
+  return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week - from, weeks - from);
 }
 
 export interface Point {
@@ -71,4 +73,12 @@ export function forecast(series: Point[], weeks: number): number | null {
   if (!earlier) return null;
   const slope = (last.value - earlier.value) / (last.week - earlier.week);
   return last.value + slope * (weeks - last.week);
+}
+
+/** "2–8 Nov" (or "28 Oct–3 Nov"): the calendar days of a cycle week, Monday to Sunday. */
+export function weekDates(cycle: Cycle, week: number): string {
+  const a = new Date(weekDate(cycle, week) + 'T00:00:00Z');
+  const b = new Date(a.getTime() + 6 * 86_400_000);
+  const d = (x: Date, month: boolean) => x.toLocaleDateString('en-GB', { day: 'numeric', ...(month ? { month: 'short' } : {}), timeZone: 'UTC' });
+  return a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
 }

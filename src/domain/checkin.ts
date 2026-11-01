@@ -1,6 +1,6 @@
 /* What a check-in must say before it can be posted. */
 import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Assessment } from './status';
-import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status } from './types';
+import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
   ['aggressive', 'Plan too aggressive'], ['slower', 'Delivery slower'], ['blocked', 'Blocked by a dependency'], ['external', 'External factor'], ['data', 'Data problem'],
@@ -24,6 +24,8 @@ export interface Draft {
   proposeTarget: string;
   ptgWhat: string;
   ptgBy: number | null;
+  /** Where the owner is with getting back on plan; only 'plan' needs a week. */
+  ptgState?: RecoveryState;
   needs: string;
   next: string;
   dataFlagged: boolean;
@@ -46,16 +48,34 @@ export function draftFrom(c: CheckIn): Draft {
     stages: c.stages ?? [],
     status: c.status, cause: c.cause, why: c.why, greenerWhy: c.greenerWhy,
     proposeTarget: c.proposeTarget == null ? '' : String(c.proposeTarget),
-    ptgWhat: c.pathToGreen?.what ?? '', ptgBy: c.pathToGreen?.byWeek ?? null, needs: c.pathToGreen?.needs ?? '',
+    ptgWhat: c.pathToGreen?.what ?? '', ptgBy: c.pathToGreen?.byWeek ?? null, ptgState: c.pathToGreen?.state ?? 'plan', needs: c.pathToGreen?.needs ?? '',
     next: c.next, dataFlagged: c.dataFlagged,
   };
 }
 
+/**
+ * A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
+ * Anything else (hex, exponents, words) is not a number.
+ */
 export function parseNumber(s: string): number | null {
-  const t = s.trim().replace(/,/g, '').replace(/%$/, '');
+  let t = s.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, '').replace(/\s/g, '');
   if (!t) return null;
+  if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(',', '.');
+  else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, '');
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
   const n = Number(t);
-  return Number.isFinite(n) ? n : null;
+  return Number.isFinite(n) && Math.abs(n) < 1e12 ? n : null;
+}
+
+/** Why a typed value can't be used, or a check worth making before posting it. */
+export function valueProblem(raw: string, last: number | null, unit: string): { block: boolean; text: string } | null {
+  if (!raw.trim()) return { block: true, text: 'Type this week’s number.' };
+  const n = parseNumber(raw);
+  if (n == null) return { block: true, text: `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.` };
+  if (n < 0 && (unit === '%' || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit))) return { block: true, text: `It can’t be below zero${unit ? ' ' + unit : ''}.` };
+  if (unit === '%' && n > 100) return { block: false, text: 'That’s over 100%. Is that right?' };
+  if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return { block: false, text: `Last week was ${last}. Is ${n} right?` };
+  return null;
 }
 
 export interface Evaluation {
@@ -96,9 +116,11 @@ export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, a
 
   const missing: string[] = [];
   if (goal.kind !== 'milestone' && value == null) missing.push(draft.value.trim() ? 'a number for this week’s value' : 'this week’s value');
+  else if (goal.kind !== 'milestone' && valueProblem(draft.value, null, goal.unit)?.block) missing.push('a possible value');
   if (greener && draft.greenerWhy.trim().length < MIN_REASON) missing.push('why your call is greener');
   if (reason && (!draft.cause || draft.why.trim().length < MIN_REASON)) missing.push(reason === 'ahead' ? 'why it’s ahead' : 'why it’s behind');
-  if (needsPath && (draft.ptgWhat.trim().length < MIN_PATH || draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks)) missing.push('path to green');
+  const planned = (draft.ptgState ?? 'plan') === 'plan';
+  if (needsPath && (draft.ptgWhat.trim().length < MIN_PATH || (planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks)))) missing.push('path to green');
   if (asksTarget && draft.proposeTarget.trim()) {
     const t = parseNumber(draft.proposeTarget);
     const better = goal.kind === 'metric' && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target);
@@ -120,7 +142,7 @@ export function toCheckIn(goal: Goal, cycle: Cycle, week: number, draft: Draft, 
     why: draft.why.trim(),
     greenerWhy: e.greener ? draft.greenerWhy.trim() : '',
     proposeTarget: e.asksTarget ? parseNumber(draft.proposeTarget) : null,
-    pathToGreen: e.needsPath ? { what: draft.ptgWhat.trim(), byWeek: draft.ptgBy as number, needs: draft.needs.trim() } : null,
+    pathToGreen: e.needsPath ? { what: draft.ptgWhat.trim(), byWeek: (draft.ptgState ?? 'plan') === 'plan' ? draft.ptgBy : null, needs: draft.needs.trim(), state: draft.ptgState ?? 'plan' } : null,
     next: draft.next.trim(),
     dataFlagged: draft.dataFlagged,
   };
