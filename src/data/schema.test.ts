@@ -61,6 +61,11 @@ describe('database schema', () => {
     expect(n.rows[0]!.n).toBeGreaterThan(1);
   });
   it('refuses an unknown goal level', () => reject(`update okr_goals set level = 'vp' where id = 'triage'`));
+  it('keeps one retro per goal and cycle, with a lesson', async () => {
+    await db.query(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r1', 'example', 'head', 'cycle', 'partly', 'Agree dependency dates in week 1.', 'carry', 'maya')`);
+    await reject(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r2', 'example', 'head', 'cycle', 'hit', 'Again for the same goal.', 'carry', 'maya')`);
+    await reject(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r3', 'example', 'triage', 'cycle', 'great', 'Not a result we know.', 'carry', 'maya')`);
+  });
   it('stores watches and reviews', async () => {
     const w = await db.query<{ n: number }>('select count(*)::int as n from okr_watches');
     const r = await db.query<{ n: number }>('select count(*)::int as n from okr_reviews');

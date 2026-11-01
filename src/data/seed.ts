@@ -213,5 +213,5 @@ export function seed(today: Date): Snapshot {
     summary: 'Added a note in Platform weekly review', diffs: [{ field: 'Note', from: '—', to: decisions[0]!.note }],
   });
   changes.sort((a, b) => a.at.localeCompare(b.at));
-  return { people, teams, cycles: [cycle], goals: allGoals, checkIns, decisions, changes, watches, reviews };
+  return { people, teams, cycles: [cycle], goals: allGoals, checkIns, decisions, changes, watches, reviews, retros: [] };
 }

@@ -39,7 +39,7 @@ const cases = scen.testResults.flatMap((f) => f.assertionResults).map((t) => {
   const m = /^\[([A-Z0-9-]+)\] (.*)$/.exec(t.title) || [];
   return { req: m[1], title: m[2] || t.title, pass: t.status === 'passed', error: (t.failureMessages || [])[0]?.split('\n')[0] };
 });
-const checks = [...journeys.filter((j) => j.id !== 'U10'), ...platform];
+const checks = [...journeys, ...platform];
 const rows = spec.requirements.map((r) => {
   const sc = cases.filter((c) => c.req === r.id);
   const jr = checks.filter((j) => j.reqs.includes(r.id));

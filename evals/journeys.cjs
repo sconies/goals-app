@@ -598,8 +598,51 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
   await p.context().close();
 });
 
-journey('U10', ['MOTION'], 'Close the cycle with a retro', 0, async () => {
-  fail('Not built yet: there is no cycle close or retro.');
+journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap up their goals, an admin starts the next cycle', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'maya'));
+  // Seed the example at week 7, then come back in week 12, when the wrap-up opens.
+  await p.goto(url('/'));
+  await p.locator('.hero').waitFor();
+  const late = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-12-02';
+  await p.goto(late('/goals'));
+  await h.inView(p.getByRole('link', { name: 'Wrap up', exact: true }), 'entry', 'Wrap up');
+  await h.click(p.getByRole('link', { name: 'Wrap up', exact: true }));
+  await see(p, 'goals to wrap up');
+  await h.progressShown('wrap-up');
+  await h.checkpoint('wrap-up');
+  await h.click(p.locator('.hero .btn.primary'));
+  await see(p, 'How did it land?');
+  await p.getByRole('button', { name: 'Save and continue' }).click();
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Write a sentence' }).isVisible(), 'a retro without a lesson is not explained');
+  h.set('attention', await p.locator('.focus-body .chip').first().isVisible() && await p.locator('[aria-labelledby=res-l] button[aria-pressed=true]').count() === 1, 'the retro does not show where the goal ended or suggest a result');
+  await h.checkpoint('retro');
+  await h.click(p.getByRole('button', { name: 'Partly' }));
+  await h.fill(p.getByLabel('What did you learn?'), 'Dependencies on other teams need a date agreed in week 1, not week 5.');
+  await h.click(p.getByRole('button', { name: 'Save and continue' }));
+  await see(p, 'How did it land?');
+  await h.fill(p.getByLabel('What did you learn?'), 'The triage model only helps once every intake form uses it.');
+  await h.click(p.getByRole('button', { name: 'Stop it here' }));
+  await h.click(p.getByRole('button', { name: 'Save and continue' }));
+  await see(p, 'Your goals are wrapped up');
+  await see(p, 'Dependencies on other teams', 'the summary shows what was learned');
+  let s = await h.snapshot();
+  h.set('logged', s.retros.length === 2 && s.changes.filter((c) => c.entity === 'retro' && c.actorId === 'maya').length === 2, 'the retros are not saved and logged');
+  // Elena, an admin, starts the next cycle.
+  await p.locator('.rolebar').getByRole('button', { name: 'Elena', exact: true }).click();
+  await see(p, 'The cycle is ending', 'an admin is told the cycle is ending');
+  await p.goto(late('/retro'));
+  await h.click(p.getByRole('button', { name: 'Start it' }));
+  await h.click(p.getByRole('button', { name: 'Start the next cycle' }));
+  await see(p, 'has started');
+  s = await h.snapshot();
+  const c2 = s.cycles.find((c) => c.id !== 'cycle');
+  const carried = s.goals.filter((g) => g.cycleId === c2?.id);
+  h.set('finish', !!c2 && carried.length === s.goals.filter((g) => g.cycleId === 'cycle').length - 1 && !carried.some((g) => g.title === 'Requests triaged within 2 days'), 'the next cycle does not carry the right goals');
+  h.set('logged', s.changes.some((c) => c.entity === 'cycle' && c.actorId === 'elena'), 'starting the cycle is not logged');
+  await p.goto(late('/goals'));
+  await see(p, 'Intake-to-delivery time', 'the new cycle shows the carried goals');
+  if (await p.getByText('Requests triaged within 2 days').count()) fail('a stopped goal came into the new cycle');
+  await p.context().close();
 });
 
 /* ---------------- platform checks ---------------- */
@@ -695,6 +738,6 @@ async function platformChecks() {
   console.log(`${consoleErrors.length ? 'FAIL' : 'PASS'} P5 No console or page errors${consoleErrors.length ? '\n     ' + consoleErrors.slice(0, 4).join('\n     ') : ''}`);
   await browser.close();
   fs.writeFileSync(path.join(OUT, 'journeys.json'), JSON.stringify({ journeys, platform }, null, 2));
-  process.exit(journeys.every((r) => r.pass || r.id === 'U10') && platform.every((x) => x.pass) ? 0 : 1);
+  process.exit(journeys.every((r) => r.pass) && platform.every((x) => x.pass) ? 0 : 1);
 })();
 

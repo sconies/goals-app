@@ -155,7 +155,7 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
     else goal.parentId = parent.id;
   }
 
-  return { snapshot: { people, teams, cycles: [cycle], goals, checkIns: [], decisions: [], changes: [], watches: [], reviews: [] }, issues };
+  return { snapshot: { people, teams, cycles: [cycle], goals, checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [] }, issues };
 }
 
 /** Today's Monday, as an ISO date: the default start of a new cycle. */

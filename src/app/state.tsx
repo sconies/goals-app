@@ -4,7 +4,8 @@ import { checkInChange, goalChange, type Lookup } from '../domain/changes';
 import { toCheckIn, type Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
-import type { CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import type { CheckIn, Cycle, Decision, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
 import { applyCommit, EXAMPLE, newId, type Commit, type Mode, type Store } from '../data/store';
 
 export interface Toast {
@@ -51,6 +52,10 @@ export interface AppState {
   saveReview(review: Review, before: Review | null): Promise<void>;
   /** Admins: add someone, or change their name, team or admin rights. */
   savePerson(person: Person, before: Person | null): Promise<void>;
+  /** An owner's retro on one of their goals at the end of the cycle. */
+  saveRetro(goal: Goal, retro: Retro, before: Retro | null): Promise<void>;
+  /** Admins: start the next cycle with the goals that carry on. Returns the new cycle's name. */
+  startNextCycle(): Promise<string>;
   toasts: Toast[];
   toast(text: string, kind?: Toast['kind']): void;
   storeKind: Store['kind'];
@@ -163,27 +168,28 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
   const value = useMemo<AppState | null>(() => {
     if (!snapshot) return null;
-    const cycle = snapshot.cycles[0];
-    if (!cycle) return null;
     const now = today();
+    const cycle = currentCycle(snapshot.cycles, now);
+    if (!cycle) return null;
+    const sc = scopeToCycle(snapshot, cycle);
     const week = currentWeek(cycle, now);
-    const people = new Map(snapshot.people.map((p) => [p.id, p]));
+    const people = new Map(sc.people.map((p) => [p.id, p]));
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
-    const fallback = snapshot.people.find((p) => p.id === 'maya') ?? snapshot.people.find((p) => snapshot.goals.some((g) => g.ownerId === p.id)) ?? snapshot.people[0]!;
+    const fallback = sc.people.find((p) => p.id === 'maya') ?? sc.people.find((p) => sc.goals.some((g) => g.ownerId === p.id)) ?? sc.people[0]!;
     const chosen = !!viewerId && people.has(viewerId);
     const viewer = (chosen && people.get(viewerId!)) || fallback;
     const statuses = new Map<string, GoalStatus>();
     const attention = new Map<string, GoalAttention>();
     const lookup: Lookup = {
       person: (id) => people.get(id),
-      goal: (id) => snapshot.goals.find((g) => g.id === id),
-      teamName: (id) => snapshot.teams.find((t) => t.id === id)?.name ?? id,
+      goal: (id) => sc.goals.find((g) => g.id === id),
+      teamName: (id) => sc.teams.find((t) => t.id === id)?.name ?? id,
     };
     const stamp = () => new Date().toISOString();
 
     return {
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot, cycle, week, today: now, viewer, lookup, toasts, toast, storeKind: store.kind,
+      ws, workspaces, snapshot: sc, cycle, week, today: now, viewer, lookup, toasts, toast, storeKind: store.kind,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
@@ -193,11 +199,11 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
-      team: (id) => snapshot.teams.find((t) => t.id === id),
-      goal: (id) => snapshot.goals.find((g) => g.id === id),
+      team: (id) => sc.teams.find((t) => t.id === id),
+      goal: (id) => sc.goals.find((g) => g.id === id),
       statusOf: (g) => {
         let st = statuses.get(g.id);
-        if (!st) statuses.set(g.id, (st = goalStatus(g, cycle, snapshot.checkIns, now)));
+        if (!st) statuses.set(g.id, (st = goalStatus(g, cycle, sc.checkIns, now)));
         return st;
       },
       attentionOf: (g) => {
@@ -205,9 +211,9 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         if (!a) attention.set(g.id, (a = attentionFor(g, snapshot, cycle, now)));
         return a;
       },
-      checkInsOf: (g) => checkInsFor(g, snapshot.checkIns),
+      checkInsOf: (g) => checkInsFor(g, sc.checkIns),
       postCheckIn: async (goal, draft, existing) => {
-        const c = toCheckIn(goal, cycle, week, draft, snapshot.checkIns, viewer.id, new Date(), existing?.id ?? newId('ci'));
+        const c = toCheckIn(goal, cycle, week, draft, sc.checkIns, viewer.id, new Date(), existing?.id ?? newId('ci'));
         const change = checkInChange(existing, c, goal, viewer.id, newId('chg'));
         await commit({ checkIns: [c], changes: change ? [change] : [] });
         return c;
@@ -231,7 +237,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         });
       },
       watch: async (kind, ref) => {
-        if (snapshot.watches.some((w) => w.personId === viewer.id && w.kind === kind && w.ref === ref)) return;
+        if (sc.watches.some((w) => w.personId === viewer.id && w.kind === kind && w.ref === ref)) return;
         await commit({ watches: [{ id: newId('w'), personId: viewer.id, kind, ref }], changes: [] });
       },
       unwatch: async (watchId) => { await commit({ unwatch: [watchId], changes: [] }); },
@@ -250,6 +256,24 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
           ...(JSON.stringify(before.people) !== JSON.stringify(review.people) ? [{ field: 'People', from: String(before.people.length), to: String(review.people.length) }] : []),
         ] : [{ field: 'Review', from: '—', to: review.name }];
         await commit({ reviews: [review], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'review', entityId: review.id, action: before ? 'edited' : 'created', summary: before ? `Changed the review “${review.name}”` : `Set up a review: “${review.name}”`, diffs }] });
+      },
+      saveRetro: async (goal, retro, before) => {
+        const diffs = [
+          ...(!before || before.result !== retro.result ? [{ field: 'Result', from: before ? RESULT_LABEL[before.result] : '—', to: RESULT_LABEL[retro.result] }] : []),
+          ...(!before || before.learned !== retro.learned ? [{ field: 'Learned', from: before?.learned ?? '—', to: retro.learned }] : []),
+          ...(!before || before.next !== retro.next ? [{ field: 'Next cycle', from: before ? (before.next === 'carry' ? 'Carry on' : 'Stop') : '—', to: retro.next === 'carry' ? 'Carry on' : 'Stop' }] : []),
+        ];
+        await commit({ retros: [retro], changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'retro', entityId: retro.id, action: before ? 'edited' : 'posted', summary: `Wrapped up ${goal.title}: ${RESULT_LABEL[retro.result].toLowerCase()}`, diffs }] });
+      },
+      startNextCycle: async () => {
+        const at = stamp();
+        const next = nextCycle(cycle, sc.goals, sc.checkIns, sc.retros, { cycle: newId('cycle'), goal: () => newId('goal') }, at);
+        const stopped = sc.goals.length - next.goals.length;
+        await commit({
+          cycles: [next.cycle], goals: next.goals,
+          changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'cycle', entityId: next.cycle.id, action: 'created', summary: `Started ${next.cycle.name}: ${next.goals.length} ${next.goals.length === 1 ? 'goal carries' : 'goals carry'} on${stopped ? `, ${stopped} stopped` : ''}`, diffs: [{ field: 'Cycle', from: cycle.name, to: next.cycle.name }] }],
+        });
+        return next.cycle.name;
       },
     };
   }, [snapshot, viewerId, store, today, workspaces, wsId, commit, toasts, toast, createWorkspace, mode]);

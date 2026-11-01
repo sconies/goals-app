@@ -170,7 +170,7 @@ export interface Change {
   at: string;
   actorId: Id;
   goalId: Id | null;
-  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person';
+  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person' | 'retro' | 'cycle';
   entityId: Id;
   action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed';
   summary: string;
@@ -231,4 +231,18 @@ export interface Snapshot {
   changes: Change[];
   watches: Watch[];
   reviews: Review[];
+  retros: Retro[];
+}
+
+/** How a goal ended the cycle, in its owner's words, and what happens to it next. */
+export interface Retro {
+  id: Id;
+  goalId: Id;
+  cycleId: Id;
+  result: 'hit' | 'partly' | 'missed';
+  /** One or two sentences: what we learned. */
+  learned: string;
+  next: 'carry' | 'stop';
+  byId: Id;
+  at: string;
 }

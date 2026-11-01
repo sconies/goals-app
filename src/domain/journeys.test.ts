@@ -7,6 +7,7 @@ import { buildWorkspace, GOALS_TEMPLATE, parseTable, PEOPLE_TEMPLATE } from './i
 import { onTimeStreak, weekProgress } from './progress';
 import { goalsIn, reviewSession, sessionWeek, watchedGoals, watchOf } from './review';
 import { outcomeTrees } from './tree';
+import { currentCycle, nextCycle, scopeToCycle, suggestedResult } from './cycle';
 import { seed } from '../data/seed';
 import type { Goal, MetricGoal } from './types';
 
@@ -180,5 +181,32 @@ describe('plan changes after check-ins start', () => {
     const after: Goal = { ...proposed, level: 'svp' };
     const c = goalChange(lead, after, lookup, 'sam', '2026-10-30T10:00:00.000Z', 'c1');
     expect(c!.diffs.map((x) => x.field)).toEqual(expect.arrayContaining(['Target', 'Level']));
+  });
+});
+
+describe('closing a cycle', () => {
+  it('picks the cycle that has started, or starts within the week', () => {
+    const next = { ...cycle, id: 'c2', startDate: '2027-01-25' };
+    expect(currentCycle([cycle, next], today)!.id).toBe(cycle.id);
+    expect(currentCycle([cycle, next], new Date("2027-01-20T12:00:00Z"))!.id).toBe('c2');
+  });
+  it('suggests how a goal landed from where it ended', () => {
+    expect(suggestedResult(goal('access'), cycle, s.checkIns, today)).toBe('missed');
+    expect(suggestedResult(goal('scan'), cycle, s.checkIns, today)).toBe('hit');
+  });
+  it('carries goals into the next cycle from where they ended, dropping links to goals that stop', () => {
+    const retros = [{ id: 'r1', goalId: 'head', cycleId: cycle.id, result: 'partly' as const, learned: 'x', next: 'stop' as const, byId: 'maya', at: '' }];
+    const { cycle: c2, goals } = nextCycle(cycle, s.goals, s.checkIns, retros, { cycle: 'c2', goal: (g) => g.id + '-2' }, '2027-01-01T00:00:00Z');
+    expect(c2.startDate > cycle.startDate).toBe(true);
+    expect(goals.some((g) => g.id === 'head-2')).toBe(false);
+    expect(goals.find((g) => g.id === 'triage-2')!.parentId).toBeNull();
+    const lead = goals.find((g) => g.id === 'lead-2') as MetricGoal;
+    const last = s.checkIns.filter((c) => c.goalId === 'lead' && c.value != null).pop()!.value;
+    expect(lead.plan.start).toBe(last);
+    expect(lead.originalPlan).toBeNull();
+    expect(goals.every((g) => g.cycleId === 'c2')).toBe(true);
+    const scoped = scopeToCycle({ ...s, cycles: [cycle, c2], goals: [...s.goals, ...goals] }, c2);
+    expect(scoped.goals).toHaveLength(goals.length);
+    expect(scoped.checkIns).toHaveLength(0);
   });
 });

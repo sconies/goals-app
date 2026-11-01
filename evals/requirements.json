@@ -220,10 +220,14 @@
       "id": "ADMIN",
       "area": "People",
       "text": "Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed."
+    },
+    {
+      "id": "RETRO",
+      "area": "Cycles",
+      "text": "From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged."
     }
   ],
   "notYetBuilt": [
-    "Close the cycle with a retro (journey 10)",
     "Dependencies between goals",
     "Jira context",
     "Slack check-in cards and reminders",
@@ -291,7 +295,7 @@
     {
       "id": "U10",
       "rank": 10,
-      "title": "Close the cycle with a retro",
+      "title": "Close the cycle: owners wrap up their goals, an admin starts the next cycle",
       "who": "Coach and leads"
     },
     {

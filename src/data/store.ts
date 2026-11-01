@@ -1,4 +1,4 @@
-import type { Change, CheckIn, Decision, Goal, Person, Review, Snapshot, Watch, Workspace } from '../domain/types';
+import type { Change, CheckIn, Cycle, Decision, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import { seed } from './seed';
 
 export const EXAMPLE: Workspace = { id: 'example', name: 'Example: Developer Platform', kind: 'example', createdAt: '2026-01-01T00:00:00.000Z' };
@@ -10,6 +10,8 @@ export interface Commit {
   checkIns?: CheckIn[];
   decisions?: Decision[];
   reviews?: Review[];
+  retros?: Retro[];
+  cycles?: Cycle[];
   watches?: Watch[];
   /** Ids of watches to remove. */
   unwatch?: string[];
@@ -50,6 +52,8 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     changes: [...s.changes, ...c.changes],
     watches: upsert((s.watches ?? []).filter((w) => !(c.unwatch ?? []).includes(w.id)), c.watches),
     reviews: upsert(s.reviews ?? [], c.reviews),
+    retros: upsert(s.retros ?? [], c.retros),
+    cycles: upsert(s.cycles, c.cycles),
   };
 }
 

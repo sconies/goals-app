@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { attentionList } from '../domain/attention';
 import { LEVEL_LABEL } from '../domain/format';
+import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
 import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
@@ -35,7 +36,7 @@ export function GoalsScreen() {
           <h1 className="title-xl">Goals</h1>
           <span className="hint">Week {app.week} of {app.cycle.weeks}, {app.cycle.name.charAt(0).toLowerCase() + app.cycle.name.slice(1)}</span>
         </span>
-        <Link className="btn" to="/goals/new">New goal</Link>
+        <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>
       <div className="seg tabs" role="tablist" aria-label="Show">
         {tabs.map(([k, l, n]) => (

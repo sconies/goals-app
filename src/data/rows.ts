@@ -1,6 +1,6 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
-import type { Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace } from '../domain/types';
+import type { Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro } from '../domain/types';
 
 type W = { workspace_id: string };
 export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string }
@@ -110,3 +110,9 @@ export const reviewFromRow = (r: ReviewRow): Review => ({
   id: r.id, name: r.name, everyWeeks: Number(r.every_weeks), weekday: Number(r.weekday),
   scope: { goals: r.scope?.goals ?? [], trees: r.scope?.trees ?? [], levels: r.scope?.levels ?? [] }, people: r.people ?? [], createdBy: r.created_by, createdAt: iso(r.created_at),
 });
+
+export interface RetroRow extends W {
+  id: string; goal_id: string; cycle_id: string; result: Retro['result']; learned: string; next: Retro['next']; by_id: string; at: string;
+}
+export const retroToRow = (ws: string, r: Retro): RetroRow => ({ workspace_id: ws, id: r.id, goal_id: r.goalId, cycle_id: r.cycleId, result: r.result, learned: r.learned, next: r.next, by_id: r.byId, at: r.at });
+export const retroFromRow = (r: RetroRow): Retro => ({ id: r.id, goalId: r.goal_id, cycleId: r.cycle_id, result: r.result, learned: r.learned, next: r.next, byId: r.by_id, at: iso(r.at) });

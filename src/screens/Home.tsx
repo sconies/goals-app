@@ -6,6 +6,7 @@ import { fmt, gapText } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
 import { reviewSession, watchedGoals } from '../domain/review';
+import { wrapUpOpen } from '../domain/cycle';
 import { assessPosted } from '../domain/status';
 import type { Goal } from '../domain/types';
 import { AttentionCard, Dot, ProgressRing } from '../ui/bits';
@@ -55,6 +56,7 @@ function MyWeek() {
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   const att = attentionList(app.snapshot, app.cycle, app.today, { goals: mine });
   const rest = mine.filter((g) => !att.some((a) => a.goal.id === g.id));
+  const wrapLeft = wrapUpOpen(app.cycle, app.week) ? mine.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)) : [];
   const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => s.week === Math.max(1, app.week) && s.done < s.total);
   const resuming = p.due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
@@ -72,6 +74,13 @@ function MyWeek() {
                 <Link className="btn primary big-btn" to="/check-in">{resuming ? 'Pick up where you left off' : 'Start check-in'} →</Link>
                 <Streak weeks={streak} />
               </div>
+            </>
+          ) : wrapLeft.length ? (
+            <>
+              <span className="eyebrow">{app.week >= app.cycle.weeks ? 'The cycle has ended' : `The cycle ends next week`}</span>
+              <h2 className="hero-title">Wrap up {wrapLeft.length === 1 ? 'your goal' : `your ${wrapLeft.length} goals`}</h2>
+              <span className="muted">How each one landed, one thing you learned, and whether it carries on. About a minute each.</span>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/retro/${wrapLeft[0]!.id}`}>Start the wrap-up →</Link></div>
             </>
           ) : myReview ? (
             <>
@@ -138,6 +147,15 @@ function AdminCard() {
   const app = useApp();
   if (!app.viewer.admin) return null;
   const own = app.workspaces.filter((w) => w.kind === 'own');
+  if (wrapUpOpen(app.cycle, app.week)) {
+    const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
+    return (
+      <section className="block note-card">
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>The cycle is ending</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next cycle when you’re ready.</span></span>
+        <Link className="btn" to="/retro">See the wrap-up</Link>
+      </section>
+    );
+  }
   if (app.mode === 'demo' && app.ws.kind === 'example' && !own.length) {
     return (
       <section className="block note-card">

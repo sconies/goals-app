@@ -604,3 +604,11 @@ svg.chart { display: block; overflow: visible; }
 .pg-check { display: flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; cursor: pointer; }
 .pg-check input { width: 18px; height: 18px; accent-color: var(--accent); }
 @media (max-width: 640px) { .pg-check::after { content: 'Admin'; font-size: 13px; color: var(--muted); margin-left: 6px; } .pg-check { justify-content: flex-start; } }
+.retro-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.retro-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s4); padding: var(--s4); border-top: 1px solid var(--line-2); }
+.retro-row:first-child { border-top: 0; }
+.retro-row[data-result="none"] { opacity: .8; }
+.result-tag { display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 13px; font-weight: 650; white-space: nowrap; }
+.result-hit { background: var(--on-bg); color: var(--on-fg); }
+.result-partly { background: var(--risk-bg); color: var(--risk-fg); }
+.result-missed { background: var(--off-bg); color: var(--off-fg); }

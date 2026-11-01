@@ -56,7 +56,7 @@ describe('browser store', () => {
   it('keeps your own workspaces apart from the example', async () => {
     const store = new BrowserStore(() => new Date('2026-10-30T12:00:00Z'));
     const mine = { id: 'ws_mine', name: 'Mine', kind: 'own' as const, createdAt: '2026-10-30T00:00:00Z' };
-    await store.createWorkspace(mine, { people: [], teams: [], cycles: [], goals: [], checkIns: [], decisions: [], changes: [], watches: [], reviews: [] });
+    await store.createWorkspace(mine, { people: [], teams: [], cycles: [], goals: [], checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [] });
     expect((await store.workspaces()).map((w) => w.id)).toEqual(['example', 'ws_mine']);
     expect((await store.load('ws_mine')).goals).toHaveLength(0);
     expect((await store.load('example')).goals.length).toBeGreaterThan(5);
