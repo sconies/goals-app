@@ -4,8 +4,8 @@ import { useApp } from '../app/state';
 import { checkInDraftKey, useDraft } from '../app/drafts';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, draftFrom, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
-import { onTimeStreak, weekProgress } from '../domain/progress';
-import type { CheckIn, Goal, MilestoneGoal, Status } from '../domain/types';
+import { daysToReview, onTimeStreak, weekProgress } from '../domain/progress';
+import type { CheckIn, Goal, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { MetricChart, RangeChart } from '../ui/charts';
 
@@ -22,6 +22,7 @@ export function CheckInFlow() {
   const [index, setIndex] = useState(0);
   const [justPosted, setJustPosted] = useState<CheckIn | null>(null);
   const [updated, setUpdated] = useState(false);
+  const [noData, setNoData] = useState(false);
   const goal = queue[index] ? app.goal(queue[index]) : undefined;
 
   if (app.week < 1) {
@@ -44,6 +45,8 @@ export function CheckInFlow() {
 
   const next = () => { setJustPosted(null); setIndex((i) => i + 1); };
   return (
+    <>
+    {noData && <NoDataSheet goal={goal} onClose={() => setNoData(false)} onDone={() => { setNoData(false); next(); }} />}
     <div className="focus">
       <div className="focus-top">
         <span className="small strong">Check-in{queue.length > 1 ? ` ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
@@ -53,9 +56,36 @@ export function CheckInFlow() {
       {justPosted ? (
         <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (
-        <GoalCheckIn key={goal.id} goal={goal} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} />
+        <GoalCheckIn key={goal.id} goal={goal} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} />
       )}
     </div>
+    </>
+  );
+}
+
+/** No new number this week: say so instead of re-posting last week's. The goal stays due, and its last number stays dated. */
+function NoDataSheet({ goal, onClose, onDone }: { goal: Goal; onClose: () => void; onDone: () => void }) {
+  const app = useApp();
+  const [why, setWhy] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      await app.addNote(goal, `No new number for week ${app.week}${why.trim() ? `: ${why.trim()}` : '.'}`);
+      app.toast(`Noted on ${goal.title}. It stays due until there’s a number.`);
+      onDone();
+    } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title={`No new number: ${goal.title}`}>
+      <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <p className="hint">Watchers will see that there’s no current data, rather than last week’s number as if it were new. The check-in stays due.</p>
+        <label className="field"><span className="field-label">Why? <span className="hint">optional</span></span>
+          <textarea className="input" rows={2} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="e.g. The dashboard is down until Tuesday" />
+        </label>
+        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>Save and skip</button></div>
+      </form>
+    </Sheet>
   );
 }
 
@@ -81,16 +111,24 @@ function AllDone({ first }: { first?: boolean }) {
   );
 }
 
+/** After posting: what was saved, and the one next thing. The last post of the week is the only confirmation; there's no second "done" screen. */
 function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: CheckIn; updated: boolean; left: number; nextTitle?: string; onNext: () => void }) {
-  const btn = useRef<HTMLButtonElement>(null);
+  const app = useApp();
+  const btn = useRef<HTMLButtonElement & HTMLAnchorElement>(null);
   useEffect(() => btn.current?.focus(), []);
+  const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
+  const late = daysToReview(app.cycle, app.week, app.today) < 0;
   return (
     <div className="celebrate" role="status">
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
-      <h1 className="title-xl">{updated ? 'Update posted' : 'Posted'}</h1>
-      <p className="row muted" style={{ justifyContent: 'center', gap: 'var(--s2)' }}>{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}<Chip k={c.status} /></p>
+      <h1 className="title-xl">{updated ? 'Update saved' : 'Check-in saved'}</h1>
+      <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status is <Chip k={c.status} /></p>
+      {!left && <p className="muted">{p.due.length ? `Still due this week: ${p.due.map((g) => g.title).join(', ')}.` : `All ${p.goals.length === 1 ? 'your goal is' : `${p.goals.length} of your goals are`} checked in for week ${app.week}${late ? ', after the review day' : ''}.`}</p>}
       <div className="row" style={{ justifyContent: 'center' }}>
-        <button ref={btn} className="btn primary big-btn" onClick={onNext}>{left ? `Next: ${nextTitle}` : 'Finish'}</button>
+        {left
+          ? <button ref={btn} className="btn primary big-btn" onClick={onNext}>Next: {nextTitle}</button>
+          : <Link ref={btn} className="btn primary big-btn" to="/">Back to home</Link>}
+        <Link className="btn big-btn" to={'/goals/' + goal.id}>View the goal</Link>
       </div>
       {left > 0 && <p className="tiny muted">{left} to go</p>}
     </div>
@@ -103,7 +141,7 @@ type Step = 'measure' | 'carry' | 'why' | 'way';
  * One goal's check-in, one question per screen: the number; last week's note if it still applies;
  * why; the way back. An on-plan goal is just the number. The button always names the next step.
  */
-function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, updated: boolean) => void }) {
+function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: CheckIn, updated: boolean) => void; onSkip?: () => void }) {
   const app = useApp();
   const { week, cycle } = app;
   const own = app.checkInsOf(goal);
@@ -133,7 +171,7 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
   const canCarry = !existing && !edited && !!previous && (needsWhy || needsWay) && (!needsWhy || priorWhy) && (!needsWay || priorWay);
   const fromLast = (): Partial<Draft> => ({
     ...(priorWhy ? { cause: previous!.cause, why: previous!.why } : {}),
-    ...(priorWay ? { ptgWhat: previous!.pathToGreen!.what, ptgBy: previous!.pathToGreen!.byWeek > week ? previous!.pathToGreen!.byWeek : null, needs: previous!.pathToGreen!.needs } : {}),
+    ...(priorWay ? { ptgWhat: previous!.pathToGreen!.what, ptgBy: (previous!.pathToGreen!.byWeek ?? 0) > week ? previous!.pathToGreen!.byWeek : null, ptgState: previous!.pathToGreen!.state ?? 'plan', needs: previous!.pathToGreen!.needs } : {}),
   });
   // With last week's note on offer, "Still true" can finish at step two; the why and way steps count once they're needed.
   const detailed = !canCarry || step === 'why' || step === 'way';
@@ -159,7 +197,8 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
   // What the current step still needs, in plain words, shown under the field once they've tried.
   const whyOk = !needsWhy || (!!draft.cause && draft.why.trim().length >= MIN_REASON);
   const targetOk = !e.missing.some((m) => m.includes('target'));
-  const wayOk = !needsWay || (draft.ptgWhat.trim().length >= MIN_PATH && draft.ptgBy != null && draft.ptgBy > week);
+  const planned = (draft.ptgState ?? 'plan') === 'plan';
+  const wayOk = !needsWay || (draft.ptgWhat.trim().length >= MIN_PATH && (!planned || (draft.ptgBy != null && draft.ptgBy > week)));
   const primary = () => {
     if (step === 'measure') {
       if (!valueOk || e.missing.some((m) => m.startsWith('why your call'))) { setTried(true); return; }
@@ -206,7 +245,7 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
             <div className="stack">
               <label className="bignum">
                 <span className="sr">This week’s value</span>
-                <input inputMode="decimal" autoComplete="off" autoFocus value={draft.value} onChange={(ev) => set({ value: ev.target.value })}
+                <input inputMode="decimal" enterKeyHint="next" autoComplete="off" autoFocus value={draft.value} onChange={(ev) => set({ value: ev.target.value })}
                   placeholder="Type it here" aria-describedby="value-hint" aria-label="This week’s value" aria-invalid={tried && !valueOk} />
                 {goal.unit && <span className="bignum-unit">{goal.unit}</span>}
               </label>
@@ -217,9 +256,11 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
               })() ?? (tried && !valueOk
                 ? <span className="hint tone-off" role="alert">Type this week’s number.</span>
                 : <span id="value-hint" className="valuehint hint">
-                    <span>{previous?.value != null ? `Last week ${fmt(previous.value, goal)}` : 'First check-in this cycle'}</span>
-                    {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Use {fmt(previous.value, goal)}</button>}
+                    <span>{previous?.value != null ? `Week ${previous.week}: ${fmt(previous.value, goal)}` : 'First check-in this cycle'}</span>
+                    {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Measured again: unchanged</button>}
                   </span>)}
+              {previous?.value != null && draft.value.trim() !== '' && parseNumber(draft.value) === previous.value && <span className="hint">Same as week {previous.week}. Post it only if you measured it again this week.</span>}
+              {!draft.value.trim() && onSkip && <button type="button" className="linkish tap small" style={{ alignSelf: 'flex-start' }} onClick={onSkip}>No new number this week</button>}
             </div>
           )}
           {valueOk && (goal.kind !== 'milestone' || draft.stages.length > 0) && (
@@ -243,13 +284,13 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
           <h2 className="qtitle">Is last week’s note still true?</h2>
           <blockquote className="quote">
             {priorWhy && <p><strong>{causeLabel(previous.cause)}.</strong> {previous.why}</p>}
-            {priorWay && <p><strong>Back on plan by {weekLabel(previous.pathToGreen!.byWeek, cycle.weeks)}.</strong> {previous.pathToGreen!.what}</p>}
+            {priorWay && <p><strong>{previous.pathToGreen!.byWeek != null ? `Back on plan by ${weekLabel(previous.pathToGreen!.byWeek, cycle.weeks)}.` : `${RECOVERY[previous.pathToGreen!.state ?? 'plan'].label}.`}</strong> {previous.pathToGreen!.what}</p>}
           </blockquote>
           <div className="choice">
             <button type="button" className="btn primary big-btn" disabled={saving} onClick={stillTrue}>{saving ? 'Posting…' : 'Still true'}</button>
             <button type="button" className="btn big-btn" onClick={somethingChanged}>Something changed</button>
           </div>
-          {priorWay && previous.pathToGreen!.byWeek <= week && <span className="hint">The week you gave has passed, so you’ll pick a new one.</span>}
+          {priorWay && previous.pathToGreen!.byWeek != null && previous.pathToGreen!.byWeek <= week && <span className="hint">The week you gave has passed, so you’ll pick a new one.</span>}
         </section>
       )}
 
@@ -274,15 +315,24 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
 
       {step === 'way' && (
         <section className="qsection" aria-label="The way back">
-          <h2 className="qtitle">How does it get back on plan?</h2>
-          <label className="field">
-            <span className="sr">What changes</span>
-            <textarea className={'input' + (tried && draft.ptgWhat.trim().length < MIN_PATH ? ' invalid' : '')} rows={2} value={draft.ptgWhat} onChange={(ev) => set({ ptgWhat: ev.target.value })} placeholder="The one or two things that close the gap" aria-label="What changes" />
-          </label>
-          <div className="field"><span className="field-label" id="ptg-by">Back on plan by</span>
-            <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} onPick={(w) => set({ ptgBy: w })} />
+          <h2 className="qtitle">Where are you with getting it back on plan?</h2>
+          <div className="optlist" role="radiogroup" aria-label="Where you are">
+            {(Object.keys(RECOVERY) as RecoveryState[]).map((k) => (
+              <button key={k} type="button" role="radio" className="opt" aria-checked={(draft.ptgState ?? 'plan') === k} onClick={() => set({ ptgState: k, ...(k !== 'plan' ? { ptgBy: null } : {}) })}>
+                <span>{RECOVERY[k].label}</span><span className="hint">{RECOVERY[k].hint}</span>
+              </button>
+            ))}
           </div>
-          {tried && !wayOk && <span className="hint tone-off" role="alert">{draft.ptgWhat.trim().length < MIN_PATH ? 'Say what changes, in a few words.' : 'Pick the week it’s back on plan.'}</span>}
+          <label className="field">
+            <span className="field-label">{RECOVERY[draft.ptgState ?? 'plan'].ask}</span>
+            <textarea className={'input' + (tried && draft.ptgWhat.trim().length < MIN_PATH ? ' invalid' : '')} rows={2} value={draft.ptgWhat} onChange={(ev) => set({ ptgWhat: ev.target.value })} aria-label={RECOVERY[draft.ptgState ?? 'plan'].ask} />
+          </label>
+          {planned && (
+            <div className="field"><span className="field-label" id="ptg-by">Back on plan by</span>
+              <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} onPick={(w) => set({ ptgBy: w })} />
+            </div>
+          )}
+          {tried && !wayOk && <span className="hint tone-off" role="alert">{draft.ptgWhat.trim().length < MIN_PATH ? 'Say a few words about it.' : 'Pick the week it’s back on plan, or choose another option if you don’t know yet.'}</span>}
           {showNeeds
             ? <label className="field"><span className="field-label">Need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Goes to the review</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Elena: approve an interim scope" /></label>
             : <div><button type="button" className="linkish tap" onClick={() => setShowNeeds(true)}>Ask for a decision or help</button></div>}
@@ -303,6 +353,14 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
     </form>
   );
 }
+
+/** The honest answers to "how does it get back on plan?": only a plan has a date. */
+const RECOVERY: Record<RecoveryState, { label: string; hint: string; ask: string }> = {
+  plan: { label: 'I have a plan', hint: 'And a week it’s back on plan', ask: 'What changes?' },
+  investigating: { label: 'Still investigating', hint: 'No date yet', ask: 'What are you looking into?' },
+  help: { label: 'Need a decision or help', hint: 'Someone else has to act', ask: 'What’s needed, and from whom?' },
+  target: { label: 'The target should change', hint: 'The plan no longer fits', ask: 'Why, and to what?' },
+};
 
 function NextStepField({ draft, set, open, onOpen }: { draft: Draft; set: (p: Partial<Draft>) => void; open: boolean; onOpen: () => void }) {
   return open

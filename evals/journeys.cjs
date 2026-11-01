@@ -126,7 +126,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await see(p, 'ahead');
   await h.checkpoint('first goal');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
-  await see(p, 'Posted');
+  await see(p, 'Check-in saved');
   await h.checkpoint('posted');
   await h.click(p.getByRole('button', { name: /Next: / }));
   // Leave mid-way and come back: the typed value is restored.
@@ -137,9 +137,9 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   const restored = await p.getByLabel('This week’s value').inputValue();
   if (restored !== '2.9') fail('the draft value was not restored');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
-  await h.click(p.getByRole('button', { name: /Finish/ }));
-  await see(p, 'Week 7 is done');
-  h.set('finish', await p.getByRole('link', { name: 'Back to home' }).isVisible(), 'no way on from the finish screen');
+  // The last post is the only confirmation: what was saved, that the week is done, and a way on.
+  await see(p, 'checked in for week 7', 'the last post says the week is done');
+  h.set('finish', await p.getByRole('link', { name: 'Back to home' }).isVisible() && await p.getByRole('link', { name: 'View the goal' }).isVisible(), 'no way on from the confirmation');
   await h.checkpoint('done');
   let s = await h.snapshot();
   const posts = s.changes.filter((c) => c.actorId === 'sam' && c.action === 'posted' && /week 7/.test(c.summary));
@@ -153,7 +153,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await see(p, 'You checked in for week 7 already', 'an update says it replaces this week’s check-in');
   await h.fill(p.getByLabel('This week’s value'), '69');
   await h.click(p.getByRole('button', { name: 'Post update' }));
-  await see(p, 'Update posted');
+  await see(p, 'Update saved');
   s = await h.snapshot();
   const upd = s.changes.filter((c) => c.actorId === 'sam' && c.goalId === 'review' && c.action === 'edited').pop();
   h.set('logged', !!upd && /update for week 7/.test(upd.summary) && upd.diffs.some((d) => d.field === 'Value' && d.from === '70%' && d.to === '69%'), 'the off-cycle update is not logged with the old and new number');
@@ -176,7 +176,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
     await h.click(p.getByRole('group', { name: 'Back on plan by' }).getByRole('button').first());
     await h.click(p.getByRole('button', { name: 'Post check-in' }));
   }
-  await see(p, 'Posted');
+  await see(p, 'Check-in saved');
   s = await h.snapshot();
   const c = s.changes.filter((x) => x.actorId === 'maya' && x.action === 'posted').pop();
   h.set('logged', !!c && c.diffs.some((d) => d.field === 'Path to green') && c.diffs.some((d) => /Brain/.test(d.to)), 'Maya’s carried-over reason and path are not in the log');
@@ -209,7 +209,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   await p.locator('.outcome-card').first().waitFor();
   const cards = await p.locator('.outcome-card').count();
   const firstRow = p.locator('.outcome').first().locator('.trow').first();
-  h.set('attention', cards >= 2 && await p.getByText(/At this pace/).first().isVisible() && ['off', 'risk', 'stale'].includes(await firstRow.getAttribute('data-tone')) && (await firstRow.locator('.trow-why').innerText()).length > 15,
+  h.set('attention', cards >= 2 && await p.getByText(/Projected/).first().isVisible() && ['off', 'risk', 'stale'].includes(await firstRow.getAttribute('data-tone')) && (await firstRow.locator('.trow-why').innerText()).length > 15,
     'the tree does not lead with the worst goal and its reason');
   // Home leads with the review Elena is in.
   await p.goto(url('/'));
@@ -220,7 +220,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   await see(p, 'Platform weekly review');
   await h.progressShown('review home');
   await h.checkpoint('review home');
-  await h.click(p.getByRole('button', { name: /Start the review/ }));
+  await h.click(p.getByRole('button', { name: /^Start review/ }));
   // The review walks the goal pages themselves, one at a time, with what to say at the bottom.
   await p.locator('.reviewbar').waitFor();
   let items = 0;
@@ -229,27 +229,38 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     h.set('attention', await p.locator('.story .chip').isVisible(), 'a goal in the review has no status');
     if (items < 2) await h.checkpoint('item ' + (items + 1));
     const here = p.url();
+    const reviewedNext = p.locator('.decide').getByRole('button', { name: /^Reviewed & / });
     if (items === 1) {
-      // Ask the owner: sending an empty question is refused.
+      // Ask the owner in a composer that names the goal; an empty question is refused; saving stays on the goal.
+      const title = (await p.locator('h1').first().innerText()).trim();
       await h.click(p.locator('.decide .quiet-links').getByRole('button', { name: /^Ask / }));
-      await p.getByRole('button', { name: 'Send question' }).click();
+      h.set('attention', ((await p.getByRole('dialog').getAttribute('aria-label')) || '').includes(title), 'the composer does not name the goal');
+      await p.getByRole('button', { name: 'Save question' }).click();
       h.set('errors', await p.getByRole('alert').filter({ hasText: 'Write a few words' }).isVisible(), 'asking without a question is not caught');
       await h.fill(p.getByPlaceholder(/What would it take/), 'Can the golden path ship before the GPU quota?');
-      await h.click(p.getByRole('button', { name: 'Send question' }));
+      await h.click(p.getByRole('button', { name: 'Save question' }));
+      await p.locator('.said').getByText('Can the golden path ship').waitFor();
+      h.set('finish', p.url() === here, 'saving a question moved to another goal');
+      await h.checkpoint('saved question');
+      await h.click(reviewedNext);
     } else if (items === 2) {
       await h.click(p.getByRole('button', { name: 'Add a note' }));
       await h.fill(p.getByPlaceholder('What the review said'), 'Agreed to pair Leo and Jonas on the interim scope.');
       await h.click(p.getByRole('button', { name: 'Save note' }));
+      await p.locator('.said').getByText('Agreed to pair').waitFor();
+      await h.click(reviewedNext);
     } else {
-      await p.getByRole('button', { name: 'Seen, next' }).click();
+      await reviewedNext.click();
     }
+    const toasts = await p.locator('.toast').count();
+    h.set('attention', toasts <= 1, `${toasts} messages stacked up during the review`);
     items++;
     await p.waitForURL((u) => u.href !== here);
     await p.waitForTimeout(120);
   }
-  await see(p, 'Done for', 'the review ends on its summary');
+  await see(p, 'Review complete', 'the review ends on its record');
   await see(p, 'Can the golden path ship', 'what was said is kept in the summary');
-  h.set('finish', await p.getByRole('link', { name: 'Reviews' }).first().isVisible(), 'no way on from the review summary');
+  h.set('finish', await p.getByRole('link', { name: 'Reviews' }).first().isVisible(), 'no way on from the review record');
   const s = await h.snapshot();
   const calls = s.changes.filter((c) => c.actorId === 'elena' && c.entity === 'decision' && c.id !== 'chg_dec_weekly_6');
   const ask = calls.find((c) => c.action === 'asked');
@@ -431,7 +442,7 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   await p.goto(url('/goals?show=attention'));
   await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
   await h.click(p.locator('.arow-main', { hasText: 'Repo-access controls' }));
-  await see(p, 'Updated by');
+  await see(p, 'checked in by');
   h.set('attention', await p.locator('.story[data-tone=off] .chip.off').isVisible() && await p.locator('.why .note-line').count() > 0, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
   await h.click(p.getByRole('tab', { name: /Comments and changes/ }));
@@ -464,7 +475,7 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   await h.fill(p.getByLabel('What happened'), 'Monorepo support shipped, so every repo gets AI review.');
   await see(p, 'If the target should move', 'well ahead, the owner is pointed at changing the target');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
-  await see(p, 'Posted');
+  await see(p, 'Check-in saved');
   // A plan change once check-ins have started saves directly, but needs a reason.
   await p.goto(url('/goals/lead'));
   await h.click(p.getByRole('link', { name: 'Edit' }));
@@ -570,7 +581,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await see(p, 'Every 4 weeks, Fridays');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
   h.set('attention', await p.locator('.tree .trow').count() >= 2, 'the review does not list its goals');
-  h.set('finish', await p.getByRole('button', { name: /Start the review/ }).isVisible().catch(() => false) || await p.getByText('Next:').isVisible().catch(() => false), 'no way to start the new review');
+  h.set('finish', await p.getByRole('button', { name: /^Start review/ }).isVisible().catch(() => false) || await p.getByText('Next:').isVisible().catch(() => false), 'no way to start the new review');
   const s = await h.snapshot();
   const r = s.reviews.find((x) => x.name === 'SRE fortnightly');
   h.set('logged', !!r && r.everyWeeks === 4 && r.weekday === 4 && r.people.includes('kofi') && r.people.includes('leo') && s.changes.some((c) => c.entity === 'review' && c.actorId === 'leo'), 'the review is not saved and logged');

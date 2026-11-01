@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-01 17:40 UTC.
+Run 2026-11-01 19:20 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -8,9 +8,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 | # | Journey | Score | entry | one-action | progress | budget | errors | finish | attention | parity | a11y | logged | Steps (phone · desktop) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | Weekly check-in, all due goals in one pass | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 17) |
+| 1 | Weekly check-in, all due goals in one pass | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 17) |
 | 2 | What needs me? Home shows what’s due, off track, stale or slipping | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
-| 3 | Weekly review: walk the goals worst first and record what was said | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 8 · 8 (budget 14) |
+| 3 | Weekly review: walk the goals worst first and record what was said | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 12 · 11 (budget 13) |
 | 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 10 · 10 (budget 15) |
 | 11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 14) |
@@ -37,7 +37,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**45 of 45 pass**. Spec scenarios 56/56.
+**45 of 45 pass**. Spec scenarios 57/57.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -55,7 +55,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **GREENER** A call greener than the calculation needs a reason and is flagged on the goal. | Check-in | 3 | U15 |
 | ✅ | **REASON-BEHIND** A reason (cause and explanation) is required when behind plan (below 95%). | Check-in | 3 | U1 |
 | ✅ | **REASON-AHEAD** A reason is required when 120% or more ahead, and the check-in asks whether the target should change. | Check-in | 3 | U7 |
-| ✅ | **PATH-TO-GREEN** At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. | Check-in | 4 | U1 |
+| ✅ | **PATH-TO-GREEN** At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. | Check-in | 5 | U1 |
 | ✅ | **CHECKIN-STATUS-VS-PLAN** The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed. | Check-in | 1 | U1, U15 |
 | ✅ | **ONE-PER-WEEK** One check-in per goal per week; editing replaces it. | Check-in | 0 | U1 |
 | ✅ | **UPDATE-ANYTIME** The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after. | Check-in | 0 | U1 |

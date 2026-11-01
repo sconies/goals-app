@@ -78,56 +78,86 @@ export function ReviewHome() {
   const asks = s.said.filter((d) => d.kind === 'ask');
   const actions = s.said.filter((d) => d.kind === 'action');
   const notes = s.said.filter((d) => d.kind === 'note');
-  const seen = s.said.filter((d) => d.kind === 'acknowledge');
+  // Reviewed without comment: covered, with nothing but "reviewed" said about it.
+  const quiet = s.items.filter((a) => s.covered.has(a.goal.id) && !s.said.some((d) => d.goalId === a.goal.id && d.kind !== 'acknowledge'));
+  const remaining = s.items.filter((a) => !s.covered.has(a.goal.id));
+  const reviewedItems = s.items.filter((a) => s.covered.has(a.goal.id));
+  const firstName = (n: string) => n.split(' ')[0];
+
+  const record = (
+    <section className="block">
+      <h2 className="block-title">{done ? 'The record' : 'Said so far'}</h2>
+      {actions.length > 0 && (
+        <div className="stack" style={{ gap: 'var(--s1)' }}>
+          <span className="field-label">Actions · {actions.length}</span>
+          <ul className="record">{actions.map((d) => (
+            <li key={d.id}><span className="strong">{d.note}</span><span className="hint">{app.person(d.assigneeId ?? app.goal(d.goalId)?.ownerId ?? '')?.name ?? 'Someone'}{d.dueWeek ? ` · by week ${d.dueWeek}` : ' · no date'} · <Link className="linkish" to={`/goals/${d.goalId}`}>{app.goal(d.goalId)?.title}</Link></span></li>
+          ))}</ul>
+        </div>
+      )}
+      {asks.length > 0 && (
+        <div className="stack" style={{ gap: 'var(--s1)' }}>
+          <span className="field-label">Questions for owners · {asks.filter((d) => !answerOf(d, app.snapshot)).length} waiting</span>
+          <ul className="record">{asks.map((d) => {
+            const ans = answerOf(d, app.snapshot);
+            const g = app.goal(d.goalId);
+            return (
+              <li key={d.id}>
+                <span className="strong">{d.note}</span>
+                <span className="hint">For {firstName(app.person(g?.ownerId ?? '')?.name ?? 'the owner')} · <Link className="linkish" to={`/goals/${d.goalId}`}>{g?.title}</Link></span>
+                {ans ? <span className="small"><strong>Answered:</strong> {ans.text}</span> : <span className="hint tone-risk">Waiting for an answer</span>}
+              </li>
+            );
+          })}</ul>
+        </div>
+      )}
+      {notes.length > 0 && (
+        <div className="stack" style={{ gap: 'var(--s1)' }}>
+          <span className="field-label">Notes · {notes.length}</span>
+          <ul className="record">{notes.map((d) => (
+            <li key={d.id}><span className="small"><Link className="linkish" to={`/goals/${d.goalId}`}>{app.goal(d.goalId)?.title}</Link></span><span>{d.note}</span><span className="hint">{firstName(app.person(d.byId)?.name ?? '')}</span></li>
+          ))}</ul>
+        </div>
+      )}
+      {quiet.length > 0 && (
+        <details className="disclose"><summary>Reviewed without comment · {quiet.length}</summary>
+          <ul className="tree">{quiet.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>
+        </details>
+      )}
+      {done && <p className="hint">Reviewing a goal records that you looked at it; its own status doesn’t change.</p>}
+    </section>
+  );
+
   return (
     <div className="page narrow">
       <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link></nav>
       <section className="hero">
-        <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals covered`} />
+        <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals reviewed`} />
         <div className="hero-body">
           <span className="eyebrow">{cadence(review)}</span>
-          <h1 className="hero-title">{review.name}</h1>
-          <span className="muted">{done ? `Done for ${dateText(s.date)}: ${goalsN(s.done)} covered${asks.length ? `, ${asks.length} ${asks.length === 1 ? 'question' : 'questions'}` : ''}${actions.length ? `, ${actions.length} ${actions.length === 1 ? 'action' : 'actions'}` : ''}.` : `${thisWeek ? 'This week' : 'Next'}: ${dateText(s.date)}. ${goalsN(s.total)}, worst and stalest first.${thisWeek ? '' : ' You can start early; it counts for that session.'}`}</span>
+          <h1 className="hero-title">{done ? `Review complete: ${goalsN(s.done)} reviewed` : review.name}</h1>
+          <span className="muted">{done ? `${review.name}, ${dateText(s.date)}.` : `${thisWeek ? 'This week' : 'Next'}: ${dateText(s.date)}. Worst and stalest first.${thisWeek ? '' : ' You can start early; it counts for that session.'}`}</span>
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
-            {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? 'Continue the review' : 'Start the review'}</button>}
+            {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(s.total)}`}</button>}
             {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
-            {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Change it</Link>}
+            {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
           </div>
         </div>
       </section>
-      {s.said.length > 0 && (
+      {done && s.said.length > 0 && record}
+      {!done && remaining.length > 0 && (
         <section className="block">
-          <h2 className="block-title">What was said</h2>
-          {[['Questions for owners', asks], ['Actions', actions], ['Notes', notes]].map(([title, list]) => (list as typeof asks).length > 0 && (
-            <div key={title as string} className="stack" style={{ gap: 'var(--s1)' }}>
-              <span className="field-label">{title as string}</span>
-              <ul className="changes">
-                {(list as typeof asks).map((d) => {
-                  const ans = d.kind === 'ask' ? answerOf(d, app.snapshot) : null;
-                  const g = app.goal(d.goalId);
-                  return (
-                    <li key={d.id} className="change">
-                      <Avatar p={app.person(d.byId) ?? { name: '?', initials: '?' }} size="sm" />
-                      <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-                        <span className="small"><Link className="linkish" to={`/goals/${d.goalId}`}>{g?.title}</Link>{d.kind === 'ask' && g ? <span className="muted"> · for {app.person(g.ownerId)?.name.split(' ')[0]}</span> : null}</span>
-                        {d.note && <span className="note-text">{d.note}</span>}
-                        {d.kind === 'ask' && (ans ? <span className="small"><strong>{app.person(ans.byId)?.name.split(' ')[0]} answered:</strong> {ans.text}</span> : <span className="hint">Not answered yet</span>)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-          {seen.length > 0 && <p className="hint">Seen with nothing to add: {seen.map((d) => app.goal(d.goalId)?.title).filter(Boolean).join(', ')}.</p>}
+          <h2 className="block-title">Still to review · {remaining.length}</h2>
+          <ul className="tree">{remaining.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>
         </section>
       )}
-      <section className="block">
-        <h2 className="block-title">Goals in this review</h2>
-        {s.items.length ? (
-          <ul className="tree">{s.items.map((a) => <li key={a.goal.id} className={s.covered.has(a.goal.id) ? 'covered' : ''}><TreeRow g={a.goal} /></li>)}</ul>
-        ) : <p className="hint">No goals match this review yet. <Link className="linkish" to={`/reviews/${review.id}/edit`}>Pick some</Link></p>}
-      </section>
+      {!done && s.said.length > 0 && record}
+      {!done && reviewedItems.length > 0 && (
+        <details className="disclose"><summary>Reviewed · {reviewedItems.length}</summary>
+          <ul className="tree">{reviewedItems.map((a) => <li key={a.goal.id} className="covered"><TreeRow g={a.goal} /></li>)}</ul>
+        </details>
+      )}
+      {!s.items.length && <p className="hint">No goals match this review yet. <Link className="linkish" to={`/reviews/${review.id}/edit`}>Pick some</Link></p>}
       <section className="block">
         <h2 className="block-title">People</h2>
         <div className="people">{people.map((p) => <span key={p.id} className="person"><Avatar p={p} size="sm" />{p.name}</span>)}</div>

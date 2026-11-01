@@ -34,6 +34,8 @@ export function onTimeStreak(personId: string, s: Snapshot, cycle: Cycle, week: 
   if (!goals.length) return 0;
   const onTime = (w: number) =>
     goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+  // Checked in this week, but after the review: the streak is broken, whatever came before.
+  if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
   let streak = 0;
   // This week counts once it is complete; otherwise start from last week.
   for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;

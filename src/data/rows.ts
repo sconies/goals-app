@@ -1,6 +1,6 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
-import type { Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback } from '../domain/types';
+import type { Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
 
 type W = { workspace_id: string };
 export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string }
@@ -18,9 +18,9 @@ export interface GoalRow extends W {
 export interface CheckInRow extends W {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
   status: CheckIn['status']; calculated: CheckIn['calculated']; cause: CheckIn['cause']; why: string; greener_why: string;
-  propose_target: number | null; ptg_what: string | null; ptg_by_week: number | null; ptg_needs: string; next: string; data_flagged: boolean;
+  propose_target: number | null; ptg_what: string | null; ptg_by_week: number | null; ptg_needs: string; ptg_state?: RecoveryState | null; next: string; data_flagged: boolean;
 }
-export interface DecisionRow extends W { id: string; goal_id: string; check_in_id: string | null; review_id: string | null; week: number; kind: Decision['kind']; by_id: string; at: string; note: string }
+export interface DecisionRow extends W { id: string; goal_id: string; check_in_id: string | null; review_id: string | null; week: number; kind: Decision['kind']; by_id: string; at: string; note: string; assignee_id?: string | null; due_week?: number | null }
 export interface ChangeRow extends W {
   id: string; at: string; actor_id: string; goal_id: string | null; entity: Change['entity']; entity_id: string;
   action: Change['action']; summary: string; diffs: Change['diffs'];
@@ -80,19 +80,19 @@ export const checkInToRow = (ws: string, c: CheckIn): CheckInRow => ({
   workspace_id: ws,
   id: c.id, goal_id: c.goalId, author_id: c.authorId, week: c.week, posted_at: c.postedAt, value: c.value, stages: c.stages,
   status: c.status, calculated: c.calculated, cause: c.cause, why: c.why, greener_why: c.greenerWhy, propose_target: c.proposeTarget,
-  ptg_what: c.pathToGreen?.what ?? null, ptg_by_week: c.pathToGreen?.byWeek ?? null, ptg_needs: c.pathToGreen?.needs ?? '',
+  ptg_what: c.pathToGreen?.what ?? null, ptg_by_week: c.pathToGreen?.byWeek ?? null, ptg_needs: c.pathToGreen?.needs ?? '', ptg_state: c.pathToGreen?.state ?? null,
   next: c.next, data_flagged: c.dataFlagged,
 });
 
 export const checkInFromRow = (r: CheckInRow): CheckIn => ({
   id: r.id, goalId: r.goal_id, authorId: r.author_id, week: Number(r.week), postedAt: iso(r.posted_at), value: num(r.value), stages: r.stages,
   status: r.status, calculated: r.calculated, cause: r.cause, why: r.why, greenerWhy: r.greener_why, proposeTarget: num(r.propose_target),
-  pathToGreen: r.ptg_what != null && r.ptg_by_week != null ? { what: r.ptg_what, byWeek: Number(r.ptg_by_week), needs: r.ptg_needs } : null,
+  pathToGreen: r.ptg_what != null && (r.ptg_by_week != null || r.ptg_state) ? { what: r.ptg_what, byWeek: r.ptg_by_week == null ? null : Number(r.ptg_by_week), ...(r.ptg_state ? { state: r.ptg_state } : {}), needs: r.ptg_needs } : null,
   next: r.next, dataFlagged: r.data_flagged,
 });
 
-export const decisionToRow = (ws: string, d: Decision): DecisionRow => ({ workspace_id: ws, id: d.id, goal_id: d.goalId, check_in_id: d.checkInId, review_id: d.reviewId, week: d.week, kind: d.kind, by_id: d.byId, at: d.at, note: d.note });
-export const decisionFromRow = (r: DecisionRow): Decision => ({ id: r.id, goalId: r.goal_id, checkInId: r.check_in_id, reviewId: r.review_id ?? null, week: Number(r.week), kind: r.kind, byId: r.by_id, at: iso(r.at), note: r.note });
+export const decisionToRow = (ws: string, d: Decision): DecisionRow => ({ workspace_id: ws, id: d.id, goal_id: d.goalId, check_in_id: d.checkInId, review_id: d.reviewId, week: d.week, kind: d.kind, by_id: d.byId, at: d.at, note: d.note, assignee_id: d.assigneeId ?? null, due_week: d.dueWeek ?? null });
+export const decisionFromRow = (r: DecisionRow): Decision => ({ id: r.id, goalId: r.goal_id, checkInId: r.check_in_id, reviewId: r.review_id ?? null, week: Number(r.week), kind: r.kind, byId: r.by_id, at: iso(r.at), note: r.note, ...(r.assignee_id ? { assigneeId: r.assignee_id } : {}), ...(r.due_week != null ? { dueWeek: Number(r.due_week) } : {}) });
 export const changeToRow = (ws: string, c: Change): ChangeRow => ({ workspace_id: ws, id: c.id, at: c.at, actor_id: c.actorId, goal_id: c.goalId, entity: c.entity, entity_id: c.entityId, action: c.action, summary: c.summary, diffs: c.diffs });
 export const changeFromRow = (r: ChangeRow): Change => ({ id: r.id, at: iso(r.at), actorId: r.actor_id, goalId: r.goal_id, entity: r.entity, entityId: r.entity_id, action: r.action, summary: r.summary, diffs: r.diffs ?? [] });
 

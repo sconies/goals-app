@@ -44,11 +44,12 @@ export function gapText(g: Goal, a: Assessment): { short: string; long: string; 
   if (a.kind === 'metric' && g.kind === 'metric') {
     const actual = a.actual as number;
     if (a.ratio == null) return { short: a.behind ? 'Going backwards' : 'On plan', long: 'No change planned yet', tone: a.behind ? 'risk' : 'on' };
-    const ahead = a.ratio >= 1;
+    // Lead with the raw difference in the goal's own units; the progress score is secondary and labelled as such.
     const pct = Math.round(a.ratio * 100);
+    const diff = Number((actual - a.plan).toFixed(g.decimals));
     return {
-      short: Math.abs(pct - 100) + '% ' + (ahead ? 'ahead' : 'behind'),
-      long: (ahead ? 'Ahead ' : 'Behind ') + fmtDiff(actual - a.plan, g) + ' · ' + pct + '% of planned progress',
+      short: diff === 0 ? 'On plan' : `${fmtDiff(diff, g)} ${diff > 0 ? 'above' : 'below'} plan`,
+      long: `${pct}% of the planned improvement so far (plan for this week: ${fmt(a.plan, g)})`,
       tone: a.ahead ? 'ahead' : a.calc === 'risk' || a.calc === 'off' ? a.calc : 'on',
     };
   }

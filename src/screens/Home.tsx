@@ -75,7 +75,6 @@ function MyWeek() {
               <span className="muted">About {minutes} min · {p.due.map((g) => g.title).join(', ')}</span>
               <div className="row" style={{ marginTop: 8 }}>
                 <Link className="btn primary big-btn" to="/check-in">{resuming ? 'Pick up where you left off' : 'Start check-in'} →</Link>
-                <Streak weeks={streak} />
               </div>
             </>
           ) : wrapLeft.length ? (

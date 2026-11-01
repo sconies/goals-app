@@ -1,6 +1,6 @@
 /* Goal trees: each goal with nothing above it, and the goals that feed it, at any depth. */
 import { checkInsFor, RANK } from './status';
-import { fmt } from './format';
+import { fmt, fmtDiff } from './format';
 import type { Assessment } from './status';
 import type { CheckIn, Goal, Status } from './types';
 
@@ -61,7 +61,9 @@ export function statusChange(goal: Goal, checkIns: CheckIn[]): { from: Status; w
 /** Where the trend lands by the end of the cycle, for a number goal with enough data. */
 export function forecastText(goal: Goal, a: Assessment, weeks: number): { text: string; warn: boolean } | null {
   if (a.kind !== 'metric' || goal.kind !== 'metric' || a.forecast == null) return null;
+  // "Above" and "below" rather than "short of", which reads wrong for a lower-is-better number.
+  const gap = a.forecast - goal.plan.target;
   return a.forecastMisses
-    ? { text: `At this pace it ends near ${fmt(a.forecast, goal)} in week ${weeks}, short of the ${fmt(goal.plan.target, goal)} target.`, warn: true }
-    : { text: `At this pace it reaches the ${fmt(goal.plan.target, goal)} target by week ${weeks}.`, warn: false };
+    ? { text: `Projected end of cycle: ${fmt(a.forecast, goal)}, ${fmtDiff(gap, goal)} ${gap > 0 ? 'above' : 'below'} the ${fmt(goal.plan.target, goal)} target. An estimate from the recent trend.`, warn: true }
+    : { text: `Projected to reach the ${fmt(goal.plan.target, goal)} target by week ${weeks}, on the recent trend.`, warn: false };
 }

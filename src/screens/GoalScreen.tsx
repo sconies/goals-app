@@ -6,7 +6,7 @@ import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL, weekLabel } from 
 import { valueSeries } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import type { Change, Goal } from '../domain/types';
-import { Avatar, Chip, Empty, FlagPill, LevelTag, Tag, timeAgo } from '../ui/bits';
+import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
 import { ReviewBar, ReviewCallBar, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
@@ -91,43 +91,59 @@ function GoalView({ goal }: { goal: Goal }) {
   const asks = app.snapshot.decisions.filter((d) => d.goalId === goal.id && (d.kind === 'ask' || d.kind === 'action')).slice(-3).reverse();
   const lastBy = latest ? app.person(latest.authorId) : undefined;
 
+  const stale = st.status === 'stale';
+  const dateText = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const askForUpdate = async () => {
+    await app.addNote(goal, `${owner?.name.split(' ')[0] ?? 'Hi'}, could you post an update? The last check-in was week ${latest?.week ?? '–'}.`);
+    app.toast(`Asked ${owner?.name.split(' ')[0] ?? 'the owner'}. It’s on their Home under For you.`);
+  };
+  // In a review, the page is compact: result, what changed, what's needed; the rest folds away.
+  const compact = rv.active;
   const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? 'No value yet' : fmt(a.actual, goal);
 
   return (
     <div className="page">
       <ReviewBar goalId={goal.id} />
-      <nav aria-label="Breadcrumb" className="crumbs">
+      {!compact && <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/goals">Goals</Link>
         {path.map((p) => <span key={p.id} className="row" style={{ gap: 'var(--s1)' }}><span aria-hidden="true">›</span><Link to={'/goals/' + p.id}>{p.title}</Link></span>)}
-      </nav>
+      </nav>}
       <div className="row between" style={{ alignItems: 'flex-start' }}>
         <span className="stack" style={{ gap: 6, minWidth: 0 }}>
           <h1 className="title-xl">{goal.title}</h1>
           <span className="row hint" style={{ gap: 'var(--s2)' }}>
             <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name}{team ? `, ${team.name}` : ''}
-            <Tag>{kindLabel(goal)}</Tag>
             <LevelTag level={goal.level} />
           </span>
         </span>
-        <div className="actions">
+        {!compact && <div className="actions">
           {isOwner && week > 0 && <Link className={'btn' + (due ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Post an update'}</Link>}
           {canEdit && <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>}
           {!isOwner && <WatchButton goal={goal} />}
-        </div>
+        </div>}
       </div>
 
       <section className="story" data-tone={st.status}>
         <div className="statusline">
           <Chip k={st.status} />
-          <span className="big">{headlineNumber}</span>
-          <span className={'strong tone-' + (st.status === 'stale' ? 'stale' : gap.tone)}>{st.status === 'stale' ? 'No recent check-in' : gap.short}</span>
+          {stale ? <span className="big">Current performance unknown</span> : <span className="big">{headlineNumber}</span>}
+          {!stale && <span className={'strong tone-' + gap.tone}>{gap.short}</span>}
         </div>
-        {st.status === 'stale'
-          ? <span className="hint">No check-in for {st.daysSinceCheckIn ?? 14}+ days, so this status can’t be trusted.</span>
-          : a.kind === 'metric' && goal.kind === 'metric' && latest ? <span className="hint">Plan for week {a.week} was {fmt(a.plan, goal)}.</span> : null}
-        {fc && st.status !== 'stale' && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
-        <span className="hint">{latest ? `Updated by ${lastBy?.name}, ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>
+        {stale
+          ? <span className="small">{latest ? `Last reported: ${headlineNumber} in week ${latest.week} (${dateText(latest.postedAt)}), ${st.daysSinceCheckIn} days ago.` : 'Nothing reported yet.'} Without a newer check-in, the status and any projection can’t be trusted.</span>
+          : a.kind === 'metric' && goal.kind === 'metric' && latest ? <span className="hint">{gap.long}.</span> : null}
+        {stale && !isOwner && <div><button type="button" className="btn sm" onClick={() => void askForUpdate()}>Ask {owner?.name.split(' ')[0] ?? 'the owner'} for an update</button></div>}
+        {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
+        {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
       </section>
+
+      {ptg?.needs && !stale && (st.status === 'risk' || st.status === 'off') && (
+        <section className="request-block" aria-label="Decision or help needed">
+          <span className="field-label">Decision or help needed</span>
+          <p className="strong">{ptg.needs}</p>
+          <span className="hint">From {owner?.name.split(' ')[0]}’s week {latest?.week} check-in.</span>
+        </section>
+      )}
 
       {asks.length > 0 && (
         <section className="why" aria-label="From reviews">
@@ -157,27 +173,30 @@ function GoalView({ goal }: { goal: Goal }) {
           )}
           {ptg && (
             <div className="quote-block">
-              <span className="field-label">Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</span>
+              <span className="field-label">{ptg.byWeek != null ? <>Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</> : ptg.state === 'investigating' ? 'Still investigating; no recovery date yet' : ptg.state === 'help' ? 'Needs a decision or help before there’s a date' : ptg.state === 'target' ? 'The owner thinks the target should change' : 'No recovery date yet'}</span>
               <p>{ptg.what}</p>
-              {ptg.needs && <p className="needs"><strong>Needs:</strong> {ptg.needs}</p>}
             </div>
           )}
         </section>
       )}
 
-      <section className="block">
+      {(() => { const chart = (<section className="block">
         {goal.kind === 'metric' && a.kind === 'metric' && (
           <figure className="card" style={{ margin: 0 }}>
-            <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={a.forecast} ptgBy={ptg?.byWeek ?? null} />
-            <MetricLegend goal={goal} forecast={a.forecast != null} ptg={!!ptg && ptg.byWeek > (series[series.length - 1]?.week ?? 0)} />
+            <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} ptgBy={stale ? null : ptg?.byWeek ?? null} />
+            <MetricLegend goal={goal} forecast={!stale && a.forecast != null} ptg={!!ptg && ptg.byWeek != null && ptg.byWeek > (series[series.length - 1]?.week ?? 0)} />
             {goal.originalPlan && <figcaption className="tiny muted">Target changed in week {goal.rebaselinedWeek}: {fmt(goal.originalPlan.target, goal)} → {fmt(goal.plan.target, goal)}. The original plan is dotted.</figcaption>}
           </figure>
         )}
         {goal.kind === 'range' && <figure className="card" style={{ margin: 0 }}><RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} /></figure>}
         {a.kind === 'milestone' && <div className="card"><StageList a={a} /></div>}
-      </section>
+      </section>);
+        return compact ? <details className="disclose"><summary>Chart and check-ins</summary>{chart}<CheckInList goal={goal} /></details> : chart; })()}
 
-      {children.length > 0 && (
+      {children.length > 0 && compact && (
+        <details className="disclose"><summary>Contributing goals · {children.length}{children.some((c) => ['off', 'risk', 'stale'].includes(app.statusOf(c).status)) ? ` · ${children.filter((c) => ['off', 'risk', 'stale'].includes(app.statusOf(c).status)).length} need attention` : ''}</summary><TreeRows nodes={subtree.children} /></details>
+      )}
+      {children.length > 0 && !compact && (
         <section className="block">
           <div className="row between"><h2 className="block-title">Feeding this goal</h2><span className="hint">Worst first</span></div>
           <div className="mix" role="img" aria-label={(['off', 'risk', 'stale', 'on', 'done'] as const).map((k) => `${children.filter((c) => app.statusOf(c).status === k).length} ${LABEL[k].toLowerCase()}`).join(', ')}>
@@ -187,7 +206,7 @@ function GoalView({ goal }: { goal: Goal }) {
         </section>
       )}
 
-      <section className="block">
+      {!compact && <section className="block">
         <div className="seg tabs" role="tablist" aria-label="More about this goal">
           {([['check-ins', 'Check-ins', own.length], ['activity', 'Comments and changes', changes.length], ['details', 'Details', 0]] as const).map(([k, l, n]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}{n ? <span className="tabcount">{n}</span> : null}</button>
@@ -209,6 +228,7 @@ function GoalView({ goal }: { goal: Goal }) {
         ) : <p className="small muted">No check-ins yet.</p>)}
         {tab === 'details' && (
           <dl className="details">
+            <dt>Kind</dt><dd>{kindLabel(goal)}</dd>
             {goal.definition && <><dt>Definition</dt><dd>{goal.definition}</dd></>}
             {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {cycle.weeks}, {directionLabel(goal)}</dd><dt>Plan</dt><dd>{goal.plan.shape === 'back' ? 'Back-loaded' : goal.plan.shape === 'stepped' ? 'Three steps' : 'Straight line'}</dd></>}
             {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}</dd></>}
@@ -219,7 +239,7 @@ function GoalView({ goal }: { goal: Goal }) {
             <dt>Rules</dt><dd>{goal.kind === 'metric' ? 'On track at 95% of planned progress or more; at risk from 80%. Reason needed when behind or 20% ahead.' : goal.kind === 'range' ? 'At risk inside the margin or after one breach; off track after two weeks out.' : 'Up to 2 weeks late is at risk; more is off track.'}</dd>
           </dl>
         )}
-      </section>
+      </section>}
       {rv.active && <ReviewCallBar goal={goal} />}
     </div>
   );
@@ -248,5 +268,24 @@ function NoteComposer({ goal }: { goal: Goal }) {
       </label>
       {text.trim() && <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post comment'}</button>}
     </form>
+  );
+}
+
+/** The goal's check-ins, newest first, for the folded-away history in a review. */
+function CheckInList({ goal }: { goal: Goal }) {
+  const app = useApp();
+  const own = app.checkInsOf(goal);
+  if (!own.length) return <p className="small muted">No check-ins yet.</p>;
+  return (
+    <ol className="cilist">
+      {[...own].reverse().map((c) => (
+        <li key={c.id}>
+          <span className="strong">Week {c.week}</span>
+          <span>{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
+          <Chip k={c.status} />
+          {c.why && c.why !== 'On plan.' && <span className="small cilist-why">{c.why}</span>}
+        </li>
+      ))}
+    </ol>
   );
 }

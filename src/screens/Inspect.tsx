@@ -48,76 +48,109 @@ export function ReviewBar({ goalId }: { goalId: string }) {
   if (!rv.active || !rv.review) return null;
   return (
     <div className="reviewbar" role="navigation" aria-label={rv.review.name}>
-      <span className="small strong ellipsis">{rv.review.name}</span>
-      <span className="hint">{rv.index + 1} of {rv.total}</span>
+      <span className="stack" style={{ gap: 0, minWidth: 0 }}>
+        <span className="small strong ellipsis">{rv.review.name}</span>
+        <span className="hint">Goal {rv.index + 1} of {rv.total} · {rv.done} reviewed</span>
+      </span>
       <div className="bar ok" aria-hidden="true"><i style={{ width: `${rv.total ? (rv.done / rv.total) * 100 : 100}%` }} /></div>
       <button className="iconbtn" aria-label="Previous goal" disabled={rv.index <= 0} onClick={rv.prev}>‹</button>
-      <button className="iconbtn" aria-label="Next goal" onClick={rv.next}>›</button>
+      <button className="iconbtn" aria-label="Next goal, without reviewing this one" onClick={rv.next}>›</button>
       <button className="iconbtn" aria-label="Close the review" onClick={() => nav(`/reviews/${rv.review!.id}`)}>✕</button>
     </div>
   );
 }
 
-/** What someone in the review says about this goal. Saying anything covers it and moves on. */
+type Say = 'note' | 'ask' | 'action';
+
+/**
+ * What someone in the review says about this goal. Adding a note, question or action saves it here and
+ * stays on this goal; "Reviewed & next" is the one thing that moves on.
+ */
 export function ReviewCallBar({ goal }: { goal: Goal }) {
   const app = useApp();
   const rv = useReview(goal.id);
-  const [mode, setMode] = useState<null | 'note' | 'ask' | 'action'>(null);
-  const [text, setText] = useState('');
+  const [mode, setMode] = useState<Say | null>(null);
   const [busy, setBusy] = useState(false);
-  const [tried, setTried] = useState(false);
   if (!rv.active || !rv.review || !rv.session) return null;
   if (!rv.review.people.includes(app.viewer.id)) {
     return <div className="decide"><span className="hint">You’re looking at {rv.review.name}. Join it from the review’s page to say something.</span><div className="row decide-buttons"><button className="btn big-btn" onClick={rv.next}>Next goal</button></div></div>;
   }
   const own = goal.ownerId === app.viewer.id;
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
-  const said = rv.session.said.filter((d) => d.goalId === goal.id);
-  const call = async (kind: 'acknowledge' | 'note' | 'ask' | 'action') => {
-    if (kind !== 'acknowledge' && text.trim().length < 3) { setTried(true); return; }
+  const said = rv.session.said.filter((d) => d.goalId === goal.id && d.kind !== 'acknowledge');
+  const reviewed = rv.session.covered.has(goal.id);
+  const next = async () => {
     setBusy(true);
     try {
-      await app.reviewCall(goal, rv.review!, rv.session!.week, kind, kind === 'acknowledge' ? '' : text);
-      app.toast(kind === 'ask' ? `Question sent to ${owner}` : kind === 'action' ? 'Action saved' : kind === 'note' ? 'Note saved' : 'Marked as seen');
+      // Saying something already counts as reviewing it; otherwise record that it was looked at.
+      if (!reviewed) await app.reviewCall(goal, rv.review!, rv.session!.week, 'acknowledge', '');
       rv.afterCall();
-    } catch {
-      setBusy(false);
-    }
+    } catch { setBusy(false); }
   };
-  const label = { note: 'Note', ask: `Question for ${owner}`, action: 'Action' } as const;
+  const label = { note: 'note', ask: 'question', action: 'action' } as const;
   return (
     <div className="decide">
-      {said.length > 0 && <span className="calm small">✓ Covered: {said.map((d) => d.note || 'seen').join('; ')}</span>}
-      {mode && (
-        <form onSubmit={(e) => { e.preventDefault(); void call(mode); }}>
-        <label className="field"><span className="field-label">{label[mode]}</span>
-          <input className={'input' + (tried && text.trim().length < 3 ? ' invalid' : '')} autoFocus value={text} onChange={(e) => setText(e.target.value)}
-            placeholder={mode === 'ask' ? 'e.g. What would it take to land the interim scope by week 8?' : mode === 'action' ? 'Who does what, by when' : 'What the review said'} />
-          {tried && text.trim().length < 3 && <span className="hint tone-off" role="alert">Write a few words first.</span>}
-        </label>
-        </form>
+      {said.length > 0 && (
+        <ul className="said">
+          {said.map((d) => <li key={d.id}><span className="field-label">{d.kind === 'ask' ? `Question for ${owner}` : d.kind === 'action' ? `Action · ${app.person(d.assigneeId ?? goal.ownerId)?.name.split(' ')[0] ?? owner}${d.dueWeek ? `, by week ${d.dueWeek}` : ''}` : 'Note'}</span><span className="small">{d.note}</span></li>)}
+        </ul>
       )}
       <div className="row decide-buttons">
-        {mode ? (
-          <>
-            <button className="btn primary big-btn" disabled={busy} onClick={() => void call(mode)}>{mode === 'ask' ? 'Send question' : mode === 'action' ? 'Save action' : 'Save note'}</button>
-            <button className="btn big-btn" disabled={busy} onClick={() => { setMode(null); setText(''); setTried(false); }}>Cancel</button>
-          </>
-        ) : (
-          <>
-            <button className="btn primary big-btn" disabled={busy} onClick={() => void call('acknowledge')}>Seen, next</button>
-            <button className="btn big-btn" disabled={busy} onClick={() => setMode('note')}>Add a note</button>
-          </>
-        )}
+        <button className="btn primary big-btn" disabled={busy} onClick={() => void next()}>{rv.done + (reviewed ? 0 : 1) >= rv.total ? 'Reviewed & finish' : 'Reviewed & next'}</button>
+        <button className="btn big-btn" disabled={busy} onClick={() => setMode('note')}>Add a note</button>
       </div>
-      {!mode && (
-        <div className="quiet-links">
-          {!own && <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner}</button>}
-          <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>
-          <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>
-        </div>
-      )}
+      <div className="quiet-links">
+        {!own && <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner}</button>}
+        <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>
+        {!reviewed && <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>}
+      </div>
+      {mode && <SayComposer goal={goal} mode={mode} onClose={() => setMode(null)} onSaved={() => { setMode(null); app.toast(`${label[mode][0]!.toUpperCase() + label[mode].slice(1)} saved on ${goal.title}`); }} />}
     </div>
+  );
+}
+
+/** A focused composer that names the goal and the review, with Save right under the field so it stays in reach with the keyboard open. */
+function SayComposer({ goal, mode, onClose, onSaved }: { goal: Goal; mode: Say; onClose: () => void; onSaved: () => void }) {
+  const app = useApp();
+  const rv = useReview(goal.id);
+  const [text, setText] = useState('');
+  const [who, setWho] = useState(goal.ownerId);
+  const [due, setDue] = useState<number | null>(null);
+  const [tried, setTried] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
+  const title = { note: 'Add a note', ask: `Ask ${owner}`, action: 'Add an action' }[mode];
+  const save = async () => {
+    if (text.trim().length < 3) { setTried(true); return; }
+    setBusy(true);
+    try {
+      await app.reviewCall(goal, rv.review!, rv.session!.week, mode, text, mode === 'action' ? { assigneeId: who, dueWeek: due } : undefined);
+      onSaved();
+    } catch { setBusy(false); } // the draft stays, and so do you
+  };
+  const weeks = Array.from({ length: Math.max(0, app.cycle.weeks - app.week) }, (_, k) => app.week + 1 + k);
+  return (
+    <Sheet open onClose={onClose} title={`${title}: ${goal.title}`}>
+      <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <span className="hint">In {rv.review?.name}. {mode === 'ask' ? `${owner} sees it on Home and on the goal.` : 'It stays on this goal and in the review’s record.'}</span>
+        <label className="field"><span className="sr">{title}</span>
+          <textarea className={'input' + (tried && text.trim().length < 3 ? ' invalid' : '')} rows={3} value={text} onChange={(e) => setText(e.target.value)} enterKeyHint="send"
+            placeholder={mode === 'ask' ? 'e.g. What would it take to land the interim scope by week 8?' : mode === 'action' ? 'What needs doing' : 'What the review said'} aria-label={title} />
+          {tried && text.trim().length < 3 && <span className="hint tone-off" role="alert">Write a few words first.</span>}
+        </label>
+        {mode === 'action' && (
+          <div className="pair">
+            <label className="field"><span className="field-label">Who</span>
+              <select className="input" value={who} onChange={(e) => setWho(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+            </label>
+            <label className="field"><span className="field-label">By <span className="hint">optional</span></span>
+              <select className="input" value={due ?? ''} onChange={(e) => setDue(e.target.value ? Number(e.target.value) : null)}><option value="">No date</option>{weeks.map((w) => <option key={w} value={w}>Week {w}</option>)}</select>
+            </label>
+          </div>
+        )}
+        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : `Save ${mode === 'ask' ? 'question' : mode}`}</button></div>
+      </form>
+    </Sheet>
   );
 }
 

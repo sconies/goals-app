@@ -156,6 +156,16 @@ export function Shell({ children }: { children: ReactNode }) {
   const more = order.slice(4);
   const work = useRef<HTMLElement>(null);
   const title = order.filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : 'Goals');
+  // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const set = () => document.documentElement.style.setProperty('--kb', Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) + 'px');
+    set();
+    vv.addEventListener('resize', set);
+    vv.addEventListener('scroll', set);
+    return () => { vv.removeEventListener('resize', set); vv.removeEventListener('scroll', set); };
+  }, []);
   const first = useRef(true);
   useEffect(() => {
     window.scrollTo?.(0, 0); work.current?.scrollTo?.(0, 0);

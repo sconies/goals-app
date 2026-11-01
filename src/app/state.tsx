@@ -45,7 +45,7 @@ export interface AppState {
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status. */
   addNote(goal: Goal, text: string): Promise<void>;
   /** What someone says about a goal in a review: seen, a note, a question for the owner, or an action. */
-  reviewCall(goal: Goal, review: Review, week: number, kind: 'acknowledge' | 'note' | 'ask' | 'action', note: string): Promise<void>;
+  reviewCall(goal: Goal, review: Review, week: number, kind: 'acknowledge' | 'note' | 'ask' | 'action', note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Promise<void>;
   /** Watch a goal, a goal and everything feeding it, or a whole level. */
   watch(kind: Watch['kind'], ref: string): Promise<void>;
   unwatch(watchId: string): Promise<void>;
@@ -110,7 +110,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
   const toast = useCallback((text: string, kind: Toast['kind'] = 'success') => {
     const id = ++toastId.current;
-    setToasts((t) => [...t, { id, kind, text }]);
+    // One success message at a time: a new one replaces the last, so they never pile up over the page. Errors stay until they time out.
+    setToasts((t) => [...(kind === 'success' ? t.filter((x) => x.kind === 'error') : t), { id, kind, text }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), kind === 'error' ? 7000 : 3200);
   }, []);
 
@@ -238,13 +239,13 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         const t = text.trim();
         await commit({ changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'note', entityId: newId('note'), action: 'noted', summary: 'Commented', diffs: [{ field: 'Comment', from: '—', to: t }] }] });
       },
-      reviewCall: async (goal, review, sessionWeek, kind, note) => {
-        const d: Decision = { id: newId('dec'), goalId: goal.id, checkInId: null, reviewId: review.id, week: sessionWeek, kind, byId: viewer.id, at: stamp(), note: note.trim() };
+      reviewCall: async (goal, review, sessionWeek, kind, note, extra) => {
+        const d: Decision = { id: newId('dec'), goalId: goal.id, checkInId: null, reviewId: review.id, week: sessionWeek, kind, byId: viewer.id, at: stamp(), note: note.trim(), ...(kind === 'action' ? { assigneeId: extra?.assigneeId ?? goal.ownerId, dueWeek: extra?.dueWeek ?? null } : {}) };
         const action = ({ acknowledge: 'acknowledged', note: 'noted', ask: 'asked', action: 'actioned' } as const)[kind];
         const what = ({ acknowledge: 'Looked at it', note: 'Added a note', ask: 'Asked the owner a question', action: 'Agreed an action' } as const)[kind];
         await commit({
           decisions: [d],
-          changes: [{ id: newId('chg'), at: d.at, actorId: viewer.id, goalId: goal.id, entity: 'decision', entityId: d.id, action, summary: `${what} in ${review.name}`, diffs: note.trim() ? [{ field: kind === 'ask' ? 'Question' : kind === 'action' ? 'Action' : 'Note', from: '—', to: note.trim() }] : [] }],
+          changes: [{ id: newId('chg'), at: d.at, actorId: viewer.id, goalId: goal.id, entity: 'decision', entityId: d.id, action, summary: `${what} in ${review.name}`, diffs: note.trim() ? [{ field: kind === 'ask' ? 'Question' : kind === 'action' ? 'Action' : 'Note', from: '—', to: note.trim() }, ...(kind === 'action' ? [{ field: 'Who', from: '—', to: lookup.person(d.assigneeId ?? '')?.name ?? '—' }, ...(d.dueWeek ? [{ field: 'Due', from: '—', to: `week ${d.dueWeek}` }] : [])] : [])] : [] }],
         });
       },
       watch: async (kind, ref) => {

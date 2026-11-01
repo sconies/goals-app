@@ -129,11 +129,16 @@ export interface StageUpdate {
   forecastWeek: number | null;
 }
 
+/** Where the owner is with getting a goal back on plan. Only "plan" has a week it's back by. */
+export type RecoveryState = 'plan' | 'investigating' | 'help' | 'target';
+
 export interface PathToGreen {
+  /** What changes, what's being looked into, what help is needed, or why the target should move. */
   what: string;
-  /** The checkpoint week by which it is back on plan. */
-  byWeek: number;
+  /** The checkpoint week by which it is back on plan; null when that isn't known yet. */
+  byWeek: number | null;
   needs: string;
+  state?: RecoveryState;
 }
 
 export interface CheckIn {
@@ -192,6 +197,9 @@ export interface Decision {
   byId: Id;
   at: string;
   note: string;
+  /** Actions: who does it, and the week it's due by (optional). */
+  assigneeId?: Id | null;
+  dueWeek?: number | null;
 }
 
 /** Something a person keeps an eye on: one goal, a goal and everything feeding it, or every goal at a level. */

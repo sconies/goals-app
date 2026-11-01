@@ -49,12 +49,14 @@ function checkInFields(c: CheckIn, g: Goal): Record<string, string> {
   f.Cause = c.cause ? causeLabel(c.cause) : '—';
   f.Note = c.why || '—';
   f['Why greener'] = c.greenerWhy || '—';
-  f['Path to green'] = c.pathToGreen ? `${c.pathToGreen.what} (by week ${c.pathToGreen.byWeek})` : '—';
+  f['Path to green'] = c.pathToGreen ? `${c.pathToGreen.what} (${c.pathToGreen.byWeek != null ? `by week ${c.pathToGreen.byWeek}` : RECOVERY_LABEL[c.pathToGreen.state ?? 'plan'].toLowerCase()})` : '—';
   f['Needs'] = c.pathToGreen?.needs || '—';
   f['Proposed target'] = c.proposeTarget == null || g.kind === 'milestone' ? '—' : fmt(c.proposeTarget, g);
   f['Next step'] = c.next || '—';
   return f;
 }
+
+const RECOVERY_LABEL = { plan: 'Plan', investigating: 'Still investigating', help: 'Needs a decision or help', target: 'Target should change' } as const;
 
 export function diffFields(before: Record<string, string> | null, after: Record<string, string>): Diff[] {
   return Object.keys(after)

@@ -71,7 +71,7 @@ export function attentionFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date)
   if (status.status === 'stale') {
     add('stale', 'Stale', latest ? `No check-in for ${status.daysSinceCheckIn} days; the last was week ${latest.week} (${LABEL[latest.status].toLowerCase()}).` : 'No check-in yet this cycle.', 'stale');
   }
-  if (behind && ptg && ptg.byWeek < week) add('missed-path', 'Missed path to green', `Was due back on plan by week ${ptg.byWeek}: ${ptg.what}`, 'off');
+  if (behind && ptg && ptg.byWeek != null && ptg.byWeek < week) add('missed-path', 'Missed path to green', `Was due back on plan by week ${ptg.byWeek}: ${ptg.what}`, 'off');
   if (behind && !ptg) add('no-path', 'No path to green', 'It is behind and the owner has not said how it gets back.', 'off');
   if (status.status === 'risk') add('risk', 'At risk', latest?.why && latest.why !== 'On plan.' ? latest.why : 'The owner called it at risk.', 'risk');
   const trend = status.status === 'done' ? null : worseningTrend(goal, cycle, s.checkIns);

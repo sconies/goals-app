@@ -1,6 +1,6 @@
 /* What a check-in must say before it can be posted. */
 import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Assessment } from './status';
-import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status } from './types';
+import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
   ['aggressive', 'Plan too aggressive'], ['slower', 'Delivery slower'], ['blocked', 'Blocked by a dependency'], ['external', 'External factor'], ['data', 'Data problem'],
@@ -24,6 +24,8 @@ export interface Draft {
   proposeTarget: string;
   ptgWhat: string;
   ptgBy: number | null;
+  /** Where the owner is with getting back on plan; only 'plan' needs a week. */
+  ptgState?: RecoveryState;
   needs: string;
   next: string;
   dataFlagged: boolean;
@@ -46,7 +48,7 @@ export function draftFrom(c: CheckIn): Draft {
     stages: c.stages ?? [],
     status: c.status, cause: c.cause, why: c.why, greenerWhy: c.greenerWhy,
     proposeTarget: c.proposeTarget == null ? '' : String(c.proposeTarget),
-    ptgWhat: c.pathToGreen?.what ?? '', ptgBy: c.pathToGreen?.byWeek ?? null, needs: c.pathToGreen?.needs ?? '',
+    ptgWhat: c.pathToGreen?.what ?? '', ptgBy: c.pathToGreen?.byWeek ?? null, ptgState: c.pathToGreen?.state ?? 'plan', needs: c.pathToGreen?.needs ?? '',
     next: c.next, dataFlagged: c.dataFlagged,
   };
 }
@@ -117,7 +119,8 @@ export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, a
   else if (goal.kind !== 'milestone' && valueProblem(draft.value, null, goal.unit)?.block) missing.push('a possible value');
   if (greener && draft.greenerWhy.trim().length < MIN_REASON) missing.push('why your call is greener');
   if (reason && (!draft.cause || draft.why.trim().length < MIN_REASON)) missing.push(reason === 'ahead' ? 'why it’s ahead' : 'why it’s behind');
-  if (needsPath && (draft.ptgWhat.trim().length < MIN_PATH || draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks)) missing.push('path to green');
+  const planned = (draft.ptgState ?? 'plan') === 'plan';
+  if (needsPath && (draft.ptgWhat.trim().length < MIN_PATH || (planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks)))) missing.push('path to green');
   if (asksTarget && draft.proposeTarget.trim()) {
     const t = parseNumber(draft.proposeTarget);
     const better = goal.kind === 'metric' && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target);
@@ -139,7 +142,7 @@ export function toCheckIn(goal: Goal, cycle: Cycle, week: number, draft: Draft, 
     why: draft.why.trim(),
     greenerWhy: e.greener ? draft.greenerWhy.trim() : '',
     proposeTarget: e.asksTarget ? parseNumber(draft.proposeTarget) : null,
-    pathToGreen: e.needsPath ? { what: draft.ptgWhat.trim(), byWeek: draft.ptgBy as number, needs: draft.needs.trim() } : null,
+    pathToGreen: e.needsPath ? { what: draft.ptgWhat.trim(), byWeek: (draft.ptgState ?? 'plan') === 'plan' ? draft.ptgBy : null, needs: draft.needs.trim(), state: draft.ptgState ?? 'plan' } : null,
     next: draft.next.trim(),
     dataFlagged: draft.dataFlagged,
   };
