@@ -57,8 +57,36 @@ describe('browser store', () => {
     const store = new BrowserStore(() => new Date('2026-10-30T12:00:00Z'));
     const mine = { id: 'ws_mine', name: 'Mine', kind: 'own' as const, createdAt: '2026-10-30T00:00:00Z' };
     await store.createWorkspace(mine, { people: [], teams: [], cycles: [], goals: [], checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [] });
-    expect((await store.workspaces()).map((w) => w.id)).toEqual(['example', 'ws_mine']);
+    expect((await store.workspaces()).map((w) => w.id)).toEqual(['example', 'example-support', 'example-sales', 'example-growth', 'ws_mine']);
     expect((await store.load('ws_mine')).goals).toHaveLength(0);
     expect((await store.load('example')).goals.length).toBeGreaterThan(5);
+  });
+  it('deletes your own workspace but only resets an example', async () => {
+    const store = new BrowserStore(() => new Date('2026-10-30T12:00:00Z'));
+    const mine = { id: 'ws_gone', name: 'Gone', kind: 'own' as const, createdAt: '2026-10-30T00:00:00Z' };
+    await store.createWorkspace(mine, { people: [], teams: [], cycles: [], goals: [], checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [] });
+    await store.deleteWorkspace('ws_gone');
+    expect((await store.workspaces()).some((w) => w.id === 'ws_gone')).toBe(false);
+    await expect(store.load('ws_gone')).rejects.toThrow();
+    await expect(store.deleteWorkspace('example-sales')).rejects.toThrow(/reset/);
+  });
+});
+
+describe('example data sets', () => {
+  it('each builds a live workspace with goals, history, a north star, a review and watches', async () => {
+    const { EXAMPLES } = await import('./examples');
+    for (const e of EXAMPLES) {
+      const s = e.build(new Date('2026-10-30T12:00:00Z'));
+      expect(s.goals.length, e.workspace.name).toBeGreaterThanOrEqual(6);
+      expect(s.checkIns.length, e.workspace.name).toBeGreaterThan(20);
+      expect(s.goals.some((g) => g.level === 'north-star'), e.workspace.name).toBe(true);
+      expect(s.reviews.length, e.workspace.name).toBeGreaterThan(0);
+      expect(s.watches.length, e.workspace.name).toBeGreaterThan(0);
+      // Every owner and every link points at something that exists.
+      for (const g of s.goals) {
+        expect(s.people.some((p) => p.id === g.ownerId), `${g.id} owner`).toBe(true);
+        if (g.parentId) expect(s.goals.some((x) => x.id === g.parentId), `${g.id} parent`).toBe(true);
+      }
+    }
   });
 });

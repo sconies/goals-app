@@ -59,6 +59,7 @@ export function WorkspaceHome() {
         ))}
       </section>
       {admin && <FeedbackList />}
+      {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
       {editing && <PersonSheet person={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
   );
@@ -127,6 +128,34 @@ function FeedbackList() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/** For admins: delete this workspace and everything in it. Typing its name confirms, because it can't be undone. */
+function DeleteWorkspace() {
+  const app = useApp();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const match = typed.trim() === app.ws.name.trim();
+  const go = async () => {
+    if (!match || busy) return;
+    setBusy(true);
+    try { await app.deleteWorkspace(); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); setBusy(false); }
+  };
+  return (
+    <section className="block danger-zone">
+      <h2 className="block-title">Delete this workspace</h2>
+      <p className="hint">Removes {app.ws.name}: its people, goals, check-ins, reviews and history{app.mode === 'demo' ? ' (in this browser)' : ', for everyone'}. This can’t be undone.</p>
+      {!open ? <div><button className="btn danger" onClick={() => setOpen(true)}>Delete {app.ws.name}…</button></div> : (
+        <form className="stack" style={{ gap: 'var(--s3)', maxWidth: 420 }} onSubmit={(e) => { e.preventDefault(); void go(); }}>
+          <label className="field"><span className="field-label">Type <strong>{app.ws.name}</strong> to confirm</span>
+            <input className="input" autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} aria-label={`Type ${app.ws.name} to confirm`} />
+          </label>
+          <div className="foot-row"><button type="button" className="btn ghost" onClick={() => { setOpen(false); setTyped(''); }}>Cancel</button><button type="submit" className="btn danger" disabled={!match || busy}>{busy ? 'Deleting…' : 'Delete it for good'}</button></div>
+        </form>
+      )}
     </section>
   );
 }

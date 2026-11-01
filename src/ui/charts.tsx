@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { planAt, type Point } from '../domain/plan';
+import { planAt, planEnd, type Point } from '../domain/plan';
 import type { MilestoneAssessment, StageState } from '../domain/status';
 import { fmt } from '../domain/format';
 import type { MetricGoal, RangeGoal } from '../domain/types';
@@ -42,7 +42,9 @@ export function MetricChart(p: MetricProps) {
   return <Sized height={p.height ?? 220}>{(w) => <MetricSvg {...p} W={w} H={p.height ?? 220} />}</Sized>;
 }
 
-function MetricSvg({ goal, weeks, week, series, forecast, ptgBy, W, H }: MetricProps & { W: number; H: number }) {
+function MetricSvg({ goal, weeks: cycleWeeks, week, series, forecast, ptgBy, W, H }: MetricProps & { W: number; H: number }) {
+  // A goal that runs past the cycle (to the end of the year) is drawn to its own end.
+  const weeks = Math.max(cycleWeeks, planEnd(goal.plan, cycleWeeks));
   const compact = W < 420;
   const f: Frame = { W, H, padL: compact ? 34 : 44, padR: 12, padT: 24, padB: 22 };
   const { plan, originalPlan } = goal;

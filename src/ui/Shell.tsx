@@ -41,7 +41,7 @@ export function personFacts(p: Person, app: ReturnType<typeof useApp>): string {
   return bits.length ? bits.join(', ') : 'can view everything';
 }
 
-export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ProfileSheet({ open, onClose, onShowDemoBar }: { open: boolean; onClose: () => void; onShowDemoBar?: () => void }) {
   const app = useApp();
   const teams = [...app.snapshot.teams.map((t) => [t.name, app.snapshot.people.filter((x) => x.teamId === t.id)] as const), ['No team', app.snapshot.people.filter((x) => !x.teamId)] as const].filter(([, l]) => l.length);
   return (
@@ -61,6 +61,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
           ))}
         </section>
       ))}
+      {onShowDemoBar && <button className="btn" onClick={() => { onShowDemoBar(); onClose(); }}>Show the demo bar</button>}
     </Sheet>
   );
 }
@@ -90,12 +91,19 @@ function WorkspaceSheet({ open, onClose }: { open: boolean; onClose: () => void 
 const DEMO_CAST = ['maya', 'sam', 'elena', 'tom', 'priya'];
 
 /** Demo only: whose view this is, switchable in one tap, with a way to start again or leave. */
-function DemoBar({ onPeople }: { onPeople: () => void }) {
+function DemoBar({ onPeople, onHide }: { onPeople: () => void; onHide: () => void }) {
   const app = useApp();
   const navMode = useNavMode();
   const nav = useNavigate();
   const [resetting, setResetting] = useState(false);
-  const cast = DEMO_CAST.map((id) => app.person(id)).filter((p): p is Person => !!p);
+  // The Developer Platform example has a hand-picked cast; other examples show an admin, the main owners and someone who only watches.
+  const picked = DEMO_CAST.map((id) => app.person(id)).filter((p): p is Person => !!p);
+  const owners = (id: string) => app.snapshot.goals.filter((g) => g.ownerId === id).length;
+  const cast = picked.length >= 3 ? picked : [
+    ...app.snapshot.people.filter((p) => p.admin).slice(0, 1),
+    ...app.snapshot.people.filter((p) => !p.admin && owners(p.id) > 0).sort((a, b) => owners(b.id) - owners(a.id)).slice(0, 3),
+    ...app.snapshot.people.filter((p) => !p.admin && owners(p.id) === 0).slice(0, 1),
+  ];
   const pick = (id: string) => { if (id === app.viewer.id) return; app.setViewer(id); nav('/'); };
   return (
     <div className="rolebar">
@@ -111,6 +119,7 @@ function DemoBar({ onPeople }: { onPeople: () => void }) {
         {app.ws.kind === 'example' && (resetting
           ? <><button className="linkish" onClick={async () => { await app.resetExample(); setResetting(false); nav('/'); }}>Yes, start over</button><button className="linkish muted" onClick={() => setResetting(false)}>Cancel</button></>
           : <button className="linkish" onClick={() => setResetting(true)}>Start over</button>)}
+        <button className="linkish" onClick={onHide} title="Present the demo without this bar; bring it back from the menu">Hide this bar</button>
         <button className="linkish" onClick={() => setNavMode(navMode === 'four' ? 'current' : 'four')} aria-pressed={navMode === 'four'} title="Compare the phone navigation">{navMode === 'four' ? 'Current tabs' : 'Try 4 tabs'}</button>
         <a className="linkish" href="/">Leave</a>
       </span>
@@ -154,6 +163,15 @@ export function Shell({ children }: { children: ReactNode }) {
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
   const navMode = useNavMode();
   const order = navFor(ownsGoals, navMode);
+  // Presenting: the demo without its "Viewing as" bar or Demo tag. Start it with /demo?present (and ?present=0 to stop).
+  const [present, setPresentState] = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('present');
+      if (q !== null) sessionStorage.setItem('goals-present', q === '0' ? '' : '1');
+      return sessionStorage.getItem('goals-present') === '1';
+    } catch { return false; }
+  });
+  const setPresent = (on: boolean) => { try { sessionStorage.setItem('goals-present', on ? '1' : ''); } catch { /* private mode */ } setPresentState(on); };
   const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.length;
   // A review you're in that's held this week and still has goals to cover.
   const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => x.week === Math.max(1, app.week) && x.done < x.total).length;
@@ -195,7 +213,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
           <strong className="ellipsis">{title}</strong>
-          <span className="tiny muted ellipsis">{app.mode === 'demo' && <span className="demo-tag">Demo</span>} {app.ws.kind === 'example' ? 'Example data' : app.ws.name}, week {app.week} of {app.cycle.weeks}</span>
+          <span className="tiny muted ellipsis">{app.mode === 'demo' && !present && <span className="demo-tag">Demo</span>} {app.ws.kind === 'example' ? 'Example data' : app.ws.name}, week {app.week} of {app.cycle.weeks}</span>
         </span>
         <button className="profilebtn" onClick={() => setSheet('profile')}>
           <Avatar p={app.viewer} />
@@ -228,7 +246,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </button>
         </nav>
         <main className="work" ref={work} id="main">
-          {!focusMode && app.mode === 'demo' && <DemoBar onPeople={() => setSheet('profile')} />}
+          {!focusMode && app.mode === 'demo' && !present && <DemoBar onPeople={() => setSheet('profile')} onHide={() => setPresent(true)} />}
           {children}
         </main>
       </div>
@@ -250,12 +268,13 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
           <button className="menuitem" onClick={() => setSheet('workspace')}>{NAV.workspace.icon}<span className="stack" style={{ gap: 0 }}><span className="strong">Switch workspace</span><span className="tiny muted">{app.ws.name}</span></span></button>
+          {app.mode === 'demo' && present && <button className="menuitem" onClick={() => { setPresent(false); setSheet(null); }}><span className="strong">Show the demo bar</span><span className="tiny muted">Switch person, reset or leave the demo</span></button>}
           {app.mode === 'demo' && <button className="menuitem" onClick={() => { setNavMode(navMode === 'four' ? 'current' : 'four'); setSheet(null); }}><span className="strong">{navMode === 'four' ? 'Current tabs' : 'Try 4 tabs'}</span><span className="tiny muted">Demo: compare the phone navigation</span></button>}
           <button className="menuitem" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span className="strong">Send feedback</span></button>
           <button className="menuitem" onClick={() => setSheet('profile')}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}</span></span></button>
         </div>
       </Sheet>
-      <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)} />
+      <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)} onShowDemoBar={app.mode === 'demo' && present ? () => setPresent(false) : undefined} />
       <WorkspaceSheet open={sheet === 'workspace'} onClose={() => setSheet(null)} />
       {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} path={pathname} />}
       <div className="toasts" role="status" aria-live="polite">

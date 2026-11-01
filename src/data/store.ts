@@ -1,7 +1,8 @@
 import type { Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
-import { seed } from './seed';
+import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
 
-export const EXAMPLE: Workspace = { id: 'example', name: 'Example: Developer Platform', kind: 'example', createdAt: '2026-01-01T00:00:00.000Z' };
+export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
+const exampleBuild = (id: string) => EXAMPLES.find((e) => e.workspace.id === id)?.build;
 
 /** One save: the records that leave draft, and the change-log entries that describe them. */
 export interface Commit {
@@ -32,8 +33,10 @@ export interface Store {
   /** Saves records and their change-log entries together. A check-in replaces any for the same goal and week. */
   commit(workspaceId: string, c: Commit): Promise<void>;
   createWorkspace(ws: Workspace, data: Snapshot): Promise<void>;
-  /** Starts the example again from the demo data. Only the demo has one. */
-  resetExample(): Promise<Snapshot>;
+  /** Starts an example workspace again from its demo data. Only the demo has examples. */
+  resetExample(id?: string): Promise<Snapshot>;
+  /** Deletes a workspace someone set up, and everything in it. Examples can only be reset. */
+  deleteWorkspace(id: string): Promise<void>;
 }
 
 /** Applies a commit to a snapshot. Shared by the browser store and the app's optimistic update. */
@@ -93,14 +96,15 @@ export class BrowserStore implements Store {
 
   async workspaces(): Promise<Workspace[]> {
     const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
-    return this.hasExample ? [EXAMPLE, ...own] : own;
+    return this.hasExample ? [...EXAMPLES.map((e) => e.workspace), ...own] : own;
   }
 
   private current(id: string): Snapshot {
     const s = this.memory.get(id) ?? this.get<Snapshot>(`${this.key}:${id}`);
     if (s) return s;
-    if (id !== EXAMPLE.id || !this.hasExample) throw new Error('This workspace no longer exists in this browser.');
-    return this.write(id, seed(this.today()));
+    const build = this.hasExample ? exampleBuild(id) : undefined;
+    if (!build) throw new Error('This workspace no longer exists in this browser.');
+    return this.write(id, build(this.today()));
   }
 
   private write(id: string, s: Snapshot): Snapshot {
@@ -123,9 +127,18 @@ export class BrowserStore implements Store {
     this.write(ws.id, data);
   }
 
-  async resetExample() {
-    if (!this.hasExample) throw new Error('Only the demo has an example to reset.');
-    return structuredClone(this.write(EXAMPLE.id, seed(this.today())));
+  async resetExample(id: string = EXAMPLE.id) {
+    const build = this.hasExample ? exampleBuild(id) : undefined;
+    if (!build) throw new Error('Only the demo has examples to reset.');
+    return structuredClone(this.write(id, build(this.today())));
+  }
+
+  async deleteWorkspace(id: string) {
+    if (exampleBuild(id)) throw new Error('Example workspaces can be reset, not deleted.');
+    const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
+    this.put(this.key + ':workspaces', own.filter((w) => w.id !== id));
+    this.memory.delete(id);
+    try { localStorage.removeItem(`${this.key}:${id}`); } catch { /* storage blocked */ }
   }
 }
 

@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-01 20:49 UTC.
+Run 2026-11-01 22:09 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -24,6 +24,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
 | 15 | Call it greener than the numbers, with a reason, in the status sheet | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 8) |
 | 16 | Home by responsibility, and the 4-tab navigation trial | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 2 (budget 4) |
+| 17 | Demo data sets, presenting without the bar, and deleting a workspace | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 12) |
+| 18 | Set a year goal and its plan numbers by hand | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -42,7 +44,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
-| ✅ | **PLAN-SHAPE** Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint. | Plans | 3 | U4 |
+| ✅ | **PLAN-SHAPE** Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint. | Plans | 3 | U4, U18 |
 | ✅ | **FORECAST** Forecast is the last three weeks' slope projected to the end of the cycle, and only shown with enough data. | Plans | 2 | — |
 | ✅ | **REBASELINE** Changing a plan after check-ins start re-baselines it and keeps the original visible. | Plans | 1 | U6, U7 |
 | ✅ | **PLAN-CHANGE** Once check-ins have started, the owner (or an admin) can change the plan directly, with a reason. The original plan stays on the chart and the change and reason are logged and shown to watchers. No approval step. | Plans | 0 | U7 |
@@ -63,7 +65,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **OWNER-ONLY** Only the goal's owner can post its check-in. | Check-in | 0 | U9 |
 | ✅ | **STALE** No owner check-in for 14 days shows as Stale, never as on track. | Status rules | 6 | U2, U8 |
 | ✅ | **HIERARCHY** A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses. | Goals | 3 | U4, U9 |
-| ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | U4 |
+| ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | U4, U18 |
 | ✅ | **GOAL-PAGE** The goal page shows status strip, why, path to green, chart with plan/forecast/path back, and check-in history. | Goals | 0 | U6 |
 | ✅ | **PERSIST** Changes are saved and survive a reload; demo data can be reset. | Platform | 0 | U1 |
 | ✅ | **PHONE** Every screen works at phone width (390px) with no horizontal scrolling. | Platform | 0 | P3 |
@@ -74,11 +76,11 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **REVIEW** A review walks its goals worst and stalest first, one goal page at a time, with next and previous. | Reviews | 0 | U3 |
 | ✅ | **CHANGE-LOG** Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. | Change log | 0 | U1, U3, U4, U5, U11, U6, U7, U13, U14, U10 |
 | ✅ | **DRAFTS** Unsaved answers survive leaving a flow and are offered back when the user returns. | Focus | 0 | U1, U4 |
-| ✅ | **WORKSPACES** The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back. | Data | 0 | U5 |
+| ✅ | **WORKSPACES** The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back. | Data | 0 | U5, U17 |
 | ✅ | **MOTION** Motion is subtle and never blocks; it switches off under reduced motion. Loading shows a skeleton, not a blank page. | Platform | 0 | P1, P2 |
 | ✅ | **OUTCOME-TREE** Goals are shown as trees: each goal that feeds nothing heads a tree, with what feeds it worst first; team goals that are not linked are flagged. | Goals | 0 | U3 |
 | ✅ | **INSPECT-ACT** On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on. | Reviews | 0 | U3 |
-| ✅ | **DEMO-MODE** The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls. | Demo | 0 | U11, U12 |
+| ✅ | **DEMO-MODE** The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls. | Demo | 0 | U11, U12, U17 |
 | ✅ | **ONBOARDING** An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it. It ends with the one next thing to do. | Onboarding | 0 | U5, U11 |
 | ✅ | **IDENTITY** Until sign-in comes with SSO, someone opening a workspace on a new device says who they are once, and lands on their own home. | Onboarding | 0 | U11 |
 | ✅ | **LEVELS** Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged. | Goals | 0 | U4, U9, U13 |

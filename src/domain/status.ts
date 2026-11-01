@@ -1,5 +1,5 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
-import { daysSince, currentWeek, forecast, planAt, type Point } from './plan';
+import { daysSince, currentWeek, forecast, planAt, type Point, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
 
 export const RANK: Record<DisplayStatus, number> = { done: 0, planned: 0, none: 0, on: 1, risk: 2, stale: 2, off: 3 };
@@ -73,7 +73,8 @@ export function assessMetric(goal: MetricGoal, weeks: number, week: number, actu
   const { start, target } = goal.plan;
   const plan = planAt(goal.plan, week, weeks);
   const series = actual == null ? history : [...history.filter((p) => p.week < week), { week, value: actual }];
-  const fc = forecast(series, weeks);
+  // Project to when the target is due: the cycle's end, or later for a goal that runs to the end of the year.
+  const fc = forecast(series, planEnd(goal.plan, weeks));
   const dir = Math.sign(target - start);
   const base = { kind: 'metric' as const, week, plan, target, actual, forecast: fc, forecastMisses: fc != null && (fc - target) * dir < 0 };
   if (week === 0) return { ...base, calc: 'planned', ratio: null, ahead: false, behind: false };

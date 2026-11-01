@@ -222,3 +222,31 @@ describe('goals set up mid-cycle', () => {
     expect(planAt(g.plan, cycle.weeks, cycle.weeks)).toBe(80);
   });
 });
+
+describe('year goals and plan numbers', () => {
+  it('a goal can run to the end of the year, and its plan and projection use that end', async () => {
+    const { blankGoal } = await import('./goal');
+    const { planAt, yearEndWeek } = await import('./plan');
+    const yearEnd = yearEndWeek(cycle);
+    const d = { ...blankGoal('devex', 'sam', ''), title: 'Docs with an owner', start: '40', target: '80', endWeek: String(yearEnd) };
+    const g = buildGoal(d, cycle, { id: 'g', createdAt: '' }, null, false, 7) as MetricGoal;
+    expect(g.plan.endWeek).toBe(yearEnd);
+    expect(planAt(g.plan, cycle.weeks, cycle.weeks)).toBeLessThan(80);
+    expect(planAt(g.plan, yearEnd, cycle.weeks)).toBe(80);
+  });
+  it('plan numbers typed by hand are the plan, and the rest keep their defaults', async () => {
+    const { blankGoal } = await import('./goal');
+    const { planAt } = await import('./plan');
+    const d = { ...blankGoal('devex', 'sam', ''), title: 'Docs with an owner', start: '0', target: '130', points: { '5': '20' } };
+    const g = buildGoal(d, cycle, { id: 'g', createdAt: '' }, null, false, 0) as MetricGoal;
+    expect(g.plan.points).toHaveLength(cycle.weeks - 1);
+    expect(planAt(g.plan, 5, cycle.weeks)).toBe(20);
+    expect(planAt(g.plan, 6, cycle.weeks)).toBe(60);
+  });
+  it('a year goal carries into the next cycle with its plan, counted from the new start', () => {
+    const year: MetricGoal = { ...(goal('lead') as MetricGoal), id: 'yr', plan: { start: 4, target: 2, shape: 'straight', endWeek: 30 } };
+    const { goals: next } = nextCycle(cycle, [year], [], [], { cycle: 'c2', goal: (g) => g.id + '-2' }, '');
+    const carried = next[0] as MetricGoal;
+    expect(carried.plan).toMatchObject({ start: 4, target: 2, fromWeek: -cycle.weeks, endWeek: 30 - cycle.weeks });
+  });
+});

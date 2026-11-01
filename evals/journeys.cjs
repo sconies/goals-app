@@ -715,6 +715,74 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   await p.context().close();
 }, ['errors', 'logged']);
 
+journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without the bar, and deleting a workspace', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'maya'));
+  await p.goto(url('/workspace'));
+  // Four example workspaces to choose from.
+  for (const name of ['Developer Platform', 'Customer Support', 'B2B Sales', 'Product Growth']) await see(p, 'Example: ' + name);
+  await h.inView(p.getByRole('button', { name: /Example: Customer Support/ }), 'entry', 'the Customer Support example');
+  await h.checkpoint('workspaces');
+  await h.click(p.getByRole('button', { name: /Example: Customer Support/ }));
+  await p.goto(url('/goals'));
+  await see(p, 'Customer satisfaction (CSAT)', 'the Customer Support example has its own goals');
+  h.set('attention', await p.locator('.outcome-card').count() >= 1, 'the example has no trees');
+  // Presenting: the demo without the "Viewing as" bar.
+  await p.goto(url('/?present'));
+  await p.locator('.page-head').first().waitFor();
+  h.set('progress', (await p.locator('.rolebar').count()) === 0, 'the demo bar still shows when presenting');
+  await p.goto(url('/?present=0'));
+  await p.locator('.rolebar').waitFor();
+  // Set up a workspace, then delete it: typing its name is required.
+  await p.evaluate(() => {
+    const ws = { id: 'ws_temp', name: 'Temp team', kind: 'own', createdAt: '2026-10-01T00:00:00Z' };
+    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([ws]));
+    const ex = JSON.parse(localStorage.getItem('goals-app-v2:example'));
+    localStorage.setItem('goals-app-v2:ws_temp', JSON.stringify({ ...ex, people: ex.people.map((x) => ({ ...x, admin: x.id === 'maya' ? true : x.admin })) }));
+    localStorage.setItem('goals-app-workspace', 'ws_temp');
+  });
+  await p.goto(url('/workspace'));
+  await h.click(p.getByRole('button', { name: /Delete Temp team/ }));
+  h.set('errors', await p.getByRole('button', { name: 'Delete it for good' }).isDisabled(), 'deleting does not ask for the name first');
+  await h.fill(p.getByLabel('Type Temp team to confirm'), 'Temp team');
+  await h.checkpoint('delete');
+  await h.click(p.getByRole('button', { name: 'Delete it for good' }));
+  await see(p, 'Deleted Temp team');
+  const left = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-app-v2:workspaces') || '[]').length);
+  h.set('finish', left === 0 && !(await p.evaluate(() => localStorage.getItem('goals-app-v2:ws_temp'))), 'the workspace was not removed');
+  await p.context().close();
+}, ['logged']);
+
+journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE'], 'Set a year goal and its plan numbers by hand', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'kofi'));
+  await p.goto(url('/goals/new'));
+  await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.inView(p.getByRole('button', { name: /End of the year|A year from now/ }), 'entry', 'the choice of when the target is due');
+  await h.click(p.getByRole('button', { name: /End of the year|A year from now/ }));
+  await h.fill(p.getByLabel('Unit'), '%');
+  await h.fill(p.getByLabel(/^Today \(week/), '20');
+  await h.fill(p.getByLabel(/^Target \(week/), '90');
+  // The plan is a table of numbers, with the shape's defaults; type over one.
+  const row = p.getByLabel(/^Plan for week \d+/).first();
+  await row.waitFor();
+  h.set('attention', (await p.getByLabel(/^Plan for week \d+/).count()) >= 3 && /\d/.test((await row.getAttribute('placeholder')) || ''), 'the plan table has no default numbers');
+  await h.fill(row, '30');
+  await h.checkpoint('plan table');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await see(p, 'with plan numbers set by hand', 'the summary says the plan was set by hand');
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/goal_/);
+  await h.click(p.getByRole('tab', { name: 'Details' }));
+  await see(p, 'Plan and actual by week');
+  const s = await h.snapshot();
+  const g = s.goals.find((x) => x.title === 'Runbooks with an owner');
+  h.set('logged', !!g && g.plan.endWeek > 13 && g.plan.points?.some((pt) => pt.value === 30), 'the year end or the hand-set number was not saved');
+  h.set('progress', true);
+  h.set('finish', true);
+  await p.context().close();
+}, ['errors']);
+
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
   const out = [];

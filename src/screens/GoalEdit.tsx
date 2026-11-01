@@ -8,6 +8,9 @@ import { buildGoal, draftOf, planChanged, validateGoal, type GoalDraft, type Goa
 import type { Goal, Level, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
+import { PlanTable } from '../ui/PlanTable';
+import { weekDates, yearEndWeek } from '../domain/plan';
+import { parseNumber } from '../domain/checkin';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
 const LEVELS: [Level, string][] = [['team', 'Most goals'], ['svp', 'Reported at SVP reviews'], ['north-star', 'Reported at the top']];
@@ -38,6 +41,13 @@ function EditSheet({ goal }: { goal: Goal }) {
   const valid = Object.keys(errors).length === 0;
   const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
   const replanning = !!built && started && planChanged(goal, built);
+  // When the target is due, and the plan from the shape (before any numbers typed by hand), for the plan table.
+  const yearEnd = yearEndWeek(cycle);
+  const endOptions: [number, string][] = [[cycle.weeks, 'End of the cycle'], yearEnd > cycle.weeks ? [yearEnd, 'End of the year'] : [52, 'A year from now']];
+  const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
+  const shapedPlan = goal.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null && parseNumber(d.start) !== parseNumber(d.target)
+    ? { start: parseNumber(d.start) as number, target: parseNumber(d.target) as number, shape: d.shape, ...(goal.plan.fromWeek ? { fromWeek: goal.plan.fromWeek } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) }
+    : null;
   const reasonOk = d.reason.trim().length >= MIN_REASON;
   const below = new Set<string>();
   const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { if (below.has(c.id) || c.id === goal.id) continue; below.add(c.id); walk(c.id); } };
@@ -95,6 +105,14 @@ function EditSheet({ goal }: { goal: Goal }) {
                   {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}
                 </div>
               </div>
+              <div className="field"><span className="field-label" id="end-l">When it’s due</span>
+                <div className="seg full" role="group" aria-labelledby="end-l">
+                  {endOptions.map(([w, l]) => <button key={w} type="button" aria-pressed={endChoice === w} onClick={() => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })}>{l}</button>)}
+                </div>
+                <span className="hint">Week {endChoice}, {weekDates(cycle, endChoice)}.</span>
+              </div>
+              {shapedPlan && <PlanTable plan={shapedPlan} unit={{ unit: d.unit, decimals: parseNumber(d.decimals) ?? 0 }} typed={d.points} onType={(w, v) => set({ points: { ...d.points, [String(w)]: v } })} onReset={() => set({ points: {} })} />}
+              {err('points')}
             </>
           )}
           {goal.kind === 'range' && (

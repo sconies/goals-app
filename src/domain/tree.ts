@@ -65,5 +65,5 @@ export function forecastText(goal: Goal, a: Assessment, weeks: number): { text: 
   const gap = a.forecast - goal.plan.target;
   return a.forecastMisses
     ? { text: `Projected end of cycle: ${fmt(a.forecast, goal)}, ${fmtDiff(gap, goal)} ${gap > 0 ? 'above' : 'below'} the ${fmt(goal.plan.target, goal)} target. An estimate from the recent trend.`, warn: true }
-    : { text: `Projected to reach the ${fmt(goal.plan.target, goal)} target by week ${weeks}, on the recent trend.`, warn: false };
+    : { text: `Projected to reach the ${fmt(goal.plan.target, goal)} target by week ${goal.plan.endWeek ?? weeks}, on the recent trend.`, warn: false };
 }

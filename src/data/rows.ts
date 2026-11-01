@@ -11,7 +11,7 @@ export interface StageRow extends W { id: string; goal_id: string; name: string;
 export interface GoalRow extends W {
   id: string; cycle_id: string; team_id: string; owner_id: string; parent_id: string | null; title: string;
   kind: Goal['kind']; io: Goal['io']; headline: boolean; level: Level; guardrail: boolean; effect: number | null; why_helps?: string | null; source: string; definition: string;
-  unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null;
+  unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null; plan_end_week?: number | null; plan_points?: MetricPlan['points'] | null;
   original_plan: MetricPlan | null; rebaselined_week: number | null; range_bound: 'atMost' | 'atLeast' | null; range_limit: number | null;
   range_margin: number | null; created_at: string; pending?: Goal['pending'];
 }
@@ -45,7 +45,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     id: g.id, cycle_id: g.cycleId, team_id: g.teamId, owner_id: g.ownerId, parent_id: g.parentId, title: g.title, kind: g.kind, io: g.io,
     headline: false, level: g.level, guardrail: g.guardrail, effect: g.effect, why_helps: g.whyHelps ?? null, source: g.source, definition: g.definition,
     unit: g.kind === 'milestone' ? null : g.unit, decimals: g.kind === 'milestone' ? null : g.decimals,
-    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : null,
+    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : null, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
     created_at: g.createdAt || new Date().toISOString(),
@@ -65,7 +65,7 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     const op = r.original_plan;
     return {
       ...common, kind: 'metric', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0),
-      plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}) },
+      plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
       originalPlan: op ? { start: Number(op.start), target: Number(op.target), shape: op.shape } : null, rebaselinedWeek: r.rebaselined_week,
     };
   }

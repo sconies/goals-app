@@ -40,10 +40,38 @@ export function shapeProgress(shape: PlanShape, week: number, weeks: number): nu
   return w / weeks;
 }
 
+/** The week a plan's target is due: its own end week, or the cycle's end. */
+export const planEnd = (plan: MetricPlan, weeks: number) => plan.endWeek ?? weeks;
+
 export function planAt(plan: MetricPlan, week: number, weeks: number): number {
-  const from = Math.min(plan.fromWeek ?? 0, weeks - 1);
+  const end = planEnd(plan, weeks);
+  const from = Math.min(plan.fromWeek ?? 0, end - 1);
   if (week <= from) return plan.start;
-  return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week - from, weeks - from);
+  if (week >= end) return plan.target;
+  if (plan.points?.length) {
+    // Numbers set by hand: straight lines between the start, each checkpoint and the target.
+    const pts = [{ week: from, value: plan.start }, ...plan.points.filter((p) => p.week > from && p.week < end).sort((a, b) => a.week - b.week), { week: end, value: plan.target }];
+    const i = pts.findIndex((p) => p.week >= week);
+    const a = pts[i - 1]!, b = pts[i]!;
+    return a.value + (b.value - a.value) * ((week - a.week) / (b.week - a.week));
+  }
+  return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week - from, end - from);
+}
+
+/** The checkpoints a plan table shows: every week for a cycle-length plan, every four weeks for a longer one, and the end. */
+export function planCheckpoints(from: number, end: number): number[] {
+  const step = end - from > 16 ? 4 : 1;
+  const out: number[] = [];
+  for (let w = from + step; w < end; w += step) out.push(w);
+  out.push(end);
+  return out;
+}
+
+/** The week of 31 December in the year a cycle starts, counted from the cycle's start (at least 1). */
+export function yearEndWeek(cycle: Cycle): number {
+  const start = Date.parse(cycle.startDate + 'T00:00:00Z');
+  const dec31 = Date.UTC(new Date(start).getUTCFullYear(), 11, 31);
+  return Math.max(1, Math.floor((dec31 - start) / (7 * 86_400_000)));
 }
 
 export interface Point {

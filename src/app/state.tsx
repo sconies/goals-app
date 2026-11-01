@@ -25,6 +25,8 @@ export interface AppState {
   switchWorkspace(id: string): void;
   createWorkspace(name: string, data: Snapshot, meId?: string): Promise<string>;
   resetExample(): Promise<void>;
+  /** Admins: delete the open workspace (not an example) and everything in it, then open another. */
+  deleteWorkspace(): Promise<void>;
   snapshot: Snapshot;
   cycle: Cycle;
   week: number;
@@ -203,9 +205,20 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
-        const s = await store.resetExample();
-        if (wsId === EXAMPLE.id) setSnapshot(s);
+        const s = await store.resetExample(ws.kind === 'example' ? ws.id : EXAMPLE.id);
+        if (ws.kind === 'example') setSnapshot(s);
         toast('The example is back to its starting point');
+      },
+      deleteWorkspace: async () => {
+        if (ws.kind === 'example') throw new Error('Examples can be reset, not deleted.');
+        await store.deleteWorkspace(ws.id);
+        const rest = workspaces.filter((w) => w.id !== ws.id);
+        setWorkspaces(rest);
+        const next = rest[0]?.id ?? null;
+        write(K.ws, next ?? '');
+        setSnapshot(null);
+        setWsId(next);
+        toast(`Deleted ${ws.name}`);
       },
       setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),

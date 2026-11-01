@@ -44,8 +44,12 @@ export interface MetricPlan {
   start: number;
   target: number;
   shape: PlanShape;
-  /** The week the plan starts from: 0, or the week a goal was set up mid-cycle. */
+  /** The week the plan starts from: 0, or the week a goal was set up mid-cycle. Negative once carried into a later cycle. */
   fromWeek?: number;
+  /** The week the target is due, counted from this cycle's start: the cycle's end unless the goal runs longer (e.g. to the end of the year). */
+  endWeek?: number;
+  /** Plan numbers set by hand at checkpoints between the start and the end. When present, the plan runs straight between them instead of following the shape. */
+  points?: { week: number; value: number }[];
 }
 
 export interface RangePlan {

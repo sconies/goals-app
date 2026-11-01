@@ -130,4 +130,16 @@ export class SupabaseStore implements Store {
     throw new Error('Only the demo has an example to reset.');
   }
 
+  /** Removes a workspace and everything in it. The tables don't cascade from the workspace, so children go first. */
+  async deleteWorkspace(ws: string) {
+    if (ws === EXAMPLE.id) throw new Error('The example can’t be deleted.');
+    // People and teams point at each other; clear those links before deleting either.
+    await this.must(this.db.from('okr_teams').update({ lead_id: null }).eq('workspace_id', ws), 'Unlinking teams');
+    await this.must(this.db.from('okr_goals').update({ parent_id: null }).eq('workspace_id', ws), 'Unlinking goals');
+    for (const t of ['okr_feedback', 'okr_retros', 'okr_watches', 'okr_decisions', 'okr_check_ins', 'okr_stages', 'okr_changes', 'okr_reviews', 'okr_goals', 'okr_cycles', 'okr_people', 'okr_teams']) {
+      await this.must(this.db.from(t).delete().eq('workspace_id', ws), 'Deleting the workspace');
+    }
+    await this.must(this.db.from('okr_workspaces').delete().eq('id', ws), 'Deleting the workspace');
+  }
+
 }

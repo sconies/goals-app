@@ -650,3 +650,16 @@ h1[tabindex='-1']:focus { outline: none; }
 .change-reason { display: block; font-size: 12px; font-weight: 600; color: var(--risk-fg); padding: var(--s2) var(--s4) 0; }
 .why-helps { margin: 0; }
 .compact-opts .opt { min-height: 44px; }
+.danger-zone { border-top: 1px solid var(--line); padding-top: var(--s5); }
+.btn.danger { border-color: var(--off-line); color: var(--off-fg); background: var(--surface); }
+.btn.danger:not(:disabled):hover { background: var(--off-bg); }
+.plantable { display: flex; flex-direction: column; gap: var(--s2); }
+.plantable table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.plantable th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.plantable td { padding: 4px 8px; border-top: 1px solid var(--line-2); height: 40px; }
+.plantable .num { text-align: right; }
+.plantable .muted-row td { color: var(--muted); }
+.plantable .now-row td { background: var(--accent-soft); }
+.plantable .cycle-end-row td { border-bottom: 2px solid var(--line-strong); }
+.plan-input { width: 96px; min-height: 34px; text-align: right; padding: 4px 8px; }
+.plan-input.edited { border-color: var(--accent); font-weight: 650; }

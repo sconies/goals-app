@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
-import { blankGoal, buildGoal, draftOf, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
+import { blankGoal, buildGoal, draftOf, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
 import { fmt, LEVEL_LABEL } from '../domain/format';
 import type { Goal, GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
 
@@ -12,6 +12,8 @@ const LEVEL_RANK: Record<Level, number> = { 'north-star': 0, svp: 1, team: 2 };
 import { newId } from '../data/store';
 import { Empty, Steps } from '../ui/bits';
 import { MetricChart } from '../ui/charts';
+import { PlanTable } from '../ui/PlanTable';
+import { weekDates, yearEndWeek } from '../domain/plan';
 
 const KINDS: [GoalKind, string, string, string][] = [
   ['metric', 'Move a number', 'From where it is to where it should be', 'e.g. Lead time from 4.2 to 2 days'],
@@ -23,7 +25,7 @@ const SHAPES: [PlanShape, string, string][] = [
   ['back', 'Back-loaded', 'Slow start, faster once work lands'],
   ['stepped', 'In steps', 'Jumps as each release ships'],
 ];
-const STEP_FIELDS: (keyof GoalErrors)[][] = [['title'], ['start', 'target', 'limit', 'margin', 'decimals', 'stages'], ['teamId', 'ownerId', 'effect'], []];
+const STEP_FIELDS: (keyof GoalErrors)[][] = [['title'], ['start', 'target', 'limit', 'margin', 'decimals', 'stages', 'points'], ['teamId', 'ownerId', 'effect'], []];
 const STEP_LABELS = ['What', 'Measure', 'Where it fits', 'Check and publish'];
 
 export function GoalWizard() {
@@ -39,6 +41,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const nav = useNavigate();
   const { cycle, week } = app;
   const started = existing ? app.checkInsOf(existing).length > 0 : false;
+  // When the target is due: the end of the cycle, or the end of the year (a year goal carries across cycles).
+  const yearEnd = yearEndWeek(cycle);
   const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
   const defaultParent = app.goal(params.get('parent') ?? '')?.id ?? '';
   const defaultTeam = app.viewer.teamId ?? app.snapshot.teams[0]?.id ?? '';
@@ -47,6 +51,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const step = d.step;
+  const endOptions: [number, string][] = [[cycle.weeks, `End of the cycle`], yearEnd > cycle.weeks ? [yearEnd, 'End of the year'] : [52, 'A year from now']];
+  const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
   const errors = validateGoal(d, cycle);
   const stepErrors = (i: number) => STEP_FIELDS[i]!.filter((k) => errors[k]);
   const showErr = (k: keyof GoalErrors) => tried.includes(step) && errors[k] ? <span className="tiny tone-off" role="alert">{errors[k]}</span> : null;
@@ -85,7 +91,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
     return {
       id: 'preview', cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title || 'New goal', io: d.io, level: d.level, guardrail: d.guardrail,
       parentId: null, effect: null, source: '', definition: '', createdAt: '', kind: 'metric', unit: d.unit, decimals: parseNumber(d.decimals) ?? 0,
-      plan: { start: s, target: t, shape: d.shape, ...(prev ? (prev.plan.fromWeek ? { fromWeek: prev.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}) },
+      plan: { start: s, target: t, shape: d.shape, ...(prev ? (prev.plan.fromWeek ? { fromWeek: prev.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) },
       originalPlan: prev && started && changed ? prev.originalPlan ?? prev.plan : prev?.originalPlan ?? null, rebaselinedWeek: null,
     };
   })();
@@ -139,10 +145,16 @@ function Wizard({ existing }: { existing: Goal | null }) {
             )}
             {d.kind === 'metric' && (
               <>
+                <div className="field"><span className="small strong" id="end-l">By when?</span>
+                  <div className="seg full" role="group" aria-labelledby="end-l">
+                    {endOptions.map(([w, l]) => <button key={w} type="button" aria-pressed={endChoice === w} onClick={() => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })}>{l}</button>)}
+                  </div>
+                  <span className="hint">Due week {endChoice}, {weekDates(cycle, endChoice)}.{endChoice > cycle.weeks ? ' It carries into the next cycle with this plan.' : ''}</span>
+                </div>
                 <div className="row" style={{ alignItems: 'flex-start' }}>
                   <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Today (week {existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>
                   <span className="arrow" aria-hidden="true">→</span>
-                  <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Target (week {cycle.weeks})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}</label>
+                  <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}</label>
                 </div>
                 <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
                   <legend className="small strong" style={{ marginBottom: 8 }}>How will progress come?</legend>
@@ -152,10 +164,12 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 </fieldset>
                 {preview ? (
                   <figure className="card" style={{ margin: 0 }} aria-label="Plan preview">
-                    <MetricChart goal={preview} weeks={cycle.weeks} week={week} series={existing ? app.checkInsOf(existing).filter((c) => c.value != null).map((c) => ({ week: c.week, value: c.value as number })) : []} forecast={null} height={170} />
+                    <MetricChart goal={{ ...preview, plan: withPoints(preview.plan, d.points, cycle.weeks) }} weeks={cycle.weeks} week={week} series={existing ? app.checkInsOf(existing).filter((c) => c.value != null).map((c) => ({ week: c.week, value: c.value as number })) : []} forecast={null} height={170} />
                     <figcaption className="tiny muted">The blue line is the weekly plan that status is judged against.</figcaption>
                   </figure>
                 ) : <p className="small muted">Enter both numbers to see the plan.</p>}
+                {preview && <PlanTable plan={preview.plan} unit={unitFmt} typed={d.points} onType={(w, v) => set({ points: { ...d.points, [String(w)]: v } })} onReset={() => set({ points: {} })} />}
+                {showErr('points')}
                 {rebaseline && <div className="card warn small">Check-ins have started, so this re-baselines the plan from week {week}. The original stays on the chart, dotted, and the change is logged.</div>}
               </>
             )}
@@ -236,7 +250,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
               <span className="h3">{d.title || 'Untitled goal'}</span>
               <p>
                 <strong>{owner?.name ?? 'Someone'}</strong> owns it and checks in weekly. {d.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null
-                  ? <>It moves from <strong>{fmt(parseNumber(d.start)!, unitFmt)}</strong> to <strong>{fmt(parseNumber(d.target)!, unitFmt)}</strong> by week {cycle.weeks}, {SHAPES.find((s) => s[0] === d.shape)?.[1].toLowerCase()}.</>
+                  ? <>It moves from <strong>{fmt(parseNumber(d.start)!, unitFmt)}</strong> to <strong>{fmt(parseNumber(d.target)!, unitFmt)}</strong> by week {endChoice} ({weekDates(cycle, endChoice)}), {Object.values(d.points).some((v) => v.trim()) ? 'with plan numbers set by hand' : SHAPES.find((s) => s[0] === d.shape)?.[1].toLowerCase()}.</>
                   : d.kind === 'range' && parseNumber(d.limit) != null ? <>It stays {d.bound === 'atMost' ? 'at or under' : 'at or above'} <strong>{fmt(parseNumber(d.limit)!, unitFmt)}</strong>, with a warning within {d.margin || 0}.</>
                     : d.kind === 'milestone' ? <>{d.stages.filter((s) => s.name).length} stages, the last due week {Math.max(0, ...d.stages.map((s) => parseNumber(s.dueWeek) ?? 0))}.</> : null}
               </p>

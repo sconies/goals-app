@@ -8,6 +8,8 @@ import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import type { Change, Goal } from '../domain/types';
 import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
+import { PlanTable } from '../ui/PlanTable';
+import { weekDates } from '../domain/plan';
 import { ReviewBar, ReviewCallBar, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 
@@ -229,11 +231,12 @@ function GoalView({ goal }: { goal: Goal }) {
             ))}
           </ol>
         ) : <p className="small muted">No check-ins yet.</p>)}
+        {tab === 'details' && goal.kind === 'metric' && <PlanTable plan={goal.plan} unit={goal} actuals={own} label="Plan and actual by week" />}
         {tab === 'details' && (
           <dl className="details">
             <dt>Kind</dt><dd>{kindLabel(goal)}</dd>
             {goal.definition && <><dt>Definition</dt><dd>{goal.definition}</dd></>}
-            {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {cycle.weeks}, {directionLabel(goal)}</dd><dt>Plan</dt><dd>{goal.plan.shape === 'back' ? 'Back-loaded' : goal.plan.shape === 'stepped' ? 'Three steps' : 'Straight line'}</dd></>}
+            {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {goal.plan.endWeek ?? cycle.weeks} ({weekDates(cycle, goal.plan.endWeek ?? cycle.weeks)}){(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}</dd><dt>Plan</dt><dd>{goal.plan.points?.length ? 'Numbers set by hand' : goal.plan.shape === 'back' ? 'Back-loaded' : goal.plan.shape === 'stepped' ? 'Three steps' : 'Straight line'}</dd></>}
             {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}</dd></>}
             {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ')}</dd></>}
             <dt>Level</dt><dd>{LEVEL_LABEL[goal.level]}{goal.level !== 'team' ? ', reported at major reviews' : ''}</dd>
