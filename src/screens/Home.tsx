@@ -80,6 +80,13 @@ function LeadHome() {
                 <Streak weeks={streak} />
               </div>
             </>
+          ) : mine.length && app.week < 1 ? (
+            <>
+              <span className="eyebrow">The cycle starts this week</span>
+              <h2 className="hero-title">Your first check-in is next week</h2>
+              <span className="muted">{mine.length === 1 ? 'Your goal is' : `Your ${mine.length} goals are`} set. Check in on {mine.length === 1 ? 'it' : 'each'} in week 1, before {WEEKDAY[app.cycle.reviewDay]}’s review.</span>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
+            </>
           ) : mine.length ? (
             <>
               <span className="eyebrow">{reviewWhen(app)}</span>
@@ -141,7 +148,13 @@ function SponsorHome() {
         <ProgressRing done={q.done} total={q.total} size={56} label={`${q.done} of ${q.total} review items handled`} />
         <div className="hero-body">
           <span className="eyebrow">{reviewWhen(app)} · {checkedIn} of {all.length} goals checked in</span>
-          {left ? (
+          {app.week < 1 || !app.snapshot.checkIns.length ? (
+            <>
+              <h2 className="hero-title">Waiting for the first check-ins</h2>
+              <span className="muted">{app.week < 1 ? `Owners check in from week 1. Your first review is ${WEEKDAY[app.cycle.reviewDay]} of that week.` : `${checkedIn} of ${all.length} goals checked in so far. Your review is built from them.`}</span>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals">See the goals</Link></div>
+            </>
+          ) : left ? (
             <>
               <h2 className="hero-title">{left === 1 ? '1 thing needs you' : `${left} things need you`}</h2>
               <span className="muted">About {Math.max(1, Math.round(left * 0.75))} min · worst first, one at a time</span>

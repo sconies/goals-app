@@ -75,9 +75,9 @@ function shapeOf(s: string): PlanShape | null {
   return null;
 }
 
-export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; now: Date; idSuffix: string }): ImportResult {
+export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; now: Date; idSuffix: string; reviewDay?: number }): ImportResult {
   const issues: ImportIssue[] = [];
-  const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: input.name.trim() || 'My cycle', startDate: input.startDate, weeks: 13, reviewDay: 3 };
+  const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: input.name.trim() || 'My cycle', startDate: input.startDate, weeks: 13, reviewDay: input.reviewDay ?? 3 };
 
   // People and teams
   const p = records(input.people);

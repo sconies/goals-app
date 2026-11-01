@@ -13,7 +13,10 @@ const AXE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 const DEVICES = { phone: { width: 390, height: 844 }, desktop: { width: 1440, height: 900 } };
 const CRITERIA = ['entry', 'one-action', 'progress', 'budget', 'errors', 'finish', 'attention', 'parity', 'a11y', 'logged'];
 
-const url = (p) => BASE + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=' + TODAY;
+/** The demo: the example data in this browser, with the role switcher. */
+const url = (p) => BASE + '/demo' + p + (p.includes('?') ? '&' : '?') + 'today=' + TODAY;
+/** The real app, with its data kept in this browser (the eval build has no Supabase). */
+const live = (p) => BASE + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=' + TODAY;
 const consoleErrors = [];
 let browser;
 
@@ -280,16 +283,20 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'CHANGE-LOG', 'DRAFTS']
   await p.context().close();
 }, ['attention']);
 
-journey('U5', ['WORKSPACES', 'CHANGE-LOG', 'PROFILES'], 'Load your own data and switch between it and the example', 11, async (h, device) => {
+journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'PROFILES'], 'Load your own data and switch between it and the example', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'priya'));
   await p.goto(url('/'));
   await h.inView(p.getByRole('link', { name: /Load your data/ }), 'entry', 'Load your data');
   await h.checkpoint('coach home');
   await h.click(p.getByRole('link', { name: /Load your data/ }));
-  await h.progressShown('import');
-  await h.fill(p.getByLabel('Workspace name'), 'Platform Engineering');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
-  await see(p, 'Who’s involved?');
+  await h.progressShown('set up');
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Platform Engineering');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.fill(p.getByLabel('Your name'), 'Priya Nair');
+  await h.fill(p.getByLabel('Your team'), 'Leadership');
+  await h.click(p.getByRole('radio', { name: /Goals coach/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'Who else is on it?');
   // A person without a team is explained on their row before anything is saved.
   await p.getByLabel('Person 1: name').fill('Ana Silva');
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Ana Silva has no team.' }).isVisible(), 'a row with no team is not explained');
@@ -301,30 +308,102 @@ journey('U5', ['WORKSPACES', 'CHANGE-LOG', 'PROFILES'], 'Load your own data and 
   });
   if ((await p.getByLabel('Person 2: name').inputValue()) !== 'Ben Ortiz') fail('pasted rows did not fill the table');
   // The Excel template downloads, and uploading it back reads both sheets.
-  const [download] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: /Download the template/ }).click()]);
+  const [download] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: /Download the Excel template/ }).click()]);
   const file = path.join(OUT, `template-${device}.xlsx`);
   await download.saveAs(file);
   await p.locator('input[type=file]').first().setInputFiles(file);
   await see(p, '4 people, plus a goals sheet');
-  h.count; await h.click(p.getByRole('button', { name: /Continue/ }));
-  await see(p, 'Bring them from a spreadsheet');
-  await see(p, 'Deploy lead time');
-  await h.checkpoint('goals');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
+  await h.checkpoint('starting point');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'Deploy lead time', 'the check step shows the outcome from the file');
   await h.checkpoint('check');
   await h.click(p.getByRole('button', { name: 'Create workspace' }));
   await see(p, 'Platform Engineering is ready');
-  h.set('finish', await p.getByRole('link', { name: 'Go to home' }).isVisible(), 'no way on after creating');
-  await h.click(p.getByRole('link', { name: 'Go to home' }));
-  await see(p, 'Chloe', 'home now speaks to the new workspace’s coach');
+  h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no way on after creating');
+  await p.goto(url('/'));
+  await see(p, 'Priya', 'home now speaks to the new workspace’s coach');
   const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
   const s = await h.snapshot(wsId);
-  h.set('logged', !!s && s.changes.some((c) => c.action === 'imported' && /4 people/.test(c.summary)), 'creating the workspace is not logged');
-  await h.click(p.locator('.wsbtn:visible').first());
-  await h.click(p.getByRole('dialog').getByRole('button', { name: /Example: Developer Platform/ }));
+  h.set('logged', !!s && s.changes.some((c) => c.action === 'imported' && /5 people/.test(c.summary)), 'creating the workspace is not logged');
+  await p.locator('.wsbtn:visible').first().click();
+  await p.getByRole('dialog').getByRole('button', { name: /Example: Developer Platform/ }).click();
   await see(p, 'Priya', 'switching back shows the example again');
   await p.context().close();
 }, ['attention']);
+
+journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app: from empty to a filled-in workspace with a template, then a teammate joins', 14, async (h, device) => {
+  const p = h.use(await newPage(device));
+  await p.goto(live('/'));
+  // The empty real app explains itself and offers the demo, with one thing to do.
+  await see(p, 'Weekly goals that stay on track');
+  h.set('attention', await p.getByRole('link', { name: /try the demo/i }).isVisible(), 'the empty app does not offer the demo');
+  await h.inView(p.getByRole('button', { name: 'Set up your workspace' }), 'entry', 'Set up your workspace');
+  await h.checkpoint('welcome');
+  await h.click(p.getByRole('button', { name: 'Set up your workspace' }));
+  await h.progressShown('set up');
+  await p.getByRole('button', { name: 'Next' }).click();
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Give the workspace a name' }).isVisible(), 'an empty name is not explained');
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Growth');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.fill(p.getByLabel('Your name'), 'Rosa Lind');
+  await h.fill(p.getByLabel('Your team'), 'Growth');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await p.getByLabel('Person 1: name').fill('Omar Haddad');
+  await p.getByLabel('Person 1: team').fill('Growth');
+  await p.getByLabel('Person 1: role').selectOption('lead');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Product team/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'What outcome are you after?');
+  if ((await p.getByLabel('Outcome', { exact: true }).inputValue()) !== 'Weekly active users') fail('the template did not fill in the outcome');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'What feeds it?');
+  await h.checkpoint('goals');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  await see(p, 'Growth is ready');
+  h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
+  await h.checkpoint('ready');
+  const ws = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
+  const s = await p.evaluate((w) => JSON.parse(localStorage.getItem('goals-live-v1:' + w) || 'null'), ws);
+  h.set('logged', !!s && s.goals.length === 4 && s.goals.some((g) => g.headline && g.title === 'Weekly active users') && s.changes.some((c) => c.action === 'imported'), 'the new workspace is not saved and logged with its outcome and goals');
+  // The real app has no demo controls, and never shows the example.
+  await p.goto(live('/goals'));
+  await see(p, 'Weekly active users');
+  if (await p.locator('.rolebar').count()) fail('the real app shows the demo role switcher');
+  if (await p.getByText('Example: Developer Platform').count()) fail('the real app shows the example');
+  // A teammate on another device says who they are once, then lands on their own home.
+  const state = await p.context().storageState();
+  const other = await browser.newContext({ viewport: DEVICES[device], storageState: { cookies: [], origins: state.origins.map((o) => ({ ...o, localStorage: o.localStorage.filter((x) => !x.name.startsWith('goals-live-me:')) })) } });
+  const q = await other.newPage();
+  await q.goto(live('/'));
+  await see(q, 'Who are you?');
+  await q.getByRole('button', { name: /Omar Haddad/ }).click();
+  await see(q, 'Omar', 'the teammate lands on their own home');
+  await other.close();
+  await p.context().close();
+});
+
+journey('U12', ['DEMO-MODE'], 'Demo: pick a role, look around, start over, leave', 4, async (h, device) => {
+  const p = h.use(await newPage(device, 'maya'));
+  await p.goto(url('/'));
+  await see(p, 'Example');
+  h.set('attention', await p.locator('.demo-tag:visible').count() > 0, 'the demo is not marked as the demo');
+  await h.checkpoint('demo home');
+  await h.inView(p.getByRole('button', { name: 'Sponsor' }), 'entry', 'the role switcher');
+  await h.click(p.getByRole('button', { name: 'Sponsor' }));
+  await see(p, 'Good', 'the sponsor home opens');
+  h.set('progress', await p.locator('.ring:visible').count() > 0, 'no progress on the sponsor home');
+  // A change in the demo stays in this browser and can be undone in one place.
+  await p.goto(url('/workspace'));
+  await h.click(p.getByRole('button', { name: 'Reset the example' }));
+  await h.click(p.getByRole('button', { name: 'Yes, reset it' }));
+  await see(p, 'The example is back to its starting point');
+  h.set('finish', true);
+  await p.context().close();
+}, ['errors', 'logged']);
 
 journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], 'Understand a goal and its change history', 3, async (h, device) => {
   const p = h.use(await newPage(device, 'maya'));
@@ -492,7 +571,7 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['maya', '/'], ['elena', '/'], ['priya', '/'], ['tom', '/'], ['maya', '/goals'], ['maya', '/goals/head'], ['maya', '/goals/access'], ['maya', '/activity'], ['maya', '/workspace'], ['elena', '/review'], ['leo', '/check-in'], ['sam', '/goals/lead/edit']]) {
+    for (const [who, route] of [['maya', '/'], ['elena', '/'], ['priya', '/'], ['tom', '/'], ['maya', '/goals'], ['elena', '/goals'], ['maya', '/goals/head'], ['maya', '/goals/access'], ['maya', '/activity'], ['maya', '/workspace'], ['elena', '/review'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['priya', '/workspace/new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:example', w), who);
       await r.reload();

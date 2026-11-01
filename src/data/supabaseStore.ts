@@ -5,7 +5,6 @@ import {
   personFromRow, personToRow, teamFromRow, teamToRow, workspaceFromRow, workspaceToRow,
   type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow,
 } from './rows';
-import { seed } from './seed';
 import { EXAMPLE, type Commit, type Store } from './store';
 
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
@@ -23,9 +22,11 @@ const timedFetch: typeof fetch = (input, init) => {
 /** Shared records in Supabase's okr_ tables, one workspace at a time. Seeds the example the first time it is empty. */
 export class SupabaseStore implements Store {
   readonly kind = 'supabase' as const;
+  /** The real app's data. The example lives in the demo, in each visitor's browser. */
+  readonly hasExample = false;
   private readonly db: SupabaseClient;
 
-  constructor(url: string, key: string, private readonly today: () => Date = () => new Date(), client?: SupabaseClient) {
+  constructor(url: string, key: string, client?: SupabaseClient) {
     this.db = client ?? createClient(url, key, { auth: { persistSession: false }, global: { fetch: timedFetch } });
   }
 
@@ -48,7 +49,7 @@ export class SupabaseStore implements Store {
     const { data, error } = await this.db.from('okr_workspaces').select('*').order('created_at');
     if (error) throw new Error('Workspaces: ' + error.message);
     const list = ((data ?? []) as WorkspaceRow[]).map(workspaceFromRow);
-    return [EXAMPLE, ...list.filter((w) => w.id !== EXAMPLE.id)];
+    return list.filter((w) => w.kind !== 'example' && w.id !== EXAMPLE.id);
   }
 
   async load(ws: string): Promise<Snapshot> {
@@ -57,7 +58,7 @@ export class SupabaseStore implements Store {
       this.all<GoalRow>('okr_goals', ws), this.all<StageRow>('okr_stages', ws), this.all<CheckInRow>('okr_check_ins', ws),
       this.all<DecisionRow>('okr_decisions', ws), this.all<ChangeRow>('okr_changes', ws),
     ]);
-    if (!cycles.length && ws === EXAMPLE.id) return this.resetExample();
+    if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     return {
       teams: teams.map(teamFromRow),
       people: people.map(personFromRow),
@@ -111,12 +112,7 @@ export class SupabaseStore implements Store {
   }
 
   async resetExample(): Promise<Snapshot> {
-    const ws = EXAMPLE.id;
-    const s = seed(this.today());
-    for (const t of ['okr_changes', 'okr_decisions', 'okr_check_ins', 'okr_stages', 'okr_goals', 'okr_cycles', 'okr_people', 'okr_teams']) {
-      await this.must(this.db.from(t).delete().eq('workspace_id', ws), 'Clearing ' + t);
-    }
-    await this.insertAll(ws, s);
-    return s;
+    throw new Error('Only the demo has an example to reset.');
   }
+
 }

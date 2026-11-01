@@ -193,7 +193,7 @@ export function OutcomeCard({ node, compact }: { node: TreeNode; compact?: boole
   const req = requestOf(g, app.attentionOf(g), app);
   const asksYou = app.viewer.profile === 'sponsor' && (!!req.proposal || !!req.pending || !!req.needs);
   const feed = descendants(node);
-  const counts = (['off', 'risk', 'stale', 'on', 'done'] as const).map((k) => [k, feed.filter((c) => app.statusOf(c).status === k).length] as const).filter(([, n]) => n);
+  const counts = (['off', 'risk', 'stale', 'on', 'done', 'planned'] as const).map((k) => [k, feed.filter((c) => app.statusOf(c).status === k).length] as const).filter(([, n]) => n);
   const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? 'No value yet' : fmt(a.actual, g);
   return (
     <Link to={'/goals/' + g.id} className="outcome-card">

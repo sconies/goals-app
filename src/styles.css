@@ -342,7 +342,7 @@ select.input { padding-right: 28px; }
 .quote-block p { color: var(--fg); }
 .mix { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; }
 .mix i { display: block; min-width: 6px; }
-.mix-on { background: var(--on-mark); } .mix-risk { background: var(--risk-mark); } .mix-off { background: var(--off-mark); } .mix-stale { background: var(--stale-mark); } .mix-done { background: var(--done-mark); }
+.mix-planned { background: var(--line-strong); } .mix-on { background: var(--on-mark); } .mix-risk { background: var(--risk-mark); } .mix-off { background: var(--off-mark); } .mix-stale { background: var(--stale-mark); } .mix-done { background: var(--done-mark); }
 .changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .change { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line-2); }
 .change:first-child { border-top: 0; }
@@ -571,4 +571,22 @@ svg.chart { display: block; overflow: visible; }
 /* In focused flows the bottom of a phone holds the main buttons, so messages appear at the top. */
 @container app (max-width: 760px) {
   .focus-mode .toasts { bottom: auto; top: calc(var(--s3) + env(safe-area-inset-top, 0px)); }
+}
+
+/* ---------- first run, onboarding, demo ---------- */
+.welcome { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--s6) var(--s4); background: var(--bg); }
+.welcome-body { width: min(520px, 100%); display: flex; flex-direction: column; gap: var(--s5); }
+.welcome-mark { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--primary); color: var(--primary-fg); }
+.welcome-points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s3); font-size: var(--t-lg); line-height: 26px; color: var(--fg-2); }
+.welcome-points li { padding-left: var(--s5); position: relative; }
+.welcome-points li::before { content: ''; position: absolute; left: 0; top: 10px; width: 8px; height: 8px; border-radius: 999px; background: var(--on-mark); }
+.welcome .btn.primary { align-self: flex-start; }
+.goalcard { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.goalcard > .linkish { align-self: flex-start; color: var(--muted); }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+.rolebar-demo { display: inline-flex; align-items: center; gap: var(--s3); margin-left: var(--s3); font-size: var(--t-sm); white-space: nowrap; }
+.demo-tag { padding: 0 var(--s2); border-radius: 999px; background: var(--risk-bg); color: var(--risk-fg); font-size: var(--t-xs); font-weight: 700; line-height: 20px; }
+@container app (max-width: 760px) {
+  .welcome .btn.primary { align-self: stretch; }
+  .rolebar-demo { display: none; }
 }

@@ -180,6 +180,21 @@
       "id": "INSPECT-ACT",
       "area": "Leader view",
       "text": "The sponsor makes the call on the goal page itself: what's asked is shown first, then approve, keep, agree or ask. The weekly review walks the same goal pages in a fixed order, with next and previous, and moves on after each call."
+    },
+    {
+      "id": "DEMO-MODE",
+      "area": "Demo",
+      "text": "The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls."
+    },
+    {
+      "id": "ONBOARDING",
+      "area": "Onboarding",
+      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it. It ends with the one next thing to do."
+    },
+    {
+      "id": "IDENTITY",
+      "area": "Onboarding",
+      "text": "Until sign-in comes with SSO, someone opening a workspace on a new device says who they are once, and lands on their own home."
     }
   ],
   "notYetBuilt": [
@@ -220,7 +235,8 @@
       "id": "U5",
       "rank": 5,
       "title": "Load your own data and switch between it and the example",
-      "who": "Goals coach"
+      "who": "Goals coach",
+      "budget": 15
     },
     {
       "id": "U6",
@@ -252,6 +268,18 @@
       "rank": 10,
       "title": "Close the cycle with a retro",
       "who": "Coach and leads"
+    },
+    {
+      "id": "U11",
+      "title": "Real app: from empty to a filled-in workspace with a template, then a teammate joins",
+      "who": "Anyone starting fresh",
+      "budget": 14
+    },
+    {
+      "id": "U12",
+      "title": "Demo: pick a role, look around, start over, leave",
+      "who": "Anyone evaluating the tool",
+      "budget": 4
     }
   ],
   "easeCriteria": [

@@ -14,7 +14,8 @@ export interface WeekProgress {
 export function weekProgress(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): WeekProgress {
   const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== 'done');
   const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
-  return { goals, done, due: goals.filter((g) => !done.includes(g)) };
+  // Week 0 is the baseline week: the first check-ins are due in week 1.
+  return { goals, done, due: week < 1 ? [] : goals.filter((g) => !done.includes(g)) };
 }
 
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */

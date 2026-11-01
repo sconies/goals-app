@@ -11,15 +11,20 @@ export interface Commit {
   changes: Change[];
 }
 
+/** The real app, or the demo: the example data, a role switcher and a reset, kept in each visitor's browser. */
+export type Mode = 'live' | 'demo';
+
 /** Where the app keeps its records. The browser store and the Supabase store implement the same contract. */
 export interface Store {
   readonly kind: 'browser' | 'supabase';
+  /** Whether the example workspace is part of this store (the demo) or not (the real app). */
+  readonly hasExample: boolean;
   workspaces(): Promise<Workspace[]>;
   load(workspaceId: string): Promise<Snapshot>;
   /** Saves records and their change-log entries together. A check-in replaces any for the same goal and week. */
   commit(workspaceId: string, c: Commit): Promise<void>;
   createWorkspace(ws: Workspace, data: Snapshot): Promise<void>;
-  /** Starts the example again from the demo data. Refused for your own workspaces. */
+  /** Starts the example again from the demo data. Only the demo has one. */
   resetExample(): Promise<Snapshot>;
 }
 
@@ -40,13 +45,20 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
   };
 }
 
-const KEY = 'goals-app-v2';
+/** Browser storage for the demo; the real app uses its own key when it runs without Supabase (local development, the evals). */
+export const DEMO_KEY = 'goals-app-v2';
+export const LIVE_KEY = 'goals-live-v1';
 
 export class BrowserStore implements Store {
   readonly kind = 'browser' as const;
+  readonly hasExample: boolean;
   private memory = new Map<string, Snapshot>();
+  private readonly key: string;
 
-  constructor(private readonly today: () => Date = () => new Date()) {}
+  constructor(private readonly today: () => Date = () => new Date(), opts: { key?: string; example?: boolean } = {}) {
+    this.key = opts.key ?? DEMO_KEY;
+    this.hasExample = opts.example ?? true;
+  }
 
   private get<T>(key: string): T | null {
     try {
@@ -66,19 +78,20 @@ export class BrowserStore implements Store {
   }
 
   async workspaces(): Promise<Workspace[]> {
-    return [EXAMPLE, ...(this.get<Workspace[]>(KEY + ':workspaces') ?? [])];
+    const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
+    return this.hasExample ? [EXAMPLE, ...own] : own;
   }
 
   private current(id: string): Snapshot {
-    const s = this.memory.get(id) ?? this.get<Snapshot>(`${KEY}:${id}`);
+    const s = this.memory.get(id) ?? this.get<Snapshot>(`${this.key}:${id}`);
     if (s) return s;
-    if (id !== EXAMPLE.id) throw new Error('This workspace no longer exists in this browser.');
+    if (id !== EXAMPLE.id || !this.hasExample) throw new Error('This workspace no longer exists in this browser.');
     return this.write(id, seed(this.today()));
   }
 
   private write(id: string, s: Snapshot): Snapshot {
     this.memory.set(id, s);
-    this.put(`${KEY}:${id}`, s);
+    this.put(`${this.key}:${id}`, s);
     return s;
   }
 
@@ -91,12 +104,13 @@ export class BrowserStore implements Store {
   }
 
   async createWorkspace(ws: Workspace, data: Snapshot) {
-    const own = (this.get<Workspace[]>(KEY + ':workspaces') ?? []).filter((w) => w.id !== ws.id);
-    this.put(KEY + ':workspaces', [...own, ws]);
+    const own = (this.get<Workspace[]>(this.key + ':workspaces') ?? []).filter((w) => w.id !== ws.id);
+    this.put(this.key + ':workspaces', [...own, ws]);
     this.write(ws.id, data);
   }
 
   async resetExample() {
+    if (!this.hasExample) throw new Error('Only the demo has an example to reset.');
     return structuredClone(this.write(EXAMPLE.id, seed(this.today())));
   }
 }

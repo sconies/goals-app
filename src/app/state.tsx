@@ -6,7 +6,7 @@ import { currentWeek } from '../domain/plan';
 import { DECISION_LOG, withApprovedChange, withApprovedTarget } from '../domain/review';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { Change, CheckIn, Cycle, Decision, Goal, Person, Snapshot, Team, Workspace } from '../domain/types';
-import { applyCommit, EXAMPLE, newId, type Commit, type Store } from '../data/store';
+import { applyCommit, EXAMPLE, newId, type Commit, type Mode, type Store } from '../data/store';
 import { fmt } from '../domain/format';
 
 export interface Toast {
@@ -16,10 +16,14 @@ export interface Toast {
 }
 
 export interface AppState {
+  /** The real app, or the demo (example data, role switcher, reset). */
+  mode: Mode;
+  /** In the real app, whether this person has said who they are in this workspace (sign-in comes with SSO). */
+  viewerChosen: boolean;
   ws: Workspace;
   workspaces: Workspace[];
   switchWorkspace(id: string): void;
-  createWorkspace(name: string, data: Snapshot): Promise<string>;
+  createWorkspace(name: string, data: Snapshot, meId?: string): Promise<string>;
   resetExample(): Promise<void>;
   snapshot: Snapshot;
   cycle: Cycle;
@@ -52,6 +56,23 @@ export interface AppState {
 
 const Ctx = createContext<AppState | null>(null);
 
+/** What onboarding needs before any workspace exists. */
+export interface SetupState {
+  mode: Mode;
+  today: Date;
+  hasWorkspaces: boolean;
+  createWorkspace(name: string, data: Snapshot, meId?: string): Promise<string>;
+  toasts: Toast[];
+  toast(text: string, kind?: Toast['kind']): void;
+}
+const SetupCtx = createContext<SetupState | null>(null);
+
+export function useSetup(): SetupState {
+  const v = useContext(SetupCtx);
+  if (!v) throw new Error('useSetup outside AppProvider');
+  return v;
+}
+
 export function useApp(): AppState {
   const v = useContext(Ctx);
   if (!v) throw new Error('useApp outside AppProvider');
@@ -62,9 +83,12 @@ const read = (k: string) => { try { return localStorage.getItem(k); } catch { re
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 const realNow = () => new Date();
 
-export function AppProvider({ store, today = realNow, children }: { store: Store; today?: () => Date; children: ReactNode }) {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([EXAMPLE]);
-  const [wsId, setWsId] = useState(() => read('goals-app-workspace') || EXAMPLE.id);
+export function AppProvider({ store, mode = 'demo', today = realNow, empty: renderEmpty, children }: { store: Store; mode?: Mode; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
+  // The demo and the real app remember their own workspace and person, so one never opens the other's.
+  const K = mode === 'demo' ? { ws: 'goals-app-workspace', viewer: 'goals-app-viewer:' } : { ws: 'goals-live-workspace', viewer: 'goals-live-me:' };
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [wsId, setWsId] = useState<string | null>(() => read(K.ws) || (store.hasExample ? EXAMPLE.id : null));
+  const [empty, setEmpty] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -82,23 +106,51 @@ export function AppProvider({ store, today = realNow, children }: { store: Store
     let live = true;
     setError(null);
     // Keep showing the current workspace until the next one has loaded, so open screens don't reset.
-    Promise.all([store.workspaces(), store.load(wsId)])
-      .then(([list, snap]) => {
-        if (!live) return;
-        setWorkspaces(list);
-        setSnapshot(snap);
-        setViewerId(read('goals-app-viewer:' + wsId));
-      })
-      .catch((e: unknown) => {
-        if (!live) return;
-        if (wsId !== EXAMPLE.id) { setWsId(EXAMPLE.id); write('goals-app-workspace', EXAMPLE.id); return; }
-        setError(e instanceof Error ? e.message : String(e));
-      });
+    (async () => {
+      const list = await store.workspaces();
+      if (!live) return;
+      setWorkspaces(list);
+      const id = wsId && list.some((w) => w.id === wsId) ? wsId : list[0]?.id ?? null;
+      if (!id) { setEmpty(true); setSnapshot(null); return; }
+      setEmpty(false);
+      if (id !== wsId) { write(K.ws, id); setWsId(id); return; }
+      const snap = await store.load(id);
+      if (!live) return;
+      setSnapshot(snap);
+      setViewerId(read(K.viewer + id));
+    })().catch((e: unknown) => {
+      if (!live) return;
+      setError(e instanceof Error ? e.message : String(e));
+    });
     return () => { live = false; };
+    // K is derived from mode, which never changes while the app runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, wsId, attempt]);
+
+  const createWorkspace = useCallback(async (name: string, data: Snapshot, meId?: string) => {
+    const at = new Date().toISOString();
+    const w: Workspace = { id: newId('ws'), name, kind: 'own', createdAt: at };
+    const actor = (meId && data.people.find((p) => p.id === meId)) || data.people.find((p) => p.profile === 'coach') || data.people[0];
+    const logged: Snapshot = {
+      ...data,
+      changes: [...data.changes, {
+        id: newId('chg'), at, actorId: actor?.id ?? 'import', goalId: null, entity: 'workspace', entityId: w.id, action: 'imported',
+        summary: `Created “${name}” with ${data.people.length} ${data.people.length === 1 ? 'person' : 'people'}, ${data.teams.length} ${data.teams.length === 1 ? 'team' : 'teams'} and ${data.goals.length} ${data.goals.length === 1 ? 'goal' : 'goals'}`, diffs: [],
+      }],
+    };
+    await store.createWorkspace(w, logged);
+    if (actor) write(K.viewer + w.id, actor.id);
+    write(K.ws, w.id);
+    setWorkspaces((l) => [...l, w]);
+    setEmpty(false);
+    setWsId(w.id);
+    return w.id;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store]);
 
   const commit = useCallback(async (c: Commit) => {
     try {
+      if (!wsId) throw new Error('no workspace is open');
       await store.commit(wsId, c);
       setSnapshot((s) => (s ? applyCommit(s, c) : s));
     } catch (e) {
@@ -114,9 +166,10 @@ export function AppProvider({ store, today = realNow, children }: { store: Store
     const now = today();
     const week = currentWeek(cycle, now);
     const people = new Map(snapshot.people.map((p) => [p.id, p]));
-    const ws = workspaces.find((w) => w.id === wsId) ?? EXAMPLE;
+    const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
     const fallback = snapshot.people.find((p) => p.id === 'maya') ?? snapshot.people.find((p) => p.profile === 'lead') ?? snapshot.people[0]!;
-    const viewer = (viewerId && people.get(viewerId)) || fallback;
+    const chosen = !!viewerId && people.has(viewerId);
+    const viewer = (chosen && people.get(viewerId!)) || fallback;
     const statuses = new Map<string, GoalStatus>();
     const attention = new Map<string, GoalAttention>();
     const lookup: Lookup = {
@@ -127,30 +180,16 @@ export function AppProvider({ store, today = realNow, children }: { store: Store
     const stamp = () => new Date().toISOString();
 
     return {
+      mode, viewerChosen: mode === 'demo' || chosen,
       ws, workspaces, snapshot, cycle, week, today: now, viewer, lookup, toasts, toast, storeKind: store.kind,
-      switchWorkspace: (id) => { write('goals-app-workspace', id); setWsId(id); },
-      createWorkspace: async (name, data) => {
-        const w: Workspace = { id: newId('ws'), name, kind: 'own', createdAt: stamp() };
-        const actor = data.people.find((p) => p.profile === 'coach') ?? data.people[0];
-        const logged: Snapshot = {
-          ...data,
-          changes: [{
-            id: newId('chg'), at: stamp(), actorId: actor?.id ?? 'import', goalId: null, entity: 'workspace', entityId: w.id, action: 'imported',
-            summary: `Created “${name}” with ${data.people.length} people, ${data.teams.length} teams and ${data.goals.length} goals`, diffs: [],
-          }],
-        };
-        await store.createWorkspace(w, logged);
-        if (actor) write('goals-app-viewer:' + w.id, actor.id);
-        write('goals-app-workspace', w.id);
-        setWsId(w.id);
-        return w.id;
-      },
+      switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
+      createWorkspace,
       resetExample: async () => {
         const s = await store.resetExample();
         if (wsId === EXAMPLE.id) setSnapshot(s);
         toast('The example is back to its starting point');
       },
-      setViewer: (id) => { write('goals-app-viewer:' + wsId, id); setViewerId(id); },
+      setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
       team: (id) => snapshot.teams.find((t) => t.id === id),
       goal: (id) => snapshot.goals.find((g) => g.id === id),
@@ -218,29 +257,35 @@ export function AppProvider({ store, today = realNow, children }: { store: Store
         await commit({ goals, decisions: [d], changes });
       },
     };
-  }, [snapshot, viewerId, store, today, workspaces, wsId, commit, toasts, toast]);
+  }, [snapshot, viewerId, store, today, workspaces, wsId, commit, toasts, toast, createWorkspace, mode]);
 
+  const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
+
+  let body: ReactNode;
   if (error) {
-    return (
+    body = (
       <div className="boot">
         <div className="boot-card">
           <span className="h3">Couldn’t reach the goals data</span>
           <p className="muted">{error}</p>
           <div className="row">
             <button className="btn primary" onClick={() => setAttempt((n) => n + 1)}>Try again</button>
-            <a className="btn" href="?store=browser">Use a copy in this browser</a>
+            {mode === 'live' && <a className="btn" href="?store=browser">Use a copy in this browser</a>}
           </div>
         </div>
       </div>
     );
-  }
-  if (!value) {
-    return (
+  } else if (empty) {
+    body = renderEmpty?.() ?? null;
+  } else if (!value) {
+    body = (
       <div className="boot" aria-busy="true">
         <div className="skeleton" />
         <span className="muted small">Loading goals…</span>
       </div>
     );
+  } else {
+    body = <Ctx.Provider value={value}>{children}</Ctx.Provider>;
   }
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <SetupCtx.Provider value={setup}>{body}</SetupCtx.Provider>;
 }

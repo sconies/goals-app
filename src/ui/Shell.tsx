@@ -34,8 +34,10 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
   const app = useApp();
   const groups = (['lead', 'sponsor', 'coach', 'contributor'] as Profile[]).map((p) => [p, app.snapshot.people.filter((x) => x.profile === p)] as const).filter(([, l]) => l.length);
   return (
-    <Sheet open={open} onClose={onClose} title="Switch profile">
-      <p className="small muted" style={{ marginBottom: 12 }}>Each profile sees its own home and next steps. This is a demo, so anyone can switch.</p>
+    <Sheet open={open} onClose={onClose} title={app.mode === 'demo' ? 'Switch profile' : 'Who are you?'}>
+      <p className="hint" style={{ marginBottom: 'var(--s3)' }}>{app.mode === 'demo'
+        ? 'Each profile sees its own home and next steps. In the demo anyone can switch.'
+        : 'Pick your name. Sign-in comes later with your company login; until then this device remembers who you are.'}</p>
       {groups.map(([p, list]) => (
         <section key={p} className="stack" style={{ gap: 4, marginBottom: 14 }}>
           <span className="label">{PROFILE_LABEL[p]} · <span style={{ fontWeight: 400 }}>{PROFILE_HELP[p]}</span></span>
@@ -60,11 +62,14 @@ function WorkspaceSheet({ open, onClose }: { open: boolean; onClose: () => void 
         {app.workspaces.map((w) => (
           <button key={w.id} className="menuitem" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => { app.switchWorkspace(w.id); onClose(); }}>
             <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.slice(0, 1).toUpperCase()}</span>
-            <span className="stack" style={{ gap: 0, flex: 1 }}><span className="strong">{w.name}</span><span className="tiny muted">{w.kind === 'example' ? 'Demo data you can play with and reset' : 'Your data'}</span></span>
+            <span className="stack" style={{ gap: 0, flex: 1 }}><span className="strong">{w.name}</span><span className="tiny muted">{w.kind === 'example' ? 'Example data you can play with and reset' : app.mode === 'demo' ? 'Your own, in this browser' : 'Your workspace'}</span></span>
             {w.id === app.ws.id && <span className="tiny strong" style={{ color: 'var(--accent-text)' }}>Open</span>}
           </button>
         ))}
-        <Link className="menuitem" to="/workspace/new" onClick={onClose}><span className="wsmark add" aria-hidden="true">+</span><span className="strong">Load your own data</span></Link>
+        <Link className="menuitem" to="/workspace/new" onClick={onClose}><span className="wsmark add" aria-hidden="true">+</span><span className="strong">{app.mode === 'demo' ? 'Try setting up your own' : 'New workspace'}</span></Link>
+        {app.mode === 'demo'
+          ? <a className="menuitem" href="/"><span className="wsmark add" aria-hidden="true">↩</span><span className="strong">Leave the demo</span></a>
+          : <a className="menuitem" href="/demo"><span className="wsmark example" aria-hidden="true">D</span><span className="stack" style={{ gap: 0 }}><span className="strong">Try the demo</span><span className="tiny muted">Example data, in your browser only</span></span></a>}
       </div>
     </Sheet>
   );
@@ -72,10 +77,11 @@ function WorkspaceSheet({ open, onClose }: { open: boolean; onClose: () => void 
 
 const ROLE_SHORT: Record<Profile, string> = { lead: 'Team lead', sponsor: 'Sponsor', coach: 'Coach', contributor: 'Contributor' };
 
-/** Demo control: which role's view this is, switchable in one tap. Each role has its own home and navigation. */
+/** Demo only: which role's view this is, switchable in one tap, with a way to start again or leave. */
 function RoleBar({ onPeople }: { onPeople: () => void }) {
   const app = useApp();
   const nav = useNavigate();
+  const [resetting, setResetting] = useState(false);
   const roles = (['lead', 'sponsor', 'coach', 'contributor'] as Profile[]).filter((r) => app.snapshot.people.some((x) => x.profile === r));
   const pick = (r: Profile) => {
     const person = app.snapshot.people.find((x) => x.profile === r);
@@ -90,6 +96,13 @@ function RoleBar({ onPeople }: { onPeople: () => void }) {
         {roles.map((r) => <button key={r} aria-pressed={app.viewer.profile === r} onClick={() => pick(r)}>{ROLE_SHORT[r]}</button>)}
       </div>
       <button className="rolebar-person" onClick={onPeople}><Avatar p={app.viewer} size="sm" /><span className="ellipsis">{app.viewer.name}</span><span aria-hidden="true">⌄</span><span className="sr">Switch to someone else</span></button>
+      <span className="rolebar-demo">
+        <span className="demo-tag">Demo</span>
+        {app.ws.kind === 'example' && (resetting
+          ? <><button className="linkish" onClick={async () => { await app.resetExample(); setResetting(false); nav('/'); }}>Yes, start over</button><button className="linkish muted" onClick={() => setResetting(false)}>Cancel</button></>
+          : <button className="linkish" onClick={() => setResetting(true)}>Start over</button>)}
+        <a className="linkish" href="/">Leave</a>
+      </span>
     </div>
   );
 }
@@ -118,7 +131,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
           <strong className="ellipsis">{title}</strong>
-          <span className="tiny muted ellipsis">{app.ws.kind === 'example' ? 'Example data' : app.ws.name}, week {app.week} of {app.cycle.weeks}</span>
+          <span className="tiny muted ellipsis">{app.mode === 'demo' && <span className="demo-tag">Demo</span>} {app.ws.kind === 'example' ? 'Example data' : app.ws.name}, week {app.week} of {app.cycle.weeks}</span>
         </span>
         <button className="profilebtn" onClick={() => setSheet('profile')}>
           <Avatar p={app.viewer} />
@@ -150,7 +163,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </button>
         </nav>
         <main className="work" ref={work} id="main">
-          {!focusMode && <RoleBar onPeople={() => setSheet('profile')} />}
+          {!focusMode && app.mode === 'demo' && <RoleBar onPeople={() => setSheet('profile')} />}
           {children}
         </main>
       </div>
@@ -172,7 +185,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
           <button className="menuitem" onClick={() => setSheet('workspace')}>{NAV.workspace.icon}<span className="stack" style={{ gap: 0 }}><span className="strong">Switch workspace</span><span className="tiny muted">{app.ws.name}</span></span></button>
-          <button className="menuitem" onClick={() => setSheet('profile')}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">Switch profile</span><span className="tiny muted">{app.viewer.name}, {PROFILE_LABEL[app.viewer.profile].toLowerCase()}</span></span></button>
+          <button className="menuitem" onClick={() => setSheet('profile')}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch profile' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}, {PROFILE_LABEL[app.viewer.profile].toLowerCase()}</span></span></button>
         </div>
       </Sheet>
       <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)} />
