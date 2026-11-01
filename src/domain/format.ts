@@ -48,17 +48,21 @@ export function gapText(g: Goal, a: Assessment): { short: string; long: string; 
     const pct = Math.round(a.ratio * 100);
     const diff = Number((actual - a.plan).toFixed(g.decimals));
     return {
-      short: diff === 0 ? 'On plan' : `${fmtDiff(diff, g)} ${diff > 0 ? 'above' : 'below'} plan`,
+      // Name the week it's compared with, so views that use different weeks can't silently disagree.
+      short: diff === 0 ? `On the week-${a.week} plan` : `${fmtDiff(diff, g)} ${diff > 0 ? 'above' : 'below'} week-${a.week} plan`,
       long: `${pct}% of the planned improvement so far (plan for this week: ${fmt(a.plan, g)})`,
       tone: a.ahead ? 'ahead' : a.calc === 'risk' || a.calc === 'off' ? a.calc : 'on',
     };
   }
   if (a.kind === 'range') {
-    if (a.calc === 'off') return { short: 'Breached', long: 'Out of range two weeks running', tone: 'off' };
-    if (a.out) return { short: 'Breached', long: 'Out of range this week', tone: 'risk' };
-    if (a.previousOut) return { short: 'Back in range', long: 'Out of range last week, back in this week', tone: 'risk' };
-    if (a.near) return { short: 'Near the limit', long: 'Inside the warning margin', tone: 'risk' };
-    return { short: 'In range', long: 'Inside the range', tone: 'on' };
+    // Say what happened and show the limit: "over the limit" is a breach, "near the limit" is a warning.
+    const lim = g.kind === 'range' ? fmt(g.range.limit, g) : '';
+    const side = g.kind === 'range' && g.range.bound === 'atLeast' ? 'Under' : 'Over';
+    if (a.calc === 'off') return { short: `${side} the ${lim} limit, 2 weeks running`, long: 'The guardrail has been breached two weeks running', tone: 'off' };
+    if (a.out) return { short: `${side} the ${lim} limit`, long: 'The guardrail was breached this week; two weeks running makes it off track', tone: 'risk' };
+    if (a.previousOut) return { short: `Back inside the ${lim} limit`, long: 'Over the limit last week, back inside this week', tone: 'risk' };
+    if (a.near) return { short: `Near the ${lim} limit`, long: 'Inside the warning margin, not yet breached', tone: 'risk' };
+    return { short: `Inside the ${lim} limit`, long: 'Inside the limit', tone: 'on' };
   }
   if (a.kind === 'milestone') {
     if (a.calc === 'done') return { short: 'Done', long: 'Every stage is done', tone: 'on' };

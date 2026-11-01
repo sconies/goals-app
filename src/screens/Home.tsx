@@ -108,7 +108,7 @@ function MyWeek() {
           ) : (
             <>
               <span className="eyebrow">Week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
-              <h2 className="hero-title">Nothing to do this week</h2>
+              <h2 className="hero-title">No check-ins or reviews due</h2>
               <span className="muted">You don’t own a goal. Watch the ones you care about, or set one up in about 3 minutes.</span>
               <div className="row" style={{ marginTop: 8 }}>{app.snapshot.goals.length
                 ? <><Link className="btn primary" to="/goals">Find goals to watch</Link><Link className="btn" to="/goals/new">Set up a goal</Link></>

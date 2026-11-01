@@ -4,7 +4,7 @@ import type { Change } from '../domain/types';
 import { ChangeItem } from './GoalScreen';
 
 type Filter = 'all' | 'check-in' | 'goal' | 'decision' | 'mine';
-const FILTERS: [Filter, string][] = [['all', 'Everything'], ['check-in', 'Check-ins'], ['goal', 'Goal changes'], ['decision', 'Decisions'], ['mine', 'Mine']];
+const FILTERS: [Filter, string][] = [['all', 'Everything'], ['check-in', 'Check-ins'], ['goal', 'Goal changes'], ['decision', 'Review notes'], ['mine', 'Mine']];
 
 function dayLabel(iso: string, today: Date) {
   const d = new Date(iso);

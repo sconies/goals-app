@@ -85,7 +85,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
     return {
       id: 'preview', cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title || 'New goal', io: d.io, level: d.level, guardrail: d.guardrail,
       parentId: null, effect: null, source: '', definition: '', createdAt: '', kind: 'metric', unit: d.unit, decimals: parseNumber(d.decimals) ?? 0,
-      plan: { start: s, target: t, shape: d.shape },
+      plan: { start: s, target: t, shape: d.shape, ...(prev ? (prev.plan.fromWeek ? { fromWeek: prev.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}) },
       originalPlan: prev && started && changed ? prev.originalPlan ?? prev.plan : prev?.originalPlan ?? null, rebaselinedWeek: null,
     };
   })();
@@ -176,7 +176,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 {d.stages.map((s, i) => (
                   <div key={s.id} className="row nowrap" style={{ alignItems: 'flex-end' }}>
                     <label className="field" style={{ flex: '3 1 200px' }}><span className="small strong">Stage {i + 1}</span><input className="input" value={s.name} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x)) })} placeholder="e.g. Threat model" /></label>
-                    <label className="field" style={{ flex: '0 0 96px' }}><span className="small strong">Week</span><input className="input" inputMode="numeric" value={s.dueWeek} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, dueWeek: e.target.value } : x)) })} /></label>
+                    <label className="field" style={{ flex: '0 0 96px' }}><span className="small strong" aria-hidden="true">Week</span><input className="input" inputMode="numeric" aria-label={`Stage ${i + 1}: due week`} value={s.dueWeek} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, dueWeek: e.target.value } : x)) })} /></label>
                     {d.stages.length > 1 && <button type="button" className="iconbtn" onClick={() => set({ stages: d.stages.filter((x) => x.id !== s.id) })} aria-label={'Remove stage ' + (i + 1)}>✕</button>}
                   </div>
                 ))}

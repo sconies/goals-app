@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { checkInDraftKey, useDraft } from '../app/drafts';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, draftFrom, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
+import { forecastText } from '../domain/tree';
+import { weekDates } from '../domain/plan';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
 import { daysToReview, onTimeStreak, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, MilestoneGoal, Status, RecoveryState } from '../domain/types';
@@ -154,7 +156,15 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const [showNeedsOpen, setShowNeeds] = useState(!!draft.needs);
   const showNeeds = showNeedsOpen || !!draft.needs.trim();
   const [statusOpen, setStatusOpen] = useState(false);
-  const [step, setStep] = useState<Step>('measure');
+  // Who a help request goes to, when the owner says they need a decision or help.
+  const [helpFrom, setHelpFrom] = useState(() => app.snapshot.people.find((p) => draft.needs.startsWith(p.name + ':'))?.id ?? '');
+  // The step is saved with the draft, so "pick up where you left off" returns to it.
+  const stepKey = checkInDraftKey(app.ws.id, goal.id, week) + ':step';
+  const [step, setStepState] = useState<Step>(() => {
+    if (!restored) return 'measure';
+    try { return (localStorage.getItem(stepKey) as Step | null) ?? 'measure'; } catch { return 'measure'; }
+  });
+  const setStep = (to: Step) => { setStepState(to); try { if (to === 'measure') localStorage.removeItem(stepKey); else localStorage.setItem(stepKey, to); } catch { /* private mode */ } };
   const [trail, setTrail] = useState<Step[]>([]);
   const e = evaluate(goal, cycle, week, draft, app.snapshot.checkIns);
   const team = app.team(goal.teamId);
@@ -186,7 +196,8 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     if (!check.canPost || saving) { setTried(true); return; }
     setSaving(true);
     try {
-      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '' }, existing);
+      const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { needs: `${from.name}: ${d.ptgWhat.trim()}` } : {}) }, existing);
       clear();
       onPosted(c, !!existing);
     } catch {
@@ -198,7 +209,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const whyOk = !needsWhy || (!!draft.cause && draft.why.trim().length >= MIN_REASON);
   const targetOk = !e.missing.some((m) => m.includes('target'));
   const planned = (draft.ptgState ?? 'plan') === 'plan';
-  const wayOk = !needsWay || (draft.ptgWhat.trim().length >= MIN_PATH && (!planned || (draft.ptgBy != null && draft.ptgBy > week)));
+  const wayOk = !needsWay || (draft.ptgWhat.trim().length >= MIN_PATH && (!planned || (draft.ptgBy != null && draft.ptgBy > week)) && (draft.ptgState !== 'help' || !!helpFrom));
   const primary = () => {
     if (step === 'measure') {
       if (!valueOk || e.missing.some((m) => m.startsWith('why your call'))) { setTried(true); return; }
@@ -227,11 +238,15 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   };
 
   const label = saving ? 'Posting…' : last ? (existing ? 'Post update' : 'Post check-in') : 'Next';
-  const stepNo = plan.indexOf(step) + 1;
+  // Count every step this check-in could need, so the total never grows partway through; "Still true" just finishes early.
+  const carryOffered = useRef(false);
+  if (canCarry) carryOffered.current = true;
+  const full: Step[] = ['measure', ...(carryOffered.current ? ['carry' as const] : []), ...(needsWhy ? ['why' as const] : []), ...(needsWay ? ['way' as const] : [])];
+  const stepNo = Math.max(1, full.indexOf(step) + 1);
 
   return (
     <form className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
-      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={plan.length > 1 ? { at: stepNo, of: plan.length } : undefined} />
+      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={full.length > 1 ? { at: stepNo, of: full.length } : undefined} />
       {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This replaces it; the change log keeps both.</p>}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
@@ -239,7 +254,8 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
         <section className="qsection" aria-label="This week">
           <div className="stack" style={{ gap: 'var(--s1)' }}>
             <h2 className="qtitle">{goal.kind === 'milestone' ? 'Where does each stage stand?' : 'What’s the number this week?'}</h2>
-            {goal.source && <span className="hint">From {goal.source}</span>}
+            {goal.kind !== 'milestone' && goal.definition && <span className="small">{goal.definition}{goal.unit ? ` (${goal.unit}, ${goal.kind === 'metric' ? (goal.plan.target < goal.plan.start ? 'lower is better' : 'higher is better') : goal.range.bound === 'atMost' ? 'stay at or under the limit' : 'stay at or above the limit'})` : ''}</span>}
+            {goal.source && <span className="hint">Where to get it: {goal.source}. Typed in by hand.</span>}
           </div>
           {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (
             <div className="stack">
@@ -287,7 +303,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
             {priorWay && <p><strong>{previous.pathToGreen!.byWeek != null ? `Back on plan by ${weekLabel(previous.pathToGreen!.byWeek, cycle.weeks)}.` : `${RECOVERY[previous.pathToGreen!.state ?? 'plan'].label}.`}</strong> {previous.pathToGreen!.what}</p>}
           </blockquote>
           <div className="choice">
-            <button type="button" className="btn primary big-btn" disabled={saving} onClick={stillTrue}>{saving ? 'Posting…' : 'Still true'}</button>
+            <button type="button" className="btn primary big-btn" disabled={saving} onClick={stillTrue}>{saving ? 'Posting…' : 'Still true: post check-in'}</button>
             <button type="button" className="btn big-btn" onClick={somethingChanged}>Something changed</button>
           </div>
           {priorWay && previous.pathToGreen!.byWeek != null && previous.pathToGreen!.byWeek <= week && <span className="hint">The week you gave has passed, so you’ll pick a new one.</span>}
@@ -333,9 +349,18 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
             </div>
           )}
           {tried && !wayOk && <span className="hint tone-off" role="alert">{draft.ptgWhat.trim().length < MIN_PATH ? 'Say a few words about it.' : 'Pick the week it’s back on plan, or choose another option if you don’t know yet.'}</span>}
-          {showNeeds
-            ? <label className="field"><span className="field-label">Need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Goes to the review</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Elena: approve an interim scope" /></label>
-            : <div><button type="button" className="linkish tap" onClick={() => setShowNeeds(true)}>Ask for a decision or help</button></div>}
+          {draft.ptgState === 'help' ? (
+            // One request: what's needed (above) and who from. Saved as the goal's "decision or help needed".
+            <label className="field"><span className="field-label">Who can decide or help?</span>
+              <select className="input" value={helpFrom} onChange={(ev) => setHelpFrom(ev.target.value)}>
+                <option value="">Pick someone</option>
+                {app.snapshot.people.filter((p) => p.id !== app.viewer.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              {tried && !helpFrom && <span className="hint tone-off" role="alert">Pick who it goes to.</span>}
+            </label>
+          ) : showNeeds
+            ? <label className="field"><span className="field-label">Also need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional; shown at the top of the goal and in reviews</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Elena: approve an interim scope" /></label>
+            : <div><button type="button" className="linkish tap" onClick={() => setShowNeeds(true)}>Also need a decision or help?</button></div>}
           <NextStepField draft={draft} set={set} open={showNext} onOpen={() => setShowNext(true)} />
         </section>
       )}
@@ -397,10 +422,11 @@ function StatusSheet({ open, onClose, e, draft, set, milestoneDone }: { open: bo
 }
 
 function WeekPicks({ week, weeks, value, onPick }: { week: number; weeks: number; value: number | null; onPick: (w: number) => void }) {
+  const { cycle } = useApp();
   return (
     <div className="row" role="group" aria-labelledby="ptg-by">
       {Array.from({ length: Math.max(0, weeks - week) }, (_, i) => week + 1 + i).filter((w, i, arr) => i < 4 || w === arr[arr.length - 1]).map((w) => (
-        <button key={w} type="button" className="pill" aria-pressed={value === w} onClick={() => onPick(w)}>{w === weeks ? 'Cycle end' : 'Week ' + w}</button>
+        <button key={w} type="button" className="pill" aria-pressed={value === w} onClick={() => onPick(w)} aria-label={`${w === weeks ? 'Cycle end, week ' + w : 'Week ' + w}, ${weekDates(cycle, w)}`}>{w === weeks ? 'Cycle end' : 'Week ' + w}<span className="pill-sub">{weekDates(cycle, w)}</span></button>
       ))}
     </div>
   );
@@ -432,11 +458,11 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
   // Number first, then one plain sentence; a forecast line only when it tells you something.
   let title = gap.short, line = gap.long + '.', forecast: { text: string; warn: boolean } | null = null;
   if (a.kind === 'metric' && goal.kind === 'metric' && a.ratio != null && a.actual != null) {
-    title = a.ratio >= 1 ? 'Ahead of plan' : 'Behind plan';
+    // Two different questions, kept apart: where it is against this week's plan, and where the recent trend ends up.
+    title = `This week: ${gap.short}`;
     line = `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${app.week}.`;
-    if (a.forecast != null) forecast = a.forecastMisses
-      ? { text: `At this pace it ends near ${fmt(a.forecast, goal)}, short of the ${fmt(goal.plan.target, goal)} target.`, warn: true }
-      : { text: `At this pace it reaches the ${fmt(goal.plan.target, goal)} target.`, warn: false };
+    const fc = forecastText(goal, a, app.cycle.weeks);
+    if (fc) forecast = { text: (fc.warn ? 'Cycle end: ' : '') + fc.text + (fc.warn && a.ratio >= 1 ? ' The plan expects a faster pace later, so the two can disagree.' : ''), warn: fc.warn };
   } else if (a.kind === 'range' && goal.kind === 'range') line = `${gap.long}. The limit is ${targetText(goal)}.`;
   const hasChart = a.kind !== 'milestone';
   return (

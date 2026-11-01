@@ -83,7 +83,8 @@ export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date,
     .map((g) => attentionFor(g, s, cycle, today))
     .sort((a, b) => b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
   const said = s.decisions.filter((d) => d.reviewId === r.id && d.week === w);
-  const covered = new Set(said.map((d) => d.goalId));
+  // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
+  const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));
   const done = items.filter((a) => covered.has(a.goal.id)).length;
   return { review: r, week: w, date: sessionDate(r, cycle, w), items, covered, done, total: items.length, said };
 }

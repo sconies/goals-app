@@ -88,7 +88,8 @@ function GoalView({ goal }: { goal: Goal }) {
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
   const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind));
   const canEdit = isOwner || app.viewer.admin;
-  const asks = app.snapshot.decisions.filter((d) => d.goalId === goal.id && (d.kind === 'ask' || d.kind === 'action')).slice(-3).reverse();
+  // In a review, what was said in this session is listed by the review bar; don't show it twice.
+  const asks = app.snapshot.decisions.filter((d) => d.goalId === goal.id && (d.kind === 'ask' || d.kind === 'action') && !(rv.active && d.reviewId === rv.review?.id && d.week === rv.session?.week)).slice(-3).reverse();
   const lastBy = latest ? app.person(latest.authorId) : undefined;
 
   const stale = st.status === 'stale';

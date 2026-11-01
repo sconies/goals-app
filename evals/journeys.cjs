@@ -123,7 +123,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await h.click(p.getByRole('link', { name: /Start check-in/ }));
   await h.progressShown('check-in');
   await h.fill(p.getByLabel('This week’s value'), '70');
-  await see(p, 'ahead');
+  await see(p, 'above week-7 plan', 'the verdict names the week it compares with');
   await h.checkpoint('first goal');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Check-in saved');
@@ -171,7 +171,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await see(p, 'Is last week’s note still true?', 'last week’s reason and path are offered back');
   await h.progressShown('carry');
   await h.checkpoint('carry');
-  await h.click(p.getByRole('button', { name: 'Still true', exact: true }));
+  await h.click(p.getByRole('button', { name: /^Still true/ }));
   if (await p.getByRole('group', { name: 'Back on plan by' }).isVisible().catch(() => false)) {
     await h.click(p.getByRole('group', { name: 'Back on plan by' }).getByRole('button').first());
     await h.click(p.getByRole('button', { name: 'Post check-in' }));
@@ -241,6 +241,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
       await h.click(p.getByRole('button', { name: 'Save question' }));
       await p.locator('.said').getByText('Can the golden path ship').waitFor();
       h.set('finish', p.url() === here, 'saving a question moved to another goal');
+      h.set('errors', (await p.locator('.reviewbar').innerText()).includes('1 reviewed'), 'saving a question also marked the goal reviewed');
       await h.checkpoint('saved question');
       await h.click(reviewedNext);
     } else if (items === 2) {
@@ -264,7 +265,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   const s = await h.snapshot();
   const calls = s.changes.filter((c) => c.actorId === 'elena' && c.entity === 'decision' && c.id !== 'chg_dec_weekly_6');
   const ask = calls.find((c) => c.action === 'asked');
-  h.set('logged', calls.length === items && !!ask && ask.diffs.some((d) => /golden path/.test(d.to)), `expected ${items} logged calls with the question's text, saw ${calls.length}`);
+  h.set('logged', calls.length === items + 2 && !!ask && ask.diffs.some((d) => /golden path/.test(d.to)), `expected ${items} reviews plus a question and a note, logged, saw ${calls.length}`);
   // The owner sees the question on the goal page.
   const asked = s.decisions.find((d) => d.kind === 'ask');
   await p.goto(url('/goals/' + asked.goalId));
@@ -531,7 +532,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING'], 'Watching: see what has gone q
 journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES'], 'Follow goals you don’t own: watch a tree or a level', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'tom'));
   await p.goto(url('/'));
-  await see(p, 'Nothing to do this week', 'someone who owns no goal is told so, calmly');
+  await see(p, 'No check-ins or reviews due', 'someone who owns no goal is told so, calmly');
   await see(p, 'Watching', 'home shows what Tom watches');
   await h.inView(p.locator('.tree .trow').first(), 'entry', 'the goals Tom watches');
   h.set('attention', (await p.locator('.tree .trow').count()) > 0 && (await p.locator('.tree .trow .trow-why').first().innerText()).length > 10, 'watched goals are not shown with what changed or how fresh they are');

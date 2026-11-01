@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { fmt, gapText, LEVEL_LABEL } from '../domain/format';
-import { daysSince } from '../domain/plan';
+import { daysSince, weekDates } from '../domain/plan';
 import { coveringWatches, reviewSession, watchOf } from '../domain/review';
 import { assessPosted, checkInsFor, LABEL, RANK } from '../domain/status';
 import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
-import type { Goal, Level, Watch } from '../domain/types';
+import type { Decision, Goal, Level, Watch } from '../domain/types';
 import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
 
 /* ---------- review order: fixed when a session starts, so moving between goals doesn't reshuffle it ---------- */
@@ -70,6 +70,7 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
   const app = useApp();
   const rv = useReview(goal.id);
   const [mode, setMode] = useState<Say | null>(null);
+  const [editing, setEditing] = useState<Decision | null>(null);
   const [busy, setBusy] = useState(false);
   if (!rv.active || !rv.review || !rv.session) return null;
   if (!rv.review.people.includes(app.viewer.id)) {
@@ -92,7 +93,7 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
     <div className="decide">
       {said.length > 0 && (
         <ul className="said">
-          {said.map((d) => <li key={d.id}><span className="field-label">{d.kind === 'ask' ? `Question for ${owner}` : d.kind === 'action' ? `Action · ${app.person(d.assigneeId ?? goal.ownerId)?.name.split(' ')[0] ?? owner}${d.dueWeek ? `, by week ${d.dueWeek}` : ''}` : 'Note'}</span><span className="small">{d.note}</span></li>)}
+          {said.map((d) => <li key={d.id}>{d.byId === app.viewer.id && <button type="button" className="linkish small said-edit" onClick={() => { setEditing(d); setMode(d.kind as Say); }} aria-label={`Edit this ${d.kind === 'ask' ? 'question' : d.kind}`}>Edit</button>}<span className="field-label">{d.kind === 'ask' ? `Question for ${owner}` : d.kind === 'action' ? `Action · ${app.person(d.assigneeId ?? goal.ownerId)?.name.split(' ')[0] ?? owner}${d.dueWeek ? `, by week ${d.dueWeek}` : ''}` : 'Note'}</span><span className="small">{d.note}</span></li>)}
         </ul>
       )}
       <div className="row decide-buttons">
@@ -104,18 +105,18 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
         <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>
         {!reviewed && <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>}
       </div>
-      {mode && <SayComposer goal={goal} mode={mode} onClose={() => setMode(null)} onSaved={() => { setMode(null); app.toast(`${label[mode][0]!.toUpperCase() + label[mode].slice(1)} saved on ${goal.title}`); }} />}
+      {mode && <SayComposer goal={goal} mode={mode} existing={editing} onClose={() => { setMode(null); setEditing(null); }} onSaved={() => { setMode(null); setEditing(null); app.toast(`${label[mode][0]!.toUpperCase() + label[mode].slice(1)} saved on ${goal.title}`); }} />}
     </div>
   );
 }
 
 /** A focused composer that names the goal and the review, with Save right under the field so it stays in reach with the keyboard open. */
-function SayComposer({ goal, mode, onClose, onSaved }: { goal: Goal; mode: Say; onClose: () => void; onSaved: () => void }) {
+function SayComposer({ goal, mode, existing, onClose, onSaved }: { goal: Goal; mode: Say; existing?: Decision | null; onClose: () => void; onSaved: () => void }) {
   const app = useApp();
   const rv = useReview(goal.id);
-  const [text, setText] = useState('');
-  const [who, setWho] = useState(goal.ownerId);
-  const [due, setDue] = useState<number | null>(null);
+  const [text, setText] = useState(existing?.note ?? '');
+  const [who, setWho] = useState(existing?.assigneeId ?? goal.ownerId);
+  const [due, setDue] = useState<number | null>(existing?.dueWeek ?? null);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
@@ -124,11 +125,12 @@ function SayComposer({ goal, mode, onClose, onSaved }: { goal: Goal; mode: Say; 
     if (text.trim().length < 3) { setTried(true); return; }
     setBusy(true);
     try {
-      await app.reviewCall(goal, rv.review!, rv.session!.week, mode, text, mode === 'action' ? { assigneeId: who, dueWeek: due } : undefined);
+      if (existing) await app.editCall(existing, text, mode === 'action' ? { assigneeId: who, dueWeek: due } : undefined);
+      else await app.reviewCall(goal, rv.review!, rv.session!.week, mode, text, mode === 'action' ? { assigneeId: who, dueWeek: due } : undefined);
       onSaved();
     } catch { setBusy(false); } // the draft stays, and so do you
   };
-  const weeks = Array.from({ length: Math.max(0, app.cycle.weeks - app.week) }, (_, k) => app.week + 1 + k);
+  const weeks = Array.from({ length: Math.max(0, app.cycle.weeks - app.week + 1) }, (_, k) => app.week + k);
   return (
     <Sheet open onClose={onClose} title={`${title}: ${goal.title}`}>
       <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
@@ -144,7 +146,7 @@ function SayComposer({ goal, mode, onClose, onSaved }: { goal: Goal; mode: Say; 
               <select className="input" value={who} onChange={(e) => setWho(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
             </label>
             <label className="field"><span className="field-label">By <span className="hint">optional</span></span>
-              <select className="input" value={due ?? ''} onChange={(e) => setDue(e.target.value ? Number(e.target.value) : null)}><option value="">No date</option>{weeks.map((w) => <option key={w} value={w}>Week {w}</option>)}</select>
+              <select className="input" value={due ?? ''} onChange={(e) => setDue(e.target.value ? Number(e.target.value) : null)}><option value="">No date</option>{weeks.map((w) => <option key={w} value={w}>{w === app.week ? 'This week' : `Week ${w}`} · {weekDates(app.cycle, w)}</option>)}</select>
             </label>
           </div>
         )}

@@ -46,6 +46,8 @@ export interface AppState {
   addNote(goal: Goal, text: string): Promise<void>;
   /** What someone says about a goal in a review: seen, a note, a question for the owner, or an action. */
   reviewCall(goal: Goal, review: Review, week: number, kind: 'acknowledge' | 'note' | 'ask' | 'action', note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Promise<void>;
+  /** Correct a note, question or action someone said; the change log keeps the before and after. */
+  editCall(d: Decision, note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Promise<void>;
   /** Watch a goal, a goal and everything feeding it, or a whole level. */
   watch(kind: Watch['kind'], ref: string): Promise<void>;
   unwatch(watchId: string): Promise<void>;
@@ -247,6 +249,16 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
           decisions: [d],
           changes: [{ id: newId('chg'), at: d.at, actorId: viewer.id, goalId: goal.id, entity: 'decision', entityId: d.id, action, summary: `${what} in ${review.name}`, diffs: note.trim() ? [{ field: kind === 'ask' ? 'Question' : kind === 'action' ? 'Action' : 'Note', from: '—', to: note.trim() }, ...(kind === 'action' ? [{ field: 'Who', from: '—', to: lookup.person(d.assigneeId ?? '')?.name ?? '—' }, ...(d.dueWeek ? [{ field: 'Due', from: '—', to: `week ${d.dueWeek}` }] : [])] : [])] : [] }],
         });
+      },
+      editCall: async (d, note, extra) => {
+        const after: Decision = { ...d, note: note.trim(), ...(d.kind === 'action' && extra ? { assigneeId: extra.assigneeId ?? d.assigneeId ?? null, dueWeek: extra.dueWeek ?? null } : {}) };
+        const diffs = [
+          ...(after.note !== d.note ? [{ field: d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note', from: d.note, to: after.note }] : []),
+          ...(after.assigneeId !== d.assigneeId ? [{ field: 'Who', from: lookup.person(d.assigneeId ?? '')?.name ?? '—', to: lookup.person(after.assigneeId ?? '')?.name ?? '—' }] : []),
+          ...(after.dueWeek !== d.dueWeek ? [{ field: 'Due', from: d.dueWeek ? `week ${d.dueWeek}` : '—', to: after.dueWeek ? `week ${after.dueWeek}` : '—' }] : []),
+        ];
+        if (!diffs.length) return;
+        await commit({ decisions: [after], changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: d.goalId, entity: 'decision', entityId: d.id, action: 'edited', summary: `Corrected ${d.kind === 'ask' ? 'a question' : d.kind === 'action' ? 'an action' : 'a note'}`, diffs }] });
       },
       watch: async (kind, ref) => {
         if (sc.watches.some((w) => w.personId === viewer.id && w.kind === kind && w.ref === ref)) return;

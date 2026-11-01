@@ -210,3 +210,15 @@ describe('closing a cycle', () => {
     expect(scoped.checkIns).toHaveLength(0);
   });
 });
+
+describe('goals set up mid-cycle', () => {
+  it('plan from the week they are set up, so today’s value is today’s plan', async () => {
+    const { blankGoal } = await import('./goal');
+    const { planAt } = await import('./plan');
+    const d = { ...blankGoal('devex', 'sam', ''), title: 'Docs with an owner', start: '40', target: '80' };
+    const g = buildGoal(d, cycle, { id: 'g', createdAt: '' }, null, false, 7) as MetricGoal;
+    expect(g.plan.fromWeek).toBe(7);
+    expect(planAt(g.plan, 7, cycle.weeks)).toBe(40);
+    expect(planAt(g.plan, cycle.weeks, cycle.weeks)).toBe(80);
+  });
+});
