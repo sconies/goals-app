@@ -142,7 +142,12 @@ export function seed(today: Date): Snapshot {
   const label = new Date(start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const cycle: Cycle = { id: 'cycle', name: 'Platform cycle from ' + label, startDate, weeks: 13, reviewDay: 3 };
   // Distinct creation times keep the goals in this order wherever they are stored.
-  const allGoals = goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString() }));
+  // Two links carry the reasoning behind them: a hypothesis about why the work should move the outcome.
+  const WHY: Record<string, string> = {
+    triage: 'Requests that are triaged within two days start sooner, which should take days off intake-to-delivery.',
+    review: 'AI review catches problems before a human reviewer does, so pull requests merge faster.',
+  };
+  const allGoals = goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString(), ...(WHY[g.id] ? { whyHelps: WHY[g.id] } : {}) }));
 
   const postedAt = (week: number) => {
     const planned = start + week * 7 * DAY + 2 * DAY + 10 * 3_600_000;

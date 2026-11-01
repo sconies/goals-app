@@ -12,6 +12,7 @@ export interface GoalDraft {
   guardrail: boolean;
   parentId: string;
   effect: string;
+  whyHelps: string;
   source: string;
   definition: string;
   unit: string;
@@ -27,7 +28,7 @@ export interface GoalDraft {
 
 export function blankGoal(teamId: string, ownerId: string, parentId: string): GoalDraft {
   return {
-    kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '',
+    kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '',
     source: '', definition: '', unit: '%', decimals: '0', start: '', target: '', shape: 'straight',
     bound: 'atMost', limit: '', margin: '1', stages: [{ id: 's1', name: '', dueWeek: '' }],
   };
@@ -37,7 +38,7 @@ export function draftOf(g: Goal): GoalDraft {
   const d = blankGoal(g.teamId, g.ownerId, g.parentId ?? '');
   Object.assign(d, {
     kind: g.kind, title: g.title, io: g.io, level: g.level, guardrail: g.guardrail,
-    effect: g.effect == null ? '' : String(g.effect), source: g.source, definition: g.definition,
+    effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', source: g.source, definition: g.definition,
   });
   if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape });
   if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), margin: String(g.range.margin) });
@@ -102,7 +103,7 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
   const common = {
     id: base.id, cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.io,
     level: d.level, guardrail: d.guardrail, parentId: d.parentId || null,
-    effect: d.parentId ? parseNumber(d.effect) : null, source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
+    effect: d.parentId ? parseNumber(d.effect) : null, ...(d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {}), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
   };
   const num = (s: string) => parseNumber(s) as number;
   if (d.kind === 'metric') {

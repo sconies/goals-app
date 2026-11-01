@@ -6,9 +6,10 @@ import { fmt, gapText } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
 import { openQuestions, reviewSession, watchedGoals } from '../domain/review';
-import { daysSince } from '../domain/plan';
+import { daysSince, weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
-import { assessPosted } from '../domain/status';
+import { assessPosted, LABEL } from '../domain/status';
+import { statusChange } from '../domain/tree';
 import type { Goal } from '../domain/types';
 import { AttentionCard, Avatar, Dot, ProgressRing } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
@@ -117,7 +118,6 @@ function MyWeek() {
           )}
         </div>
       </section>
-      <ForYou />
       {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
       {rest.length > 0 && (
         <section className="block">
@@ -129,37 +129,57 @@ function MyWeek() {
   );
 }
 
-/** What other people said to you: questions from reviews you haven't answered, and recent comments on your goals. */
-function ForYou() {
+type Ask = { key: string; who: string; why: string; what: string; quote?: string; when?: string; to: string; action: string; at: string };
+
+/**
+ * Needs your response: things addressed to you. Each says why you're seeing it, what's needed,
+ * by when, and has one specific action.
+ */
+function NeedsYou() {
   const app = useApp();
-  const asks = openQuestions(app.viewer.id, app.snapshot);
-  const mine = new Set(app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id).map((g) => g.id));
-  const comments = app.snapshot.changes.filter((c) => c.entity === 'note' && c.goalId && mine.has(c.goalId) && c.actorId !== app.viewer.id && daysSince(c.at, app.today) <= 7).slice(-3).reverse();
-  if (!asks.length && !comments.length) return null;
+  const me = app.viewer;
+  const first = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
+  const reviewDay = WEEKDAY[app.cycle.reviewDay];
+  const items: Ask[] = [];
+  for (const d of openQuestions(me.id, app.snapshot)) {
+    const r = app.snapshot.reviews.find((x) => x.id === d.reviewId);
+    items.push({ key: d.id, who: d.byId, why: `${first(d.byId)} asked you${r ? ` in ${r.name}` : ''}`, what: `About ${app.goal(d.goalId)?.title}`, quote: d.note, when: `Before ${reviewDay}’s review`, to: `/goals/${d.goalId}?tab=comments`, action: 'Answer', at: d.at });
+  }
+  // Help or a decision the owner named you for in their latest check-in, while the goal is behind.
+  for (const g of app.snapshot.goals) {
+    const st = app.statusOf(g);
+    const needs = st.latest?.pathToGreen?.needs ?? '';
+    if (g.ownerId !== me.id && needs.startsWith(me.name + ':') && (st.status === 'risk' || st.status === 'off')) {
+      items.push({ key: 'need-' + g.id, who: g.ownerId, why: `${first(g.ownerId)} needs a decision or help from you`, what: g.title, quote: needs.slice(me.name.length + 1).trim(), when: `Raised in week ${st.latest!.week}`, to: `/goals/${g.id}?tab=comments`, action: 'Respond', at: st.latest!.postedAt });
+    }
+  }
+  // Actions from reviews assigned to you that are due from this week on (or undated and recent).
+  for (const d of app.snapshot.decisions) {
+    if (d.kind !== 'action' || (d.assigneeId ?? app.goal(d.goalId)?.ownerId) !== me.id || d.byId === me.id && !d.assigneeId) continue;
+    const due = d.dueWeek;
+    if (due != null ? due < app.week : daysSince(d.at, app.today) > 14) continue;
+    items.push({ key: d.id, who: d.byId, why: `Action for you from ${app.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? 'a review'}`, what: app.goal(d.goalId)?.title ?? '', quote: d.note, when: due != null ? (due === app.week ? `Due this week (${weekDates(app.cycle, due)})` : `Due week ${due} (${weekDates(app.cycle, due)})`) : 'No date set', to: `/goals/${d.goalId}`, action: 'Open the goal', at: d.at });
+  }
+  const mine = new Set(app.snapshot.goals.filter((g) => g.ownerId === me.id).map((g) => g.id));
+  for (const c of app.snapshot.changes.filter((c) => c.entity === 'note' && c.goalId && mine.has(c.goalId) && c.actorId !== me.id && daysSince(c.at, app.today) <= 7).slice(-3)) {
+    items.push({ key: c.id, who: c.actorId, why: `${first(c.actorId)} commented on your goal`, what: app.goal(c.goalId!)?.title ?? '', quote: c.diffs[0]?.to, to: `/goals/${c.goalId}?tab=comments`, action: 'Reply', at: c.at });
+  }
+  if (!items.length) return null;
+  items.sort((a, b) => b.at.localeCompare(a.at));
   return (
     <section className="block">
-      <h2 className="block-title">For you</h2>
-      <ul className="changes">
-        {asks.map((d) => {
-          const r = app.snapshot.reviews.find((x) => x.id === d.reviewId);
-          return (
-            <li key={d.id} className="change">
-              <Avatar p={app.person(d.byId) ?? { name: '?', initials: '?' }} size="sm" />
-              <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-                <span className="small"><strong>{app.person(d.byId)?.name.split(' ')[0]} asked</strong>{r ? ` in ${r.name}` : ''} about <Link className="linkish" to={`/goals/${d.goalId}?tab=comments`}>{app.goal(d.goalId)?.title}</Link></span>
-                <span className="note-text">{d.note}</span>
-                <Link className="linkish small" to={`/goals/${d.goalId}?tab=comments`}>Answer</Link>
-              </span>
-            </li>
-          );
-        })}
-        {comments.map((c) => (
-          <li key={c.id} className="change">
-            <Avatar p={app.person(c.actorId) ?? { name: '?', initials: '?' }} size="sm" />
-            <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-              <span className="small"><strong>{app.person(c.actorId)?.name.split(' ')[0]} commented</strong> on <Link className="linkish" to={`/goals/${c.goalId}?tab=comments`}>{app.goal(c.goalId!)?.title}</Link></span>
-              <span className="note-text">{c.diffs[0]?.to}</span>
+      <h2 className="block-title">Needs your response <span className="count-pill">{items.length}</span></h2>
+      <ul className="needs-list">
+        {items.slice(0, 5).map((x) => (
+          <li key={x.key} className="need">
+            <Avatar p={app.person(x.who) ?? { name: '?', initials: '?' }} size="sm" />
+            <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
+              <span className="small strong">{x.why}</span>
+              <span className="small">{x.what}</span>
+              {x.quote && <span className="note-text">“{x.quote}”</span>}
+              {x.when && <span className="hint">{x.when}</span>}
             </span>
+            <Link className="btn sm" to={x.to}>{x.action}</Link>
           </li>
         ))}
       </ul>
@@ -167,20 +187,31 @@ function ForYou() {
   );
 }
 
-/** A short read of what you watch: the worst few, and a way to the rest. */
-function WatchingSummary() {
+/** Important changes: what got worse this week in goals you watch or own, and why you're seeing it. */
+function ImportantChanges() {
   const app = useApp();
-  const goals = watchedGoals(app.viewer.id, app.snapshot).filter((g) => g.ownerId !== app.viewer.id).sort(worstFirst(app));
-  if (!goals.length) return null;
-  const bad = goals.filter((g) => ['off', 'risk', 'stale'].includes(app.statusOf(g).status)).length;
+  const watched = watchedGoals(app.viewer.id, app.snapshot).filter((g) => g.ownerId !== app.viewer.id);
+  const ids = new Set(watched.map((g) => g.id));
+  const changed = watched.map((g) => {
+    const st = app.statusOf(g);
+    const moved = statusChange(g, app.snapshot.checkIns);
+    const reason = moved?.worse && moved.week >= app.week - 1 ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}` : st.status === 'stale' ? 'Gone quiet' : app.attentionOf(g).flags.some((f) => f.kind === 'trend') ? 'Trend getting worse' : null;
+    return { g, reason };
+  }).filter((x) => x.reason);
+  if (!watched.length) return null;
+  const rest = watched.filter((g) => !changed.some((c) => c.g.id === g.id)).sort(worstFirst(app));
+  const bad = watched.filter((g) => ['off', 'risk', 'stale'].includes(app.statusOf(g).status)).length;
   return (
     <section className="block">
       <div className="row between">
-        <h2 className="block-title">Watching</h2>
-        <Link className="small linkish" to="/watching">All {goals.length}</Link>
+        <h2 className="block-title">Important changes</h2>
+        <Link className="small linkish" to="/watching">All {watched.length} you’re watching</Link>
       </div>
-      <p className="hint">{bad ? `${bad} of ${goals.length} need attention.` : `All ${goals.length} on track or done.`}</p>
-      <ul className="tree">{goals.slice(0, 3).map((g) => <li key={g.id}><TreeRow g={g} /></li>)}</ul>
+      <p className="hint">{changed.length ? `In goals you watch: ${changed.length} got worse or went quiet.` : `Nothing got worse this week in the goals you watch.`} {bad ? `${bad} of ${ids.size} need attention.` : ''}</p>
+      <ul className="tree">
+        {changed.slice(0, 4).map(({ g, reason }) => <li key={g.id}><span className="change-reason">{reason}</span><TreeRow g={g} /></li>)}
+        {!changed.length && rest.slice(0, 3).map((g) => <li key={g.id}><TreeRow g={g} /></li>)}
+      </ul>
     </section>
   );
 }
@@ -249,9 +280,10 @@ export function Home() {
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
         <span className="muted small">{app.ws.name} · week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
       </div>
+      <NeedsYou />
       <MyWeek />
       <AdminCard />
-      <WatchingSummary />
+      <ImportantChanges />
     </div>
   );
 }

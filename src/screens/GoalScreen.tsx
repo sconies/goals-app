@@ -124,6 +124,8 @@ function GoalView({ goal }: { goal: Goal }) {
         </div>}
       </div>
 
+      {parent && goal.whyHelps && <p className="small muted why-helps">Feeds “{parent.title}”: {goal.whyHelps}</p>}
+
       <section className="story" data-tone={st.status}>
         <div className="statusline">
           <Chip k={st.status} />

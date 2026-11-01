@@ -154,6 +154,11 @@ function EditSheet({ goal }: { goal: Goal }) {
               </select>
             </label>
           )}
+          {d.parentId && (
+            <label className="field"><span className="field-label">Why do we expect it to help? <span className="hint">optional</span></span>
+              <textarea className="input" rows={2} value={d.whyHelps} onChange={(e) => set({ whyHelps: e.target.value })} placeholder="What should change in the goal it feeds, and why" />
+            </label>
+          )}
           <details className="disclose"><summary>More details</summary>
             {d.parentId && (
               <label className="field" style={{ maxWidth: 300 }}><span className="field-label">How much it moves “{parent?.title}”</span>

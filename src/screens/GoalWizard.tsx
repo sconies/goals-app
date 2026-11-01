@@ -210,6 +210,11 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <input className="input" inputMode="decimal" value={d.effect} onChange={(e) => set({ effect: e.target.value })} placeholder={parent && parent.kind !== 'milestone' ? `In ${parent.unit || 'its unit'}, e.g. 3` : 'e.g. 3'} />{showErr('effect')}
               </label>
             )}
+            {d.parentId && (
+              <label className="field"><span className="small strong">Why do we expect it to help? <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span>
+                <textarea className="input" rows={2} value={d.whyHelps} onChange={(e) => set({ whyHelps: e.target.value })} placeholder={`e.g. Faster triage means requests start sooner, which should cut “${parent?.title ?? 'its'}” time`} />
+              </label>
+            )}
             <div className="field"><span className="small strong" id="level-l">Level</span>
               <div className="seg full" role="group" aria-labelledby="level-l">
                 {LEVEL_ORDER.map((l) => <button key={l} type="button" aria-pressed={d.level === l} onClick={() => set({ level: l })}>{LEVEL_LABEL[l]}</button>)}

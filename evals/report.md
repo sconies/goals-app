@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-01 20:35 UTC.
+Run 2026-11-01 20:49 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -23,6 +23,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 14 | An admin adds a person and makes them an admin | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 8) |
 | 10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
 | 15 | Call it greener than the numbers, with a reason, in the status sheet | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 8) |
+| 16 | Home by responsibility, and the 4-tab navigation trial | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 2 (budget 4) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -69,7 +70,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **A11Y** No serious or critical accessibility violations (axe-core); status is shape plus word, never colour alone. | Platform | 0 | P3, P4 |
 | ✅ | **NO-ERRORS** No console or page errors on any screen. | Platform | 0 | P2, P5 |
 | ✅ | **PROFILES** There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings. | People | 0 | U1, U2, U9 |
-| ✅ | **ATTENTION** Off track, stale, a worsening trend, a missed or missing path to green, and pending proposals are flagged where the user starts, with the reason in one line. | Attention | 0 | U2, U3, U6, U8 |
+| ✅ | **ATTENTION** Off track, stale, a worsening trend, a missed or missing path to green, and pending proposals are flagged where the user starts, with the reason in one line. | Attention | 0 | U2, U3, U6, U8, U16 |
 | ✅ | **REVIEW** A review walks its goals worst and stalest first, one goal page at a time, with next and previous. | Reviews | 0 | U3 |
 | ✅ | **CHANGE-LOG** Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. | Change log | 0 | U1, U3, U4, U5, U11, U6, U7, U13, U14, U10 |
 | ✅ | **DRAFTS** Unsaved answers survive leaving a flow and are offered back when the user returns. | Focus | 0 | U1, U4 |
@@ -81,7 +82,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **ONBOARDING** An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it. It ends with the one next thing to do. | Onboarding | 0 | U5, U11 |
 | ✅ | **IDENTITY** Until sign-in comes with SSO, someone opening a workspace on a new device says who they are once, and lands on their own home. | Onboarding | 0 | U11 |
 | ✅ | **LEVELS** Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged. | Goals | 0 | U4, U9, U13 |
-| ✅ | **WATCHING** Anyone can watch a goal, a whole tree or a level. Watching shows those goals curated: needs attention, gone quiet, what changed this week, then on track, with a level filter. | Watching | 0 | U7, U8, U9 |
+| ✅ | **WATCHING** Anyone can watch a goal, a whole tree or a level. Watching shows those goals curated: needs attention, gone quiet, what changed this week, then on track, with a level filter. | Watching | 0 | U7, U8, U9, U16 |
 | ✅ | **REVIEW-SETUP** Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekday), the goals (levels, trees, single goals) and the people. | Reviews | 0 | U13 |
 | ✅ | **REVIEW-RUN** What was said in a review is kept as its summary; owners see questions and actions on their goal page. | Reviews | 0 | U3 |
 | ✅ | **ADMIN** Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed. | People | 0 | U5, U14, U10 |

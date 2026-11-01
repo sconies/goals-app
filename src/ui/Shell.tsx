@@ -5,6 +5,7 @@ import { weekProgress } from '../domain/progress';
 import { reviewSession, watchedGoals } from '../domain/review';
 import type { Person } from '../domain/types';
 import { Avatar, Sheet } from './bits';
+import { setNavMode, useNavMode, type NavMode } from '../app/navMode';
 
 type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'new' | 'workspace';
 const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
@@ -18,7 +19,9 @@ const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
   workspace: { to: '/workspace', label: 'Workspace', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><rect x="9" y="9" width="4.5" height="4.5" rx="1" /></svg> },
 };
 /** Everyone gets the same places; check-in only appears for people who own goals. */
-function navFor(ownsGoals: boolean): NavId[] {
+function navFor(ownsGoals: boolean, mode: NavMode = 'current'): NavId[] {
+  // The 4-tab trial: Home, Goals, Reviews on the bar; check-in is reached from Home and goal pages, Watching from Goals.
+  if (mode === 'four') return ['home', 'goals', 'reviews', ...(ownsGoals ? ['checkin' as const] : []), 'watching', 'activity', 'new', 'workspace'];
   return ownsGoals ? ['home', 'checkin', 'watching', 'reviews', 'goals', 'activity', 'new', 'workspace'] : ['home', 'watching', 'reviews', 'goals', 'activity', 'new', 'workspace'];
 }
 
@@ -89,6 +92,7 @@ const DEMO_CAST = ['maya', 'sam', 'elena', 'tom', 'priya'];
 /** Demo only: whose view this is, switchable in one tap, with a way to start again or leave. */
 function DemoBar({ onPeople }: { onPeople: () => void }) {
   const app = useApp();
+  const navMode = useNavMode();
   const nav = useNavigate();
   const [resetting, setResetting] = useState(false);
   const cast = DEMO_CAST.map((id) => app.person(id)).filter((p): p is Person => !!p);
@@ -107,6 +111,7 @@ function DemoBar({ onPeople }: { onPeople: () => void }) {
         {app.ws.kind === 'example' && (resetting
           ? <><button className="linkish" onClick={async () => { await app.resetExample(); setResetting(false); nav('/'); }}>Yes, start over</button><button className="linkish muted" onClick={() => setResetting(false)}>Cancel</button></>
           : <button className="linkish" onClick={() => setResetting(true)}>Start over</button>)}
+        <button className="linkish" onClick={() => setNavMode(navMode === 'four' ? 'current' : 'four')} aria-pressed={navMode === 'four'} title="Compare the phone navigation">{navMode === 'four' ? 'Current tabs' : 'Try 4 tabs'}</button>
         <a className="linkish" href="/">Leave</a>
       </span>
     </div>
@@ -147,13 +152,14 @@ export function Shell({ children }: { children: ReactNode }) {
   const { pathname, search } = useLocation();
   const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | 'feedback' | null>(null);
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
-  const order = navFor(ownsGoals);
+  const navMode = useNavMode();
+  const order = navFor(ownsGoals, navMode);
   const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.length;
   // A review you're in that's held this week and still has goals to cover.
   const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => x.week === Math.max(1, app.week) && x.done < x.total).length;
   const count = (id: NavId) => (id === 'checkin' ? due : id === 'reviews' ? reviewsOpen : 0);
-  const tabs = order.slice(0, 4);
-  const more = order.slice(4);
+  const tabs = order.slice(0, navMode === 'four' ? 3 : 4);
+  const more = order.slice(navMode === 'four' ? 3 : 4);
   const work = useRef<HTMLElement>(null);
   const title = order.filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : 'Goals');
   // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
@@ -244,6 +250,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
           <button className="menuitem" onClick={() => setSheet('workspace')}>{NAV.workspace.icon}<span className="stack" style={{ gap: 0 }}><span className="strong">Switch workspace</span><span className="tiny muted">{app.ws.name}</span></span></button>
+          {app.mode === 'demo' && <button className="menuitem" onClick={() => { setNavMode(navMode === 'four' ? 'current' : 'four'); setSheet(null); }}><span className="strong">{navMode === 'four' ? 'Current tabs' : 'Try 4 tabs'}</span><span className="tiny muted">Demo: compare the phone navigation</span></button>}
           <button className="menuitem" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span className="strong">Send feedback</span></button>
           <button className="menuitem" onClick={() => setSheet('profile')}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}</span></span></button>
         </div>

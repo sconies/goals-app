@@ -74,6 +74,8 @@ interface GoalBase {
   parentId: Id | null;
   /** Estimated effect on the parent's metric, in the parent's unit (e.g. days off). */
   effect: number | null;
+  /** Optional: why we expect this goal to help the one it feeds. A hypothesis, not a proven cause. */
+  whyHelps?: string;
   /** Where the number comes from and who owns that source. */
   source: string;
   definition: string;

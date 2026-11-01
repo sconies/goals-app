@@ -687,6 +687,34 @@ journey('U15', ['OWNER-CALL', 'GREENER', 'CHECKIN-STATUS-VS-PLAN'], 'Call it gre
   await p.context().close();
 }, ['logged']);
 
+journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab navigation trial', 4, async (h, device) => {
+  const p = h.use(await newPage(device, 'elena'));
+  await p.goto(url('/'));
+  // Needs your response: a decision Aisha named Elena for, with why, what and a specific action.
+  await see(p, 'Needs your response');
+  const card = p.locator('.need', { hasText: 'needs a decision or help from you' }).first();
+  await h.inView(card, 'entry', 'the decision that needs Elena');
+  h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('link', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
+  await see(p, 'Important changes');
+  await h.checkpoint('home');
+  await h.click(card.getByRole('link', { name: 'Respond' }));
+  await p.waitForURL(/\/goals\/(access|head)/);
+  await see(p, 'Decision or help needed');
+  // The 4-tab trial: Home, Goals, Reviews, More; Watching lives in Goals.
+  await p.goto(url('/'));
+  if (device === 'phone') { await h.click(p.locator('.tabbar').getByRole('button', { name: 'More' })); await h.click(p.getByRole('dialog').getByRole('button', { name: /Try 4 tabs/ })); }
+  else await h.click(p.locator('.rolebar').getByRole('button', { name: 'Try 4 tabs' }));
+  if (device === 'phone') {
+    const labels = await p.locator('.tabbar').getByRole('link').allInnerTexts();
+    h.set('progress', labels.map((x) => x.replace(/\d+/g, '').trim()).join(',') === 'Home,Goals,Reviews', `phone tabs are ${labels.join(', ')}`);
+  } else h.set('progress', true);
+  await p.goto(url('/goals?show=watching'));
+  await see(p, 'Needs attention', 'Watching shows inside Goals in the 4-tab trial');
+  await p.evaluate(() => localStorage.removeItem('goals-app-nav'));
+  h.set('finish', true);
+  await p.context().close();
+}, ['errors', 'logged']);
+
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
   const out = [];

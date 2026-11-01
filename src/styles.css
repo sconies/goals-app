@@ -643,3 +643,10 @@ h1[tabindex='-1']:focus { outline: none; }
   .quiet-links .linkish, .crumbs a { min-height: 44px; display: inline-flex; align-items: center; }
   .disclose > summary { min-height: 44px; display: flex; align-items: center; }
 }
+.needs-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.need { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-2); }
+.need:first-child { border-top: 0; }
+.need .btn { flex: none; align-self: center; }
+.change-reason { display: block; font-size: 12px; font-weight: 600; color: var(--risk-fg); padding: var(--s2) var(--s4) 0; }
+.why-helps { margin: 0; }
+.compact-opts .opt { min-height: 44px; }

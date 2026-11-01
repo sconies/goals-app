@@ -13,7 +13,12 @@ import { TreeRow, worstFirst } from './Inspect';
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 type Filter = 'all' | Level;
 
+/** The watching content, used on its own page and, in the 4-tab trial, as a tab in Goals. */
 export function Watching() {
+  return <div className="page narrow"><WatchHead /><WatchingBody /></div>;
+}
+
+export function WatchingBody() {
   const app = useApp();
   const [filter, setFilter] = useState<Filter>('all');
   const [managing, setManaging] = useState(false);
@@ -27,11 +32,10 @@ export function Watching() {
   const fine = goals.filter((g) => !bad.includes(g) && !quiet.includes(g));
   const recent = app.snapshot.changes.filter((c) => c.goalId && ids.has(c.goalId) && daysSince(c.at, app.today) <= 7 && c.actorId !== app.viewer.id).slice().reverse();
 
-  if (!mine.length) return <div className="page narrow"><WatchHead /><StartWatching /></div>;
+  if (!mine.length) return <StartWatching />;
 
   return (
-    <div className="page narrow">
-      <WatchHead />
+    <>
       <p className="lede">{summary(goals.length, bad.length, quiet.length, recent.length)}</p>
       {levels.length > 1 && (
         <div className="seg tabs" role="tablist" aria-label="Level">
@@ -60,7 +64,7 @@ export function Watching() {
         <WatchList watches={mine} managing={managing} />
         {managing && <LevelPills />}
       </section>
-    </div>
+    </>
   );
 }
 

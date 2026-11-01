@@ -64,3 +64,6 @@ alter table okr_check_ins add constraint okr_check_ins_way_back check (
   or (length(trim(coalesce(ptg_what, ''))) >= 8
       and (coalesce(ptg_state, 'plan') <> 'plan' or coalesce(ptg_by_week, 0) > week))
 );
+
+-- Optional: why a goal is expected to help the one it feeds (a hypothesis, shown with the link).
+alter table okr_goals add column why_helps text;

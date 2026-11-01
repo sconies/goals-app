@@ -8,6 +8,7 @@ import { downloadTemplate, readSpreadsheet } from '../app/spreadsheet';
 import { buildWorkspace, parseTable, thisMonday, type ImportIssue } from '../domain/importer';
 import { TEMPLATES, type TemplateGoal } from '../domain/templates';
 import { Steps } from '../ui/bits';
+import { targetText } from '../domain/format';
 
 interface PersonRow { name: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string }
@@ -307,11 +308,28 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <h1 className="qtitle big">Ready to create {d.name.trim() || 'your workspace'}?</h1>
             <dl className="details">
               <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
-              <dt>North star</dt><dd>{result.snapshot.goals.find((g) => g.level === 'north-star')?.title ?? 'Set up later'}</dd>
-              <dt>Goals</dt><dd>{result.snapshot.goals.filter((g) => g.level !== 'north-star').length || 'Set up later'}</dd>
+              <dt>Goals</dt><dd>{result.snapshot.goals.length ? `${result.snapshot.goals.length}, listed below` : 'Set up later'}</dd>
               <dt>Cycle</dt><dd>13 weeks from {new Date(d.startDate + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })}, review on {DAYS[d.reviewDay]}s</dd>
               <dt>You</dt><dd>{d.me.name}, admin</dd>
             </dl>
+            <div className="row" style={{ gap: 'var(--s3)' }}>
+              <button type="button" className="linkish small" onClick={() => go(0)}>Change name or cycle</button>
+              <button type="button" className="linkish small" onClick={() => go(2)}>Change people</button>
+            </div>
+            {result.snapshot.goals.length > 0 && (
+              <div className="stack" style={{ gap: 'var(--s2)' }}>
+                <span className="field-label">Check each goal’s owner and target</span>
+                <ul className="record">
+                  {result.snapshot.goals.map((g) => (
+                    <li key={g.id}>
+                      <span className="strong">{g.title}{g.level === 'north-star' ? ' · North star' : ''}</span>
+                      <span className="small">{result.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? '—'} · {targetText(g)}{g.kind === 'milestone' ? ` · ${g.stages.map((st) => `${st.name} by week ${st.dueWeek}`).join(', ')}` : ''}</span>
+                    </li>
+                  ))}
+                </ul>
+                {!skipGoalSteps && <div className="row" style={{ gap: 'var(--s3)' }}><button type="button" className="linkish small" onClick={() => go(4)}>Change the north star</button><button type="button" className="linkish small" onClick={() => go(5)}>Change the goals</button></div>}
+              </div>
+            )}
           </section>
         )}
 
@@ -334,10 +352,10 @@ function GoalFields({ g, owners, onChange, issue, headline }: { g: GoalRow; owne
         <input className={'input' + (headline ? ' big-input' : '') + (issue && !g.title.trim() ? ' invalid' : '')} aria-label={headline ? 'Outcome' : 'Goal'} value={g.title} onChange={(e) => onChange({ title: e.target.value })} placeholder={headline ? 'e.g. Weekly active users' : 'e.g. Activation rate'} />
       </label>
       {!headline && (
-        <div className="seg full" role="group" aria-label="Kind of goal">
-          <button type="button" aria-pressed={g.kind === 'metric'} onClick={() => onChange({ kind: 'metric' })}>A number</button>
-          <button type="button" aria-pressed={g.kind === 'range'} onClick={() => onChange({ kind: 'range', bound: g.bound ?? 'at most' })}>A limit</button>
-          <button type="button" aria-pressed={g.kind === 'milestone'} onClick={() => onChange({ kind: 'milestone', stages: g.stages || 'Design@3; Pilot@7; Launch@12' })}>Stages</button>
+        <div className="optlist compact-opts" role="radiogroup" aria-label="Kind of goal">
+          <button type="button" role="radio" className="opt" aria-checked={g.kind === 'metric'} onClick={() => onChange({ kind: 'metric' })}><span>Move a number</span></button>
+          <button type="button" role="radio" className="opt" aria-checked={g.kind === 'range'} onClick={() => onChange({ kind: 'range', bound: g.bound ?? 'at most' })}><span>Keep a number in range</span></button>
+          <button type="button" role="radio" className="opt" aria-checked={g.kind === 'milestone'} onClick={() => onChange({ kind: 'milestone', stages: g.stages || 'Design@3; Pilot@7; Launch@12' })}><span>Hit dated stages</span></button>
         </div>
       )}
       {g.kind === 'metric' ? (
@@ -356,15 +374,33 @@ function GoalFields({ g, owners, onChange, issue, headline }: { g: GoalRow; owne
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, ms" aria-label={(g.title || 'Goal') + ': unit'} /></label>
         </div>
       ) : (
-        <label className="field"><span className="field-label">Stages and the week each is due</span>
-          <input className="input" value={g.stages ?? ''} onChange={(e) => onChange({ stages: e.target.value })} placeholder="Design@3; Pilot@7; Launch@12" />
-          <span className="hint">Separate stages with “;”, and put the week after “@”.</span>
-        </label>
+        <StageRows value={g.stages ?? ''} onChange={(stages) => onChange({ stages })} goalName={g.title || 'Goal'} />
       )}
       <label className="field"><span className="field-label">Owner</span>
         <select className="input" value={g.owner} onChange={(e) => onChange({ owner: e.target.value })}>{owners.map((o) => <option key={o} value={o}>{o}</option>)}</select>
       </label>
       {issue && <span className="hint tone-off" role="alert">{issue}</span>}
+    </div>
+  );
+}
+
+/** Stages as rows (name and week) instead of typing "Design@3; Pilot@7". Stored in the same text form the importer reads. */
+function StageRows({ value, onChange, goalName }: { value: string; onChange: (v: string) => void; goalName: string }) {
+  const rows = value.split(';').map((x) => x.trim()).filter(Boolean).map((x) => { const [n, w] = x.split('@'); return { name: (n ?? '').trim(), week: (w ?? '').trim() }; });
+  const list = rows.length ? rows : [{ name: '', week: '' }];
+  const save = (next: { name: string; week: string }[]) => onChange(next.map((r) => `${r.name.replace(/[;@]/g, ' ')}@${r.week}`).join('; '));
+  return (
+    <div className="field"><span className="field-label">Stages, and the week each is due</span>
+      <div className="stack" style={{ gap: 'var(--s2)' }}>
+        {list.map((r, i) => (
+          <div key={i} className="row nowrap" style={{ alignItems: 'center' }}>
+            <input className="input" style={{ flex: '3 1 160px' }} value={r.name} placeholder={`Stage ${i + 1}`} aria-label={`${goalName}: stage ${i + 1} name`} onChange={(e) => save(list.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))} />
+            <input className="input" style={{ flex: '0 0 84px' }} inputMode="numeric" value={r.week} placeholder="Week" aria-label={`${goalName}: stage ${i + 1} due week`} onChange={(e) => save(list.map((x, k) => (k === i ? { ...x, week: e.target.value.replace(/\D/g, '') } : x)))} />
+            {list.length > 1 && <button type="button" className="iconbtn" aria-label={`Remove stage ${i + 1}`} onClick={() => save(list.filter((_, k) => k !== i))}>✕</button>}
+          </div>
+        ))}
+        <div><button type="button" className="btn sm" onClick={() => save([...list, { name: '', week: '' }])}>Add a stage</button></div>
+      </div>
     </div>
   );
 }

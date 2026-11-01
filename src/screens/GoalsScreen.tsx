@@ -9,8 +9,10 @@ import { outcomeTrees } from '../domain/tree';
 import { AttentionCard, Chip, Empty } from '../ui/bits';
 import { GoalLine } from './Home';
 import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
+import { WatchingBody } from './Watching';
+import { useNavMode } from '../app/navMode';
 
-type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine';
+type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
 /** Goals, starting from the trees: each top goal, then what feeds it, worst first. */
@@ -19,6 +21,7 @@ export function GoalsScreen() {
   const [params, setParams] = useSearchParams();
   const att = attentionList(app.snapshot, app.cycle, app.today);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
+  const navMode = useNavMode();
   const show: Show = (params.get('show') as Show) || 'outcomes';
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
   const tabs: [Show, string, number | null][] = [
@@ -27,6 +30,7 @@ export function GoalsScreen() {
     ['levels', 'By level', null],
     ['teams', 'By team', null],
     ...(mine.length ? [['mine', 'Mine', mine.length] as [Show, string, number]] : []),
+    ...(navMode === 'four' ? [['watching', 'Watching', null] as [Show, string, null]] : []),
   ];
 
   return (
@@ -102,6 +106,8 @@ export function GoalsScreen() {
           </section>
         );
       })}
+
+      {show === 'watching' && <WatchingBody />}
 
       {show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
     </div>
