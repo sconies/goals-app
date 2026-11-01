@@ -2,6 +2,7 @@
    npm run evals   (builds the app, serves it, runs the spec scenarios, the user journeys and the platform checks) */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,8 +14,10 @@ const sh = (cmd, args, env = {}) => spawnSync(cmd, args, { cwd: root, stdio: 'in
 
 console.log('\n▸ Building the app, and a copy whose database never answers');
 if (sh('npx', ['vite', 'build', '--logLevel', 'warn']).status !== 0) process.exit(2);
-// 10.255.255.1 is unroutable: requests hang until the app's own timeout, like a dead connection.
-sh('npx', ['vite', 'build', '--logLevel', 'error', '--outDir', 'evals/out/dist-down'], { VITE_SUPABASE_URL: 'http://10.255.255.1', VITE_SUPABASE_KEY: 'unused' });
+// The copy talks to a local server that accepts connections and never answers: a dead database that
+// behaves the same on every machine (an unroutable address fails fast behind some proxies and hangs on others).
+const HANG_PORT = 4320;
+sh('npx', ['vite', 'build', '--logLevel', 'error', '--outDir', 'evals/out/dist-down'], { VITE_SUPABASE_URL: `http://127.0.0.1:${HANG_PORT}`, VITE_SUPABASE_KEY: 'unused' });
 
 console.log('\n▸ Spec scenarios');
 sh('npx', ['vitest', 'run', '--config', 'evals/vitest.config.ts', '--reporter=default', '--reporter=json', '--outputFile=evals/out/scenarios.json']);
@@ -22,6 +25,8 @@ sh('npx', ['vitest', 'run', '--config', 'evals/vitest.config.ts', '--reporter=de
 console.log('\n▸ User journeys and platform checks');
 const serve = (port, dir) => spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort', ...(dir ? ['--outDir', dir] : [])], { cwd: root, stdio: 'ignore' });
 const servers = [serve(4318), serve(4319, 'evals/out/dist-down')];
+const sockets = new Set();
+const hang = net.createServer((sock) => { sockets.add(sock); sock.on('close', () => sockets.delete(sock)); }).listen(HANG_PORT);
 for (const port of [4318, 4319]) {
   for (let i = 0; i < 60; i++) {
     try { if ((await fetch(`http://localhost:${port}/`)).ok) break; } catch { /* not up yet */ }
@@ -30,6 +35,8 @@ for (const port of [4318, 4319]) {
 }
 sh('node', ['evals/journeys.cjs'], { BASE: 'http://localhost:4318', DOWN: 'http://localhost:4319' });
 servers.forEach((s) => s.kill());
+sockets.forEach((s) => s.destroy());
+hang.close();
 
 // Scorecard
 const spec = JSON.parse(fs.readFileSync(path.join(root, 'evals', 'requirements.json'), 'utf8'));

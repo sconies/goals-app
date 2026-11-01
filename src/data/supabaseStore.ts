@@ -13,7 +13,8 @@ const PAGE = 900;
 
 const timedFetch: typeof fetch = (input, init) => {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(new Error('The database did not answer in time.')), TIMEOUT_MS);
+  // An AbortError, so the client's retry (meant for quick network blips) doesn't wait out three more timeouts.
+  const timer = setTimeout(() => ctl.abort(new DOMException('The database did not answer in time.', 'AbortError')), TIMEOUT_MS);
   init?.signal?.addEventListener('abort', () => ctl.abort(init.signal?.reason));
   return fetch(input, { ...init, signal: ctl.signal }).finally(() => clearTimeout(timer));
 };
