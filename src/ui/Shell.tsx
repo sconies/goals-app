@@ -19,7 +19,7 @@ const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
 };
 /** Everyone gets the same places; check-in only appears for people who own goals. */
 function navFor(ownsGoals: boolean): NavId[] {
-  return ownsGoals ? ['home', 'checkin', 'goals', 'watching', 'reviews', 'activity', 'new', 'workspace'] : ['home', 'goals', 'watching', 'reviews', 'activity', 'new', 'workspace'];
+  return ownsGoals ? ['home', 'checkin', 'watching', 'reviews', 'goals', 'activity', 'new', 'workspace'] : ['home', 'watching', 'reviews', 'goals', 'activity', 'new', 'workspace'];
 }
 
 function isActive(id: NavId, path: string) {
@@ -123,8 +123,8 @@ export function Shell({ children }: { children: ReactNode }) {
   // A review you're in that's held this week and still has goals to cover.
   const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => x.week === Math.max(1, app.week) && x.done < x.total).length;
   const count = (id: NavId) => (id === 'checkin' ? due : id === 'reviews' ? reviewsOpen : 0);
-  const tabs = order.slice(0, 3);
-  const more = order.slice(3);
+  const tabs = order.slice(0, 4);
+  const more = order.slice(4);
   const work = useRef<HTMLElement>(null);
   useEffect(() => { window.scrollTo?.(0, 0); work.current?.scrollTo?.(0, 0); }, [pathname]);
   const title = order.filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? 'Goals';

@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-01 16:59 UTC.
+Run 2026-11-01 17:03 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -17,9 +17,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 12 | Demo: switch person, look around, start over | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 4) |
 | 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 3) |
 | 7 | An owner changes a target with a reason; a watcher sees it | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 16) |
-| 8 | Watching: see what has gone quiet and chase it | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 3 (budget 4) |
+| 8 | Watching: see what has gone quiet and chase it | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 3 · 3 (budget 4) |
 | 9 | Follow goals you don’t own: watch a tree or a level | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 6) |
-| 13 | Anyone sets up a review: name, cadence, goals, people | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 8 · 7 (budget 10) |
+| 13 | Anyone sets up a review: name, cadence, goals, people | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 10) |
 | 14 | An admin adds a person and makes them an admin | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 8) |
 | 10 | Close the cycle with a retro | **0** | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | 0 · 0 (budget 0) |
 

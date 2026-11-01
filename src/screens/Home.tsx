@@ -54,6 +54,7 @@ function MyWeek() {
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   const att = attentionList(app.snapshot, app.cycle, app.today, { goals: mine });
+  const rest = mine.filter((g) => !att.some((a) => a.goal.id === g.id));
   const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => s.week === Math.max(1, app.week) && s.done < s.total);
   const resuming = p.due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
@@ -104,10 +105,10 @@ function MyWeek() {
         </div>
       </section>
       {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
-      {mine.length > 0 && (
+      {rest.length > 0 && (
         <section className="block">
-          <h2 className="block-title">Your goals</h2>
-          <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>
+          <h2 className="block-title">{att.length ? 'Your other goals' : 'Your goals'}</h2>
+          <div className="glist">{rest.map((g) => <GoalLine key={g.id} g={g} />)}</div>
         </section>
       )}
     </>

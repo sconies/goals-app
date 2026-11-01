@@ -431,8 +431,8 @@ svg.chart { display: block; overflow: visible; }
   .side { display: none; }
   .work { min-height: calc(100vh - 128px); padding-bottom: 76px; }
   .mtop { display: flex; align-items: center; gap: 12px; padding: 12px 12px; position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line-2); }
-  .tabbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--line); }
-  .tabbar a, .tabbar button { min-height: 52px; border: 0; background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .tabbar { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--line); }
+  .tabbar a, .tabbar button { min-height: 52px; border: 0; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 600; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
   .tabbar [aria-current="page"] { color: var(--accent-text); }
   .tabicon { position: relative; display: inline-flex; }
   .badge { position: absolute; top: -6px; right: -12px; min-width: 18px; padding: 0 4px; border-radius: 999px; background: var(--accent); color: var(--accent-fg); font-size: 12px; line-height: 18px; text-align: center; }
