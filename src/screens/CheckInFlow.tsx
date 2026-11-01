@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { checkInDraftKey, useDraft } from '../app/drafts';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, draftFrom, emptyDraft, evaluate, MIN_PATH, MIN_REASON, type Draft, type Evaluation } from '../domain/checkin';
-import { fmt, gapText, targetText, weekLabel } from '../domain/format';
+import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
 import { onTimeStreak, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, MilestoneGoal, Status } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
@@ -109,7 +109,6 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
   const existing = own.find((c) => c.week === week) ?? null;
   const previous = [...own].reverse().find((c) => c.week < week) ?? null;
   const [draft, set, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => (existing ? draftFrom(existing) : emptyDraft(goal, previous)));
-  const [raise, setRaise] = useState(draft.proposeTarget !== '');
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showNext, setShowNext] = useState(!!draft.next);
@@ -145,7 +144,7 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
     if (!check.canPost || saving) { setTried(true); return; }
     setSaving(true);
     try {
-      const c = await app.postCheckIn(goal, raise ? d : { ...d, proposeTarget: '' }, existing);
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '' }, existing);
       clear();
       onPosted(c, !!existing);
     } catch {
@@ -184,7 +183,7 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
 
   return (
     <form className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
-      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.headline ? 'Headline goal' : team?.name} steps={plan.length > 1 ? { at: stepNo, of: plan.length } : undefined} />
+      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={plan.length > 1 ? { at: stepNo, of: plan.length } : undefined} />
       {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This replaces it; the change log keeps both.</p>}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
@@ -253,15 +252,9 @@ function GoalCheckIn({ goal, onPosted }: { goal: Goal; onPosted: (c: CheckIn, up
               placeholder={e.reason === 'ahead' ? 'What happened, and will it last?' : 'What is causing the gap?'} />
           </label>
           {tried && !whyOk && <span className="hint tone-off" role="alert">{!draft.cause ? 'Pick a cause, then write a sentence.' : 'Write a sentence about what happened.'}</span>}
-          {e.asksTarget && goal.kind === 'metric' && (raise ? (
-            <label className="field" style={{ maxWidth: 260 }}>
-              <span className="field-label">Proposed target</span>
-              <span className="row nowrap"><input className={'input' + (tried && !targetOk ? ' invalid' : '')} inputMode="decimal" value={draft.proposeTarget} onChange={(ev) => set({ proposeTarget: ev.target.value })} aria-label="Proposed target" />{goal.unit && <span className="muted">{goal.unit}</span>}</span>
-              {tried && !targetOk
-                ? <span className="hint tone-off" role="alert">Propose a target beyond the current one ({fmt(goal.plan.target, goal)}).</span>
-                : <span className="hint">The sponsor decides in the weekly review. <button type="button" className="linkish" onClick={() => { setRaise(false); set({ proposeTarget: '' }); }}>Keep {fmt(goal.plan.target, goal)}</button></span>}
-            </label>
-          ) : <div><button type="button" className="linkish tap" onClick={() => setRaise(true)}>Propose a new target</button></div>)}
+          {e.asksTarget && goal.kind === 'metric' && app.viewer.id === goal.ownerId && (
+            <p className="hint">Well ahead of plan. If the target should move, <Link className="linkish" to={`/goals/${goal.id}/edit`}>change it</Link> after posting; watchers see the change and your reason.</p>
+          )}
           {last && <NextStepField draft={draft} set={set} open={showNext} onOpen={() => setShowNext(true)} />}
         </section>
       )}

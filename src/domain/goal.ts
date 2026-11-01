@@ -1,6 +1,6 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
-import type { Cycle, Goal, GoalKind, Io, MetricPlan, PlanShape } from './types';
+import type { Cycle, Goal, GoalKind, Io, Level, MetricPlan, PlanShape } from './types';
 
 export interface GoalDraft {
   kind: GoalKind;
@@ -8,7 +8,7 @@ export interface GoalDraft {
   teamId: string;
   ownerId: string;
   io: Io;
-  headline: boolean;
+  level: Level;
   guardrail: boolean;
   parentId: string;
   effect: string;
@@ -27,7 +27,7 @@ export interface GoalDraft {
 
 export function blankGoal(teamId: string, ownerId: string, parentId: string): GoalDraft {
   return {
-    kind: 'metric', title: '', teamId, ownerId, io: 'input', headline: false, guardrail: false, parentId, effect: '',
+    kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '',
     source: '', definition: '', unit: '%', decimals: '0', start: '', target: '', shape: 'straight',
     bound: 'atMost', limit: '', margin: '1', stages: [{ id: 's1', name: '', dueWeek: '' }],
   };
@@ -36,7 +36,7 @@ export function blankGoal(teamId: string, ownerId: string, parentId: string): Go
 export function draftOf(g: Goal): GoalDraft {
   const d = blankGoal(g.teamId, g.ownerId, g.parentId ?? '');
   Object.assign(d, {
-    kind: g.kind, title: g.title, io: g.io, headline: g.headline, guardrail: g.guardrail,
+    kind: g.kind, title: g.title, io: g.io, level: g.level, guardrail: g.guardrail,
     effect: g.effect == null ? '' : String(g.effect), source: g.source, definition: g.definition,
   });
   if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape });
@@ -100,9 +100,9 @@ export function withPlanOf(base: Goal, plan: Goal): Goal {
  */
 export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; createdAt: string }, existing: Goal | null, checkInsStarted: boolean, week: number): Goal {
   const common = {
-    id: base.id, cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.headline ? 'output' as const : d.io,
-    headline: d.headline, guardrail: d.guardrail, parentId: d.headline ? null : d.parentId || null,
-    effect: d.headline ? null : parseNumber(d.effect), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
+    id: base.id, cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.io,
+    level: d.level, guardrail: d.guardrail, parentId: d.parentId || null,
+    effect: d.parentId ? parseNumber(d.effect) : null, source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
   };
   const num = (s: string) => parseNumber(s) as number;
   if (d.kind === 'metric') {

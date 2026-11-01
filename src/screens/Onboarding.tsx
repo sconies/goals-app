@@ -7,10 +7,9 @@ import { useDraft } from '../app/drafts';
 import { downloadTemplate, readSpreadsheet } from '../app/spreadsheet';
 import { buildWorkspace, parseTable, thisMonday, type ImportIssue } from '../domain/importer';
 import { TEMPLATES, type TemplateGoal } from '../domain/templates';
-import type { Profile } from '../domain/types';
-import { PROFILE_LABEL, Steps } from '../ui/bits';
+import { Steps } from '../ui/bits';
 
-interface PersonRow { name: string; title: string; team: string; profile: Profile }
+interface PersonRow { name: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string }
 interface SetupDraft {
   step: number;
@@ -27,9 +26,9 @@ interface SetupDraft {
   fileGoals: string;
 }
 
-const blankPerson = (): PersonRow => ({ name: '', title: '', team: '', profile: 'contributor' });
+const blankPerson = (): PersonRow => ({ name: '', title: '', team: '', admin: false });
 const blankGoal = (owner = ''): GoalRow => ({ title: '', kind: 'metric', unit: '', start: '', target: '', owner });
-const PROFILE_WORDS: Record<string, Profile> = { lead: 'lead', 'team lead': 'lead', sponsor: 'sponsor', coach: 'coach', 'goals coach': 'coach', contributor: 'contributor' };
+const YES = /^(y|yes|true|1|admin|sponsor|coach|goals coach)$/i;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const STEP_LABELS = ['Workspace', 'You', 'Your team', 'Starting point', 'Outcome', 'Goals', 'Check'];
 
@@ -39,19 +38,19 @@ export function peopleFromTable(tsv: string): { rows: PersonRow[]; objectives: R
   const first = (table[0] ?? []).map((h) => h.toLowerCase());
   const hasHeader = first.includes('name');
   const col = (names: string[], fallback: number) => (hasHeader ? first.findIndex((h) => names.includes(h)) : fallback);
-  const ci = { name: col(['name'], 0), team: col(['team'], 1), profile: col(['profile', 'role'], 2), title: col(['job title', 'title'], -1), objective: col(['team objective', 'objective'], -1) };
+  const ci = { name: col(['name'], 0), team: col(['team'], 1), admin: col(['admin', 'profile', 'role'], 2), title: col(['job title', 'title'], -1), objective: col(['team objective', 'objective'], -1) };
   const objectives: Record<string, string> = {};
   const rows = (hasHeader ? table.slice(1) : table).map((r) => {
     const get = (i: number) => (i >= 0 ? r[i] ?? '' : '');
     if (get(ci.objective) && get(ci.team)) objectives[get(ci.team)] = get(ci.objective);
-    return { name: get(ci.name), team: get(ci.team), title: get(ci.title), profile: PROFILE_WORDS[get(ci.profile).toLowerCase()] ?? 'contributor' };
+    return { name: get(ci.name), team: get(ci.team), title: get(ci.title), admin: YES.test(get(ci.admin).trim()) };
   }).filter((r) => r.name || r.team);
   return { rows, objectives };
 }
 
 function peopleTsv(me: PersonRow, rows: PersonRow[], objectives: Record<string, string>) {
   const all = [me, ...rows.filter((r) => r.name.trim() || r.team.trim())];
-  return ['Name\tJob title\tTeam\tProfile\tTeam objective', ...all.map((r) => [r.name, r.title, r.team, r.profile, objectives[r.team] ?? ''].join('\t'))].join('\n');
+  return ['Name\tJob title\tTeam\tAdmin\tTeam objective', ...all.map((r) => [r.name, r.title, r.team, r.admin ? 'yes' : '', objectives[r.team] ?? ''].join('\t'))].join('\n');
 }
 
 function goalsTsv(d: SetupDraft) {
@@ -61,10 +60,10 @@ function goalsTsv(d: SetupDraft) {
   const teamOf = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === owner.trim().toLowerCase())?.team ?? d.me.team;
   const row = (g: GoalRow, headline: boolean) => [
     g.title, teamOf(g.owner), g.owner, g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'milestone' ? '' : g.start, g.kind === 'milestone' ? '' : g.target,
-    g.plan ?? 'straight', '', '', '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'yes' : '', '', '',
+    g.plan ?? 'straight', '', '', '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : '', '', '',
   ].join('\t');
   const goals = d.goals.filter((g) => g.title.trim());
-  return ['Goal\tTeam\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tHeadline\tEffect\tSource', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
+  return ['Goal\tTeam\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
 }
 
 /** First run of the real app: what it does, then setting up. */
@@ -79,7 +78,7 @@ export function Welcome() {
         <ul className="welcome-points">
           <li><strong>Set an outcome</strong> and the few goals that move it.</li>
           <li><strong>Owners check in weekly</strong>, in under a minute each.</li>
-          <li><strong>Leaders see what changed</strong> and make the calls in one review.</li>
+          <li><strong>Anyone can watch</strong> the goals they care about, and run a review on them.</li>
         </ul>
         <div className="stack" style={{ gap: 'var(--s3)' }}>
           <button className="btn primary big-btn" onClick={() => setStart(true)}>Set up your workspace</button>
@@ -97,7 +96,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const nav = useNavigate();
   const [d, set, clear, restored] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
     step: 0, name: '', startDate: thisMonday(setup.today), reviewDay: 3,
-    me: { name: '', title: '', team: '', profile: 'lead' }, people: [blankPerson(), blankPerson()], objectives: {},
+    me: { name: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
     template: '', outcome: blankGoal(), goals: [], fileGoals: '',
   }));
   const [suffix] = useState(() => Math.random().toString(36).slice(2, 6));
@@ -107,7 +106,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const [cycleOpen, setCycleOpen] = useState(false);
 
   const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(d.me, d.people, d.objectives), goals: goalsTsv(d), now: setup.today, idSuffix: suffix });
-  const issues = (t: ImportIssue['table'], blocking = true) => result.issues.filter((i) => i.table === t && (!blocking || !/becomes a contributor|using straight/.test(i.message)));
+  const issues = (t: ImportIssue['table'], blocking = true) => result.issues.filter((i) => i.table === t && (!blocking || !/using straight/.test(i.message)));
   const personIssue = (i: number) => issues('People').find((x) => x.row === i + 3)?.message;
   const goalIssue = (row: number) => issues('Goals').find((x) => x.row === row)?.message;
   const owners = [d.me, ...d.people].filter((p) => p.name.trim()).map((p) => p.name.trim());
@@ -120,7 +119,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     !!d.template,
     !!d.outcome.title.trim() && !goalIssue(2),
     !issues('Goals').length,
-    !result.issues.filter((i) => !/becomes a contributor|using straight/.test(i.message)).length,
+    !result.issues.filter((i) => !/using straight/.test(i.message)).length,
   ];
   const problem = [
     !d.name.trim() ? 'Give the workspace a name.' : 'Pick the Monday the cycle starts.',
@@ -216,15 +215,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <label className="field"><span className="field-label">Your name</span><input className={'input' + (tried && !d.me.name.trim() ? ' invalid' : '')} autoFocus value={d.me.name} onChange={(e) => set({ me: { ...d.me, name: e.target.value } })} placeholder="e.g. Ana Silva" /></label>
               <label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && !d.me.team.trim() ? ' invalid' : '')} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>
             </div>
-            <div className="field"><span className="field-label" id="me-role">What you’ll do here</span>
-              <div className="optlist" role="radiogroup" aria-labelledby="me-role">
-                {([['lead', 'Own goals and check in each week'], ['sponsor', 'Run the weekly review and make the calls'], ['coach', 'Set things up and keep the rhythm going']] as [Profile, string][]).map(([p, help]) => (
-                  <button key={p} type="button" role="radio" className="opt" aria-checked={d.me.profile === p} onClick={() => set({ me: { ...d.me, profile: p } })}>
-                    <span>{PROFILE_LABEL[p]}</span><span className="hint">{help}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <p className="hint">You’ll be this workspace’s admin: you can add people, change settings and make others admins. Anyone can own goals, watch them and run reviews.</p>
           </section>
         )}
 
@@ -235,7 +226,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">Type them in, paste rows from a spreadsheet, or upload one. You can also add people later.</span>
             </div>
             <div className="people-grid" role="table" aria-label="People">
-              <div className="pg-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Team</span><span role="columnheader">Role</span><span /></div>
+              <div className="pg-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Team</span><span role="columnheader">Admin</span><span /></div>
               {d.people.map((r, i) => (
                 <div key={i} className="pg-row" role="row">
                   <input className="input" aria-label={`Person ${i + 1}: name`} value={r.name} placeholder="Name"
@@ -248,9 +239,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                       set({ people: [...d.people.slice(0, i), ...got.rows, ...d.people.slice(i + got.rows.length)].filter((x, k, arr) => x.name || x.team || k >= arr.length - 1), objectives: { ...d.objectives, ...got.objectives } });
                     }} />
                   <input className="input" aria-label={`Person ${i + 1}: team`} value={r.team} placeholder={d.me.team || 'Team'} list="teams" onChange={(e) => updatePerson(i, { team: e.target.value })} />
-                  <select className="input" aria-label={`Person ${i + 1}: role`} value={r.profile} onChange={(e) => updatePerson(i, { profile: e.target.value as Profile })}>
-                    {(['lead', 'sponsor', 'coach', 'contributor'] as Profile[]).map((p) => <option key={p} value={p}>{PROFILE_LABEL[p]}</option>)}
-                  </select>
+                  <label className="pg-check"><input type="checkbox" aria-label={`Person ${i + 1}: admin`} checked={r.admin} onChange={(e) => updatePerson(i, { admin: e.target.checked })} /></label>
                   <button type="button" className="iconbtn" aria-label={`Remove person ${i + 1}`} onClick={() => set({ people: d.people.length > 1 ? d.people.filter((_, k) => k !== i) : [blankPerson()] })}>✕</button>
                   {personIssue(i) && <span className="pg-issue hint tone-off" role="alert">{personIssue(i)}</span>}
                 </div>
@@ -316,10 +305,10 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <h1 className="qtitle big">Ready to create {d.name.trim() || 'your workspace'}?</h1>
             <dl className="details">
               <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
-              <dt>Outcome</dt><dd>{result.snapshot.goals.find((g) => g.headline)?.title ?? 'Set up later'}</dd>
-              <dt>Goals</dt><dd>{result.snapshot.goals.filter((g) => !g.headline).length || 'Set up later'}</dd>
+              <dt>North star</dt><dd>{result.snapshot.goals.find((g) => g.level === 'north-star')?.title ?? 'Set up later'}</dd>
+              <dt>Goals</dt><dd>{result.snapshot.goals.filter((g) => g.level !== 'north-star').length || 'Set up later'}</dd>
               <dt>Cycle</dt><dd>13 weeks from {new Date(d.startDate + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })}, review on {DAYS[d.reviewDay]}s</dd>
-              <dt>You</dt><dd>{d.me.name}, {PROFILE_LABEL[d.me.profile].toLowerCase()}</dd>
+              <dt>You</dt><dd>{d.me.name}, admin</dd>
             </dl>
           </section>
         )}

@@ -1,11 +1,12 @@
 // @vitest-environment node
-import { attentionFor, attentionList, openProposal, pendingSummary } from './attention';
-import { planChanged, withPlanOf } from './goal';
+import { attentionFor, attentionList } from './attention';
+import { buildGoal, draftOf, planChanged, withPlanOf } from './goal';
 import { checkInChange, goalChange } from './changes';
 import { emptyDraft, toCheckIn } from './checkin';
 import { buildWorkspace, GOALS_TEMPLATE, parseTable, PEOPLE_TEMPLATE } from './importer';
 import { onTimeStreak, weekProgress } from './progress';
-import { reviewQueue, withApprovedChange, withApprovedTarget } from './review';
+import { goalsIn, reviewSession, sessionWeek, watchedGoals, watchOf } from './review';
+import { outcomeTrees } from './tree';
 import { seed } from '../data/seed';
 import type { Goal, MetricGoal } from './types';
 
@@ -29,10 +30,6 @@ describe('attention', () => {
     expect(list[0]!.goal.id).toBe('access');
     expect(list.some((a) => a.goal.id === 'scan')).toBe(false);
     expect(list.every((a) => a.flags.some((f) => f.kind !== 'due'))).toBe(true);
-  });
-  it('treats a proposal as open until the sponsor decides', () => {
-    expect(openProposal(goal('review'), s.checkIns, s.decisions)).toBeNull();
-    expect(openProposal(goal('review'), s.checkIns, [])?.proposeTarget).toBe(95);
   });
   it('flags a path to green whose week has passed', () => {
     const c = s.checkIns.find((x) => x.goalId === 'cfr' && x.week === 6)!;
@@ -69,20 +66,59 @@ describe('change log', () => {
   });
 });
 
-describe('review', () => {
-  it('queues the flagged goals and counts the ones decided this week', () => {
-    const q = reviewQueue(s, cycle, today, 7);
-    expect(q.total).toBeGreaterThanOrEqual(4);
-    expect(q.done).toBe(0);
-    const decided = { ...s, decisions: [...s.decisions, { id: 'd', goalId: q.items[0]!.goal.id, checkInId: null, week: 7, kind: 'acknowledge' as const, byId: 'elena', at: '', note: '' }] };
-    expect(reviewQueue(decided, cycle, today, 7).done).toBe(1);
+describe('reviews', () => {
+  const weekly = s.reviews.find((r) => r.id === 'weekly')!;
+  const monthly = s.reviews.find((r) => r.id === 'security')!;
+  it('covers whole trees, single goals and levels, each goal once', () => {
+    const ids = goalsIn(weekly.scope, s.goals).map((g) => g.id);
+    expect(ids).toEqual(expect.arrayContaining(['head', 'cost', 'triage', 'lead']));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(goalsIn({ goals: ['scan'], trees: [], levels: ['north-star'] }, s.goals).map((g) => g.id).sort()).toEqual(['cost', 'head', 'scan']);
   });
-  it('re-baselines the plan when a target is approved', () => {
-    const g = goal('lead') as MetricGoal;
-    const after = withApprovedTarget(g, 1.5, 7);
-    expect(after.plan.target).toBe(1.5);
-    expect(after.originalPlan).toEqual(g.plan);
-    expect(after.rebaselinedWeek).toBe(7);
+  it('holds a session in this week or the next week the cadence lands on', () => {
+    expect(sessionWeek(weekly, 7)).toBe(7);
+    expect(sessionWeek(monthly, 7)).toBe(8);
+    expect(sessionWeek(monthly, 8)).toBe(8);
+    expect(sessionWeek(weekly, 0)).toBe(1);
+  });
+  it('walks the worst first and counts what was said this session', () => {
+    const r = reviewSession(weekly, s, cycle, today, 7);
+    const weights = r.items.map((a) => a.weight);
+    expect(weights).toEqual([...weights].sort((a, b) => b - a));
+    expect(r.done).toBe(0);
+    const said = { ...s, decisions: [...s.decisions, { id: 'd', goalId: r.items[0]!.goal.id, checkInId: null, reviewId: 'weekly', week: 7, kind: 'acknowledge' as const, byId: 'elena', at: '', note: '' }] };
+    expect(reviewSession(weekly, said, cycle, today, 7).done).toBe(1);
+    // last week's note doesn't count towards this week
+    expect(reviewSession(weekly, s, cycle, today, 7).said).toHaveLength(0);
+    expect(reviewSession(weekly, s, cycle, today, 6).said).toHaveLength(1);
+  });
+});
+
+describe('watching', () => {
+  it('watches a goal, a tree or a level', () => {
+    expect(watchedGoals('tom', s).map((g) => g.id).sort()).toEqual(['lead', 'review']);
+    expect(watchedGoals('maya', s).map((g) => g.id)).toEqual(expect.arrayContaining(['head', 'triage', 'review']));
+    expect(watchedGoals('priya', s).every((g) => g.level === 'north-star')).toBe(true);
+  });
+  it('tells a direct watch from one through a tree or level', () => {
+    expect(watchOf('tom', goal('review'), s)).toMatchObject({ kind: 'goal' });
+    expect(watchOf('maya', goal('triage'), s)).toBe('via');
+    expect(watchOf('jonas', goal('triage'), s)).toBeNull();
+  });
+});
+
+describe('levels and trees', () => {
+  it('keeps levels separate from what a goal feeds', () => {
+    expect(s.goals.filter((g) => g.level === 'north-star').map((g) => g.id).sort()).toEqual(['cost', 'head']);
+    expect(goal('triage').level).toBe('svp');
+    expect(goal('triage').parentId).toBe('head');
+  });
+  it('builds a tree from each top goal and flags unlinked team goals', () => {
+    const { trees, loose } = outcomeTrees(s.goals, (a, b) => a.title.localeCompare(b.title));
+    expect(trees.map((t) => t.goal.id)).toEqual(expect.arrayContaining(['head', 'cost']));
+    const orphan = { ...goal('scan'), id: 'orphan', parentId: null, level: 'team' as const };
+    expect(outcomeTrees([...s.goals, orphan], () => 0).loose.map((g) => g.id)).toContain('orphan');
+    expect(loose.every((g) => g.level === 'team')).toBe(true);
   });
 });
 
@@ -106,9 +142,9 @@ describe('import', () => {
   it('builds a workspace from the templates with no issues', () => {
     const r = buildWorkspace({ name: 'Platform', startDate: '2026-11-02', people: PEOPLE_TEMPLATE, goals: GOALS_TEMPLATE, now: today, idSuffix: 'ab12' });
     expect(r.issues).toEqual([]);
-    expect(r.snapshot.people.map((p) => p.profile)).toEqual(['sponsor', 'lead', 'coach', 'contributor']);
+    expect(r.snapshot.people.map((p) => p.admin)).toEqual([true, false, false, false]);
     expect(r.snapshot.goals).toHaveLength(3);
-    const head = r.snapshot.goals.find((g) => g.headline)!;
+    const head = r.snapshot.goals.find((g) => g.level === 'north-star')!;
     expect(r.snapshot.goals.filter((g) => g.parentId === head.id)).toHaveLength(2);
     const ms = r.snapshot.goals.find((g) => g.kind === 'milestone') as Extract<Goal, { kind: 'milestone' }>;
     expect(ms.stages.map((x) => x.dueWeek)).toEqual([2, 6, 10]);
@@ -128,28 +164,21 @@ describe('import', () => {
 describe('plan changes after check-ins start', () => {
   const lead = goal('lead') as MetricGoal;
   const proposed: MetricGoal = { ...lead, plan: { ...lead.plan, target: lead.plan.target - 0.5 } };
-  const pending = { proposed, byId: lead.ownerId, at: '2026-10-30T10:00:00.000Z', week: 9, reason: 'The new tooling makes the stretch reachable.' };
   it('spots a plan change but not a rename', () => {
     expect(planChanged(lead, proposed)).toBe(true);
     expect(planChanged(lead, { ...lead, title: 'Renamed' })).toBe(false);
     expect(withPlanOf({ ...lead, title: 'Renamed' }, proposed)).toMatchObject({ title: 'Renamed', plan: proposed.plan });
   });
-  it('flags the proposal and approving it re-baselines, keeping the original plan', () => {
-    const g: Goal = { ...lead, pending };
-    expect(pendingSummary(g)).toMatch(/^Target .+ → .+/);
-    expect(attentionFor(g, { ...s, goals: s.goals.map((x) => (x.id === g.id ? g : x)) }, cycle, today).flags.map((f) => f.kind)).toContain('proposal');
-    const approved = withApprovedChange(g, 9) as MetricGoal;
-    expect(approved.plan.target).toBe(proposed.plan.target);
-    expect(approved.originalPlan).toEqual(lead.originalPlan ?? lead.plan);
-    expect(approved.rebaselinedWeek).toBe(9);
-    expect(approved.pending).toBeNull();
+  it('saves a new target directly, keeping the original plan and the week it changed', () => {
+    const d = { ...draftOf(lead), target: String(lead.plan.target - 0.5) };
+    const after = buildGoal(d, cycle, { id: lead.id, createdAt: lead.createdAt }, lead, true, 9) as MetricGoal;
+    expect(after.plan.target).toBe(lead.plan.target - 0.5);
+    expect(after.originalPlan).toEqual(lead.originalPlan ?? lead.plan);
+    expect(after.rebaselinedWeek).toBe(9);
   });
-  it('reopens a goal already reviewed this week until the sponsor answers the proposal', () => {
-    const g: Goal = { ...lead, pending };
-    const earlier = { id: 'd1', goalId: lead.id, checkInId: null, week: 9, kind: 'acknowledge' as const, byId: 'elena', at: '2026-10-30T09:00:00.000Z', note: '' };
-    const s2 = { ...s, goals: s.goals.map((x) => (x.id === g.id ? g : x)), decisions: [...s.decisions, earlier] };
-    expect(reviewQueue(s2, cycle, today, 9).handled.has(lead.id)).toBe(false);
-    const answered = { ...earlier, id: 'd2', kind: 'approve-change' as const, at: '2026-10-30T11:00:00.000Z' };
-    expect(reviewQueue({ ...s2, decisions: [...s2.decisions, answered] }, cycle, today, 9).handled.has(lead.id)).toBe(true);
+  it('logs a level change with the plan change', () => {
+    const after: Goal = { ...proposed, level: 'svp' };
+    const c = goalChange(lead, after, lookup, 'sam', '2026-10-30T10:00:00.000Z', 'c1');
+    expect(c!.diffs.map((x) => x.field)).toEqual(expect.arrayContaining(['Target', 'Level']));
   });
 });

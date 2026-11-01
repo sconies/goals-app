@@ -19,7 +19,7 @@
     {
       "id": "PLAN-CHANGE",
       "area": "Plans",
-      "text": "Once check-ins have started, the owner proposes a plan change with a reason; it waits for the sponsor's approval in the review, and the current plan stands until then."
+      "text": "Once check-ins have started, the owner (or an admin) can change the plan directly, with a reason. The original plan stays on the chart and the change and reason are logged and shown to watchers. No approval step."
     },
     {
       "id": "CARRY-OVER",
@@ -29,7 +29,7 @@
     {
       "id": "NOTES",
       "area": "Change log",
-      "text": "Anyone can add a mid-week note to a goal; it shows in the goal's activity and is logged."
+      "text": "Anyone can comment on a goal; comments show in the goal’s activity and are logged."
     },
     {
       "id": "STATUS-BANDS",
@@ -138,8 +138,8 @@
     },
     {
       "id": "PROFILES",
-      "area": "Profiles",
-      "text": "Each profile (team lead, sponsor, coach, contributor) gets its own home with one clear next thing to do."
+      "area": "People",
+      "text": "There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings."
     },
     {
       "id": "ATTENTION",
@@ -148,8 +148,8 @@
     },
     {
       "id": "REVIEW",
-      "area": "Review",
-      "text": "The sponsor works the review queue to zero, one goal at a time; every call is recorded and an approved target re-baselines the plan."
+      "area": "Reviews",
+      "text": "A review walks its goals worst and stalest first, one goal page at a time, with next and previous."
     },
     {
       "id": "CHANGE-LOG",
@@ -173,13 +173,13 @@
     },
     {
       "id": "OUTCOME-TREE",
-      "area": "Leader view",
-      "text": "The goals view opens on the outcomes: every headline goal with its number, target and forecast, then the goals feeding it, worst first, each with a one-line reason. Several outcomes stack."
+      "area": "Goals",
+      "text": "Goals are shown as trees: each goal that feeds nothing heads a tree, with what feeds it worst first; team goals that are not linked are flagged."
     },
     {
       "id": "INSPECT-ACT",
-      "area": "Leader view",
-      "text": "The sponsor makes the call on the goal page itself: what's asked is shown first, then approve, keep, agree or ask. The weekly review walks the same goal pages in a fixed order, with next and previous, and moves on after each call."
+      "area": "Reviews",
+      "text": "On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on."
     },
     {
       "id": "DEMO-MODE",
@@ -195,6 +195,31 @@
       "id": "IDENTITY",
       "area": "Onboarding",
       "text": "Until sign-in comes with SSO, someone opening a workspace on a new device says who they are once, and lands on their own home."
+    },
+    {
+      "id": "LEVELS",
+      "area": "Goals",
+      "text": "Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged."
+    },
+    {
+      "id": "WATCHING",
+      "area": "Watching",
+      "text": "Anyone can watch a goal, a whole tree or a level. Watching shows those goals curated: needs attention, gone quiet, what changed this week, then on track, with a level filter."
+    },
+    {
+      "id": "REVIEW-SETUP",
+      "area": "Reviews",
+      "text": "Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekday), the goals (levels, trees, single goals) and the people."
+    },
+    {
+      "id": "REVIEW-RUN",
+      "area": "Reviews",
+      "text": "What was said in a review is kept as its summary; owners see questions and actions on their goal page."
+    },
+    {
+      "id": "ADMIN",
+      "area": "People",
+      "text": "Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed."
     }
   ],
   "notYetBuilt": [

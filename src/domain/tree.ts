@@ -1,4 +1,4 @@
-/* The outcome tree: each headline goal with the goals that feed it, and what a leader reads off it. */
+/* Goal trees: each goal with nothing above it, and the goals that feed it, at any depth. */
 import { checkInsFor, RANK } from './status';
 import { fmt } from './format';
 import type { Assessment } from './status';
@@ -6,7 +6,8 @@ import type { CheckIn, Goal, Status } from './types';
 
 export interface TreeNode { goal: Goal; children: TreeNode[] }
 
-/** Every headline goal as a tree, plus goals that don't lead to one. Siblings are ordered by `order`. */
+/** Every tree: goals with nothing above them, each with what feeds it. Siblings are ordered by `order`.
+    `loose` are team-level goals with nothing above and nothing feeding them: not linked to anything. */
 export function outcomeTrees(goals: Goal[], order: (a: Goal, b: Goal) => number): { trees: TreeNode[]; loose: Goal[] } {
   const byParent = new Map<string, Goal[]>();
   for (const g of goals) if (g.parentId) byParent.set(g.parentId, [...(byParent.get(g.parentId) ?? []), g]);
@@ -15,15 +16,19 @@ export function outcomeTrees(goals: Goal[], order: (a: Goal, b: Goal) => number)
     seen.add(g.id);
     return { goal: g, children: (byParent.get(g.id) ?? []).filter((c) => !seen.has(c.id)).sort(order).map(grow) };
   };
-  const trees = goals.filter((g) => g.headline).map(grow);
-  return { trees, loose: goals.filter((g) => !seen.has(g.id)).sort(order) };
+  const ids = new Set(goals.map((g) => g.id));
+  const tops = goals.filter((g) => !g.parentId || !ids.has(g.parentId)).sort(order);
+  const isLoose = (g: Goal) => g.level === 'team' && !byParent.has(g.id);
+  const trees = tops.filter((g) => !isLoose(g)).map(grow);
+  for (const g of tops) seen.add(g.id);
+  return { trees, loose: tops.filter(isLoose) };
 }
 
 export function descendants(n: TreeNode): Goal[] {
   return n.children.flatMap((c) => [c.goal, ...descendants(c)]);
 }
 
-/** The headline goals above a goal, nearest last: for breadcrumbs. */
+/** The goals above a goal, nearest last: for breadcrumbs. */
 export function ancestors(goal: Goal, goals: Goal[]): Goal[] {
   const out: Goal[] = [];
   let p = goal.parentId ? goals.find((g) => g.id === goal.parentId) : undefined;

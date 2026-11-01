@@ -5,20 +5,12 @@ import { attentionList } from '../domain/attention';
 import { fmt, gapText } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
-import { reviewQueue } from '../domain/review';
+import { reviewSession, watchedGoals } from '../domain/review';
 import { assessPosted } from '../domain/status';
-import type { Goal, Profile } from '../domain/types';
-import { AttentionCard, Dot, PROFILE_LABEL, ProgressRing } from '../ui/bits';
+import type { Goal } from '../domain/types';
+import { AttentionCard, Dot, ProgressRing } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
-import { outcomeTrees } from '../domain/tree';
-import { OutcomeCard, worstFirst } from './Inspect';
-
-const ROLE_PURPOSE: Record<Profile, string> = {
-  lead: 'Your check-ins, and anything in your area that needs you.',
-  sponsor: 'Your weekly review, and the calls only you can make.',
-  coach: 'Setting people up, and keeping the weekly rhythm going.',
-  contributor: 'How your team’s goals are doing, and what they feed.',
-};
+import { TreeRow, worstFirst } from './Inspect';
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -56,13 +48,13 @@ export function GoalLine({ g }: { g: Goal }) {
   );
 }
 
-function LeadHome() {
+function MyWeek() {
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
-  const teamGoals = app.snapshot.goals.filter((g) => g.teamId === app.viewer.teamId);
-  const att = attentionList(app.snapshot, app.cycle, app.today, { goals: [...new Set([...mine, ...teamGoals])] });
+  const att = attentionList(app.snapshot, app.cycle, app.today, { goals: mine });
+  const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => s.week === Math.max(1, app.week) && s.done < s.total);
   const resuming = p.due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
   return (
@@ -80,6 +72,13 @@ function LeadHome() {
                 <Streak weeks={streak} />
               </div>
             </>
+          ) : myReview ? (
+            <>
+              <span className="eyebrow">{myReview.review.name}</span>
+              <h2 className="hero-title">{myReview.total - myReview.done === 1 ? '1 goal to review' : `${myReview.total - myReview.done} goals to review`}</h2>
+              <span className="muted">{mine.length ? 'Your check-ins are in. ' : ''}Worst and stalest first, one at a time.</span>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/reviews/${myReview.review.id}`}>{myReview.done ? 'Continue the review' : 'Open the review'} →</Link></div>
+            </>
           ) : mine.length && app.week < 1 ? (
             <>
               <span className="eyebrow">The cycle starts this week</span>
@@ -96,14 +95,15 @@ function LeadHome() {
             </>
           ) : (
             <>
-              <h2 className="hero-title">You don’t own a goal yet</h2>
-              <span className="muted">Set one up in about 3 minutes. It feeds the headline goal straight away.</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to="/goals/new">Set up a goal →</Link></div>
+              <span className="eyebrow">Week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
+              <h2 className="hero-title">Nothing to do this week</h2>
+              <span className="muted">You don’t own a goal. Watch the ones you care about, or set one up in about 3 minutes.</span>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary" to="/goals">Find goals to watch</Link><Link className="btn" to="/goals/new">Set up a goal</Link></div>
             </>
           )}
         </div>
       </section>
-      <AttentionSection list={att} empty="Nothing in your area needs attention. Nice." />
+      {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
       {mine.length > 0 && (
         <section className="block">
           <h2 className="block-title">Your goals</h2>
@@ -112,6 +112,48 @@ function LeadHome() {
       )}
     </>
   );
+}
+
+/** A short read of what you watch: the worst few, and a way to the rest. */
+function WatchingSummary() {
+  const app = useApp();
+  const goals = watchedGoals(app.viewer.id, app.snapshot).filter((g) => g.ownerId !== app.viewer.id).sort(worstFirst(app));
+  if (!goals.length) return null;
+  const bad = goals.filter((g) => ['off', 'risk', 'stale'].includes(app.statusOf(g).status)).length;
+  return (
+    <section className="block">
+      <div className="row between">
+        <h2 className="block-title">Watching</h2>
+        <Link className="small linkish" to="/watching">All {goals.length}</Link>
+      </div>
+      <p className="hint">{bad ? `${bad} of ${goals.length} need attention.` : `All ${goals.length} on track or done.`}</p>
+      <ul className="tree">{goals.slice(0, 3).map((g) => <li key={g.id}><TreeRow g={g} /></li>)}</ul>
+    </section>
+  );
+}
+
+/** For admins: the one setup step still missing. */
+function AdminCard() {
+  const app = useApp();
+  if (!app.viewer.admin) return null;
+  const own = app.workspaces.filter((w) => w.kind === 'own');
+  if (app.mode === 'demo' && app.ws.kind === 'example' && !own.length) {
+    return (
+      <section className="block note-card">
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>Try it with your own team</strong><span className="hint">Set up a workspace from a template or a pasted list. About 3 minutes; the example stays here.</span></span>
+        <Link className="btn" to="/workspace/new">Set one up</Link>
+      </section>
+    );
+  }
+  if (app.snapshot.people.length < 3) {
+    return (
+      <section className="block note-card">
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>Add your people</strong><span className="hint">Goal owners need to be here to check in.</span></span>
+        <Link className="btn" to="/workspace">Add people</Link>
+      </section>
+    );
+  }
+  return null;
 }
 
 function AttentionSection({ list, empty, limit = 3, title = 'Needs attention' }: { list: ReturnType<typeof attentionList>; empty: string; limit?: number; title?: string }) {
@@ -136,129 +178,18 @@ function AttentionSection({ list, empty, limit = 3, title = 'Needs attention' }:
   );
 }
 
-function SponsorHome() {
-  const app = useApp();
-  const q = reviewQueue(app.snapshot, app.cycle, app.today, app.week);
-  const all = app.snapshot.goals;
-  const checkedIn = all.filter((g) => app.checkInsOf(g).some((c) => c.week === app.week)).length;
-  const left = q.total - q.done;
-  return (
-    <>
-      <section className="hero">
-        <ProgressRing done={q.done} total={q.total} size={56} label={`${q.done} of ${q.total} review items handled`} />
-        <div className="hero-body">
-          <span className="eyebrow">{reviewWhen(app)} · {checkedIn} of {all.length} goals checked in</span>
-          {app.week < 1 || !app.snapshot.checkIns.length ? (
-            <>
-              <h2 className="hero-title">Waiting for the first check-ins</h2>
-              <span className="muted">{app.week < 1 ? `Owners check in from week 1. Your first review is ${WEEKDAY[app.cycle.reviewDay]} of that week.` : `${checkedIn} of ${all.length} goals checked in so far. Your review is built from them.`}</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals">See the goals</Link></div>
-            </>
-          ) : left ? (
-            <>
-              <h2 className="hero-title">{left === 1 ? '1 thing needs you' : `${left} things need you`}</h2>
-              <span className="muted">About {Math.max(1, Math.round(left * 0.75))} min · worst first, one at a time</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to="/review">{q.done ? 'Continue review' : 'Start review'} →</Link></div>
-            </>
-          ) : (
-            <>
-              <h2 className="hero-title">Review done for week {app.week}</h2>
-              <span className="muted">{q.total ? `You handled all ${q.total}. Owners can see your calls.` : 'Nothing needed you this week.'}</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/activity">See this week’s activity</Link></div>
-            </>
-          )}
-        </div>
-      </section>
-      <Outcomes />
-    </>
-  );
-}
-
-/** Every outcome at a glance, each linking to its tree. */
-function Outcomes() {
-  const app = useApp();
-  const { trees } = outcomeTrees(app.snapshot.goals, worstFirst(app));
-  if (!trees.length) return null;
-  return (
-    <section className="block">
-      <div className="row between">
-        <h2 className="block-title">{trees.length === 1 ? 'Outcome' : 'Outcomes'}</h2>
-        <Link className="small linkish" to="/goals">See the goals feeding {trees.length === 1 ? 'it' : 'them'}</Link>
-      </div>
-      {trees.map((t) => <OutcomeCard key={t.goal.id} node={t} />)}
-    </section>
-  );
-}
-
-function CoachHome() {
-  const app = useApp();
-  const all = app.snapshot.goals;
-  const done = all.filter((g) => app.checkInsOf(g).some((c) => c.week === app.week)).length;
-  const att = attentionList(app.snapshot, app.cycle, app.today);
-  const stale = att.filter((a) => a.flags.some((f) => f.kind === 'stale'));
-  const own = app.workspaces.filter((w) => w.kind === 'own');
-  return (
-    <>
-      <section className="hero">
-        <ProgressRing done={done} total={all.length} size={56} label={`${done} of ${all.length} goals checked in this week`} />
-        <div className="hero-body">
-          <span className="eyebrow">{reviewWhen(app)} · {done} of {all.length} goals checked in</span>
-          {app.ws.kind === 'example' && !own.length ? (
-            <>
-              <h2 className="hero-title">Load your own data</h2>
-              <span className="muted">Type, paste or upload your people; goals can come later. About 3 min, and the example stays here to compare.</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to="/workspace/new">Load your data →</Link></div>
-            </>
-          ) : stale.length ? (
-            <>
-              <h2 className="hero-title">{stale.length === 1 ? '1 goal has gone quiet' : `${stale.length} goals have gone quiet`}</h2>
-              <span className="muted">No owner check-in for 14 days or more. A word before the review usually fixes it.</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={'/goals/' + stale[0]!.goal.id}>Start with {stale[0]!.goal.title} →</Link></div>
-            </>
-          ) : (
-            <>
-              <h2 className="hero-title">The rhythm is healthy</h2>
-              <span className="muted">No goal has gone quiet.</span>
-            </>
-          )}
-        </div>
-      </section>
-      <AttentionSection list={att} empty="Nothing is off track, stale or slipping." />
-    </>
-  );
-}
-
-function ContributorHome() {
-  const app = useApp();
-  const team = app.team(app.viewer.teamId ?? '');
-  const goals = app.snapshot.goals.filter((g) => g.teamId === app.viewer.teamId);
-  return (
-    <>
-      <section className="hero">
-        <div className="hero-body">
-          <span className="eyebrow">{team ? team.name : 'Your team'} · week {app.week} of {app.cycle.weeks}</span>
-          <h2 className="hero-title">{team?.objective || 'Your team’s goals'}</h2>
-          <span className="muted">{goals.length ? `${goals.filter((g) => ['on', 'done'].includes(app.statusOf(g).status)).length} of ${goals.length} goals on track. Your work feeds these.` : 'Your team has no goals yet.'}</span>
-        </div>
-      </section>
-      {goals.length > 0 && <section className="block"><h2 className="block-title">Your team’s goals</h2><div className="glist">{goals.map((g) => <GoalLine key={g.id} g={g} />)}</div></section>}
-      <Outcomes />
-    </>
-  );
-}
-
 export function Home() {
   const app = useApp();
   const first = app.viewer.name.split(' ')[0];
   return (
     <div className="page narrow">
       <div className="page-head">
-        <span className="eyebrow role-eyebrow" data-profile={app.viewer.profile}>{PROFILE_LABEL[app.viewer.profile]} view</span>
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
-        <span className="muted small">{ROLE_PURPOSE[app.viewer.profile]}</span>
+        <span className="muted small">{app.ws.name} · week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
       </div>
-      {app.viewer.profile === 'sponsor' ? <SponsorHome /> : app.viewer.profile === 'coach' ? <CoachHome /> : app.viewer.profile === 'contributor' ? <ContributorHome /> : <LeadHome />}
+      <MyWeek />
+      <AdminCard />
+      <WatchingSummary />
     </div>
   );
 }
-

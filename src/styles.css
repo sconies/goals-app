@@ -407,7 +407,7 @@ svg.chart { display: block; overflow: visible; }
 
 /* people table in the import */
 .people-grid { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.pg-head, .pg-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 36px; gap: 8px; align-items: center; padding: 8px 12px; }
+.pg-head, .pg-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 56px 36px; gap: 8px; align-items: center; padding: 8px 12px; }
 .pg-head { font-size: 12px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding-top: 12px; padding-bottom: 8px; }
 .pg-row { border-top: 1px solid var(--line-2); }
 .pg-row:first-of-type { border-top: 0; }
@@ -590,3 +590,17 @@ svg.chart { display: block; overflow: visible; }
   .welcome .btn.primary { align-self: stretch; }
   .rolebar-demo { display: none; }
 }
+
+/* Goal levels: a quiet tag; north star a touch stronger. */
+.level { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--s2); border-radius: 6px; font-size: var(--t-xs); font-weight: 650; line-height: 20px; white-space: nowrap; border: 1px solid var(--line-strong); color: var(--fg-2); }
+.level-north-star { border-color: transparent; background: var(--accent-soft); color: var(--accent-text); }
+.level-north-star::before { content: '★'; font-size: 10px; }
+.btn.watching { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent-text); }
+.trow-title .level, .outcome-title .level { margin-left: var(--s2); vertical-align: 2px; }
+.tree li.covered > .trow { opacity: .6; }
+.tree li.covered > .trow .trow-title::after { content: ' ✓'; color: var(--on-fg); }
+.note-card { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); padding: var(--s4); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); flex-wrap: wrap; }
+.opt.static { cursor: default; }
+.pg-check { display: flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; cursor: pointer; }
+.pg-check input { width: 18px; height: 18px; accent-color: var(--accent); }
+@media (max-width: 640px) { .pg-check::after { content: 'Admin'; font-size: 13px; color: var(--muted); margin-left: 6px; } .pg-check { justify-content: flex-start; } }

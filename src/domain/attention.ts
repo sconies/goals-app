@@ -1,9 +1,9 @@
 /* What needs someone's attention, and why. One list drives the homes, the goals list and the review. */
 import { assessMetric, assessMilestone, assessRange, checkInsFor, goalStatus, LABEL, type GoalStatus } from './status';
 import { fmt, weekLabel } from './format';
-import type { CheckIn, Cycle, Decision, Goal, Snapshot } from './types';
+import type { CheckIn, Cycle, Goal, Snapshot } from './types';
 
-export type FlagKind = 'off' | 'missed-path' | 'stale' | 'no-path' | 'risk' | 'trend' | 'proposal' | 'greener' | 'due';
+export type FlagKind = 'off' | 'missed-path' | 'stale' | 'no-path' | 'risk' | 'trend' | 'greener' | 'due';
 
 export interface Flag {
   kind: FlagKind;
@@ -22,16 +22,7 @@ export interface GoalAttention {
   weight: number;
 }
 
-const WEIGHT: Record<FlagKind, number> = { off: 100, 'missed-path': 90, stale: 80, 'no-path': 70, risk: 60, trend: 50, proposal: 45, greener: 30, due: 10 };
-
-/** The latest check-in's proposal that no decision has answered yet. */
-export function openProposal(goal: Goal, checkIns: CheckIn[], decisions: Decision[]): CheckIn | null {
-  const own = checkInsFor(goal, checkIns).filter((c) => c.proposeTarget != null);
-  const last = own[own.length - 1];
-  if (!last) return null;
-  const answered = decisions.some((d) => d.checkInId === last.id && (d.kind === 'approve-target' || d.kind === 'decline-target'));
-  return answered ? null : last;
-}
+const WEIGHT: Record<FlagKind, number> = { off: 100, 'missed-path': 90, stale: 80, 'no-path': 70, risk: 60, trend: 50, greener: 30, due: 10 };
 
 /**
  * A worsening trend the status may not show yet: progress against plan has fallen at the
@@ -68,23 +59,6 @@ export function worseningTrend(goal: Goal, cycle: Cycle, checkIns: CheckIn[]): s
   return slipped ? `${slipped.name} slipped to ${weekLabel(slipped.expectedWeek, cycle.weeks)} at the last check-in.` : null;
 }
 
-/** "Target 2.0 days → 1.5 days" for a goal's pending change. */
-export function pendingSummary(goal: Goal): string {
-  const p = goal.pending?.proposed;
-  if (!p) return '';
-  const parts: string[] = [];
-  if (goal.kind === 'metric' && p.kind === 'metric') {
-    if (goal.plan.target !== p.plan.target) parts.push(`target ${fmt(goal.plan.target, goal)} → ${fmt(p.plan.target, p)}`);
-    if (goal.plan.start !== p.plan.start) parts.push(`start ${fmt(goal.plan.start, goal)} → ${fmt(p.plan.start, p)}`);
-    if (goal.plan.shape !== p.plan.shape) parts.push('plan shape');
-  } else if (goal.kind === 'range' && p.kind === 'range') {
-    if (goal.range.limit !== p.range.limit) parts.push(`limit ${fmt(goal.range.limit, goal)} → ${fmt(p.range.limit, p)}`);
-    if (goal.range.margin !== p.range.margin) parts.push('warning margin');
-  } else if (goal.kind === 'milestone' && p.kind === 'milestone') parts.push('stages and due weeks');
-  const text = parts.join(', ') || 'plan';
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 export function attentionFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): GoalAttention {
   const status = goalStatus(goal, cycle, s.checkIns, today);
   const { latest, week } = status;
@@ -102,9 +76,6 @@ export function attentionFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date)
   if (status.status === 'risk') add('risk', 'At risk', latest?.why && latest.why !== 'On plan.' ? latest.why : 'The owner called it at risk.', 'risk');
   const trend = status.status === 'done' ? null : worseningTrend(goal, cycle, s.checkIns);
   if (trend) add('trend', 'Worsening trend', trend, 'risk');
-  const proposal = openProposal(goal, s.checkIns, s.decisions);
-  if (proposal && goal.kind === 'metric') add('proposal', 'Target change proposed', `${fmt(goal.plan.target, goal)} → ${fmt(proposal.proposeTarget as number, goal)}, waiting for the sponsor.`, 'info');
-  else if (goal.pending) add('proposal', 'Plan change proposed', `${pendingSummary(goal)}, waiting for the sponsor. “${goal.pending.reason}”`, 'info');
   if (status.greener && latest && status.status !== 'stale') add('greener', 'Greener than calculated', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
   if (week >= 1 && status.status !== 'done' && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', 'Check-in due', `Due before the review in week ${week}.`, 'info');
 

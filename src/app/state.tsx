@@ -1,13 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { attentionFor, pendingSummary, type GoalAttention } from '../domain/attention';
+import { attentionFor, type GoalAttention } from '../domain/attention';
 import { checkInChange, goalChange, type Lookup } from '../domain/changes';
 import { toCheckIn, type Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
-import { DECISION_LOG, withApprovedChange, withApprovedTarget } from '../domain/review';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
-import type { Change, CheckIn, Cycle, Decision, Goal, Person, Snapshot, Team, Workspace } from '../domain/types';
+import type { CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { applyCommit, EXAMPLE, newId, type Commit, type Mode, type Store } from '../data/store';
-import { fmt } from '../domain/format';
 
 export interface Toast {
   id: number;
@@ -40,15 +38,19 @@ export interface AppState {
   lookup: Lookup;
   /** Posts (or replaces) this week's check-in and logs it. */
   postCheckIn(goal: Goal, draft: Draft, existing: CheckIn | null): Promise<CheckIn>;
-  /** Saves a goal and logs what changed. */
-  saveGoal(after: Goal, before: Goal | null): Promise<void>;
-  /** Proposes a change to the plan; the sponsor approves it in the review. */
-  proposeChange(goal: Goal, proposed: Goal, reason: string): Promise<void>;
-  withdrawChange(goal: Goal): Promise<void>;
-  /** A logged note on a goal between check-ins. It doesn't change the status. */
+  /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. */
+  saveGoal(after: Goal, before: Goal | null, why?: string): Promise<void>;
+  /** A logged comment on a goal. Anyone can comment; it doesn't change the status. */
   addNote(goal: Goal, text: string): Promise<void>;
-  /** Records a sponsor's decision, applies it, and logs it. */
-  decide(goal: Goal, kind: Decision['kind'], note: string, checkIn: CheckIn | null): Promise<void>;
+  /** What someone says about a goal in a review: seen, a note, a question for the owner, or an action. */
+  reviewCall(goal: Goal, review: Review, week: number, kind: 'acknowledge' | 'note' | 'ask' | 'action', note: string): Promise<void>;
+  /** Watch a goal, a goal and everything feeding it, or a whole level. */
+  watch(kind: Watch['kind'], ref: string): Promise<void>;
+  unwatch(watchId: string): Promise<void>;
+  /** Creates or changes a review. */
+  saveReview(review: Review, before: Review | null): Promise<void>;
+  /** Admins: add someone, or change their name, team or admin rights. */
+  savePerson(person: Person, before: Person | null): Promise<void>;
   toasts: Toast[];
   toast(text: string, kind?: Toast['kind']): void;
   storeKind: Store['kind'];
@@ -130,7 +132,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   const createWorkspace = useCallback(async (name: string, data: Snapshot, meId?: string) => {
     const at = new Date().toISOString();
     const w: Workspace = { id: newId('ws'), name, kind: 'own', createdAt: at };
-    const actor = (meId && data.people.find((p) => p.id === meId)) || data.people.find((p) => p.profile === 'coach') || data.people[0];
+    const actor = (meId && data.people.find((p) => p.id === meId)) || data.people.find((p) => p.admin) || data.people[0];
     const logged: Snapshot = {
       ...data,
       changes: [...data.changes, {
@@ -167,7 +169,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     const week = currentWeek(cycle, now);
     const people = new Map(snapshot.people.map((p) => [p.id, p]));
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
-    const fallback = snapshot.people.find((p) => p.id === 'maya') ?? snapshot.people.find((p) => p.profile === 'lead') ?? snapshot.people[0]!;
+    const fallback = snapshot.people.find((p) => p.id === 'maya') ?? snapshot.people.find((p) => snapshot.goals.some((g) => g.ownerId === p.id)) ?? snapshot.people[0]!;
     const chosen = !!viewerId && people.has(viewerId);
     const viewer = (chosen && people.get(viewerId!)) || fallback;
     const statuses = new Map<string, GoalStatus>();
@@ -210,51 +212,44 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         await commit({ checkIns: [c], changes: change ? [change] : [] });
         return c;
       },
-      saveGoal: async (after, before) => {
+      saveGoal: async (after, before, why) => {
         const change = goalChange(before, after, lookup, viewer.id, stamp(), newId('chg'));
+        if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
         await commit({ goals: [after], changes: change ? [change] : [] });
-      },
-      proposeChange: async (goal, proposed, reason) => {
-        const at = stamp();
-        const diffs = goalChange(goal, proposed, lookup, viewer.id, at, 'x')?.diffs ?? [];
-        const pending = { proposed: { ...proposed, pending: null }, byId: viewer.id, at, week, reason: reason.trim() };
-        await commit({
-          goals: [{ ...goal, pending }],
-          changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: goal.id, entity: 'goal', entityId: goal.id, action: 'proposed', summary: `Proposed a plan change: ${pendingSummary({ ...goal, pending }).toLowerCase()}`, diffs: [...diffs, { field: 'Why', from: '—', to: reason.trim() }] }],
-        });
-      },
-      withdrawChange: async (goal) => {
-        if (!goal.pending) return;
-        await commit({
-          goals: [{ ...goal, pending: null }],
-          changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'goal', entityId: goal.id, action: 'withdrawn', summary: `Withdrew the proposed change: ${pendingSummary(goal).toLowerCase()}`, diffs: [] }],
-        });
       },
       addNote: async (goal, text) => {
         const t = text.trim();
-        await commit({ changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'note', entityId: newId('note'), action: 'noted', summary: 'Added a note', diffs: [{ field: 'Note', from: '—', to: t }] }] });
+        await commit({ changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'note', entityId: newId('note'), action: 'noted', summary: 'Commented', diffs: [{ field: 'Comment', from: '—', to: t }] }] });
       },
-      decide: async (goal, kind, note, checkIn) => {
-        const d: Decision = { id: newId('dec'), goalId: goal.id, checkInId: checkIn?.id ?? null, week, kind, byId: viewer.id, at: stamp(), note: note.trim() };
-        const changes: Change[] = [];
-        const goals: Goal[] = [];
-        let summary: string = DECISION_LOG[kind];
-        const diffs = note.trim() ? [{ field: 'Note', from: '—', to: note.trim() }] : [];
-        if (kind === 'approve-target' && checkIn?.proposeTarget != null && goal.kind === 'metric') {
-          goals.push(withApprovedTarget(goal, checkIn.proposeTarget, week));
-          summary = `Approved the target change: ${fmt(goal.plan.target, goal)} → ${fmt(checkIn.proposeTarget, goal)}`;
-          diffs.unshift({ field: 'Target', from: fmt(goal.plan.target, goal), to: fmt(checkIn.proposeTarget, goal) });
-        }
-        if ((kind === 'approve-change' || kind === 'decline-change') && goal.pending) {
-          const proposedDiffs = goalChange(goal, goal.pending.proposed, lookup, viewer.id, d.at, 'x')?.diffs ?? [];
-          const approved = withApprovedChange(goal, week);
-          goals.push(kind === 'approve-change' ? approved : { ...goal, pending: null });
-          summary = (kind === 'approve-change' ? 'Approved the plan change: ' : 'Kept the current plan, not: ') + pendingSummary(goal).toLowerCase();
-          diffs.unshift(...proposedDiffs);
-        }
-        const action = ({ 'approve-target': 'approved', 'decline-target': 'declined', 'approve-change': 'approved', 'decline-change': 'declined', acknowledge: 'acknowledged', ask: 'asked' } as const)[kind];
-        changes.push({ id: newId('chg'), at: d.at, actorId: viewer.id, goalId: goal.id, entity: 'decision', entityId: d.id, action, summary, diffs });
-        await commit({ goals, decisions: [d], changes });
+      reviewCall: async (goal, review, sessionWeek, kind, note) => {
+        const d: Decision = { id: newId('dec'), goalId: goal.id, checkInId: null, reviewId: review.id, week: sessionWeek, kind, byId: viewer.id, at: stamp(), note: note.trim() };
+        const action = ({ acknowledge: 'acknowledged', note: 'noted', ask: 'asked', action: 'actioned' } as const)[kind];
+        const what = ({ acknowledge: 'Looked at it', note: 'Added a note', ask: 'Asked the owner a question', action: 'Agreed an action' } as const)[kind];
+        await commit({
+          decisions: [d],
+          changes: [{ id: newId('chg'), at: d.at, actorId: viewer.id, goalId: goal.id, entity: 'decision', entityId: d.id, action, summary: `${what} in ${review.name}`, diffs: note.trim() ? [{ field: kind === 'ask' ? 'Question' : kind === 'action' ? 'Action' : 'Note', from: '—', to: note.trim() }] : [] }],
+        });
+      },
+      watch: async (kind, ref) => {
+        if (snapshot.watches.some((w) => w.personId === viewer.id && w.kind === kind && w.ref === ref)) return;
+        await commit({ watches: [{ id: newId('w'), personId: viewer.id, kind, ref }], changes: [] });
+      },
+      unwatch: async (watchId) => { await commit({ unwatch: [watchId], changes: [] }); },
+      savePerson: async (p, before) => {
+        const diffs = before
+          ? [...(before.name !== p.name ? [{ field: 'Name', from: before.name, to: p.name }] : []), ...(before.teamId !== p.teamId ? [{ field: 'Team', from: lookup.teamName(before.teamId ?? '') || '—', to: lookup.teamName(p.teamId ?? '') || '—' }] : []), ...(before.admin !== p.admin ? [{ field: 'Admin', from: before.admin ? 'Yes' : 'No', to: p.admin ? 'Yes' : 'No' }] : [])]
+          : [{ field: 'Person', from: '—', to: p.name }];
+        await commit({ people: [p], changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: null, entity: 'person', entityId: p.id, action: before ? 'edited' : 'created', summary: before ? `Changed ${p.name}` : `Added ${p.name}`, diffs }] });
+      },
+      saveReview: async (review, before) => {
+        const at = stamp();
+        const diffs = before ? [
+          ...(before.name !== review.name ? [{ field: 'Name', from: before.name, to: review.name }] : []),
+          ...(before.everyWeeks !== review.everyWeeks || before.weekday !== review.weekday ? [{ field: 'When', from: `every ${before.everyWeeks} wk`, to: `every ${review.everyWeeks} wk` }] : []),
+          ...(JSON.stringify(before.scope) !== JSON.stringify(review.scope) ? [{ field: 'Goals', from: 'changed', to: 'changed' }] : []),
+          ...(JSON.stringify(before.people) !== JSON.stringify(review.people) ? [{ field: 'People', from: String(before.people.length), to: String(review.people.length) }] : []),
+        ] : [{ field: 'Review', from: '—', to: review.name }];
+        await commit({ reviews: [review], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'review', entityId: review.id, action: before ? 'edited' : 'created', summary: before ? `Changed the review “${review.name}”` : `Set up a review: “${review.name}”`, diffs }] });
       },
     };
   }, [snapshot, viewerId, store, today, workspaces, wsId, commit, toasts, toast, createWorkspace, mode]);

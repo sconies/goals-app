@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useApp } from '../app/state';
-import { pendingSummary } from '../domain/attention';
 import { causeLabel } from '../domain/checkin';
-import { directionLabel, fmt, gapText, kindLabel, weekLabel } from '../domain/format';
+import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL, weekLabel } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import type { Change, Goal } from '../domain/types';
-import { Avatar, Chip, Empty, FlagPill, Tag, timeAgo } from '../ui/bits';
+import { Avatar, Chip, Empty, FlagPill, LevelTag, Tag, timeAgo } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
-import { DecideBar, RequestBlock, ReviewBar, TreeRows, useReview, worstFirst } from './Inspect';
+import { ReviewBar, ReviewCallBar, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 
 export function GoalScreen() {
@@ -76,7 +75,6 @@ function GoalView({ goal }: { goal: Goal }) {
   const subtree = outcomeTrees(app.snapshot.goals, worstFirst(app)).trees.flatMap(function find(n): TreeNode[] { return n.goal.id === goal.id ? [n] : n.children.flatMap(find); })[0]
     ?? { goal, children: app.snapshot.goals.filter((g) => g.parentId === goal.id).map((c) => ({ goal: c, children: [] })) };
   const children = subtree.children.map((n) => n.goal);
-  const isSponsor = app.viewer.profile === 'sponsor';
   const rv = useReview(goal.id);
   const fc = forecastText(goal, a, cycle.weeks);
   const series = valueSeries(own);
@@ -87,9 +85,9 @@ function GoalView({ goal }: { goal: Goal }) {
   const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>('check-ins');
   const flags = att.flags.filter((f) => f.kind !== 'due');
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
-  const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind) && !(f.kind === 'proposal' && goal.pending));
-  const sponsor = app.snapshot.people.find((p) => p.profile === 'sponsor');
-  const proposer = goal.pending ? app.person(goal.pending.byId) : undefined;
+  const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind));
+  const canEdit = isOwner || app.viewer.admin;
+  const asks = app.snapshot.decisions.filter((d) => d.goalId === goal.id && (d.kind === 'ask' || d.kind === 'action')).slice(-3).reverse();
   const lastBy = latest ? app.person(latest.authorId) : undefined;
 
   const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? 'No value yet' : fmt(a.actual, goal);
@@ -107,14 +105,14 @@ function GoalView({ goal }: { goal: Goal }) {
           <span className="row hint" style={{ gap: 'var(--s2)' }}>
             <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name}{team ? `, ${team.name}` : ''}
             <Tag>{kindLabel(goal)}</Tag>
+            <LevelTag level={goal.level} />
           </span>
         </span>
-        {(isOwner || app.viewer.profile === 'coach') && (
-          <div className="actions">
-            {isOwner && week > 0 && <Link className={'btn' + (due ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Post an update'}</Link>}
-            <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>
-          </div>
-        )}
+        <div className="actions">
+          {isOwner && week > 0 && <Link className={'btn' + (due ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Post an update'}</Link>}
+          {canEdit && <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>}
+          {!isOwner && <WatchButton goal={goal} />}
+        </div>
       </div>
 
       <section className="story" data-tone={st.status}>
@@ -130,19 +128,19 @@ function GoalView({ goal }: { goal: Goal }) {
         <span className="hint">{latest ? `Updated by ${lastBy?.name}, ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>
       </section>
 
-      {isSponsor && <RequestBlock goal={goal} a={att} />}
-      {isSponsor && !rv.active && (att.flags.some((f) => f.kind !== 'due') || !!goal.pending) && <DecideBar goal={goal} a={att} inReview={false} />}
-
-      {goal.pending && !isSponsor && (
-        <div className="pending-note" role="status">
-          <span className="arow-icon" aria-hidden="true">◷</span>
-          <span className="grow">
-            <strong>Proposed: {pendingSummary(goal).charAt(0).toLowerCase() + pendingSummary(goal).slice(1)}</strong>
-            <span>“{goal.pending.reason}” <span className="muted">{proposer?.name.split(' ')[0] ?? 'The owner'}</span></span>
-            <span className="hint">Waiting for {sponsor?.name.split(' ')[0] ?? 'the sponsor'}. The current plan stays until then.</span>
-          </span>
-          {(app.viewer.id === goal.pending.byId || isOwner) && <button type="button" className="linkish tap" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>}
-        </div>
+      {asks.length > 0 && (
+        <section className="why" aria-label="From reviews">
+          {asks.map((d) => {
+            const r = app.snapshot.reviews.find((x) => x.id === d.reviewId);
+            return (
+              <div key={d.id} className="quote-block" data-tone="info">
+                <span className="field-label">{d.kind === 'ask' ? 'Question' : 'Action'} from {r?.name ?? 'a review'}, {app.person(d.byId)?.name.split(' ')[0]}</span>
+                <p>{d.note}</p>
+                {isOwner && d.kind === 'ask' && <span className="hint">Answer with a comment below, or in your next check-in.</span>}
+              </div>
+            );
+          })}
+        </section>
       )}
 
       {(notes.length > 0 || (latest?.why && latest.why !== 'On plan.') || ptg) && (
@@ -160,7 +158,7 @@ function GoalView({ goal }: { goal: Goal }) {
             <div className="quote-block">
               <span className="field-label">Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</span>
               <p>{ptg.what}</p>
-              {ptg.needs && !isSponsor && <p className="needs"><strong>Needs:</strong> {ptg.needs}</p>}
+              {ptg.needs && <p className="needs"><strong>Needs:</strong> {ptg.needs}</p>}
             </div>
           )}
         </section>
@@ -190,7 +188,7 @@ function GoalView({ goal }: { goal: Goal }) {
 
       <section className="block">
         <div className="seg tabs" role="tablist" aria-label="More about this goal">
-          {([['check-ins', 'Check-ins', own.length], ['activity', 'Activity', changes.length], ['details', 'Details', 0]] as const).map(([k, l, n]) => (
+          {([['check-ins', 'Check-ins', own.length], ['activity', 'Comments and changes', changes.length], ['details', 'Details', 0]] as const).map(([k, l, n]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}{n ? <span className="tabcount">{n}</span> : null}</button>
           ))}
         </div>
@@ -214,18 +212,19 @@ function GoalView({ goal }: { goal: Goal }) {
             {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {cycle.weeks}, {directionLabel(goal)}</dd><dt>Plan</dt><dd>{goal.plan.shape === 'back' ? 'Back-loaded' : goal.plan.shape === 'stepped' ? 'Three steps' : 'Straight line'}</dd></>}
             {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}</dd></>}
             {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ')}</dd></>}
-            <dt>Feeds into</dt><dd>{goal.headline ? 'This is an outcome: other goals feed it' : parent ? parent.title + (goal.effect != null ? `, estimated effect ${goal.effect}` : '') : 'Nothing'}</dd>
+            <dt>Level</dt><dd>{LEVEL_LABEL[goal.level]}{goal.level !== 'team' ? ', reported at major reviews' : ''}</dd>
+            <dt>Feeds into</dt><dd>{parent ? parent.title + (goal.effect != null ? `, estimated effect ${goal.effect}` : '') : children.length ? 'Nothing: it sits at the top of its tree' : 'Nothing yet (not linked)'}</dd>
             <dt>Data source</dt><dd>{goal.source || 'Entered by the owner'}</dd>
             <dt>Rules</dt><dd>{goal.kind === 'metric' ? 'On track at 95% of planned progress or more; at risk from 80%. Reason needed when behind or 20% ahead.' : goal.kind === 'range' ? 'At risk inside the margin or after one breach; off track after two weeks out.' : 'Up to 2 weeks late is at risk; more is off track.'}</dd>
           </dl>
         )}
       </section>
-      {isSponsor && rv.active && <DecideBar goal={goal} a={att} inReview />}
+      {rv.active && <ReviewCallBar goal={goal} />}
     </div>
   );
 }
 
-/** A mid-week note: anything worth knowing that isn't a check-in. Logged like every other save. */
+/** A comment: why something changed, a question, anything worth knowing that isn't a check-in. Anyone can comment; it's logged. */
 function NoteComposer({ goal }: { goal: Goal }) {
   const app = useApp();
   const [text, setText] = useState('');
@@ -236,17 +235,17 @@ function NoteComposer({ goal }: { goal: Goal }) {
     try {
       await app.addNote(goal, text);
       setText('');
-      app.toast('Note added.');
+      app.toast('Comment posted');
     } finally {
       setSaving(false);
     }
   };
   return (
     <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post(); }}>
-      <label className="field"><span className="sr">Add a note</span>
-        <textarea className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a note for the team" aria-label="Add a note" />
+      <label className="field"><span className="sr">Add a comment</span>
+        <textarea className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder={app.viewer.id === goal.ownerId ? 'Say why something changed' : 'Comment or ask a question'} aria-label="Add a comment" />
       </label>
-      {text.trim() && <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post note'}</button>}
+      {text.trim() && <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post comment'}</button>}
     </form>
   );
 }

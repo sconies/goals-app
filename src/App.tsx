@@ -8,7 +8,8 @@ import { GoalScreen } from './screens/GoalScreen';
 import { GoalsScreen } from './screens/GoalsScreen';
 import { GoalWizard } from './screens/GoalWizard';
 import { Home } from './screens/Home';
-import { Review } from './screens/Review';
+import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews } from './screens/Review';
+import { Watching } from './screens/Watching';
 import { WorkspaceHome } from './screens/Workspace';
 import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
@@ -24,7 +25,12 @@ export function Routed() {
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
         <Route path="/check-in/:goalId" element={<CheckInFlow />} />
-        <Route path="/review" element={<Review />} />
+        <Route path="/review" element={<ReviewRedirect />} />
+        <Route path="/reviews" element={<Reviews />} />
+        <Route path="/reviews/new" element={<ReviewEdit />} />
+        <Route path="/reviews/:reviewId" element={<ReviewHome />} />
+        <Route path="/reviews/:reviewId/edit" element={<ReviewEdit />} />
+        <Route path="/watching" element={<Watching />} />
         <Route path="/goals" element={<GoalsScreen />} />
         <Route path="/goals/new" element={<GoalWizard />} />
         <Route path="/goals/:goalId" element={<GoalScreen />} />

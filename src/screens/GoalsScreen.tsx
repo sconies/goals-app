@@ -1,16 +1,18 @@
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { attentionList } from '../domain/attention';
-import { reviewQueue } from '../domain/review';
+import { LEVEL_LABEL } from '../domain/format';
+import type { Level } from '../domain/types';
 import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
 import { AttentionCard, Chip, Empty } from '../ui/bits';
 import { GoalLine } from './Home';
-import { OutcomeCard, TreeRows, worstFirst } from './Inspect';
+import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
 
-type Show = 'outcomes' | 'attention' | 'teams' | 'mine';
+type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine';
+const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
-/** Goals, starting from the outcomes: each headline goal, then what feeds it, worst first. */
+/** Goals, starting from the trees: each top goal, then what feeds it, worst first. */
 export function GoalsScreen() {
   const app = useApp();
   const [params, setParams] = useSearchParams();
@@ -18,12 +20,10 @@ export function GoalsScreen() {
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   const show: Show = (params.get('show') as Show) || 'outcomes';
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
-  const q = reviewQueue(app.snapshot, app.cycle, app.today, app.week);
-  const open = q.total - q.done;
-  const isSponsor = app.viewer.profile === 'sponsor';
   const tabs: [Show, string, number | null][] = [
-    ['outcomes', trees.length > 1 ? `Outcomes` : 'Outcome', trees.length > 1 ? trees.length : null],
+    ['outcomes', 'Trees', null],
     ['attention', 'Needs attention', att.length],
+    ['levels', 'By level', null],
     ['teams', 'By team', null],
     ...(mine.length ? [['mine', 'Mine', mine.length] as [Show, string, number]] : []),
   ];
@@ -35,9 +35,7 @@ export function GoalsScreen() {
           <h1 className="title-xl">Goals</h1>
           <span className="hint">Week {app.week} of {app.cycle.weeks}, {app.cycle.name.charAt(0).toLowerCase() + app.cycle.name.slice(1)}</span>
         </span>
-        {isSponsor
-          ? open > 0 && <Link className="btn primary" to="/review">Review {open} that need a call</Link>
-          : app.viewer.profile !== 'contributor' && <Link className="btn" to="/goals/new">New goal</Link>}
+        <Link className="btn" to="/goals/new">New goal</Link>
       </div>
       <div className="seg tabs" role="tablist" aria-label="Show">
         {tabs.map(([k, l, n]) => (
@@ -52,15 +50,15 @@ export function GoalsScreen() {
           {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
           {trees.map((t) => (
             <section key={t.goal.id} className="outcome" aria-label={t.goal.title}>
-              <OutcomeCard node={t} />
+              <TreeCard node={t} />
               <TreeRows nodes={t.children} />
             </section>
           ))}
           {loose.length > 0 && (
             <section className="block">
               <div className="stack" style={{ gap: 'var(--s1)' }}>
-                <h2 className="block-title">Not linked to an outcome</h2>
-                <span className="hint">These don’t feed a headline goal yet. Link them from Edit, under Feeds into.</span>
+                <h2 className="block-title">Not linked</h2>
+                <span className="hint">These don’t feed another goal yet. Their owners can link them from Edit, under Feeds into.</span>
               </div>
               <TreeRows nodes={loose.map((g) => ({ goal: g, children: [] }))} />
             </section>
@@ -71,6 +69,20 @@ export function GoalsScreen() {
       {show === 'attention' && (att.length
         ? <div className="alist">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
         : <div className="calm"><span aria-hidden="true">✓</span> Nothing is off track, stale or slipping.</div>)}
+
+      {show === 'levels' && LEVELS.map((l) => {
+        const list = app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app));
+        if (!list.length) return null;
+        return (
+          <section key={l} className="block" aria-label={LEVEL_LABEL[l]}>
+            <div className="row between nowrap">
+              <h2 className="block-title">{LEVEL_LABEL[l]} <span className="hint">· {list.length}</span></h2>
+              <Chip k={worst(list.map((g) => app.statusOf(g).status))} />
+            </div>
+            <ul className="tree">{list.map((g) => <li key={g.id}><TreeRow g={g} /></li>)}</ul>
+          </section>
+        );
+      })}
 
       {show === 'teams' && app.snapshot.teams.map((t) => {
         const list = app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app));

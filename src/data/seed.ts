@@ -2,21 +2,21 @@
    Dates are relative to today so the cycle is always live. All numbers are invented. */
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../domain/checkin';
 import { checkInChange, goalChange } from '../domain/changes';
-import type { Cause, Change, CheckIn, Cycle, Decision, Goal, MetricGoal, MilestoneGoal, Person, RangeGoal, Snapshot, StageUpdate, Team } from '../domain/types';
+import type { Cause, Change, CheckIn, Cycle, Decision, Goal, Level, MetricGoal, MilestoneGoal, Person, RangeGoal, Review, Snapshot, StageUpdate, Team, Watch } from '../domain/types';
 
 const DAY = 86_400_000;
 export const SEED_WEEK = 7;
 
 const people: Person[] = [
-  { id: 'elena', name: 'Elena Ruiz', role: 'VP Engineering', initials: 'ER', teamId: null, profile: 'sponsor' },
-  { id: 'maya', name: 'Maya Chen', role: 'Product lead, Developer Platform', initials: 'MC', teamId: 'pm', profile: 'lead' },
-  { id: 'sam', name: 'Sam Patel', role: 'DevEx lead', initials: 'SP', teamId: 'devex', profile: 'lead' },
-  { id: 'kofi', name: 'Kofi Boateng', role: 'SRE / AIOps lead', initials: 'KB', teamId: 'sre', profile: 'lead' },
-  { id: 'jonas', name: 'Jonas Berg', role: 'Infrastructure lead', initials: 'JB', teamId: 'infra', profile: 'lead' },
-  { id: 'aisha', name: 'Aisha Rahman', role: 'Security lead', initials: 'AR', teamId: 'sec', profile: 'lead' },
-  { id: 'leo', name: 'Leo Park', role: 'Engineering Brain lead', initials: 'LP', teamId: 'brain', profile: 'lead' },
-  { id: 'tom', name: 'Tom Reid', role: 'Engineer, DevEx', initials: 'TR', teamId: 'devex', profile: 'contributor' },
-  { id: 'priya', name: 'Priya Nair', role: 'Goals programme coach', initials: 'PN', teamId: null, profile: 'coach' },
+  { id: 'elena', name: 'Elena Ruiz', role: 'VP Engineering', initials: 'ER', teamId: null, admin: true },
+  { id: 'maya', name: 'Maya Chen', role: 'Product lead, Developer Platform', initials: 'MC', teamId: 'pm', admin: false },
+  { id: 'sam', name: 'Sam Patel', role: 'DevEx lead', initials: 'SP', teamId: 'devex', admin: false },
+  { id: 'kofi', name: 'Kofi Boateng', role: 'SRE / AIOps lead', initials: 'KB', teamId: 'sre', admin: false },
+  { id: 'jonas', name: 'Jonas Berg', role: 'Infrastructure lead', initials: 'JB', teamId: 'infra', admin: false },
+  { id: 'aisha', name: 'Aisha Rahman', role: 'Security lead', initials: 'AR', teamId: 'sec', admin: false },
+  { id: 'leo', name: 'Leo Park', role: 'Engineering Brain lead', initials: 'LP', teamId: 'brain', admin: false },
+  { id: 'tom', name: 'Tom Reid', role: 'Engineer, DevEx', initials: 'TR', teamId: 'devex', admin: false },
+  { id: 'priya', name: 'Priya Nair', role: 'Engineering operations', initials: 'PN', teamId: null, admin: true },
 ];
 
 const teams: Team[] = [
@@ -29,7 +29,7 @@ const teams: Team[] = [
 ];
 
 const common = (id: string, teamId: string, ownerId: string, title: string, source: string) => ({
-  id, cycleId: 'cycle', teamId, ownerId, title, source, io: 'input' as const, headline: false, guardrail: false,
+  id, cycleId: 'cycle', teamId, ownerId, title, source, io: 'input' as const, level: 'team' as Level, guardrail: false,
   parentId: 'head' as string | null, effect: null as number | null, definition: '', createdAt: '',
 });
 
@@ -37,26 +37,26 @@ const metric = (c: ReturnType<typeof common>, unit: string, decimals: number, st
   ({ ...c, kind: 'metric', unit, decimals, plan: { start, target, shape: 'straight' }, originalPlan: null, rebaselinedWeek: null, ...extra });
 
 const head = metric(common('head', 'pm', 'maya', 'Intake-to-delivery time', 'Jira intake board + release dates'), 'days', 1, 34, 18, {
-  io: 'output', headline: true, parentId: null, plan: { start: 34, target: 18, shape: 'back' },
+  io: 'output', level: 'north-star', parentId: null, plan: { start: 34, target: 18, shape: 'back' },
   definition: 'Median days from a request being accepted at intake to it being live in production',
 });
 const reviewOriginal = { start: 30, target: 75, shape: 'straight' as const };
 // A second outcome, so the leader view shows more than one tree.
 const cost = metric(common('cost', 'infra', 'jonas', 'Cloud spend per developer', 'FinOps dashboard'), 'USD', 0, 410, 330, {
-  io: 'output', headline: true, parentId: null,
+  io: 'output', level: 'north-star', parentId: null,
   definition: 'Monthly cloud bill for developer environments and CI, divided by active developers',
 });
 
 const goals: Goal[] = [
   head,
-  metric({ ...common('triage', 'pm', 'maya', 'Requests triaged within 2 days', 'Jira intake board'), effect: 5 }, '%', 0, 40, 85),
-  metric({ ...common('review', 'devex', 'sam', 'PRs with AI code review', 'GitHub pull request data'), effect: 4 }, '%', 0, 30, 95, { originalPlan: reviewOriginal, rebaselinedWeek: 4 }),
+  metric({ ...common('triage', 'pm', 'maya', 'Requests triaged within 2 days', 'Jira intake board'), effect: 5, level: 'svp' }, '%', 0, 40, 85),
+  metric({ ...common('review', 'devex', 'sam', 'PRs with AI code review', 'GitHub pull request data'), effect: 4, level: 'svp' }, '%', 0, 30, 95, { originalPlan: reviewOriginal, rebaselinedWeek: 4 }),
   metric({ ...common('lead', 'devex', 'sam', 'Lead time for changes', 'DORA dashboard'), effect: 2 }, 'days', 1, 4.2, 2.0),
   metric({ ...common('alerts', 'sre', 'kofi', 'Alerts auto-triaged by AIOps', 'Alerting + AIOps pipeline'), effect: 1 }, '%', 0, 20, 60),
   { ...common('cfr', 'sre', 'kofi', 'Change failure rate', 'DORA dashboard'), io: 'output', guardrail: true, kind: 'range', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 12, margin: 1 } } satisfies RangeGoal,
   metric({ ...common('env', 'infra', 'jonas', 'Self-service environments in under 1 hour', 'Platform API'), effect: 3 }, '%', 0, 35, 80),
   metric({ ...common('scan', 'sec', 'aisha', 'AI-generated code scanned before merge', 'Code scanning'), guardrail: true }, '%', 0, 50, 100),
-  { ...common('access', 'sec', 'aisha', 'Repo-access controls for the Brain', 'Jira SEC-88'), kind: 'milestone',
+  { ...common('access', 'sec', 'aisha', 'Repo-access controls for the Brain', 'Jira SEC-88'), level: 'svp', kind: 'milestone',
     stages: [{ id: 'tm', name: 'Threat model', dueWeek: 2 }, { id: 'dc', name: 'Data classification', dueWeek: 4 }, { id: 'ac', name: 'Access controls built', dueWeek: 6 }, { id: 'ap', name: 'Approval granted', dueWeek: 6 }] } satisfies MilestoneGoal,
   { ...common('brain', 'brain', 'leo', 'Brain data model and AI infrastructure live', 'Jira BRN epics'), effect: 1, kind: 'milestone',
     stages: [{ id: 'dm', name: 'Data model v1', dueWeek: 3 }, { id: 'pr', name: 'Private repo indexing', dueWeek: 7 }, { id: 'gi', name: 'AI infrastructure GA', dueWeek: 9 }, { id: 'ap', name: 'Assistant pilot', dueWeek: 12 }] } satisfies MilestoneGoal,
@@ -172,7 +172,6 @@ export function seed(today: Date): Snapshot {
         if (!n.path) throw new Error(`Seed: ${g.id} week ${week} needs a path to green`);
         Object.assign(draft, { ptgWhat: n.path.what, ptgBy: Math.min(cycle.weeks, week + n.path.in), needs: n.path.needs ?? '' });
       }
-      if (g.id === 'review' && week === 4) draft.proposeTarget = '95';
       if (!e.reason && !draft.why) draft.why = 'On plan.';
       checkIns.push(toCheckIn(asOf, cycle, week, draft, checkIns, g.ownerId, postedAt(week), `ci_${g.id}_${week}`));
     }
@@ -187,13 +186,32 @@ export function seed(today: Date): Snapshot {
   const asCreated = (g: Goal): Goal => (g.id === 'review' && g.kind === 'metric' ? { ...g, plan: reviewOriginal, originalPlan: null, rebaselinedWeek: null } : g);
   for (const g of allGoals) changes.push(goalChange(null, asCreated(g), lookup, g.ownerId, g.createdAt, 'chg_goal_' + g.id)!);
   for (const c of checkIns) changes.push(checkInChange(null, c, allGoals.find((g) => g.id === c.goalId)!, c.authorId, 'chg_' + c.id)!);
-  const proposal = checkIns.find((c) => c.id === 'ci_review_4')!;
-  const approvedAt = new Date(Date.parse(proposal.postedAt) + DAY).toISOString();
-  const decisions: Decision[] = [{ id: 'dec_review_4', goalId: 'review', checkInId: proposal.id, week: 4, kind: 'approve-target', byId: 'elena', at: approvedAt, note: 'Approved: the bot is the default now; hold DevEx to 95%.' }];
+  // In week 4 Sam raised the AI review target from 75% to 95%; the first plan stays on the chart.
+  const raisedAt = new Date(Date.parse(checkIns.find((c) => c.id === 'ci_review_4')!.postedAt) + 3_600_000).toISOString();
   changes.push({
-    id: 'chg_dec_review_4', at: approvedAt, actorId: 'elena', goalId: 'review', entity: 'decision', entityId: 'dec_review_4', action: 'approved',
-    summary: 'Approved the target change: 75% → 95%', diffs: [{ field: 'Target', from: '75%', to: '95%' }],
+    id: 'chg_review_target_4', at: raisedAt, actorId: 'sam', goalId: 'review', entity: 'goal', entityId: 'review', action: 'edited',
+    summary: 'Changed the target: 75% → 95%', diffs: [{ field: 'Target', from: '75%', to: '95%' }, { field: 'Why', from: '—', to: 'The AI review bot is the default for every repo now, so 75% was too easy.' }],
+  });
+  // People keep an eye on what matters to them, and one review walks the platform's goals every week.
+  const watches: Watch[] = [
+    { id: 'w_elena_ns', personId: 'elena', kind: 'level', ref: 'north-star' },
+    { id: 'w_elena_svp', personId: 'elena', kind: 'level', ref: 'svp' },
+    { id: 'w_tom_review', personId: 'tom', kind: 'goal', ref: 'review' },
+    { id: 'w_tom_lead', personId: 'tom', kind: 'goal', ref: 'lead' },
+    { id: 'w_maya_head', personId: 'maya', kind: 'tree', ref: 'head' },
+    { id: 'w_priya_ns', personId: 'priya', kind: 'level', ref: 'north-star' },
+  ];
+  const reviews: Review[] = [
+    { id: 'weekly', name: 'Platform weekly review', everyWeeks: 1, weekday: 3, scope: { goals: [], trees: ['head', 'cost'], levels: [] }, people: ['elena', 'maya', 'sam', 'kofi', 'jonas', 'aisha', 'leo'], createdBy: 'elena', createdAt: new Date(start - 4 * DAY).toISOString() },
+    { id: 'security', name: 'Security monthly', everyWeeks: 4, weekday: 1, scope: { goals: ['scan', 'access'], trees: [], levels: [] }, people: ['aisha', 'elena'], createdBy: 'aisha', createdAt: new Date(start - 4 * DAY).toISOString() },
+  ];
+  // Last week's review: a note on the north star from Elena.
+  const noteAt = new Date(postedAt(SEED_WEEK - 1).getTime() + DAY).toISOString();
+  const decisions: Decision[] = [{ id: 'dec_weekly_6', goalId: 'head', checkInId: null, reviewId: 'weekly', week: SEED_WEEK - 1, kind: 'note', byId: 'elena', at: noteAt, note: 'Brain and GPU quota are the two blockers; Leo and Jonas to pair on the interim scope.' }];
+  changes.push({
+    id: 'chg_dec_weekly_6', at: noteAt, actorId: 'elena', goalId: 'head', entity: 'decision', entityId: 'dec_weekly_6', action: 'noted',
+    summary: 'Added a note in Platform weekly review', diffs: [{ field: 'Note', from: '—', to: decisions[0]!.note }],
   });
   changes.sort((a, b) => a.at.localeCompare(b.at));
-  return { people, teams, cycles: [cycle], goals: allGoals, checkIns, decisions, changes };
+  return { people, teams, cycles: [cycle], goals: allGoals, checkIns, decisions, changes, watches, reviews };
 }

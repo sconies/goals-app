@@ -5,7 +5,7 @@ import { blankGoal, buildGoal, validateGoal } from './goal';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 
 const cycle: Cycle = { id: 'c1', name: 'Q4', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
-const base = { cycleId: 'c1', teamId: 't', ownerId: 'p', io: 'input' as const, headline: false, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '2026-09-01T00:00:00Z' };
+const base = { cycleId: 'c1', teamId: 't', ownerId: 'p', io: 'input' as const, level: 'team' as const, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '2026-09-01T00:00:00Z' };
 const metric = (start: number, target: number, shape: 'straight' | 'back' | 'stepped' = 'straight'): MetricGoal =>
   ({ ...base, id: 'm', title: 'M', kind: 'metric', unit: '%', decimals: 0, plan: { start, target, shape }, originalPlan: null, rebaselinedWeek: null });
 const range: RangeGoal = { ...base, id: 'r', title: 'CFR', kind: 'range', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 12, margin: 1 } };

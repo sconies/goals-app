@@ -4,8 +4,11 @@ import { useApp } from '../app/state';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, buildGoal, draftOf, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
-import { fmt } from '../domain/format';
-import type { Goal, GoalKind, MetricGoal, PlanShape } from '../domain/types';
+import { fmt, LEVEL_LABEL } from '../domain/format';
+import type { Goal, GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
+
+const LEVEL_ORDER: Level[] = ['team', 'svp', 'north-star'];
+const LEVEL_RANK: Record<Level, number> = { 'north-star': 0, svp: 1, team: 2 };
 import { newId } from '../data/store';
 import { Empty, Steps } from '../ui/bits';
 import { MetricChart } from '../ui/charts';
@@ -36,10 +39,11 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const nav = useNavigate();
   const { cycle, week } = app;
   const started = existing ? app.checkInsOf(existing).length > 0 : false;
-  const headline = app.snapshot.goals.find((g) => g.headline && g.id !== existing?.id);
+  const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
+  const defaultParent = app.goal(params.get('parent') ?? '')?.id ?? '';
   const defaultTeam = app.viewer.teamId ?? app.snapshot.teams[0]?.id ?? '';
-  const defaultOwner = app.viewer.profile === 'lead' || app.viewer.profile === 'contributor' ? app.viewer.id : app.snapshot.people.find((p) => p.profile === 'lead')?.id ?? app.viewer.id;
-  const [d, set, clear, restored] = useDraft<GoalDraft & { step: number }>(goalDraftKey(app.ws.id, existing?.id ?? null), () => ({ ...(existing ? draftOf(existing) : blankGoal(defaultTeam, defaultOwner, headline?.id ?? '')), step: 0 }));
+  const defaultOwner = app.viewer.id;
+  const [d, set, clear, restored] = useDraft<GoalDraft & { step: number }>(goalDraftKey(app.ws.id, existing?.id ?? null), () => ({ ...(existing ? draftOf(existing) : blankGoal(defaultTeam, defaultOwner, defaultParent)), step: 0 }));
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const step = d.step;
@@ -77,14 +81,14 @@ function Wizard({ existing }: { existing: Goal | null }) {
     const prev = existing?.kind === 'metric' ? existing : null;
     const changed = prev && (prev.plan.start !== s || prev.plan.target !== t || prev.plan.shape !== d.shape);
     return {
-      id: 'preview', cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title || 'New goal', io: d.io, headline: d.headline, guardrail: d.guardrail,
+      id: 'preview', cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title || 'New goal', io: d.io, level: d.level, guardrail: d.guardrail,
       parentId: null, effect: null, source: '', definition: '', createdAt: '', kind: 'metric', unit: d.unit, decimals: parseNumber(d.decimals) ?? 0,
       plan: { start: s, target: t, shape: d.shape },
       originalPlan: prev && started && changed ? prev.originalPlan ?? prev.plan : prev?.originalPlan ?? null, rebaselinedWeek: null,
     };
   })();
   const rebaseline = existing?.kind === 'metric' && started && preview && (existing.plan.start !== preview.plan.start || existing.plan.target !== preview.plan.target || existing.plan.shape !== preview.plan.shape);
-  const parents = app.snapshot.goals.filter((g) => g.id !== existing?.id && (g.headline || !g.parentId));
+  const parents = app.snapshot.goals.filter((g) => g.id !== existing?.id).sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || a.title.localeCompare(b.title));
   const owner = app.person(d.ownerId);
   const parent = app.goal(d.parentId);
   const unitFmt = { unit: d.unit, decimals: parseNumber(d.decimals) ?? 0 };
@@ -184,15 +188,13 @@ function Wizard({ existing }: { existing: Goal | null }) {
         {step === 2 && (
           <>
             <h1 className="qtitle big">Where does it fit?</h1>
-            <label className="check"><input type="checkbox" checked={d.headline} onChange={(e) => set({ headline: e.target.checked })} /><span>This is the headline goal: the outcome everything else feeds</span></label>
-            {!d.headline && (
-              <label className="field"><span className="small strong">Feeds into</span>
-                <select className="input" value={d.parentId} onChange={(e) => set({ parentId: e.target.value })}>
-                  <option value="">Nothing (stands alone)</option>
-                  {parents.map((g) => <option key={g.id} value={g.id}>{g.title}{g.headline ? ' · headline' : ''}</option>)}
-                </select>
-              </label>
-            )}
+            <label className="field"><span className="small strong">Feeds into</span>
+              <select className="input" value={d.parentId} onChange={(e) => set({ parentId: e.target.value })}>
+                <option value="">Nothing (top of its own tree)</option>
+                {parents.map((g) => <option key={g.id} value={g.id}>{g.title}{g.level !== 'team' ? ` · ${LEVEL_LABEL[g.level]}` : ''}</option>)}
+              </select>
+              {!d.parentId && parents.length > 0 && <span className="hint">Goals that feed nothing and have nothing feeding them show as not linked.</span>}
+            </label>
             <div className="row" style={{ alignItems: 'flex-start' }}>
               <label className="field" style={{ flex: '1 1 200px' }}><span className="small strong">Team</span>
                 <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
@@ -201,11 +203,17 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               </label>
             </div>
-            {!d.headline && d.parentId && (
+            {d.parentId && (
               <label className="field" style={{ maxWidth: 300 }}><span className="small strong">How much will it move “{parent?.title}”? <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span>
                 <input className="input" inputMode="decimal" value={d.effect} onChange={(e) => set({ effect: e.target.value })} placeholder={parent && parent.kind !== 'milestone' ? `In ${parent.unit || 'its unit'}, e.g. 3` : 'e.g. 3'} />{showErr('effect')}
               </label>
             )}
+            <div className="field"><span className="small strong" id="level-l">Level</span>
+              <div className="seg full" role="group" aria-labelledby="level-l">
+                {LEVEL_ORDER.map((l) => <button key={l} type="button" aria-pressed={d.level === l} onClick={() => set({ level: l })}>{LEVEL_LABEL[l]}</button>)}
+              </div>
+              <span className="hint">{d.level === 'team' ? 'Most goals. Flag SVP or North star only for goals reported at major reviews.' : d.level === 'svp' ? 'Reported at SVP reviews.' : 'Reported at the top. You can have several.'}</span>
+            </div>
             <label className="check"><input type="checkbox" checked={d.guardrail} onChange={(e) => set({ guardrail: e.target.checked })} /><span>It’s a guardrail: protects quality while the rest moves</span></label>
             <details className="disclose"><summary>Data source and definition (optional)</summary>
               <label className="field"><span className="small strong">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} placeholder="e.g. Jira intake board" /></label>
@@ -225,7 +233,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                   : d.kind === 'range' && parseNumber(d.limit) != null ? <>It stays {d.bound === 'atMost' ? 'at or under' : 'at or above'} <strong>{fmt(parseNumber(d.limit)!, unitFmt)}</strong>, with a warning within {d.margin || 0}.</>
                     : d.kind === 'milestone' ? <>{d.stages.filter((s) => s.name).length} stages, the last due week {Math.max(0, ...d.stages.map((s) => parseNumber(s.dueWeek) ?? 0))}.</> : null}
               </p>
-              <p className="small muted">{d.headline ? 'It’s the headline goal.' : parent ? `It feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}.` : 'It stands alone.'}{d.guardrail ? ' Guardrail.' : ''}</p>
+              <p className="small muted">{d.level !== 'team' ? `${LEVEL_LABEL[d.level]} level. ` : ''}{parent ? `It feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}.` : 'It’s at the top of its own tree.'}{d.guardrail ? ' Guardrail.' : ''}</p>
               <div className="row">{[0, 1, 2].map((i) => <button key={i} type="button" className="linkish small" onClick={() => go(i)}>Change {STEP_LABELS[i]!.toLowerCase()}</button>)}</div>
             </div>
             {[0, 1, 2].some((i) => stepErrors(i).length) && <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>}

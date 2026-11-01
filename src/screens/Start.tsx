@@ -3,15 +3,14 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { weekProgress, WEEKDAY } from '../domain/progress';
-import type { Profile } from '../domain/types';
-import { Avatar, PROFILE_LABEL } from '../ui/bits';
+import { Avatar } from '../ui/bits';
 
 /** Until sign-in comes with SSO, people say who they are once per workspace on this device. */
 export function WhoAreYou() {
   const app = useApp();
   const [q, setQ] = useState('');
   const found = app.snapshot.people.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()));
-  const groups = (['lead', 'sponsor', 'coach', 'contributor'] as Profile[]).map((p) => [p, found.filter((x) => x.profile === p)] as const).filter(([, l]) => l.length);
+  const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id)] as const), ['No team', found.filter((x) => !x.teamId || !app.team(x.teamId))] as const].filter(([, l]) => l.length);
   return (
     <div className="focus">
       <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
@@ -25,12 +24,12 @@ export function WhoAreYou() {
         )}
         {groups.map(([p, list]) => (
           <section key={p} className="stack" style={{ gap: 'var(--s2)' }}>
-            <span className="field-label">{PROFILE_LABEL[p]}</span>
+            <span className="field-label">{p}</span>
             <div className="optlist">
               {list.map((x) => (
                 <button key={x.id} className="opt" onClick={() => app.setViewer(x.id)}>
                   <span className="row" style={{ gap: 'var(--s3)' }}><Avatar p={x} size="sm" />{x.name}</span>
-                  <span className="hint">{app.team(x.teamId ?? '')?.name ?? ''}</span>
+                  <span className="hint">{x.role}</span>
                 </button>
               ))}
             </div>

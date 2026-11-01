@@ -1,5 +1,5 @@
 import type { Assessment } from './status';
-import type { Goal, MetricGoal, RangeGoal } from './types';
+import type { Goal, Level, MetricGoal, RangeGoal } from './types';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 
@@ -21,7 +21,7 @@ export const weekLabel = (w: number, weeks: number) => (w >= weeks ? 'cycle end'
 export function kindLabel(g: Goal): string {
   if (g.kind === 'milestone') return 'Milestone';
   if (g.kind === 'range') return 'Keep within a range';
-  return g.headline ? 'Headline metric' : 'Move a metric';
+  return 'Move a metric';
 }
 
 export function directionLabel(g: Goal): string {
@@ -67,3 +67,5 @@ export function gapText(g: Goal, a: Assessment): { short: string; long: string; 
   }
   return { short: '', long: '', tone: 'stale' };
 }
+
+export const LEVEL_LABEL: Record<Level, string> = { 'north-star': 'North star', svp: 'SVP', team: 'Team' };

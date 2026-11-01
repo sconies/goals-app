@@ -1,13 +1,18 @@
-import type { Change, CheckIn, Decision, Goal, Snapshot, Workspace } from '../domain/types';
+import type { Change, CheckIn, Decision, Goal, Person, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import { seed } from './seed';
 
 export const EXAMPLE: Workspace = { id: 'example', name: 'Example: Developer Platform', kind: 'example', createdAt: '2026-01-01T00:00:00.000Z' };
 
 /** One save: the records that leave draft, and the change-log entries that describe them. */
 export interface Commit {
+  people?: Person[];
   goals?: Goal[];
   checkIns?: CheckIn[];
   decisions?: Decision[];
+  reviews?: Review[];
+  watches?: Watch[];
+  /** Ids of watches to remove. */
+  unwatch?: string[];
   changes: Change[];
 }
 
@@ -38,10 +43,13 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
   const replaced = (x: CheckIn) => (c.checkIns ?? []).some((n) => n.id === x.id || (n.goalId === x.goalId && n.week === x.week));
   return {
     ...s,
+    people: upsert(s.people, c.people),
     goals,
     checkIns: [...s.checkIns.filter((x) => !replaced(x)), ...(c.checkIns ?? [])],
     decisions: upsert(s.decisions, c.decisions),
     changes: [...s.changes, ...c.changes],
+    watches: upsert((s.watches ?? []).filter((w) => !(c.unwatch ?? []).includes(w.id)), c.watches),
+    reviews: upsert(s.reviews ?? [], c.reviews),
   };
 }
 

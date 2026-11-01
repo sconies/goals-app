@@ -1,210 +1,182 @@
-/* The leader's view: outcome trees, the request on a goal, and the call they make on it.
-   The weekly review is these goal pages in a fixed order, with next and previous. */
+/* Looking across goals: trees of goals, watching, and walking a review one goal at a time.
+   A review is the goal pages themselves in a fixed order, with next and previous and a bar for what's said. */
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { openProposal, pendingSummary, type GoalAttention } from '../domain/attention';
-import { fmt, gapText } from '../domain/format';
-import { DECISION_LABEL, reviewQueue } from '../domain/review';
-import { assessPosted, LABEL, RANK } from '../domain/status';
+import { fmt, gapText, LEVEL_LABEL } from '../domain/format';
+import { daysSince } from '../domain/plan';
+import { reviewSession, watchOf } from '../domain/review';
+import { assessPosted, checkInsFor, LABEL, RANK } from '../domain/status';
 import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
-import type { Decision, Goal } from '../domain/types';
-import { Chip, StatusShape } from '../ui/bits';
+import type { Goal } from '../domain/types';
+import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
 
-/* ---------- review order: fixed when the review starts, so deciding doesn't reshuffle it ---------- */
-const orderKey = (ws: string, week: number) => `goals-app-review:${ws}:${week}`;
-export function saveReviewOrder(ws: string, week: number, ids: string[]) {
-  try { sessionStorage.setItem(orderKey(ws, week), JSON.stringify(ids)); } catch { /* private mode: fall back to the live order */ }
+/* ---------- review order: fixed when a session starts, so moving between goals doesn't reshuffle it ---------- */
+const orderKey = (ws: string, review: string, week: number) => `goals-app-review:${ws}:${review}:${week}`;
+export function saveReviewOrder(ws: string, review: string, week: number, ids: string[]) {
+  try { sessionStorage.setItem(orderKey(ws, review, week), JSON.stringify(ids)); } catch { /* private mode: the live order is used */ }
 }
-function loadReviewOrder(ws: string, week: number): string[] | null {
-  try { const v = sessionStorage.getItem(orderKey(ws, week)); return v ? JSON.parse(v) as string[] : null; } catch { return null; }
+function loadReviewOrder(ws: string, review: string, week: number): string[] | null {
+  try { const v = sessionStorage.getItem(orderKey(ws, review, week)); return v ? (JSON.parse(v) as string[]) : null; } catch { return null; }
 }
 
-/** Where this goal sits in the weekly review, and how to move on from it. */
+/** Where this goal sits in the review being walked (from `?review=<id>`), and how to move on. */
 export function useReview(goalId: string) {
   const app = useApp();
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const q = reviewQueue(app.snapshot, app.cycle, app.today, app.week);
-  const inQueue = new Set(q.items.map((a) => a.goal.id));
-  const order = loadReviewOrder(app.ws.id, app.week) ?? q.items.map((a) => a.goal.id);
-  const isOpen = (id: string) => inQueue.has(id) && !q.handled.has(id);
+  const review = app.snapshot.reviews.find((r) => r.id === params.get('review'));
+  const session = review ? reviewSession(review, app.snapshot, app.cycle, app.today, app.week) : null;
+  const order = review && session ? loadReviewOrder(app.ws.id, review.id, session.week) ?? session.items.map((a) => a.goal.id) : [];
   const index = order.indexOf(goalId);
-  const go = (id: string | undefined) => nav(id ? `/goals/${id}?review=1` : '/review?from=end');
-  const nextOpen = () => order.slice(index + 1).find((id) => id !== goalId && isOpen(id)) ?? order.slice(0, Math.max(0, index)).find((id) => id !== goalId && isOpen(id));
+  const go = (id: string | undefined) => nav(id && review ? `/goals/${id}?review=${review.id}` : `/reviews/${review?.id ?? ''}`);
+  const open = (id: string) => !!session && !session.covered.has(id);
   return {
-    active: params.get('review') === '1' && app.viewer.profile === 'sponsor' && index >= 0,
-    total: order.length,
-    done: order.filter((id) => !isOpen(id)).length,
-    index,
+    review, session, index, total: order.length,
+    active: !!review && !!session && index >= 0,
+    done: session ? order.filter((id) => !open(id)).length : 0,
     prev: () => { if (index > 0) go(order[index - 1]); },
     next: () => go(order[index + 1]),
-    /** After a call: the next goal still open, or the summary. */
-    afterDecision: () => { const n = nextOpen(); if (n) go(n); else nav('/review'); },
+    /** After saying something: the next goal not yet covered, or the summary. */
+    afterCall: () => go(order.slice(index + 1).find((id) => id !== goalId && open(id)) ?? order.slice(0, Math.max(0, index)).find((id) => id !== goalId && open(id))),
   };
 }
 
 export function ReviewBar({ goalId }: { goalId: string }) {
   const rv = useReview(goalId);
   const nav = useNavigate();
-  if (!rv.active) return null;
+  if (!rv.active || !rv.review) return null;
   return (
-    <div className="reviewbar" role="navigation" aria-label="Weekly review">
-      <span className="small strong">Weekly review</span>
-      <span className="hint">{rv.done} of {rv.total} done</span>
+    <div className="reviewbar" role="navigation" aria-label={rv.review.name}>
+      <span className="small strong ellipsis">{rv.review.name}</span>
+      <span className="hint">{rv.index + 1} of {rv.total}</span>
       <div className="bar ok" aria-hidden="true"><i style={{ width: `${rv.total ? (rv.done / rv.total) * 100 : 100}%` }} /></div>
       <button className="iconbtn" aria-label="Previous goal" disabled={rv.index <= 0} onClick={rv.prev}>‹</button>
       <button className="iconbtn" aria-label="Next goal" onClick={rv.next}>›</button>
-      <button className="iconbtn" aria-label="Close the review" onClick={() => nav('/')}>✕</button>
+      <button className="iconbtn" aria-label="Close the review" onClick={() => nav(`/reviews/${rv.review!.id}`)}>✕</button>
     </div>
   );
 }
 
-/* ---------- what the sponsor is asked on a goal ---------- */
-export function requestOf(goal: Goal, a: GoalAttention, app: ReturnType<typeof useApp>) {
-  const proposal = openProposal(goal, app.snapshot.checkIns, app.snapshot.decisions);
-  const latest = a.status.latest;
-  const needs = latest?.pathToGreen?.needs || '';
-  const stale = a.flags.find((f) => f.kind === 'stale');
-  return { proposal, pending: !proposal ? goal.pending ?? null : null, needs, stale, latest };
-}
-
-/** "Elena Ruiz: approve an interim scope" reads as "Approve an interim scope" to Elena. */
-const askText = (needs: string) => { const t = needs.replace(/^[^:]{2,40}:\s*/, ''); return t.charAt(0).toUpperCase() + t.slice(1); };
-
-/** The question on this goal for the sponsor, said once, above everything else. */
-export function RequestBlock({ goal, a }: { goal: Goal; a: GoalAttention }) {
-  const app = useApp();
-  const r = requestOf(goal, a, app);
-  const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
-  if (r.proposal && goal.kind === 'metric') {
-    return (
-      <section className="request" aria-label="Asks you">
-        <span className="field-label">{owner} proposes a new target</span>
-        <span className="proposal-change">{fmt(goal.plan.target, goal)} → {fmt(r.proposal.proposeTarget as number, goal)}</span>
-        {r.proposal.why && r.proposal.why !== 'On plan.' && <p>“{r.proposal.why}”</p>}
-      </section>
-    );
-  }
-  if (r.pending) {
-    return (
-      <section className="request" aria-label="Asks you">
-        <span className="field-label">{app.person(r.pending.byId)?.name.split(' ')[0] ?? owner} proposes a plan change</span>
-        <span className="proposal-change">{pendingSummary(goal)}</span>
-        <p>“{r.pending.reason}”</p>
-        <span className="hint">If you approve, the old plan stays on the chart for comparison.</span>
-      </section>
-    );
-  }
-  if (r.needs) {
-    return (
-      <section className="request" aria-label="Asks you">
-        <span className="field-label">{owner} asks you</span>
-        <p className="request-ask">{askText(r.needs)}</p>
-      </section>
-    );
-  }
-  return null;
-}
-
-/** The sponsor's call on a goal. In the review it sits at the bottom of the screen and moves on after. */
-export function DecideBar({ goal, a, inReview }: { goal: Goal; a: GoalAttention; inReview: boolean }) {
+/** What someone in the review says about this goal. Saying anything covers it and moves on. */
+export function ReviewCallBar({ goal }: { goal: Goal }) {
   const app = useApp();
   const rv = useReview(goal.id);
-  const r = requestOf(goal, a, app);
-  const owner = app.person(goal.ownerId);
-  const first = owner?.name.split(' ')[0] ?? 'the owner';
-  const [note, setNote] = useState('');
-  const [asking, setAsking] = useState(false);
+  const [mode, setMode] = useState<null | 'note' | 'ask' | 'action'>(null);
+  const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const decisions = app.snapshot.decisions.filter((d) => d.goalId === goal.id && d.week === app.week);
-
-  const decide = async (kind: Decision['kind'], said?: string) => {
-    if (busy) return;
-    if (kind === 'ask' && note.trim().length < 3) { setAsking(true); return; }
+  const [tried, setTried] = useState(false);
+  if (!rv.active || !rv.review || !rv.session) return null;
+  const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
+  const said = rv.session.said.filter((d) => d.goalId === goal.id);
+  const call = async (kind: 'acknowledge' | 'note' | 'ask' | 'action') => {
+    if (kind !== 'acknowledge' && text.trim().length < 3) { setTried(true); return; }
     setBusy(true);
     try {
-      // Agreeing to a request records what was agreed, so the owner sees it on their goal.
-      const text = kind === 'acknowledge' && r.needs && !note.trim() ? `Agreed: ${askText(r.needs)}` : note;
-      await app.decide(goal, kind, text, r.proposal && (kind === 'approve-target' || kind === 'decline-target') ? r.proposal : r.latest);
-      app.toast(kind === 'ask' ? `Question sent to ${first}` : said ?? DECISION_LABEL[kind]);
-      if (inReview) rv.afterDecision();
-      else { setNote(''); setAsking(false); setBusy(false); }
+      await app.reviewCall(goal, rv.review!, rv.session!.week, kind, kind === 'acknowledge' ? '' : text);
+      app.toast(kind === 'ask' ? `Question sent to ${owner}` : kind === 'action' ? 'Action saved' : kind === 'note' ? 'Note saved' : 'Marked as seen');
+      rv.afterCall();
     } catch {
       setBusy(false);
     }
   };
-
+  const label = { note: 'Note', ask: `Question for ${owner}`, action: 'Action' } as const;
   return (
-    <div className={inReview ? 'decide' : 'decide inline'}>
-      {decisions.length > 0 && <span className="calm small">✓ {decisions.map((d) => DECISION_LABEL[d.kind] + (d.note ? `: “${d.note}”` : '')).join('; ')}</span>}
-      {(asking || note) && (
-        <label className="field"><span className="field-label">{asking ? `Your question for ${first}` : `Note for ${first}`}</span>
-          <input className="input" autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} placeholder={asking ? 'e.g. What would it take to land the interim scope by week 8?' : 'Optional'} />
+    <div className="decide">
+      {said.length > 0 && <span className="calm small">✓ Covered: {said.map((d) => d.note || 'seen').join('; ')}</span>}
+      {mode && (
+        <label className="field"><span className="field-label">{label[mode]}</span>
+          <input className={'input' + (tried && text.trim().length < 3 ? ' invalid' : '')} autoFocus value={text} onChange={(e) => setText(e.target.value)}
+            placeholder={mode === 'ask' ? 'e.g. What would it take to land the interim scope by week 8?' : mode === 'action' ? 'Who does what, by when' : 'What the review said'} />
+          {tried && text.trim().length < 3 && <span className="hint tone-off" role="alert">Write a few words first.</span>}
         </label>
       )}
       <div className="row decide-buttons">
-        {asking ? (
+        {mode ? (
           <>
-            <button className="btn primary big-btn" disabled={busy} onClick={() => decide('ask')}>Send question</button>
-            <button className="btn big-btn" disabled={busy} onClick={() => { setAsking(false); setNote(''); }}>Cancel</button>
-          </>
-        ) : r.proposal && goal.kind === 'metric' ? (
-          <>
-            <button className="btn primary big-btn" disabled={busy} onClick={() => decide('approve-target')}>Approve {fmt(r.proposal.proposeTarget as number, goal)}</button>
-            <button className="btn big-btn" disabled={busy} onClick={() => decide('decline-target')}>Keep {fmt(goal.plan.target, goal)}</button>
-          </>
-        ) : r.pending ? (
-          <>
-            <button className="btn primary big-btn" disabled={busy} onClick={() => decide('approve-change')}>Approve change</button>
-            <button className="btn big-btn" disabled={busy} onClick={() => decide('decline-change')}>Keep as is</button>
-          </>
-        ) : r.stale ? (
-          <>
-            <button className="btn primary big-btn" disabled={busy} onClick={() => { setNote(`Can you check in on ${goal.title} before the review?`); setAsking(true); }}>Ask for a check-in</button>
-            <button className="btn big-btn" disabled={busy} onClick={() => decide('acknowledge')}>Seen, no action</button>
+            <button className="btn primary big-btn" disabled={busy} onClick={() => void call(mode)}>{mode === 'ask' ? 'Send question' : mode === 'action' ? 'Save action' : 'Save note'}</button>
+            <button className="btn big-btn" disabled={busy} onClick={() => { setMode(null); setText(''); setTried(false); }}>Cancel</button>
           </>
         ) : (
           <>
-            <button className="btn primary big-btn" disabled={busy} onClick={() => decide('acknowledge', r.needs ? 'Agreed. Saved on the goal.' : undefined)}>{decisions.length ? 'Seen again' : r.needs ? 'Agree' : 'Seen, no action'}</button>
-            <button className="btn big-btn" disabled={busy} onClick={() => decide('ask')}>Ask a question</button>
+            <button className="btn primary big-btn" disabled={busy} onClick={() => void call('acknowledge')}>Seen, next</button>
+            <button className="btn big-btn" disabled={busy} onClick={() => setMode('note')}>Add a note</button>
           </>
         )}
       </div>
-      {!asking && (
+      {!mode && (
         <div className="quiet-links">
-          {(r.proposal || r.pending || r.stale) && <button type="button" className="linkish" onClick={() => decide('ask')}>Ask a question</button>}
-          {!note && <button type="button" className="linkish" onClick={() => setNote(' ')}>Add a note</button>}
-          {inReview && <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>}
+          <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner}</button>
+          <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>
+          <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>
         </div>
       )}
     </div>
   );
 }
 
-/* ---------- outcome trees ---------- */
-export function OutcomeCard({ node, compact }: { node: TreeNode; compact?: boolean }) {
+/* ---------- watching ---------- */
+function descendantsOf(goal: Goal, app: ReturnType<typeof useApp>): Goal[] {
+  const out: Goal[] = [];
+  const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { out.push(c); walk(c.id); } };
+  walk(goal.id);
+  return out;
+}
+
+/** Watch this goal, or it and everything feeding it; or stop. */
+export function WatchButton({ goal }: { goal: Goal }) {
+  const app = useApp();
+  const [open, setOpen] = useState(false);
+  const w = watchOf(app.viewer.id, goal, app.snapshot);
+  const feeding = descendantsOf(goal, app).length;
+  const label = w === null ? 'Watch' : w !== 'via' && w.kind === 'tree' ? 'Watching all' : 'Watching';
+  const doWatch = async (kind: 'goal' | 'tree') => {
+    await app.watch(kind, goal.id);
+    app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`);
+    setOpen(false);
+  };
+  return (
+    <>
+      <button className={'btn' + (w ? ' watching' : '')} aria-pressed={!!w} onClick={() => (w === null && !feeding ? void doWatch('goal') : setOpen(true))}>
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 8s2.2-4.5 6-4.5S14 8 14 8s-2.2 4.5-6 4.5S2 8 2 8z" /><circle cx="8" cy="8" r="1.8" /></svg>{label}
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={goal.title}>
+        <div className="stack" style={{ gap: 'var(--s3)' }}>
+          {w === 'via' && <p className="hint">You’re watching it through a tree or a level. Change that on Watching.</p>}
+          <div className="optlist">
+            {w === null && <button className="opt" onClick={() => void doWatch('goal')}><span>Watch this goal</span><span className="hint">See its changes on Watching</span></button>}
+            {w === null && feeding > 0 && <button className="opt" onClick={() => void doWatch('tree')}><span>Watch it and everything feeding it</span><span className="hint">{feeding} more {feeding === 1 ? 'goal' : 'goals'}</span></button>}
+            {w && w !== 'via' && <button className="opt" onClick={async () => { await app.unwatch(w.id); app.toast(`Stopped watching ${goal.title}`); setOpen(false); }}><span>Stop watching</span></button>}
+            {w === 'via' && <Link className="opt" to="/watching" onClick={() => setOpen(false)}><span>Go to Watching</span></Link>}
+          </div>
+        </div>
+      </Sheet>
+    </>
+  );
+}
+
+/* ---------- trees ---------- */
+/** A goal at the top of a tree: its number, target, forecast and how the goals feeding it are doing. */
+export function TreeCard({ node }: { node: TreeNode }) {
   const app = useApp();
   const g = node.goal;
   const st = app.statusOf(g);
   const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
   const gap = gapText(g, a);
   const fc = forecastText(g, a, app.cycle.weeks);
-  const req = requestOf(g, app.attentionOf(g), app);
-  const asksYou = app.viewer.profile === 'sponsor' && (!!req.proposal || !!req.pending || !!req.needs);
   const feed = descendants(node);
   const counts = (['off', 'risk', 'stale', 'on', 'done', 'planned'] as const).map((k) => [k, feed.filter((c) => app.statusOf(c).status === k).length] as const).filter(([, n]) => n);
   const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? 'No value yet' : fmt(a.actual, g);
   return (
     <Link to={'/goals/' + g.id} className="outcome-card">
-      <span className="outcome-title">{g.title}{asksYou && <span className="asks">Needs you</span>}</span>
+      <span className="outcome-title">{g.title}<LevelTag level={g.level} /></span>
       <span className="outcome-now">
         <Chip k={st.status} />
         <span className="big">{now}</span>
         {g.kind === 'metric' && <span className="hint">target {fmt(g.plan.target, g)}</span>}
         {st.status !== 'stale' && <span className={'small strong tone-' + gap.tone}>{gap.short}</span>}
       </span>
-      {fc && !compact && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
+      {fc && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
       {feed.length > 0 && (
         <span className="stack" style={{ gap: 'var(--s2)' }}>
           <span className="mix" role="img" aria-label={counts.map(([k, n]) => `${n} ${LABEL[k].toLowerCase()}`).join(', ')}>
@@ -231,31 +203,39 @@ export function TreeRows({ nodes, depth = 0 }: { nodes: TreeNode[]; depth?: numb
   );
 }
 
-export function TreeRow({ g }: { g: Goal }) {
+/** "Checked in 2 days ago", "No check-in for 24 days", "No check-in yet". */
+export function freshness(g: Goal, app: ReturnType<typeof useApp>): { text: string; stale: boolean } {
+  const own = checkInsFor(g, app.snapshot.checkIns);
+  const last = own[own.length - 1];
+  if (!last) return { text: 'No check-in yet', stale: app.week > 1 };
+  const d = daysSince(last.postedAt, app.today);
+  const stale = app.statusOf(g).status === 'stale';
+  return { text: stale ? `No check-in for ${d} days` : d < 1 ? 'Checked in today' : d === 1 ? 'Checked in yesterday' : `Checked in ${d} days ago`, stale };
+}
+
+export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean }) {
   const app = useApp();
   const att = app.attentionOf(g);
   const st = att.status;
   const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
   const gap = gapText(g, a);
   const flag = att.flags.find((f) => f.kind !== 'due');
-  const r = requestOf(g, att, app);
-  const asksYou = app.viewer.profile === 'sponsor' && (!!r.proposal || !!r.pending || !!r.needs);
   const moved = statusChange(g, app.snapshot.checkIns);
   const owner = app.person(g.ownerId);
+  const fresh = freshness(g, app);
   const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? '—' : fmt(a.actual, g);
   return (
     <Link to={'/goals/' + g.id} className="trow" data-tone={st.status}>
       <span className={'trow-icon tone-' + st.status} aria-hidden="true"><StatusShape k={st.status} /></span>
       <span className="trow-main">
-        <span className="trow-title">{g.title}</span>
+        <span className="trow-title">{g.title}<LevelTag level={g.level} /></span>
         <span className="trow-why">
-          {asksYou && <span className="asks">Needs you</span>}
           {moved?.worse && <span className="tone-risk">Was {LABEL[moved.from].toLowerCase()} in week {moved.week}. </span>}
-          {flag ? flag.detail : `${owner?.name ?? 'The owner'}, ${LABEL[st.status].toLowerCase()}.`}
+          {flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}
         </span>
       </span>
-      <span className="trow-now"><span>{now}</span><span className={'tone-' + gap.tone}>{st.status === 'stale' ? 'Stale' : gap.short}</span></span>
-      <span className="sr">{LABEL[st.status]}</span>
+      <span className="trow-now"><span>{now}</span><span className={'tone-' + (st.status === 'stale' ? 'stale' : gap.tone)}>{st.status === 'stale' ? 'Stale' : gap.short}</span></span>
+      <span className="sr">{LABEL[st.status]}{g.level !== 'team' ? `, ${LEVEL_LABEL[g.level]} level` : ''}</span>
     </Link>
   );
 }

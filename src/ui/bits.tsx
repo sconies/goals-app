@@ -3,7 +3,8 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Flag, GoalAttention } from '../domain/attention';
 import { LABEL } from '../domain/status';
-import type { DisplayStatus, Person, Profile } from '../domain/types';
+import type { DisplayStatus, Level, Person } from '../domain/types';
+import { LEVEL_LABEL } from '../domain/format';
 
 /** Status is shape plus word, never colour alone. */
 export function StatusShape({ k }: { k: DisplayStatus }) {
@@ -35,13 +36,11 @@ export const Avatar = ({ p, size }: { p: Pick<Person, 'initials' | 'name'>; size
 );
 const hue = (s: string) => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 6;
 
-export const PROFILE_LABEL: Record<Profile, string> = { lead: 'Team lead', sponsor: 'Sponsor', coach: 'Goals coach', contributor: 'Contributor' };
-export const PROFILE_HELP: Record<Profile, string> = {
-  lead: 'Owns goals and checks in each week',
-  sponsor: 'Runs the weekly review and makes the calls',
-  coach: 'Sets up workspaces and keeps the rhythm going',
-  contributor: 'Follows the goals their work feeds',
-};
+/** A goal's level, for reporting at major reviews. Team goals show nothing; north star and SVP stand out a little. */
+export function LevelTag({ level, always }: { level: Level; always?: boolean }) {
+  if (level === 'team' && !always) return null;
+  return <span className={'level level-' + level}>{LEVEL_LABEL[level]}</span>;
+}
 
 export function Header({ eyebrow, title, sub, actions }: { eyebrow?: ReactNode; title: string; sub?: ReactNode; actions?: ReactNode }) {
   return (

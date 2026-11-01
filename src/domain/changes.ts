@@ -1,6 +1,6 @@
 /* The change log: what changed, field by field, in words a reader understands. */
 import { causeLabel } from './checkin';
-import { fmt, kindLabel } from './format';
+import { fmt, kindLabel, LEVEL_LABEL } from './format';
 import { LABEL, assessMilestone } from './status';
 import type { Change, CheckIn, Diff, Goal, Person } from './types';
 
@@ -18,7 +18,8 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     Type: kindLabel(g),
     Team: l.teamName(g.teamId),
     Owner: l.person(g.ownerId)?.name ?? g.ownerId,
-    'Feeds into': g.parentId ? l.goal(g.parentId)?.title ?? '—' : g.headline ? 'Headline goal' : 'Nothing',
+    'Feeds into': g.parentId ? l.goal(g.parentId)?.title ?? '—' : 'Nothing',
+    Level: LEVEL_LABEL[g.level],
     Role: g.io === 'input' ? 'Input' : 'Output',
     Guardrail: g.guardrail ? 'Yes' : 'No',
     'Estimated effect': g.effect == null ? '—' : String(g.effect),

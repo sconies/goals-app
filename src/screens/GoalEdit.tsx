@@ -3,20 +3,25 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
-import { pendingSummary } from '../domain/attention';
-import { buildGoal, draftOf, planChanged, validateGoal, withPlanOf, type GoalDraft, type GoalErrors } from '../domain/goal';
-import type { Goal, PlanShape } from '../domain/types';
+import { LEVEL_LABEL } from '../domain/format';
+import { buildGoal, draftOf, planChanged, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
+import type { Goal, Level, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
+const LEVELS: [Level, string][] = [['team', 'Most goals'], ['svp', 'Reported at SVP reviews'], ['north-star', 'Reported at the top']];
 
-/** Editing an existing goal: one short screen. Once check-ins have started, a plan change goes to the sponsor. */
+/** Editing an existing goal: one short screen, for its owner or an admin. Once check-ins have started, a plan change needs a reason and is flagged. */
 export function GoalEdit() {
   const app = useApp();
   const { goalId } = useParams();
   const goal = goalId ? app.goal(goalId) : undefined;
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn" to="/goals">All goals</Link></Empty></div>;
+  if (goal.ownerId !== app.viewer.id && !app.viewer.admin) {
+    const owner = app.person(goal.ownerId);
+    return <div className="page narrow"><Empty title="Only its owner can change this goal"><span className="muted">{owner ? `${owner.name} owns it.` : ''} You can watch it and comment.</span><Link className="btn" to={'/goals/' + goal.id}>Back to the goal</Link></Empty></div>;
+  }
   return <EditSheet key={goal.id} goal={goal} />;
 }
 
@@ -25,32 +30,31 @@ function EditSheet({ goal }: { goal: Goal }) {
   const nav = useNavigate();
   const { cycle, week } = app;
   const started = app.checkInsOf(goal).length > 0;
-  const sponsor = app.snapshot.people.find((p) => p.profile === 'sponsor');
   const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftOf(goal), reason: '' }));
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const errors = validateGoal(d, cycle);
   const err = (k: keyof GoalErrors) => tried && errors[k] ? <span className="tiny tone-off" role="alert">{errors[k]}</span> : null;
   const valid = Object.keys(errors).length === 0;
-  const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, false, week) : null;
-  const proposing = !!built && started && planChanged(goal, built);
+  const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
+  const replanning = !!built && started && planChanged(goal, built);
   const reasonOk = d.reason.trim().length >= MIN_REASON;
-  const parents = app.snapshot.goals.filter((g) => g.id !== goal.id && (g.headline || !g.parentId));
+  const below = new Set<string>();
+  const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { below.add(c.id); walk(c.id); } };
+  walk(goal.id);
+  const parents = app.snapshot.goals.filter((g) => g.id !== goal.id && !below.has(g.id));
   const parent = app.goal(d.parentId);
   const back = () => nav('/goals/' + goal.id);
 
   const save = async () => {
     setTried(true);
-    if (!built || saving || (proposing && !reasonOk)) return;
+    if (!built || saving || (replanning && !reasonOk)) return;
     setSaving(true);
     try {
-      const basics: Goal = { ...withPlanOf(built, goal), pending: goal.pending ?? null };
-      const basicsChanged = JSON.stringify(basics) !== JSON.stringify({ ...goal, pending: goal.pending ?? null });
-      if (basicsChanged) await app.saveGoal(basics, goal);
-      if (proposing) {
-        await app.proposeChange(basics, withPlanOf(basics, built), d.reason);
-        app.toast(`Proposed. ${sponsor ? sponsor.name.split(' ')[0] : 'The sponsor'} sees it in the weekly review.`);
-      } else app.toast(basicsChanged ? 'Saved. The change is in the goal’s activity.' : 'Nothing changed.');
+      const after: Goal = { ...built, pending: null };
+      const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
+      if (changed) await app.saveGoal(after, goal, replanning ? d.reason.trim() : undefined);
+      app.toast(!changed ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : 'Saved.');
       clear();
       back();
     } catch {
@@ -58,7 +62,7 @@ function EditSheet({ goal }: { goal: Goal }) {
     }
   };
 
-  const label = saving ? 'Saving…' : !valid && tried ? 'Fix the highlighted fields' : proposing ? 'Propose change' : 'Save changes';
+  const label = saving ? 'Saving…' : !valid && tried ? 'Fix the highlighted fields' : 'Save changes';
 
   return (
     <div className="focus">
@@ -69,16 +73,6 @@ function EditSheet({ goal }: { goal: Goal }) {
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}
-        {goal.pending && (
-          <div className="pending-note" role="status">
-            <span className="grow">
-              <strong>{pendingSummary(goal)}</strong>
-              <span className="hint">Proposed, waiting for {sponsor?.name.split(' ')[0] ?? 'the sponsor'}. Proposing again replaces it.</span>
-            </span>
-            <button type="button" className="linkish tap" onClick={() => void app.withdrawChange(goal).then(() => app.toast('Proposal withdrawn.'))}>Withdraw</button>
-          </div>
-        )}
-
         <label className="field">
           <span className="field-label">Name</span>
           <input className="input" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
@@ -88,7 +82,7 @@ function EditSheet({ goal }: { goal: Goal }) {
         <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="plan-h">
           <div className="stack" style={{ gap: 'var(--s1)' }}>
             <h2 className="block-title" id="plan-h">{goal.kind === 'metric' ? 'Plan' : goal.kind === 'range' ? 'Limit' : 'Stages'}</h2>
-            {started && <span className="hint">Check-ins have started, so a change here goes to {sponsor?.name.split(' ')[0] ?? 'the sponsor'} to approve.</span>}
+            {started && <span className="hint">Check-ins have started, so a change here needs a reason. Watchers see it flagged.</span>}
           </div>
           {goal.kind === 'metric' && (
             <>
@@ -128,11 +122,11 @@ function EditSheet({ goal }: { goal: Goal }) {
               {err('stages')}
             </div>
           )}
-          {proposing && (
+          {replanning && (
             <label className="field">
               <span className="field-label">Why change it?</span>
-              <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="One sentence the sponsor can decide on" aria-label="Why change it?" />
-              {tried && !reasonOk ? <span className="hint tone-off" role="alert">Say why, in a sentence, so the sponsor can decide.</span> : <span className="hint">The current plan stays until it’s approved.</span>}
+              <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="e.g. The vendor contract moved the start to week 6" aria-label="Why change it?" />
+              {tried && !reasonOk ? <span className="hint tone-off" role="alert">Say why, in a sentence. People watching this goal will see it.</span> : <span className="hint">The original plan stays on the chart, dotted.</span>}
             </label>
           )}
         </section>
@@ -147,16 +141,21 @@ function EditSheet({ goal }: { goal: Goal }) {
               <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
             </label>
           </div>
-          {!d.headline && (
+          <div className="field"><span className="field-label" id="level-l">Level</span>
+            <div className="optlist" role="radiogroup" aria-labelledby="level-l">
+              {LEVELS.map(([l, hint]) => <button key={l} type="button" role="radio" className="opt" aria-checked={d.level === l} onClick={() => set({ level: l })}><span>{LEVEL_LABEL[l]}</span><span className="hint">{hint}</span></button>)}
+            </div>
+          </div>
+          {(
             <label className="field"><span className="field-label">Feeds into</span>
               <select className="input" value={d.parentId} onChange={(e) => set({ parentId: e.target.value })}>
-                <option value="">Nothing (stands alone)</option>
-                {parents.map((g) => <option key={g.id} value={g.id}>{g.title}{g.headline ? ' · headline' : ''}</option>)}
+                <option value="">Nothing (top of its tree, or not linked yet)</option>
+                {parents.map((g) => <option key={g.id} value={g.id}>{g.title}{g.level !== 'team' ? ` · ${LEVEL_LABEL[g.level]}` : ''}</option>)}
               </select>
             </label>
           )}
           <details className="disclose"><summary>More details</summary>
-            {!d.headline && d.parentId && (
+            {d.parentId && (
               <label className="field" style={{ maxWidth: 300 }}><span className="field-label">How much it moves “{parent?.title}”</span>
                 <input className="input" inputMode="decimal" value={d.effect} onChange={(e) => set({ effect: e.target.value })} />{err('effect')}
               </label>
@@ -168,7 +167,7 @@ function EditSheet({ goal }: { goal: Goal }) {
         </section>
 
         <div className="focus-foot">
-          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (proposing && !reasonOk)))}>{label}</button>
+          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (replanning && !reasonOk)))}>{label}</button>
         </div>
       </form>
     </div>

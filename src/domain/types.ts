@@ -3,9 +3,8 @@
 
 export type Id = string;
 
-/** What a person does in the goals process. It decides their home screen and what they act on. */
-export type Profile = 'lead' | 'sponsor' | 'coach' | 'contributor';
-
+/** Everyone can see everything; what a person can change follows from the goals they own.
+    Admins (whoever set the workspace up, and anyone they add) also manage people and settings. */
 export interface Person {
   id: Id;
   name: string;
@@ -13,8 +12,11 @@ export interface Person {
   role: string;
   initials: string;
   teamId: Id | null;
-  profile: Profile;
+  admin: boolean;
 }
+
+/** How important a goal is to the organisation, for reporting at major reviews. Separate from what it feeds. */
+export type Level = 'north-star' | 'svp' | 'team';
 
 export interface Team {
   id: Id;
@@ -64,9 +66,9 @@ interface GoalBase {
   ownerId: Id;
   title: string;
   io: Io;
-  /** The cycle's headline (output) goal; input goals point at it with parentId. */
-  headline: boolean;
+  level: Level;
   guardrail: boolean;
+  /** The goal this one feeds. Goals with nothing above them are the tops of their trees. */
   parentId: Id | null;
   /** Estimated effect on the parent's metric, in the parent's unit (e.g. days off). */
   effect: number | null;
@@ -74,7 +76,7 @@ interface GoalBase {
   source: string;
   definition: string;
   createdAt: string;
-  /** A change to the plan or target waiting for the sponsor, once check-ins have started. */
+  /** A proposed plan change. Not used while target changes save directly; kept for governance later. */
   pending?: PendingChange | null;
 }
 
@@ -168,23 +170,48 @@ export interface Change {
   at: string;
   actorId: Id;
   goalId: Id | null;
-  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note';
+  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person';
   entityId: Id;
-  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted';
+  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed';
   summary: string;
   diffs: Diff[];
 }
 
-/** A sponsor's call in the weekly review, on a goal or a proposal in a check-in. */
+/** What someone said about a goal in a review: seen, a note, a question for the owner, or an action.
+    (The approve and decline kinds belong to old data, from before approvals were dropped.) */
 export interface Decision {
   id: Id;
   goalId: Id;
   checkInId: Id | null;
+  /** The review it was said in, if any. */
+  reviewId: Id | null;
   week: number;
-  kind: 'approve-target' | 'decline-target' | 'approve-change' | 'decline-change' | 'acknowledge' | 'ask';
+  kind: 'approve-target' | 'decline-target' | 'approve-change' | 'decline-change' | 'acknowledge' | 'ask' | 'note' | 'action';
   byId: Id;
   at: string;
   note: string;
+}
+
+/** Something a person keeps an eye on: one goal, a goal and everything feeding it, or every goal at a level. */
+export interface Watch {
+  id: Id;
+  personId: Id;
+  kind: 'goal' | 'tree' | 'level';
+  /** A goal id, or a level. */
+  ref: string;
+}
+
+/** A goal review on a cadence: which goals it walks, and who takes part. Anyone can set one up. */
+export interface Review {
+  id: Id;
+  name: string;
+  /** Held every this many weeks of the cycle, on this weekday (0 = Monday). */
+  everyWeeks: number;
+  weekday: number;
+  scope: { goals: Id[]; trees: Id[]; levels: Level[] };
+  people: Id[];
+  createdBy: Id;
+  createdAt: string;
 }
 
 export interface Workspace {
@@ -202,4 +229,6 @@ export interface Snapshot {
   checkIns: CheckIn[];
   decisions: Decision[];
   changes: Change[];
+  watches: Watch[];
+  reviews: Review[];
 }
