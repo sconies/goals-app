@@ -269,7 +269,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
                 {goal.unit && <span className="bignum-unit">{goal.unit}</span>}
               </label>
               {(() => {
-                const pr = valueProblem(draft.value, previous?.value ?? null, goal.unit);
+                const pr = valueProblem(draft.value, previous?.value ?? null, goal.unit, goal);
                 if (pr && (tried || (!pr.block && draft.value.trim()) || (pr.block && draft.value.trim() && parseNumber(draft.value) != null))) return <span className={'hint ' + (pr.block ? 'tone-off' : 'tone-risk')} role={pr.block ? 'alert' : 'status'}>{pr.text}</span>;
                 return null;
               })() ?? (tried && !valueOk

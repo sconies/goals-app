@@ -145,9 +145,11 @@ export function Spark({ goal, weeks, series }: { goal: MetricGoal | RangeGoal; w
 }
 
 const stageKind = (s: StageState) => (s.kind === 'planned' ? 'planned' : s.kind);
+const weeksLate = (n: number) => (n === 1 ? '1 week' : n + ' weeks') + ' late';
+/** "Expected week 45 · 3 weeks late, due week 42": what's late, by how much, and against which date. */
 export const stageTag = (s: StageState) =>
-  s.kind === 'done' ? 'Done week ' + s.doneWeek + (s.weeksLate ? ' · ' + s.weeksLate + ' late' : '')
-    : s.weeksLate > 0 ? 'Expected week ' + s.expectedWeek + ' · ' + s.weeksLate + ' late'
+  s.kind === 'done' ? 'Done week ' + s.doneWeek + (s.weeksLate ? ' · ' + weeksLate(s.weeksLate) + ', due week ' + s.dueWeek : '')
+    : s.weeksLate > 0 ? 'Expected week ' + s.expectedWeek + ' · ' + weeksLate(s.weeksLate) + ', due week ' + s.dueWeek
       : 'Due week ' + s.dueWeek;
 
 export function StageList({ a }: { a: MilestoneAssessment }) {

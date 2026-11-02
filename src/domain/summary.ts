@@ -22,6 +22,8 @@ export interface GoalSummary {
   /** This week's plan, for number goals. */
   planNow: number | null;
   planNowText: string;
+  /** The plan in the week of the latest number, which is what the gap compares against: "82% in week 42". */
+  planThen: string | null;
   target: string;
   dueWeek: number;
   gap: string;
@@ -62,13 +64,14 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
     now, nowValue,
     planNow,
     planNowText: planNow != null && goal.kind === 'metric' ? fmt(planNow, goal) : '—',
+    planThen: a.kind === 'metric' && a.actual != null && goal.kind === 'metric' ? `${fmt(a.plan, goal)} in week ${a.week}` : null,
     target: targetText(goal),
     dueWeek: goal.kind === 'metric' ? planEnd(goal.plan, cycle.weeks) : goal.kind === 'milestone' ? Math.max(0, ...goal.stages.map((x) => x.dueWeek)) : cycle.weeks,
     gap: st.status === 'stale' ? 'No recent check-in' : gap.short,
     gapTone: st.status === 'stale' ? 'stale' : gap.tone,
     lastWeek: last?.week ?? null,
     lastPostedAt: last?.postedAt ?? null,
-    forecast: forecastText(goal, a, cycle.weeks)?.text ?? null,
+    forecast: st.status === 'stale' ? null : forecastText(goal, a, cycle.weeks)?.text ?? null,
     feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
     why: behind && last ? [last.cause ? causeLabel(last.cause) : '', last.why].filter((x) => x && x !== 'On plan.').join(': ') : '',
     pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : '') : '',

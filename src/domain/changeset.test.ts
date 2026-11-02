@@ -29,6 +29,25 @@ describe('bulk changes', () => {
     expect(cs.commit).toBeNull();
   });
 
+  it('lets an owner load the whole workbook back after changing only their own goal (research round 1)', () => {
+    // Kofi isn't an admin. Rows for other people's goals that he didn't touch must not block his own changes.
+    expect(person('kofi').admin).toBeFalsy();
+    const wb = workbook({ ws: { id: 'ws', name: 'P' }, snapshot: s, cycle, week, today });
+    const ci = records(tsvOf(wb[2]!.rows));
+    const own = ci.filter((r) => r['goal id'] === 'cache' && ['37', '38', '39'].includes(r['week']!));
+    expect(own.length).toBe(3);
+    for (const r of own) r['value'] = String(Number(r['value']) + 1);
+    const cs = planChanges(base('kofi', { goals: records(tsvOf(wb[0]!.rows)), plan: records(tsvOf(wb[1]!.rows)), checkIns: ci }));
+    expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    expect(cs.counts.checkIns).toBe(3);
+    expect(cs.commit).not.toBeNull();
+    // A change he did make to someone else's goal is still refused.
+    const goals = records(tsvOf(wb[0]!.rows));
+    goals.find((r) => r['id'] === 'lead')!['target'] = '1.5';
+    const refused = planChanges(base('kofi', { goals }));
+    expect(refused.issues.map((i) => i.message)).toEqual([expect.stringMatching(/Only Sam Patel \(its owner\) or an admin/)]);
+  });
+
   it('tells which sheet is which from its name or header', () => {
     expect(sheetKind('Check-ins', 'Goal ID\tWeek\tValue')).toBe('checkIns');
     expect(sheetKind('Sheet1', 'ID\tGoal\tUnit\tStart\tWeek 1\tWeek 2')).toBe('plan');

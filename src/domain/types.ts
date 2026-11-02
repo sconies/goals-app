@@ -108,8 +108,13 @@ export interface MetricGoal extends GoalBase {
   plan: MetricPlan;
   /** The first plan, kept when the plan is re-baselined after check-ins started. */
   originalPlan: MetricPlan | null;
+  /** The week of the latest re-plan. */
   rebaselinedWeek: number | null;
+  /** Every earlier plan, oldest first: each applied to the weeks before its untilWeek (and after the one before it). */
+  planHistory?: PlanVersion[];
 }
+
+export interface PlanVersion { untilWeek: number; plan: MetricPlan }
 
 export interface RangeGoal extends GoalBase {
   kind: 'range';

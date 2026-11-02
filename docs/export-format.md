@@ -35,7 +35,8 @@ The Goals sheet or the Check-ins sheet, with the same columns as in the workbook
   "goals": [{
     "id": "…", "title": "…", "level": "north-star | svp | team", "type": "metric | range | milestone",
     "team": "…", "owner": "…", "ownerId": "…", "feedsIntoId": "… or null", "whyItHelps": "…",
-    // metric:    "unit", "decimals", "plan": { start, target, shape, fromWeek, dueWeek, setByHand, byWeek: [{ week, value }] }
+    // metric:    "unit", "decimals", "plan": { start, target, shape, fromWeek, dueWeek, setByHand, byWeek: [{ week, value }] },
+    //            "earlierPlans": [{ untilWeek, start, target, shape }]  (each applied to the weeks before untilWeek)
     // range:     "unit", "decimals", "range": { mustStay: "atMost | atLeast", limit, margin }
     // milestone: "stages": [{ id, name, dueWeek }]
     "now": { "status": "on | risk | off | done | stale | none | planned", "statusLabel": "…", "value": 29.4, "text": "29.4 days",

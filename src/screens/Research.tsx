@@ -83,7 +83,12 @@ export function Research() {
       ) : (
         <>
           <section className="block">
-            <div className="row between"><h2 className="block-title">Tasks <span className="hint">· {TASKS.filter((t) => done(t.id)).length} of {TASKS.length} done</span></h2></div>
+            <div className="row between"><h2 className="block-title">Tasks <span className="hint">· {(() => {
+              const said = TASKS.map((t) => done(t.id)).filter(Boolean);
+              const count = (o: string) => said.filter((r) => r!.outcome === o).length;
+              const parts = [count('done') && `${count('done')} done`, count('stuck') && `${count('stuck')} stuck`, count('gave-up') && `${count('gave-up')} gave up`].filter(Boolean);
+              return `${said.length} of ${TASKS.length} recorded${parts.length ? `: ${parts.join(', ')}` : ''}`;
+            })()}</span></h2></div>
             <ol className="task-list">
               {TASKS.map((t, i) => {
                 const r = done(t.id);

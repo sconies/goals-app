@@ -521,7 +521,8 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   await h.inView(p.getByRole('link', { name: /Start check-in/ }), 'entry', 'Start check-in');
   await h.click(p.getByRole('link', { name: /Start check-in/ }));
   const s7 = await h.snapshot();
-  await h.fill(p.getByLabel('This week’s value'), valueAt(s7.goals.find((g) => g.id === 'review'), NOW, 1.5));
+  // Well ahead, but still a possible coverage (under 100%).
+  await h.fill(p.getByLabel('This week’s value'), valueAt(s7.goals.find((g) => g.id === 'review'), NOW, 1.25));
   await h.click(p.getByRole('button', { name: 'Next' }));
   // Last week's reason is offered back; this week's is different, so edit it.
   await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
@@ -1074,6 +1075,52 @@ journey('U25', ['FIRST-CHECKIN', 'GOAL-CREATE'], 'Publish a goal, then post its 
   await p.context().close();
 }, ['errors']);
 
+journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'sam'));
+  // From Home, the one-table check-in. Letters aren't a number: it says so in place, and no status is guessed.
+  await p.goto(url('/'));
+  const quick = p.getByRole('link', { name: /one table/ });
+  await h.inView(quick, 'entry', 'Or type all your numbers in one table');
+  await h.click(quick);
+  const row = p.locator('.qrow').filter({ hasText: 'PRs with AI code review' });
+  await h.fill(row.getByRole('textbox'), 'abc');
+  await see(row, 'isn’t a number', 'letters are not called out as not a number');
+  h.set('attention', (await row.locator('.qstatus .chip').count()) === 0, 'a status is shown for a value that isn’t a number');
+  // Coverage can't pass 100%: refused in place, and the summary names the real problem.
+  await h.fill(row.getByRole('textbox'), '150');
+  await see(row, 'can’t be over 100%', 'a coverage of 150% is not refused');
+  await h.click(p.getByRole('button', { name: /^Post/ }));
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'needs a possible number' }).isVisible(), 'the summary blames a reason, not the number');
+  const s = await h.snapshot();
+  h.set('logged', !s.checkIns.some((c) => c.goalId === 'review' && c.value === 150), 'an impossible coverage was saved');
+  await h.checkpoint('one table');
+  // The map from the keyboard: Enter on a goal opens its story, which takes focus; Escape gives focus back.
+  await p.goto(url('/goals'));
+  await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Map' }));
+  const node = p.locator('.react-flow__node[data-id="access"]');
+  await node.waitFor();
+  await node.focus();
+  await p.keyboard.press('Enter');
+  const panel = p.getByRole('complementary', { name: /Repo-access controls/ });
+  await panel.waitFor({ timeout: 3000 }).catch(() => {});
+  const opened = await panel.isVisible();
+  const focused = opened && await panel.evaluate((el) => el.contains(document.activeElement));
+  await p.keyboard.press('Escape');
+  const back = opened && !(await panel.isVisible()) && await node.evaluate((el) => el === document.activeElement);
+  h.set('finish', opened && focused && back, `keyboard map: opened ${opened}, focus in panel ${focused}, focus back ${back}`);
+  // Setting up a review survives a refresh, and says so.
+  await p.goto(url('/reviews/new'));
+  const name = () => p.getByLabel('Name', { exact: true });
+  await h.fill(name(), 'Research draft review');
+  await p.reload();
+  await see(p, 'Picked up where you left off', 'a refreshed review set-up does not say it kept the draft');
+  h.set('progress', (await name().inputValue()) === 'Research draft review', 'the review name was lost on refresh');
+  await p.getByRole('button', { name: 'Close without saving' }).click();
+  await p.goto(url('/reviews/new'));
+  h.set('progress', (await name().inputValue()) === '', 'closing without saving kept the draft');
+  await p.context().close();
+});
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
   await p.goto(url('/goals'));
@@ -1145,7 +1192,7 @@ journey('U28', ['RESEARCH'], 'A research session: first glances, a note pinned t
   await h.fill(p.getByLabel(/Your name, or the agent/), 'Eval agent');
   await h.click(p.getByLabel('An AI agent'));
   await h.click(p.getByRole('button', { name: 'Start the session' }));
-  await see(p, '0 of 11 done');
+  await see(p, '0 of 11 recorded');
   await h.checkpoint('hub');
   // The first task takes you there as the right person; the first glance asks before you do anything.
   await h.click(p.locator('.task-list li').first().getByRole('button'));

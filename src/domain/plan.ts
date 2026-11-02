@@ -110,5 +110,7 @@ export function weekDates(cycle: Cycle, week: number): string {
   const a = new Date(weekDate(cycle, week) + 'T00:00:00Z');
   const b = new Date(a.getTime() + 6 * 86_400_000);
   const d = (x: Date, month: boolean) => x.toLocaleDateString('en-GB', { day: 'numeric', ...(month ? { month: 'short' } : {}), timeZone: 'UTC' });
-  return a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
+  const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
+  // A week in another calendar year than the cycle's start says which: "28 Dec–3 Jan 2027".
+  return b.getUTCFullYear() !== Number(cycle.startDate.slice(0, 4)) ? `${range} ${b.getUTCFullYear()}` : range;
 }

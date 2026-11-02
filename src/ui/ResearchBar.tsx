@@ -23,7 +23,8 @@ export function ResearchBar() {
   const [card, setCard] = useState<Card>(null);
   const [text, setText] = useState('');
   const [severity, setSeverity] = useState<NonNullable<ResearchNote['severity']>>('minor');
-  const [outcome, setOutcome] = useState<NonNullable<ResearchNote['outcome']>>('done');
+  // No outcome until one is chosen: a task's result is never carried over from the last one.
+  const [outcome, setOutcome] = useState<ResearchNote['outcome'] | null>(null);
   const [rating, setRating] = useState(4);
   const screen = screenName(pathname);
   const persona = personaOf(app.viewer, app).role;
@@ -68,6 +69,7 @@ export function ResearchBar() {
       await addNote(s, { kind: 'comment', persona, route: pathname, target: card.target, severity, text: text.trim() });
       app.toast('Note saved');
     } else if (card.kind === 'task' && task) {
+      if (!outcome) return;
       await addNote(s, { kind: 'task', persona, route: pathname, target: '', taskId: task.id, outcome, rating, text: text.trim() });
       writeSession({ ...s, task: Math.min(TASKS.length - 1, s.task + 1) });
       app.toast(`Task ${s.task + 1} noted`);
@@ -114,7 +116,7 @@ export function ResearchBar() {
             <select className="input" value={rating} onChange={(e) => setRating(Number(e.target.value))}>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}</select>
           </label>
           <label className="field"><span className="small strong">What happened</span><textarea className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} /></label>
-          <span className="row"><button type="submit" className="btn sm">Save and next task</button><button type="button" className="btn ghost sm" onClick={() => setCard(null)}>Cancel</button></span>
+          <span className="row"><button type="submit" className="btn sm" disabled={!outcome}>Save and next task</button><button type="button" className="btn ghost sm" onClick={() => setCard(null)}>Cancel</button></span>
         </form>
       )}
       <div className="research-strip">
@@ -123,7 +125,7 @@ export function ResearchBar() {
           {task && <span className="small strong ellipsis" title={task.detail}>Task {s.task + 1}: {task.title}</span>}
         </span>
         <span className="row nowrap" style={{ gap: 'var(--s1)' }}>
-          {task && <button type="button" className="btn sm" onClick={() => { setText(''); setCard({ kind: 'task' }); }}>How did it go?</button>}
+          {task && <button type="button" className="btn sm" onClick={() => { setText(''); setOutcome(null); setRating(4); setCard({ kind: 'task' }); }}>How did it go?</button>}
           <button type="button" className="btn sm" onClick={() => setCard({ kind: 'pick' })}>Note on this</button>
           <Link className="btn ghost sm" to="/research">Hub</Link>
         </span>

@@ -14,6 +14,7 @@ export interface GoalRow extends W {
   unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null; plan_end_week?: number | null; plan_points?: MetricPlan['points'] | null;
   original_plan: MetricPlan | null; rebaselined_week: number | null; range_bound: 'atMost' | 'atLeast' | null; range_limit: number | null;
   range_margin: number | null; created_at: string; pending?: Goal['pending']; version?: number; also_helps?: string[] | null;
+  plan_history?: { untilWeek: number; plan: MetricPlan }[] | null;
 }
 export interface CheckInRow extends W {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
@@ -47,6 +48,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     unit: g.kind === 'milestone' ? null : g.unit, decimals: g.kind === 'milestone' ? null : g.decimals,
     plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
+    plan_history: g.kind === 'metric' && g.planHistory?.length ? g.planHistory : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
     created_at: g.createdAt || new Date().toISOString(),
     pending: g.pending ?? null,
@@ -55,6 +57,12 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
   const stages = g.kind === 'milestone' ? g.stages.map((s) => ({ workspace_id: ws, id: s.id, goal_id: g.id, name: s.name, due_week: s.dueWeek })) : [];
   return { goal, stages };
 }
+
+const planOf = (op: MetricPlan): MetricPlan => ({
+  start: Number(op.start), target: Number(op.target), shape: op.shape,
+  ...(op.fromWeek != null ? { fromWeek: Number(op.fromWeek) } : {}), ...(op.endWeek != null ? { endWeek: Number(op.endWeek) } : {}),
+  ...(op.points?.length ? { points: op.points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}),
+});
 
 export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
   const common = {
@@ -69,12 +77,9 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     return {
       ...common, kind: 'metric', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0),
       plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
-      originalPlan: op ? {
-        start: Number(op.start), target: Number(op.target), shape: op.shape,
-        // The whole first plan, so weeks before a re-plan are judged against exactly what applied then.
-        ...(op.fromWeek != null ? { fromWeek: Number(op.fromWeek) } : {}), ...(op.endWeek != null ? { endWeek: Number(op.endWeek) } : {}),
-        ...(op.points?.length ? { points: op.points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}),
-      } : null, rebaselinedWeek: r.rebaselined_week,
+      // Whole earlier plans, so weeks before a re-plan are judged against exactly what applied then.
+      originalPlan: op ? planOf(op) : null, rebaselinedWeek: r.rebaselined_week,
+      ...(r.plan_history?.length ? { planHistory: r.plan_history.map((v) => ({ untilWeek: Number(v.untilWeek), plan: planOf(v.plan) })) } : {}),
     };
   }
   if (r.kind === 'range') {

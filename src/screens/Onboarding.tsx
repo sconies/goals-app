@@ -9,7 +9,8 @@ import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer
 import type { Cycle } from '../domain/types';
 import { MONTH_NAMES, startMonth, yearStartFor } from '../domain/year';
 import { yearName } from '../domain/yearName';
-import { TEMPLATES, type TemplateGoal } from '../domain/templates';
+import { stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
+import { currentWeek } from '../domain/plan';
 import { Steps } from '../ui/bits';
 import { targetText } from '../domain/format';
 
@@ -148,7 +149,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
   const pickTemplate = (id: string) => {
     const t = TEMPLATES.find((x) => x.id === id);
-    if (t) set({ template: id, outcome: { ...t.outcome, owner: d.me.name.trim() }, goals: t.goals.map((g) => ({ ...g, owner: d.me.name.trim() })) });
+    // Stage weeks in a template count from now, so a mid-year setup doesn't start with stages already overdue.
+    const now = currentWeek({ startDate: d.startDate, weeks: 52 } as Cycle, setup.today);
+    if (t) set({ template: id, outcome: { ...t.outcome, owner: d.me.name.trim() }, goals: t.goals.map((g) => ({ ...g, owner: d.me.name.trim(), ...(g.stages ? { stages: stagesFromNow(g.stages, now) } : {}) })) });
     else if (id === 'blank') set({ template: id, outcome: blankGoal(d.me.name.trim()), goals: [blankGoal(d.me.name.trim())] });
     else set({ template: id });
   };
@@ -301,7 +304,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </div>
             {d.goals.map((g, i) => (
               <div key={i} className="goalcard">
-                <GoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} />
+                <GoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} week={currentWeek({ startDate: d.startDate, weeks: 52 } as Cycle, setup.today)} />
                 <button type="button" className="linkish tap" onClick={() => set({ goals: d.goals.filter((_, k) => k !== i) })}>Remove this goal</button>
               </div>
             ))}
@@ -351,7 +354,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function GoalFields({ g, owners, onChange, issue, headline }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; headline?: boolean }) {
+function GoalFields({ g, owners, onChange, issue, headline, week = 0 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; headline?: boolean; week?: number }) {
   return (
     <div className="stack" style={{ gap: 'var(--s3)' }}>
       <label className="field"><span className={headline ? 'sr' : 'field-label'}>{headline ? 'Outcome' : 'Goal'}</span>
@@ -361,7 +364,7 @@ function GoalFields({ g, owners, onChange, issue, headline }: { g: GoalRow; owne
         <div className="optlist compact-opts" role="radiogroup" aria-label="Kind of goal">
           <button type="button" role="radio" className="opt" aria-checked={g.kind === 'metric'} onClick={() => onChange({ kind: 'metric' })}><span>Move a number</span></button>
           <button type="button" role="radio" className="opt" aria-checked={g.kind === 'range'} onClick={() => onChange({ kind: 'range', bound: g.bound ?? 'at most' })}><span>Keep a number in range</span></button>
-          <button type="button" role="radio" className="opt" aria-checked={g.kind === 'milestone'} onClick={() => onChange({ kind: 'milestone', stages: g.stages || 'Design@3; Pilot@7; Launch@12' })}><span>Hit dated stages</span></button>
+          <button type="button" role="radio" className="opt" aria-checked={g.kind === 'milestone'} onClick={() => onChange({ kind: 'milestone', stages: g.stages || stagesFromNow('Design@3; Pilot@7; Launch@12', week) })}><span>Hit dated stages</span></button>
         </div>
       )}
       {g.kind === 'metric' ? (

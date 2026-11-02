@@ -62,3 +62,18 @@ export const TEMPLATES: Template[] = [
     ],
   },
 ];
+
+/**
+ * A template's stage weeks count from now, not from the start of the year: set up in week 43, "Design@3" is due in week 45.
+ * Stages are spread over the weeks left when they would run past the year's end.
+ */
+export function stagesFromNow(stages: string, week: number, weeks = 52): string {
+  const parts = stages.split(';').map((x) => x.trim()).filter(Boolean).map((x) => {
+    const m = /^(.*?)\s*@\s*(\d+)\s*$/.exec(x);
+    return m ? { name: m[1]!, at: Number(m[2]) } : { name: x, at: null };
+  });
+  const last = Math.max(1, ...parts.map((p) => p.at ?? 0));
+  const room = Math.max(1, weeks - Math.max(0, week));
+  const scale = Math.min(1, room / last);
+  return parts.map((p) => (p.at == null ? p.name : `${p.name}@${Math.min(weeks, Math.max(0, week) + Math.max(1, Math.round(p.at * scale)))}`)).join('; ');
+}

@@ -17,6 +17,13 @@ describe('rows', () => {
     expect(s.decisions.map((d) => decisionFromRow(decisionToRow(ws, d)))).toEqual(s.decisions);
     expect(s.changes.map((c) => changeFromRow(changeToRow(ws, c)))).toEqual(s.changes);
   });
+  it('keeps every earlier plan of a goal through the database', () => {
+    const g = s.goals.find((x) => x.id === 'review')!;
+    if (g.kind !== 'metric') throw new Error('review is a number goal');
+    const replanned = { ...g, planHistory: [{ untilWeek: 40, plan: { start: 30, target: 75, shape: 'straight' as const } }, { untilWeek: 43, plan: g.plan }], plan: { ...g.plan, target: 98 } };
+    const r = goalToRows(ws, replanned);
+    expect(goalFromRows(JSON.parse(JSON.stringify(r.goal)), [])).toEqual(replanned);
+  });
   it('tags every row with its workspace', () => {
     expect(personToRow('w1', s.people[0]!).workspace_id).toBe('w1');
     expect(goalToRows('w1', s.goals[0]!).goal.workspace_id).toBe('w1');
