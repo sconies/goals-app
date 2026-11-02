@@ -871,7 +871,7 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   await h.click(p.getByRole('button', { name: 'Export' }));
   await h.checkpoint('export');
   const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: /Excel workbook/ }))]);
-  const [json] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: /^JSON/ }))]);
+  const [json] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Save .json' }))]);
   const data = JSON.parse(fs.readFileSync(await json.path(), 'utf8'));
   const [md] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Save .md' }))]);
   const brief = fs.readFileSync(await md.path(), 'utf8');

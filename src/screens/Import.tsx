@@ -12,6 +12,7 @@ export function Import() {
   const nav = useNavigate();
   const file = useRef<HTMLInputElement>(null);
   const [tables, setTables] = useState<Tables | null>(null);
+  const [over, setOver] = useState(false);
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -50,15 +51,23 @@ export function Import() {
 
       {!cs && (
         <>
-          <ol className="steps-list">
-            <li><span className="strong">Download the workbook.</span> It has every goal in {app.cycle.name}, its plan by week and its check-ins, with an ID on each goal.
-              <div><button type="button" className="btn sm" onClick={() => void template()}>Download the workbook</button></div></li>
-            <li><span className="strong">Change it in Excel.</span> Edit cells, add rows for new goals (leave ID empty) or past weeks on the Check-ins sheet. The README sheet explains each column.</li>
-            <li><span className="strong">Load it here.</span> {app.viewer.admin ? 'As an admin you can change any goal.' : 'You can change the goals you own.'}</li>
+          {/* Three short steps side by side, then one clear place to put the file. */}
+          <ol className="steps-list import-steps">
+            <li><span className="strong">Download the workbook</span><span className="hint">Every goal in {app.cycle.name}, its plan by week and its check-ins.</span>
+              <button type="button" className="btn sm" onClick={() => void template()}>Download the workbook</button></li>
+            <li><span className="strong">Change it in Excel</span><span className="hint">Edit cells; add rows for new goals (no ID) or past weeks. The README sheet explains each column.</span></li>
+            <li><span className="strong">Load it here</span><span className="hint">{app.viewer.admin ? 'As an admin you can change any goal.' : 'Rows for other people’s goals are fine if you leave them as they are.'}</span></li>
           </ol>
           <input ref={file} type="file" accept=".xlsx,.csv,.tsv,.txt" className="sr" aria-label="Choose a spreadsheet" onChange={(e) => void pick(e.target.files?.[0])} />
-          <div className="foot-row"><Link className="btn ghost big-btn" to="/goals">Cancel</Link><button type="button" className="btn primary big-btn" onClick={() => file.current?.click()}>Choose a file</button></div>
+          <div className={'dropzone' + (over ? ' over' : '')}
+            onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+            onDrop={(e) => { e.preventDefault(); setOver(false); void pick(e.dataTransfer.files?.[0]); }}>
+            <span className="strong">Drop the workbook here</span>
+            <span className="hint">An .xlsx, .csv or tab-separated file. Every change is shown before anything is saved.</span>
+            <button type="button" className="btn primary big-btn" onClick={() => file.current?.click()}>Choose a file</button>
+          </div>
           {problem && <p className="hint tone-off" role="alert">{problem}</p>}
+          <div><Link className="btn ghost" to="/goals">Cancel</Link></div>
         </>
       )}
 

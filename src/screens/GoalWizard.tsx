@@ -262,7 +262,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
           </>
         )}
 
-        <div className="focus-foot">
+        <div className="focus-foot nav-foot">
           {step > 0 && <button type="button" className="btn" onClick={() => set({ step: step - 1 })}>Back</button>}
           <span style={{ flex: 1 }} />
           {existing && step < 3 && <button type="button" className="btn" onClick={() => void publish()} disabled={saving}>Save now</button>}

@@ -149,7 +149,7 @@ export function timeAgo(iso: string, now: Date): string {
 }
 
 /** A panel that slides up on a phone and drops down as a popover on a desktop. */
-export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Sheet({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   // The latest onClose, so a parent passing a new function each render doesn't re-run the focus effect.
   const close = useRef(onClose);
@@ -176,7 +176,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   // Rendered at the top of the page so a phone shows it as a bottom sheet over everything.
   return createPortal(
     <div className="sheet-wrap" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} ref={ref} onClick={(e) => e.stopPropagation()}>
+      <div className={'sheet' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-label={title} ref={ref} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head"><span className="h3">{title}</span><button className="iconbtn" onClick={onClose} aria-label="Close">✕</button></div>
         <div className="sheet-body">{children}</div>
       </div>
