@@ -47,7 +47,7 @@ function stagesText(g: Goal, c: CheckIn): string {
 /* ---------- workbook ---------- */
 
 export const GOAL_EXPORT_COLUMNS = ['ID', 'Goal', 'Level', 'Team', 'Owner', 'Type', 'Unit', 'Decimals', 'Start', 'Target', 'Plan', 'Plan from week', 'Due week', 'Limit', 'Must stay', 'Margin', 'Stages', 'Feeds into', 'Feeds into ID', 'Why it helps', 'Effect', 'Source', 'Definition'] as const;
-export const GOAL_DERIVED_COLUMNS = ['Status', 'Result', 'Since', 'Now', 'Plan this week', 'Gap', 'Last check-in week', 'Forecast', 'Why it’s off', 'What the owner will do', 'By when', 'Needs', 'Next step', 'Warnings', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
+export const GOAL_DERIVED_COLUMNS = ['Status', 'Result', 'Since', 'Now', 'Plan this week', 'Gap', 'Last check-in week', 'Forecast', 'Why it’s off', 'Recovery plan', 'By when', 'Needs', 'Next step', 'Warnings', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
 export const CHECKIN_EXPORT_COLUMNS = ['Goal ID', 'Goal', 'Week', 'Week starting', 'Value', 'Stages', 'Call', 'Calculated', 'Plan that week', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step', 'Posted at', 'Posted by', 'Backfilled'] as const;
 
 function goalRow(s: GoalSummary, all: Goal[]): Cell[] {
@@ -110,7 +110,7 @@ const README: Cell[][] = [
   ['Goals', 'Stages', 'Milestone goals: Name@week, separated by semicolons', 'Changes the stages'],
   ['Goals', 'Status', 'On track: will hit the target if it carries on (95%+ of planned progress). At risk: could miss without a change (80–95%, or near a limit); the owner has said how it gets back. Off track: will miss without intervention (under 80%, a stage over two weeks late, or over a limit two weeks running). Stale: no check-in for two weeks or more.', 'Ignored'],
   ['Goals', 'Result', 'Completed: hit the target by its due date. Completed late: hit it after the due date. Did not meet: the due date passed without hitting it.', 'Ignored'],
-  ['Goals', 'Why it’s off, What the owner will do, By when, Needs, Next step, Warnings', 'The owner’s latest account when a goal is behind, and anything the numbers would hide (a date that slipped, no recovery plan, a call greener than the numbers)', 'Ignored'],
+  ['Goals', 'Why it’s off, Recovery plan, By when, Needs, Next step, Warnings', 'The owner’s latest account when a goal is behind, and anything the numbers would hide (a date that slipped, no recovery plan, a call greener than the numbers)', 'Ignored'],
   ['Goals', 'Since, Now, Plan this week, Gap, Last check-in week, Forecast', 'Worked out by the app when exported', 'Ignored'],
   ['Goals', 'Q1, Q2, Q3, Q4', 'Each quarter against the owner’s plan: Met, Missed, or Open while it runs. A quarter’s target is the plan’s number at its end.', 'Ignored'],
   ['Plan', 'Week N', 'The planned number each week. Type over any week to set the plan by hand', 'Sets the plan numbers'],
@@ -176,7 +176,7 @@ export function toJson(x: ExportInput) {
         ...(g.kind === 'range' ? { unit: g.unit, decimals: g.decimals, range: { mustStay: g.range.bound === 'atMost' ? 'atMost' : 'atLeast', limit: g.range.limit, margin: g.range.margin } } : {}),
         ...(g.kind === 'milestone' ? { stages: g.stages.map((st) => ({ id: st.id, name: st.name, dueWeek: st.dueWeek })) } : {}),
         now: { status: s.status, statusLabel: s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast },
-        story: { since: s.story.since, where: s.story.where, outlook: s.story.outlook, whyItsOff: s.story.why, whatTheOwnerWillDo: s.story.doing, byWhen: s.story.byWhen, needs: s.story.needs, nextStep: s.story.next, warnings: s.story.warnings, feeds: s.story.feeds },
+        story: { since: s.story.since, where: s.story.where, outlook: s.story.outlook, whyItsOff: s.story.why, recoveryPlan: s.story.doing, byWhen: s.story.byWhen, needs: s.story.needs, nextStep: s.story.next, warnings: s.story.warnings, feeds: s.story.feeds },
         quarters: s.story.quarters.filter((q) => q.kind !== 'none').map((q) => ({ quarter: q.quarter.label, months: q.quarter.months, weeks: [q.quarter.from, q.quarter.to], result: q.kind, text: q.text })),
         result: s.story.result ? { kind: s.story.result.kind, label: RESULT_TEXT[s.story.result.kind], dueWeek: s.story.result.dueWeek, week: s.story.result.week } : null,
         checkIns: s.checkIns.map((c) => ({
@@ -198,11 +198,10 @@ export function toJson(x: ExportInput) {
 
 /* ---------- the brief ---------- */
 
-/** One goal's story, given room: why it's off, what the owner will do, by when, what they need. */
+/** One goal's story, given room: why it's off, the recovery plan, by when, what's needed. */
 function storyBlock(sm: GoalSummary, cycleWeeks: number): string[] {
   const st = sm.story;
   const g = sm.goal;
-  const first = sm.owner.split(' ')[0] || 'The owner';
   const out: string[] = [];
   const tags = [st.since, st.result ? st.result.text : null].filter(Boolean).join(' · ');
   out.push(`### ${g.title}`);
@@ -215,7 +214,7 @@ function storyBlock(sm: GoalSummary, cycleWeeks: number): string[] {
     return [...out, ''];
   }
   out.push(`- **Why it’s ${sm.status === 'off' ? 'off track' : 'at risk'}:** ${st.why ?? 'Not given.'}`);
-  out.push(`- **What ${first} will do:** ${st.doing ?? 'Not given.'}`);
+  out.push(`- **Recovery plan:** ${st.doing ?? 'Not given.'}`);
   out.push(`- **By when:** ${st.byWhen ?? 'No date given.'}`);
   if (st.needs) out.push(`- **Needs:** ${st.needs}`);
   if (st.next) out.push(`- **Next step:** ${st.next}`);

@@ -379,11 +379,10 @@ const hasStory = (s: GoalSummary) => ['off', 'risk', 'stale'].includes(s.status)
 /** Why it's off, what the owner will do, by when, what they need, and any warnings. */
 export function StoryLines({ s, compact }: { s: GoalSummary; compact?: boolean }) {
   const st = s.story;
-  const first = s.owner.split(' ')[0] || 'Owner';
   const rows: [string, string][] = s.status === 'stale'
     ? [['Last heard', st.since ?? '']]
     : ['off', 'risk'].includes(s.status)
-      ? [['Why', st.why ?? 'Not given'], [`${first} will`, st.doing ?? 'Not given'], ['By when', st.byWhen ?? 'No date given'], ...(st.needs ? [['Needs', st.needs] as [string, string]] : [])]
+      ? [['Why', st.why ?? 'Not given'], ['Recovery plan', st.doing ?? 'Not given'], ['By when', st.byWhen ?? 'No date given'], ...(st.needs ? [['Needs', st.needs] as [string, string]] : [])]
       : [];
   return (
     <div className={'story' + (compact ? ' compact' : '')}>

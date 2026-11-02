@@ -24818,7 +24818,7 @@ function quarterResults(g, c, checkIns, week) {
 // src/domain/story.ts
 var MEANING = {
 	on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
-	risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. The owner has said how it gets back.`,
+	risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. There’s a plan to get it back.`,
 	off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
 	stale: `Gone quiet: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
 	none: "Waiting for its first check-in.",
@@ -24886,7 +24886,6 @@ function storyOf(g, s, cycle, week, today) {
 	const own = checkInsFor(g, s.checkIns);
 	const last = own[own.length - 1] ?? null;
 	const a = assessPosted(g, cycle, s.checkIns, week);
-	const first = s.people.find((p) => p.id === g.ownerId)?.name.split(" ")[0] ?? "The owner";
 	const status = st.status;
 	const behind = BEHIND.includes(status);
 	const result = goalResult(g, cycle, s.checkIns, week);
@@ -24946,7 +24945,7 @@ function storyOf(g, s, cycle, week, today) {
 		if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warnings.push(`The same cause three check-ins running: ${causeLabel(last.cause).toLowerCase()}.`);
 	}
 	if (st.greener && last && status !== "stale") warnings.push(`Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : "."}`);
-	if (status === "stale" && last) warnings.push(`Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}. Ask ${first} for an update.`);
+	if (status === "stale" && last) warnings.push(`Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}. An update is overdue.`);
 	if (fc?.warn && !behind && status !== "done") warnings.push("Called on track, but the recent trend misses the target.");
 	if (lastEnded?.kind === "missed" && !result) warnings.push(`Missed its ${lastEnded.text.replace(/^Q(\d): /, "Q$1 plan: ")}.`);
 	const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
@@ -25102,7 +25101,7 @@ var GOAL_DERIVED_COLUMNS = [
 	"Last check-in week",
 	"Forecast",
 	"Why it’s off",
-	"What the owner will do",
+	"Recovery plan",
 	"By when",
 	"Needs",
 	"Next step",
@@ -25299,7 +25298,7 @@ var README = [
 	],
 	[
 		"Goals",
-		"Why it’s off, What the owner will do, By when, Needs, Next step, Warnings",
+		"Why it’s off, Recovery plan, By when, Needs, Next step, Warnings",
 		"The owner’s latest account when a goal is behind, and anything the numbers would hide (a date that slipped, no recovery plan, a call greener than the numbers)",
 		"Ignored"
 	],
@@ -25543,7 +25542,7 @@ function toJson(x) {
 					where: s.story.where,
 					outlook: s.story.outlook,
 					whyItsOff: s.story.why,
-					whatTheOwnerWillDo: s.story.doing,
+					recoveryPlan: s.story.doing,
 					byWhen: s.story.byWhen,
 					needs: s.story.needs,
 					nextStep: s.story.next,
@@ -25605,11 +25604,10 @@ function toJson(x) {
 		}))
 	};
 }
-/** One goal's story, given room: why it's off, what the owner will do, by when, what they need. */
+/** One goal's story, given room: why it's off, the recovery plan, by when, what's needed. */
 function storyBlock(sm, cycleWeeks) {
 	const st = sm.story;
 	const g = sm.goal;
-	const first = sm.owner.split(" ")[0] || "The owner";
 	const out = [];
 	const tags = [st.since, st.result ? st.result.text : null].filter(Boolean).join(" · ");
 	out.push(`### ${g.title}`);
@@ -25622,7 +25620,7 @@ function storyBlock(sm, cycleWeeks) {
 		return [...out, ""];
 	}
 	out.push(`- **Why it’s ${sm.status === "off" ? "off track" : "at risk"}:** ${st.why ?? "Not given."}`);
-	out.push(`- **What ${first} will do:** ${st.doing ?? "Not given."}`);
+	out.push(`- **Recovery plan:** ${st.doing ?? "Not given."}`);
 	out.push(`- **By when:** ${st.byWhen ?? "No date given."}`);
 	if (st.needs) out.push(`- **Needs:** ${st.needs}`);
 	if (st.next) out.push(`- **Next step:** ${st.next}`);

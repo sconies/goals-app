@@ -152,7 +152,7 @@ function NeedsYou() {
     const st = app.statusOf(g);
     const needs = st.latest?.pathToGreen?.needs ?? '';
     if (g.ownerId !== me.id && needs.startsWith(me.name + ':') && (st.status === 'risk' || st.status === 'off')) {
-      items.push({ key: 'need-' + g.id, who: g.ownerId, why: `${first(g.ownerId)} needs a decision or help from you`, what: g.title, quote: needs.slice(me.name.length + 1).trim(), when: `Raised in week ${st.latest!.week}`, to: `/goals/${g.id}?tab=comments`, action: 'Respond', at: st.latest!.postedAt });
+      items.push({ key: 'need-' + g.id, who: g.ownerId, why: 'A decision or help is needed from you', what: g.title, quote: needs.slice(me.name.length + 1).trim(), when: `From the week ${st.latest!.week} check-in, raised by its owner, ${first(g.ownerId)}`, to: `/goals/${g.id}?tab=comments`, action: 'Respond', at: st.latest!.postedAt });
     }
   }
   // Actions from reviews assigned to you that are due from this week on (or undated and recent).
@@ -280,7 +280,7 @@ export function Home() {
     <div className="page narrow">
       <div className="page-head">
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
-        <span className="muted small">{app.ws.name} · {shortPeriod(app.cycle, app.week).toLowerCase()}</span>
+        <span className="muted small">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
       </div>
       <NeedsYou />
       <MyWeek />

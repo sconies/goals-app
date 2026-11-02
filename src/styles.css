@@ -848,3 +848,38 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; 
 
 }
 .calm svg { width: 15px; height: 15px; flex: none; }
+
+/* ---------- demo controls and walkthroughs ---------- */
+.demo-entry { display: flex; flex-direction: column; align-items: flex-start; gap: 0; width: 100%; padding: 8px 10px; border: 1px dashed var(--line-strong); border-radius: 8px; background: transparent; color: var(--muted); text-align: left; cursor: pointer; }
+.demo-entry:hover { border-color: var(--faint); color: var(--fg); }
+.demo-word { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--risk-fg); }
+.demo-as { font-size: 13px; color: var(--fg-2); }
+.demo-entry.compact { width: auto; padding: 4px 8px; flex-direction: row; }
+.menuitem.persona .strong { font-size: 15px; }
+.coach { position: fixed; z-index: 60; right: 20px; bottom: 20px; width: min(360px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 28px rgba(16, 24, 40, .18); }
+.coach-head { display: flex; justify-content: space-between; align-items: center; }
+.coach-title { font-weight: 700; }
+.coach-say { margin: 0; line-height: 22px; }
+.coach-ring { position: fixed; z-index: 59; pointer-events: none; border: 2px solid var(--accent); border-radius: 10px; transition: top .2s, left .2s, width .2s, height .2s; }
+@media (max-width: 640px) { .coach { left: 16px; right: 16px; width: auto; bottom: calc(72px + var(--s2)); } }
+
+/* ---------- research ---------- */
+.note-box { padding: var(--s4); border: 1px solid var(--risk-line); border-radius: 10px; background: var(--risk-bg); }
+.task-list { display: flex; flex-direction: column; padding: 0; margin: 0; list-style: none; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.task-list li { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-2); }
+.task-list li:first-child { border-top: 0; }
+.task-list li.task-done .strong::after { content: ' · noted'; color: var(--on-fg); font-weight: 500; }
+.protocol { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) 0; }
+.protocol ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--s2); }
+.research-bar { position: fixed; z-index: 58; left: 20px; bottom: 20px; width: min(440px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: var(--s2); }
+.research-strip { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 6px 20px rgba(16, 24, 40, .14); }
+.research-card { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 6px 20px rgba(16, 24, 40, .14); }
+body.research-picking * { cursor: crosshair !important; }
+body.research-picking .research-bar, body.research-picking .research-bar * { cursor: auto !important; }
+@media (max-width: 640px) {
+  .research-bar { left: 8px; right: 8px; width: auto; bottom: calc(72px + var(--s2)); }
+  .research-strip { flex-direction: column; align-items: stretch; }
+}
+/* The coach moves out of the way of what it points at. */
+.coach.at-top { top: 20px; bottom: auto; }
+@media (max-width: 640px) { .coach.at-top { top: 76px; bottom: auto; } }

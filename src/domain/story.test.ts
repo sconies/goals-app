@@ -27,7 +27,7 @@ describe('the story of a goal', () => {
     const env = storyOf(goal('env'), s, cycle, week, today);
     expect(env.status).toBe('stale');
     expect(env.since).toMatch(new RegExp(`No check-in for \\d+ days; last heard in week ${toYear(4)}`));
-    expect(env.warnings.join(' ')).toMatch(/Ask Jonas for an update/);
+    expect(env.warnings.join(' ')).toMatch(/An update is overdue/);
     const last = s.checkIns.filter((c) => c.goalId === 'alerts').sort((a, b) => a.week - b.week).pop()!;
     const noPlan = { ...s, checkIns: s.checkIns.map((c) => (c.id === last.id ? { ...c, pathToGreen: null } : c)) };
     expect(storyOf(goal('alerts'), noPlan, cycle, week, today).warnings.join(' ')).toMatch(/No recovery plan/);

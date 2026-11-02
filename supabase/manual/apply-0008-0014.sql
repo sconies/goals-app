@@ -1,4 +1,4 @@
--- Paste into Supabase → SQL editor → Run. Applies migrations 0008 to 0013 in one transaction and records them,
+-- Paste into Supabase → SQL editor → Run. Applies migrations 0008 to 0014 in one transaction and records them,
 -- so the CI migrator won't run them again. Safe to run if 0008 was already applied.
 begin;
 -- 0008: a goal can run past its cycle (to the end of the year), and its plan can be set as numbers by hand.
@@ -226,4 +226,31 @@ insert into okr_schema_migrations (name) values ('0012_ad_hoc_check_ins.sql') on
 -- A goal can also help goals other than the one it feeds: a dotted line on the goal map, not part of the tree.
 alter table okr_goals add column if not exists also_helps jsonb;
 insert into okr_schema_migrations (name) values ('0013_also_helps.sql') on conflict do nothing;
+-- 0014: research notes (anyone can add, nobody can read back through the app).
+-- User research: notes, task results and reports from people and AI agents trying the app. Anyone using the app can
+-- add one; nobody can read them back through the app's public key, so researchers can't see each other's notes.
+-- They're read by the team (and Claude) with the database's own access.
+create table if not exists okr_research_notes (
+  id text primary key,
+  session_id text not null,
+  researcher text not null default '',
+  researcher_kind text not null default 'person' check (researcher_kind in ('person', 'ai')),
+  kind text not null check (kind in ('first-glance', 'comment', 'task', 'report')),
+  persona text not null default '',
+  route text not null default '',
+  target text not null default '',
+  task_id text,
+  outcome text check (outcome is null or outcome in ('done', 'stuck', 'gave-up')),
+  severity text check (severity is null or severity in ('blocker', 'major', 'minor', 'polish', 'idea')),
+  rating int check (rating is null or rating between 1 and 5),
+  text text not null check (length(text) <= 20000),
+  user_agent text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists okr_research_notes_session on okr_research_notes (session_id, created_at);
+alter table okr_research_notes enable row level security;
+drop policy if exists "research: add" on okr_research_notes;
+create policy "research: add" on okr_research_notes for insert to anon with check (true);
+grant insert on okr_research_notes to anon;
+insert into okr_schema_migrations (name) values ('0014_research_notes.sql') on conflict do nothing;
 commit;

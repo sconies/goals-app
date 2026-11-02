@@ -14,7 +14,7 @@ import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
 
 export const MEANING: Record<DisplayStatus, string> = {
   on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
-  risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. The owner has said how it gets back.`,
+  risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. There’s a plan to get it back.`,
   off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
   stale: `Gone quiet: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
   none: 'Waiting for its first check-in.',
@@ -118,8 +118,6 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   const own = checkInsFor(g, s.checkIns);
   const last = own[own.length - 1] ?? null;
   const a = assessPosted(g, cycle, s.checkIns, week);
-  const owner = s.people.find((p) => p.id === g.ownerId);
-  const first = owner?.name.split(' ')[0] ?? 'The owner';
   const status = st.status;
   const behind = BEHIND.includes(status);
   const result = goalResult(g, cycle, s.checkIns, week);
@@ -192,7 +190,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
     if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warnings.push(`The same cause three check-ins running: ${causeLabel(last.cause).toLowerCase()}.`);
   }
   if (st.greener && last && status !== 'stale') warnings.push(`Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : '.'}`);
-  if (status === 'stale' && last) warnings.push(`Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== 'milestone' ? ` at ${fmt(last.value, g)}` : ''}. Ask ${first} for an update.`);
+  if (status === 'stale' && last) warnings.push(`Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== 'milestone' ? ` at ${fmt(last.value, g)}` : ''}. An update is overdue.`);
   if (fc?.warn && !behind && status !== 'done') warnings.push('Called on track, but the recent trend misses the target.');
   if (lastEnded?.kind === 'missed' && !result) warnings.push(`Missed its ${lastEnded.text.replace(/^Q(\d): /, 'Q$1 plan: ')}.`);
 

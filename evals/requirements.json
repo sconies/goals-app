@@ -184,7 +184,7 @@
     {
       "id": "DEMO-MODE",
       "area": "Demo",
-      "text": "The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls."
+      "text": "The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls. The demo marks itself with one quiet Demo control (sidebar on desktop, header on a phone) that opens a panel to see the app as someone else, listed by role first, take a walkthrough, research the app, reset or change the example data, present without controls, or leave. No bar changes how the app looks."
     },
     {
       "id": "ONBOARDING",
@@ -280,6 +280,16 @@
       "id": "GOAL-MAP",
       "area": "Views",
       "text": "A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold and framed when the map opens. Selecting a goal shows its story beside the map. On a phone the same map is indented, one goal per row."
+    },
+    {
+      "id": "WALKTHROUGHS",
+      "area": "Demo",
+      "text": "Walkthroughs of the main journeys (weekly check-in, a review, chasing a quiet goal, the goal map, the leader’s brief, loading a spreadsheet), each as the right person: a coach card says what to do and points at it, you do the step yourself, and it moves on when you have."
+    },
+    {
+      "id": "RESEARCH",
+      "area": "Research",
+      "text": "A research hub for people and AI agents: what the app is for, a note that access control is deliberately not built yet, eleven goal-framed tasks, the protocol (first glance, think aloud, every flow and screen, try to break it, evidence and severity), and a report to paste or upload. While a session runs, a research bar asks a first-glance question on each new screen, pins notes to any part of a screen, and records each task as done, stuck or gave up with confidence. Notes are kept in the browser and sent to a table that can’t be read back through the app."
     }
   ],
   "notYetBuilt": [

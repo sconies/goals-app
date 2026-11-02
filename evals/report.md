@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-02 09:43 UTC.
+Run 2026-11-02 10:04 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -14,7 +14,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 12 · 11 (budget 13) |
 | 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 10 · 10 (budget 15) |
 | 11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 14) |
-| 12 | Demo: switch person, look around, start over | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 4) |
+| 12 | Demo: switch person, look around, start over | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 4) |
 | 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 3) |
 | 7 | An owner changes a target with a reason; a watcher sees it | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 16) |
 | 8 | Watching: see what has gone quiet and chase it | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 3 · 3 (budget 4) |
@@ -23,7 +23,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 14 | An admin adds a person and makes them an admin | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 8) |
 | 10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
 | 15 | Call it greener than the numbers, with a reason, in the status sheet | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 8) |
-| 16 | Home by responsibility, and the 4-tab navigation trial | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 2 (budget 4) |
+| 16 | Home by responsibility, and the 4-tab navigation trial | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 4) |
 | 17 | Demo data sets, presenting without the bar, and deleting a workspace | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 12) |
 | 18 | Set a goal for the year and its plan numbers by hand | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
 | 19 | See the same goals as a table, board, history grid or cards, and export them | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 14) |
@@ -34,6 +34,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 24 | Two people change the same goal at once: the second is told, not overwritten | **10** | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 8) |
 | 25 | Publish a goal, then post its first check-in straight away | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
 | 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
+| 27 | Take a walkthrough: the coach points the way and moves on as you do each step | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 6 · 6 (budget 10) |
+| 28 | A research session: first glances, a note pinned to the screen, a task result and a report | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
+| 29 | Every walkthrough starts as the right person and points at something real | **10** | ✓ | – | ✓ | – | – | ✓ | ✓ | ✓ | – | ✓ | 6 · 6 (budget 14) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -48,7 +51,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**56 of 56 pass**. Spec scenarios 57/57.
+**58 of 58 pass**. Spec scenarios 57/57.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -88,7 +91,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **MOTION** Motion is subtle and never blocks; it switches off under reduced motion. Loading shows a skeleton, not a blank page. | Platform | 0 | P1, P2 |
 | ✅ | **OUTCOME-TREE** Goals are shown as trees: each goal that feeds nothing heads a tree, with what feeds it worst first; team goals that are not linked are flagged. | Goals | 0 | U3 |
 | ✅ | **INSPECT-ACT** On each goal in a review, a participant can mark it seen, add a note, ask the owner a question or add an action; saying anything covers the goal and moves on. | Reviews | 0 | U3 |
-| ✅ | **DEMO-MODE** The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls. | Demo | 0 | U11, U12, U17 |
+| ✅ | **DEMO-MODE** The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls. The demo marks itself with one quiet Demo control (sidebar on desktop, header on a phone) that opens a panel to see the app as someone else, listed by role first, take a walkthrough, research the app, reset or change the example data, present without controls, or leave. No bar changes how the app looks. | Demo | 0 | U11, U12, U17, U27 |
 | ✅ | **ONBOARDING** An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it. It ends with the one next thing to do. | Onboarding | 0 | U5, U11 |
 | ✅ | **IDENTITY** Until sign-in comes with SSO, someone opening a workspace on a new device says who they are once, and lands on their own home. | Onboarding | 0 | U11 |
 | ✅ | **LEVELS** Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged. | Goals | 0 | U4, U9, U13 |
@@ -108,6 +111,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | U25 |
 | ✅ | **DESIGN-RULES** The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge. | Design | 0 | P6 |
 | ✅ | **GOAL-MAP** A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold and framed when the map opens. Selecting a goal shows its story beside the map. On a phone the same map is indented, one goal per row. | Views | 0 | U26 |
+| ✅ | **WALKTHROUGHS** Walkthroughs of the main journeys (weekly check-in, a review, chasing a quiet goal, the goal map, the leader’s brief, loading a spreadsheet), each as the right person: a coach card says what to do and points at it, you do the step yourself, and it moves on when you have. | Demo | 0 | U27, U29 |
+| ✅ | **RESEARCH** A research hub for people and AI agents: what the app is for, a note that access control is deliberately not built yet, eleven goal-framed tasks, the protocol (first glance, think aloud, every flow and screen, try to break it, evidence and severity), and a report to paste or upload. While a session runs, a research bar asks a first-glance question on each new screen, pins notes to any part of a screen, and records each task as done, stuck or gave up with confidence. Notes are kept in the browser and sent to a table that can’t be read back through the app. | Research | 0 | U28 |
 
 ## Platform checks
 

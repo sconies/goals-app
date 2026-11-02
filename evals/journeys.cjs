@@ -44,12 +44,14 @@ let browser;
 function fail(msg) { throw new Error(msg); }
 /** Waits until some visible element shows the text (a hidden duplicate, like a phone-only label on a desktop, doesn't count). */
 async function see(p, text, msg, timeout = 5000) {
+  // p is a page, or a locator to look inside.
   const all = p.getByText(text, { exact: false });
+  const page = typeof p.page === 'function' ? p.page() : p;
   const end = Date.now() + timeout;
   while (Date.now() < end) {
     const n = await all.count();
     for (let i = 0; i < n; i++) if (await all.nth(i).isVisible().catch(() => false)) return;
-    await p.waitForTimeout(100);
+    await page.waitForTimeout(100);
   }
   fail(msg || `expected to see “${text}”`);
 }
@@ -120,6 +122,20 @@ async function newPage(device, viewer) {
   p.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g|net::ERR_|Failed to load resource/.test(m.text())) consoleErrors.push(`${device} ${p.url()} · ${m.text()}`); });
   return p;
 }
+
+/** The demo's controls: the quiet Demo button (sidebar on desktop, header on a phone) opens the panel. */
+const demoPanel = async (p, h) => {
+  const entry = p.locator('.demo-entry:visible').first();
+  if (h) await h.click(entry); else await entry.click();
+  return p.getByRole('dialog', { name: 'Demo' });
+};
+/** Switch who you are in the demo, by first name, through the demo panel (people are listed by role first). */
+const viewAs = async (p, first, h) => {
+  const panel = await demoPanel(p, h);
+  const pick = panel.getByRole('button', { name: new RegExp('\\b' + first + '\\b') }).first();
+  if (!(await pick.isVisible().catch(() => false))) await panel.getByRole('button', { name: /Everyone else/ }).click();
+  if (h) await h.click(pick); else await pick.click();
+};
 
 const navTo = async (h, p, label) => {
   const side = p.locator('.side').getByRole('link', { name: label });
@@ -431,7 +447,7 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   // The real app has no demo controls, and never shows the example.
   await p.goto(live('/goals'));
   await see(p, 'Weekly active users');
-  if (await p.locator('.rolebar').count()) fail('the real app shows the demo role switcher');
+  if (await p.locator('.demo-entry').count()) fail('the real app shows the demo controls');
   if (await p.getByText('Example: Developer Platform').count()) fail('the real app shows the example');
   // A teammate on another device says who they are once, then lands on their own home.
   const state = await p.context().storageState();
@@ -449,11 +465,13 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
   const p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/'));
   await see(p, 'Example');
-  h.set('attention', await p.locator('.demo-tag:visible').count() > 0, 'the demo is not marked as the demo');
+  h.set('attention', await p.locator('.demo-entry:visible').count() > 0, 'the demo is not marked as the demo');
   await h.checkpoint('demo home');
-  const elena = p.locator('.rolebar').getByRole('button', { name: 'Elena', exact: true });
-  await h.inView(elena, 'entry', 'the person switcher');
-  await h.click(elena);
+  await h.inView(p.locator('.demo-entry:visible').first(), 'entry', 'the demo controls');
+  const panel = await demoPanel(p, h);
+  // People are offered by what they do, with the name second.
+  h.set('attention', await panel.getByRole('button', { name: /^Leader/ }).first().isVisible() && await panel.getByRole('button', { name: /^Goal owner/ }).first().isVisible(), 'the demo panel does not lead with roles');
+  await h.click(panel.getByRole('button', { name: /Elena/ }).first());
   await see(p, 'Good', 'Elena’s home opens');
   await see(p, 'goals to review', 'Elena’s home leads with her review');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'no progress on Elena’s home');
@@ -521,7 +539,7 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   const c = s.changes.filter((x) => x.actorId === 'sam' && x.goalId === 'lead' && x.action === 'edited').pop();
   h.set('logged', lead.plan.target === 1.5 && lead.originalPlan?.target === 2 && lead.rebaselinedWeek === NOW && !!c && c.diffs.some((d) => d.field === 'Target') && c.diffs.some((d) => d.field === 'Why' && /merge queue/.test(d.to)), 'the plan change is not applied, kept as original, or logged with its reason');
   // Same browser, Tom, who watches this goal: Watching shows the change.
-  await p.locator('.rolebar').getByRole('button', { name: 'Tom', exact: true }).click();
+  await viewAs(p, 'Tom');
   await see(p, 'Good');
   await navTo(h, p, 'Watching');
   await see(p, 'What changed this week');
@@ -639,7 +657,7 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
   const s = await h.snapshot();
   h.set('logged', s.people.some((x) => x.name === 'Nadia Karim' && x.admin) && s.changes.some((c) => c.entity === 'person' && c.actorId === 'elena'), 'the new person is not saved and logged');
   // Someone who isn't an admin can't add people.
-  await p.locator('.rolebar').getByRole('button', { name: 'Tom', exact: true }).click();
+  await viewAs(p, 'Tom');
   await p.goto(url('/workspace'));
   await see(p, 'Admins can add people');
   if (await p.getByRole('button', { name: 'Add a person' }).count()) fail('a non-admin was offered Add a person');
@@ -676,7 +694,7 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   let s = await h.snapshot();
   h.set('logged', s.retros.length === 2 && s.changes.filter((c) => c.entity === 'retro' && c.actorId === 'maya').length === 2, 'the retros are not saved and logged');
   // Elena, an admin, starts the next cycle.
-  await p.locator('.rolebar').getByRole('button', { name: 'Elena', exact: true }).click();
+  await viewAs(p, 'Elena');
   await see(p, 'The year is ending', 'an admin is told the year is ending');
   await p.goto(late('/retro'));
   await h.click(p.getByRole('button', { name: 'Start it' }));
@@ -721,7 +739,7 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   await p.goto(url('/'));
   // Needs your response: a decision Aisha named Elena for, with why, what and a specific action.
   await see(p, 'Needs your response');
-  const card = p.locator('.need', { hasText: 'needs a decision or help from you' }).first();
+  const card = p.locator('.need', { hasText: 'A decision or help is needed from you' }).first();
   await h.inView(card, 'entry', 'the decision that needs Elena');
   h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('link', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
   await see(p, 'Important changes');
@@ -731,8 +749,7 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   await see(p, 'Decision or help needed');
   // The 4-tab trial: Home, Goals, Reviews, More; Watching lives in Goals.
   await p.goto(url('/'));
-  if (device === 'phone') { await h.click(p.locator('.tabbar').getByRole('button', { name: 'More' })); await h.click(p.getByRole('dialog').getByRole('button', { name: /Try 4 tabs/ })); }
-  else await h.click(p.locator('.rolebar').getByRole('button', { name: 'Try 4 tabs' }));
+  { const panel = await demoPanel(p, h); await h.click(panel.getByRole('button', { name: /Try 4 tabs/ })); await p.keyboard.press('Escape'); }
   if (device === 'phone') {
     const labels = await p.locator('.tabbar').getByRole('link').allInnerTexts();
     h.set('progress', labels.map((x) => x.replace(/\d+/g, '').trim()).join(',') === 'Home,Goals,Reviews', `phone tabs are ${labels.join(', ')}`);
@@ -758,9 +775,9 @@ journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without 
   // Presenting: the demo without the "Viewing as" bar.
   await p.goto(url('/?present'));
   await p.locator('.page-head').first().waitFor();
-  h.set('progress', (await p.locator('.rolebar').count()) === 0, 'the demo bar still shows when presenting');
+  h.set('progress', (await p.locator('.demo-entry').count()) === 0, 'the demo controls still show when presenting');
   await p.goto(url('/?present=0'));
-  await p.locator('.rolebar').waitFor();
+  await p.locator('.demo-entry:visible').first().waitFor();
   // Set up a workspace, then delete it: typing its name is required.
   await p.evaluate(() => {
     const ws = { id: 'ws_temp', name: 'Temp team', kind: 'own', createdAt: '2026-10-01T00:00:00Z' };
@@ -852,7 +869,7 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   const brief = fs.readFileSync(await md.path(), 'utf8');
   const s = await h.snapshot();
   h.set('finish', /\.xlsx$/.test(xlsx.suggestedFilename()) && fs.statSync(await xlsx.path()).size > 4000, 'the workbook was not saved');
-  h.set('logged', data.format === 'goals-app.export' && data.goals.length === s.goals.length && data.goals.some((g) => g.checkIns.length) && brief.includes('## How to read the status') && brief.includes('What Aisha will do'), 'the JSON or brief is incomplete');
+  h.set('logged', data.format === 'goals-app.export' && data.goals.length === s.goals.length && data.goals.some((g) => g.checkIns.length) && brief.includes('## How to read the status') && brief.includes('**Recovery plan:**'), 'the JSON or brief is incomplete');
   await p.context().close();
 }, ['errors']);
 
@@ -1083,6 +1100,95 @@ journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map
   h.set('logged', (await p.locator('.react-flow__edge.helps').count()) >= 1, 'no dotted also-helps lines');
   await p.context().close();
 }, ['errors', 'budget']);
+
+journey('U27', ['WALKTHROUGHS', 'DEMO-MODE'], 'Take a walkthrough: the coach points the way and moves on as you do each step', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'tom'));
+  await p.goto(url('/'));
+  const panel = await demoPanel(p, h);
+  await h.click(panel.getByRole('button', { name: /Post your weekly check-in/ }));
+  const coach = p.getByRole('dialog', { name: /Walkthrough: Post your weekly check-in/ });
+  await coach.waitFor();
+  h.set('entry', /Goal owner · step 1 of 4/.test(await coach.innerText()) && await p.locator('.coach-ring').isVisible(), 'the coach or its pointer is missing');
+  await h.checkpoint('coach');
+  // You do the steps yourself; the coach notices.
+  await h.click(p.locator('.hero a.btn.primary'));
+  await see(coach, 'step 2 of 4', 'the coach did not move on when the check-in opened');
+  const s0 = await h.snapshot();
+  const g = s0.goals.find((x) => x.id === 'head');
+  await h.fill(p.getByLabel('This week’s value'), valueAt(g, NOW, 1.02));
+  await see(coach, 'step 3 of 4', 'the coach did not move on when the number was typed');
+  h.set('progress', true);
+  await h.click(p.locator('.focus-foot button[type=submit]'));
+  if (await p.getByRole('button', { name: 'Post check-in' }).isVisible().catch(() => false)) await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(coach, 'step 4 of 4', 'the coach did not notice the check-in was saved');
+  await h.click(coach.getByRole('button', { name: 'Finish' }));
+  h.set('finish', (await p.locator('.coach').count()) === 0, 'the coach did not close');
+  h.set('attention', true);
+  await p.context().close();
+}, ['errors', 'logged']);
+
+journey('U28', ['RESEARCH'], 'A research session: first glances, a note pinned to the screen, a task result and a report', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'maya'));
+  await p.goto(url('/research'));
+  await see(p, 'Not built yet, on purpose: access control', 'the hub does not say access control is deliberately not built');
+  await h.inView(p.getByRole('heading', { name: 'Research this app' }), 'entry', 'the research hub');
+  await h.fill(p.getByLabel(/Your name, or the agent/), 'Eval agent');
+  await h.click(p.getByLabel('An AI agent'));
+  await h.click(p.getByRole('button', { name: 'Start the session' }));
+  await see(p, '0 of 11 done');
+  await h.checkpoint('hub');
+  // The first task takes you there as the right person; the first glance asks before you do anything.
+  await h.click(p.locator('.task-list li').first().getByRole('button'));
+  const bar = p.getByRole('complementary', { name: 'Research' });
+  await see(bar, 'First glance · Home', 'no first-glance question on a new screen');
+  await h.fill(bar.getByRole('textbox'), 'Looks like my week: what to check in and what needs me.');
+  await h.click(bar.getByRole('button', { name: 'Save' }));
+  // A note pinned to a spot on the screen.
+  await h.click(bar.getByRole('button', { name: 'Note on this' }));
+  await p.locator('.hero').first().click();
+  await see(bar, 'Note on', 'picking a spot did not open the note');
+  await h.fill(bar.getByLabel('Your note'), 'I expected the due goals to be listed here.');
+  await h.click(bar.getByRole('button', { name: 'Save note' }));
+  // How the task went.
+  await h.click(bar.getByRole('button', { name: 'How did it go?' }));
+  await h.click(bar.getByLabel('Stuck'));
+  await h.fill(bar.getByLabel('What happened'), 'Could not tell which goal was due first.');
+  await h.click(bar.getByRole('button', { name: 'Save and next task' }));
+  await h.checkpoint('research bar');
+  // The report, back on the hub.
+  await h.click(bar.getByRole('link', { name: 'Hub' }));
+  await h.fill(p.getByLabel('Your report'), '## Summary\nCheck-in is quick. Home could say which goal is due first.\n\n## Top findings\n1. minor: Home');
+  await h.click(p.getByRole('button', { name: 'Send the report' }));
+  await see(p, 'Report received');
+  const notes = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-research-notes') || '[]'));
+  const kinds = [...new Set(notes.map((n) => n.kind))].sort().join(',');
+  h.set('logged', kinds === 'comment,first-glance,report,task' && notes.every((n) => n.researcher === 'Eval agent' && n.researcherKind === 'ai') && notes.find((n) => n.kind === 'comment').target.length > 3, `notes kept: ${kinds}`);
+  h.set('finish', true);
+  h.set('progress', true);
+  h.set('attention', true);
+  await p.context().close();
+}, ['errors', 'budget']);
+
+journey('U29', ['WALKTHROUGHS'], 'Every walkthrough starts as the right person and points at something real', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'tom'));
+  await p.goto(url('/'));
+  const panel = await demoPanel(p);
+  const titles = await panel.getByRole('region', { name: 'Show me how' }).getByRole('button').allInnerTexts().catch(() => []);
+  await p.keyboard.press('Escape');
+  const bad = [];
+  for (const t of titles.map((x) => x.split('\n')[0])) {
+    const pn = await demoPanel(p);
+    await h.click(pn.getByRole('button', { name: t }));
+    const coach = p.getByRole('dialog', { name: 'Walkthrough: ' + t });
+    await coach.waitFor();
+    await p.waitForTimeout(600);
+    if (!(await p.locator('.coach-ring').isVisible().catch(() => false))) bad.push(t);
+    await coach.getByRole('button', { name: 'End' }).click();
+  }
+  h.set('finish', titles.length >= 6 && !bad.length, `${titles.length} walkthroughs; no pointer on the first step of: ${bad.join(', ')}`);
+  ['entry', 'progress', 'attention', 'logged'].forEach((k) => h.set(k, true));
+  await p.context().close();
+}, ['errors', 'budget', 'one-action', 'a11y']);
 
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
