@@ -9,6 +9,7 @@ import { makesLoop } from '../domain/tree';
 import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
 import { applyCommit, EXAMPLE, newId, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
+import { hashToken, newToken } from '../mcp/protocol';
 
 export interface Toast {
   id: number;
@@ -68,6 +69,10 @@ export interface AppState {
   previewChanges(tables: Tables, via: Via, reason?: string): ChangeSet;
   /** Saves a change set worked out by previewChanges: all of it, or none. */
   applyChanges(cs: ChangeSet): Promise<void>;
+  /** Admins: a personal token for an AI assistant to act as this person. Returns the token, shown once. */
+  createToken(personId: string, name: string): Promise<string>;
+  /** Admins, or the token's person: stop a token working. */
+  revokeToken(id: string): Promise<void>;
   /** Now, as an ISO timestamp on the app's today. Use for anything saved. */
   stamp(): string;
   toasts: Toast[];
@@ -314,6 +319,22 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');
         await commit(cs.commit);
+      },
+      createToken: async (personId, name) => {
+        if (!viewer.admin) throw new Error('Only admins can make tokens.');
+        const token = newToken();
+        const at = stamp();
+        const t = { id: newId('tok'), personId, name: name.trim(), tokenHash: await hashToken(token), createdBy: viewer.id, createdAt: at, lastUsedAt: null, revokedAt: null };
+        const who = lookup.person(personId)?.name ?? 'someone';
+        await commit({ tokens: [t], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'person', entityId: personId, action: 'created', summary: `Gave ${who} an AI assistant token: “${t.name}”`, diffs: [{ field: 'AI assistant token', from: '—', to: t.name }] }] });
+        return token;
+      },
+      revokeToken: async (id) => {
+        const t = (snapshot.tokens ?? []).find((x) => x.id === id);
+        if (!t || t.revokedAt) return;
+        if (!viewer.admin && t.personId !== viewer.id) throw new Error('Only an admin or the token’s person can revoke it.');
+        const at = stamp();
+        await commit({ tokens: [{ ...t, revokedAt: at }], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'person', entityId: t.personId, action: 'edited', summary: `Revoked the AI assistant token “${t.name}”`, diffs: [{ field: 'AI assistant token', from: t.name, to: 'Revoked' }] }] });
       },
       startNextCycle: async () => {
         const at = stamp();

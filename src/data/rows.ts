@@ -1,6 +1,6 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
-import type { Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
+import type { ApiToken, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
 
 type W = { workspace_id: string };
 export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string }
@@ -120,3 +120,7 @@ export const retroFromRow = (r: RetroRow): Retro => ({ id: r.id, goalId: r.goal_
 export interface FeedbackRow extends W { id: string; person_id: string; path: string; mood: Feedback['mood']; text: string; at: string }
 export const feedbackToRow = (ws: string, f: Feedback): FeedbackRow => ({ workspace_id: ws, id: f.id, person_id: f.personId, path: f.path, mood: f.mood, text: f.text, at: f.at });
 export const feedbackFromRow = (r: FeedbackRow): Feedback => ({ id: r.id, personId: r.person_id, path: r.path, mood: r.mood, text: r.text, at: iso(r.at) });
+
+export interface TokenRow extends W { id: string; person_id: string; name: string; token_hash: string; created_by: string; created_at: string; last_used_at: string | null; revoked_at: string | null }
+export const tokenToRow = (ws: string, t: ApiToken): TokenRow => ({ workspace_id: ws, id: t.id, person_id: t.personId, name: t.name, token_hash: t.tokenHash, created_by: t.createdBy, created_at: t.createdAt, last_used_at: t.lastUsedAt, revoked_at: t.revokedAt });
+export const tokenFromRow = (r: TokenRow): ApiToken => ({ id: r.id, personId: r.person_id, name: r.name, tokenHash: r.token_hash, createdBy: r.created_by, createdAt: iso(r.created_at), lastUsedAt: r.last_used_at ? iso(r.last_used_at) : null, revokedAt: r.revoked_at ? iso(r.revoked_at) : null });

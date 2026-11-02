@@ -1,4 +1,4 @@
-import type { Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
+import type { ApiToken, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
 
 export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
@@ -17,6 +17,7 @@ export interface Commit {
   watches?: Watch[];
   /** Ids of watches to remove. */
   unwatch?: string[];
+  tokens?: ApiToken[];
   changes: Change[];
 }
 
@@ -59,6 +60,7 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     retros: upsert(s.retros ?? [], c.retros),
     cycles: upsert(s.cycles, c.cycles),
     feedback: upsert(s.feedback ?? [], c.feedback),
+    tokens: upsert(s.tokens ?? [], c.tokens),
   };
 }
 

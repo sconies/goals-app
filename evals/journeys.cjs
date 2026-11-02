@@ -896,6 +896,45 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await p.context().close();
 });
 
+journey('U22', ['MCP-TOKENS'], 'An admin gives a teammate a token for an AI assistant, then revokes it', 10, async (h, device) => {
+  const p = h.use(await newPage(device));
+  // A real-app workspace (kept in the browser for the evals), copied from the example, with Elena as the admin.
+  await p.goto(url('/'));
+  await p.locator('.page-head').first().waitFor();
+  await p.evaluate(() => {
+    const ex = JSON.parse(localStorage.getItem('goals-app-v2:example'));
+    localStorage.setItem('goals-live-v1:workspaces', JSON.stringify([{ id: 'ws_live', name: 'Platform', kind: 'own', createdAt: '2026-09-01T00:00:00Z' }]));
+    localStorage.setItem('goals-live-v1:ws_live', JSON.stringify(ex));
+    localStorage.setItem('goals-live-workspace', 'ws_live');
+    localStorage.setItem('goals-live-me:ws_live', 'elena');
+  });
+  await p.goto(live('/workspace'));
+  // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
+  await p.getByRole('heading', { name: 'AI assistants' }).scrollIntoViewIfNeeded();
+  await h.click(p.getByRole('button', { name: 'Make a token' }));
+  const dlg = p.getByRole('dialog');
+  await dlg.getByLabel('Who it acts as').selectOption({ label: 'Kofi Boateng' });
+  h.set('errors', await dlg.getByRole('button', { name: 'Make the token' }).isDisabled(), 'a token can be made without saying what it is for');
+  await h.fill(dlg.getByLabel('What it’s for'), 'Claude on Kofi’s laptop');
+  await h.checkpoint('make token');
+  await h.click(dlg.getByRole('button', { name: 'Make the token' }));
+  await see(p, 'it isn’t shown again');
+  const token = await dlg.getByLabel('Token').inputValue();
+  h.set('attention', /^gk_[A-Za-z0-9]{40}$/.test(token) && (await dlg.getByLabel('Claude Code command').inputValue()).includes('/api/mcp'), 'the token or the connection command is missing');
+  await h.checkpoint('token');
+  await h.click(dlg.getByRole('button', { name: 'Done' }));
+  const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-live-v1:ws_live')).tokens);
+  const hash = await p.evaluate(async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join(''), token);
+  h.set('logged', stored.length === 1 && stored[0].tokenHash === hash && stored[0].personId === 'kofi' && !JSON.stringify(stored).includes(token), 'the token was stored in plain text, or not at all');
+  await see(p, 'not used yet');
+  await h.click(p.getByRole('button', { name: 'Revoke Claude on Kofi’s laptop' }));
+  await see(p, 'Revoked');
+  const after = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-live-v1:ws_live')).tokens);
+  h.set('finish', !!after[0].revokedAt, 'the token was not revoked');
+  h.set('progress', true);
+  await p.context().close();
+}, ['entry']);
+
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
   const out = [];

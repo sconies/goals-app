@@ -374,7 +374,14 @@ export function planChanges(input: ChangeInput): ChangeSet {
       id: newId('chg'), at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: newId('imp'), action: 'imported',
       summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes from an AI assistant' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
     };
-    result.commit = { goals: goalOut, checkIns: posted, changes: [...changes, summary] };
+    // New goals before the goals that feed into them, so each link points at a goal that's already saved.
+    const ordered: Goal[] = [];
+    const pending = [...goalOut];
+    while (pending.length) {
+      const i = pending.findIndex((g) => !g.parentId || !pending.some((x) => x.id === g.parentId));
+      ordered.push(...pending.splice(i < 0 ? 0 : i, 1));
+    }
+    result.commit = { goals: ordered, checkIns: posted, changes: [...changes, summary] };
   }
   return result;
 }

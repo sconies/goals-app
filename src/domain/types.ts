@@ -252,6 +252,21 @@ export interface Snapshot {
   retros: Retro[];
   /** What people said about the app itself, from the feedback button. */
   feedback?: Feedback[];
+  /** Personal tokens for AI assistants (the MCP server). */
+  tokens?: ApiToken[];
+}
+
+/** A personal token an AI assistant uses to act as one person in one workspace. Only its hash is kept. */
+export interface ApiToken {
+  id: Id;
+  personId: Id;
+  /** What it's for, e.g. "Claude on my laptop". */
+  name: string;
+  tokenHash: string;
+  createdBy: Id;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
 }
 
 export interface Feedback {

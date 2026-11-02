@@ -762,3 +762,4 @@ h1[tabindex='-1']:focus { outline: none; }
   .selbar { bottom: calc(72px + var(--s2)); }
 }
 .gtable tr.selected { background: var(--accent-soft); }
+code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; padding: 1px 5px; border-radius: 4px; background: var(--surface-3); word-break: break-all; }

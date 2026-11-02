@@ -245,6 +245,11 @@
       "id": "BULK-EDIT",
       "area": "Data",
       "text": "An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log."
+    },
+    {
+      "id": "MCP-TOKENS",
+      "area": "AI assistants",
+      "text": "An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused."
     }
   ],
   "notYetBuilt": [

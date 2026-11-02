@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "evals": "node evals/run.mjs",
     "migrate": "node scripts/migrate.mjs",
-    "visual": "node evals/visual.mjs"
+    "visual": "node evals/visual.mjs",
+    "build:mcp": "vite build -c vite.mcp.config.ts --logLevel warn"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

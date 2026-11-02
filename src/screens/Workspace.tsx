@@ -5,7 +5,7 @@ import { useApp } from '../app/state';
 import { initials } from '../domain/importer';
 import type { Person } from '../domain/types';
 import { newId } from '../data/store';
-import { Avatar, Sheet } from '../ui/bits';
+import { Avatar, Sheet, timeAgo } from '../ui/bits';
 
 export function WorkspaceHome() {
   const app = useApp();
@@ -58,6 +58,7 @@ export function WorkspaceHome() {
           </div>
         ))}
       </section>
+      <AiAssistants />
       {admin && <FeedbackList />}
       {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
       {editing && <PersonSheet person={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
@@ -157,5 +158,91 @@ function DeleteWorkspace() {
         </form>
       )}
     </section>
+  );
+}
+
+/** Personal tokens for AI assistants (MCP): admins make them; the assistant acts as that person. */
+function AiAssistants() {
+  const app = useApp();
+  const [making, setMaking] = useState(false);
+  const live = (app.snapshot.tokens ?? []).filter((t) => !t.revokedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const shown = app.viewer.admin ? live : live.filter((t) => t.personId === app.viewer.id);
+  return (
+    <section className="block">
+      <div className="row between">
+        <h2 className="block-title">AI assistants</h2>
+        {app.viewer.admin && app.mode === 'live' && <button className="btn" onClick={() => setMaking(true)}>Make a token</button>}
+      </div>
+      <p className="hint">An AI assistant such as Claude can read these goals and post check-ins or changes through MCP, acting as one person: the same rights and rules, and every change is logged as theirs, marked “via AI assistant”.</p>
+      {app.mode === 'demo'
+        ? <p className="hint">This works in the real app. In the demo, data stays in your browser, where an assistant can’t reach it.</p>
+        : !shown.length
+          ? <p className="hint">{app.viewer.admin ? 'No tokens yet.' : 'Ask an admin to make you a token.'}</p>
+          : (
+            <div className="optlist">
+              {shown.map((t) => (
+                <div key={t.id} className="opt static">
+                  <span className="stack" style={{ gap: 0, minWidth: 0 }}>
+                    <span>{t.name}</span>
+                    <span className="hint">{app.person(t.personId)?.name ?? 'Someone'} · made {timeAgo(t.createdAt, app.today)} · {t.lastUsedAt ? `last used ${timeAgo(t.lastUsedAt, app.today)}` : 'not used yet'}</span>
+                  </span>
+                  <button className="btn sm" onClick={async () => { await app.revokeToken(t.id); app.toast(`Revoked “${t.name}”`); }} aria-label={`Revoke ${t.name}`}>Revoke</button>
+                </div>
+              ))}
+            </div>
+          )}
+      {making && <TokenSheet onClose={() => setMaking(false)} />}
+    </section>
+  );
+}
+
+function TokenSheet({ onClose }: { onClose: () => void }) {
+  const app = useApp();
+  const [personId, setPersonId] = useState(app.viewer.id);
+  const [name, setName] = useState('');
+  const [token, setToken] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const url = `${location.origin}/api/mcp`;
+  const make = async () => {
+    if (name.trim().length < 2 || busy) return;
+    setBusy(true);
+    try { setToken(await app.createToken(personId, name)); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
+    setBusy(false);
+  };
+  const copy = (text: string, what: string) => { void navigator.clipboard?.writeText(text).then(() => app.toast(`${what} copied`), () => undefined); };
+  const who = app.person(personId)?.name ?? '';
+  if (token) {
+    const cmd = `claude mcp add --transport http goals ${url} --header "Authorization: Bearer ${token}"`;
+    return (
+      <Sheet open onClose={onClose} title={`Token for ${who}`}>
+        <div className="stack" style={{ gap: 'var(--s4)' }}>
+          <p className="hint tone-risk" role="status">Copy it now: it isn’t shown again. Anyone with it can act as {who.split(' ')[0]}, so keep it private.</p>
+          <label className="field"><span className="field-label">Token</span>
+            <span className="row nowrap" style={{ gap: 'var(--s2)' }}><input className="input mono" readOnly value={token} onFocus={(e) => e.target.select()} /><button type="button" className="btn" onClick={() => copy(token, 'Token')}>Copy</button></span>
+          </label>
+          <div className="field"><span className="field-label">Connect it</span>
+            <span className="hint">Server: <code>{url}</code>, with the header <code>Authorization: Bearer</code> and the token. For Claude Code:</span>
+            <span className="row nowrap" style={{ gap: 'var(--s2)' }}><input className="input mono" readOnly value={cmd} onFocus={(e) => e.target.select()} aria-label="Claude Code command" /><button type="button" className="btn" onClick={() => copy(cmd, 'Command')}>Copy</button></span>
+            <span className="hint">An assistant that only takes a web address can use <code>{url}?token=</code> followed by the token.</span>
+          </div>
+          <div className="foot-row"><button type="button" className="btn primary big-btn" onClick={onClose}>Done</button></div>
+        </div>
+      </Sheet>
+    );
+  }
+  return (
+    <Sheet open onClose={onClose} title="Make a token for an AI assistant">
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void make(); }}>
+        <label className="field"><span className="field-label">Who it acts as</span>
+          <select className="input" value={personId} onChange={(e) => setPersonId(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          <span className="hint">The assistant can do what this person can: change their own goals{app.person(personId)?.admin ? ', and any goal, as they’re an admin' : ''}, and comment on any.</span>
+        </label>
+        <label className="field"><span className="field-label">What it’s for</span>
+          <input className="input" value={name} placeholder="e.g. Claude on my laptop" onChange={(e) => setName(e.target.value)} />
+        </label>
+        <p className="hint">Until company sign-in arrives, the app itself doesn’t check who people are. A token makes clear who an assistant acts for, and you can switch it off here at any time.</p>
+        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={name.trim().length < 2 || busy}>{busy ? 'Making…' : 'Make the token'}</button></div>
+      </form>
+    </Sheet>
   );
 }
