@@ -27,7 +27,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - name: The MCP server bundle matches its source
-        run: npm run build:mcp && git diff --exit-code --stat api/mcp.js || (echo "api/mcp.js is out of date: run npm run build:mcp and commit it" && exit 1)
+        run: |
+          npm run build:mcp
+          git diff --exit-code --stat api/mcp.js || { echo "api/mcp.js is out of date. Run npm run build:mcp and commit it."; exit 1; }
       - name: Evals
         run: npm run evals
       - name: Scorecard
