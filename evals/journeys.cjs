@@ -1189,10 +1189,11 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await h.click(p.getByRole('button', { name: /^Filters/ }));
   const sheet = p.getByRole('dialog', { name: 'Filter goals' });
   await h.click(sheet.getByLabel('Recovery date slipped'));
+  // Sort is in the sheet on every screen (a phone has no room for it in the bar).
+  await sheet.getByLabel('Sort').selectOption('due');
   await h.checkpoint('filters');
   await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
   await see(p, '2 of 13 goals', 'the slipped-date filter does not narrow the goals');
-  await p.getByLabel('Sort').selectOption('due');
   await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Table' }));
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
@@ -1483,6 +1484,23 @@ async function platformChecks() {
     if (top > 640) wide.push(`1440×700 /goals/review: the chart starts at ${Math.round(top)}px, below the fold`);
     await c6.close();
   }
+  // P8: the goals start in the first screen. The Goals header (views, layout, search, filters) mustn't push them down.
+  const fold = [];
+  for (const [device, vp] of Object.entries(DEVICES)) {
+    const c7 = await browser.newContext({ viewport: vp });
+    const r = await c7.newPage();
+    for (const v of ['list', 'table', 'board']) {
+      await r.goto(url('/goals?view=' + v));
+      await r.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'maya'));
+      await r.reload();
+      await r.locator('.outcome, .gtable tbody tr, .board-card').first().waitFor();
+      const top = await r.evaluate(() => document.querySelector('.outcome, .gtable tbody tr, .board-card').getBoundingClientRect().top);
+      const limit = vp.height * (device === 'phone' ? 0.5 : 0.4);
+      if (top > limit) fold.push(`${device} ${v}: the first goal starts at ${Math.round(top)}px (limit ${Math.round(limit)})`);
+    }
+    await c7.close();
+  }
+  add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
   return out;
 }

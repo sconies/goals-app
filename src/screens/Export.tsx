@@ -13,7 +13,7 @@ export function ExportButton({ goals, viewName }: { goals: Goal[]; viewName: str
   return (
     <>
       <button type="button" className="btn sm" onClick={() => setOpen(true)}>
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 2v8m0 0 3-3m-3 3L5 7M3 12.5h10" /></svg>Export
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 2v8m0 0 3-3m-3 3L5 7M3 12.5h10" /></svg><span className="btn-label">Export</span>
       </button>
       {open && <ExportSheet goals={goals} viewName={viewName} onClose={() => setOpen(false)} />}
     </>

@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-02 15:10 UTC.
+Run 2026-11-02 17:04 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -82,7 +82,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | U4, U18, U25 |
 | ✅ | **GOAL-PAGE** The goal page shows status strip, why, path to green, chart with plan/forecast/path back, and check-in history. | Goals | 0 | U6 |
 | ✅ | **PERSIST** Changes are saved and survive a reload; demo data can be reset. | Platform | 0 | U1 |
-| ✅ | **PHONE** Every screen works at phone width (390px) with no horizontal scrolling. | Platform | 0 | P3 |
+| ✅ | **PHONE** Every screen works at phone width (390px) with no horizontal scrolling. | Platform | 0 | P3, P8 |
 | ✅ | **A11Y** No serious or critical accessibility violations (axe-core); status is shape plus word, never colour alone. | Platform | 0 | P3, P4 |
 | ✅ | **NO-ERRORS** No console or page errors on any screen. | Platform | 0 | P2, P5 |
 | ✅ | **PROFILES** There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings. | People | 0 | U1, U2, U9 |
@@ -117,7 +117,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **WALKTHROUGHS** Walkthroughs of the main journeys (weekly check-in, a review, chasing a quiet goal, the goal map, the leader’s brief, loading a spreadsheet), each as the right person: a coach card says what to do and points at it, you do the step yourself, and it moves on when you have. | Demo | 0 | U31, U27, U29 |
 | ✅ | **RESEARCH** A research hub for people and AI agents: what the app is for, a note that access control is deliberately not built yet, eleven goal-framed tasks, the protocol (first glance, think aloud, every flow and screen, try to break it, evidence and severity), and a report to paste or upload. While a session runs, a research bar asks a first-glance question on each new screen, pins notes to any part of a screen, and records each task as done, stuck or gave up with confidence. Notes are kept in the browser and sent to a table that can’t be read back through the app. | Research | 0 | U28 |
 | ✅ | **HONEST-NUMBERS** Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. | Trust | 5 | U30, U31 |
-| ✅ | **WIDE-SCREENS** Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it. | Layout | 0 | P7 |
+| ✅ | **WIDE-SCREENS** Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it. | Layout | 0 | P8, P7 |
 | ✅ | **SAVED-VIEWS** Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. | Goals | 3 | U32 |
 
 ## Platform checks
@@ -127,6 +127,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **P3** Every screen on phone: no sideways scroll, no serious accessibility issues, status as shape plus word
 - ✅ **P4** Every screen on desktop: no sideways scroll, no serious accessibility issues, status as shape plus word
 - ✅ **P6** Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules
+- ✅ **P8** The goals start in the first screen: the Goals header stays short on a phone and a desktop
 - ✅ **P7** Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold
 - ✅ **P5** No console or page errors across every journey
 

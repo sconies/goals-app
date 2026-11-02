@@ -934,7 +934,8 @@ body.research-picking .research-bar, body.research-picking .research-bar * { cur
 .gtable .num { white-space: normal; }
 .gt-plan { white-space: normal; }
 .gtable td.tone-on, .gtable td.tone-risk, .gtable td.tone-off, .gtable td.tone-ahead, .gtable td.tone-stale { min-width: 0; }
-@media (max-width: 640px) { .gtable { table-layout: auto; } .gtable colgroup { display: none; } }
+/* A phone keeps the same fixed columns (Goal, Status, Now), at phone widths, so a long story can't push Now off screen. */
+@media (max-width: 640px) { .gtable col.c-sel { width: 32px; } .gtable col.c-status { width: 108px; } .gtable col.c-now { width: 92px; } .gtable .col-opt { display: table-cell; } }
 
 /* Board and cards: lanes and cards wide enough to read; a card is as tall as its own story, not its neighbour's. */
 .board { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
@@ -1023,3 +1024,41 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .filter-options { display: flex; flex-wrap: wrap; gap: 6px var(--s3); }
 .view-tab { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (pointer: coarse) { .filter-chip { min-height: 44px; } }
+
+/* ---------- Goals: a short header, so the goals start near the top (2 Nov) ----------
+   Title and New goal on one line; one toolbar of views (one row, scrolling sideways if it must) with the layout and
+   Import/Export at its end; then search and Filters on one line. Sort lives in the Filters sheet on a phone; Save view
+   and Copy link appear only once there's something to save or share. The status key sits after the goals. */
+.page-head.goals-head { align-items: center; }
+.goals-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px var(--s3); min-width: 0; }
+.goals-toolbar { flex-wrap: nowrap; gap: var(--s3); }
+.goals-toolbar > .seg.tabs { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; }
+.goals-toolbar .view-bar { flex: 0 0 auto; flex-wrap: nowrap; }
+.filter-chip-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-left: auto; }
+/* Layout buttons show their names only when there's plenty of room; otherwise the icon, with the name as a tooltip. */
+@container page (max-width: 1400px) { .layout-switch .ls-label { display: none; } .layout-switch button { padding: 0 10px; } }
+@container page (max-width: 1100px) {
+  /* Too narrow for views and tools on one line: views first, then the tools. */
+  .goals-toolbar { flex-wrap: wrap; }
+  .goals-toolbar > .seg.tabs { flex: 1 1 100%; }
+  .layout-switch .ls-label { display: none; }
+}
+@container app (max-width: 760px) {
+  .goals-period { font-size: 13px; }
+  .goals-title { flex-direction: column; align-items: flex-start; gap: 0; }
+  .page-head.goals-head { flex-wrap: nowrap; }
+  .goals-head .title-xl { font-size: 22px; line-height: 28px; }
+  .page:has(.goals-head) { gap: var(--s3); padding-top: var(--s4); }
+  .goals-toolbar > .seg.tabs { flex-wrap: nowrap !important; overflow-x: auto; }
+  .goals-toolbar .view-bar { width: 100%; justify-content: space-between; }
+  .goals-toolbar .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .goals-toolbar .view-bar .btn.sm { min-width: 44px; justify-content: center; padding: 0 10px; }
+  .inline-sort { display: none; }
+  .filterbar-row { flex-wrap: nowrap; }
+  .filter-chip-actions { margin-left: 0; }
+}
+
+/* Table: numbers and headings never break mid-word; long titles and stories wrap at spaces. */
+.gtable td, .gtable th { overflow-wrap: break-word; }
+.gtable th, .gtable td.num { white-space: nowrap; }
+.gtable td.num .gt-plan { white-space: normal; }

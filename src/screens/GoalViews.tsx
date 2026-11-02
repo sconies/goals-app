@@ -43,7 +43,7 @@ export function LayoutSwitch({ layout, onChange }: { layout: Layout; onChange: (
   return (
     <div className="seg layout-switch" role="group" aria-label="Layout">
       {LAYOUTS.map(([k, label]) => (
-        <button key={k} type="button" aria-pressed={layout === k} aria-label={label} onClick={() => onChange(k)}>
+        <button key={k} type="button" aria-pressed={layout === k} aria-label={label} title={label} onClick={() => onChange(k)}>
           <LayoutIcon k={k} /><span className="ls-label">{label}</span>
         </button>
       ))}
@@ -90,7 +90,7 @@ const COLS: [ColId, SortKey | null, string, string][] = [
   ['goal', 'goal', 'Goal', ''], ['owner', 'owner', 'Owner', 'col-opt'], ['status', 'status', 'Status', ''], ['now', null, 'Now', 'num'], ['target', null, 'Target', 'num col-opt'], ['gap', 'gap', 'Gap', 'col-opt'], ['trend', null, 'Trend', 'col-opt'],
 ];
 /** Columns that give way first when the table is narrow, so the rest fit without scrolling sideways (a phone hides more in CSS). */
-const shownCols = (w: number): Set<ColId> => new Set(COLS.map(([c]) => c).filter((c) => (c === 'trend' ? w >= 1180 : c === 'owner' ? w >= 1000 : true)));
+const shownCols = (w: number): Set<ColId> => new Set(COLS.map(([c]) => c).filter((c) => (c === 'trend' ? w >= 1180 : c === 'owner' ? w >= 1000 : c === 'target' || c === 'gap' ? w >= 600 : true)));
 
 export function GoalTable({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
@@ -147,8 +147,8 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                       {show.has('owner') && <td className="col-opt">{s.owner}</td>}
                       <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? `Last: week ${s.lastWeek}` : app.week > 0 ? 'No check-in yet' : ''}</span></td>
                       <td className="num">{s.now}{s.planThen ? <span className="hint gt-plan">plan {s.planThen}</span> : s.planNow != null && <span className="hint gt-plan">plan {s.planNowText} this week</span>}</td>
-                      <td className="num col-opt">{s.target}</td>
-                      <td className={'col-opt tone-' + s.gapTone + ' small'}>{s.gap}</td>
+                      {show.has('target') && <td className="num col-opt">{s.target}</td>}
+                      {show.has('gap') && <td className={'col-opt tone-' + s.gapTone + ' small'}>{s.gap}</td>}
                       {show.has('trend') && <td className="col-opt"><Trend s={s} /></td>}
                     </tr>
                     {hasStory(s) && <tr className="story-row" data-tone={s.status}><td /><td colSpan={cols.length}><StoryLines s={s} compact /></td></tr>}

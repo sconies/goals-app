@@ -88,16 +88,17 @@ export function GoalsScreen() {
   const frame = !alt ? 'page' : layout === 'map' ? 'page full' : 'page wide';
   return (
     <div className={frame}>
-      <div className="page-head row between">
-        <span className="stack" style={{ gap: 2 }}>
+      {/* A short header, so the goals start near the top: the title and the one creating action, then one toolbar. */}
+      <div className="page-head row between goals-head">
+        <span className="goals-title">
           <h1 className="title-xl">Goals</h1>
-          <span className="hint">{periodLabel(app.cycle, app.week)}</span>
+          <span className="hint goals-period">{periodLabel(app.cycle, app.week)}</span>
         </span>
         <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>
       {/* One toolbar: which goals on the left, how to see them on the right. It wraps on a narrow screen. */}
       <div className="goals-toolbar">
-        <div className="seg tabs" role="tablist" aria-label="Show">
+        <div className="seg tabs one-row" role="tablist" aria-label="Show">
           {tabs.map(([k, l, n]) => (
             <button key={k} role="tab" aria-selected={show === k && !activeView} onClick={() => { const p = new URLSearchParams(params); if (k === 'outcomes') p.delete('show'); else p.set('show', k); setParams(p, { replace: true }); }}>
               {l}{n != null && <span className="tabcount">{n}</span>}
@@ -114,7 +115,7 @@ export function GoalsScreen() {
           <div className="row view-bar">
             <LayoutSwitch layout={layout} onChange={setLayout} />
             <span className="row" style={{ gap: 'var(--s2)' }}>
-              <Link className="btn sm" to="/import">Import</Link>
+              <Link className="btn sm" to="/import"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 10V2m0 0 3 3M8 2 5 5M3 12.5h10" /></svg><span className="btn-label">Import</span></Link>
               <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
             </span>
           </div>
@@ -122,7 +123,6 @@ export function GoalsScreen() {
       </div>
 
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
-      {app.snapshot.goals.length > 0 && layout !== 'map' && <StatusLegend />}
       {refined && shown.length === 0 && <div className="calm">No goals match. Remove a filter above, or clear them.</div>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
       {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
@@ -199,6 +199,8 @@ export function GoalsScreen() {
       {!alt && !refined && show === 'watching' && <WatchingBody />}
 
       {!alt && !refined && show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
+      {/* The key sits after the goals: every row already shows its status in words. */}
+      {app.snapshot.goals.length > 0 && layout !== 'map' && <StatusLegend />}
     </div>
   );
 }
