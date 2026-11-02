@@ -100,9 +100,16 @@ function harness(device) {
       set('a11y', sideways.by <= 1, `${label}: page scrolls sideways by ${sideways.by}px (${sideways.el})`);
     },
     async inView(loc, k, label) {
-      const box = await loc.first().boundingBox().catch(() => null);
-      const vh = DEVICES[device].height;
-      set(k, !!box && box.y >= 0 && box.y + box.height <= vh + 1, `${label} is ${box ? 'below the fold' : 'missing'}`);
+      const first = loc.first();
+      const box = await first.boundingBox().catch(() => null);
+      // The fold is the top of the phone's tab bar, not the bottom of the screen: anything under the bar can't be seen.
+      // (Unless the thing is in the tab bar itself.)
+      const vh = box ? await first.evaluate((el) => {
+        const bar = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);
+        return bar && !bar.contains(el) ? bar.getBoundingClientRect().top : window.innerHeight + 24;
+      }) : DEVICES[device].height;
+      // A margin, so a few pixels of font difference between machines can't flip the result.
+      set(k, !!box && box.y >= 0 && box.y + box.height <= vh - 24, `${label} is ${box ? 'below the fold' : 'missing'}`);
     },
     async progressShown(label) {
       const ok = await p.locator('.ring:visible, .steps:visible, .dots:visible, .checklist:visible, .bar:visible').count() > 0;
@@ -1097,7 +1104,10 @@ journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map
   h.set('progress', folded < before && attention < before && attention >= 3, `nodes: ${before} all, ${folded} folded, ${attention} needing attention`);
   // Dotted lines for goals that also help others.
   await h.click(p.getByLabel('Only what needs attention'));
-  h.set('logged', (await p.locator('.react-flow__edge.helps').count()) >= 1, 'no dotted also-helps lines');
+  // The canvas draws its lines after the nodes are measured, so wait for them rather than counting at once.
+  // (Drawn, not necessarily on screen: on a phone the dotted lines sit lower down the canvas.)
+  const helps = await p.waitForFunction(() => document.querySelectorAll('.react-flow__edge.helps').length > 0, null, { timeout: 5000 }).then(() => true, () => false);
+  h.set('logged', helps, 'no dotted also-helps lines');
   await p.context().close();
 }, ['errors', 'budget']);
 

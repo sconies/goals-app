@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
@@ -52,7 +53,8 @@ export function GoalLine({ g }: { g: Goal }) {
   );
 }
 
-function MyWeek() {
+/** The week's one main action comes first; what's addressed to you (`asks`) follows it, then your goals. */
+function MyWeek({ asks }: { asks?: ReactNode }) {
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
@@ -120,6 +122,7 @@ function MyWeek() {
           )}
         </div>
       </section>
+      {asks}
       {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
       {rest.length > 0 && (
         <section className="block">
@@ -282,8 +285,7 @@ export function Home() {
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
         <span className="muted small">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
       </div>
-      <NeedsYou />
-      <MyWeek />
+      <MyWeek asks={<NeedsYou />} />
       <AdminCard />
       <ImportantChanges />
     </div>
