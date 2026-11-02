@@ -9,6 +9,7 @@ import { goalsIn, reviewSession, sessionWeek, watchedGoals, watchOf } from './re
 import { outcomeTrees } from './tree';
 import { currentCycle, nextCycle, scopeToCycle, suggestedResult } from './cycle';
 import { seed, SEED_WEEK } from '../data/seed';
+import { quarterResults } from './year';
 import { toYear } from '../data/yearStory';
 import { planAt } from './plan';
 import type { Goal, MetricGoal } from './types';
@@ -153,6 +154,15 @@ describe('import', () => {
     const ms = r.snapshot.goals.find((g) => g.kind === 'milestone') as Extract<Goal, { kind: 'milestone' }>;
     expect(ms.stages.map((x) => x.dueWeek)).toEqual([2, 6, 10]);
     expect(r.snapshot.people.every((p) => p.id.endsWith('ab12'))).toBe(true);
+  });
+  it('starts goals set up mid-year from this week, so earlier quarters aren’t missed (research round 2)', () => {
+    // A year that started in January, set up in week 43: the plan runs from today's number this week.
+    const r = buildWorkspace({ name: 'Mid-year', startDate: '2026-01-05', people: PEOPLE_TEMPLATE, goals: GOALS_TEMPLATE, now: new Date('2026-11-02T12:00:00Z'), idSuffix: 'mid' });
+    expect(r.issues).toEqual([]);
+    const cycle = r.snapshot.cycles[0]!;
+    const metric = r.snapshot.goals.find((g) => g.kind === 'metric') as MetricGoal;
+    expect(metric.plan.fromWeek).toBe(43);
+    expect(quarterResults(metric, cycle, [], 43).slice(0, 3).map((q) => q.kind)).toEqual(['none', 'none', 'none']);
   });
   it('explains bad rows instead of guessing', () => {
     const r = buildWorkspace({

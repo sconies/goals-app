@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
-import { daysSince } from '../domain/plan';
+import { weekDate, weekDates } from '../domain/plan';
 import { watchedGoals } from '../domain/review';
 import type { Goal, Level, Watch } from '../domain/types';
 import { Empty } from '../ui/bits';
@@ -15,7 +15,7 @@ type Filter = 'all' | Level;
 
 /** The watching content, used on its own page and, in the 4-tab trial, as a tab in Goals. */
 export function Watching() {
-  return <div className="page narrow"><WatchHead /><WatchingBody /></div>;
+  return <div className="page watching"><WatchHead /><WatchingBody /></div>;
 }
 
 export function WatchingBody() {
@@ -30,7 +30,9 @@ export function WatchingBody() {
   const bad = goals.filter((g) => ['off', 'risk'].includes(app.statusOf(g).status));
   const quiet = goals.filter((g) => app.statusOf(g).status === 'stale');
   const fine = goals.filter((g) => !bad.includes(g) && !quiet.includes(g));
-  const recent = app.snapshot.changes.filter((c) => c.goalId && ids.has(c.goalId) && daysSince(c.at, app.today) <= 7 && c.actorId !== app.viewer.id).slice().reverse();
+  // "This week" is the app's week (the same one check-ins and reviews use), not the last seven days.
+  const since = weekDate(app.cycle, Math.max(0, app.week));
+  const recent = app.snapshot.changes.filter((c) => c.goalId && ids.has(c.goalId) && c.at.slice(0, 10) >= since && c.actorId !== app.viewer.id).slice().reverse();
 
   if (!mine.length) return <StartWatching />;
 
@@ -46,15 +48,21 @@ export function WatchingBody() {
           ))}
         </div>
       )}
-      <Group title="Needs attention" goals={bad} />
-      <Group title="Gone quiet" hint="No check-in for two weeks or more, so the status can’t be trusted." goals={quiet} />
+      <div className="split">
+      <div className="split-a">
+        <Group title="Needs attention" goals={bad} />
+        <Group title="Gone quiet" hint="No check-in for two weeks or more, so the status can’t be trusted." goals={quiet} />
+      </div>
+      <aside className="split-side" aria-label="What changed">
       {recent.length > 0 && (
         <section className="block">
-          <h2 className="block-title">What changed this week</h2>
+          <h2 className="block-title">What changed this week <span className="hint">· week {app.week}, {weekDates(app.cycle, Math.max(0, app.week))}</span></h2>
           <ol className="changes">{recent.slice(0, 6).map((c) => <ChangeItem key={c.id} c={c} showGoal />)}</ol>
-          {recent.length > 6 && <Link className="small linkish" to="/activity">{recent.length - 6} more in Activity</Link>}
+          {recent.length > 6 && <Link className="small linkish" to={`/activity?watching=${filter}&since=${since}`}>{recent.length - 6} more in Activity</Link>}
         </section>
       )}
+      </aside>
+      <div className="split-b">
       <Group title={bad.length || quiet.length ? 'On track or done' : 'All on track or done'} goals={fine} collapsed={fine.length > 6} />
       <section className="block">
         <div className="row between">
@@ -64,6 +72,8 @@ export function WatchingBody() {
         <WatchList watches={mine} managing={managing} />
         {managing && <LevelPills />}
       </section>
+      </div>
+      </div>
     </>
   );
 }

@@ -1121,6 +1121,60 @@ journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust,
   await p.context().close();
 });
 
+journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING'], 'After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'maya'));
+  // Maya's week starts from Home; she posts her numbers at plan in one table, so her week is done.
+  await p.goto(url('/'));
+  await h.inView(p.getByRole('link', { name: /Start check-in/ }), 'entry', 'Start check-in');
+  await p.goto(url('/quick-check-in'));
+  await p.locator('.qrow').first().waitFor();
+  const s0 = await h.snapshot();
+  for (const row of await p.locator('.qrow').all()) {
+    const title = (await row.locator('a').first().innerText()).trim();
+    const g = s0.goals.find((x) => x.title === title);
+    await h.fill(row.getByRole('textbox'), valueAt(g, NOW, 1));
+  }
+  await h.click(p.getByRole('button', { name: /^Post/ }));
+  await see(p, 'Saved', 'posting the table did not confirm');
+  // The done screen still offers a check-in, for when something changes.
+  await p.goto(url('/check-in'));
+  await see(p, 'is done', 'the week is not shown as done');
+  h.set('progress', (await p.locator('.again-links a').count()) >= 2, 'the done screen offers no way to check in again');
+  await h.checkpoint('week done');
+  // The check-in walkthrough, started now, says the check-ins are in and points at Check-in instead of a missing button.
+  await p.goto(url('/'));
+  const panel = await demoPanel(p, h);
+  await h.click(panel.getByRole('button', { name: /Post your weekly check-in/ }));
+  const coach = p.getByRole('dialog', { name: /Walkthrough: Post your weekly check-in/ });
+  await see(coach, 'already in this week', 'the walkthrough asks for a button that isn’t there');
+  await h.click(p.locator('a:visible', { hasText: /^Check-in$/ }).first());
+  await see(coach, 'step 2 of 4', 'opening Check-in did not move the walkthrough on');
+  await see(coach, 'check in again', 'step 2 does not explain the week is done');
+  h.set('attention', await p.locator('.coach-ring').isVisible(), 'the walkthrough points at nothing');
+  await h.click(p.locator('.again-links a').first());
+  await p.getByLabel('This week’s value').waitFor();
+  await see(coach, 'Type this week’s number', 'the walkthrough did not pick up once the number field was there');
+  h.set('finish', true);
+  await coach.getByRole('button', { name: 'End' }).click();
+  // Activity, reached from Watching, keeps the scope and says so; one click shows everything.
+  await p.goto(url('/activity?watching=all&since=2026-10-26'));
+  await see(p, 'Showing: Goals you watch', 'Activity does not say what it is showing');
+  const scoped = await p.locator('.changes > li').count();
+  await h.click(p.getByRole('button', { name: 'Show all activity' }));
+  await p.getByText('Showing:').waitFor({ state: 'detached' });
+  const all = await p.locator('.changes > li').count();
+  h.set('errors', scoped < all, `scoped ${scoped}, all ${all}`);
+  // A percentage target over 100% asks whether it's a share.
+  await p.goto(url('/goals/new'));
+  await h.fill(p.getByLabel(/Name it the way/), 'Coverage of runbooks');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.fill(p.getByLabel('Unit'), '%');
+  await h.fill(p.getByLabel(/^Today \(week/), '0');
+  await h.fill(p.getByLabel(/^Target \(week/), '150');
+  h.set('logged', await p.getByRole('status').filter({ hasText: 'can’t pass 100%' }).isVisible(), 'a 150% target is not questioned');
+  await p.context().close();
+});
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
   await p.goto(url('/goals'));
@@ -1288,6 +1342,13 @@ async function platformChecks() {
       v.forEach((x) => problems.push(`${who} ${route}: ${x}`));
       const bare = await r.$$eval('.chip.on, .chip.risk, .chip.off, .chip.stale, .chip.done, .chip.planned', (els) => els.filter((e) => !e.querySelector('svg') || !e.textContent.trim()).length);
       if (bare) problems.push(`${who} ${route}: ${bare} status chips without a shape or word`);
+      // Every status shape on screen has its word beside it (the history grid's compact cells have a key instead).
+      const mute = await r.$$eval('svg.status-shape', (els) => els.filter((e) => {
+        if (!e.getClientRects().length || e.closest('.hgrid, [aria-hidden="true"] [aria-hidden="true"]')) return false;
+        const near = (e.parentElement?.innerText || '') + ' ' + (e.parentElement?.parentElement?.innerText || '');
+        return !/on track|at risk|off track|stale|done|not started|no check-in|met|missed|completed|gone quiet|nothing is|late|on schedule/i.test(near);
+      }).map((e) => (e.closest('[class]')?.className || '').toString().split(' ')[0]));
+      if (mute.length) problems.push(`${who} ${route}: ${mute.length} status shapes without a word (${[...new Set(mute)].join(', ')})`);
     }
     add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y'] : ['A11Y'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
     await c3.close();
@@ -1328,6 +1389,52 @@ async function platformChecks() {
     await c4.close();
   }
   add('P6', ['DESIGN-RULES'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules', !design.length, design.slice(0, 6).join(' | '));
+  // P7: wide screens and a short laptop. Each kind of page uses the room it has: no clipped tables, portfolio views and
+  // the map fill the work area, Home, a goal and Watching put their side column beside the main one, and on a 1440×700
+  // laptop a goal's chart starts above the fold.
+  const wide = [];
+  for (const [w, hgt] of [[1920, 1080], [2560, 1300]]) {
+    const c5 = await browser.newContext({ viewport: { width: w, height: hgt } });
+    const r = await c5.newPage();
+    for (const [who, route, kind] of [['elena', '/', 'split'], ['elena', '/goals?view=table', 'fill'], ['elena', '/goals?view=board', 'fill'], ['elena', '/goals?view=cards', 'fill'], ['elena', '/goals?view=map', 'map'], ['sam', '/goals/review', 'split'], ['tom', '/watching', 'split'], ['elena', '/activity', 'plain']]) {
+      await r.goto(url(route));
+      await r.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), who);
+      await r.reload();
+      await r.waitForTimeout(400);
+      const m = await r.evaluate(() => {
+        const side = document.querySelector('.side');
+        const work = window.innerWidth - (side ? side.getBoundingClientRect().width : 0);
+        const page = document.querySelector('.page')?.getBoundingClientRect();
+        const clipped = [...document.querySelectorAll('.table-wrap')].filter((t) => t.scrollWidth > t.clientWidth + 1).length;
+        const a = document.querySelector('.split > .split-a')?.getBoundingClientRect();
+        const s = document.querySelector('.split > .split-side');
+        const sr = s && s.getClientRects().length ? s.getBoundingClientRect() : null;
+        const canvas = document.querySelector('.map-canvas')?.getBoundingClientRect();
+        const nodes = [...document.querySelectorAll('.react-flow__node')].filter((n) => { const b = n.getBoundingClientRect(); return b.width > 100 && b.top >= 0 && b.bottom <= window.innerHeight; }).length;
+        return { sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth, work, pageW: page?.width ?? 0, pageL: page ? page.left - (side ? side.getBoundingClientRect().right : 0) : 0, clipped, sideBySide: !!(a && sr && sr.left >= a.right), hasSide: !!sr, canvasH: canvas?.height ?? 0, nodes };
+      });
+      const at = `${w}px ${route}`;
+      if (m.sideways > 1) wide.push(`${at}: ${m.sideways}px sideways`);
+      if (m.clipped) wide.push(`${at}: ${m.clipped} table(s) clipped`);
+      if (m.pageL > 140) wide.push(`${at}: content starts ${Math.round(m.pageL)}px from the sidebar`);
+      if (kind === 'fill' && m.pageW < Math.min(1700, m.work * 0.85)) wide.push(`${at}: uses ${Math.round(m.pageW)} of ${Math.round(m.work)}px`);
+      if (kind === 'split' && m.hasSide && !m.sideBySide) wide.push(`${at}: side column not beside the main one`);
+      if (kind === 'map' && (m.canvasH < 600 || m.nodes < 6)) wide.push(`${at}: map ${Math.round(m.canvasH)}px tall with ${m.nodes} readable goals in view`);
+    }
+    await c5.close();
+  }
+  {
+    const c6 = await browser.newContext({ viewport: { width: 1440, height: 700 } });
+    const r = await c6.newPage();
+    await r.goto(url('/goals/review'));
+    await r.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'sam'));
+    await r.reload();
+    await r.locator('svg.chart').first().waitFor();
+    const top = await r.locator('svg.chart').first().evaluate((e) => e.getBoundingClientRect().top);
+    if (top > 640) wide.push(`1440×700 /goals/review: the chart starts at ${Math.round(top)}px, below the fold`);
+    await c6.close();
+  }
+  add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
   return out;
 }
 

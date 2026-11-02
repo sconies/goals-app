@@ -14,8 +14,13 @@ import { MetricChart, RangeChart } from '../ui/charts';
 
 /** The focused weekly check-in: every due goal, one at a time, then done. */
 export function CheckInFlow() {
-  const app = useApp();
+  // A fresh flow for each goal (or the whole week): moving from /check-in to /check-in/:goal must not keep the old queue.
   const { goalId } = useParams();
+  return <Flow key={goalId ?? 'week'} goalId={goalId} />;
+}
+
+function Flow({ goalId }: { goalId?: string }) {
+  const app = useApp();
   const nav = useNavigate();
   // The queue is fixed when the flow opens, so posting doesn't reshuffle it.
   const [queue] = useState<string[]>(() => {
@@ -110,6 +115,11 @@ function AllDone({ first }: { first?: boolean }) {
           <Link ref={ref} className={'btn big-btn' + (p.due.length ? '' : ' primary')} to="/">Back to home</Link>
         </div>
         {p.due.filter((g) => g.kind !== 'milestone').length >= 2 && <Link className="linkish small" to="/quick-check-in">Or type all your numbers in one table</Link>}
+        {!p.due.length && p.goals.length > 0 && (
+          <p className="small again-links">Something changed since? Check in again on{' '}
+            {p.goals.map((g, i) => <span key={g.id}>{i > 0 ? (i === p.goals.length - 1 ? ' or ' : ', ') : ''}<Link className="linkish" to={`/check-in/${g.id}`}>{g.title}</Link></span>)}.
+          </p>
+        )}
       </div>
     </div>
   );

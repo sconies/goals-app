@@ -4,13 +4,20 @@
 import { RANK } from './status';
 import type { DisplayStatus, Goal } from './types';
 
-export interface MapNode { id: string; goal: Goal; depth: number; x: number; y: number; children: number; collapsed: boolean }
+export interface MapNode {
+  id: string; goal: Goal; depth: number; x: number; y: number; children: number; collapsed: boolean;
+  /** For inputs stacked in columns under a goal with many: the x of the line down their left side that joins them to it. */
+  bus?: number;
+}
 export interface MapEdge { id: string; from: string; to: string; kind: 'feeds' | 'helps'; critical: boolean }
 
 export const NODE_W = 240;
 export const NODE_H = 96;
 const GAP_X = 32;
 const GAP_Y = 72;
+/** Stacked inputs sit this far in from their column's left edge (room for the line that joins them) and this far apart. */
+const BUS_INDENT = 28;
+const STACK_GAP = 40;
 
 /** How much a goal's state threatens what it feeds: off track most, then at risk or gone quiet; on track or done not at all. */
 const threat = (s: DisplayStatus) => (s === 'off' ? 4 : s === 'risk' || s === 'stale' ? 2 : s === 'none' ? 1 : 0);
@@ -64,7 +71,7 @@ export function withAncestors(goals: Goal[], ids: Set<string>): Set<string> {
  * A tidy top-down layout: leaves side by side, each parent centred over its children, trees next to each other.
  * Collapsed goals hide what feeds them; `only` limits the map to some goals.
  */
-export function layout(goals: Goal[], opts: { collapsed?: Set<string>; only?: Set<string>; order?: (a: Goal, b: Goal) => number } = {}): MapNode[] {
+export function layout(goals: Goal[], opts: { collapsed?: Set<string>; only?: Set<string>; order?: (a: Goal, b: Goal) => number; stack?: number } = {}): MapNode[] {
   const shown = opts.only ? goals.filter((g) => opts.only!.has(g.id)) : goals;
   const ids = new Set(shown.map((g) => g.id));
   const kids = new Map<string, Goal[]>();
@@ -79,8 +86,26 @@ export function layout(goals: Goal[], opts: { collapsed?: Set<string>; only?: Se
     const all = (kids.get(g.id) ?? []).filter((c) => !seen.has(c.id));
     const collapsed = !!opts.collapsed?.has(g.id) && all.length > 0;
     let x: number;
+    const leaf = (c: Goal) => !(kids.get(c.id) ?? []).some((k) => !seen.has(k.id)) || !!opts.collapsed?.has(c.id);
     if (!all.length || collapsed) x = slot++;
-    else { const xs = all.map((c) => place(c, depth + 1)); x = (xs[0]! + xs[xs.length - 1]!) / 2; }
+    else if (opts.stack && all.length > opts.stack + 1 && all.every(leaf)) {
+      // Many inputs and none with inputs of its own: columns of up to `stack`, worst first down the first column, rather
+      // than one long row. Each column has a line down its left that joins its goals to this one, so no line crosses a goal.
+      const per = opts.stack, cols = Math.ceil(all.length / per), start = slot, SLOT = NODE_W + GAP_X + BUS_INDENT;
+      // Columns are a little wider than a normal slot, to make room for the line; count them in normal slots.
+      const width = Math.ceil((cols * SLOT) / (NODE_W + GAP_X));
+      const left = start * (NODE_W + GAP_X);
+      all.forEach((c, i) => {
+        seen.add(c.id);
+        const cx = left + Math.floor(i / per) * SLOT, row = i % per;
+        out.push({ id: c.id, goal: c, depth: depth + 1, x: cx + BUS_INDENT, y: (depth + 1) * (NODE_H + GAP_Y) + row * (NODE_H + STACK_GAP), children: (kids.get(c.id) ?? []).length, collapsed: !!opts.collapsed?.has(c.id) && (kids.get(c.id) ?? []).length > 0, bus: cx + 8 });
+      });
+      slot += width;
+      // Centre this goal over its columns.
+      const mid = left + ((cols - 1) * SLOT + BUS_INDENT) / 2;
+      out.push({ id: g.id, goal: g, depth, x: mid, y: depth * (NODE_H + GAP_Y), children: all.length, collapsed });
+      return mid / (NODE_W + GAP_X);
+    } else { const xs = all.map((c) => place(c, depth + 1)); x = (xs[0]! + xs[xs.length - 1]!) / 2; }
     out.push({ id: g.id, goal: g, depth, x: x * (NODE_W + GAP_X), y: depth * (NODE_H + GAP_Y), children: all.length, collapsed });
     return x;
   };

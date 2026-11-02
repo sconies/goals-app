@@ -5,7 +5,7 @@ import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { LEVEL_LABEL } from '../domain/format';
-import { buildGoal, draftOf, planChanged, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
+import { buildGoal, draftOf, overHundredHint, planChanged, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
 import type { Goal, Level, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
@@ -99,7 +99,7 @@ function EditSheet({ goal }: { goal: Goal }) {
             <>
               <div className="pair">
                 <label className="field"><span className="field-label">Start{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
-                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}</label>
+                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}{overHundredHint(d.unit, d.start, d.target) && <span className="hint tone-risk" role="status">{overHundredHint(d.unit, d.start, d.target)}</span>}</label>
               </div>
               <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
                 <div className="seg full" role="group" aria-labelledby="shape-l">
@@ -112,7 +112,13 @@ function EditSheet({ goal }: { goal: Goal }) {
                 </div>
                 <span className="hint">Week {endChoice}, {weekDates(cycle, endChoice)}.</span>
               </div>
-              {shapedPlan && <PlanTable plan={shapedPlan} unit={{ unit: d.unit, decimals: parseNumber(d.decimals) ?? 0 }} typed={d.points} onType={(w, v) => set({ points: { ...d.points, [String(w)]: v } })} onReset={() => set({ points: {} })} />}
+              {/* The week-by-week numbers are for the few who set them by hand; a rename or a new owner shouldn't wade through them. */}
+              {shapedPlan && (
+                <details className="disclose" open={Object.values(d.points ?? {}).some((v) => String(v).trim() !== '')}>
+                  <summary>Plan by week <span className="hint">· see or set each week’s number</span></summary>
+                  <PlanTable plan={shapedPlan} unit={{ unit: d.unit, decimals: parseNumber(d.decimals) ?? 0 }} typed={d.points} onType={(w, v) => set({ points: { ...d.points, [String(w)]: v } })} onReset={() => set({ points: {} })} />
+                </details>
+              )}
               {err('points')}
             </>
           )}

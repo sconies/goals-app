@@ -3,7 +3,7 @@
    likely to make each top goal miss. Branches fold and unfold; a goal opens its story beside the map. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { Background, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
+import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type EdgeProps, type Node, type NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
@@ -30,11 +30,20 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
           {collapsed ? `+ ${children}` : '−'}
         </button>
       )}
-      <Handle type="source" position={Position.Top} isConnectable={false} />
+      <Handle type="source" id="top" position={Position.Top} isConnectable={false} />
+      <Handle type="source" id="left" position={Position.Left} isConnectable={false} />
     </div>
   );
 }
 const nodeTypes = { goal: GoalNode };
+
+/** A stacked input's line: left out of the goal to its column's line, up that line, then across into the goal it feeds. */
+function BusEdge({ sourceX, sourceY, targetX, targetY, data, markerEnd, style }: EdgeProps<Edge<{ bus: number }>>) {
+  const bus = data?.bus ?? sourceX - 16;
+  const turn = targetY + 24;
+  return <BaseEdge path={`M ${sourceX},${sourceY} H ${bus} V ${turn} H ${targetX} V ${targetY}`} markerEnd={markerEnd} style={style} />;
+}
+const edgeTypes = { bus: BusEdge };
 
 const posKey = (ws: string) => `goals-map:${ws}`;
 const readPos = (ws: string): Record<string, { x: number; y: number }> => { try { return JSON.parse(localStorage.getItem(posKey(ws)) || '{}'); } catch { return {}; } };
@@ -55,18 +64,21 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
   const toggle = useCallback((id: string) => setCollapsed((c) => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n; }), []);
   // Worst first under each goal, so the critical path sits next to what it threatens.
   const order = useCallback((a: Goal, b: Goal) => RANK[statusOf(b)] - RANK[statusOf(a)] || a.title.localeCompare(b.title), [statusOf]);
-  const placed = useMemo(() => (phone ? layoutIndented : layout)(goals, { collapsed, only, order }), [goals, collapsed, only, order, phone]);
+  // On a desktop, a goal with many inputs stacks them in columns of three, so the map is a block rather than one long row.
+  const placed = useMemo(() => (phone ? layoutIndented(goals, { collapsed, only, order }) : layout(goals, { collapsed, only, order, stack: 3 })), [goals, collapsed, only, order, phone]);
   const nodes: Node<GoalNodeData>[] = useMemo(() => placed.map((n) => ({
     id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected, domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
     ariaLabel: `${n.goal.title}: ${LABEL[statusOf(n.goal)]}${critical.has(n.id) ? ', on the critical path' : ''}`,
     data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? RESULT_TEXT[r.kind] : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), onToggle: toggle },
   })), [placed, moved, selected, statusOf, critical, app, toggle]);
+  const busOf = useMemo(() => new Map(placed.filter((n) => n.bus != null).map((n) => [n.id, n.bus!])), [placed]);
   const links: Edge[] = useMemo(() => mapEdges(placed, critical).map((e) => ({
-    id: e.id, source: e.from, target: e.to, type: e.kind === 'helps' ? 'default' : 'smoothstep', selectable: false,
+    id: e.id, source: e.from, target: e.to, selectable: false,
+    ...(e.kind === 'feeds' && busOf.has(e.from) ? { type: 'bus', sourceHandle: 'left', data: { bus: busOf.get(e.from)! } } : { type: e.kind === 'helps' ? 'default' : 'smoothstep', sourceHandle: 'top' }),
     className: 'map-edge ' + e.kind + (e.critical ? ' critical' : ''),
     markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
     ...(e.kind === 'helps' ? { style: { strokeDasharray: '6 5' } } : {}),
-  })), [placed, critical]);
+  })), [placed, critical, busOf]);
 
   useEffect(() => { try { localStorage.setItem(posKey(app.ws.id), JSON.stringify(moved)); } catch { /* storage blocked */ } }, [moved, app.ws.id]);
   const sel = selected ? goals.find((g) => g.id === selected) : undefined;
@@ -79,9 +91,8 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
     const inTree = (n: (typeof placed)[number]) => { let g: Goal | undefined = n.goal; const seen = new Set<string>(); while (g && !seen.has(g.id)) { if (g.id === root.id) return true; seen.add(g.id); g = goals.find((x) => x.id === g!.parentId); } return false; };
     return placed.filter((n) => n.id === root.id || (critical.has(n.id) && inTree(n))).map((n) => ({ id: n.id }));
   }, [placed, critical, statusOf, goals]);
-  // As tall as the trees need (within the window), so a wide, shallow map doesn't float in empty space.
-  const levels = Math.max(1, ...placed.map((n) => n.depth + 1));
-  const height = phone ? '70vh' : `clamp(380px, ${Math.round(levels * 168 * 0.7 + 150)}px, 72vh)`;
+  // On a desktop the canvas fills the window below the page's header: the map is the page.
+  const height = phone ? '70vh' : 'max(460px, calc(100vh - 250px))';
   const allIds = goals.filter((g) => goals.some((c) => c.parentId === g.id)).map((g) => g.id);
 
   return (
@@ -109,7 +120,7 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
           }}>
           <ReactFlow
             key={(onlyAttention ? 'a' : 'all') + collapsed.size}
-            nodes={nodes} edges={links} nodeTypes={nodeTypes} minZoom={0.2} maxZoom={1.6}
+            nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={0.2} maxZoom={1.6}
             onInit={(rf) => {
               // Frame the critical path (or the top goals) ourselves, from the layout: no waiting for nodes to measure.
               const box = canvas.current?.getBoundingClientRect();

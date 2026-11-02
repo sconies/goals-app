@@ -8,11 +8,11 @@ import { LEVEL_LABEL } from '../domain/format';
 
 /** Status is shape plus word, never colour alone. */
 export function StatusShape({ k }: { k: DisplayStatus }) {
-  if (k === 'on') return <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" stroke="currentColor" strokeWidth="2" /></svg>;
-  if (k === 'risk') return <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" /></svg>;
-  if (k === 'off') return <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>;
-  if (k === 'done') return <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" /><path d="m5 8.2 2 2 4-4.4" fill="none" stroke="var(--surface)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-  return <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 2.5" /></svg>;
+  if (k === 'on') return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" stroke="currentColor" strokeWidth="2" /></svg>;
+  if (k === 'risk') return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" /></svg>;
+  if (k === 'off') return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>;
+  if (k === 'done') return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" /><path d="m5 8.2 2 2 4-4.4" fill="none" stroke="var(--surface)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 2.5" /></svg>;
 }
 
 /** A small warning mark: the app's own shape, not an emoji. */
@@ -110,9 +110,12 @@ export function Steps({ at, of, label }: { at: number; of: number; label?: strin
 
 const flagStatus = (f: Flag): DisplayStatus => (f.tone === 'off' ? 'off' : f.tone === 'risk' ? 'risk' : f.tone === 'stale' ? 'stale' : 'planned');
 
-/** A flag as words with its status icon: no filled pill, so a list stays calm. */
+/**
+ * A flag as words with a mark: no filled pill, so a list stays calm. The status shapes mean a status, so only a goal gone
+ * quiet uses one (its word says so); every other flag (a trend, a missed date, no recovery plan) uses the warning mark.
+ */
 export function FlagPill({ f }: { f: Flag }) {
-  return <span className={'flag flag-' + f.kind} data-tone={f.tone}><StatusShape k={flagStatus(f)} />{f.label}</span>;
+  return <span className={'flag flag-' + f.kind} data-tone={f.tone}>{f.kind === 'stale' ? <StatusShape k={flagStatus(f)} /> : f.tone === 'off' || f.tone === 'risk' ? <WarnMark /> : null}{f.label}</span>;
 }
 
 /** One goal that needs someone, as a list row: status icon, name, the reason in one line, one action. */

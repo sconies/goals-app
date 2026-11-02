@@ -1,3 +1,4 @@
+import { isShare } from '../domain/checkin';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { planAt, planEnd, type Point } from '../domain/plan';
 import type { MilestoneAssessment, StageState } from '../domain/status';
@@ -23,10 +24,12 @@ function Sized({ height, children, className }: { height: number; children: (w: 
 
 interface Frame { W: number; H: number; padL: number; padR: number; padT: number; padB: number }
 
-function scales(f: Frame, weeks: number, values: number[]) {
+function scales(f: Frame, weeks: number, values: number[], bounds?: [number, number]) {
   let lo = Math.min(...values), hi = Math.max(...values);
   const pad = (hi - lo || Math.abs(hi) || 1) * 0.1;
   lo -= pad; hi += pad;
+  // A share stays on a 0–100% scale: no axis below nothing or above all of it.
+  if (bounds) { lo = Math.max(bounds[0], lo); hi = Math.min(bounds[1], hi); }
   const X = (w: number) => f.padL + w * ((f.W - f.padL - f.padR) / weeks);
   const Y = (v: number) => f.padT + ((f.H - f.padT - f.padB) * (hi - v)) / (hi - lo || 1);
   return { lo, hi, X, Y };
@@ -53,10 +56,11 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series, forecast, ptgBy, W, 
   const compact = W < 420;
   const f: Frame = { W, H, padL: compact ? 34 : 44, padR: 12, padT: 24, padB: 22 };
   const { plan, originalPlan } = goal;
+  const share = isShare(goal);
   const vals = [plan.start, plan.target, ...series.map((p) => p.value)];
   if (originalPlan) vals.push(originalPlan.target);
-  if (forecast != null) vals.push(forecast);
-  const { lo, hi, X, Y } = scales(f, weeks, vals);
+  if (forecast != null) vals.push(share ? Math.min(100, Math.max(0, forecast)) : forecast);
+  const { lo, hi, X, Y } = scales(f, weeks, vals, share ? [0, 100] : undefined);
   const planPts = (pl: MetricGoal['plan']) => Array.from({ length: weeks + 1 }, (_, w) => [X(w), Y(planAt(pl, w, weeks))] as [number, number]);
   const last = series[series.length - 1];
   const label = `${goal.title}: ${last ? 'latest ' + fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, plan for week ${week} ${fmt(planAt(plan, week, weeks), goal)}, target ${fmt(plan.target, goal)}`;
@@ -75,7 +79,12 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series, forecast, ptgBy, W, 
       <text className="c-target-t" x={f.padL + 4} y={Y(plan.target) + (plan.target < plan.start ? 14 : -6)}>Target {fmt(plan.target, goal)}</text>
       {originalPlan && <polyline className="c-orig" points={line(planPts(originalPlan))} />}
       <polyline className="c-plan" points={line(planPts(plan))} />
-      {last && forecast != null && <polyline className="c-fc" points={line([[X(last.week), Y(last.value)], [X(weeks), Y(forecast)]])} />}
+      {last && forecast != null && (() => {
+        // On a share, the trend stops where it would reach 100% (or 0%), rather than running off the chart.
+        const edge = share ? (forecast > 100 ? 100 : forecast < 0 ? 0 : null) : null;
+        const endWeek = edge == null || forecast === last.value ? weeks : last.week + ((weeks - last.week) * (edge - last.value)) / (forecast - last.value);
+        return <polyline className="c-fc" points={line([[X(last.week), Y(last.value)], [X(endWeek), Y(edge ?? forecast)]])} />;
+      })()}
       {last && ptgBy != null && ptgBy > last.week && (
         <>
           <polyline className="c-ptg" points={line([[X(last.week), Y(last.value)], [X(ptgBy), Y(planAt(plan, ptgBy, weeks))]])} />

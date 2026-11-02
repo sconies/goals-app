@@ -57,8 +57,10 @@ export function GoalsScreen() {
     ...(navMode === 'four' ? [['watching', 'Watching', null] as [Show, string, null]] : []),
   ];
 
+  // Each kind of view gets the room it needs: a list reads best narrow, a table or board wants width, the map wants everything.
+  const frame = !alt ? 'page' : layout === 'map' ? 'page full' : 'page wide';
   return (
-    <div className="page">
+    <div className={frame}>
       <div className="page-head row between">
         <span className="stack" style={{ gap: 2 }}>
           <h1 className="title-xl">Goals</h1>
@@ -66,24 +68,27 @@ export function GoalsScreen() {
         </span>
         <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>
-      <div className="seg tabs" role="tablist" aria-label="Show">
-        {tabs.map(([k, l, n]) => (
-          <button key={k} role="tab" aria-selected={show === k} onClick={() => setParams(k === 'outcomes' ? {} : { show: k }, { replace: true })}>
-            {l}{n != null && <span className="tabcount">{n}</span>}
-          </button>
-        ))}
-      </div>
-      {app.snapshot.goals.length > 0 && (
-        <div className="row between view-bar">
-          <LayoutSwitch layout={layout} onChange={setLayout} />
-          <span className="row" style={{ gap: 'var(--s2)' }}>
-            <Link className="btn sm" to="/import">Import</Link>
-            <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
-          </span>
+      {/* One toolbar: which goals on the left, how to see them on the right. It wraps on a narrow screen. */}
+      <div className="goals-toolbar">
+        <div className="seg tabs" role="tablist" aria-label="Show">
+          {tabs.map(([k, l, n]) => (
+            <button key={k} role="tab" aria-selected={show === k} onClick={() => setParams(k === 'outcomes' ? {} : { show: k }, { replace: true })}>
+              {l}{n != null && <span className="tabcount">{n}</span>}
+            </button>
+          ))}
         </div>
-      )}
+        {app.snapshot.goals.length > 0 && (
+          <div className="row view-bar">
+            <LayoutSwitch layout={layout} onChange={setLayout} />
+            <span className="row" style={{ gap: 'var(--s2)' }}>
+              <Link className="btn sm" to="/import">Import</Link>
+              <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
+            </span>
+          </div>
+        )}
+      </div>
 
-      {app.snapshot.goals.length > 0 && <StatusLegend />}
+      {app.snapshot.goals.length > 0 && layout !== 'map' && <StatusLegend />}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
       {alt && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}

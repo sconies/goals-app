@@ -2,7 +2,7 @@
    with its requirement ID, so the scorecard can say which requirements hold. */
 import { describe, expect, it } from 'vitest';
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../src/domain/checkin';
-import { blankGoal, buildGoal, draftOf, goalAsOf, validateGoal } from '../src/domain/goal';
+import { blankGoal, buildGoal, draftOf, goalAsOf, overHundredHint, validateGoal } from '../src/domain/goal';
 import { forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
@@ -193,6 +193,13 @@ describe('numbers people can trust (research round 1)', () => {
     expect(goalAsOf(second, 3).plan.target).toBe(72);
     expect(goalAsOf(second, 6).plan.target).toBe(80);
     expect(goalAsOf(second, 9).plan.target).toBe(90);
+  });
+});
+describe('numbers people can trust (research round 2)', () => {
+  it(R('HONEST-NUMBERS', 'a percentage target over 100% asks whether it measures a share'), () => {
+    expect(overHundredHint('%', '0', '150')).toMatch(/can’t pass 100%/);
+    expect(overHundredHint('%', '20', '90')).toBeNull();
+    expect(overHundredHint('days', '0', '150')).toBeNull();
   });
 });
 function draftOfUp() { return draftOf(up); }

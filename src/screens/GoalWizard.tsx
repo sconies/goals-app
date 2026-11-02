@@ -4,7 +4,7 @@ import { useApp } from '../app/state';
 import { dueOptions, isYear } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
-import { blankGoal, buildGoal, draftOf, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
+import { blankGoal, buildGoal, draftOf, overHundredHint, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
 import { fmt, LEVEL_LABEL } from '../domain/format';
 import type { Goal, GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
 
@@ -155,7 +155,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <div className="row" style={{ alignItems: 'flex-start' }}>
                   <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Today (week {existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>
                   <span className="arrow" aria-hidden="true">→</span>
-                  <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}</label>
+                  <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}{overHundredHint(d.unit, d.start, d.target) && <span className="hint tone-risk" role="status">{overHundredHint(d.unit, d.start, d.target)}</span>}</label>
                 </div>
                 <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
                   <legend className="small strong" style={{ marginBottom: 8 }}>How will progress come?</legend>

@@ -1,5 +1,5 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
-import { daysSince, currentWeek, forecast, planAt, type Point, planEnd } from './plan';
+import { daysSince, currentWeek, forecast, goalAsOf, planAt, type Point, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
 
 export const RANK: Record<DisplayStatus, number> = { done: 0, planned: 0, none: 0, on: 1, risk: 2, stale: 2, off: 3 };
@@ -152,7 +152,8 @@ export function assessPosted(goal: Goal, cycle: Cycle, checkIns: CheckIn[], week
   const at = latest ? latest.week : week;
   if (goal.kind === 'metric') {
     const series = own.filter((c) => c.value != null).map((c) => ({ week: c.week, value: c.value as number }));
-    return assessMetric(goal, cycle.weeks, at, latest?.value ?? null, series.filter((p) => p.week < at));
+    // The latest number is judged against the plan that applied in its week, not one set since.
+    return assessMetric(goalAsOf(goal, at), cycle.weeks, at, latest?.value ?? null, series.filter((p) => p.week < at));
   }
   if (goal.kind === 'range') {
     const prev = own.filter((c) => c.week < at && c.value != null).pop();

@@ -68,6 +68,9 @@ export function parseNumber(s: string): number | null {
 }
 
 /** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
+export function isShare(goal?: Goal): boolean {
+  return !!goal && goal.kind !== 'milestone' && goal.unit.trim() === '%' && withinHundred(goal);
+}
 function withinHundred(goal?: Goal): boolean {
   if (!goal) return false;
   if (goal.kind === 'metric') return [goal.plan.start, goal.plan.target, ...(goal.plan.points ?? []).map((p) => p.value)].every((v) => v >= 0 && v <= 100);

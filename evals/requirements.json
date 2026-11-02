@@ -295,6 +295,11 @@
       "id": "HONEST-NUMBERS",
       "area": "Trust",
       "text": "Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week."
+    },
+    {
+      "id": "WIDE-SCREENS",
+      "area": "Layout",
+      "text": "Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it."
     }
   ],
   "notYetBuilt": [
@@ -384,6 +389,12 @@
       "id": "U30",
       "title": "Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh",
       "who": "A goal owner and a leader",
+      "budget": 16
+    },
+    {
+      "id": "U31",
+      "title": "After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope",
+      "who": "A goal owner",
       "budget": 16
     }
   ],

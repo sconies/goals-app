@@ -13,7 +13,7 @@ import { periodWord, shortPeriod } from '../domain/year';
 import { assessPosted, LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
 import type { Goal } from '../domain/types';
-import { AttentionCard, Avatar, Dot, ProgressRing, StatusShape } from '../ui/bits';
+import { AttentionCard, Avatar, ProgressRing, StatusShape } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
 import { TreeRow, worstFirst } from './Inspect';
 
@@ -43,7 +43,7 @@ export function GoalLine({ g }: { g: Goal }) {
   const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? 'No value yet' : fmt(a.actual, g);
   return (
     <Link to={'/goals/' + g.id} className="gline">
-      <Dot k={st.status} />
+      <span className={'gline-status tone-' + st.status}><StatusShape k={st.status} />{LABEL[st.status]}</span>
       <span className="gline-title">{g.title}</span>
       <span className="gline-now">{now}<span className={'tone-' + gap.tone}> · {st.status === 'stale' ? 'Stale' : gap.short}</span></span>
       <span className="gline-spark">
@@ -53,8 +53,11 @@ export function GoalLine({ g }: { g: Goal }) {
   );
 }
 
-/** The week's one main action comes first; what's addressed to you (`asks`) follows it, then your goals. */
-function MyWeek({ asks }: { asks?: ReactNode }) {
+/**
+ * The week's one main action comes first. What's addressed to you (`side`) follows it on a narrow screen and sits beside
+ * it on a wide one; then your goals and what changed (`after`).
+ */
+function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
@@ -67,7 +70,7 @@ function MyWeek({ asks }: { asks?: ReactNode }) {
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
   return (
     <>
-      <section className="hero">
+      <section className="hero home-hero split-a">
         {p.goals.length > 0 && !(myReview && !p.due.length && !wrapLeft.length)
           ? <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
           : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={56} label={`${myReview.done} of ${myReview.total} goals covered in ${myReview.review.name}`} /> : null}
@@ -122,14 +125,17 @@ function MyWeek({ asks }: { asks?: ReactNode }) {
           )}
         </div>
       </section>
-      {asks}
-      {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
-      {rest.length > 0 && (
-        <section className="block">
-          <h2 className="block-title">{att.length ? 'Your other goals' : 'Your goals'}</h2>
-          <div className="glist">{rest.map((g) => <GoalLine key={g.id} g={g} />)}</div>
-        </section>
-      )}
+      <aside className="home-side split-side" aria-label="For you">{side}</aside>
+      <div className="home-main split-b">
+        {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
+        {rest.length > 0 && (
+          <section className="block">
+            <h2 className="block-title">{att.length ? 'Your other goals' : 'Your goals'}</h2>
+            <div className="glist">{rest.map((g) => <GoalLine key={g.id} g={g} />)}</div>
+          </section>
+        )}
+        {after}
+      </div>
     </>
   );
 }
@@ -280,14 +286,14 @@ export function Home() {
   const app = useApp();
   const first = app.viewer.name.split(' ')[0];
   return (
-    <div className="page narrow">
+    <div className="page home">
       <div className="page-head">
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
         <span className="muted small">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
       </div>
-      <MyWeek asks={<NeedsYou />} />
-      <AdminCard />
-      <ImportantChanges />
+      <div className="home-grid split">
+        <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<ImportantChanges />} />
+      </div>
     </div>
   );
 }

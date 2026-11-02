@@ -8,6 +8,8 @@ export interface TourStep {
   target?: { selector: string; text?: string };
   /** The step is done when the route matches, an element shows, or some text shows. None: a closing step with a Finish button. */
   doneWhen?: { route?: RegExp; selector?: string; text?: string };
+  /** What to say and point at instead when the target isn't on screen (the demo has moved on: say, the check-ins are already in). */
+  ifMissing?: { say: string; target?: { selector: string; text?: string } };
 }
 export interface Tour {
   id: string;
@@ -23,8 +25,10 @@ export const TOURS: Tour[] = [
   {
     id: 'checkin', title: 'Post your weekly check-in', role: 'Goal owner', personId: 'maya', start: '/',
     steps: [
-      { say: 'This is Maya’s Home. What she needs to do this week comes first. Start her check-in.', target: { selector: 'a.btn.primary', text: 'check-in' }, doneWhen: { route: /^\/check-in/ } },
-      { say: 'Type this week’s number. The verdict says at once whether it’s on plan, and against which week.', target: { selector: 'input[aria-label="This week’s value"], #value' }, doneWhen: { selector: '.verdict' } },
+      { say: 'This is Maya’s Home. What she needs to do this week comes first. Start her check-in.', target: { selector: 'a.btn.primary', text: 'check-in' }, doneWhen: { route: /^\/check-in/ },
+        ifMissing: { say: 'Maya’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' } } },
+      { say: 'Type this week’s number. The verdict says at once whether it’s on plan, and against which week.', target: { selector: 'input[aria-label="This week’s value"], #value' }, doneWhen: { selector: '.verdict' },
+        ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Maya’s goals to check in again.', target: { selector: '.again-links a' } } },
       { say: 'Off plan, it asks why and how it gets back on track. Keep last week’s note if it still holds, or say what changed, then post.', target: { selector: '.focus-foot button[type=submit]' }, doneWhen: { text: 'Check-in saved' } },
       { say: 'Saved, and in the change log. Anyone watching the goal sees it, and the review picks it up. You can check in again any time; every check-in is kept.' },
     ],

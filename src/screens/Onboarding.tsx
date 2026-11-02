@@ -12,6 +12,7 @@ import { yearName } from '../domain/yearName';
 import { stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
 import { currentWeek } from '../domain/plan';
 import { Steps } from '../ui/bits';
+import { overHundredHint } from '../domain/goal';
 import { targetText } from '../domain/format';
 
 interface PersonRow { name: string; title: string; team: string; admin: boolean }
@@ -370,7 +371,7 @@ function GoalFields({ g, owners, onChange, issue, headline, week = 0 }: { g: Goa
       {g.kind === 'metric' ? (
         <div className="trio">
           <label className="field"><span className="field-label">Today</span><input className="input" inputMode="decimal" value={g.start} onChange={(e) => onChange({ start: e.target.value })} aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': today'} /></label>
-          <label className="field"><span className="field-label">Target</span><input className="input" inputMode="decimal" value={g.target} onChange={(e) => onChange({ target: e.target.value })} aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': target'} /></label>
+          <label className="field"><span className="field-label">Target</span><input className="input" inputMode="decimal" value={g.target} onChange={(e) => onChange({ target: e.target.value })} aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': target'} />{overHundredHint(g.unit ?? '', g.start ?? '', g.target ?? '') && <span className="hint tone-risk" role="status">{overHundredHint(g.unit ?? '', g.start ?? '', g.target ?? '')}</span>}</label>
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, days" aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': unit'} /></label>
         </div>
       ) : g.kind === 'range' ? (

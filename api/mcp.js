@@ -21990,6 +21990,27 @@ function weekDates(cycle, week) {
 	const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
 	return b.getUTCFullYear() !== Number(cycle.startDate.slice(0, 4)) ? `${range} ${b.getUTCFullYear()}` : range;
 }
+/** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
+function planHistoryOf(g) {
+	if (g.planHistory?.length) return g.planHistory;
+	return g.originalPlan && g.rebaselinedWeek != null ? [{
+		untilWeek: g.rebaselinedWeek,
+		plan: g.originalPlan
+	}] : [];
+}
+/** The plan that applied in a given week. */
+function planAsOf(g, week) {
+	return planHistoryOf(g).find((v) => week < v.untilWeek)?.plan ?? g.plan;
+}
+/** The goal as it was planned in a given week: number goals take the plan that applied then; others are unchanged. */
+function goalAsOf(g, week) {
+	if (g.kind !== "metric") return g;
+	const plan = planAsOf(g, week);
+	return plan === g.plan ? g : {
+		...g,
+		plan
+	};
+}
 // src/domain/status.ts
 var RANK = {
 	done: 0,
@@ -22168,7 +22189,7 @@ function assessPosted(goal, cycle, checkIns, week) {
 			week: c.week,
 			value: c.value
 		}));
-		return assessMetric(goal, cycle.weeks, at, latest?.value ?? null, series.filter((p) => p.week < at));
+		return assessMetric(goalAsOf(goal, at), cycle.weeks, at, latest?.value ?? null, series.filter((p) => p.week < at));
 	}
 	if (goal.kind === "range") {
 		const prev = own.filter((c) => c.week < at && c.value != null).pop();
@@ -22247,7 +22268,6 @@ function parseNumber(s) {
 	const n = Number(t);
 	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
 }
-/** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
 function withinHundred(goal) {
 	if (!goal) return false;
 	if (goal.kind === "metric") return [
@@ -24137,14 +24157,6 @@ function withPoints(plan, typed, weeks) {
 		points
 	};
 }
-/** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
-function planHistoryOf(g) {
-	if (g.planHistory?.length) return g.planHistory;
-	return g.originalPlan && g.rebaselinedWeek != null ? [{
-		untilWeek: g.rebaselinedWeek,
-		plan: g.originalPlan
-	}] : [];
-}
 /**
 * What a number goal's plan fields become when its plan changes. Once check-ins have started, the plan being replaced is
 * kept with the week it stopped applying, so earlier weeks and closed quarters stay judged against the plan of their day.
@@ -24169,19 +24181,6 @@ function replanned(existing, plan, started, week) {
 		originalPlan: existing.originalPlan ?? existing.plan,
 		rebaselinedWeek: week,
 		planHistory: next
-	};
-}
-/** The plan that applied in a given week. */
-function planAsOf(g, week) {
-	return planHistoryOf(g).find((v) => week < v.untilWeek)?.plan ?? g.plan;
-}
-/** The goal as it was planned in a given week: number goals take the plan that applied then; others are unchanged. */
-function goalAsOf(g, week) {
-	if (g.kind !== "metric") return g;
-	const plan = planAsOf(g, week);
-	return plan === g.plan ? g : {
-		...g,
-		plan
 	};
 }
 // src/domain/importer.ts
