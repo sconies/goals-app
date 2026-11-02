@@ -300,6 +300,11 @@
       "id": "WIDE-SCREENS",
       "area": "Layout",
       "text": "Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it."
+    },
+    {
+      "id": "SAVED-VIEWS",
+      "area": "Goals",
+      "text": "Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name."
     }
   ],
   "notYetBuilt": [
@@ -396,6 +401,12 @@
       "title": "After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope",
       "who": "A goal owner",
       "budget": 16
+    },
+    {
+      "id": "U32",
+      "title": "Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link",
+      "who": "A leader",
+      "budget": 18
     }
   ],
   "easeCriteria": [

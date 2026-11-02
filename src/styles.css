@@ -1007,3 +1007,19 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .page.workspace .split > .split-side { order: 3; }
 
 .block-title .hint { white-space: nowrap; }
+
+/* Goals: search, filters and sort; the active filters as words you can remove. */
+.filterbar { display: flex; flex-direction: column; gap: var(--s2); }
+.filterbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.filter-search { flex: 1 1 260px; min-width: 0; }
+.filter-search .input { width: 100%; }
+.filter-sort { flex: 0 1 240px; }
+.filterbar-actions { display: flex; gap: var(--s2); margin-left: auto; }
+.filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.filter-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--fg); font-size: 13px; font-weight: 550; }
+.filter-chip:hover { border-color: var(--fg-2); }
+.filter-sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s4) var(--s5); }
+.filter-group { display: flex; flex-direction: column; gap: var(--s2); border: 0; padding: 0; margin: 0; min-width: 0; }
+.filter-options { display: flex; flex-wrap: wrap; gap: 6px var(--s3); }
+.view-tab { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (pointer: coarse) { .filter-chip { min-height: 44px; } }

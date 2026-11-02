@@ -7,6 +7,8 @@ import { forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
 import { seed } from '../src/data/seed';
+import { applyQuery, EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../src/domain/query';
+import { summariseAll } from '../src/domain/summary';
 
 const cycle: Cycle = { id: 'c', name: 'Eval cycle', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
 const base = { cycleId: 'c', teamId: 't', ownerId: 'o', io: 'input' as const, level: 'team' as const, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '' };
@@ -203,3 +205,19 @@ describe('numbers people can trust (research round 2)', () => {
   });
 });
 function draftOfUp() { return draftOf(up); }
+
+describe('search, filters and saved views', () => {
+  const day0 = new Date('2026-10-30T12:00:00Z');
+  const s0 = seed(day0);
+  const c0 = s0.cycles[0]!;
+  const w0 = 43;
+  const sums = summariseAll(s0.goals, s0, c0, day0, w0);
+  const ids = (q: Partial<GoalQuery>) => applyQuery(sums, { ...EMPTY_QUERY, ...q }, { goals: s0.goals, cycle: c0, week: w0 }).map((x) => x.goal.id).sort();
+  it(R('SAVED-VIEWS', 'every word of a search must appear somewhere in the goal or its story'), () => expect(ids({ q: 'vendor brain' })).toEqual(['access']));
+  it(R('SAVED-VIEWS', 'a slipped recovery date is a filter of its own'), () => expect(ids({ needs: ['slipped'] })).toEqual(['cfr', 'idle']));
+  it(R('SAVED-VIEWS', 'a link carries the whole query, and reads back the same'), () => {
+    const q: GoalQuery = { ...EMPTY_QUERY, status: ['off'], due: 'quarter', sort: 'due', dir: -1 };
+    expect(parseQuery(new URLSearchParams(queryEntries(q)))).toEqual(q);
+  });
+});
+

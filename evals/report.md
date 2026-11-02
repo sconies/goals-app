@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-02 14:54 UTC.
+Run 2026-11-02 15:10 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -35,6 +35,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 25 | Publish a goal, then post its first check-in straight away | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
 | 30 | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 16) |
 | 31 | After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 13 · 13 (budget 16) |
+| 32 | Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 18) |
 | 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
 | 27 | Take a walkthrough: the coach points the way and moves on as you do each step | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 6 · 6 (budget 10) |
 | 28 | A research session: first glances, a note pinned to the screen, a task result and a report | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
@@ -53,7 +54,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**60 of 60 pass**. Spec scenarios 62/62.
+**61 of 61 pass**. Spec scenarios 65/65.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -117,6 +118,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **RESEARCH** A research hub for people and AI agents: what the app is for, a note that access control is deliberately not built yet, eleven goal-framed tasks, the protocol (first glance, think aloud, every flow and screen, try to break it, evidence and severity), and a report to paste or upload. While a session runs, a research bar asks a first-glance question on each new screen, pins notes to any part of a screen, and records each task as done, stuck or gave up with confidence. Notes are kept in the browser and sent to a table that can’t be read back through the app. | Research | 0 | U28 |
 | ✅ | **HONEST-NUMBERS** Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. | Trust | 5 | U30, U31 |
 | ✅ | **WIDE-SCREENS** Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it. | Layout | 0 | P7 |
+| ✅ | **SAVED-VIEWS** Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. | Goals | 3 | U32 |
 
 ## Platform checks
 

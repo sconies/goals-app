@@ -1175,6 +1175,55 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING'], 'After the week i
   await p.context().close();
 });
 
+journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link', 18, async (h, device) => {
+  const p = h.use(await newPage(device, 'elena'));
+  await p.goto(url('/goals'));
+  const search = p.getByRole('searchbox', { name: 'Search goals' });
+  await h.inView(search, 'entry', 'the search box');
+  // Search finds goals by any word: a title, an owner, a reason.
+  await h.fill(search, 'vendor');
+  await see(p, '1 of 13 goals', 'searching does not say how many goals match');
+  h.set('attention', await p.getByRole('link', { name: /Repo-access controls/ }).first().isVisible().catch(() => false) || (await p.getByText('Repo-access controls for the Brain').count()) > 0, 'a search on the owner’s reason did not find the goal');
+  await h.fill(search, '');
+  // Filters: what needs someone. Then sort, and the same goals in the Table.
+  await h.click(p.getByRole('button', { name: /^Filters/ }));
+  const sheet = p.getByRole('dialog', { name: 'Filter goals' });
+  await h.click(sheet.getByLabel('Recovery date slipped'));
+  await h.checkpoint('filters');
+  await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
+  await see(p, '2 of 13 goals', 'the slipped-date filter does not narrow the goals');
+  await p.getByLabel('Sort').selectOption('due');
+  await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Table' }));
+  await p.locator('.gtable tbody tr').first().waitFor();
+  const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
+  h.set('progress', rows === 2 && (await p.getByRole('button', { name: /Remove filter: Recovery date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
+  // Save it: a name is needed; then it's a tab of its own.
+  await h.click(p.getByRole('button', { name: 'Save view' }));
+  const save = p.getByRole('dialog', { name: 'Save this view' });
+  await h.click(save.getByRole('button', { name: 'Save view' }));
+  h.set('errors', await save.getByRole('alert').filter({ hasText: 'Give the view a name' }).isVisible(), 'saving without a name is not caught');
+  await h.fill(save.getByLabel('Name'), 'Slipped dates');
+  await h.click(save.getByRole('button', { name: 'Save view' }));
+  const tab = p.getByRole('tab', { name: /Slipped dates/ });
+  await tab.waitFor();
+  h.set('finish', (await tab.getAttribute('aria-selected')) === 'true', 'the saved view is not shown as the current one');
+  const s = await h.snapshot();
+  h.set('logged', (s.views ?? []).some((v) => v.name === 'Slipped dates' && v.params.includes('needs=slipped') && v.params.includes('view=table') && !v.deletedAt), 'the view was not saved with its filters and layout');
+  // Back later: plain Goals, then the view's tab brings it all back.
+  await p.goto(url('/goals?view=list'));
+  await h.click(p.getByRole('tab', { name: /Slipped dates/ }));
+  await see(p, '2 of 13 goals', 'opening the saved view did not bring its filters back');
+  // A shared link opens the same goals for anyone.
+  const other = await newPage(device, 'maya');
+  await other.goto(url('/goals?needs=slipped&sort=due'));
+  await see(other, '2 of 13 goals', 'a shared link does not open the same goals');
+  await other.context().close();
+  // Delete it: the tab goes.
+  await p.getByRole('button', { name: 'Delete' }).click();
+  await tab.waitFor({ state: 'detached' });
+  await p.context().close();
+});
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
   await p.goto(url('/goals'));

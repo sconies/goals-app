@@ -1,4 +1,4 @@
-import type { ApiToken, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
+import type { ApiToken, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
 
 export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
@@ -18,6 +18,7 @@ export interface Commit {
   /** Ids of watches to remove. */
   unwatch?: string[];
   tokens?: ApiToken[];
+  views?: SavedView[];
   changes: Change[];
   /** What the save was based on; filled in by withExpectations. A save is refused if any of it has changed since. */
   expect?: Expectations;
@@ -103,6 +104,7 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     cycles: upsert(s.cycles, c.cycles),
     feedback: upsert(s.feedback ?? [], c.feedback),
     tokens: upsert(s.tokens ?? [], c.tokens),
+    views: upsert(s.views ?? [], c.views),
   };
 }
 

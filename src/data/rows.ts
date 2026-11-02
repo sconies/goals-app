@@ -1,6 +1,6 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
-import type { ApiToken, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
+import type { ApiToken, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
 
 type W = { workspace_id: string };
 export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string }
@@ -136,6 +136,9 @@ export const feedbackFromRow = (r: FeedbackRow): Feedback => ({ id: r.id, person
 
 export interface TokenRow extends W { id: string; person_id: string; name: string; token_hash: string; created_by: string; created_at: string; last_used_at: string | null; revoked_at: string | null }
 export const tokenToRow = (ws: string, t: ApiToken): TokenRow => ({ workspace_id: ws, id: t.id, person_id: t.personId, name: t.name, token_hash: t.tokenHash, created_by: t.createdBy, created_at: t.createdAt, last_used_at: t.lastUsedAt, revoked_at: t.revokedAt });
+export interface ViewRow extends W { id: string; person_id: string; name: string; params: string; pinned: boolean; created_at: string; updated_at: string; deleted_at: string | null }
+export const viewToRow = (ws: string, v: SavedView): ViewRow => ({ workspace_id: ws, id: v.id, person_id: v.personId, name: v.name, params: v.params, pinned: v.pinned, created_at: v.createdAt, updated_at: v.updatedAt, deleted_at: v.deletedAt });
+export const viewFromRow = (r: ViewRow): SavedView => ({ id: r.id, personId: r.person_id, name: r.name, params: r.params ?? '', pinned: !!r.pinned, createdAt: iso(r.created_at), updatedAt: iso(r.updated_at), deletedAt: r.deleted_at ? iso(r.deleted_at) : null });
 export const tokenFromRow = (r: TokenRow): ApiToken => ({ id: r.id, personId: r.person_id, name: r.name, tokenHash: r.token_hash, createdBy: r.created_by, createdAt: iso(r.created_at), lastUsedAt: r.last_used_at ? iso(r.last_used_at) : null, revokedAt: r.revoked_at ? iso(r.revoked_at) : null });
 
 /** One save as the payload okr_commit takes: rows for each table, stages per milestone, and what the save expects. */
@@ -154,6 +157,7 @@ export function commitPayload(ws: string, c: import('./store').Commit) {
     watches: (c.watches ?? []).map((x) => watchToRow(ws, x)),
     unwatch: c.unwatch ?? [],
     tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
+    views: (c.views ?? []).map((x) => viewToRow(ws, x)),
     changes: c.changes.map((x) => changeToRow(ws, x)),
     expect: c.expect ? {
       goals: c.expect.goals, reviews: c.expect.reviews,

@@ -265,6 +265,23 @@ export interface Snapshot {
   feedback?: Feedback[];
   /** Personal tokens for AI assistants (the MCP server). */
   tokens?: ApiToken[];
+  /** Saved views of the goals: each person's own, and any an admin pinned for everyone. */
+  views?: SavedView[];
+}
+
+/**
+ * A saved view of the goals: a name, and the search, filters, sort, grouping and layout as a query string (the same one
+ * a shared link carries). It's one person's; an admin can pin one for everyone. Deleting sets deletedAt.
+ */
+export interface SavedView {
+  id: Id;
+  personId: Id;
+  name: string;
+  params: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
 }
 
 /** A personal token an AI assistant uses to act as one person in one workspace. Only its hash is kept. */
