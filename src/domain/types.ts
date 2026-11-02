@@ -80,6 +80,8 @@ interface GoalBase {
   effect: number | null;
   /** Optional: why we expect this goal to help the one it feeds. A hypothesis, not a proven cause. */
   whyHelps?: string;
+  /** Other goals it also helps, beyond the one it feeds: a dotted line on the map, not part of the tree. */
+  alsoHelps?: Id[];
   /** Where the number comes from and who owns that source. */
   source: string;
   definition: string;

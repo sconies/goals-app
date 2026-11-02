@@ -21561,7 +21561,8 @@ function goalToRows(ws, g) {
 			range_limit: g.kind === "range" ? g.range.limit : null,
 			range_margin: g.kind === "range" ? g.range.margin : null,
 			created_at: g.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
-			pending: g.pending ?? null
+			pending: g.pending ?? null,
+			also_helps: g.alsoHelps?.length ? g.alsoHelps : null
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
 			workspace_id: ws,
@@ -21589,7 +21590,8 @@ function goalFromRows(r, stageRows) {
 		definition: r.definition,
 		createdAt: iso(r.created_at),
 		...r.pending ? { pending: r.pending } : {},
-		...r.version != null ? { version: Number(r.version) } : {}
+		...r.version != null ? { version: Number(r.version) } : {},
+		...r.also_helps?.length ? { alsoHelps: r.also_helps } : {}
 	};
 	if (r.kind === "metric") {
 		const op = r.original_plan;
@@ -22457,6 +22459,7 @@ function goalFields(g, l) {
 		Owner: l.person(g.ownerId)?.name ?? g.ownerId,
 		"Feeds into": g.parentId ? l.goal(g.parentId)?.title ?? "—" : "Nothing",
 		"Why it helps": g.parentId ? g.whyHelps || "—" : "—",
+		"Also helps": g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(", ") : "—",
 		Level: LEVEL_LABEL[g.level],
 		Role: g.io === "input" ? "Input" : "Output",
 		Guardrail: g.guardrail ? "Yes" : "No",
@@ -23926,6 +23929,7 @@ function blankGoal(teamId, ownerId, parentId) {
 		parentId,
 		effect: "",
 		whyHelps: "",
+		alsoHelps: [],
 		endWeek: "",
 		points: {},
 		source: "",
@@ -23955,6 +23959,7 @@ function draftOf(g) {
 		guardrail: g.guardrail,
 		effect: g.effect == null ? "" : String(g.effect),
 		whyHelps: g.whyHelps ?? "",
+		alsoHelps: g.alsoHelps ?? [],
 		source: g.source,
 		definition: g.definition
 	});
@@ -24039,6 +24044,7 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 		parentId: d.parentId || null,
 		effect: d.parentId ? parseNumber(d.effect) : null,
 		...d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {},
+		...(d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id).length ? { alsoHelps: (d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id) } : {},
 		source: d.source.trim(),
 		definition: d.definition.trim(),
 		createdAt: base.createdAt
@@ -25620,7 +25626,7 @@ function storyBlock(sm, cycleWeeks) {
 	out.push(`- **By when:** ${st.byWhen ?? "No date given."}`);
 	if (st.needs) out.push(`- **Needs:** ${st.needs}`);
 	if (st.next) out.push(`- **Next step:** ${st.next}`);
-	for (const w of st.warnings) out.push(`- ⚠ ${w}`);
+	for (const w of st.warnings) out.push(`- **Watch out:** ${w}`);
 	return [...out, ""];
 }
 /** A report a leader can read top to bottom: the decisions waiting on people, then every goal that's off, at risk or quiet told in full, results, then the rest. */

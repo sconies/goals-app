@@ -173,6 +173,17 @@ function EditSheet({ goal }: { goal: Goal }) {
               </select>
             </label>
           )}
+          <div className="field"><span className="field-label">Also helps <span className="hint">optional · a dotted line on the map</span></span>
+            {(d.alsoHelps ?? []).length > 0 && (
+              <span className="row" style={{ gap: 'var(--s2)' }}>{(d.alsoHelps ?? []).map((id) => (
+                <span key={id} className="chip tag">{app.goal(id)?.title ?? id} <button type="button" className="linkish small" aria-label={`Remove ${app.goal(id)?.title ?? id}`} onClick={() => set({ alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })}>✕</button></span>
+              ))}</span>
+            )}
+            <select className="input" value="" aria-label="Add a goal it also helps" onChange={(e) => e.target.value && set({ alsoHelps: [...(d.alsoHelps ?? []), e.target.value] })}>
+              <option value="">Add a goal it also helps…</option>
+              {app.snapshot.goals.filter((g) => g.id !== goal.id && g.id !== d.parentId && !(d.alsoHelps ?? []).includes(g.id)).map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+            </select>
+          </div>
           {d.parentId && (
             <label className="field"><span className="field-label">Why do we expect it to help? <span className="hint">optional</span></span>
               <textarea className="input" rows={2} value={d.whyHelps} onChange={(e) => set({ whyHelps: e.target.value })} placeholder="What should change in the goal it feeds, and why" />

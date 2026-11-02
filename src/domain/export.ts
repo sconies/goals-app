@@ -219,7 +219,7 @@ function storyBlock(sm: GoalSummary, cycleWeeks: number): string[] {
   out.push(`- **By when:** ${st.byWhen ?? 'No date given.'}`);
   if (st.needs) out.push(`- **Needs:** ${st.needs}`);
   if (st.next) out.push(`- **Next step:** ${st.next}`);
-  for (const w of st.warnings) out.push(`- ⚠ ${w}`);
+  for (const w of st.warnings) out.push(`- **Watch out:** ${w}`);
   void cycleWeeks;
   return [...out, ''];
 }

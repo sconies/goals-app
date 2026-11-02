@@ -11,14 +11,14 @@ import { MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING } from '../domain/s
 import { isYear, quarterOf, quarters } from '../domain/year';
 import type { DisplayStatus, Goal } from '../domain/types';
 import { Spark, StageSpark } from '../ui/charts';
-import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
+import { Chip, LevelTag, Sheet, StatusShape, WarnMark } from '../ui/bits';
 import { describe, type ChangeSet } from '../domain/changeset';
 import { LEVEL_LABEL } from '../domain/format';
 import type { Level } from '../domain/types';
 import { ExportButton } from './Export';
 
-export type Layout = 'list' | 'table' | 'board' | 'history' | 'cards';
-export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['cards', 'Cards']];
+export type Layout = 'list' | 'table' | 'board' | 'history' | 'cards' | 'map';
+export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['cards', 'Cards'], ['map', 'Map']];
 const KEY = 'goals-app-layout';
 const isLayout = (v: string | null): v is Layout => !!v && LAYOUTS.some(([k]) => k === v);
 
@@ -56,6 +56,7 @@ function LayoutIcon({ k }: { k: Layout }) {
   if (k === 'table') return <svg {...p}><rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2 6.5h12M6 6.5V13" /></svg>;
   if (k === 'board') return <svg {...p}><rect x="2" y="3" width="3.5" height="10" rx="1" /><rect x="6.25" y="3" width="3.5" height="7" rx="1" /><rect x="10.5" y="3" width="3.5" height="5" rx="1" /></svg>;
   if (k === 'history') return <svg {...p}><path d="M2 4h2M6 4h2M10 4h2M2 8h2M6 8h2M10 8h4M2 12h2M6 12h4" strokeWidth="2.2" /></svg>;
+  if (k === 'map') return <svg {...p}><rect x="6" y="1.5" width="4" height="3" rx="0.8" /><rect x="1.5" y="11.5" width="4" height="3" rx="0.8" /><rect x="10.5" y="11.5" width="4" height="3" rx="0.8" /><path d="M8 4.5v3.5M3.5 11.5V8h9v3.5" /></svg>;
   return <svg {...p}><rect x="2" y="2.5" width="5" height="5" rx="1" /><rect x="9" y="2.5" width="5" height="5" rx="1" /><rect x="2" y="9" width="5" height="5" rx="1" /><rect x="9" y="9" width="5" height="5" rx="1" /></svg>;
 }
 
@@ -387,7 +388,7 @@ export function StoryLines({ s, compact }: { s: GoalSummary; compact?: boolean }
   return (
     <div className={'story' + (compact ? ' compact' : '')}>
       {rows.length > 0 && <dl>{rows.map(([k, v]) => <Fragment key={k}><dt>{k}</dt><dd className={v === 'Not given' || v === 'No date given' ? 'tone-off' : undefined}>{v}</dd></Fragment>)}</dl>}
-      {st.warnings.map((w) => <span key={w} className="story-warn"><span aria-hidden="true">⚠ </span>{w}</span>)}
+      {st.warnings.map((w) => <span key={w} className="story-warn"><WarnMark />{w}</span>)}
     </div>
   );
 }

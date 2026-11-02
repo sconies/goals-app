@@ -6,7 +6,7 @@ import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL, weekLabel } from 
 import { valueSeries } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import type { Change, Goal } from '../domain/types';
-import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo } from '../ui/bits';
+import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo, StatusShape } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
@@ -330,7 +330,7 @@ function QuarterStrip({ goal }: { goal: Goal }) {
         {rs.map((r) => (
           <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
             <span className="row between nowrap"><span className="strong">{r.quarter.label} <span className="hint">{r.quarter.months}</span></span>
-              <span className="small strong">{r.kind === 'met' ? '✓ Met' : r.kind === 'missed' ? '✗ Missed' : r.kind === 'open' ? (r.quarter.n === now ? 'Now' : 'To come') : '—'}</span></span>
+              <span className="q-result">{r.kind === 'met' ? <><StatusShape k="on" />Met</> : r.kind === 'missed' ? <><StatusShape k="off" />Missed</> : r.kind === 'open' ? (r.quarter.n === now ? 'Now' : 'To come') : '—'}</span></span>
             <span className="small">{r.text.replace(/^Q\d: /, '')}</span>
           </li>
         ))}

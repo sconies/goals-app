@@ -15,6 +15,11 @@ export function StatusShape({ k }: { k: DisplayStatus }) {
   return <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 2.5" /></svg>;
 }
 
+/** A small warning mark: the app's own shape, not an emoji. */
+export function WarnMark() {
+  return <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8 15 14H1z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M8 6.2v3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><circle cx="8" cy="11.8" r="1" fill="currentColor" /></svg>;
+}
+
 const chipClass = (k: DisplayStatus) => (k === 'none' ? 'planned' : k);
 
 export function Chip({ k, label, className }: { k: DisplayStatus; label?: string; className?: string }) {

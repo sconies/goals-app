@@ -281,7 +281,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <WorkspaceSheet open={sheet === 'workspace'} onClose={() => setSheet(null)} />
       {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} path={pathname} />}
       <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.kind === 'success' ? '✓ ' : ''}{t.text}</div>)}
+        {toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.text}</div>)}
       </div>
     </div>
   );

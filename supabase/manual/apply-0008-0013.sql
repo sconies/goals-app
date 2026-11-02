@@ -1,4 +1,4 @@
--- Paste into Supabase → SQL editor → Run. Applies migrations 0008 to 0012 in one transaction and records them,
+-- Paste into Supabase → SQL editor → Run. Applies migrations 0008 to 0013 in one transaction and records them,
 -- so the CI migrator won't run them again. Safe to run if 0008 was already applied.
 begin;
 -- 0008: a goal can run past its cycle (to the end of the year), and its plan can be set as numbers by hand.
@@ -222,4 +222,8 @@ begin
   perform okr_upsert('okr_changes', p->'changes', 'id', 'nothing');
 end $$;
 insert into okr_schema_migrations (name) values ('0012_ad_hoc_check_ins.sql') on conflict do nothing;
+-- 0013: also-helps links (dotted lines on the goal map).
+-- A goal can also help goals other than the one it feeds: a dotted line on the goal map, not part of the tree.
+alter table okr_goals add column if not exists also_helps jsonb;
+insert into okr_schema_migrations (name) values ('0013_also_helps.sql') on conflict do nothing;
 commit;

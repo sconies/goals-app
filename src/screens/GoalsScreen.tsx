@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodLabel } from '../domain/year';
@@ -8,7 +8,7 @@ import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
 import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
-import { AttentionCard, Chip, Empty } from '../ui/bits';
+import { AttentionCard, Chip, Empty, StatusShape } from '../ui/bits';
 import { GoalLine } from './Home';
 import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
 import { WatchingBody } from './Watching';
@@ -18,6 +18,8 @@ import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
 import { GoalBoard, GoalCards, GoalTable, HistoryGrid, LayoutSwitch, StatusLegend, useLayout, type ViewGroup } from './GoalViews';
 import { ExportButton } from './Export';
+// The map loads only when someone opens it, so the rest of the app stays small.
+const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
 
 type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
@@ -83,11 +85,12 @@ export function GoalsScreen() {
 
       {app.snapshot.goals.length > 0 && <StatusLegend />}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
-      {alt && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><span aria-hidden="true">✓</span> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
+      {alt && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
       {alt && shown.length > 0 && layout === 'cards' && <GoalCards groups={groups} />}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={shown} /></Suspense>}
 
       {!alt && show === 'outcomes' && (
         <>
@@ -111,7 +114,7 @@ export function GoalsScreen() {
 
       {!alt && show === 'attention' && (att.length
         ? <div className="alist">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
-        : <div className="calm"><span aria-hidden="true">✓</span> Nothing is off track, stale or slipping.</div>)}
+        : <div className="calm"><StatusShape k="done" /> Nothing is off track, stale or slipping.</div>)}
 
       {!alt && show === 'levels' && LEVELS.map((l) => {
         const list = app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app));

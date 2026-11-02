@@ -14,6 +14,8 @@ export interface GoalDraft {
   parentId: string;
   effect: string;
   whyHelps: string;
+  /** Other goals it also helps (dotted lines on the map). */
+  alsoHelps: string[];
   /** When the target is due, as a week from the cycle's start; empty means the end of the cycle. */
   endWeek: string;
   /** Plan numbers typed by hand, by checkpoint week. Empty means the shape decides. */
@@ -33,7 +35,7 @@ export interface GoalDraft {
 
 export function blankGoal(teamId: string, ownerId: string, parentId: string): GoalDraft {
   return {
-    kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '', endWeek: '', points: {},
+    kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '', alsoHelps: [], endWeek: '', points: {},
     source: '', definition: '', unit: '%', decimals: '0', start: '', target: '', shape: 'straight',
     bound: 'atMost', limit: '', margin: '1', stages: [{ id: 's1', name: '', dueWeek: '' }],
   };
@@ -43,7 +45,7 @@ export function draftOf(g: Goal): GoalDraft {
   const d = blankGoal(g.teamId, g.ownerId, g.parentId ?? '');
   Object.assign(d, {
     kind: g.kind, title: g.title, io: g.io, level: g.level, guardrail: g.guardrail,
-    effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', source: g.source, definition: g.definition,
+    effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', alsoHelps: g.alsoHelps ?? [], source: g.source, definition: g.definition,
   });
   if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape, endWeek: g.plan.endWeek ? String(g.plan.endWeek) : '', points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])) });
   if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), margin: String(g.range.margin) });
@@ -109,7 +111,7 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
   const common = {
     id: base.id, cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.io,
     level: d.level, guardrail: d.guardrail, parentId: d.parentId || null,
-    effect: d.parentId ? parseNumber(d.effect) : null, ...(d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {}), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
+    effect: d.parentId ? parseNumber(d.effect) : null, ...(d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {}), ...((d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id).length ? { alsoHelps: (d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id) } : {}), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
   };
   const num = (s: string) => parseNumber(s) as number;
   if (d.kind === 'metric') {

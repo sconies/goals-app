@@ -12,7 +12,7 @@ import { periodWord, shortPeriod } from '../domain/year';
 import { assessPosted, LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
 import type { Goal } from '../domain/types';
-import { AttentionCard, Avatar, Dot, ProgressRing } from '../ui/bits';
+import { AttentionCard, Avatar, Dot, ProgressRing, StatusShape } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
 import { TreeRow, worstFirst } from './Inspect';
 
@@ -268,7 +268,7 @@ function AttentionSection({ list, empty, limit = 3, title = 'Needs attention' }:
                 : <Link className="btn sm" to={'/goals/' + a.goal.id}>Open</Link>} />
           ))}
         </div>
-      ) : <div className="calm"><span aria-hidden="true">✓</span> {empty}</div>}
+      ) : <div className="calm"><StatusShape k="done" /> {empty}</div>}
     </section>
   );
 }

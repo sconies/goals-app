@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-02 09:24 UTC.
+Run 2026-11-02 09:43 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -33,6 +33,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 23 | See the year in quarters: where we are, each quarter met or missed, and the year’s history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 6) |
 | 24 | Two people change the same goal at once: the second is told, not overwritten | **10** | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 8) |
 | 25 | Publish a goal, then post its first check-in straight away | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
+| 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -47,7 +48,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**54 of 54 pass**. Spec scenarios 57/57.
+**56 of 56 pass**. Spec scenarios 57/57.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -105,6 +106,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **YEAR** Goals are set for the year: a 52-week goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year. | Cycles | 0 | U18, U23 |
 | ✅ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | U24 |
 | ✅ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | U25 |
+| ✅ | **DESIGN-RULES** The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge. | Design | 0 | P6 |
+| ✅ | **GOAL-MAP** A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold and framed when the map opens. Selecting a goal shows its story beside the map. On a phone the same map is indented, one goal per row. | Views | 0 | U26 |
 
 ## Platform checks
 
@@ -112,6 +115,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **P2** Loading shows a skeleton, and an unreachable database becomes a clear error with Try again
 - ✅ **P3** Every screen on phone: no sideways scroll, no serious accessibility issues, status as shape plus word
 - ✅ **P4** Every screen on desktop: no sideways scroll, no serious accessibility issues, status as shape plus word
+- ✅ **P6** Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules
 - ✅ **P5** No console or page errors across every journey
 
 ## Not built yet

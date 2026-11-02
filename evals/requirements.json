@@ -270,6 +270,16 @@
       "id": "FIRST-CHECKIN",
       "area": "Goals",
       "text": "Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead."
+    },
+    {
+      "id": "DESIGN-RULES",
+      "area": "Design",
+      "text": "The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge."
+    },
+    {
+      "id": "GOAL-MAP",
+      "area": "Views",
+      "text": "A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold and framed when the map opens. Selecting a goal shows its story beside the map. On a phone the same map is indented, one goal per row."
     }
   ],
   "notYetBuilt": [

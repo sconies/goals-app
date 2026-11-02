@@ -150,7 +150,9 @@ export function seed(today: Date): Snapshot {
     triage: 'Requests that are triaged within two days start sooner, which should take days off intake-to-delivery.',
     review: 'AI review catches problems before a human reviewer does, so pull requests merge faster.',
   };
-  const allGoals = goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString(), ...(WHY[g.id] ? { whyHelps: WHY[g.id] } : {}) }));
+  // Two dotted lines: goals that also help one they don't feed.
+  const ALSO: Record<string, string[]> = { cache: ['lead'], idle: ['env'] };
+  const allGoals = goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString(), ...(WHY[g.id] ? { whyHelps: WHY[g.id] } : {}), ...(ALSO[g.id] ? { alsoHelps: ALSO[g.id] } : {}) }));
 
   const postedAt = (week: number) => {
     const planned = start + week * 7 * DAY + 2 * DAY + 10 * 3_600_000;

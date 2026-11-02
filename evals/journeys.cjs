@@ -1050,6 +1050,40 @@ journey('U25', ['FIRST-CHECKIN', 'GOAL-CREATE'], 'Publish a goal, then post its 
   await p.context().close();
 }, ['errors']);
 
+journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'elena'));
+  await p.goto(url('/goals'));
+  await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Map' }));
+  const canvas = p.getByRole('region', { name: /Goal map/ });
+  await canvas.waitFor();
+  await p.locator('.react-flow__node').first().waitFor();
+  // The critical path runs from the north star through the off-track input, and the map opens on it.
+  const onPath = await p.locator('.react-flow__node[aria-label*="critical path"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-id')));
+  h.set('attention', onPath.includes('head') && onPath.includes('access') && !onPath.includes('triage'), `critical path: ${onPath.join(', ')}`);
+  const access = p.locator('.react-flow__node[data-id="access"]');
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await access.boundingBox(), area = await canvas.boundingBox();
+  h.set('entry', !!box && !!area && box.x >= area.x - 1 && box.x + box.width <= area.x + area.width + 1, 'the map does not open on the critical path');
+  await h.checkpoint('map');
+  // A goal opens its story beside the map.
+  await h.click(access);
+  const panel = p.getByRole('complementary', { name: /Repo-access controls/ });
+  await panel.waitFor();
+  h.set('finish', /Why/.test(await panel.innerText()) && /On the critical path/.test(await panel.innerText()) && await panel.getByRole('link', { name: 'Open the goal' }).isVisible(), 'the story panel is missing its why or link');
+  // Fold the branches, then show only what needs attention.
+  const before = await p.locator('.react-flow__node').count();
+  await h.click(p.getByRole('button', { name: 'Fold all' }));
+  const folded = await p.locator('.react-flow__node').count();
+  await h.click(p.getByRole('button', { name: 'Unfold all' }));
+  await h.click(p.getByLabel('Only what needs attention'));
+  const attention = await p.locator('.react-flow__node').count();
+  h.set('progress', folded < before && attention < before && attention >= 3, `nodes: ${before} all, ${folded} folded, ${attention} needing attention`);
+  // Dotted lines for goals that also help others.
+  await h.click(p.getByLabel('Only what needs attention'));
+  h.set('logged', (await p.locator('.react-flow__edge.helps').count()) >= 1, 'no dotted also-helps lines');
+  await p.context().close();
+}, ['errors', 'budget']);
+
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
   const out = [];
@@ -1095,6 +1129,42 @@ async function platformChecks() {
     add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y'] : ['A11Y'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
     await c3.close();
   }
+  // P6: the design rules (docs/design-rules.md), on every screen and every Goals layout, at phone and desktop width.
+  const design = [];
+  for (const [device, vp] of Object.entries(DEVICES)) {
+    const c4 = await browser.newContext({ viewport: vp });
+    const r = await c4.newPage();
+    for (const [who, route] of [['maya', '/'], ['elena', '/'], ['maya', '/goals'], ['maya', '/goals?view=table'], ['maya', '/goals?view=board'], ['maya', '/goals?view=history'], ['maya', '/goals?view=cards'], ['maya', '/goals?view=map'],
+      ['maya', '/goals/head'], ['maya', '/goals/access'], ['elena', '/reviews/weekly'], ['maya', '/watching'], ['kofi', '/quick-check-in'], ['kofi', '/import'], ['maya', '/activity'], ['priya', '/workspace'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['maya', '/retro']]) {
+      await r.goto(url(route));
+      await r.evaluate((w) => localStorage.setItem('goals-app-viewer:example', w), who);
+      await r.reload();
+      await r.waitForTimeout(route.includes('map') ? 700 : 250);
+      const found = await r.evaluate(() => {
+        const out = [];
+        const name = (el) => el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+        for (const el of document.querySelectorAll('body *')) {
+          const b = el.getBoundingClientRect();
+          // Lines themselves (dividers, legend samples) and SVG internals are not boxes.
+          if (b.width <= 4 || b.height <= 4 || el.closest('svg')) continue;
+          const cs = getComputedStyle(el);
+          const sides = ['Top', 'Right', 'Bottom', 'Left'].map((k) => ({ w: parseFloat(cs['border' + k + 'Width']) || 0, c: cs['border' + k + 'Color'], st: cs['border' + k + 'Style'] })).filter((x) => x.w > 0 && x.st !== 'none' && !/rgba\(0, 0, 0, 0\)/.test(x.c));
+          const thick = sides.filter((x) => x.w >= 2);
+          if (thick.length && sides.length < 4) out.push(name(el) + ': a coloured edge on one side');
+          else if (sides.length === 4 && (new Set(sides.map((x) => x.c)).size > 1 || new Set(sides.map((x) => x.w)).size > 1) && thick.length) out.push(name(el) + ': one edge unlike the others');
+          if (/(^|, )[^,]*?([2-9]|\d{2})(\.\d+)?px 0px 0px 0px inset|0px ([2-9]|\d{2})px 0px 0px inset/.test(cs.boxShadow)) out.push(name(el) + ': an inset accent bar');
+          if (/gradient/.test(cs.backgroundImage) && !el.closest('.skeleton')) out.push(name(el) + ': a gradient');
+          if (parseFloat(cs.borderTopLeftRadius) >= 999 && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && /result|status|state|badge/.test(String(el.className)) && !/^\s*\d+\s*$/.test(el.textContent || '')) out.push(name(el) + ': a capsule badge for a state');
+          for (const pseudo of ['::before', '::after']) { const c = getComputedStyle(el, pseudo).content; if (/[⚠✓✗✔❌⭐🔥★]/.test(c)) out.push(name(el) + pseudo + ': a glyph used as an icon'); }
+        }
+        if (/[⚠✓✗✔❌⭐🔥★]/.test(document.body.innerText)) out.push('text: a glyph used as an icon');
+        return [...new Set(out)];
+      });
+      found.forEach((x) => design.push(`${device} ${route}: ${x}`));
+    }
+    await c4.close();
+  }
+  add('P6', ['DESIGN-RULES'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules', !design.length, design.slice(0, 6).join(' | '));
   return out;
 }
 
@@ -1137,7 +1207,7 @@ async function platformChecks() {
     const missed = CRITERIA.filter((k) => scores[k] === false);
     if (missed.length) console.log(`     missed: ${missed.join(', ')}`);
   }
-  const platform = only.length ? [] : await platformChecks();
+  const platform = only.length && !only.includes('PLATFORM') ? [] : await platformChecks();
   platform.forEach((x) => console.log(`${x.pass ? 'PASS' : 'FAIL'} ${x.id} ${x.title}${x.pass ? '' : '\n     ' + x.error}`));
   platform.push({ id: 'P5', reqs: ['NO-ERRORS'], title: 'No console or page errors across every journey', pass: consoleErrors.length === 0, error: consoleErrors.slice(0, 4).join(' | ') || undefined });
   console.log(`${consoleErrors.length ? 'FAIL' : 'PASS'} P5 No console or page errors${consoleErrors.length ? '\n     ' + consoleErrors.slice(0, 4).join('\n     ') : ''}`);

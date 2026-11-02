@@ -20,6 +20,7 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     Owner: l.person(g.ownerId)?.name ?? g.ownerId,
     'Feeds into': g.parentId ? l.goal(g.parentId)?.title ?? '—' : 'Nothing',
     'Why it helps': g.parentId ? g.whyHelps || '—' : '—',
+    'Also helps': g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(', ') : '—',
     Level: LEVEL_LABEL[g.level],
     Role: g.io === 'input' ? 'Input' : 'Output',
     Guardrail: g.guardrail ? 'Yes' : 'No',
