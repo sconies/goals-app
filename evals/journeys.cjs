@@ -643,7 +643,9 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await see(p, 'SRE fortnightly');
   await see(p, 'Every 4 weeks, Fridays');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
-  h.set('attention', await p.locator('.tree .trow').count() >= 2, 'the review does not list its goals');
+  // Exceptions are listed; goals on track with nothing flagged are one named group with a count.
+  const healthyN = Number(((await p.locator('.healthy-group .block-title').innerText().catch(() => '')).match(/(\d+)\s*$/) || ['', '0'])[1]);
+  h.set('attention', (await p.locator('.tree .trow').count()) + healthyN >= 2, 'the review does not list its goals');
   h.set('finish', await p.getByRole('button', { name: /^Start review/ }).isVisible().catch(() => false) || await p.getByText('Next:').isVisible().catch(() => false), 'no way to start the new review');
   const s = await h.snapshot();
   const r = s.reviews.find((x) => x.name === 'SRE fortnightly');
@@ -1256,6 +1258,8 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS'], 'A leader acts on w
   await h.click(p.getByRole('button', { name: /^Ask Jonas for an update/ }));
   await see(p, 'Asked Jonas for an update', 'asking for an update leaves no lasting trace');
   h.set('attention', !(await p.getByRole('button', { name: /^Ask Jonas for an update/ }).isVisible()), 'the ask button is still offered after asking');
+  const s1 = await h.snapshot();
+  h.set('logged', s1.changes.some((c) => c.goalId === 'env' && c.actorId === 'elena' && c.entity === 'note' && c.diffs.some((d) => /could you post an update/.test(d.to))), 'the request for an update was not logged');
   // The table compares: one line of story per goal, Details to open it.
   await p.goto(url('/goals?view=table'));
   const row = p.locator('.story-row').first();
@@ -1278,7 +1282,7 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS'], 'A leader acts on w
   await h.click(p.getByRole('button', { name: 'Start another goal' }));
   h.set('finish', (await p.getByRole('textbox').first().inputValue()) === '', 'Start another goal kept the old draft');
   await p.context().close();
-});
+}, ['entry', 'progress', 'errors']);
 
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
