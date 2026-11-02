@@ -16,6 +16,8 @@ import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Empty } from './ui/bits';
 import { Shell } from './ui/Shell';
+import { Import } from './screens/Import';
+import { QuickCheckIn } from './screens/QuickCheckIn';
 
 export function Routed() {
   const app = useApp();
@@ -25,6 +27,8 @@ export function Routed() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
+        <Route path="/quick-check-in" element={<QuickCheckIn />} />
+        <Route path="/import" element={<Import />} />
         <Route path="/check-in/:goalId" element={<CheckInFlow />} />
         <Route path="/review" element={<ReviewRedirect />} />
         <Route path="/reviews" element={<Reviews />} />

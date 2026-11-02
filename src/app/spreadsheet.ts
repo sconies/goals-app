@@ -67,3 +67,29 @@ export function downloadText(text: string, filename: string, type: string) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** Reads a workbook or CSV of changes: its Goals, Plan and Check-ins sheets, by name or by header. */
+export async function readChanges(file: File): Promise<{ tables: import('../domain/changeset').Tables; sheets: string[] }> {
+  const { records, sheetKind } = await import('../domain/changeset');
+  const tables: import('../domain/changeset').Tables = {};
+  const sheets: string[] = [];
+  const add = (name: string, tsv: string) => {
+    const k = sheetKind(name, tsv);
+    if (!k || tables[k]) return;
+    tables[k] = records(tsv);
+    sheets.push(name);
+  };
+  if (/\.(csv|tsv|txt)$/i.test(file.name)) {
+    const text = await file.text();
+    const tsv = parseTable(text.replace(/^﻿/, '')).map((r) => r.join('\t')).join('\n');
+    add(file.name, tsv);
+    return { tables, sheets };
+  }
+  const { default: readExcelFile } = await import('read-excel-file/browser');
+  const all = (await readExcelFile(file)) as unknown as { sheet: string; data: unknown[][] }[];
+  for (const s of all) {
+    const tsv = toTsv(s.data);
+    if (tsv) add(s.sheet, tsv);
+  }
+  return { tables, sheets };
+}

@@ -69,7 +69,10 @@ export function GoalsScreen() {
       {app.snapshot.goals.length > 0 && (
         <div className="row between view-bar">
           <LayoutSwitch layout={layout} onChange={setLayout} />
-          <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
+          <span className="row" style={{ gap: 'var(--s2)' }}>
+            <Link className="btn sm" to="/import">Import</Link>
+            <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
+          </span>
         </div>
       )}
 

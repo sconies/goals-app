@@ -67,15 +67,15 @@ export const initials = (name: string) => name.split(/\s+/).filter(Boolean).map(
 /** Old spreadsheets had a Profile column; sponsors and coaches there become admins. */
 const OLD_ADMIN_PROFILES = ['sponsor', 'coach', 'goals coach'];
 
-function levelOf(r: Record<string, string>): Level {
+export function levelOf(r: Record<string, string>): Level {
   const v = (r['level'] ?? '').toLowerCase().replace(/[^a-z]/g, '');
   if (v.startsWith('north') || yes(r['headline'] ?? '')) return 'north-star';
   if (v === 'svp' || v.startsWith('senior')) return 'svp';
   return 'team';
 }
-const yes = (s: string) => /^(y|yes|true|1|x)$/i.test(s.trim());
+export const yes = (s: string) => /^(y|yes|true|1|x)$/i.test(s.trim());
 
-function shapeOf(s: string): PlanShape | null {
+export function shapeOf(s: string): PlanShape | null {
   const v = s.trim().toLowerCase();
   if (!v || v.startsWith('straight') || v === 'linear') return 'straight';
   if (v.startsWith('back')) return 'back';

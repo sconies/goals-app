@@ -235,6 +235,16 @@
       "id": "EXPORT",
       "area": "Data",
       "text": "Goals export as an Excel workbook (goals, plan by week, check-ins, notes and actions, people, a README), CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."
+    },
+    {
+      "id": "BULK-IMPORT",
+      "area": "Data",
+      "text": "A workbook or CSV can add or change goals, set plan numbers and add check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet."
+    },
+    {
+      "id": "BULK-EDIT",
+      "area": "Data",
+      "text": "An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log."
     }
   ],
   "notYetBuilt": [

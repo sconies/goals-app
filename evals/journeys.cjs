@@ -826,6 +826,76 @@ journey('U19', ['VIEWS', 'EXPORT'], 'See the same goals as a table, board, histo
   await p.context().close();
 }, ['errors']);
 
+journey('U20', ['BULK-IMPORT'], 'Load a spreadsheet: a new goal, then its past weeks, with every change shown before saving', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'kofi'));
+  await p.goto(url('/goals'));
+  await h.inView(p.getByRole('link', { name: 'Import' }), 'entry', 'Import on the Goals screen');
+  await h.click(p.getByRole('link', { name: 'Import' }));
+  await see(p, 'Load changes from a spreadsheet');
+  await h.checkpoint('import');
+  const csv = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
+  const input = p.getByLabel('Choose a spreadsheet');
+  // A new goal, linked by name.
+  await input.setInputFiles(csv('goals.csv', 'Goal,Owner,Type,Unit,Start,Target,Feeds into\nRunbooks with an owner,Kofi Boateng,metric,%,20,90,Change failure rate\n'));
+  await see(p, '1 new goal');
+  await h.checkpoint('preview');
+  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await see(p, 'Saved: 1 new goal');
+  // Its past weeks: a week in the future is refused, and nothing saves until it's fixed.
+  await p.goto(url('/import'));
+  await input.setInputFiles(csv('history.csv', 'Goal,Week,Value\nRunbooks with an owner,5,20\nRunbooks with an owner,6,20\nRunbooks with an owner,9,20\n'));
+  await see(p, 'hasn’t happened yet', 'a future week was not refused');
+  h.set('errors', await p.getByRole('button', { name: /^Save/ }).isDisabled(), 'Save was allowed with a row that needs fixing');
+  await h.click(p.getByRole('button', { name: 'Choose another file' }));
+  await input.setInputFiles(csv('history.csv', 'Goal,Week,Value\nRunbooks with an owner,5,20\nRunbooks with an owner,6,20\n'));
+  await see(p, '2 check-ins (2 for past weeks)');
+  h.set('attention', await p.getByText('Runbooks with an owner').first().isVisible(), 'the preview does not name the goal');
+  await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
+  await p.waitForURL(/\/goals$/);
+  const s = await h.snapshot();
+  const g = s.goals.find((x) => x.title === 'Runbooks with an owner');
+  const cis = s.checkIns.filter((c) => c.goalId === g?.id);
+  h.set('finish', !!g && g.parentId === 'cfr' && cis.length === 2 && cis.every((c) => c.backfilled), 'the goal or its past weeks were not saved');
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.action === 'imported' && /Loaded a spreadsheet/.test(c.summary)) && s.changes.filter((c) => c.goalId === g?.id).every((c) => c.diffs.some((d) => d.field === 'Via' && d.to === 'Spreadsheet')), 'the import was not logged as coming from a spreadsheet');
+  h.set('progress', true);
+  await p.context().close();
+});
+
+journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and change several goals at once', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'kofi'));
+  await p.goto(url('/'));
+  await h.inView(p.getByRole('link', { name: /all your numbers in one table/ }), 'entry', 'the one-table check-in');
+  await h.click(p.getByRole('link', { name: /all your numbers in one table/ }));
+  const alerts = p.getByLabel(/Alerts auto-triaged by AIOps: this week’s number/);
+  await h.fill(alerts, '30');
+  // Behind plan: the row asks why, and won't post without it.
+  await h.click(p.getByRole('button', { name: 'Post 1 check-in' }));
+  await see(p, 'needs a reason or a path to green');
+  h.set('errors', true);
+  await h.fill(alerts, '42');
+  await h.fill(p.getByLabel(/Build cache hit rate: this week’s number/), '66');
+  await h.checkpoint('grid');
+  h.set('progress', (await p.locator('.qstatus .chip').count()) === 2, 'each row does not show its status as you type');
+  await h.click(p.getByRole('button', { name: 'Post 2 check-ins' }));
+  await see(p, 'Saved: 2 check-ins, 1 replaced');
+  // The table: select two goals and change their level together.
+  await p.goto(url('/goals?view=table'));
+  await h.click(p.getByLabel('Select Alerts auto-triaged by AIOps').first());
+  await h.click(p.getByLabel('Select Build cache hit rate').first());
+  await see(p, '2 selected');
+  await h.click(p.getByRole('button', { name: 'Change level' }));
+  await p.getByRole('dialog').getByLabel('Level').selectOption('svp');
+  await h.checkpoint('bulk level');
+  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Save' }));
+  await see(p, 'Saved: 2 goals changed');
+  const s = await h.snapshot();
+  const posted = s.checkIns.filter((c) => c.week === 7 && ((c.goalId === 'alerts' && c.value === 42) || (c.goalId === 'cache' && c.value === 66)));
+  h.set('finish', posted.length === 2 && ['alerts', 'cache'].every((id) => s.goals.find((g) => g.id === id).level === 'svp'), 'the check-ins or the level change were not saved');
+  h.set('attention', true);
+  h.set('logged', s.changes.filter((c) => c.diffs.some((d) => d.field === 'Via' && d.to === 'Bulk edit')).length >= 4, 'bulk changes were not logged on each goal');
+  await p.context().close();
+});
+
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
   const out = [];

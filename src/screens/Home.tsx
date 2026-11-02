@@ -77,6 +77,7 @@ function MyWeek() {
               <div className="row" style={{ marginTop: 8 }}>
                 <Link className="btn primary big-btn" to="/check-in">{resuming ? 'Pick up where you left off' : 'Start check-in'} →</Link>
               </div>
+              {p.due.filter((g) => g.kind !== 'milestone').length >= 2 && <Link className="linkish small" to="/quick-check-in">Or type all your numbers in one table</Link>}
             </>
           ) : wrapLeft.length ? (
             <>

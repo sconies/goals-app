@@ -9,7 +9,11 @@ import { assessPosted, LABEL, RANK } from '../domain/status';
 import { summarise, weeklyCalls, type GoalSummary } from '../domain/summary';
 import type { DisplayStatus, Goal } from '../domain/types';
 import { Spark, StageSpark } from '../ui/charts';
-import { Chip, LevelTag, StatusShape } from '../ui/bits';
+import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
+import { describe, type ChangeSet } from '../domain/changeset';
+import { LEVEL_LABEL } from '../domain/format';
+import type { Level } from '../domain/types';
+import { ExportButton } from './Export';
 
 export type Layout = 'list' | 'table' | 'board' | 'history' | 'cards';
 export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['cards', 'Cards']];
@@ -78,13 +82,15 @@ function GroupHead({ g, count }: { g: ViewGroup; count: number }) {
 
 type SortKey = 'goal' | 'owner' | 'status' | 'gap' | 'last';
 const COLS: [SortKey | null, string, string][] = [
-  ['goal', 'Goal', ''], ['owner', 'Owner', 'col-opt'], ['status', 'Status', ''], [null, 'Now', 'num'], [null, 'Target', 'num col-opt'], ['gap', 'Gap', ''], [null, 'Trend', 'col-opt'],
+  ['goal', 'Goal', ''], ['owner', 'Owner', 'col-opt'], ['status', 'Status', ''], [null, 'Now', 'num'], [null, 'Target', 'num col-opt'], ['gap', 'Gap', 'col-opt'], [null, 'Trend', 'col-opt'],
 ];
 
 export function GoalTable({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
   const sums = useSummaries(groups);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const toggle = (ids: string[], on: boolean) => setSel((s0) => { const n = new Set(s0); ids.forEach((id) => (on ? n.add(id) : n.delete(id))); return n; });
   const cmp = (a: GoalSummary, b: GoalSummary) => {
     if (!sort) return 0;
     const v = {
@@ -110,6 +116,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
               <table className="gtable">
                 <thead>
                   <tr>
+                    <th scope="col" className="selcol"><input type="checkbox" aria-label={`Select every goal in ${g.title}`} checked={rows.every((r) => sel.has(r.goal.id))} onChange={(e) => toggle(rows.map((r) => r.goal.id), e.target.checked)} /></th>
                     {COLS.map(([k, label, cls]) => (
                       <th key={label} scope="col" className={cls} aria-sort={k && sort?.key === k ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
                         {k ? <button type="button" className="sortbtn" onClick={() => click(k)}>{label}{sort?.key === k ? <span aria-hidden="true">{sort.dir === 1 ? ' ↑' : ' ↓'}</span> : null}</button> : label}
@@ -119,7 +126,8 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                 </thead>
                 <tbody>
                   {rows.map(({ goal, depth, s }) => (
-                    <tr key={goal.id} data-tone={s.status}>
+                    <tr key={goal.id} data-tone={s.status} className={sel.has(goal.id) ? 'selected' : undefined}>
+                      <td className="selcol"><input type="checkbox" aria-label={`Select ${goal.title}`} checked={sel.has(goal.id)} onChange={(e) => toggle([goal.id], e.target.checked)} /></td>
                       <td className="gt-goal" style={!sort && depth ? { paddingLeft: `calc(var(--s3) + ${depth * 16}px)` } : undefined}>
                         <Link to={'/goals/' + goal.id}>{goal.title}</Link><LevelTag level={goal.level} />
                       </td>
@@ -127,7 +135,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                       <td><Chip k={s.status} /><span className="hint gt-plan">{s.lastWeek != null ? `Last: week ${s.lastWeek}` : app.week > 0 ? 'No check-in yet' : ''}</span></td>
                       <td className="num">{s.now}{s.planNow != null && <span className="hint gt-plan">plan {s.planNowText}</span>}</td>
                       <td className="num col-opt">{s.target}</td>
-                      <td className={'tone-' + s.gapTone + ' small'}>{s.gap}</td>
+                      <td className={'col-opt tone-' + s.gapTone + ' small'}>{s.gap}</td>
                       <td className="col-opt"><Trend s={s} /></td>
                     </tr>
                   ))}
@@ -137,6 +145,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
           </section>
         );
       })}
+      {sel.size > 0 && <BulkBar ids={[...sel]} onClear={() => setSel(new Set())} />}
     </>
   );
 }
@@ -278,5 +287,68 @@ export function GoalCards({ groups }: { groups: ViewGroup[] }) {
         );
       })}
     </>
+  );
+}
+
+/* ---------- bulk actions on the selected goals ---------- */
+
+function BulkBar({ ids, onClear }: { ids: string[]; onClear: () => void }) {
+  const app = useApp();
+  const [sheet, setSheet] = useState<'owner' | 'level' | null>(null);
+  const goals = ids.map((id) => app.goal(id)).filter((g): g is Goal => !!g);
+  const watch = async () => {
+    for (const g of goals) await app.watch('goal', g.id);
+    app.toast(`Watching ${goals.length} ${goals.length === 1 ? 'goal' : 'goals'}`);
+  };
+  return (
+    <div className="selbar" role="region" aria-label="Selected goals">
+      <span className="strong">{goals.length} selected</span>
+      <button type="button" className="btn sm" onClick={() => setSheet('owner')}>Change owner</button>
+      <button type="button" className="btn sm" onClick={() => setSheet('level')}>Change level</button>
+      <button type="button" className="btn sm" onClick={() => void watch()}>Watch</button>
+      <ExportButton goals={goals} viewName="Selected" />
+      <button type="button" className="btn ghost sm" onClick={onClear}>Clear</button>
+      {sheet && <BulkSheet kind={sheet} goals={goals} onClose={() => setSheet(null)} onDone={onClear} />}
+    </div>
+  );
+}
+
+function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; goals: Goal[]; onClose: () => void; onDone: () => void }) {
+  const app = useApp();
+  const [value, setValue] = useState('');
+  const [cs, setCs] = useState<ChangeSet | null>(null);
+  const [busy, setBusy] = useState(false);
+  const levels: Level[] = ['north-star', 'svp', 'team'];
+  const save = async () => {
+    if (!value) return;
+    const res = app.previewChanges({ goals: goals.map((g, i) => ({ __row: String(i + 2), id: g.id, ...(kind === 'owner' ? { owner: app.person(value)?.name ?? '' } : { level: value === 'north-star' ? 'north star' : value }) })) }, 'bulk');
+    setCs(res);
+    if (!res.commit) return;
+    setBusy(true);
+    try {
+      await app.applyChanges(res);
+      app.toast(`Saved: ${describe(res).toLowerCase()}`);
+      onDone();
+      onClose();
+    } catch { setBusy(false); }
+  };
+  const errors = cs?.issues.filter((x) => x.severity === 'error') ?? [];
+  return (
+    <Sheet open onClose={onClose} title={`${kind === 'owner' ? 'Change the owner of' : 'Change the level of'} ${goals.length} ${goals.length === 1 ? 'goal' : 'goals'}`}>
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <label className="field"><span className="field-label">{kind === 'owner' ? 'New owner' : 'Level'}</span>
+          <select className="input" value={value} onChange={(e) => { setValue(e.target.value); setCs(null); }}>
+            <option value="">Choose…</option>
+            {kind === 'owner' ? app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>) : levels.map((l) => <option key={l} value={l}>{LEVEL_LABEL[l]}</option>)}
+          </select>
+        </label>
+        <span className="hint">{app.viewer.admin ? 'As an admin you can change any goal.' : 'You can change the goals you own. Leave others out of the selection.'} Each change is logged on its goal.</span>
+        {errors.length > 0 && (
+          <ul className="issue-list" role="alert">{errors.map((x, i) => <li key={i}><span className="label">{x.goal}</span><span>{x.message}</span></li>)}</ul>
+        )}
+        {cs && !cs.items.length && !errors.length && <span className="hint" role="status">Nothing changes: they already have that {kind}.</span>}
+        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={!value || busy}>{busy ? 'Saving…' : 'Save'}</button></div>
+      </form>
+    </Sheet>
   );
 }

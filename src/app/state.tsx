@@ -8,6 +8,7 @@ import type { CheckIn, Cycle, Decision, Goal, Person, Retro, Review, Snapshot, T
 import { makesLoop } from '../domain/tree';
 import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
 import { applyCommit, EXAMPLE, newId, type Commit, type Mode, type Store } from '../data/store';
+import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
 
 export interface Toast {
   id: number;
@@ -63,6 +64,10 @@ export interface AppState {
   sendFeedback(mood: 'good' | 'meh' | 'bad', text: string, path: string): Promise<void>;
   /** Admins: start the next cycle with the goals that carry on. Returns the new cycle's name. */
   startNextCycle(): Promise<string>;
+  /** Works out what a set of rows would change (from a spreadsheet, the bulk grid or a table action), without saving. */
+  previewChanges(tables: Tables, via: Via, reason?: string): ChangeSet;
+  /** Saves a change set worked out by previewChanges: all of it, or none. */
+  applyChanges(cs: ChangeSet): Promise<void>;
   /** Now, as an ISO timestamp on the app's today. Use for anything saved. */
   stamp(): string;
   toasts: Toast[];
@@ -304,6 +309,11 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       sendFeedback: async (mood, text, path) => {
         await commit({ feedback: [{ id: newId('fb'), personId: viewer.id, path, mood, text: text.trim(), at: stamp() }], changes: [] });
+      },
+      previewChanges: (tables, via, reason) => planChanges({ tables, snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, via, reason }),
+      applyChanges: async (cs) => {
+        if (!cs.commit) throw new Error('These changes can’t be saved yet.');
+        await commit(cs.commit);
       },
       startNextCycle: async () => {
         const at = stamp();

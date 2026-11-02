@@ -31,6 +31,8 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     f.Start = fmt(g.plan.start, g);
     f.Target = fmt(g.plan.target, g);
     f['Plan shape'] = shapeName[g.plan.shape];
+    f['Target due'] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : '—';
+    f['Plan numbers'] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(', ') : '—';
   }
   if (g.kind === 'range') {
     f.Limit = (g.range.bound === 'atMost' ? 'At most ' : 'At least ') + fmt(g.range.limit, g);
