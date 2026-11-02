@@ -1,6 +1,6 @@
 /* The walkthrough coach: a small card saying what to do next, and a ring round the thing to use. You do the steps
    yourself; it notices and moves on. */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { readTour, TOURS, writeTour, type TourState } from '../app/tours';
 
@@ -21,6 +21,11 @@ function hidesTarget(r: DOMRect): boolean {
 export function Coach() {
   const [state, setState] = useState<TourState | null>(readTour);
   const [ring, setRing] = useState<DOMRect | null>(null);
+  const [missing, setMissing] = useState(false);
+  // A step that's done on reaching a page only counts once you've been somewhere else since it began, so starting a
+  // walkthrough while already on that page doesn't skip the step.
+  const away = useRef(false);
+  useEffect(() => { away.current = false; }, [state?.id, state?.step]);
   const { pathname, search } = useLocation();
   useEffect(() => {
     const on = () => setState(readTour());
@@ -34,12 +39,17 @@ export function Coach() {
   useEffect(() => {
     if (!tour || !step || !state) { setRing(null); return; }
     const tick = () => {
-      const el = find(step.target);
+      // When the step's target isn't there (the demo has moved on), point at its alternative and say why.
+      const main = find(step.target);
+      const alt = !main && step.ifMissing ? find(step.ifMissing.target) : null;
+      setMissing(!main && !!step.ifMissing);
+      const el = main ?? alt;
       setRing(el ? el.getBoundingClientRect() : null);
       const d = step.doneWhen;
       if (!d) return;
       const route = pathname + search;
-      const done = (d.route && d.route.test(route)) || (d.selector && !!document.querySelector(d.selector)) || (d.text && document.body.innerText.includes(d.text));
+      if (d.route && !d.route.test(route)) away.current = true;
+      const done = (d.route && away.current && d.route.test(route)) || (d.selector && !!document.querySelector(d.selector)) || (d.text && document.body.innerText.includes(d.text));
       if (done) writeTour({ id: tour.id, step: state.step + 1 });
     };
     tick();
@@ -55,7 +65,7 @@ export function Coach() {
       <aside className={'coach' + (ring && hidesTarget(ring) ? ' at-top' : '')} role="dialog" aria-modal="false" aria-label={`Walkthrough: ${tour.title}`}>
         <span className="coach-head"><span className="label">{tour.role} · step {state.step + 1} of {tour.steps.length}</span><button type="button" className="linkish small" onClick={() => writeTour(null)}>End</button></span>
         <span className="coach-title">{tour.title}</span>
-        <p className="coach-say" aria-live="polite">{step.say}</p>
+        <p className="coach-say" aria-live="polite">{missing && step.ifMissing ? step.ifMissing.say : step.say}</p>
         <span className="row" style={{ gap: 'var(--s2)' }}>
           {state.step > 0 && <button type="button" className="btn sm" onClick={() => writeTour({ id: tour.id, step: state.step - 1 })}>Back</button>}
           {last

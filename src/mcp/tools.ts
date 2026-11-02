@@ -1,6 +1,7 @@
 /* The MCP tools: what an AI assistant can read and change, acting as one person through their personal token.
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
+import { applyQuery, parseQuery } from '../domain/query';
 import type { Commit } from '../data/store';
 import { describe, planChanges, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { aiBrief, toCsv, toJson, workbook } from '../domain/export';
@@ -126,19 +127,29 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'find_goals',
     title: 'Find goals',
-    description: 'List goals in the current cycle with their status, latest number, this week’s plan, target and gap. Filter by words in the name, owner, status or level, or just your own.',
+    description: 'List goals in the current cycle with their status, latest number, this week’s plan, target and gap. Filter by words in the name, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       text: str('Words in the goal’s name.'),
       owner: str('Part of the owner’s name.'),
       status: str('Only goals with this status.', { enum: STATUSES }),
       level: str('Only goals at this level.', { enum: LEVELS }),
       mine: bool('Only goals you own.'),
+      query: str('A Goals link’s query string, e.g. "status=off,risk&needs=decision,slipped&due=quarter&sort=gap". Keys: q, status (off, risk, stale, on, done, planned), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), needs (decision, no-recovery, slipped, missed-date, greener), due (quarter or a week), quiet (weeks), qtr (met, missed), result (completed, late, missed, open), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).'),
+      view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
     } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       const has = (s: string, q: unknown) => !q || s.toLowerCase().includes(String(q).toLowerCase());
-      const list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week)
+      let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ''))) : null;
+      if (a.view) {
+        const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+        if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
+        query = parseQuery(new URLSearchParams(v.params));
+      }
+      let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week)
         .filter((s) => has(s.goal.title, a.text) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+      // The same search, filters and sort as the Goals screen (domain/query.ts).
+      if (query) list = applyQuery(list, query, { goals: ctx.snapshot.goals, cycle: ctx.cycle, week: ctx.week });
       const data = list.map((s) => ({ id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
       return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: data }, text: data.length ? data.map((g) => `${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ''} · ${g.gap}`).join('\n') : 'No goals match.' };
     },

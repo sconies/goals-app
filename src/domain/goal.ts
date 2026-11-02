@@ -1,7 +1,7 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
-import { planAt, planCheckpoints, planEnd } from './plan';
-import type { Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape, PlanVersion } from './types';
+import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
+import type { Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape } from './types';
 
 export interface GoalDraft {
   kind: GoalKind;
@@ -152,12 +152,6 @@ export function withPoints(plan: MetricPlan, typed: Record<string, string>, week
   return { ...base, points };
 }
 
-/** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
-export function planHistoryOf(g: MetricGoal): PlanVersion[] {
-  if (g.planHistory?.length) return g.planHistory;
-  return g.originalPlan && g.rebaselinedWeek != null ? [{ untilWeek: g.rebaselinedWeek, plan: g.originalPlan }] : [];
-}
-
 /**
  * What a number goal's plan fields become when its plan changes. Once check-ins have started, the plan being replaced is
  * kept with the week it stopped applying, so earlier weeks and closed quarters stay judged against the plan of their day.
@@ -171,14 +165,15 @@ export function replanned(existing: MetricGoal, plan: MetricPlan, started: boole
   return { originalPlan: existing.originalPlan ?? existing.plan, rebaselinedWeek: week, planHistory: next };
 }
 
-/** The plan that applied in a given week. */
-export function planAsOf(g: MetricGoal, week: number): MetricPlan {
-  return planHistoryOf(g).find((v) => week < v.untilWeek)?.plan ?? g.plan;
-}
+export { goalAsOf, planAsOf, planHistoryOf } from './plan';
 
-/** The goal as it was planned in a given week: number goals take the plan that applied then; others are unchanged. */
-export function goalAsOf<G extends Goal>(g: G, week: number): G {
-  if (g.kind !== 'metric') return g;
-  const plan = planAsOf(g, week);
-  return plan === g.plan ? g : { ...g, plan };
+/**
+ * A percentage goal planned past 100% is either growth (fine) or a share like coverage that can't pass 100% (a mistake).
+ * Only the person setting it up knows which, so ask, in the same words everywhere a goal is set.
+ */
+export function overHundredHint(unit: string, start: string, target: string): string | null {
+  if (unit.trim() !== '%') return null;
+  const s = parseNumber(start), t = parseNumber(target);
+  if ((s == null || s <= 100) && (t == null || t <= 100)) return null;
+  return 'Over 100%. Fine for growth; but if this is a share of something (coverage, adoption), it can’t pass 100%, so check the target.';
 }

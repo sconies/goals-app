@@ -86,6 +86,8 @@ export function goalResult(g: Goal, cycle: Cycle, checkIns: CheckIn[], week: num
 
 /* ---------- the story ---------- */
 
+export type StoryFlag = 'no-recovery' | 'missed-date' | 'slipped' | 'same-cause' | 'greener' | 'overdue' | 'trend' | 'missed-quarter';
+
 export interface Story {
   status: DisplayStatus;
   /** "Off track since week 6", "At risk for 3 weeks". */
@@ -103,6 +105,8 @@ export interface Story {
   next: string | null;
   /** What the numbers would otherwise hide. */
   warnings: string[];
+  /** The same warnings as kinds, for filtering. */
+  flags: StoryFlag[];
   feeds: string | null;
   result: Result | null;
   /** In a goal year: each quarter against the plan (met, missed, open). */
@@ -122,6 +126,8 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   const behind = BEHIND.includes(status);
   const result = goalResult(g, cycle, s.checkIns, week);
   const warnings: string[] = [];
+  const flags: StoryFlag[] = [];
+  const warn = (kind: StoryFlag, text: string) => { flags.push(kind); warnings.push(text); };
 
   // How long it's been in this state: consecutive check-ins with the same call.
   let since: string | null = null;
@@ -180,23 +186,23 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
         : null;
       needs = ptg.needs?.trim() || null;
     }
-    if (!ptg) warnings.push('No recovery plan: it is behind and the owner hasn’t said how it gets back.');
-    if (ptg && ptg.byWeek != null && ptg.byWeek < week) warnings.push(`Missed its own date: said it would be back on plan by week ${ptg.byWeek}.`);
+    if (!ptg) warn('no-recovery', 'No recovery plan: it is behind and the owner hasn’t said how it gets back.');
+    if (ptg && ptg.byWeek != null && ptg.byWeek < week) warn('missed-date', `Missed its own date: said it would be back on plan by week ${ptg.byWeek}.`);
     // A date that keeps moving: the first date given in this run of weeks behind, against today's.
     let k = own.length - 1;
     while (k > 0 && BEHIND.includes(own[k - 1]!.status)) k--;
     const firstDate = own.slice(k).map((c) => c.pathToGreen?.byWeek).find((w) => w != null);
-    if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warnings.push(`The date has slipped: first said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
+    if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warn('slipped', `The date has slipped: first said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
     const run = own.slice(k);
-    if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warnings.push(`The same cause three check-ins running: ${causeLabel(last.cause).toLowerCase()}.`);
+    if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warn('same-cause', `The same cause three check-ins running: ${causeLabel(last.cause).toLowerCase()}.`);
   }
-  if (st.greener && last && status !== 'stale') warnings.push(`Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : '.'}`);
-  if (status === 'stale' && last) warnings.push(`Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== 'milestone' ? ` at ${fmt(last.value, g)}` : ''}. An update is overdue.`);
-  if (fc?.warn && !behind && status !== 'done') warnings.push('Called on track, but the recent trend misses the target.');
-  if (lastEnded?.kind === 'missed' && !result) warnings.push(`Missed its ${lastEnded.text.replace(/^Q(\d): /, 'Q$1 plan: ')}.`);
+  if (st.greener && last && status !== 'stale') warn('greener', `Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : '.'}`);
+  if (status === 'stale' && last) warn('overdue', `Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== 'milestone' ? ` at ${fmt(last.value, g)}` : ''}. An update is overdue.`);
+  if (fc?.warn && !behind && status !== 'done') warn('trend', 'Called on track, but the recent trend misses the target.');
+  if (lastEnded?.kind === 'missed' && !result) warn('missed-quarter', `Missed its ${lastEnded.text.replace(/^Q(\d): /, 'Q$1 plan: ')}.`);
 
   const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
   const feeds = parent ? `Feeds ${parent.title}${parent.level !== 'team' ? ` (${LEVEL_LABEL[parent.level]})` : ''}` : null;
   const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
-  return { status, since, where, outlook, why, doing, byWhen, needs, next: (behind || status === 'on') && last?.next ? last.next : null, warnings, feeds, result, quarters, label };
+  return { status, since, where, outlook, why, doing, byWhen, needs, next: (behind || status === 'on') && last?.next ? last.next : null, warnings, flags, feeds, result, quarters, label };
 }

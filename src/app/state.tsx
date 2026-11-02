@@ -73,6 +73,12 @@ export interface AppState {
   createToken(personId: string, name: string): Promise<string>;
   /** Admins, or the token's person: stop a token working. */
   revokeToken(id: string): Promise<void>;
+  /** Save a view of the goals (new, or one of yours renamed or changed). Returns its id. */
+  saveView(v: { id?: string; name: string; params: string }): Promise<string>;
+  /** Delete one of your views; an admin can also delete a pinned one. */
+  deleteView(id: string): Promise<void>;
+  /** Admins: show a view to everyone in the workspace, or stop. */
+  pinView(id: string, pinned: boolean): Promise<void>;
   /** Now, as an ISO timestamp on the app's today. Use for anything saved. */
   stamp(): string;
   toast(text: string, kind?: Toast['kind']): void;
@@ -385,6 +391,31 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         const who = lookup.person(personId)?.name ?? 'someone';
         await commit({ tokens: [t], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'person', entityId: personId, action: 'created', summary: `Gave ${who} an AI assistant token: “${t.name}”`, diffs: [{ field: 'AI assistant token', from: '—', to: t.name }] }] });
         return token;
+      },
+      saveView: async ({ id, name, params }) => {
+        const clean = name.trim().slice(0, 80);
+        if (!clean) throw new Error('Give the view a name.');
+        const old = id ? (snapshot.views ?? []).find((x) => x.id === id && !x.deletedAt) : undefined;
+        if (old && old.personId !== viewer.id && !viewer.admin) throw new Error('Only its owner or an admin can change this view.');
+        const at = stamp();
+        const v = old ? { ...old, name: clean, params, updatedAt: at } : { id: newId('view'), personId: viewer.id, name: clean, params, pinned: false, createdAt: at, updatedAt: at, deletedAt: null };
+        // A personal view changes no goal, so it isn't logged; a pinned one changes what everyone sees, so it is.
+        await commit({ views: [v], changes: old?.pinned ? [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'workspace', entityId: v.id, action: 'edited', summary: `Changed the pinned view “${clean}”`, diffs: [{ field: 'Pinned view', from: old.name, to: clean }] }] : [] });
+        return v.id;
+      },
+      deleteView: async (id) => {
+        const v = (snapshot.views ?? []).find((x) => x.id === id && !x.deletedAt);
+        if (!v) return;
+        if (v.personId !== viewer.id && !(viewer.admin && v.pinned)) throw new Error('Only its owner, or an admin for a pinned view, can delete this view.');
+        const at = stamp();
+        await commit({ views: [{ ...v, deletedAt: at, updatedAt: at }], changes: v.pinned ? [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'workspace', entityId: v.id, action: 'edited', summary: `Removed the pinned view “${v.name}”`, diffs: [{ field: 'Pinned view', from: v.name, to: '—' }] }] : [] });
+      },
+      pinView: async (id, pinned) => {
+        if (!viewer.admin) throw new Error('Only admins can pin a view for everyone.');
+        const v = (snapshot.views ?? []).find((x) => x.id === id && !x.deletedAt);
+        if (!v || v.pinned === pinned) return;
+        const at = stamp();
+        await commit({ views: [{ ...v, pinned, updatedAt: at }], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'workspace', entityId: v.id, action: 'edited', summary: pinned ? `Pinned the view “${v.name}” for everyone` : `Unpinned the view “${v.name}”`, diffs: [{ field: 'Pinned view', from: pinned ? '—' : v.name, to: pinned ? v.name : '—' }] }] });
       },
       revokeToken: async (id) => {
         const t = (snapshot.tokens ?? []).find((x) => x.id === id);

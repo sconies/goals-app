@@ -79,6 +79,16 @@ describe('database save functions, as the public user', () => {
     expect(await count('okr_check_ins', `goal_id = '${g.id}' and week = 43`)).toBe(2);
   });
 
+  it('saves a view with the rest of a save, and keeps a deleted one as deleted (0016)', async () => {
+    const person = snap.people[0]!.id;
+    const v = { id: 'view_rpc_1', personId: person, name: 'Off track in Product', params: 'status=off&team=t1', pinned: false, createdAt: now.toISOString(), updatedAt: now.toISOString(), deletedAt: null };
+    await commit({ views: [v], changes: [] });
+    await commit({ views: [{ ...v, pinned: true, deletedAt: now.toISOString() }], changes: [] });
+    const rows = (await db.query<{ name: string; params: string; pinned: boolean; deleted_at: string | null }>('select name, params, pinned, deleted_at from okr_views where id = $1', ['view_rpc_1'])).rows;
+    expect(rows).toEqual([expect.objectContaining({ name: 'Off track in Product', params: 'status=off&team=t1', pinned: true })]);
+    expect(rows[0]!.deleted_at).not.toBeNull();
+  });
+
   it('logs a retried save only once', async () => {
     const entry = { id: 'chg_rpc_retry', at: now.toISOString(), actorId: snap.people[0]!.id, goalId: null, entity: 'note' as const, entityId: 'n1', action: 'noted' as const, summary: 'Commented', diffs: [] };
     await commit({ changes: [entry] });

@@ -12,15 +12,25 @@ export function WorkspaceHome() {
   const [confirming, setConfirming] = useState(false);
   const [editing, setEditing] = useState<Person | 'new' | null>(null);
   const admin = app.viewer.admin;
-  const groups = [...app.snapshot.teams.map((t) => [t.name, app.snapshot.people.filter((x) => x.teamId === t.id)] as const), ['No team', app.snapshot.people.filter((x) => !x.teamId || !app.team(x.teamId))] as const].filter(([, l]) => l.length);
+  // A directory that works for a whole company: find by name, role or team, filter by team, and show a page at a time.
+  const [q, setQ] = useState('');
+  const [teamId, setTeamId] = useState('');
+  const [limit, setLimit] = useState(60);
+  const needle = q.trim().toLowerCase();
+  const match = (x: Person) => (!teamId || (teamId === '-' ? !x.teamId || !app.team(x.teamId) : x.teamId === teamId))
+    && (!needle || [x.name, x.role ?? '', app.team(x.teamId ?? '')?.name ?? ''].some((v) => v.toLowerCase().includes(needle)));
+  const found = app.snapshot.people.filter(match);
+  const shown = new Set(found.slice(0, limit).map((x) => x.id));
+  const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id && shown.has(x.id))] as const), ['No team', found.filter((x) => (!x.teamId || !app.team(x.teamId)) && shown.has(x.id))] as const].filter(([, l]) => l.length);
   const admins = app.snapshot.people.filter((p) => p.admin);
   return (
-    <div className="page narrow">
+    <div className="page workspace">
       <div className="page-head">
         <h1 className="title-xl">Workspace</h1>
         <span className="hint">{app.mode === 'demo' ? 'The example, and any you set up here to try it. All of it stays in this browser.' : 'Each workspace has its own people, goals, cycle and change log.'}</span>
       </div>
-      <section className="block">
+      <div className="split">
+      <section className="block split-a">
         <div className="glist">
           {app.workspaces.map((w) => (
             <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => app.switchWorkspace(w.id)}>
@@ -38,12 +48,28 @@ export function WorkspaceHome() {
             : <button className="btn" onClick={() => setConfirming(true)}>Reset the example</button>)}
         </div>
       </section>
-      <section className="block">
+      <aside className="split-side" aria-label="Settings">
+        <AiAssistants />
+        {admin && <FeedbackList />}
+        {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
+      </aside>
+      <section className="block split-b">
         <div className="row between">
-          <h2 className="block-title">People in {app.ws.name}</h2>
+          <h2 className="block-title">People in {app.ws.name} <span className="hint">· {app.snapshot.people.length}</span></h2>
           {admin && <button className="btn" onClick={() => setEditing('new')}>Add a person</button>}
         </div>
         <p className="hint">{admin ? 'You’re an admin: you can add people, change their details and make others admins.' : `Admins can add people: ${admins.map((p) => p.name).join(', ') || 'no one yet'}.`}</p>
+        <div className="row directory-find">
+          <label className="field" style={{ flex: '2 1 220px' }}><span className="sr">Find a person</span><input className="input" type="search" placeholder="Find by name, role or team" value={q} onChange={(e) => { setQ(e.target.value); setLimit(60); }} /></label>
+          <label className="field" style={{ flex: '1 1 160px' }}><span className="sr">Team</span>
+            <select className="input" value={teamId} onChange={(e) => { setTeamId(e.target.value); setLimit(60); }}>
+              <option value="">Every team</option>
+              {app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <option value="-">No team</option>
+            </select>
+          </label>
+        </div>
+        {(needle || teamId) && <p className="hint" role="status">{found.length === 0 ? 'No one matches.' : `${found.length} ${found.length === 1 ? 'person matches' : 'people match'}.`}</p>}
         {groups.map(([team, list]) => (
           <div key={team} className="stack" style={{ gap: 'var(--s1)', marginTop: 'var(--s3)' }}>
             <span className="label">{team} · {list.length}</span>
@@ -57,10 +83,9 @@ export function WorkspaceHome() {
             </div>
           </div>
         ))}
+        {found.length > limit && <button type="button" className="btn" onClick={() => setLimit((n) => n + 60)}>Show {Math.min(60, found.length - limit)} more of {found.length - limit}</button>}
       </section>
-      <AiAssistants />
-      {admin && <FeedbackList />}
-      {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
+      </div>
       {editing && <PersonSheet person={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
   );

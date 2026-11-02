@@ -62,6 +62,17 @@ describe('MCP server', () => {
     expect((await call('get_goal', { goal_id: 'nope' })).isError).toBe(true);
   });
 
+  it('finds goals with the Goals screen’s filters, by a link’s query or a saved view’s name', async () => {
+    const { call, data } = await setup();
+    const ids = (r: Awaited<ReturnType<typeof call>>) => (r.structuredContent!.goals as { id: string }[]).map((g) => g.id).sort();
+    expect(ids(await call('find_goals', { query: 'needs=slipped' }))).toEqual(['cfr', 'idle']);
+    // A whole link works too; the part before ? is ignored.
+    expect(ids(await call('find_goals', { query: 'https://x/goals?status=stale&view=table' }))).toEqual(['env']);
+    data().views = [{ id: 'v1', personId: 'elena', name: 'Late access', params: 'result=missed', pinned: true, createdAt: today.toISOString(), updatedAt: today.toISOString(), deletedAt: null }];
+    expect(ids(await call('find_goals', { view: 'late access' }))).toEqual(['access']);
+    expect((await call('find_goals', { view: 'Someone else’s' })).isError).toBe(true);
+  });
+
   it('posts a check-in as the token’s person, with the app’s rules, logged via MCP', async () => {
     const { call, data, touched } = await setup();
     const behind = await call('post_check_in', { goal_id: 'alerts', value: 30 });

@@ -11,6 +11,7 @@ import { MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING } from '../domain/s
 import { isYear, quarterOf, quarters } from '../domain/year';
 import type { DisplayStatus, Goal } from '../domain/types';
 import { Spark, StageSpark } from '../ui/charts';
+import { useWidth } from '../ui/useWidth';
 import { Chip, LevelTag, Sheet, StatusShape, WarnMark } from '../ui/bits';
 import { describe, type ChangeSet } from '../domain/changeset';
 import { LEVEL_LABEL } from '../domain/format';
@@ -84,9 +85,12 @@ function GroupHead({ g, count }: { g: ViewGroup; count: number }) {
 /* ---------- table ---------- */
 
 type SortKey = 'goal' | 'owner' | 'status' | 'gap' | 'last';
-const COLS: [SortKey | null, string, string][] = [
-  ['goal', 'Goal', ''], ['owner', 'Owner', 'col-opt'], ['status', 'Status', ''], [null, 'Now', 'num'], [null, 'Target', 'num col-opt'], ['gap', 'Gap', 'col-opt'], [null, 'Trend', 'col-opt'],
+type ColId = 'goal' | 'owner' | 'status' | 'now' | 'target' | 'gap' | 'trend';
+const COLS: [ColId, SortKey | null, string, string][] = [
+  ['goal', 'goal', 'Goal', ''], ['owner', 'owner', 'Owner', 'col-opt'], ['status', 'status', 'Status', ''], ['now', null, 'Now', 'num'], ['target', null, 'Target', 'num col-opt'], ['gap', 'gap', 'Gap', 'col-opt'], ['trend', null, 'Trend', 'col-opt'],
 ];
+/** Columns that give way first when the table is narrow, so the rest fit without scrolling sideways (a phone hides more in CSS). */
+const shownCols = (w: number): Set<ColId> => new Set(COLS.map(([c]) => c).filter((c) => (c === 'trend' ? w >= 1180 : c === 'owner' ? w >= 1000 : true)));
 
 export function GoalTable({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
@@ -106,8 +110,11 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
     return v * sort.dir;
   };
   const click = (k: SortKey) => setSort((s) => (s?.key === k ? (s.dir === 1 ? { key: k, dir: -1 } : null) : { key: k, dir: 1 }));
+  const [box, width] = useWidth<HTMLDivElement>();
+  const show = shownCols(width || 1400);
+  const cols = COLS.filter(([c]) => show.has(c));
   return (
-    <>
+    <div ref={box} className="gtables">
       {groups.map((g) => {
         const rows = g.rows.map((r) => ({ ...r, s: sums.get(r.goal.id)! }));
         if (sort) rows.sort((a, b) => cmp(a.s, b.s));
@@ -117,10 +124,12 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
             {groups.length > 1 && <GroupHead g={g} count={rows.length} />}
             <div className="table-wrap">
               <table className="gtable">
+                {/* One set of column widths for every group, so numbers line up from one tree to the next. */}
+                <colgroup><col className="c-sel" />{cols.map(([c]) => <col key={c} className={'c-' + c} />)}</colgroup>
                 <thead>
                   <tr>
                     <th scope="col" className="selcol"><input type="checkbox" aria-label={`Select every goal in ${g.title}`} checked={rows.every((r) => sel.has(r.goal.id))} onChange={(e) => toggle(rows.map((r) => r.goal.id), e.target.checked)} /></th>
-                    {COLS.map(([k, label, cls]) => (
+                    {cols.map(([, k, label, cls]) => (
                       <th key={label} scope="col" className={cls} aria-sort={k && sort?.key === k ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
                         {k ? <button type="button" className="sortbtn" onClick={() => click(k)}>{label}{sort?.key === k ? <span aria-hidden="true">{sort.dir === 1 ? ' ↑' : ' ↓'}</span> : null}</button> : label}
                       </th>
@@ -135,14 +144,14 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                       <td className="gt-goal" style={!sort && depth ? { paddingLeft: `calc(var(--s3) + ${depth * 16}px)` } : undefined}>
                         <Link to={'/goals/' + goal.id}>{goal.title}</Link><LevelTag level={goal.level} />
                       </td>
-                      <td className="col-opt">{s.owner}</td>
+                      {show.has('owner') && <td className="col-opt">{s.owner}</td>}
                       <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? `Last: week ${s.lastWeek}` : app.week > 0 ? 'No check-in yet' : ''}</span></td>
                       <td className="num">{s.now}{s.planThen ? <span className="hint gt-plan">plan {s.planThen}</span> : s.planNow != null && <span className="hint gt-plan">plan {s.planNowText} this week</span>}</td>
                       <td className="num col-opt">{s.target}</td>
                       <td className={'col-opt tone-' + s.gapTone + ' small'}>{s.gap}</td>
-                      <td className="col-opt"><Trend s={s} /></td>
+                      {show.has('trend') && <td className="col-opt"><Trend s={s} /></td>}
                     </tr>
-                    {hasStory(s) && <tr className="story-row" data-tone={s.status}><td /><td colSpan={7}><StoryLines s={s} compact /></td></tr>}
+                    {hasStory(s) && <tr className="story-row" data-tone={s.status}><td /><td colSpan={cols.length}><StoryLines s={s} compact /></td></tr>}
                     </Fragment>
                   ))}
                 </tbody>
@@ -152,7 +161,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
         );
       })}
       {sel.size > 0 && <BulkBar ids={[...sel]} onClear={() => setSel(new Set())} />}
-    </>
+    </div>
   );
 }
 const TONE_RANK = { off: 4, risk: 3, stale: 2, on: 1, ahead: 0 } as const;
@@ -196,7 +205,7 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
               <ResultTag s={s} />
               {/* The same evidence on every card: the number and its gap, then the owner's account when there is one. */}
               <span className="small muted">{s.now} · {s.gap}</span>
-              {hasStory(s) && <StoryLines s={s} compact />}
+              {hasStory(s) && <StoryLines s={s} compact brief />}
             </Link>
           ))}
         </section>
@@ -298,7 +307,7 @@ export function GoalCards({ groups }: { groups: ViewGroup[] }) {
                     <span className="gcard-title">{goal.title}</span>
                     <span className="hint">{s.owner} · {s.team}{s.story.since && s.status !== 'stale' ? ` · ${s.story.since.toLowerCase()}` : ''}</span>
                     <ResultTag s={s} />
-                    {hasStory(s) ? <StoryLines s={s} /> : <span className="small">{s.story.where}</span>}
+                    {hasStory(s) ? <StoryLines s={s} brief /> : <span className="small">{s.story.where}</span>}
                     <span className="hint gcard-numbers">Now {s.now} · target {s.target} · <span className={'tone-' + s.gapTone}>{s.gap}</span></span>
                   </Link>
                 );
@@ -379,17 +388,26 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
 const hasStory = (s: GoalSummary) => ['off', 'risk', 'stale'].includes(s.status) || s.story.warnings.length > 0;
 
 /** Why it's off, what the owner will do, by when, what they need, and any warnings. */
-export function StoryLines({ s, compact }: { s: GoalSummary; compact?: boolean }) {
+/**
+ * A goal's story where it's listed. Full: why, the recovery plan, by when, what's needed, and every warning.
+ * Brief (board and cards, where goals sit side by side): why in two lines, by when, and the first warning with a count
+ * of the rest. The goal's page always has the whole story.
+ */
+export function StoryLines({ s, compact, brief }: { s: GoalSummary; compact?: boolean; brief?: boolean }) {
   const st = s.story;
-  const rows: [string, string][] = s.status === 'stale'
+  const full: [string, string][] = s.status === 'stale'
     ? [['Last heard', st.since ?? '']]
     : ['off', 'risk'].includes(s.status)
       ? [['Why', st.why ?? 'Not given'], ['Recovery plan', st.doing ?? 'Not given'], ['By when', st.byWhen ?? 'No date given'], ...(st.needs ? [['Needs', st.needs] as [string, string]] : [])]
       : [];
+  const rows = brief ? full.filter(([k]) => k === 'Why' || k === 'By when' || k === 'Last heard') : full;
+  const warnings = brief ? st.warnings.slice(0, 1) : st.warnings;
+  const more = st.warnings.length - warnings.length;
   return (
-    <div className={'story' + (compact ? ' compact' : '')}>
+    <div className={'story' + (compact ? ' compact' : '') + (brief ? ' brief' : '')}>
       {rows.length > 0 && <dl>{rows.map(([k, v]) => <Fragment key={k}><dt>{k}</dt><dd className={v === 'Not given' || v === 'No date given' ? 'tone-off' : undefined}>{v}</dd></Fragment>)}</dl>}
-      {st.warnings.map((w) => <span key={w} className="story-warn"><WarnMark />{w}</span>)}
+      {warnings.map((w) => <span key={w} className="story-warn"><WarnMark />{w}</span>)}
+      {more > 0 && <span className="hint">and {more} more {more === 1 ? 'warning' : 'warnings'} on the goal</span>}
     </div>
   );
 }

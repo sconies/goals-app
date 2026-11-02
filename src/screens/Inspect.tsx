@@ -281,7 +281,8 @@ export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean 
   const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? '—' : fmt(a.actual, g);
   return (
     <Link to={'/goals/' + g.id} className="trow" data-tone={st.status}>
-      <span className={'trow-icon tone-' + st.status} aria-hidden="true"><StatusShape k={st.status} /></span>
+      {/* Status is always a shape and a word, in a slot of its own so they line up down a list. */}
+      <span className={'trow-icon tone-' + st.status}><StatusShape k={st.status} /><span className="trow-status">{LABEL[st.status]}</span></span>
       <span className="trow-main">
         <span className="trow-title">{g.title}<LevelTag level={g.level} />{(() => { const r = goalResult(g, app.cycle, app.snapshot.checkIns, app.week); return r ? <span className={'result-tag result-' + r.kind}>{RESULT_TEXT[r.kind]}</span> : null; })()}</span>
         <span className="trow-why">
@@ -290,7 +291,7 @@ export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean 
         </span>
       </span>
       <span className="trow-now"><span>{now}</span><span className={'tone-' + (st.status === 'stale' ? 'stale' : gap.tone)}>{st.status === 'stale' ? 'Stale' : gap.short}</span></span>
-      <span className="sr">{LABEL[st.status]}{g.level !== 'team' ? `, ${LEVEL_LABEL[g.level]} level` : ''}</span>
+      {g.level !== 'team' && <span className="sr">{LEVEL_LABEL[g.level]} level</span>}
     </Link>
   );
 }

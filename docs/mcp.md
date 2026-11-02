@@ -33,7 +33,7 @@ Other assistants:
 | Tool | What it does |
 |---|---|
 | `get_overview` | A brief of the cycle: what needs attention and why, every goal by what it feeds, open questions, weekly numbers |
-| `find_goals` | Goals with status, latest number, plan, target and gap. Filter by name, owner, status, level or your own |
+| `find_goals` | Goals with status, latest number, plan, target and gap. Filter by name, owner, status, level or your own. Or pass `query`, the query string of a Goals link (every filter and sort the Goals screen has, for example `status=off,risk&needs=decision&sort=gap`), or `view`, the name of a saved view you can see |
 | `get_goal` | One goal in full: plan by week, every check-in with reasons, notes and actions |
 | `post_check_in` | Post a week's number or stages, this week or an earlier week (marked as loaded later) |
 | `update_goal` / `create_goal` | Change or add a goal |

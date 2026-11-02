@@ -1,4 +1,4 @@
-import type { CheckIn, Cycle, MetricPlan, PlanShape } from './types';
+import type { CheckIn, Cycle, Goal, MetricGoal, MetricPlan, PlanShape, PlanVersion } from './types';
 
 const DAY = 86_400_000;
 
@@ -113,4 +113,22 @@ export function weekDates(cycle: Cycle, week: number): string {
   const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
   // A week in another calendar year than the cycle's start says which: "28 Dec–3 Jan 2027".
   return b.getUTCFullYear() !== Number(cycle.startDate.slice(0, 4)) ? `${range} ${b.getUTCFullYear()}` : range;
+}
+
+/** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
+export function planHistoryOf(g: MetricGoal): PlanVersion[] {
+  if (g.planHistory?.length) return g.planHistory;
+  return g.originalPlan && g.rebaselinedWeek != null ? [{ untilWeek: g.rebaselinedWeek, plan: g.originalPlan }] : [];
+}
+
+/** The plan that applied in a given week. */
+export function planAsOf(g: MetricGoal, week: number): MetricPlan {
+  return planHistoryOf(g).find((v) => week < v.untilWeek)?.plan ?? g.plan;
+}
+
+/** The goal as it was planned in a given week: number goals take the plan that applied then; others are unchanged. */
+export function goalAsOf<G extends Goal>(g: G, week: number): G {
+  if (g.kind !== 'metric') return g;
+  const plan = planAsOf(g, week);
+  return plan === g.plan ? g : { ...g, plan };
 }

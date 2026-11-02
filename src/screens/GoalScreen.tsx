@@ -111,7 +111,7 @@ function GoalView({ goal }: { goal: Goal }) {
   const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? 'No value yet' : fmt(a.actual, goal);
 
   return (
-    <div className="page">
+    <div className="page goal-page">
       <ReviewBar goalId={goal.id} />
       {!compact && <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/goals">Goals</Link>
@@ -147,6 +147,9 @@ function GoalView({ goal }: { goal: Goal }) {
 
       {parent && goal.whyHelps && <p className="small muted why-helps">Feeds “{parent.title}”: {goal.whyHelps}</p>}
 
+      {/* Status first; then, on a wide screen, the evidence on the left and the owner's account beside it. */}
+      <div className="goal-grid split">
+      <div className="goal-head split-a">
       <section className="story" data-tone={st.status}>
         <div className="statusline">
           <Chip k={st.status} />
@@ -160,6 +163,8 @@ function GoalView({ goal }: { goal: Goal }) {
         {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
         {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
       </section>
+      </div>
+      <div className="goal-rail split-side">
 
       {ptg?.needs && !stale && (st.status === 'risk' || st.status === 'off') && (
         <section className="request-block" aria-label="Decision or help needed">
@@ -203,8 +208,8 @@ function GoalView({ goal }: { goal: Goal }) {
           )}
         </section>
       )}
-
-      {!compact && isYear(cycle) && <QuarterStrip goal={goal} />}
+      </div>
+      <div className="goal-evidence split-b">
 
       {(() => { const chart = (<section className="block">
         {goal.kind === 'metric' && a.kind === 'metric' && (
@@ -218,6 +223,8 @@ function GoalView({ goal }: { goal: Goal }) {
         {a.kind === 'milestone' && <div className="card"><StageList a={a} /></div>}
       </section>);
         return compact ? <details className="disclose"><summary>Chart and check-ins</summary>{chart}<CheckInList goal={goal} /></details> : chart; })()}
+
+      {!compact && isYear(cycle) && <QuarterStrip goal={goal} />}
 
       {children.length > 0 && compact && (
         <details className="disclose"><summary>Contributing goals · {children.length}{children.some((c) => ['off', 'risk', 'stale'].includes(app.statusOf(c).status)) ? ` · ${children.filter((c) => ['off', 'risk', 'stale'].includes(app.statusOf(c).status)).length} need attention` : ''}</summary><TreeRows nodes={subtree.children} /></details>
@@ -268,6 +275,8 @@ function GoalView({ goal }: { goal: Goal }) {
           </dl>
         )}
       </section>}
+      </div>
+      </div>
       {rv.active && <ReviewCallBar goal={goal} />}
     </div>
   );

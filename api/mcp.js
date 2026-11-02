@@ -21838,6 +21838,27 @@ var tokenToRow = (ws, t) => ({
 	last_used_at: t.lastUsedAt,
 	revoked_at: t.revokedAt
 });
+var viewToRow = (ws, v) => ({
+	workspace_id: ws,
+	id: v.id,
+	person_id: v.personId,
+	name: v.name,
+	params: v.params,
+	pinned: v.pinned,
+	created_at: v.createdAt,
+	updated_at: v.updatedAt,
+	deleted_at: v.deletedAt
+});
+var viewFromRow = (r) => ({
+	id: r.id,
+	personId: r.person_id,
+	name: r.name,
+	params: r.params ?? "",
+	pinned: !!r.pinned,
+	createdAt: iso(r.created_at),
+	updatedAt: iso(r.updated_at),
+	deletedAt: r.deleted_at ? iso(r.deleted_at) : null
+});
 var tokenFromRow = (r) => ({
 	id: r.id,
 	personId: r.person_id,
@@ -21871,6 +21892,7 @@ function commitPayload(ws, c) {
 		watches: (c.watches ?? []).map((x) => watchToRow(ws, x)),
 		unwatch: c.unwatch ?? [],
 		tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
+		views: (c.views ?? []).map((x) => viewToRow(ws, x)),
 		changes: c.changes.map((x) => changeToRow(ws, x)),
 		expect: c.expect ? {
 			goals: c.expect.goals,
@@ -21989,6 +22011,27 @@ function weekDates(cycle, week) {
 	});
 	const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
 	return b.getUTCFullYear() !== Number(cycle.startDate.slice(0, 4)) ? `${range} ${b.getUTCFullYear()}` : range;
+}
+/** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
+function planHistoryOf(g) {
+	if (g.planHistory?.length) return g.planHistory;
+	return g.originalPlan && g.rebaselinedWeek != null ? [{
+		untilWeek: g.rebaselinedWeek,
+		plan: g.originalPlan
+	}] : [];
+}
+/** The plan that applied in a given week. */
+function planAsOf(g, week) {
+	return planHistoryOf(g).find((v) => week < v.untilWeek)?.plan ?? g.plan;
+}
+/** The goal as it was planned in a given week: number goals take the plan that applied then; others are unchanged. */
+function goalAsOf(g, week) {
+	if (g.kind !== "metric") return g;
+	const plan = planAsOf(g, week);
+	return plan === g.plan ? g : {
+		...g,
+		plan
+	};
 }
 // src/domain/status.ts
 var RANK = {
@@ -22168,7 +22211,7 @@ function assessPosted(goal, cycle, checkIns, week) {
 			week: c.week,
 			value: c.value
 		}));
-		return assessMetric(goal, cycle.weeks, at, latest?.value ?? null, series.filter((p) => p.week < at));
+		return assessMetric(goalAsOf(goal, at), cycle.weeks, at, latest?.value ?? null, series.filter((p) => p.week < at));
 	}
 	if (goal.kind === "range") {
 		const prev = own.filter((c) => c.week < at && c.value != null).pop();
@@ -22247,7 +22290,6 @@ function parseNumber(s) {
 	const n = Number(t);
 	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
 }
-/** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
 function withinHundred(goal) {
 	if (!goal) return false;
 	if (goal.kind === "metric") return [
@@ -22528,7 +22570,7 @@ function diffFields(before, after) {
 		to: after[k]
 	}));
 }
-var list = (d) => {
+var list$1 = (d) => {
 	const names = d.map((x) => x.field.toLowerCase());
 	return names.length <= 3 ? names.join(", ") : names.slice(0, 2).join(", ") + ` and ${names.length - 2} more`;
 };
@@ -22544,7 +22586,7 @@ function goalChange(before, after, l, actorId, at, id) {
 		entity: "goal",
 		entityId: after.id,
 		action: before ? "edited" : "created",
-		summary: before ? `Changed ${list(diffs)}` : `Created the goal “${after.title}”`,
+		summary: before ? `Changed ${list$1(diffs)}` : `Created the goal “${after.title}”`,
 		diffs
 	};
 }
@@ -23727,7 +23769,8 @@ function applyCommit(s, c) {
 		retros: upsert(s.retros ?? [], c.retros),
 		cycles: upsert(s.cycles, c.cycles),
 		feedback: upsert(s.feedback ?? [], c.feedback),
-		tokens: upsert(s.tokens ?? [], c.tokens)
+		tokens: upsert(s.tokens ?? [], c.tokens),
+		views: upsert(s.views ?? [], c.views)
 	};
 }
 var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -23781,7 +23824,7 @@ var SupabaseStore = class {
 		return (data ?? []).map(workspaceFromRow).filter((w) => w.kind !== "example" && w.id !== EXAMPLE.id);
 	}
 	async load(ws) {
-		const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens] = await Promise.all([
+		const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views] = await Promise.all([
 			this.all("okr_teams", ws),
 			this.all("okr_people", ws),
 			this.all("okr_cycles", ws),
@@ -23794,7 +23837,8 @@ var SupabaseStore = class {
 			this.all("okr_reviews", ws),
 			this.all("okr_retros", ws),
 			this.all("okr_feedback", ws),
-			this.all("okr_api_tokens", ws).catch(() => [])
+			this.all("okr_api_tokens", ws).catch(() => []),
+			this.all("okr_views", ws).catch(() => [])
 		]);
 		if (!cycles.length) throw new Error("This workspace has no cycle yet.");
 		return {
@@ -23809,7 +23853,8 @@ var SupabaseStore = class {
 			reviews: reviews.map(reviewFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
 			retros: retros.map(retroFromRow),
 			feedback: feedback.map(feedbackFromRow),
-			tokens: tokens.map(tokenFromRow)
+			tokens: tokens.map(tokenFromRow),
+			views: views.map(viewFromRow)
 		};
 	}
 	/** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
@@ -23850,6 +23895,7 @@ var SupabaseStore = class {
 		if (c.decisions?.length) await this.must(this.db.from("okr_decisions").upsert(c.decisions.map((x) => decisionToRow(ws, x))), "Saving the decision");
 		if (c.watches?.length) await this.must(this.db.from("okr_watches").upsert(c.watches.map((x) => watchToRow(ws, x))), "Watching");
 		if (c.tokens?.length) await this.must(this.db.from("okr_api_tokens").upsert(c.tokens.map((x) => tokenToRow(ws, x))), "Saving the token");
+		if (c.views?.length) await this.must(this.db.from("okr_views").upsert(c.views.map((x) => viewToRow(ws, x))), "Saving the view");
 		for (const id of c.unwatch ?? []) await this.must(this.db.from("okr_watches").delete().eq("id", id), "Stopping watching");
 		if (c.changes.length) await this.must(this.db.from("okr_changes").insert(c.changes.map((x) => changeToRow(ws, x))), "Logging the change");
 	}
@@ -24137,14 +24183,6 @@ function withPoints(plan, typed, weeks) {
 		points
 	};
 }
-/** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
-function planHistoryOf(g) {
-	if (g.planHistory?.length) return g.planHistory;
-	return g.originalPlan && g.rebaselinedWeek != null ? [{
-		untilWeek: g.rebaselinedWeek,
-		plan: g.originalPlan
-	}] : [];
-}
 /**
 * What a number goal's plan fields become when its plan changes. Once check-ins have started, the plan being replaced is
 * kept with the week it stopped applying, so earlier weeks and closed quarters stay judged against the plan of their day.
@@ -24171,18 +24209,259 @@ function replanned(existing, plan, started, week) {
 		planHistory: next
 	};
 }
-/** The plan that applied in a given week. */
-function planAsOf(g, week) {
-	return planHistoryOf(g).find((v) => week < v.untilWeek)?.plan ?? g.plan;
+// src/domain/year.ts
+var isYear = (c) => c.weeks >= 48;
+var MONTHS = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec"
+];
+/** The month the year starts in: the month of its first Thursday, so a year starting 29 Dec is a January year. */
+function startMonth(c) {
+	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 2592e5).getUTCMonth();
 }
-/** The goal as it was planned in a given week: number goals take the plan that applied then; others are unchanged. */
-function goalAsOf(g, week) {
-	if (g.kind !== "metric") return g;
-	const plan = planAsOf(g, week);
-	return plan === g.plan ? g : {
-		...g,
-		plan
+function quarters(c) {
+	if (!isYear(c)) return [{
+		n: 1,
+		label: c.name,
+		months: "",
+		from: 1,
+		to: c.weeks
+	}];
+	const m0 = startMonth(c);
+	return [
+		1,
+		2,
+		3,
+		4
+	].map((n) => ({
+		n,
+		label: `Q${n}`,
+		months: `${MONTHS[(m0 + 3 * (n - 1)) % 12]}–${MONTHS[(m0 + 3 * (n - 1) + 2) % 12]}`,
+		from: (n - 1) * 13 + 1,
+		to: n === 4 ? c.weeks : n * 13
+	}));
+}
+function quarterOf(c, week) {
+	const qs = quarters(c);
+	return qs.find((q) => week >= q.from && week <= q.to) ?? (week < 1 ? qs[0] : qs[qs.length - 1]);
+}
+/** "Week 43 of 52 · Q4 (Oct–Dec) · 2026", or "Week 7 of 13 · Platform cycle" for a shorter cycle. */
+function periodLabel(c, week) {
+	if (!isYear(c)) return `Week ${Math.max(0, week)} of ${c.weeks} · ${c.name}`;
+	const q = quarterOf(c, week);
+	return `Week ${Math.max(0, week)} of ${c.weeks} · ${q.label} (${q.months}) · ${c.name}`;
+}
+/** The plan's number at the end of a quarter (or the week given), for a number goal. */
+function targetAt(g, c, week) {
+	if (g.kind !== "metric") return null;
+	return planAt(g.plan, Math.min(week, planEnd(g.plan, c.weeks)), c.weeks);
+}
+/** How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. */
+function quarterResult(g, c, checkIns, q, week) {
+	const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
+	const last = own[own.length - 1];
+	const ended = week > q.to;
+	const r = (kind, text) => ({
+		quarter: q,
+		kind,
+		text: `${q.label}: ${text}`
+	});
+	if (g.kind === "metric") {
+		const p = ended ? goalAsOf(g, q.to) : g;
+		if ((p.plan.fromWeek ?? 0) >= q.to || planEnd(p.plan, c.weeks) < q.from) return r("none", "nothing planned");
+		const t = targetAt(p, c, q.to);
+		if (!ended) return r("open", `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(p.plan, c.weeks))}`);
+		const v = last?.value;
+		if (v == null) return r("missed", `no number reported against a plan of ${fmt(t, g)}`);
+		const up = p.plan.target >= p.plan.start;
+		const diff = Number((v - t).toFixed(g.decimals));
+		const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
+		return r(met ? "met" : "missed", `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? "" : `, ${fmtDiff(diff, g)} short`}`);
+	}
+	if (g.kind === "milestone") {
+		const due = g.stages.filter((s) => s.dueWeek >= q.from && s.dueWeek <= q.to);
+		if (!due.length) return r("none", "no stages due");
+		if (!ended) return r("open", `${due.length} ${due.length === 1 ? "stage" : "stages"} due`);
+		const done = due.filter((s) => last?.stages?.some((u) => u.stageId === s.id && u.doneWeek != null && u.doneWeek <= q.to));
+		return r(done.length === due.length ? "met" : "missed", `${done.length} of ${due.length} ${due.length === 1 ? "stage" : "stages"} due ${done.length === 1 ? "was" : "were"} done`);
+	}
+	if (!ended) return r("open", `must stay ${g.range.bound === "atMost" ? "at most" : "at least"} ${fmt(g.range.limit, g)}`);
+	const v = last?.value;
+	if (v == null) return r("missed", "no number reported");
+	const out = g.range.bound === "atMost" ? v > g.range.limit : v < g.range.limit;
+	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? "outside" : "inside"} the ${fmt(g.range.limit, g)} limit`);
+}
+function quarterResults(g, c, checkIns, week) {
+	if (!isYear(c)) return [];
+	return quarters(c).map((q) => quarterResult(g, c, checkIns, q, week));
+}
+// src/domain/query.ts
+var STATUS_OPTIONS = [
+	["off", LABEL.off],
+	["risk", LABEL.risk],
+	["stale", "Gone quiet"],
+	["on", LABEL.on],
+	["done", LABEL.done],
+	["planned", "Not started"]
+];
+var NEED_OPTIONS = [
+	["decision", "Waiting on a decision or help"],
+	["no-recovery", "No recovery plan"],
+	["slipped", "Recovery date slipped"],
+	["missed-date", "Missed its own date"],
+	["greener", "Called greener than the numbers"]
+];
+var RESULT_OPTIONS = [
+	["completed", "Completed"],
+	["late", "Completed late"],
+	["missed", "Did not meet"],
+	["open", "Not finished yet"]
+];
+var KIND_OPTIONS = [
+	["metric", "Move a number"],
+	["range", "Keep in range"],
+	["milestone", "Dated stages"]
+];
+var SORT_OPTIONS = [
+	["worst", "Worst first"],
+	["title", "Name"],
+	["owner", "Owner"],
+	["team", "Team"],
+	["level", "Level"],
+	["gap", "Furthest from plan"],
+	["last", "Longest since a check-in"],
+	["due", "Due soonest"]
+];
+var LEVELS$1 = [
+	"north-star",
+	"svp",
+	"team"
+];
+var list = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
+var int$1 = (v) => {
+	const n = v == null ? NaN : Number(v);
+	return Number.isInteger(n) && n > 0 ? n : null;
+};
+/** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
+function parseQuery(p) {
+	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
+	const due = p.get("due");
+	const qtr = p.get("qtr");
+	return {
+		q: (p.get("q") ?? "").slice(0, 200),
+		status: list(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
+		level: list(p.get("level"), LEVELS$1),
+		team: (p.get("team") ?? "").split(",").filter(Boolean),
+		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
+		kind: list(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
+		needs: list(p.get("needs"), NEED_OPTIONS.map(([k]) => k)),
+		due: due === "quarter" ? "quarter" : int$1(due),
+		quiet: int$1(p.get("quiet")),
+		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
+		result: list(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
+		feeds: p.get("feeds") || null,
+		helps: p.get("helps") === "1",
+		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
+		dir: dir === "desc" ? -1 : 1
 	};
+}
+/** The goal and every goal that feeds it, all the way down. */
+function treeOf(id, goals) {
+	const out = /* @__PURE__ */ new Set([id]);
+	let grew = true;
+	while (grew) {
+		grew = false;
+		for (const g of goals) if (g.parentId && out.has(g.parentId) && !out.has(g.id)) {
+			out.add(g.id);
+			grew = true;
+		}
+	}
+	return out;
+}
+/** Does this goal pass every filter in the query? */
+function matches(s, q, ctx, tree) {
+	const g = s.goal;
+	if (q.q.trim()) {
+		const hay = [
+			g.title,
+			s.owner,
+			s.team,
+			LEVEL_LABEL[g.level],
+			s.story.why ?? "",
+			s.story.doing ?? "",
+			s.story.needs ?? "",
+			g.definition,
+			g.source
+		].join(" ").toLowerCase();
+		if (!q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
+	}
+	const status = s.status === "none" ? "planned" : s.status;
+	if (q.status.length && !q.status.includes(status)) return false;
+	if (q.level.length && !q.level.includes(g.level)) return false;
+	if (q.team.length && !q.team.includes(g.teamId)) return false;
+	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
+	if (q.kind.length && !q.kind.includes(g.kind)) return false;
+	if (q.needs.length) {
+		const has = (n) => n === "decision" ? !!s.story.needs && (s.status === "off" || s.status === "risk") : s.story.flags.includes(n);
+		if (!q.needs.some(has)) return false;
+	}
+	if (q.due != null) {
+		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
+		if (s.dueWeek > by) return false;
+	}
+	if (q.quiet != null && s.lastWeek != null && ctx.week - s.lastWeek < q.quiet) return false;
+	if (q.quarter) {
+		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
+	}
+	if (q.result.length && !q.result.includes(s.story.result?.kind ?? "open")) return false;
+	if (q.feeds && !(tree ?? treeOf(q.feeds, ctx.goals)).has(g.id)) return false;
+	if (q.helps && !(g.alsoHelps?.length || ctx.goals.some((x) => x.alsoHelps?.includes(g.id)))) return false;
+	return true;
+}
+var GAP_RANK = {
+	off: 4,
+	risk: 3,
+	stale: 2,
+	on: 1,
+	ahead: 0
+};
+var LEVEL_RANK = {
+	"north-star": 0,
+	svp: 1,
+	team: 2
+};
+/** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
+function compare(q, week) {
+	const key = q.sort ?? "worst";
+	const worst = (a, b) => RANK[b.status] - RANK[a.status];
+	const name = (a, b) => a.goal.title.localeCompare(b.goal.title);
+	const by = {
+		worst,
+		title: name,
+		owner: (a, b) => a.owner.localeCompare(b.owner),
+		team: (a, b) => a.team.localeCompare(b.team),
+		level: (a, b) => LEVEL_RANK[a.goal.level] - LEVEL_RANK[b.goal.level],
+		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
+		last: (a, b) => week - (b.lastWeek ?? -99) - (week - (a.lastWeek ?? -99)),
+		due: (a, b) => a.dueWeek - b.dueWeek
+	};
+	return (a, b) => q.dir * by[key](a, b) || worst(a, b) || name(a, b);
+}
+/** The goals that pass the query, in its order. */
+function applyQuery(sums, q, ctx) {
+	const tree = q.feeds ? treeOf(q.feeds, ctx.goals) : null;
+	const out = sums.filter((s) => matches(s, q, ctx, tree));
+	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
 // src/domain/importer.ts
 var PEOPLE_COLUMNS = [
@@ -24772,102 +25051,6 @@ function planChanges(input) {
 	}
 	return result;
 }
-// src/domain/year.ts
-var isYear = (c) => c.weeks >= 48;
-var MONTHS = [
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec"
-];
-/** The month the year starts in: the month of its first Thursday, so a year starting 29 Dec is a January year. */
-function startMonth(c) {
-	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 2592e5).getUTCMonth();
-}
-function quarters(c) {
-	if (!isYear(c)) return [{
-		n: 1,
-		label: c.name,
-		months: "",
-		from: 1,
-		to: c.weeks
-	}];
-	const m0 = startMonth(c);
-	return [
-		1,
-		2,
-		3,
-		4
-	].map((n) => ({
-		n,
-		label: `Q${n}`,
-		months: `${MONTHS[(m0 + 3 * (n - 1)) % 12]}–${MONTHS[(m0 + 3 * (n - 1) + 2) % 12]}`,
-		from: (n - 1) * 13 + 1,
-		to: n === 4 ? c.weeks : n * 13
-	}));
-}
-function quarterOf(c, week) {
-	const qs = quarters(c);
-	return qs.find((q) => week >= q.from && week <= q.to) ?? (week < 1 ? qs[0] : qs[qs.length - 1]);
-}
-/** "Week 43 of 52 · Q4 (Oct–Dec) · 2026", or "Week 7 of 13 · Platform cycle" for a shorter cycle. */
-function periodLabel(c, week) {
-	if (!isYear(c)) return `Week ${Math.max(0, week)} of ${c.weeks} · ${c.name}`;
-	const q = quarterOf(c, week);
-	return `Week ${Math.max(0, week)} of ${c.weeks} · ${q.label} (${q.months}) · ${c.name}`;
-}
-/** The plan's number at the end of a quarter (or the week given), for a number goal. */
-function targetAt(g, c, week) {
-	if (g.kind !== "metric") return null;
-	return planAt(g.plan, Math.min(week, planEnd(g.plan, c.weeks)), c.weeks);
-}
-/** How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. */
-function quarterResult(g, c, checkIns, q, week) {
-	const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
-	const last = own[own.length - 1];
-	const ended = week > q.to;
-	const r = (kind, text) => ({
-		quarter: q,
-		kind,
-		text: `${q.label}: ${text}`
-	});
-	if (g.kind === "metric") {
-		const p = ended ? goalAsOf(g, q.to) : g;
-		if ((p.plan.fromWeek ?? 0) >= q.to || planEnd(p.plan, c.weeks) < q.from) return r("none", "nothing planned");
-		const t = targetAt(p, c, q.to);
-		if (!ended) return r("open", `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(p.plan, c.weeks))}`);
-		const v = last?.value;
-		if (v == null) return r("missed", `no number reported against a plan of ${fmt(t, g)}`);
-		const up = p.plan.target >= p.plan.start;
-		const diff = Number((v - t).toFixed(g.decimals));
-		const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
-		return r(met ? "met" : "missed", `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? "" : `, ${fmtDiff(diff, g)} short`}`);
-	}
-	if (g.kind === "milestone") {
-		const due = g.stages.filter((s) => s.dueWeek >= q.from && s.dueWeek <= q.to);
-		if (!due.length) return r("none", "no stages due");
-		if (!ended) return r("open", `${due.length} ${due.length === 1 ? "stage" : "stages"} due`);
-		const done = due.filter((s) => last?.stages?.some((u) => u.stageId === s.id && u.doneWeek != null && u.doneWeek <= q.to));
-		return r(done.length === due.length ? "met" : "missed", `${done.length} of ${due.length} ${due.length === 1 ? "stage" : "stages"} due ${done.length === 1 ? "was" : "were"} done`);
-	}
-	if (!ended) return r("open", `must stay ${g.range.bound === "atMost" ? "at most" : "at least"} ${fmt(g.range.limit, g)}`);
-	const v = last?.value;
-	if (v == null) return r("missed", "no number reported");
-	const out = g.range.bound === "atMost" ? v > g.range.limit : v < g.range.limit;
-	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? "outside" : "inside"} the ${fmt(g.range.limit, g)} limit`);
-}
-function quarterResults(g, c, checkIns, week) {
-	if (!isYear(c)) return [];
-	return quarters(c).map((q) => quarterResult(g, c, checkIns, q, week));
-}
 // src/domain/story.ts
 var MEANING = {
 	on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
@@ -24943,6 +25126,11 @@ function storyOf(g, s, cycle, week, today) {
 	const behind = BEHIND.includes(status);
 	const result = goalResult(g, cycle, s.checkIns, week);
 	const warnings = [];
+	const flags = [];
+	const warn = (kind, text) => {
+		flags.push(kind);
+		warnings.push(text);
+	};
 	let since = null;
 	if (last && (behind || status === "on")) {
 		let k = own.length - 1;
@@ -24988,19 +25176,19 @@ function storyOf(g, s, cycle, week, today) {
 			byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
 			needs = ptg.needs?.trim() || null;
 		}
-		if (!ptg) warnings.push("No recovery plan: it is behind and the owner hasn’t said how it gets back.");
-		if (ptg && ptg.byWeek != null && ptg.byWeek < week) warnings.push(`Missed its own date: said it would be back on plan by week ${ptg.byWeek}.`);
+		if (!ptg) warn("no-recovery", "No recovery plan: it is behind and the owner hasn’t said how it gets back.");
+		if (ptg && ptg.byWeek != null && ptg.byWeek < week) warn("missed-date", `Missed its own date: said it would be back on plan by week ${ptg.byWeek}.`);
 		let k = own.length - 1;
 		while (k > 0 && BEHIND.includes(own[k - 1].status)) k--;
 		const firstDate = own.slice(k).map((c) => c.pathToGreen?.byWeek).find((w) => w != null);
-		if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warnings.push(`The date has slipped: first said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
+		if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warn("slipped", `The date has slipped: first said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
 		const run = own.slice(k);
-		if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warnings.push(`The same cause three check-ins running: ${causeLabel(last.cause).toLowerCase()}.`);
+		if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warn("same-cause", `The same cause three check-ins running: ${causeLabel(last.cause).toLowerCase()}.`);
 	}
-	if (st.greener && last && status !== "stale") warnings.push(`Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : "."}`);
-	if (status === "stale" && last) warnings.push(`Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}. An update is overdue.`);
-	if (fc?.warn && !behind && status !== "done") warnings.push("Called on track, but the recent trend misses the target.");
-	if (lastEnded?.kind === "missed" && !result) warnings.push(`Missed its ${lastEnded.text.replace(/^Q(\d): /, "Q$1 plan: ")}.`);
+	if (st.greener && last && status !== "stale") warn("greener", `Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : "."}`);
+	if (status === "stale" && last) warn("overdue", `Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}. An update is overdue.`);
+	if (fc?.warn && !behind && status !== "done") warn("trend", "Called on track, but the recent trend misses the target.");
+	if (lastEnded?.kind === "missed" && !result) warn("missed-quarter", `Missed its ${lastEnded.text.replace(/^Q(\d): /, "Q$1 plan: ")}.`);
 	const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
 	const feeds = parent ? `Feeds ${parent.title}${parent.level !== "team" ? ` (${LEVEL_LABEL[parent.level]})` : ""}` : null;
 	const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
@@ -25015,6 +25203,7 @@ function storyOf(g, s, cycle, week, today) {
 		needs,
 		next: (behind || status === "on") && last?.next ? last.next : null,
 		warnings,
+		flags,
 		feeds,
 		result,
 		quarters,
@@ -26041,7 +26230,7 @@ var TOOLS = [
 	{
 		name: "find_goals",
 		title: "Find goals",
-		description: "List goals in the current cycle with their status, latest number, this week’s plan, target and gap. Filter by words in the name, owner, status or level, or just your own.",
+		description: "List goals in the current cycle with their status, latest number, this week’s plan, target and gap. Filter by words in the name, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -26050,7 +26239,9 @@ var TOOLS = [
 				owner: str("Part of the owner’s name."),
 				status: str("Only goals with this status.", { enum: STATUSES }),
 				level: str("Only goals at this level.", { enum: LEVELS }),
-				mine: bool("Only goals you own.")
+				mine: bool("Only goals you own."),
+				query: str("A Goals link’s query string, e.g. \"status=off,risk&needs=decision,slipped&due=quarter&sort=gap\". Keys: q, status (off, risk, stale, on, done, planned), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), needs (decision, no-recovery, slipped, missed-date, greener), due (quarter or a week), quiet (weeks), qtr (met, missed), result (completed, late, missed, open), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."),
+				view: str("The name of a saved view: one of yours, or one pinned for everyone.")
 			}
 		},
 		annotations: {
@@ -26059,7 +26250,19 @@ var TOOLS = [
 		},
 		async run(a, ctx) {
 			const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
-			const data = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => has(s.goal.title, a.text) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id)).map((s) => ({
+			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
+			if (a.view) {
+				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+				if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
+				query = parseQuery(new URLSearchParams(v.params));
+			}
+			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => has(s.goal.title, a.text) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+			if (query) list = applyQuery(list, query, {
+				goals: ctx.snapshot.goals,
+				cycle: ctx.cycle,
+				week: ctx.week
+			});
+			const data = list.map((s) => ({
 				id: s.goal.id,
 				title: s.goal.title,
 				type: s.goal.kind,

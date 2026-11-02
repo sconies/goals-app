@@ -883,3 +883,143 @@ body.research-picking .research-bar, body.research-picking .research-bar * { cur
 /* The coach moves out of the way of what it points at. */
 .coach.at-top { top: 20px; bottom: auto; }
 @media (max-width: 640px) { .coach.at-top { top: 76px; bottom: auto; } }
+
+/* ---------- Page frames: each kind of page gets the room it needs (responsive review, 2 Nov) ----------
+   Focused tasks stay narrow (.focus). Reading pages are narrow. Home, a goal and Watching get a main column and a
+   side column once there's room. Portfolio views (table, board, history, cards) get a wide frame; the map gets it all.
+   On a very wide screen a page stays near the sidebar rather than floating in the middle of the monitor. */
+.page { --page-max: 1120px; container: page / inline-size; max-width: var(--page-max); margin: 0 auto 0 clamp(0px, calc((100% - var(--page-max)) / 2), 96px); }
+.page.narrow { --page-max: 760px; }
+.page.home, .page.watching, .page.goal-page { --page-max: 1440px; }
+.page.wide { --page-max: 1760px; }
+.page.full { --page-max: 100%; max-width: none; margin: 0; }
+
+/* Main column and side column: stacked (main, side, rest) until there's room, then side by side. */
+.split { display: flex; flex-direction: column; gap: var(--s5); }
+.split > * { min-width: 0; }
+.split > div, .split > aside { display: flex; flex-direction: column; gap: var(--s5); }
+.split > .split-side:empty { display: none; }
+.page.home .split, .page.watching .split { max-width: 800px; }
+.page.goal-page .split { max-width: 1040px; }
+@container page (min-width: 1100px) {
+  .page.home .split, .page.watching .split, .page.goal-page .split {
+    max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); grid-template-areas: "a side" "b side";
+    align-items: start; column-gap: var(--s6); row-gap: var(--s5);
+  }
+  .split > .split-a { grid-area: a; }
+  .split > .split-b { grid-area: b; }
+  .split > .split-side { grid-area: side; }
+  /* Nothing for the side: one column, at a width that still reads well. */
+  .page.home .split:has(> .split-side:empty), .page.watching .split:has(> .split-side:empty), .page.goal-page .split:has(> .split-side:empty) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "a" "b"; max-width: 1040px; }
+  .page.home .home-hero { border-bottom: 0; padding-bottom: 0; }
+}
+
+/* Goals: one toolbar (which goals, then how to see them), wrapping only when it has to. */
+.goals-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3) var(--s4); }
+.goals-toolbar .view-bar { gap: var(--s3); flex-wrap: wrap; }
+.page.full .page-head { margin-bottom: calc(-1 * var(--s2)); }
+
+/* Table: one set of column widths for every group, text wraps rather than pushing the table wider. */
+.gtables { display: flex; flex-direction: column; gap: var(--s5); }
+.gtable { table-layout: fixed; }
+.gtable col.c-sel { width: 40px; }
+.gtable col.c-owner { width: 150px; }
+.gtable col.c-status { width: 172px; }
+.gtable col.c-now { width: 176px; }
+.gtable col.c-target { width: 120px; }
+.gtable col.c-gap { width: 200px; }
+.gtable col.c-trend { width: 120px; }
+.gtable td, .gtable th { overflow-wrap: anywhere; }
+.gtable td.col-opt { white-space: normal; }
+.gtable .num { white-space: normal; }
+.gt-plan { white-space: normal; }
+.gtable td.tone-on, .gtable td.tone-risk, .gtable td.tone-off, .gtable td.tone-ahead, .gtable td.tone-stale { min-width: 0; }
+@media (max-width: 640px) { .gtable { table-layout: auto; } .gtable colgroup { display: none; } }
+
+/* Board and cards: lanes and cards wide enough to read; a card is as tall as its own story, not its neighbour's. */
+.board { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.gcards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start; }
+.story.brief dd { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Goal rows: the status shape and its word together, in a slot that lines up down the list. */
+.trow { grid-template-columns: 104px minmax(0, 1fr) auto; }
+.trow-icon { gap: 6px; align-items: center; font-size: var(--t-sm); font-weight: 600; white-space: nowrap; padding-top: 1px; }
+.trow-icon svg { flex: 0 0 auto; }
+.gline:has(> .gline-status) { grid-template-columns: 104px minmax(0, 1fr) auto 96px; }
+.gline-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); font-weight: 600; white-space: nowrap; }
+.gline-status svg { width: 12px; height: 12px; flex: 0 0 auto; }
+@container app (max-width: 760px) {
+  .trow { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+  .trow-icon { grid-column: 1 / -1; padding-top: 0; }
+  .gline:has(> .gline-status) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+  .gline-status { grid-column: 1 / -1; }
+}
+
+/* Review rows read as one link, not three underlined ones. */
+a.arow { color: inherit; text-decoration: none; align-items: center; min-height: 72px; padding: 16px 20px; }
+a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* On touch screens (phones and tablets alike) every control is at least 44px to hit, however small it looks. */
+@media (pointer: coarse) {
+  .btn.sm, .seg button, .linkish.tap, .map-toggle { min-height: 44px; }
+  .iconbtn { min-width: 44px; min-height: 44px; }
+  .seg button { padding-inline: 14px; }
+}
+
+/* A walkthrough moved to the top sits below a review's own bar rather than over its buttons. */
+.coach.at-top { top: 76px; bottom: auto; }
+
+/* A wider sheet for menus with several sections (the Demo menu): columns on a desktop, one column on a phone. */
+.sheet.wide { width: min(760px, 100%); }
+.demo-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s5); }
+.demo-more { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s5); }
+@media (min-width: 761px) {
+  .demo-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s6); }
+  .demo-more { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: var(--s4); border-top: 1px solid var(--line-2); }
+}
+.page.workspace { --page-max: 1440px; }
+.page.workspace .split { max-width: 800px; }
+@container page (min-width: 1100px) {
+  .page.workspace .split { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); grid-template-areas: "a side" "b side"; align-items: start; column-gap: var(--s6); row-gap: var(--s5); }
+}
+.directory-find { gap: var(--s2); align-items: flex-end; }
+
+/* Import: three short steps side by side, then one bounded place to drop or choose the file. */
+.import-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s4); }
+.import-steps > li { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.dropzone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s2); min-height: 180px; padding: var(--s5); border: 1.5px dashed var(--line-strong); border-radius: 12px; background: var(--surface); text-align: center; }
+.dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone .btn { margin-top: var(--s2); }
+
+/* Export: the same row for every format, buttons in one aligned column. */
+.export-list .opt.static { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); }
+.export-actions { display: flex; flex-direction: column; align-items: stretch; gap: var(--s2); }
+.export-actions .btn { justify-content: center; }
+@media (max-width: 640px) { .export-list .opt.static { grid-template-columns: minmax(0, 1fr); } .export-actions { flex-direction: row; } }
+
+/* Choices that need a description are stacked rows, never a 2 + 1 grid. One footer for steps: Back left, the next step right. */
+.kindcards { display: flex; flex-direction: column; gap: var(--s2); }
+.kindcard { width: 100%; min-height: 72px; text-align: left; align-items: flex-start; }
+.focus-foot.nav-foot { flex-direction: row; align-items: center; flex-wrap: nowrap; }
+.focus-foot.nav-foot .btn.primary { align-self: auto; min-width: 200px; }
+@media (max-width: 640px) { .focus-foot.nav-foot .btn.primary { min-width: 0; flex: 1 1 auto; } }
+/* Workspace, one column: the people (and Add a person) before the settings. */
+.page.workspace .split > .split-side { order: 3; }
+
+.block-title .hint { white-space: nowrap; }
+
+/* Goals: search, filters and sort; the active filters as words you can remove. */
+.filterbar { display: flex; flex-direction: column; gap: var(--s2); }
+.filterbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.filter-search { flex: 1 1 260px; min-width: 0; }
+.filter-search .input { width: 100%; }
+.filter-sort { flex: 0 1 240px; }
+.filterbar-actions { display: flex; gap: var(--s2); margin-left: auto; }
+.filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.filter-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--fg); font-size: 13px; font-weight: 550; }
+.filter-chip:hover { border-color: var(--fg-2); }
+.filter-sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s4) var(--s5); }
+.filter-group { display: flex; flex-direction: column; gap: var(--s2); border: 0; padding: 0; margin: 0; min-width: 0; }
+.filter-options { display: flex; flex-wrap: wrap; gap: 6px var(--s3); }
+.view-tab { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (pointer: coarse) { .filter-chip { min-height: 44px; } }

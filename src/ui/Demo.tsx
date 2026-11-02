@@ -64,7 +64,7 @@ export function DemoPanel({ onClose, onPresent }: { onClose: () => void; onPrese
         <Avatar p={p} size="sm" />
         <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
           <span className="strong">{role}</span>
-          <span className="tiny muted ellipsis">{p.name}{p.role ? `, ${p.role}` : ''} · {does}</span>
+          <span className="tiny muted">{p.name}{p.role ? `, ${p.role}` : ''} · {does}</span>
         </span>
         {p.id === app.viewer.id && <span className="tiny strong" style={{ color: 'var(--accent-text)' }}>Now</span>}
       </button>
@@ -72,15 +72,16 @@ export function DemoPanel({ onClose, onPresent }: { onClose: () => void; onPrese
   };
   const tours = TOURS.filter((t) => app.ws.kind !== 'example' || app.person(t.personId));
   return (
-    <Sheet open onClose={onClose} title="Demo">
-      <div className="stack" style={{ gap: 'var(--s5)' }}>
-        <section className="stack" style={{ gap: 4 }} aria-label="See it as">
+    <Sheet open onClose={onClose} title="Demo" wide>
+      {/* People and walkthroughs side by side on a desktop; everything else below, in one row of short sections. */}
+      <div className="demo-grid">
+        <section className="stack demo-people" style={{ gap: 4 }} aria-label="See it as">
           <span className="field-label">See it as</span>
           {cast.map(row)}
           {others.length > 0 && (showAll ? others.map(row) : <button type="button" className="linkish small" onClick={() => setShowAll(true)}>Everyone else ({others.length})</button>)}
         </section>
         {tours.length > 0 && app.ws.id === 'example' && (
-          <section className="stack" style={{ gap: 4 }} aria-label="Show me how">
+          <section className="stack demo-tours" style={{ gap: 4 }} aria-label="Show me how">
             <span className="field-label">Show me how</span>
             <span className="hint">A walkthrough you do yourself: it points at each step and moves on when you’ve done it.</span>
             {tours.map((t) => (
@@ -90,6 +91,7 @@ export function DemoPanel({ onClose, onPresent }: { onClose: () => void; onPrese
             ))}
           </section>
         )}
+        <div className="demo-more">
         <section className="stack" style={{ gap: 4 }} aria-label="Research">
           <span className="field-label">Research</span>
           <Link className="menuitem" to="/research" onClick={onClose}><span className="stack" style={{ gap: 0 }}><span className="strong">Try it as a researcher</span><span className="tiny muted">Tasks to attempt, notes on any screen, and a report at the end</span></span></Link>
@@ -107,6 +109,7 @@ export function DemoPanel({ onClose, onPresent }: { onClose: () => void; onPrese
           <button type="button" className="menuitem" aria-pressed={navMode === 'four'} onClick={() => setNavMode(navMode === 'four' ? 'current' : 'four')}><span className="strong">{navMode === 'four' ? 'Back to the current tabs' : 'Try 4 tabs'}</span></button>
           <a className="menuitem" href="/"><span className="strong">Leave the demo</span></a>
         </section>
+        </div>
       </div>
     </Sheet>
   );

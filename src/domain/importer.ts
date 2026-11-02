@@ -1,6 +1,7 @@
 /* Load your own data: people and goals pasted from a spreadsheet (tab-separated) or a CSV file.
    Every row is checked with the same rules as the app's own forms before anything is saved. */
 import { blankGoal, buildGoal, validateGoal, type GoalDraft } from './goal';
+import { currentWeek } from './plan';
 import { yearName } from './yearName';
 import type { Cycle, Goal, Level, Person, PlanShape, Snapshot, Team } from './types';
 
@@ -146,7 +147,8 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
     const msgs = Object.values(errs);
     if (msgs.length) return issues.push({ table: 'Goals', row, message: `“${title || 'Untitled'}”: ${msgs.join(' ')}` });
     const id = unique('g-' + slug(title));
-    goals.push(buildGoal(d, cycle, { id, createdAt: new Date(input.now.getTime() + i).toISOString() }, null, false, 0));
+    // A goal set up mid-year starts from today's number this week, like one made with New goal: earlier weeks and quarters aren't its to miss.
+    goals.push(buildGoal(d, cycle, { id, createdAt: new Date(input.now.getTime() + i).toISOString() }, null, false, Math.max(0, currentWeek(cycle, input.now))));
     if (r['feeds into']) parentOf.set(id, { title: r['feeds into'], row });
   });
   for (const [id, { title, row }] of parentOf) {

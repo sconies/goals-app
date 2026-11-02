@@ -18,6 +18,10 @@ import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
 import { GoalBoard, GoalCards, GoalTable, HistoryGrid, LayoutSwitch, StatusLegend, useLayout, type ViewGroup } from './GoalViews';
 import { ExportButton } from './Export';
+import { FilterBar, useGoalQuery, useViews, viewParams } from './GoalFilters';
+import { applyQuery, filters } from '../domain/query';
+import { summariseAll } from '../domain/summary';
+import { withAncestors } from '../domain/map';
 // The map loads only when someone opens it, so the rest of the app stays small.
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
 
@@ -37,7 +41,7 @@ export function GoalsScreen() {
   const flat = (n: TreeNode, depth = 0): { goal: Goal; depth: number }[] => [{ goal: n.goal, depth }, ...n.children.flatMap((c) => flat(c, depth + 1))];
   const one = (key: string, title: string, goals: Goal[]): ViewGroup => ({ key, title, rows: goals.map((goal) => ({ goal, depth: 0 })) });
   // Built once per change to the goals, so the views' summaries aren't recomputed on every render.
-  const groups: ViewGroup[] = useMemo(() => show === 'outcomes'
+  const grouped: ViewGroup[] = useMemo(() => show === 'outcomes'
     ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
     : show === 'attention' ? [one('attention', 'Needs attention', att.map((a) => a.goal))]
     : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
@@ -46,7 +50,30 @@ export function GoalsScreen() {
     : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [show, app.snapshot, app.viewer.id, att]);
+  // Search, filters and sort apply on top of the grouping, in every layout and in exports.
+  const [query] = useGoalQuery();
+  const narrowed = filters(query);
+  const refined = narrowed || !!query.sort;
+  const ranked = useMemo(() => {
+    if (!refined) return null;
+    const sums = summariseAll(app.snapshot.goals, app.snapshot, app.cycle, app.today, app.week);
+    return applyQuery(sums, query, { goals: app.snapshot.goals, cycle: app.cycle, week: app.week }).map((x) => x.goal.id);
+  }, [refined, query, app.snapshot, app.cycle, app.today, app.week]);
+  const views = useViews();
+  const activeView = views.find((v) => v.params === viewParams(params));
+  const groups: ViewGroup[] = useMemo(() => {
+    if (!ranked) return grouped;
+    const pos = new Map(ranked.map((id, i) => [id, i]));
+    return grouped.map((g) => {
+      const rows = g.rows.filter((r) => pos.has(r.goal.id));
+      // Sorted, a group is a flat list in that order; filtered only, it keeps its tree shape.
+      return { ...g, rows: query.sort ? rows.map((r) => ({ ...r, depth: 0 })).sort((a, b) => pos.get(a.goal.id)! - pos.get(b.goal.id)!) : rows };
+    }).filter((g) => g.rows.length);
+  }, [grouped, ranked, query.sort]);
   const shown = [...new Map(groups.flatMap((g) => g.rows.map((r) => [r.goal.id, r.goal] as const))).values()];
+  const everyone = [...new Map(grouped.flatMap((g) => g.rows.map((r) => [r.goal.id, r.goal] as const))).values()];
+  // On the map, a filtered goal keeps the goals it feeds into, so it isn't cut off from its tree.
+  const mapGoals = narrowed ? (() => { const keep = withAncestors(app.snapshot.goals, new Set(shown.map((g) => g.id))); return app.snapshot.goals.filter((g) => keep.has(g.id)); })() : shown;
   const alt = layout !== 'list';
   const tabs: [Show, string, number | null][] = [
     ['outcomes', 'Trees', null],
@@ -57,8 +84,10 @@ export function GoalsScreen() {
     ...(navMode === 'four' ? [['watching', 'Watching', null] as [Show, string, null]] : []),
   ];
 
+  // Each kind of view gets the room it needs: a list reads best narrow, a table or board wants width, the map wants everything.
+  const frame = !alt ? 'page' : layout === 'map' ? 'page full' : 'page wide';
   return (
-    <div className="page">
+    <div className={frame}>
       <div className="page-head row between">
         <span className="stack" style={{ gap: 2 }}>
           <h1 className="title-xl">Goals</h1>
@@ -66,33 +95,52 @@ export function GoalsScreen() {
         </span>
         <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>
-      <div className="seg tabs" role="tablist" aria-label="Show">
-        {tabs.map(([k, l, n]) => (
-          <button key={k} role="tab" aria-selected={show === k} onClick={() => setParams(k === 'outcomes' ? {} : { show: k }, { replace: true })}>
-            {l}{n != null && <span className="tabcount">{n}</span>}
-          </button>
-        ))}
-      </div>
-      {app.snapshot.goals.length > 0 && (
-        <div className="row between view-bar">
-          <LayoutSwitch layout={layout} onChange={setLayout} />
-          <span className="row" style={{ gap: 'var(--s2)' }}>
-            <Link className="btn sm" to="/import">Import</Link>
-            <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
-          </span>
+      {/* One toolbar: which goals on the left, how to see them on the right. It wraps on a narrow screen. */}
+      <div className="goals-toolbar">
+        <div className="seg tabs" role="tablist" aria-label="Show">
+          {tabs.map(([k, l, n]) => (
+            <button key={k} role="tab" aria-selected={show === k && !activeView} onClick={() => { const p = new URLSearchParams(params); if (k === 'outcomes') p.delete('show'); else p.set('show', k); setParams(p, { replace: true }); }}>
+              {l}{n != null && <span className="tabcount">{n}</span>}
+            </button>
+          ))}
+          {views.map((v) => (
+            <button key={v.id} role="tab" className="view-tab" aria-selected={activeView?.id === v.id} title={v.pinned ? 'Pinned for everyone' : 'Your saved view'}
+              onClick={() => { const p = new URLSearchParams(v.params); for (const k of ['today', 'store']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>
+              {v.name}{v.pinned && <span className="tabcount">pinned</span>}
+            </button>
+          ))}
         </div>
-      )}
+        {app.snapshot.goals.length > 0 && (
+          <div className="row view-bar">
+            <LayoutSwitch layout={layout} onChange={setLayout} />
+            <span className="row" style={{ gap: 'var(--s2)' }}>
+              <Link className="btn sm" to="/import">Import</Link>
+              <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
+            </span>
+          </div>
+        )}
+      </div>
 
-      {app.snapshot.goals.length > 0 && <StatusLegend />}
+      {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
+      {app.snapshot.goals.length > 0 && layout !== 'map' && <StatusLegend />}
+      {refined && shown.length === 0 && <div className="calm">No goals match. Remove a filter above, or clear them.</div>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
-      {alt && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
+      {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
       {alt && shown.length > 0 && layout === 'cards' && <GoalCards groups={groups} />}
-      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={shown} /></Suspense>}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={mapGoals} /></Suspense>}
 
-      {!alt && show === 'outcomes' && (
+      {/* Filtered or sorted, the list is each group's matching goals, in order. */}
+      {!alt && refined && groups.map((g) => (
+        <section key={g.key} className="block" aria-label={g.title}>
+          <h2 className="block-title">{g.title} <span className="hint">· {g.rows.length}</span></h2>
+          <ul className="tree">{g.rows.map((r) => <li key={r.goal.id}><TreeRow g={r.goal} /></li>)}</ul>
+        </section>
+      ))}
+
+      {!alt && !refined && show === 'outcomes' && (
         <>
           {trees.map((t) => (
             <section key={t.goal.id} className="outcome" aria-label={t.goal.title}>
@@ -112,11 +160,11 @@ export function GoalsScreen() {
         </>
       )}
 
-      {!alt && show === 'attention' && (att.length
+      {!alt && !refined && show === 'attention' && (att.length
         ? <div className="alist">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
         : <div className="calm"><StatusShape k="done" /> Nothing is off track, stale or slipping.</div>)}
 
-      {!alt && show === 'levels' && LEVELS.map((l) => {
+      {!alt && !refined && show === 'levels' && LEVELS.map((l) => {
         const list = app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app));
         if (!list.length) return null;
         return (
@@ -130,7 +178,7 @@ export function GoalsScreen() {
         );
       })}
 
-      {!alt && show === 'teams' && app.snapshot.teams.map((t) => {
+      {!alt && !refined && show === 'teams' && app.snapshot.teams.map((t) => {
         const list = app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app));
         if (!list.length) return null;
         const st = worst(list.map((g) => app.statusOf(g).status));
@@ -148,9 +196,9 @@ export function GoalsScreen() {
         );
       })}
 
-      {!alt && show === 'watching' && <WatchingBody />}
+      {!alt && !refined && show === 'watching' && <WatchingBody />}
 
-      {!alt && show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
+      {!alt && !refined && show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
     </div>
   );
 }

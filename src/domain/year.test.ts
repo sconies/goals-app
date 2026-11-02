@@ -3,6 +3,7 @@ import { seed } from '../data/seed';
 import { toYear } from '../data/yearStory';
 import { buildGoal, draftOf, goalAsOf, planHistoryOf } from './goal';
 import { currentWeek } from './plan';
+import { assessPosted } from './status';
 import { storyOf } from './story';
 import type { Cycle, MetricGoal } from './types';
 import { dueOptions, periodLabel, quarterOf, quarterResult, quarterResults, quarters, shortPeriod, startMonth, targetAt, yearStartFor } from './year';
@@ -94,5 +95,12 @@ describe('quarters read off the owner’s plan', () => {
     expect(stagesFromNow('Design@3; Pilot with one team@7; All teams@12', 20)).toBe('Design@23; Pilot with one team@27; All teams@32');
     // Week 43: nine weeks left, so the stages spread over them and the last lands at the year's end.
     expect(stagesFromNow('Design@3; Pilot with one team@7; All teams@12', 43)).toBe('Design@45; Pilot with one team@48; All teams@52');
+  });
+
+  it('keeps the latest number judged against the plan of its own week after a later re-plan (research round 2)', () => {
+    const before = goal('review') as MetricGoal;
+    const after = buildGoal({ ...draftOf(before), target: '98' }, cycle, { id: before.id, createdAt: before.createdAt }, before, true, week) as MetricGoal;
+    const gap = (g: MetricGoal) => { const a = assessPosted(g, cycle, s.checkIns, week); return a.kind === 'metric' ? [a.week, a.plan] : null; };
+    expect(gap(after)).toEqual(gap(before));
   });
 });

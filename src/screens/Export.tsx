@@ -46,25 +46,30 @@ function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewName: st
             </div>
           </fieldset>
         )}
+        {/* Every format the same way: what it is on the left, its buttons in one column on the right. */}
         <div className="optlist export-list">
-          <button type="button" className="opt" disabled={!!busy} onClick={() => void run('xlsx', () => downloadWorkbook(workbook(input), base + '.xlsx'), 'Workbook saved')}>
+          <div className="opt static">
             <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Goals, the plan by week, every check-in, notes and actions, and people. You can edit it and load it back.</span></span>
-            <span className="hint">{busy === 'xlsx' ? 'Saving…' : '.xlsx'}</span>
-          </button>
+            <span className="export-actions">
+              <button type="button" className="btn sm" aria-label="Save .xlsx: Excel workbook" disabled={!!busy} onClick={() => void run('xlsx', () => downloadWorkbook(workbook(input), base + '.xlsx'), 'Workbook saved')}>{busy === 'xlsx' ? 'Saving…' : 'Save .xlsx'}</button>
+            </span>
+          </div>
           <div className="opt static">
             <span className="stack" style={{ gap: 2 }}><span className="strong">CSV</span><span className="hint">One table per file, for other tools.</span></span>
-            <span className="row" style={{ gap: 'var(--s2)' }}>
+            <span className="export-actions">
               <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('csv-g', () => downloadText(toCsv(workbook(input)[0]!.rows), base + '-goals.csv', 'text/csv;charset=utf-8'), 'Goals saved as CSV')}>Goals</button>
               <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('csv-c', () => downloadText(toCsv(workbook(input)[2]!.rows), base + '-check-ins.csv', 'text/csv;charset=utf-8'), 'Check-ins saved as CSV')}>Check-ins</button>
             </span>
           </div>
-          <button type="button" className="opt" disabled={!!busy} onClick={() => void run('json', () => downloadText(JSON.stringify(toJson(input), null, 2), base + '.json', 'application/json'), 'JSON saved')}>
+          <div className="opt static">
             <span className="stack" style={{ gap: 2 }}><span className="strong">JSON</span><span className="hint">Everything, with each goal’s plan and check-ins inside it. For scripts and AI tools.</span></span>
-            <span className="hint">.json</span>
-          </button>
+            <span className="export-actions">
+              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('json', () => downloadText(JSON.stringify(toJson(input), null, 2), base + '.json', 'application/json'), 'JSON saved')}>Save .json</button>
+            </span>
+          </div>
           <div className="opt static">
             <span className="stack" style={{ gap: 2 }}><span className="strong">Brief for an AI chat</span><span className="hint">A short summary: what’s off and why, every goal by what it feeds, open questions and the weekly numbers.</span></span>
-            <span className="row" style={{ gap: 'var(--s2)' }}>
+            <span className="export-actions">
               <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('md-copy', () => navigator.clipboard.writeText(aiBrief(input)), 'Brief copied. Paste it into any AI chat')}>Copy</button>
               <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('md', () => downloadText(aiBrief(input), base + '.md', 'text/markdown;charset=utf-8'), 'Brief saved')}>Save .md</button>
             </span>
