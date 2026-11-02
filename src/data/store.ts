@@ -1,7 +1,8 @@
-import type { Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
-import { seed } from './seed';
+import type { ApiToken, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
+import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
 
-export const EXAMPLE: Workspace = { id: 'example', name: 'Example: Developer Platform', kind: 'example', createdAt: '2026-01-01T00:00:00.000Z' };
+export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
+const exampleBuild = (id: string) => EXAMPLES.find((e) => e.workspace.id === id)?.build;
 
 /** One save: the records that leave draft, and the change-log entries that describe them. */
 export interface Commit {
@@ -16,7 +17,44 @@ export interface Commit {
   watches?: Watch[];
   /** Ids of watches to remove. */
   unwatch?: string[];
+  tokens?: ApiToken[];
   changes: Change[];
+  /** What the save was based on; filled in by withExpectations. A save is refused if any of it has changed since. */
+  expect?: Expectations;
+}
+
+export interface Expectations {
+  goals: { id: string; version: number }[];
+  reviews: { id: string; version: number }[];
+  /** For each check-in written: the check-in that was there for that goal and week (null: none). */
+  checkIns: { goalId: string; week: number; id: string | null }[];
+}
+
+/** The versions a save is based on, read from the snapshot the person was looking at. */
+export function withExpectations(c: Commit, s: Snapshot): Commit {
+  return {
+    ...c,
+    expect: {
+      goals: (c.goals ?? []).flatMap((g) => { const old = s.goals.find((x) => x.id === g.id); return old ? [{ id: g.id, version: old.version ?? 0 }] : []; }),
+      reviews: (c.reviews ?? []).flatMap((r) => { const old = s.reviews.find((x) => x.id === r.id); return old ? [{ id: r.id, version: old.version ?? 0 }] : []; }),
+      // Check-ins are added, not overwritten, so another person's check-in can't be lost to this one.
+      checkIns: [],
+    },
+  };
+}
+
+/** A save refused because someone else changed the same thing first. */
+export class StaleError extends Error {
+  constructor(what: string) { super('stale: ' + what); this.name = 'StaleError'; }
+}
+export const isStale = (e: unknown) => e instanceof StaleError || (e instanceof Error && /\bstale: /.test(e.message));
+
+/** Throws StaleError if the stored data has moved on from what the save expected. */
+export function checkExpectations(s: Snapshot, e: Expectations | undefined) {
+  if (!e) return;
+  for (const x of e.goals) { const g = s.goals.find((y) => y.id === x.id); if (g && (g.version ?? 0) !== x.version) throw new StaleError('goal ' + x.id); }
+  for (const x of e.reviews) { const r = s.reviews.find((y) => y.id === x.id); if (r && (r.version ?? 0) !== x.version) throw new StaleError('review ' + x.id); }
+  for (const x of e.checkIns) { const c = s.checkIns.find((y) => y.goalId === x.goalId && y.week === x.week); if ((c?.id ?? null) !== x.id) throw new StaleError(`check-in ${x.goalId} week ${x.week}`); }
 }
 
 /** The real app, or the demo: the example data, a role switcher and a reset, kept in each visitor's browser. */
@@ -29,11 +67,13 @@ export interface Store {
   readonly hasExample: boolean;
   workspaces(): Promise<Workspace[]>;
   load(workspaceId: string): Promise<Snapshot>;
-  /** Saves records and their change-log entries together. A check-in replaces any for the same goal and week. */
+  /** Saves records and their change-log entries together. A check-in with a new id is added; one with an existing id is corrected. */
   commit(workspaceId: string, c: Commit): Promise<void>;
   createWorkspace(ws: Workspace, data: Snapshot): Promise<void>;
-  /** Starts the example again from the demo data. Only the demo has one. */
-  resetExample(): Promise<Snapshot>;
+  /** Starts an example workspace again from its demo data. Only the demo has examples. */
+  resetExample(id?: string): Promise<Snapshot>;
+  /** Deletes a workspace someone set up, and everything in it. Examples can only be reset. */
+  deleteWorkspace(id: string): Promise<void>;
 }
 
 /** Applies a commit to a snapshot. Shared by the browser store and the app's optimistic update. */
@@ -42,8 +82,14 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     const ids = new Set(items.map((x) => x.id));
     return [...list.filter((x) => !ids.has(x.id)), ...items];
   };
-  const goals = (c.goals ?? []).reduce((acc, g) => (acc.some((x) => x.id === g.id) ? acc.map((x) => (x.id === g.id ? g : x)) : [...acc, g]), s.goals);
-  const replaced = (x: CheckIn) => (c.checkIns ?? []).some((n) => n.id === x.id || (n.goalId === x.goalId && n.week === x.week));
+  // A saved goal or review is one version on from the one it replaced.
+  const bump = <T extends { id: string; version?: number }>(list: T[], items: T[] = []) => items.map((x) => { const old = list.find((y) => y.id === x.id); return { ...x, version: old ? (old.version ?? 0) + 1 : 0 }; });
+  const byId = new Map(s.goals.map((g, i) => [g.id, i]));
+  const goals = [...s.goals];
+  for (const g of bump(s.goals, c.goals)) { const i = byId.get(g.id); if (i == null) { byId.set(g.id, goals.length); goals.push(g); } else goals[i] = g; }
+  // Check-ins are kept, any number a week; one is replaced only when it is saved again with its own id.
+  const newIds = new Set((c.checkIns ?? []).map((n) => n.id));
+  const replaced = (x: CheckIn) => newIds.has(x.id);
   return {
     ...s,
     people: upsert(s.people, c.people),
@@ -52,10 +98,11 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     decisions: upsert(s.decisions, c.decisions),
     changes: [...s.changes, ...c.changes],
     watches: upsert((s.watches ?? []).filter((w) => !(c.unwatch ?? []).includes(w.id)), c.watches),
-    reviews: upsert(s.reviews ?? [], c.reviews),
+    reviews: upsert(s.reviews ?? [], bump(s.reviews ?? [], c.reviews)),
     retros: upsert(s.retros ?? [], c.retros),
     cycles: upsert(s.cycles, c.cycles),
     feedback: upsert(s.feedback ?? [], c.feedback),
+    tokens: upsert(s.tokens ?? [], c.tokens),
   };
 }
 
@@ -93,14 +140,16 @@ export class BrowserStore implements Store {
 
   async workspaces(): Promise<Workspace[]> {
     const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
-    return this.hasExample ? [EXAMPLE, ...own] : own;
+    return this.hasExample ? [...EXAMPLES.map((e) => e.workspace), ...own] : own;
   }
 
   private current(id: string): Snapshot {
-    const s = this.memory.get(id) ?? this.get<Snapshot>(`${this.key}:${id}`);
+    // What's stored first: another tab may have saved since this one last looked.
+    const s = this.get<Snapshot>(`${this.key}:${id}`) ?? this.memory.get(id);
     if (s) return s;
-    if (id !== EXAMPLE.id || !this.hasExample) throw new Error('This workspace no longer exists in this browser.');
-    return this.write(id, seed(this.today()));
+    const build = this.hasExample ? exampleBuild(id) : undefined;
+    if (!build) throw new Error('This workspace no longer exists in this browser.');
+    return this.write(id, build(this.today()));
   }
 
   private write(id: string, s: Snapshot): Snapshot {
@@ -114,7 +163,11 @@ export class BrowserStore implements Store {
   }
 
   async commit(id: string, c: Commit) {
-    this.write(id, applyCommit(this.current(id), c));
+    // Read what's stored now, not this tab's copy: another tab may have saved since.
+    const stored = this.get<Snapshot>(`${this.key}:${id}`) ?? this.current(id);
+    checkExpectations(stored, c.expect);
+    const { expect: _e, ...rest } = c;
+    this.write(id, applyCommit(stored, rest));
   }
 
   async createWorkspace(ws: Workspace, data: Snapshot) {
@@ -123,9 +176,18 @@ export class BrowserStore implements Store {
     this.write(ws.id, data);
   }
 
-  async resetExample() {
-    if (!this.hasExample) throw new Error('Only the demo has an example to reset.');
-    return structuredClone(this.write(EXAMPLE.id, seed(this.today())));
+  async resetExample(id: string = EXAMPLE.id) {
+    const build = this.hasExample ? exampleBuild(id) : undefined;
+    if (!build) throw new Error('Only the demo has examples to reset.');
+    return structuredClone(this.write(id, build(this.today())));
+  }
+
+  async deleteWorkspace(id: string) {
+    if (exampleBuild(id)) throw new Error('Example workspaces can be reset, not deleted.');
+    const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
+    this.put(this.key + ':workspaces', own.filter((w) => w.id !== id));
+    this.memory.delete(id);
+    try { localStorage.removeItem(`${this.key}:${id}`); } catch { /* storage blocked */ }
   }
 }
 

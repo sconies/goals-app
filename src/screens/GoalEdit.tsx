@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
+import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { LEVEL_LABEL } from '../domain/format';
@@ -8,6 +9,9 @@ import { buildGoal, draftOf, planChanged, validateGoal, type GoalDraft, type Goa
 import type { Goal, Level, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
+import { PlanTable } from '../ui/PlanTable';
+import { weekDates, yearEndWeek } from '../domain/plan';
+import { parseNumber } from '../domain/checkin';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
 const LEVELS: [Level, string][] = [['team', 'Most goals'], ['svp', 'Reported at SVP reviews'], ['north-star', 'Reported at the top']];
@@ -38,6 +42,13 @@ function EditSheet({ goal }: { goal: Goal }) {
   const valid = Object.keys(errors).length === 0;
   const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
   const replanning = !!built && started && planChanged(goal, built);
+  // When the target is due, and the plan from the shape (before any numbers typed by hand), for the plan table.
+  const yearEnd = yearEndWeek(cycle);
+  const endOptions = dueOptions(cycle, week, yearEnd);
+  const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
+  const shapedPlan = goal.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null && parseNumber(d.start) !== parseNumber(d.target)
+    ? { start: parseNumber(d.start) as number, target: parseNumber(d.target) as number, shape: d.shape, ...(goal.plan.fromWeek ? { fromWeek: goal.plan.fromWeek } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) }
+    : null;
   const reasonOk = d.reason.trim().length >= MIN_REASON;
   const below = new Set<string>();
   const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { if (below.has(c.id) || c.id === goal.id) continue; below.add(c.id); walk(c.id); } };
@@ -95,6 +106,14 @@ function EditSheet({ goal }: { goal: Goal }) {
                   {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}
                 </div>
               </div>
+              <div className="field"><span className="field-label" id="end-l">When it’s due</span>
+                <div className="seg full" role="group" aria-labelledby="end-l">
+                  {endOptions.map(([w, l]) => <button key={w} type="button" aria-pressed={endChoice === w} onClick={() => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })}>{l}</button>)}
+                </div>
+                <span className="hint">Week {endChoice}, {weekDates(cycle, endChoice)}.</span>
+              </div>
+              {shapedPlan && <PlanTable plan={shapedPlan} unit={{ unit: d.unit, decimals: parseNumber(d.decimals) ?? 0 }} typed={d.points} onType={(w, v) => set({ points: { ...d.points, [String(w)]: v } })} onReset={() => set({ points: {} })} />}
+              {err('points')}
             </>
           )}
           {goal.kind === 'range' && (
@@ -154,6 +173,17 @@ function EditSheet({ goal }: { goal: Goal }) {
               </select>
             </label>
           )}
+          <div className="field"><span className="field-label">Also helps <span className="hint">optional · a dotted line on the map</span></span>
+            {(d.alsoHelps ?? []).length > 0 && (
+              <span className="row" style={{ gap: 'var(--s2)' }}>{(d.alsoHelps ?? []).map((id) => (
+                <span key={id} className="chip tag">{app.goal(id)?.title ?? id} <button type="button" className="linkish small" aria-label={`Remove ${app.goal(id)?.title ?? id}`} onClick={() => set({ alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })}>✕</button></span>
+              ))}</span>
+            )}
+            <select className="input" value="" aria-label="Add a goal it also helps" onChange={(e) => e.target.value && set({ alsoHelps: [...(d.alsoHelps ?? []), e.target.value] })}>
+              <option value="">Add a goal it also helps…</option>
+              {app.snapshot.goals.filter((g) => g.id !== goal.id && g.id !== d.parentId && !(d.alsoHelps ?? []).includes(g.id)).map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+            </select>
+          </div>
           {d.parentId && (
             <label className="field"><span className="field-label">Why do we expect it to help? <span className="hint">optional</span></span>
               <textarea className="input" rows={2} value={d.whyHelps} onChange={(e) => set({ whyHelps: e.target.value })} placeholder="What should change in the goal it feeds, and why" />

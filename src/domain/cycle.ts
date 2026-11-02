@@ -64,6 +64,12 @@ export function nextCycle(old: Cycle, goals: Goal[], checkIns: CheckIn[], retros
   const out = carried.map((g): Goal => {
     const base = { ...g, id: map.get(g.id)!, cycleId: cycle.id, parentId: g.parentId ? map.get(g.parentId) ?? null : null, createdAt: now, pending: null };
     if (!base.parentId) base.effect = null;
+    if (g.kind === 'metric' && (g.plan.endWeek ?? 0) > old.weeks) {
+      // A goal that runs past this cycle keeps its plan; its weeks are now counted from the new cycle's start.
+      const shift = (w: number) => w - old.weeks;
+      const plan = { ...g.plan, fromWeek: shift(g.plan.fromWeek ?? 0), endWeek: shift(g.plan.endWeek!), ...(g.plan.points ? { points: g.plan.points.map((p) => ({ ...p, week: shift(p.week) })) } : {}) };
+      return { ...base, kind: 'metric', plan, originalPlan: null, rebaselinedWeek: null } as Goal;
+    }
     if (g.kind === 'metric') {
       const own = checkInsFor(g, checkIns).filter((c) => c.value != null);
       const last = own[own.length - 1]?.value ?? g.plan.start;

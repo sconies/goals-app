@@ -3,8 +3,8 @@ import type { Snapshot, Workspace } from '../domain/types';
 import {
   changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows,
   personFromRow, personToRow, teamFromRow, teamToRow, workspaceFromRow, workspaceToRow,
-  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow } from './rows';
-import { EXAMPLE, type Commit, type Store } from './store';
+  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, commitPayload } from './rows';
+import { EXAMPLE, StaleError, type Commit, type Store } from './store';
 
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
 export const TIMEOUT_MS = 12_000;
@@ -32,11 +32,17 @@ export class SupabaseStore implements Store {
 
   private async all<T>(table: string, ws: string): Promise<T[]> {
     const out: T[] = [];
-    for (let from = 0; ; from += PAGE) {
-      const { data, error } = await this.db.from(table).select('*').eq('workspace_id', ws).order('id').range(from, from + PAGE - 1);
+    // Keyset paging (after the last id seen), so rows added while loading can't shift a page and be skipped or repeated.
+    let after: string | null = null;
+    for (;;) {
+      let q = this.db.from(table).select('*').eq('workspace_id', ws).order('id').limit(PAGE);
+      if (after != null) q = q.gt('id', after);
+      const { data, error } = await q;
       if (error) throw new Error(`${table}: ${error.message}`);
-      out.push(...((data ?? []) as T[]));
-      if (!data || data.length < PAGE) return out;
+      const rows = (data ?? []) as (T & { id: string })[];
+      out.push(...rows);
+      if (rows.length < PAGE) return out;
+      after = rows[rows.length - 1]!.id;
     }
   }
 
@@ -53,11 +59,13 @@ export class SupabaseStore implements Store {
   }
 
   async load(ws: string): Promise<Snapshot> {
-    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback] = await Promise.all([
+    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens] = await Promise.all([
       this.all<TeamRow>('okr_teams', ws), this.all<PersonRow>('okr_people', ws), this.all<CycleRow>('okr_cycles', ws),
       this.all<GoalRow>('okr_goals', ws), this.all<StageRow>('okr_stages', ws), this.all<CheckInRow>('okr_check_ins', ws),
       this.all<DecisionRow>('okr_decisions', ws), this.all<ChangeRow>('okr_changes', ws),
       this.all<WatchRow>('okr_watches', ws), this.all<ReviewRow>('okr_reviews', ws), this.all<RetroRow>('okr_retros', ws), this.all<FeedbackRow>('okr_feedback', ws),
+      // Tokens arrive with migration 0010; until then the app works without them.
+      this.all<TokenRow>('okr_api_tokens', ws).catch(() => [] as TokenRow[]),
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     return {
@@ -72,10 +80,27 @@ export class SupabaseStore implements Store {
       reviews: reviews.map(reviewFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
       retros: retros.map(retroFromRow),
       feedback: feedback.map(feedbackFromRow),
+      tokens: tokens.map(tokenFromRow),
     };
   }
 
+  /** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
+  private async rpc(fn: string, args: Record<string, unknown>, what: string): Promise<'missing' | void> {
+    const { error } = await this.db.rpc(fn, args);
+    if (!error) return;
+    if (error.code === 'PGRST202' || /Could not find the function|function .* does not exist/i.test(error.message)) return 'missing';
+    if (/stale: /.test(error.message)) throw new StaleError(error.message.replace(/^.*stale: /, ''));
+    throw new Error(`${what}: ${error.message}`);
+  }
+
+  /** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. */
   async commit(ws: string, c: Commit) {
+    if ((await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c) }, 'Saving')) !== 'missing') return;
+    await this.legacyCommit(ws, c);
+  }
+
+  /** The save before migration 0011: one request per table, not in a transaction. Used only until 0011 is applied. */
+  private async legacyCommit(ws: string, c: Commit) {
     if (c.cycles?.length) await this.must(this.db.from('okr_cycles').upsert(c.cycles.map((x) => cycleToRow(ws, x))), 'Saving the cycle');
     if (c.people?.length) await this.must(this.db.from('okr_people').upsert(c.people.map((p) => personToRow(ws, p))), 'Saving people');
     for (const g of c.goals ?? []) {
@@ -89,13 +114,13 @@ export class SupabaseStore implements Store {
         if (stages.length) await this.must(this.db.from('okr_stages').upsert(stages), 'Saving stages');
       }
     }
-    // One check-in per goal and week: replace whatever was there.
-    if (c.checkIns?.length) await this.must(this.db.from('okr_check_ins').upsert(c.checkIns.map((x) => checkInToRow(ws, x)), { onConflict: 'goal_id,week' }), 'Saving the check-in');
+    if (c.checkIns?.length) await this.must(this.db.from('okr_check_ins').upsert(c.checkIns.map((x) => checkInToRow(ws, x))), 'Saving the check-in');
     if (c.reviews?.length) await this.must(this.db.from('okr_reviews').upsert(c.reviews.map((x) => reviewToRow(ws, x))), 'Saving the review');
     if (c.feedback?.length) await this.must(this.db.from('okr_feedback').insert(c.feedback.map((x) => feedbackToRow(ws, x))), 'Sending feedback');
     if (c.retros?.length) await this.must(this.db.from('okr_retros').upsert(c.retros.map((x) => retroToRow(ws, x))), 'Saving the retro');
     if (c.decisions?.length) await this.must(this.db.from('okr_decisions').upsert(c.decisions.map((x) => decisionToRow(ws, x))), 'Saving the decision');
     if (c.watches?.length) await this.must(this.db.from('okr_watches').upsert(c.watches.map((x) => watchToRow(ws, x))), 'Watching');
+    if (c.tokens?.length) await this.must(this.db.from('okr_api_tokens').upsert(c.tokens.map((x) => tokenToRow(ws, x))), 'Saving the token');
     for (const id of c.unwatch ?? []) await this.must(this.db.from('okr_watches').delete().eq('id', id), 'Stopping watching');
     if (c.changes.length) await this.must(this.db.from('okr_changes').insert(c.changes.map((x) => changeToRow(ws, x))), 'Logging the change');
   }
@@ -122,12 +147,27 @@ export class SupabaseStore implements Store {
   }
 
   async createWorkspace(w: Workspace, data: Snapshot) {
+    const payload = { ...commitPayload(w.id, { ...data, changes: data.changes }), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
+    if ((await this.rpc('okr_create_workspace', { w: workspaceToRow(w), payload }, 'Creating the workspace')) !== 'missing') return;
     await this.must(this.db.from('okr_workspaces').insert(workspaceToRow(w)), 'Creating the workspace');
     await this.insertAll(w.id, data);
   }
 
   async resetExample(): Promise<Snapshot> {
     throw new Error('Only the demo has an example to reset.');
+  }
+
+  /** Removes a workspace and everything in it. The tables don't cascade from the workspace, so children go first. */
+  async deleteWorkspace(ws: string) {
+    if (ws === EXAMPLE.id) throw new Error('The example can’t be deleted.');
+    if ((await this.rpc('okr_delete_workspace', { ws }, 'Deleting the workspace')) !== 'missing') return;
+    // People and teams point at each other; clear those links before deleting either.
+    await this.must(this.db.from('okr_teams').update({ lead_id: null }).eq('workspace_id', ws), 'Unlinking teams');
+    await this.must(this.db.from('okr_goals').update({ parent_id: null }).eq('workspace_id', ws), 'Unlinking goals');
+    for (const t of ['okr_feedback', 'okr_retros', 'okr_watches', 'okr_decisions', 'okr_check_ins', 'okr_stages', 'okr_changes', 'okr_reviews', 'okr_goals', 'okr_cycles', 'okr_people', 'okr_teams']) {
+      await this.must(this.db.from(t).delete().eq('workspace_id', ws), 'Deleting the workspace');
+    }
+    await this.must(this.db.from('okr_workspaces').delete().eq('id', ws), 'Deleting the workspace');
   }
 
 }

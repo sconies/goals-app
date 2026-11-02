@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
+import { periodLabel } from '../domain/year';
 import { weekProgress, WEEKDAY } from '../domain/progress';
 import { Avatar } from '../ui/bits';
 
@@ -56,7 +57,7 @@ export function Ready() {
       <div className="celebrate" role="status">
         <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
         <h1 className="title-xl">{app.ws.name} is ready</h1>
-        <p className="muted">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'}{goals ? `, ${goals} ${goals === 1 ? 'goal' : 'goals'}` : ''}. {app.week < 1 ? `The cycle starts this week; the first check-ins are due in week 1, before ${WEEKDAY[app.cycle.reviewDay]}’s review.` : `The cycle is in week ${app.week} of ${app.cycle.weeks}.`}</p>
+        <p className="muted">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'}{goals ? `, ${goals} ${goals === 1 ? 'goal' : 'goals'}` : ''}. {app.week < 1 ? `The goals start this week; the first check-ins are due in week 1, before ${WEEKDAY[app.cycle.reviewDay]}’s review.` : `${periodLabel(app.cycle, app.week)}.`}</p>
         <div className="stack" style={{ gap: 'var(--s3)', alignItems: 'center' }}>
           {mine.due.length > 0
             ? <Link className="btn primary big-btn" to="/check-in">Check in on your {mine.due.length === 1 ? 'goal' : `${mine.due.length} goals`}</Link>

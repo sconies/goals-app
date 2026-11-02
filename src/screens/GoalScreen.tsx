@@ -6,8 +6,11 @@ import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL, weekLabel } from 
 import { valueSeries } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import type { Change, Goal } from '../domain/types';
-import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo } from '../ui/bits';
+import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo, StatusShape } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
+import { PlanTable } from '../ui/PlanTable';
+import { isYear, quarterOf, quarterResults } from '../domain/year';
+import { weekDates } from '../domain/plan';
 import { ReviewBar, ReviewCallBar, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 
@@ -82,8 +85,10 @@ function GoalView({ goal }: { goal: Goal }) {
   const isOwner = app.viewer.id === goal.ownerId;
   const due = att.flags.some((f) => f.kind === 'due');
   const changes = app.snapshot.changes.filter((c) => c.goalId === goal.id).slice().reverse();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const published = params.get("published") === "1";
   const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>(params.get('tab') === 'comments' ? 'activity' : 'check-ins');
+  const [allCheckIns, setAllCheckIns] = useState(false);
   const flags = att.flags.filter((f) => f.kind !== 'due');
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
   const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind));
@@ -95,8 +100,10 @@ function GoalView({ goal }: { goal: Goal }) {
   const stale = st.status === 'stale';
   const dateText = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const askForUpdate = async () => {
-    await app.addNote(goal, `${owner?.name.split(' ')[0] ?? 'Hi'}, could you post an update? The last check-in was week ${latest?.week ?? '–'}.`);
-    app.toast(`Asked ${owner?.name.split(' ')[0] ?? 'the owner'}. It’s on their Home under For you.`);
+    try {
+      await app.addNote(goal, `${owner?.name.split(' ')[0] ?? 'Hi'}, could you post an update? The last check-in was week ${latest?.week ?? '–'}.`);
+      app.toast(`Asked ${owner?.name.split(' ')[0] ?? 'the owner'}. It’s on their Home under For you.`);
+    } catch { /* the save already said what went wrong */ }
   };
   // In a review, the page is compact: result, what changed, what's needed; the rest folds away.
   const compact = rv.active;
@@ -118,11 +125,24 @@ function GoalView({ goal }: { goal: Goal }) {
           </span>
         </span>
         {!compact && <div className="actions">
-          {isOwner && week > 0 && <Link className={'btn' + (due ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Post an update'}</Link>}
+          {isOwner && week > 0 && <Link className={'btn' + (due && !(published && own.length === 0) ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Check in now'}</Link>}
           {canEdit && <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>}
           {!isOwner && <WatchButton goal={goal} />}
         </div>}
       </div>
+
+      {published && own.length === 0 && (
+        <section className="first-checkin" aria-label="First check-in">
+          <span className="strong">“{goal.title}” is published.</span>
+          {week < 1
+            ? <span>Its first check-in is due in week 1, when the year starts.</span>
+            : isOwner
+              ? <><span>Post its first check-in now, so everyone can see where it stands from today.</span>
+                  <span className="row"><Link className="btn primary" to={'/check-in/' + goal.id}>Post the first check-in</Link><button type="button" className="btn ghost" onClick={() => setParams({}, { replace: true })}>Later</button></span></>
+              : <><span>{owner?.name.split(' ')[0] ?? 'The owner'} posts its check-ins. Ask for the first one now?</span>
+                  <span className="row"><button type="button" className="btn" onClick={() => void askForUpdate().then(() => setParams({}, { replace: true }))}>Ask {owner?.name.split(' ')[0] ?? 'the owner'}</button><button type="button" className="btn ghost" onClick={() => setParams({}, { replace: true })}>Later</button></span></>}
+        </section>
+      )}
 
       {parent && goal.whyHelps && <p className="small muted why-helps">Feeds “{parent.title}”: {goal.whyHelps}</p>}
 
@@ -183,6 +203,8 @@ function GoalView({ goal }: { goal: Goal }) {
         </section>
       )}
 
+      {!compact && isYear(cycle) && <QuarterStrip goal={goal} />}
+
       {(() => { const chart = (<section className="block">
         {goal.kind === 'metric' && a.kind === 'metric' && (
           <figure className="card" style={{ margin: 0 }}>
@@ -217,23 +239,25 @@ function GoalView({ goal }: { goal: Goal }) {
         </div>
         {tab === 'activity' && <NoteComposer goal={goal} />}
         {tab === 'activity' && (changes.length ? <ol className="changes">{changes.map((c) => <ChangeItem key={c.id} c={c} />)}</ol> : <p className="small muted">No changes yet.</p>)}
-        {tab === 'check-ins' && (own.length ? (
+        {tab === 'check-ins' && (own.length ? (<>
           <ol className="cilist">
-            {[...own].reverse().map((c) => (
+            {[...own].reverse().slice(0, allCheckIns ? undefined : 8).map((c) => (
               <li key={c.id}>
-                <span className="strong">Week {c.week}</span>
+                <span className="strong">Week {c.week}{own.filter((x) => x.week === c.week).length > 1 ? <span className="hint"> · {new Date(c.postedAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span> : null}</span>
                 <span>{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
                 <Chip k={c.status} />
                 {c.why && c.why !== 'On plan.' && <span className="small cilist-why">{c.why}</span>}
               </li>
             ))}
           </ol>
-        ) : <p className="small muted">No check-ins yet.</p>)}
+          {own.length > 8 && !allCheckIns && <button type="button" className="linkish small" onClick={() => setAllCheckIns(true)}>Show all {own.length} check-ins</button>}
+        </>) : <p className="small muted">No check-ins yet.</p>)}
+        {tab === 'details' && goal.kind === 'metric' && <PlanTable plan={goal.plan} unit={goal} actuals={own} label="Plan and actual by week" />}
         {tab === 'details' && (
           <dl className="details">
             <dt>Kind</dt><dd>{kindLabel(goal)}</dd>
             {goal.definition && <><dt>Definition</dt><dd>{goal.definition}</dd></>}
-            {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {cycle.weeks}, {directionLabel(goal)}</dd><dt>Plan</dt><dd>{goal.plan.shape === 'back' ? 'Back-loaded' : goal.plan.shape === 'stepped' ? 'Three steps' : 'Straight line'}</dd></>}
+            {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {goal.plan.endWeek ?? cycle.weeks} ({weekDates(cycle, goal.plan.endWeek ?? cycle.weeks)}){(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}</dd><dt>Plan</dt><dd>{goal.plan.points?.length ? 'Numbers set by hand' : goal.plan.shape === 'back' ? 'Back-loaded' : goal.plan.shape === 'stepped' ? 'Three steps' : 'Straight line'}</dd></>}
             {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}</dd></>}
             {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ')}</dd></>}
             <dt>Level</dt><dd>{LEVEL_LABEL[goal.level]}{goal.level !== 'team' ? ', reported at major reviews' : ''}</dd>
@@ -290,5 +314,27 @@ function CheckInList({ goal }: { goal: Goal }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+/** The year by quarter: each quarter's plan for this goal, and whether it was met. */
+function QuarterStrip({ goal }: { goal: Goal }) {
+  const app = useApp();
+  const now = quarterOf(app.cycle, app.week).n;
+  const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, app.week);
+  if (rs.every((r) => r.kind === 'none')) return null;
+  return (
+    <section className="block" aria-label="This year by quarter">
+      <h2 className="block-title">This year by quarter</h2>
+      <ol className="quarters">
+        {rs.map((r) => (
+          <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
+            <span className="row between nowrap"><span className="strong">{r.quarter.label} <span className="hint">{r.quarter.months}</span></span>
+              <span className="q-result">{r.kind === 'met' ? <><StatusShape k="on" />Met</> : r.kind === 'missed' ? <><StatusShape k="off" />Missed</> : r.kind === 'open' ? (r.quarter.n === now ? 'Now' : 'To come') : '—'}</span></span>
+            <span className="small">{r.text.replace(/^Q\d: /, '')}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
+import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, draftFrom, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
 import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
@@ -28,7 +29,7 @@ export function CheckInFlow() {
   const goal = queue[index] ? app.goal(queue[index]) : undefined;
 
   if (app.week < 1) {
-    return <div className="page narrow"><Empty title="Check-ins start in week 1"><span className="muted">The cycle has just begun. Your first check-in is due next week.</span></Empty></div>;
+    return <div className="page narrow"><Empty title="Check-ins start in week 1"><span className="muted">The goals have just started. Your first check-in is due next week.</span></Empty></div>;
   }
   if (!queue.length) return <AllDone first />;
   if (index >= queue.length) return <AllDone />;
@@ -102,12 +103,13 @@ function AllDone({ first }: { first?: boolean }) {
       <div className="celebrate" role="status">
         <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} />
         <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : p.due.length ? `${p.done.length} of ${p.goals.length} checked in` : `Week ${app.week} is done`}</h1>
-        <p className="muted">{!p.goals.length ? 'You don’t own any goals this cycle.' : p.due.length ? `Still to do: ${p.due.map((g) => g.title).join(', ')}.` : p.goals.length === 1 ? 'Your goal is checked in for the review.' : p.goals.length === 2 ? 'Both your goals are checked in for the review.' : `All ${p.goals.length} of your goals are checked in for the review.`}</p>
+        <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : p.due.length ? `Still to do: ${p.due.map((g) => g.title).join(', ')}.` : p.goals.length === 1 ? 'Your goal is checked in for the review.' : p.goals.length === 2 ? 'Both your goals are checked in for the review.' : `All ${p.goals.length} of your goals are checked in for the review.`}</p>
         {streak >= 2 && !p.due.length && <p className="streak big">{streak} weeks in a row on time</p>}
         <div className="row" style={{ justifyContent: 'center' }}>
           {p.due.length > 0 && <Link className="btn primary big-btn" to={`/check-in/${p.due[0]!.id}`}>Check in on {p.due[0]!.title}</Link>}
           <Link ref={ref} className={'btn big-btn' + (p.due.length ? '' : ' primary')} to="/">Back to home</Link>
         </div>
+        {p.due.filter((g) => g.kind !== 'milestone').length >= 2 && <Link className="linkish small" to="/quick-check-in">Or type all your numbers in one table</Link>}
       </div>
     </div>
   );
@@ -123,7 +125,7 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
   return (
     <div className="celebrate" role="status">
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
-      <h1 className="title-xl">{updated ? 'Update saved' : 'Check-in saved'}</h1>
+      <h1 className="title-xl">Check-in saved</h1>{updated && <p className="muted">Kept alongside your earlier check-in this week; this one is now the week’s status.</p>}
       <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status is <Chip k={c.status} /></p>
       {!left && <p className="muted">{p.due.length ? `Still due this week: ${p.due.map((g) => g.title).join(', ')}.` : `All ${p.goals.length === 1 ? 'your goal is' : `${p.goals.length} of your goals are`} checked in for week ${app.week}${late ? ', after the review day' : ''}.`}</p>}
       <div className="row" style={{ justifyContent: 'center' }}>
@@ -147,9 +149,10 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const app = useApp();
   const { week, cycle } = app;
   const own = app.checkInsOf(goal);
-  const existing = own.find((c) => c.week === week) ?? null;
-  const previous = [...own].reverse().find((c) => c.week < week) ?? null;
-  const [draft, set, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => (existing ? draftFrom(existing) : emptyDraft(goal, previous)));
+  // Already checked in this week? This one is added alongside it (ad hoc), starting from where the last one left off.
+  const existing = [...own].reverse().find((c) => c.week === week) ?? null;
+  const previous = own[own.length - 1] ?? null;
+  const [draft, set, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => emptyDraft(goal, previous));
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showNext, setShowNext] = useState(!!draft.next);
@@ -178,7 +181,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const priorWay = needsWay && !!previous?.pathToGreen;
   // Once the owner has written their own reason or path, last week's is no longer offered (or pasted over it).
   const edited = (!!draft.why.trim() && draft.why !== previous?.why) || (!!draft.ptgWhat.trim() && draft.ptgWhat !== previous?.pathToGreen?.what) || (!!draft.cause && draft.cause !== previous?.cause);
-  const canCarry = !existing && !edited && !!previous && (needsWhy || needsWay) && (!needsWhy || priorWhy) && (!needsWay || priorWay);
+  const canCarry = !edited && !!previous && (needsWhy || needsWay) && (!needsWhy || priorWhy) && (!needsWay || priorWay);
   const fromLast = (): Partial<Draft> => ({
     ...(priorWhy ? { cause: previous!.cause, why: previous!.why } : {}),
     ...(priorWay ? { ptgWhat: previous!.pathToGreen!.what, ptgBy: (previous!.pathToGreen!.byWeek ?? 0) > week ? previous!.pathToGreen!.byWeek : null, ptgState: previous!.pathToGreen!.state ?? 'plan', needs: previous!.pathToGreen!.needs } : {}),
@@ -197,7 +200,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     setSaving(true);
     try {
       const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
-      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { needs: `${from.name}: ${d.ptgWhat.trim()}` } : {}) }, existing);
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { needs: `${from.name}: ${d.ptgWhat.trim()}` } : {}) }, null);
       clear();
       onPosted(c, !!existing);
     } catch {
@@ -213,7 +216,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const primary = () => {
     if (step === 'measure') {
       if (!valueOk || e.missing.some((m) => m.startsWith('why your call'))) { setTried(true); return; }
-      if (needsWhy || needsWay) go(canCarry && !existing ? 'carry' : needsWhy ? 'why' : 'way');
+      if (needsWhy || needsWay) go(canCarry ? 'carry' : needsWhy ? 'why' : 'way');
       else void post();
     } else if (step === 'why') {
       if (!whyOk || !targetOk) { setTried(true); return; }
@@ -237,7 +240,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     go(needsWhy ? 'why' : 'way');
   };
 
-  const label = saving ? 'Posting…' : last ? (existing ? 'Post update' : 'Post check-in') : 'Next';
+  const label = saving ? 'Posting…' : last ? 'Post check-in' : 'Next';
   // Count every step this check-in could need, so the total never grows partway through; "Still true" just finishes early.
   const carryOffered = useRef(false);
   if (canCarry) carryOffered.current = true;
@@ -247,7 +250,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   return (
     <form className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
       <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={full.length > 1 ? { at: stepNo, of: full.length } : undefined} />
-      {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This replaces it; the change log keeps both.</p>}
+      {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
       {step === 'measure' && (
@@ -272,7 +275,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
               })() ?? (tried && !valueOk
                 ? <span className="hint tone-off" role="alert">Type this week’s number.</span>
                 : <span id="value-hint" className="valuehint hint">
-                    <span>{previous?.value != null ? `Week ${previous.week}: ${fmt(previous.value, goal)}` : 'First check-in this cycle'}</span>
+                    <span>{previous?.value != null ? `Week ${previous.week}: ${fmt(previous.value, goal)}` : 'First check-in'}</span>
                     {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Measured again: unchanged</button>}
                   </span>)}
               {previous?.value != null && draft.value.trim() !== '' && parseNumber(draft.value) === previous.value && <span className="hint">Same as week {previous.week}. Post it only if you measured it again this week.</span>}
@@ -425,9 +428,10 @@ function WeekPicks({ week, weeks, value, onPick }: { week: number; weeks: number
   const { cycle } = useApp();
   return (
     <div className="row" role="group" aria-labelledby="ptg-by">
-      {Array.from({ length: Math.max(0, weeks - week) }, (_, i) => week + 1 + i).filter((w, i, arr) => i < 4 || w === arr[arr.length - 1]).map((w) => (
-        <button key={w} type="button" className="pill" aria-pressed={value === w} onClick={() => onPick(w)} aria-label={`${w === weeks ? 'Cycle end, week ' + w : 'Week ' + w}, ${weekDates(cycle, w)}`}>{w === weeks ? 'Cycle end' : 'Week ' + w}<span className="pill-sub">{weekDates(cycle, w)}</span></button>
-      ))}
+      {Array.from({ length: Math.max(0, weeks - week) }, (_, i) => week + 1 + i).filter((w, i, arr) => i < 4 || w === arr[arr.length - 1] || (isYear(cycle) && w === quarterOf(cycle, week).to)).map((w) => {
+        const name = w === weeks ? (isYear(cycle) ? 'Year end' : 'Cycle end') : isYear(cycle) && w === quarterOf(cycle, week).to && w > week + 4 ? `End of ${quarterOf(cycle, week).label}` : 'Week ' + w;
+        return <button key={w} type="button" className="pill" aria-pressed={value === w} onClick={() => onPick(w)} aria-label={`${name}${name.startsWith('Week') ? '' : ', week ' + w}, ${weekDates(cycle, w)}`}>{name}<span className="pill-sub">{weekDates(cycle, w)}</span></button>;
+      })}
     </div>
   );
 }
@@ -442,7 +446,7 @@ function GoalHead({ goal, previous, teamLine, compact, steps }: { goal: Goal; pr
       </div>
       <h1 className="title-xl">{goal.title}</h1>
       {!compact && previous && <span className="row hint" style={{ gap: 'var(--s2)' }}><Chip k={previous.status} />at the week {previous.week} check-in</span>}
-      {!compact && !previous && app.week > 1 && <span className="hint">No check-in yet this cycle</span>}
+      {!compact && !previous && app.week > 1 && <span className="hint">No check-in yet</span>}
     </div>
   );
 }
@@ -462,7 +466,7 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
     title = `This week: ${gap.short}`;
     line = `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${app.week}.`;
     const fc = forecastText(goal, a, app.cycle.weeks);
-    if (fc) forecast = { text: (fc.warn ? 'Cycle end: ' : '') + fc.text + (fc.warn && a.ratio >= 1 ? ' The plan expects a faster pace later, so the two can disagree.' : ''), warn: fc.warn };
+    if (fc) forecast = { text: (fc.warn ? 'By the due date: ' : '') + fc.text + (fc.warn && a.ratio >= 1 ? ' The plan expects a faster pace later, so the two can disagree.' : ''), warn: fc.warn };
   } else if (a.kind === 'range' && goal.kind === 'range') line = `${gap.long}. The limit is ${targetText(goal)}.`;
   const hasChart = a.kind !== 'milestone';
   return (

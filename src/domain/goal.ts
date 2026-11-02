@@ -1,5 +1,6 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
+import { planAt, planCheckpoints, planEnd } from './plan';
 import type { Cycle, Goal, GoalKind, Io, Level, MetricPlan, PlanShape } from './types';
 
 export interface GoalDraft {
@@ -13,6 +14,12 @@ export interface GoalDraft {
   parentId: string;
   effect: string;
   whyHelps: string;
+  /** Other goals it also helps (dotted lines on the map). */
+  alsoHelps: string[];
+  /** When the target is due, as a week from the cycle's start; empty means the end of the cycle. */
+  endWeek: string;
+  /** Plan numbers typed by hand, by checkpoint week. Empty means the shape decides. */
+  points: Record<string, string>;
   source: string;
   definition: string;
   unit: string;
@@ -28,7 +35,7 @@ export interface GoalDraft {
 
 export function blankGoal(teamId: string, ownerId: string, parentId: string): GoalDraft {
   return {
-    kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '',
+    kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '', alsoHelps: [], endWeek: '', points: {},
     source: '', definition: '', unit: '%', decimals: '0', start: '', target: '', shape: 'straight',
     bound: 'atMost', limit: '', margin: '1', stages: [{ id: 's1', name: '', dueWeek: '' }],
   };
@@ -38,15 +45,15 @@ export function draftOf(g: Goal): GoalDraft {
   const d = blankGoal(g.teamId, g.ownerId, g.parentId ?? '');
   Object.assign(d, {
     kind: g.kind, title: g.title, io: g.io, level: g.level, guardrail: g.guardrail,
-    effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', source: g.source, definition: g.definition,
+    effect: g.effect == null ? '' : String(g.effect), whyHelps: g.whyHelps ?? '', alsoHelps: g.alsoHelps ?? [], source: g.source, definition: g.definition,
   });
-  if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape });
+  if (g.kind === 'metric') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), start: String(g.plan.start), target: String(g.plan.target), shape: g.plan.shape, endWeek: g.plan.endWeek ? String(g.plan.endWeek) : '', points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)])) });
   if (g.kind === 'range') Object.assign(d, { unit: g.unit, decimals: String(g.decimals), bound: g.range.bound, limit: String(g.range.limit), margin: String(g.range.margin) });
   if (g.kind === 'milestone') d.stages = g.stages.map((s) => ({ id: s.id, name: s.name, dueWeek: String(s.dueWeek) }));
   return d;
 }
 
-export type GoalErrors = Partial<Record<'title' | 'teamId' | 'ownerId' | 'start' | 'target' | 'limit' | 'margin' | 'decimals' | 'effect' | 'stages', string>>;
+export type GoalErrors = Partial<Record<'title' | 'teamId' | 'ownerId' | 'start' | 'target' | 'limit' | 'margin' | 'decimals' | 'effect' | 'stages' | 'points', string>>;
 
 export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
   const e: GoalErrors = {};
@@ -63,6 +70,7 @@ export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
     if (s == null) e.start = 'Enter where it starts.';
     if (t == null) e.target = 'Enter the target.';
     else if (s != null && s === t) e.target = 'The target has to differ from the start.';
+    if (Object.values(d.points).some((v) => v.trim() !== '' && parseNumber(v) == null)) e.points = 'Every plan number has to be a number.';
   }
   if (d.kind === 'range') {
     if (parseNumber(d.limit) == null) e.limit = 'Enter the limit.';
@@ -81,7 +89,7 @@ export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
 /** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
 export function planChanged(a: Goal, b: Goal): boolean {
   if (a.kind !== b.kind) return true;
-  if (a.kind === 'metric' && b.kind === 'metric') return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape;
+  if (a.kind === 'metric' && b.kind === 'metric') return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
   if (a.kind === 'range' && b.kind === 'range') return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.margin !== b.range.margin;
   if (a.kind === 'milestone' && b.kind === 'milestone') return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
   return false;
@@ -103,16 +111,22 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
   const common = {
     id: base.id, cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.io,
     level: d.level, guardrail: d.guardrail, parentId: d.parentId || null,
-    effect: d.parentId ? parseNumber(d.effect) : null, ...(d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {}), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
+    effect: d.parentId ? parseNumber(d.effect) : null, ...(d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {}), ...((d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id).length ? { alsoHelps: (d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id) } : {}), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
   };
   const num = (s: string) => parseNumber(s) as number;
   if (d.kind === 'metric') {
-    const plan: MetricPlan = { start: num(d.start), target: num(d.target), shape: d.shape, ...(existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}) };
+    const end = parseNumber(d.endWeek);
+    const shaped: MetricPlan = {
+      start: num(d.start), target: num(d.target), shape: d.shape,
+      ...(existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}),
+      ...(end != null && end !== cycle.weeks ? { endWeek: end } : {}),
+    };
+    const plan = withPoints(shaped, d.points, cycle.weeks);
     let originalPlan: MetricPlan | null = null, rebaselinedWeek: number | null = null;
     if (existing?.kind === 'metric') {
       originalPlan = existing.originalPlan;
       rebaselinedWeek = existing.rebaselinedWeek;
-      const changed = existing.plan.start !== plan.start || existing.plan.target !== plan.target || existing.plan.shape !== plan.shape;
+      const changed = planChanged(existing, { ...existing, plan });
       if (changed && checkInsStarted) {
         originalPlan = existing.originalPlan ?? existing.plan;
         rebaselinedWeek = week;
@@ -128,4 +142,21 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
     .map((s) => ({ id: s.id, name: s.name.trim(), dueWeek: num(s.dueWeek) }))
     .sort((a, b) => a.dueWeek - b.dueWeek);
   return { ...common, kind: 'milestone', stages };
+}
+
+/**
+ * The plan with any numbers typed by hand. If one checkpoint is set by hand, every checkpoint is stored
+ * (the rest at their shape defaults), so the plan is exactly the table people saw.
+ */
+export function withPoints(plan: MetricPlan, typed: Record<string, string>, weeks: number): MetricPlan {
+  const set = Object.entries(typed).filter(([, v]) => v.trim() !== '' && parseNumber(v) != null);
+  const { points: _drop, ...base } = plan;
+  if (!set.length) return base;
+  const from = plan.fromWeek ?? 0;
+  const end = planEnd(plan, weeks);
+  const points = planCheckpoints(from, end).filter((w) => w < end).map((w) => {
+    const hand = typed[String(w)];
+    return { week: w, value: hand != null && hand.trim() !== '' && parseNumber(hand) != null ? (parseNumber(hand) as number) : planAt(base, w, weeks) };
+  });
+  return { ...base, points };
 }

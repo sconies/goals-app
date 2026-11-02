@@ -1,11 +1,14 @@
-/* Demo data: an AI-native developer platform, seven weeks into a 13-week cycle.
-   Dates are relative to today so the cycle is always live. All numbers are invented. */
+/* Demo data: an AI-native developer platform, in week 43 of its 52-week goal year.
+   Dates are relative to today so the year is always live. All numbers are invented. The story of the last
+   seven weeks is written below in story weeks 1–7 and placed at the end of the year by yearStory.ts. */
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../domain/checkin';
 import { checkInChange, goalChange } from '../domain/changes';
 import type { Cause, Change, CheckIn, Cycle, Decision, Goal, Level, MetricGoal, MilestoneGoal, Person, RangeGoal, Review, Snapshot, StageUpdate, Team, Watch } from '../domain/types';
 
+import { SEED_WEEK, STORY_OFFSET, steadyDraft, storyValue, toYear, YEAR_WEEKS, yearName } from './yearStory';
+
 const DAY = 86_400_000;
-export const SEED_WEEK = 7;
+export { SEED_WEEK };
 
 const people: Person[] = [
   { id: 'elena', name: 'Elena Ruiz', role: 'VP Engineering', initials: 'ER', teamId: null, admin: true },
@@ -50,16 +53,16 @@ const cost = metric(common('cost', 'infra', 'jonas', 'Cloud spend per developer'
 const goals: Goal[] = [
   head,
   metric({ ...common('triage', 'pm', 'maya', 'Requests triaged within 2 days', 'Jira intake board'), effect: 5, level: 'svp' }, '%', 0, 40, 85),
-  metric({ ...common('review', 'devex', 'sam', 'PRs with AI code review', 'GitHub pull request data'), effect: 4, level: 'svp' }, '%', 0, 30, 95, { originalPlan: reviewOriginal, rebaselinedWeek: 4 }),
+  metric({ ...common('review', 'devex', 'sam', 'PRs with AI code review', 'GitHub pull request data'), effect: 4, level: 'svp' }, '%', 0, 30, 95, { originalPlan: reviewOriginal, rebaselinedWeek: toYear(4) }),
   metric({ ...common('lead', 'devex', 'sam', 'Lead time for changes', 'DORA dashboard'), effect: 2 }, 'days', 1, 4.2, 2.0),
   metric({ ...common('alerts', 'sre', 'kofi', 'Alerts auto-triaged by AIOps', 'Alerting + AIOps pipeline'), effect: 1 }, '%', 0, 20, 60),
   { ...common('cfr', 'sre', 'kofi', 'Change failure rate', 'DORA dashboard'), io: 'output', guardrail: true, kind: 'range', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 12, margin: 1 } } satisfies RangeGoal,
   metric({ ...common('env', 'infra', 'jonas', 'Self-service environments in under 1 hour', 'Platform API'), effect: 3 }, '%', 0, 35, 80),
   metric({ ...common('scan', 'sec', 'aisha', 'AI-generated code scanned before merge', 'Code scanning'), guardrail: true }, '%', 0, 50, 100),
   { ...common('access', 'sec', 'aisha', 'Repo-access controls for the Brain', 'Jira SEC-88'), level: 'svp', kind: 'milestone',
-    stages: [{ id: 'tm', name: 'Threat model', dueWeek: 2 }, { id: 'dc', name: 'Data classification', dueWeek: 4 }, { id: 'ac', name: 'Access controls built', dueWeek: 6 }, { id: 'ap', name: 'Approval granted', dueWeek: 6 }] } satisfies MilestoneGoal,
+    stages: [{ id: 'tm', name: 'Threat model', dueWeek: toYear(2) }, { id: 'dc', name: 'Data classification', dueWeek: toYear(4) }, { id: 'ac', name: 'Access controls built', dueWeek: toYear(6) }, { id: 'ap', name: 'Approval granted', dueWeek: toYear(6) }] } satisfies MilestoneGoal,
   { ...common('brain', 'brain', 'leo', 'Brain data model and AI infrastructure live', 'Jira BRN epics'), effect: 1, kind: 'milestone',
-    stages: [{ id: 'dm', name: 'Data model v1', dueWeek: 3 }, { id: 'pr', name: 'Private repo indexing', dueWeek: 7 }, { id: 'gi', name: 'AI infrastructure GA', dueWeek: 9 }, { id: 'ap', name: 'Assistant pilot', dueWeek: 12 }] } satisfies MilestoneGoal,
+    stages: [{ id: 'dm', name: 'Data model v1', dueWeek: toYear(3) }, { id: 'pr', name: 'Private repo indexing', dueWeek: toYear(7) }, { id: 'gi', name: 'AI infrastructure GA', dueWeek: toYear(9) }, { id: 'ap', name: 'Assistant pilot', dueWeek: toYear(12) }] } satisfies MilestoneGoal,
   cost,
   metric({ ...common('idle', 'infra', 'jonas', 'Idle environments shut down within 2 hours', 'Platform API'), parentId: 'cost', effect: 40 }, '%', 0, 30, 90),
   metric({ ...common('cache', 'sre', 'kofi', 'Build cache hit rate', 'CI telemetry'), parentId: 'cost', effect: 25 }, '%', 0, 50, 76),
@@ -80,20 +83,20 @@ const values: Record<string, number[]> = {
   cache: [52, 54, 56, 58, 60, 62, 65],
 };
 
-/** Stage updates by week for the milestones. */
+/** Stage updates by story week for the milestones: [done week, forecast week], in year weeks. */
 const stageUpdates: Record<string, Record<number, Record<string, [number | null, number | null]>>> = {
   access: {
-    1: {}, 2: { tm: [2, null] }, 3: { tm: [2, null] }, 4: { tm: [2, null], dc: [4, null] }, 5: { tm: [2, null], dc: [4, null] },
-    6: { tm: [2, null], dc: [4, null], ac: [null, 9], ap: [null, 9] },
+    1: {}, 2: { tm: [toYear(2), null] }, 3: { tm: [toYear(2), null] }, 4: { tm: [toYear(2), null], dc: [toYear(4), null] }, 5: { tm: [toYear(2), null], dc: [toYear(4), null] },
+    6: { tm: [toYear(2), null], dc: [toYear(4), null], ac: [null, toYear(9)], ap: [null, toYear(9)] },
   },
-  brain: { 1: {}, 2: {}, 3: { dm: [3, null] }, 4: { dm: [3, null] }, 5: { dm: [3, null] }, 6: { dm: [3, null] } },
+  brain: { 1: {}, 2: {}, 3: { dm: [toYear(3), null] }, 4: { dm: [toYear(3), null] }, 5: { dm: [toYear(3), null] }, 6: { dm: [toYear(3), null] } },
 };
 
 interface Note { cause: Cause; why: string }
 /** What each owner said when a check-in needed a reason, and their path to green. */
 const notes: Record<string, { ahead?: Note; behind?: Note; path?: { what: string; in: number; needs?: string } }> = {
   head: {
-    ahead: { cause: 'early', why: 'AI intake triage went live in week 1, so the first requests moved faster than the back-loaded plan expected.' },
+    ahead: { cause: 'early', why: 'AI intake triage went live early, so requests moved faster than the back-loaded plan expected.' },
     behind: { cause: 'blocked', why: 'Intake triage and AI review are ahead, but the Brain is waiting on Security’s repo access and environments are waiting on GPU quota.' },
     path: { what: 'Brain interim scope and Infrastructure’s CPU golden path.', in: 3, needs: 'Elena Ruiz: approve an interim read-only scope for the Brain' },
   },
@@ -123,11 +126,12 @@ const notes: Record<string, { ahead?: Note; behind?: Note; path?: { what: string
     path: { what: 'Close idle debug sessions after 30 minutes, then rerun the shutdown job.', in: 3 },
   },
   access: {
-    behind: { cause: 'external', why: 'The access-review tooling vendor delivered late, so SEC-88 moved from week 6 to week 9.' },
-    path: { what: 'Interim read-only scope if Elena approves; full controls in week 9.', in: 3, needs: 'Elena Ruiz: approve an interim read-only scope' },
+    behind: { cause: 'external', why: `The access-review tooling vendor delivered late, so SEC-88 moved from week ${toYear(6)} to week ${toYear(9)}.` },
+    path: { what: `Interim read-only scope if Elena approves; full controls in week ${toYear(9)}.`, in: 3, needs: 'Elena Ruiz: approve an interim read-only scope' },
   },
 };
 
+/** The last story week checked in, for a goal that went quiet. */
 const lastWeek: Record<string, number> = { env: 4 };
 
 function mondayOf(d: Date): number {
@@ -139,15 +143,16 @@ function mondayOf(d: Date): number {
 export function seed(today: Date): Snapshot {
   const start = mondayOf(today) - SEED_WEEK * 7 * DAY;
   const startDate = new Date(start).toISOString().slice(0, 10);
-  const label = new Date(start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-  const cycle: Cycle = { id: 'cycle', name: 'Platform cycle from ' + label, startDate, weeks: 13, reviewDay: 3 };
+  const cycle: Cycle = { id: 'cycle', name: yearName(startDate, YEAR_WEEKS), startDate, weeks: YEAR_WEEKS, reviewDay: 3 };
   // Distinct creation times keep the goals in this order wherever they are stored.
   // Two links carry the reasoning behind them: a hypothesis about why the work should move the outcome.
   const WHY: Record<string, string> = {
     triage: 'Requests that are triaged within two days start sooner, which should take days off intake-to-delivery.',
     review: 'AI review catches problems before a human reviewer does, so pull requests merge faster.',
   };
-  const allGoals = goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString(), ...(WHY[g.id] ? { whyHelps: WHY[g.id] } : {}) }));
+  // Two dotted lines: goals that also help one they don't feed.
+  const ALSO: Record<string, string[]> = { cache: ['lead'], idle: ['env'] };
+  const allGoals = goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString(), ...(WHY[g.id] ? { whyHelps: WHY[g.id] } : {}), ...(ALSO[g.id] ? { alsoHelps: ALSO[g.id] } : {}) }));
 
   const postedAt = (week: number) => {
     const planned = start + week * 7 * DAY + 2 * DAY + 10 * 3_600_000;
@@ -156,22 +161,27 @@ export function seed(today: Date): Snapshot {
 
   const checkIns: CheckIn[] = [];
   for (const g of allGoals) {
-    const weeks = g.kind === 'milestone' ? Object.keys(stageUpdates[g.id] ?? {}).map(Number) : (values[g.id] ?? []).map((_, i) => i + 1);
-    for (const week of weeks) {
-      if (week > (lastWeek[g.id] ?? SEED_WEEK)) continue;
-      // The review goal was re-baselined in week 4: earlier check-ins were judged against the original plan.
-      const asOf: Goal = g.id === 'review' && week <= 4 && g.kind === 'metric' ? { ...g, plan: reviewOriginal, originalPlan: null, rebaselinedWeek: null } : g;
-      const draft: Draft = emptyDraft(asOf, null);
+    const story = g.kind === 'milestone' ? Object.keys(stageUpdates[g.id] ?? {}).length : (values[g.id] ?? []).length;
+    const last = STORY_OFFSET + Math.min(story, lastWeek[g.id] ?? 7);
+    for (let week = 1; week <= Math.min(last, SEED_WEEK); week++) {
+      const sw = week - STORY_OFFSET; // the story week, or below 1 before the story starts
+      // The review goal was re-baselined in story week 4: earlier check-ins were judged against the original plan.
+      const asOf: Goal = g.id === 'review' && week <= toYear(4) && g.kind === 'metric' ? { ...g, plan: reviewOriginal, originalPlan: null, rebaselinedWeek: null } : g;
+      let draft: Draft = emptyDraft(asOf, null);
       if (g.kind === 'milestone') {
-        const u = stageUpdates[g.id]?.[week] ?? {};
+        const u = sw >= 1 ? stageUpdates[g.id]?.[sw] ?? {} : {};
         draft.stages = g.stages.map((s): StageUpdate => ({ stageId: s.id, doneWeek: u[s.id]?.[0] ?? null, forecastWeek: u[s.id]?.[1] ?? null }));
+      } else if (sw >= 1) {
+        const v = values[g.id]![sw - 1]!;
+        draft.value = String(asOf.kind === 'metric' ? storyValue(asOf.plan, asOf.decimals, sw, v) : v);
       } else {
-        draft.value = String(values[g.id]?.[week - 1]);
+        draft = steadyDraft(asOf, cycle, week, draft, checkIns, values[g.id]?.[0]);
       }
       const e = evaluate(asOf, cycle, week, draft, checkIns);
       const n = notes[g.id] ?? {};
-      const note = e.reason === 'ahead' ? n.ahead : e.reason === 'behind' ? n.behind : undefined;
-      if (e.reason && !note) throw new Error(`Seed: ${g.id} week ${week} needs a ${e.reason} note`);
+      let note = e.reason === 'ahead' ? n.ahead : e.reason === 'behind' ? n.behind : undefined;
+      if (e.reason && !note && sw >= 1) throw new Error(`Seed: ${g.id} week ${week} needs a ${e.reason} note`);
+      if (e.reason && !note) note = e.reason === 'ahead' ? { cause: 'early', why: 'A little ahead of a plan that barely moves this early in the year.' } : { cause: 'slower', why: 'A little behind plan this week.' };
       if (note) Object.assign(draft, { cause: note.cause, why: note.why });
       if (e.needsPath) {
         if (!n.path) throw new Error(`Seed: ${g.id} week ${week} needs a path to green`);
@@ -191,8 +201,8 @@ export function seed(today: Date): Snapshot {
   const asCreated = (g: Goal): Goal => (g.id === 'review' && g.kind === 'metric' ? { ...g, plan: reviewOriginal, originalPlan: null, rebaselinedWeek: null } : g);
   for (const g of allGoals) changes.push(goalChange(null, asCreated(g), lookup, g.ownerId, g.createdAt, 'chg_goal_' + g.id)!);
   for (const c of checkIns) changes.push(checkInChange(null, c, allGoals.find((g) => g.id === c.goalId)!, c.authorId, 'chg_' + c.id)!);
-  // In week 4 Sam raised the AI review target from 75% to 95%; the first plan stays on the chart.
-  const raisedAt = new Date(Date.parse(checkIns.find((c) => c.id === 'ci_review_4')!.postedAt) + 3_600_000).toISOString();
+  // In story week 4 Sam raised the AI review target from 75% to 95%; the first plan stays on the chart.
+  const raisedAt = new Date(Date.parse(checkIns.find((c) => c.id === `ci_review_${toYear(4)}`)!.postedAt) + 3_600_000).toISOString();
   changes.push({
     id: 'chg_review_target_4', at: raisedAt, actorId: 'sam', goalId: 'review', entity: 'goal', entityId: 'review', action: 'edited',
     summary: 'Changed the target: 75% → 95%', diffs: [{ field: 'Target', from: '75%', to: '95%' }, { field: 'Why', from: '—', to: 'The AI review bot is the default for every repo now, so 75% was too easy.' }],

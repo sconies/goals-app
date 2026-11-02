@@ -8,6 +8,7 @@ import { daysSince, weekDates } from '../domain/plan';
 import { coveringWatches, reviewSession, watchOf } from '../domain/review';
 import { assessPosted, checkInsFor, LABEL, RANK } from '../domain/status';
 import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
+import { goalResult, RESULT_TEXT } from '../domain/story';
 import type { Decision, Goal, Level, Watch } from '../domain/types';
 import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
 
@@ -174,16 +175,20 @@ export function WatchButton({ goal }: { goal: Goal }) {
   const feeding = descendantsOf(goal, app).length;
   const label = w === null ? 'Watch' : w !== 'via' && w.kind === 'tree' ? 'Watching all' : 'Watching';
   const doWatch = async (kind: 'goal' | 'tree') => {
-    await app.watch(kind, goal.id);
-    if (kind === 'tree' && w && w !== 'via' && w.kind === 'goal') await app.unwatch(w.id);
-    app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`);
-    setOpen(false);
+    try {
+      await app.watch(kind, goal.id);
+      if (kind === 'tree' && w && w !== 'via' && w.kind === 'goal') await app.unwatch(w.id);
+      app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`);
+      setOpen(false);
+    } catch { /* the save already said what went wrong */ }
   };
   const stop = async (x: Watch) => {
-    await app.unwatch(x.id);
-    const still = covers.filter((c) => c.id !== x.id);
-    app.toast(still.length ? `Stopped. Still watching it as part of ${coverText(still[0]!)}.` : `Stopped watching ${goal.title}`);
-    setOpen(false);
+    try {
+      await app.unwatch(x.id);
+      const still = covers.filter((c) => c.id !== x.id);
+      app.toast(still.length ? `Stopped. Still watching it as part of ${coverText(still[0]!)}.` : `Stopped watching ${goal.title}`);
+      setOpen(false);
+    } catch { /* the save already said what went wrong */ }
   };
   return (
     <>
@@ -278,7 +283,7 @@ export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean 
     <Link to={'/goals/' + g.id} className="trow" data-tone={st.status}>
       <span className={'trow-icon tone-' + st.status} aria-hidden="true"><StatusShape k={st.status} /></span>
       <span className="trow-main">
-        <span className="trow-title">{g.title}<LevelTag level={g.level} /></span>
+        <span className="trow-title">{g.title}<LevelTag level={g.level} />{(() => { const r = goalResult(g, app.cycle, app.snapshot.checkIns, app.week); return r ? <span className={'result-tag result-' + r.kind}>{RESULT_TEXT[r.kind]}</span> : null; })()}</span>
         <span className="trow-why">
           {moved?.worse && <span className="tone-risk">Was {LABEL[moved.from].toLowerCase()} in week {moved.week}. </span>}
           {flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}

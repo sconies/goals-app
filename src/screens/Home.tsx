@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
@@ -8,10 +9,11 @@ import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/pro
 import { openQuestions, reviewSession, watchedGoals } from '../domain/review';
 import { daysSince, weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
+import { periodWord, shortPeriod } from '../domain/year';
 import { assessPosted, LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
 import type { Goal } from '../domain/types';
-import { AttentionCard, Avatar, Dot, ProgressRing } from '../ui/bits';
+import { AttentionCard, Avatar, Dot, ProgressRing, StatusShape } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
 import { TreeRow, worstFirst } from './Inspect';
 
@@ -51,7 +53,8 @@ export function GoalLine({ g }: { g: Goal }) {
   );
 }
 
-function MyWeek() {
+/** The week's one main action comes first; what's addressed to you (`asks`) follows it, then your goals. */
+function MyWeek({ asks }: { asks?: ReactNode }) {
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
@@ -77,10 +80,11 @@ function MyWeek() {
               <div className="row" style={{ marginTop: 8 }}>
                 <Link className="btn primary big-btn" to="/check-in">{resuming ? 'Pick up where you left off' : 'Start check-in'} →</Link>
               </div>
+              {p.due.filter((g) => g.kind !== 'milestone').length >= 2 && <Link className="linkish small" to="/quick-check-in">Or type all your numbers in one table</Link>}
             </>
           ) : wrapLeft.length ? (
             <>
-              <span className="eyebrow">{app.week >= app.cycle.weeks ? 'The cycle has ended' : `The cycle ends next week`}</span>
+              <span className="eyebrow">{app.week >= app.cycle.weeks ? `The ${periodWord(app.cycle)} has ended` : `The ${periodWord(app.cycle)} ends next week`}</span>
               <h2 className="hero-title">Wrap up {wrapLeft.length === 1 ? 'your goal' : `your ${wrapLeft.length} goals`}</h2>
               <span className="muted">How each one landed, one thing you learned, and whether it carries on. About a minute each.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/retro/${wrapLeft[0]!.id}`}>Start the wrap-up →</Link></div>
@@ -94,7 +98,7 @@ function MyWeek() {
             </>
           ) : mine.length && app.week < 1 ? (
             <>
-              <span className="eyebrow">The cycle starts this week</span>
+              <span className="eyebrow">The {periodWord(app.cycle)} starts this week</span>
               <h2 className="hero-title">Your first check-in is next week</h2>
               <span className="muted">{mine.length === 1 ? 'Your goal is' : `Your ${mine.length} goals are`} set. Check in on {mine.length === 1 ? 'it' : 'each'} in week 1, before {WEEKDAY[app.cycle.reviewDay]}’s review.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
@@ -108,7 +112,7 @@ function MyWeek() {
             </>
           ) : (
             <>
-              <span className="eyebrow">Week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
+              <span className="eyebrow">{shortPeriod(app.cycle, app.week)}</span>
               <h2 className="hero-title">No check-ins or reviews due</h2>
               <span className="muted">You don’t own a goal. Watch the ones you care about, or set one up in about 3 minutes.</span>
               <div className="row" style={{ marginTop: 8 }}>{app.snapshot.goals.length
@@ -118,6 +122,7 @@ function MyWeek() {
           )}
         </div>
       </section>
+      {asks}
       {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
       {rest.length > 0 && (
         <section className="block">
@@ -150,7 +155,7 @@ function NeedsYou() {
     const st = app.statusOf(g);
     const needs = st.latest?.pathToGreen?.needs ?? '';
     if (g.ownerId !== me.id && needs.startsWith(me.name + ':') && (st.status === 'risk' || st.status === 'off')) {
-      items.push({ key: 'need-' + g.id, who: g.ownerId, why: `${first(g.ownerId)} needs a decision or help from you`, what: g.title, quote: needs.slice(me.name.length + 1).trim(), when: `Raised in week ${st.latest!.week}`, to: `/goals/${g.id}?tab=comments`, action: 'Respond', at: st.latest!.postedAt });
+      items.push({ key: 'need-' + g.id, who: g.ownerId, why: 'A decision or help is needed from you', what: g.title, quote: needs.slice(me.name.length + 1).trim(), when: `From the week ${st.latest!.week} check-in, raised by its owner, ${first(g.ownerId)}`, to: `/goals/${g.id}?tab=comments`, action: 'Respond', at: st.latest!.postedAt });
     }
   }
   // Actions from reviews assigned to you that are due from this week on (or undated and recent).
@@ -225,7 +230,7 @@ function AdminCard() {
     const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
     return (
       <section className="block note-card">
-        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>The cycle is ending</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next cycle when you’re ready.</span></span>
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>The {periodWord(app.cycle)} is ending</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next {periodWord(app.cycle)} when you’re ready.</span></span>
         <Link className="btn" to="/retro">See the wrap-up</Link>
       </section>
     );
@@ -266,7 +271,7 @@ function AttentionSection({ list, empty, limit = 3, title = 'Needs attention' }:
                 : <Link className="btn sm" to={'/goals/' + a.goal.id}>Open</Link>} />
           ))}
         </div>
-      ) : <div className="calm"><span aria-hidden="true">✓</span> {empty}</div>}
+      ) : <div className="calm"><StatusShape k="done" /> {empty}</div>}
     </section>
   );
 }
@@ -278,10 +283,9 @@ export function Home() {
     <div className="page narrow">
       <div className="page-head">
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
-        <span className="muted small">{app.ws.name} · week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
+        <span className="muted small">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
       </div>
-      <NeedsYou />
-      <MyWeek />
+      <MyWeek asks={<NeedsYou />} />
       <AdminCard />
       <ImportantChanges />
     </div>

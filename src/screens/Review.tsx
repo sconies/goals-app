@@ -74,7 +74,9 @@ export function ReviewHome() {
   const people = review.people.map((id) => app.person(id)).filter((p) => !!p);
   const inIt = review.people.includes(app.viewer.id);
   const canChange = inIt || app.viewer.admin;
-  const join = async () => { await app.saveReview({ ...review, people: [...review.people, app.viewer.id] }, review); app.toast(`You’re in ${review.name}`); };
+  const join = async () => {
+    try { await app.saveReview({ ...review, people: [...review.people, app.viewer.id] }, review); app.toast(`You’re in ${review.name}`); } catch { /* the save already said what went wrong */ }
+  };
   const asks = s.said.filter((d) => d.kind === 'ask');
   const actions = s.said.filter((d) => d.kind === 'action');
   const notes = s.said.filter((d) => d.kind === 'note');

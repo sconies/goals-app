@@ -4,16 +4,19 @@ import { App } from './App';
 import { BrowserStore, LIVE_KEY, type Mode, type Store } from './data/store';
 import './styles.css';
 
-/** `?today=yyyy-mm-dd` pins the clock, for demos and the evals. */
+/** Everything under /demo is the demo: the example data in this browser, with a role switcher and a reset. */
+const mode: Mode = location.pathname === '/demo' || location.pathname.startsWith('/demo/') ? 'demo' : 'live';
+
+/** `?today=yyyy-mm-dd` pins the clock, for the demo and the evals. Never for shared data: it would date real records wrongly. */
 function clock(): (() => Date) | undefined {
-  const t = new URLSearchParams(location.search).get('today');
+  const q = new URLSearchParams(location.search);
+  if (mode === 'live' && q.get('store') !== 'browser' && !import.meta.env.DEV) return undefined;
+  const t = q.get('today');
   if (!t || Number.isNaN(Date.parse(t))) return undefined;
   const fixed = new Date(t + 'T12:00:00Z');
   return () => fixed;
 }
 
-/** Everything under /demo is the demo: the example data in this browser, with a role switcher and a reset. */
-const mode: Mode = location.pathname === '/demo' || location.pathname.startsWith('/demo/') ? 'demo' : 'live';
 
 /** The demo keeps its copy in this browser. The real app uses Supabase when configured; without it (local
     development, the evals) or with `?store=browser` it keeps real workspaces in this browser instead.
@@ -30,10 +33,13 @@ async function store(today?: () => Date): Promise<Store> {
 
 const today = clock();
 const root = createRoot(document.getElementById('root')!);
-void store(today).then((s) =>
-  root.render(
+void store(today).then(
+  (s) => root.render(
     <StrictMode>
       <App store={s} mode={mode} today={today} />
     </StrictMode>,
   ),
+  (e: unknown) => {
+    root.render(<div className="boot"><div className="boot-card"><span className="h3">The app couldn’t start</span><p className="muted">{e instanceof Error ? e.message : String(e)}</p><button className="btn primary" onClick={() => location.reload()}>Try again</button></div></div>);
+  },
 );

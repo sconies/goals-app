@@ -20,6 +20,7 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     Owner: l.person(g.ownerId)?.name ?? g.ownerId,
     'Feeds into': g.parentId ? l.goal(g.parentId)?.title ?? '—' : 'Nothing',
     'Why it helps': g.parentId ? g.whyHelps || '—' : '—',
+    'Also helps': g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(', ') : '—',
     Level: LEVEL_LABEL[g.level],
     Role: g.io === 'input' ? 'Input' : 'Output',
     Guardrail: g.guardrail ? 'Yes' : 'No',
@@ -31,6 +32,8 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     f.Start = fmt(g.plan.start, g);
     f.Target = fmt(g.plan.target, g);
     f['Plan shape'] = shapeName[g.plan.shape];
+    f['Target due'] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : '—';
+    f['Plan numbers'] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(', ') : '—';
   }
   if (g.kind === 'range') {
     f.Limit = (g.range.bound === 'atMost' ? 'At most ' : 'At least ') + fmt(g.range.limit, g);

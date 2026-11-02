@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
-import { useApp } from '../app/state';
+import { Link, useLocation } from 'react-router';
+import { useApp, useToasts } from '../app/state';
+import { shortPeriod } from '../domain/year';
 import { weekProgress } from '../domain/progress';
 import { reviewSession, watchedGoals } from '../domain/review';
 import type { Person } from '../domain/types';
 import { Avatar, Sheet } from './bits';
-import { setNavMode, useNavMode, type NavMode } from '../app/navMode';
+import { DemoEntry, DemoPanel } from './Demo';
+import { Coach } from './Coach';
+import { ResearchBar } from './ResearchBar';
+import { useNavMode, type NavMode } from '../app/navMode';
 
 type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'new' | 'workspace';
 const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
@@ -86,37 +90,6 @@ function WorkspaceSheet({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
-/** The demo's cast: the people worth trying, each doing something different. */
-const DEMO_CAST = ['maya', 'sam', 'elena', 'tom', 'priya'];
-
-/** Demo only: whose view this is, switchable in one tap, with a way to start again or leave. */
-function DemoBar({ onPeople }: { onPeople: () => void }) {
-  const app = useApp();
-  const navMode = useNavMode();
-  const nav = useNavigate();
-  const [resetting, setResetting] = useState(false);
-  const cast = DEMO_CAST.map((id) => app.person(id)).filter((p): p is Person => !!p);
-  const pick = (id: string) => { if (id === app.viewer.id) return; app.setViewer(id); nav('/'); };
-  return (
-    <div className="rolebar">
-      <span className="rolebar-label" id="rolebar-label">Viewing as</span>
-      {cast.length ? (
-        <div className="seg rolebar-seg" role="group" aria-labelledby="rolebar-label">
-          {cast.map((p) => <button key={p.id} aria-pressed={app.viewer.id === p.id} onClick={() => pick(p.id)} title={personFacts(p, app)}>{p.name.split(' ')[0]}</button>)}
-        </div>
-      ) : null}
-      <button className="rolebar-person" onClick={onPeople}><Avatar p={app.viewer} size="sm" /><span className="ellipsis">{personFacts(app.viewer, app)}</span><span aria-hidden="true">⌄</span><span className="sr">Switch to someone else</span></button>
-      <span className="rolebar-demo">
-        <span className="demo-tag">Demo</span>
-        {app.ws.kind === 'example' && (resetting
-          ? <><button className="linkish" onClick={async () => { await app.resetExample(); setResetting(false); nav('/'); }}>Yes, start over</button><button className="linkish muted" onClick={() => setResetting(false)}>Cancel</button></>
-          : <button className="linkish" onClick={() => setResetting(true)}>Start over</button>)}
-        <button className="linkish" onClick={() => setNavMode(navMode === 'four' ? 'current' : 'four')} aria-pressed={navMode === 'four'} title="Compare the phone navigation">{navMode === 'four' ? 'Current tabs' : 'Try 4 tabs'}</button>
-        <a className="linkish" href="/">Leave</a>
-      </span>
-    </div>
-  );
-}
 
 const MOODS = [['good', 'It helps'], ['meh', 'It’s OK'], ['bad', 'It gets in the way']] as const;
 
@@ -149,11 +122,23 @@ function FeedbackSheet({ onClose, path }: { onClose: () => void; path: string })
 
 export function Shell({ children }: { children: ReactNode }) {
   const app = useApp();
+  const toasts = useToasts();
   const { pathname, search } = useLocation();
-  const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | 'feedback' | null>(null);
+  const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | 'feedback' | 'demo' | null>(null);
+  // In the demo, choosing who you are is part of the demo panel, roles first.
+  const openPeople = () => setSheet(app.mode === 'demo' ? 'demo' : 'profile');
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
   const navMode = useNavMode();
   const order = navFor(ownsGoals, navMode);
+  // Presenting: the demo without its "Viewing as" bar or Demo tag. Start it with /demo?present (and ?present=0 to stop).
+  const [present, setPresentState] = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('present');
+      if (q !== null) sessionStorage.setItem('goals-present', q === '0' ? '' : '1');
+      return sessionStorage.getItem('goals-present') === '1';
+    } catch { return false; }
+  });
+  const setPresent = (on: boolean) => { try { sessionStorage.setItem('goals-present', on ? '1' : ''); } catch { /* private mode */ } setPresentState(on); };
   const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.length;
   // A review you're in that's held this week and still has goals to cover.
   const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => x.week === Math.max(1, app.week) && x.done < x.total).length;
@@ -184,7 +169,7 @@ export function Shell({ children }: { children: ReactNode }) {
     if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
   }, [pathname, title, app.ws.name]);
 
-  const focusMode = /^\/check-in(\/|$)|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
+  const focusMode = /^\/check-in(\/|$)|^\/quick-check-in$|^\/import$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   return (
     <div className={'app' + (focusMode ? ' focus-mode' : '')}>
       <a className="skip" href="#main">Skip to content</a>
@@ -195,9 +180,10 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
           <strong className="ellipsis">{title}</strong>
-          <span className="tiny muted ellipsis">{app.mode === 'demo' && <span className="demo-tag">Demo</span>} {app.ws.kind === 'example' ? 'Example data' : app.ws.name}, week {app.week} of {app.cycle.weeks}</span>
+          <span className="tiny muted ellipsis">{app.ws.kind === 'example' ? 'Example data' : app.ws.name}, {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
         </span>
-        <button className="profilebtn" onClick={() => setSheet('profile')}>
+        {app.mode === 'demo' && !present && <DemoEntry compact onOpen={() => setSheet('demo')} />}
+        <button className="profilebtn" onClick={openPeople}>
           <Avatar p={app.viewer} />
           <span className="sr">{app.mode === 'demo' ? 'Switch person' : 'Not you?'} ({app.viewer.name})</span>
         </button>
@@ -208,7 +194,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{app.ws.name.slice(0, 1).toUpperCase()}</span>
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
               <b className="ellipsis">{app.ws.name}</b>
-              <span className="tiny muted">Week {app.week} of {app.cycle.weeks}</span>
+              <span className="tiny muted">{shortPeriod(app.cycle, app.week)}</span>
             </span>
             <span aria-hidden="true" className="muted">⌄</span>
           </button>
@@ -218,8 +204,9 @@ export function Shell({ children }: { children: ReactNode }) {
               {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
             </Link>
           ))}
+          {app.mode === 'demo' && !present && <DemoEntry onOpen={() => setSheet('demo')} />}
           <button className="nav feedback-nav" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span>Send feedback</span></button>
-          <button className="me" onClick={() => setSheet('profile')}>
+          <button className="me" onClick={openPeople}>
             <Avatar p={app.viewer} />
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
               <b className="ellipsis">{app.viewer.name}</b>
@@ -228,7 +215,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </button>
         </nav>
         <main className="work" ref={work} id="main">
-          {!focusMode && app.mode === 'demo' && <DemoBar onPeople={() => setSheet('profile')} />}
+          {app.mode === 'live' && app.storeKind === 'browser' && <div className="local-banner" role="note">This is a copy kept in this browser only. Nobody else sees changes made here.</div>}
           {children}
         </main>
       </div>
@@ -250,16 +237,19 @@ export function Shell({ children }: { children: ReactNode }) {
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
           <button className="menuitem" onClick={() => setSheet('workspace')}>{NAV.workspace.icon}<span className="stack" style={{ gap: 0 }}><span className="strong">Switch workspace</span><span className="tiny muted">{app.ws.name}</span></span></button>
-          {app.mode === 'demo' && <button className="menuitem" onClick={() => { setNavMode(navMode === 'four' ? 'current' : 'four'); setSheet(null); }}><span className="strong">{navMode === 'four' ? 'Current tabs' : 'Try 4 tabs'}</span><span className="tiny muted">Demo: compare the phone navigation</span></button>}
+          {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><span className="strong">Demo controls</span><span className="tiny muted">See it as someone else, walkthroughs, research, reset</span></button>}
           <button className="menuitem" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span className="strong">Send feedback</span></button>
-          <button className="menuitem" onClick={() => setSheet('profile')}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}</span></span></button>
+          <button className="menuitem" onClick={openPeople}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}</span></span></button>
         </div>
       </Sheet>
       <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)} />
+      {sheet === 'demo' && <DemoPanel onClose={() => setSheet(null)} onPresent={() => setPresent(true)} />}
+      {app.mode === 'demo' && <Coach />}
+      <ResearchBar />
       <WorkspaceSheet open={sheet === 'workspace'} onClose={() => setSheet(null)} />
       {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} path={pathname} />}
       <div className="toasts" role="status" aria-live="polite">
-        {app.toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.kind === 'success' ? '✓ ' : ''}{t.text}</div>)}
+        {toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.text}</div>)}
       </div>
     </div>
   );

@@ -8,7 +8,9 @@ import { onTimeStreak, weekProgress } from './progress';
 import { goalsIn, reviewSession, sessionWeek, watchedGoals, watchOf } from './review';
 import { outcomeTrees } from './tree';
 import { currentCycle, nextCycle, scopeToCycle, suggestedResult } from './cycle';
-import { seed } from '../data/seed';
+import { seed, SEED_WEEK } from '../data/seed';
+import { toYear } from '../data/yearStory';
+import { planAt } from './plan';
 import type { Goal, MetricGoal } from './types';
 
 const today = new Date('2026-10-30T12:00:00Z');
@@ -33,8 +35,8 @@ describe('attention', () => {
     expect(list.every((a) => a.flags.some((f) => f.kind !== 'due'))).toBe(true);
   });
   it('flags a path to green whose week has passed', () => {
-    const c = s.checkIns.find((x) => x.goalId === 'cfr' && x.week === 6)!;
-    const late = { ...s, checkIns: s.checkIns.map((x) => (x.id === c.id ? { ...x, pathToGreen: { ...x.pathToGreen!, byWeek: 6 } } : x)) };
+    const c = s.checkIns.find((x) => x.goalId === 'cfr' && x.week === toYear(6))!;
+    const late = { ...s, checkIns: s.checkIns.map((x) => (x.id === c.id ? { ...x, pathToGreen: { ...x.pathToGreen!, byWeek: toYear(6) } } : x)) };
     expect(attentionFor(goal('cfr'), late, cycle, today).flags.map((f) => f.kind)).toContain('missed-path');
   });
 });
@@ -56,8 +58,9 @@ describe('change log', () => {
   });
   it('records a check-in post and an edit to its note', () => {
     const g = goal('scan');
-    const c = toCheckIn(g, cycle, 8, { ...emptyDraft(g, null), value: '82' }, s.checkIns, 'aisha', today, 'ci');
-    expect(checkInChange(null, c, g, 'aisha', 'x')!.summary).toBe('Checked in for week 8: 82% · On track');
+    const v = String(Math.round(planAt((g as MetricGoal).plan, toYear(8), cycle.weeks)));
+    const c = toCheckIn(g, cycle, toYear(8), { ...emptyDraft(g, null), value: v }, s.checkIns, 'aisha', today, 'ci');
+    expect(checkInChange(null, c, g, 'aisha', 'x')!.summary).toBe(`Checked in for week ${toYear(8)}: ${v}% · On track`);
     const edited = checkInChange(c, { ...c, next: 'Scan the monorepo' }, g, 'aisha', 'y')!;
     expect(edited.diffs).toEqual([{ field: 'Next step', from: '—', to: 'Scan the monorepo' }]);
   });
@@ -83,15 +86,15 @@ describe('reviews', () => {
     expect(sessionWeek(weekly, 0)).toBe(1);
   });
   it('walks the worst first and counts what was said this session', () => {
-    const r = reviewSession(weekly, s, cycle, today, 7);
+    const r = reviewSession(weekly, s, cycle, today, SEED_WEEK);
     const weights = r.items.map((a) => a.weight);
     expect(weights).toEqual([...weights].sort((a, b) => b - a));
     expect(r.done).toBe(0);
-    const said = { ...s, decisions: [...s.decisions, { id: 'd', goalId: r.items[0]!.goal.id, checkInId: null, reviewId: 'weekly', week: 7, kind: 'acknowledge' as const, byId: 'elena', at: '', note: '' }] };
-    expect(reviewSession(weekly, said, cycle, today, 7).done).toBe(1);
+    const said = { ...s, decisions: [...s.decisions, { id: 'd', goalId: r.items[0]!.goal.id, checkInId: null, reviewId: 'weekly', week: SEED_WEEK, kind: 'acknowledge' as const, byId: 'elena', at: '', note: '' }] };
+    expect(reviewSession(weekly, said, cycle, today, SEED_WEEK).done).toBe(1);
     // last week's note doesn't count towards this week
-    expect(reviewSession(weekly, s, cycle, today, 7).said).toHaveLength(0);
-    expect(reviewSession(weekly, s, cycle, today, 6).said).toHaveLength(1);
+    expect(reviewSession(weekly, s, cycle, today, SEED_WEEK).said).toHaveLength(0);
+    expect(reviewSession(weekly, s, cycle, today, SEED_WEEK - 1).said).toHaveLength(1);
   });
 });
 
@@ -125,13 +128,13 @@ describe('levels and trees', () => {
 
 describe('progress', () => {
   it('counts this week’s check-ins', () => {
-    const p = weekProgress('maya', s, cycle, 7, today);
+    const p = weekProgress('maya', s, cycle, SEED_WEEK, today);
     expect([p.done.length, p.due.length]).toEqual([1, 1]);
   });
   it('counts consecutive weeks checked in on time', () => {
-    expect(onTimeStreak('sam', s, cycle, 7)).toBe(6);
-    expect(onTimeStreak('jonas', s, cycle, 7)).toBe(0);
-    expect(onTimeStreak('tom', s, cycle, 7)).toBe(0);
+    expect(onTimeStreak('sam', s, cycle, SEED_WEEK)).toBe(SEED_WEEK - 1);
+    expect(onTimeStreak('jonas', s, cycle, SEED_WEEK)).toBe(0);
+    expect(onTimeStreak('tom', s, cycle, SEED_WEEK)).toBe(0);
   });
 });
 
@@ -220,5 +223,34 @@ describe('goals set up mid-cycle', () => {
     expect(g.plan.fromWeek).toBe(7);
     expect(planAt(g.plan, 7, cycle.weeks)).toBe(40);
     expect(planAt(g.plan, cycle.weeks, cycle.weeks)).toBe(80);
+  });
+});
+
+describe('year goals and plan numbers', () => {
+  it('a goal can be due at the end of a quarter, and its plan uses that end', async () => {
+    const { blankGoal } = await import('./goal');
+    const d = { ...blankGoal('devex', 'sam', ''), title: 'Docs with an owner', start: '40', target: '80', endWeek: '26' };
+    const g = buildGoal(d, cycle, { id: 'g', createdAt: '' }, null, false, 0) as MetricGoal;
+    expect(g.plan.endWeek).toBe(26);
+    expect(planAt(g.plan, 13, cycle.weeks)).toBeLessThan(80);
+    expect(planAt(g.plan, 26, cycle.weeks)).toBe(80);
+    expect(planAt(g.plan, 40, cycle.weeks)).toBe(80);
+  });
+  it('plan numbers typed by hand are the plan, and the rest keep their defaults', async () => {
+    const { blankGoal } = await import('./goal');
+    const { planAt } = await import('./plan');
+    const { planCheckpoints } = await import('./plan');
+    const d = { ...blankGoal('devex', 'sam', ''), title: 'Docs with an owner', start: '0', target: '130', points: { '8': '40' } };
+    const g = buildGoal(d, cycle, { id: 'g', createdAt: '' }, null, false, 0) as MetricGoal;
+    expect(g.plan.points).toHaveLength(planCheckpoints(0, cycle.weeks).length - 1);
+    expect(g.plan.points!.map((p) => p.week)).toEqual(expect.arrayContaining([13, 26, 39]));
+    expect(planAt(g.plan, 8, cycle.weeks)).toBe(40);
+    expect(planAt(g.plan, 12, cycle.weeks)).toBe(30);
+  });
+  it('a year goal carries into the next cycle with its plan, counted from the new start', () => {
+    const year: MetricGoal = { ...(goal('lead') as MetricGoal), id: 'yr', plan: { start: 4, target: 2, shape: 'straight', endWeek: cycle.weeks + 20 } };
+    const { goals: next } = nextCycle(cycle, [year], [], [], { cycle: 'c2', goal: (g) => g.id + '-2' }, '');
+    const carried = next[0] as MetricGoal;
+    expect(carried.plan).toMatchObject({ start: 4, target: 2, fromWeek: -cycle.weeks, endWeek: 20 });
   });
 });

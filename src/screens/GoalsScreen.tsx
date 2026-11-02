@@ -1,16 +1,25 @@
+import { lazy, Suspense, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { periodLabel } from '../domain/year';
 import { attentionList } from '../domain/attention';
 import { LEVEL_LABEL } from '../domain/format';
 import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
 import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
-import { AttentionCard, Chip, Empty } from '../ui/bits';
+import { AttentionCard, Chip, Empty, StatusShape } from '../ui/bits';
 import { GoalLine } from './Home';
 import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
 import { WatchingBody } from './Watching';
 import { useNavMode } from '../app/navMode';
+import { watchedGoals } from '../domain/review';
+import type { Goal } from '../domain/types';
+import type { TreeNode } from '../domain/tree';
+import { GoalBoard, GoalCards, GoalTable, HistoryGrid, LayoutSwitch, StatusLegend, useLayout, type ViewGroup } from './GoalViews';
+import { ExportButton } from './Export';
+// The map loads only when someone opens it, so the rest of the app stays small.
+const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
 
 type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
@@ -19,11 +28,26 @@ const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 export function GoalsScreen() {
   const app = useApp();
   const [params, setParams] = useSearchParams();
-  const att = attentionList(app.snapshot, app.cycle, app.today);
+  const att = useMemo(() => attentionList(app.snapshot, app.cycle, app.today), [app.snapshot, app.cycle, app.today]);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   const navMode = useNavMode();
   const show: Show = (params.get('show') as Show) || 'outcomes';
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
+  const [layout, setLayout] = useLayout();
+  const flat = (n: TreeNode, depth = 0): { goal: Goal; depth: number }[] => [{ goal: n.goal, depth }, ...n.children.flatMap((c) => flat(c, depth + 1))];
+  const one = (key: string, title: string, goals: Goal[]): ViewGroup => ({ key, title, rows: goals.map((goal) => ({ goal, depth: 0 })) });
+  // Built once per change to the goals, so the views' summaries aren't recomputed on every render.
+  const groups: ViewGroup[] = useMemo(() => show === 'outcomes'
+    ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
+    : show === 'attention' ? [one('attention', 'Needs attention', att.map((a) => a.goal))]
+    : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
+    : show === 'teams' ? app.snapshot.teams.map((t) => one(t.id, t.name, app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app)))).filter((g) => g.rows.length)
+    : show === 'mine' ? [one('mine', 'Mine', [...mine].sort(worstFirst(app)))]
+    : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [show, app.snapshot, app.viewer.id, att]);
+  const shown = [...new Map(groups.flatMap((g) => g.rows.map((r) => [r.goal.id, r.goal] as const))).values()];
+  const alt = layout !== 'list';
   const tabs: [Show, string, number | null][] = [
     ['outcomes', 'Trees', null],
     ['attention', 'Needs attention', att.length],
@@ -38,7 +62,7 @@ export function GoalsScreen() {
       <div className="page-head row between">
         <span className="stack" style={{ gap: 2 }}>
           <h1 className="title-xl">Goals</h1>
-          <span className="hint">Week {app.week} of {app.cycle.weeks}, {app.cycle.name}</span>
+          <span className="hint">{periodLabel(app.cycle, app.week)}</span>
         </span>
         <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>
@@ -49,10 +73,27 @@ export function GoalsScreen() {
           </button>
         ))}
       </div>
+      {app.snapshot.goals.length > 0 && (
+        <div className="row between view-bar">
+          <LayoutSwitch layout={layout} onChange={setLayout} />
+          <span className="row" style={{ gap: 'var(--s2)' }}>
+            <Link className="btn sm" to="/import">Import</Link>
+            <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
+          </span>
+        </div>
+      )}
 
-      {show === 'outcomes' && (
+      {app.snapshot.goals.length > 0 && <StatusLegend />}
+      {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
+      {alt && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
+      {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
+      {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
+      {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
+      {alt && shown.length > 0 && layout === 'cards' && <GoalCards groups={groups} />}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={shown} /></Suspense>}
+
+      {!alt && show === 'outcomes' && (
         <>
-          {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
           {trees.map((t) => (
             <section key={t.goal.id} className="outcome" aria-label={t.goal.title}>
               <TreeCard node={t} />
@@ -71,11 +112,11 @@ export function GoalsScreen() {
         </>
       )}
 
-      {show === 'attention' && (att.length
+      {!alt && show === 'attention' && (att.length
         ? <div className="alist">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
-        : <div className="calm"><span aria-hidden="true">✓</span> Nothing is off track, stale or slipping.</div>)}
+        : <div className="calm"><StatusShape k="done" /> Nothing is off track, stale or slipping.</div>)}
 
-      {show === 'levels' && LEVELS.map((l) => {
+      {!alt && show === 'levels' && LEVELS.map((l) => {
         const list = app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app));
         if (!list.length) return null;
         return (
@@ -89,7 +130,7 @@ export function GoalsScreen() {
         );
       })}
 
-      {show === 'teams' && app.snapshot.teams.map((t) => {
+      {!alt && show === 'teams' && app.snapshot.teams.map((t) => {
         const list = app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app));
         if (!list.length) return null;
         const st = worst(list.map((g) => app.statusOf(g).status));
@@ -107,9 +148,9 @@ export function GoalsScreen() {
         );
       })}
 
-      {show === 'watching' && <WatchingBody />}
+      {!alt && show === 'watching' && <WatchingBody />}
 
-      {show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
+      {!alt && show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
     </div>
   );
 }

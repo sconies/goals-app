@@ -5,7 +5,10 @@ import { useNavigate } from 'react-router';
 import { useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
 import { downloadTemplate, readSpreadsheet } from '../app/spreadsheet';
-import { buildWorkspace, parseTable, thisMonday, type ImportIssue } from '../domain/importer';
+import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer';
+import type { Cycle } from '../domain/types';
+import { MONTH_NAMES, startMonth, yearStartFor } from '../domain/year';
+import { yearName } from '../domain/yearName';
 import { TEMPLATES, type TemplateGoal } from '../domain/templates';
 import { Steps } from '../ui/bits';
 import { targetText } from '../domain/format';
@@ -96,11 +99,12 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const setup = useSetup();
   const nav = useNavigate();
   const [d, set, clear, restored] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
-    step: 0, name: '', startDate: thisMonday(setup.today), reviewDay: 3,
+    step: 0, name: '', startDate: yearStartFor(setup.today, 0), reviewDay: 3,
     me: { name: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
     template: '', outcome: blankGoal(), goals: [], fileGoals: '',
   }));
-  const [suffix] = useState(() => Math.random().toString(36).slice(2, 6));
+  // Ids are global in the database, so the suffix is long enough that two workspaces never share one.
+  const [suffix] = useState(() => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join(''));
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fileNote, setFileNote] = useState('');
@@ -125,7 +129,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     !result.issues.filter((i) => !/using straight/.test(i.message)).length,
   ];
   const problem = [
-    !d.name.trim() ? 'Give the workspace a name.' : 'Pick the Monday the cycle starts.',
+    !d.name.trim() ? 'Give the workspace a name.' : 'Pick the month the goal year starts.',
     !d.me.name.trim() ? 'Add your name.' : 'Add your team.',
     'Fix the rows marked in red, or clear them.',
     'Pick a starting point.',
@@ -200,13 +204,15 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </label>
             {cycleOpen ? (
               <div className="pair">
-                <label className="field"><span className="field-label">Cycle starts</span><input className="input" type="date" value={d.startDate} onChange={(e) => set({ startDate: e.target.value })} /></label>
+                <label className="field"><span className="field-label">The goal year starts in</span>
+                  <select className="input" value={startMonth({ startDate: d.startDate } as Cycle)} onChange={(e) => set({ startDate: yearStartFor(setup.today, Number(e.target.value)) })}>{MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
+                </label>
                 <label className="field"><span className="field-label">Weekly review on</span>
                   <select className="input" value={d.reviewDay} onChange={(e) => set({ reviewDay: Number(e.target.value) })}>{DAYS.map((x, i) => <option key={x} value={i}>{x}</option>)}</select>
                 </label>
               </div>
             ) : (
-              <span className="hint">A 13-week cycle from {new Date(d.startDate + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })}, with the review on {DAYS[d.reviewDay]}s. <button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span>
+              <span className="hint">Goals for the year {yearName(d.startDate, 52)}, in four quarters, with a weekly review on {DAYS[d.reviewDay]}s. <button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span>
             )}
           </section>
         )}
@@ -281,7 +287,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
           <section className="qsection">
             <div className="stack" style={{ gap: 'var(--s1)' }}>
               <h1 className="qtitle big">What outcome are you after?</h1>
-              <span className="hint">The one number that says whether this cycle worked. Everything else feeds it.</span>
+              <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
             </div>
             <GoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} headline />
           </section>
@@ -309,11 +315,11 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <dl className="details">
               <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
               <dt>Goals</dt><dd>{result.snapshot.goals.length ? `${result.snapshot.goals.length}, listed below` : 'Set up later'}</dd>
-              <dt>Cycle</dt><dd>13 weeks from {new Date(d.startDate + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })}, review on {DAYS[d.reviewDay]}s</dd>
+              <dt>Goal year</dt><dd>{yearName(d.startDate, 52)}, starting in {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}; review on {DAYS[d.reviewDay]}s</dd>
               <dt>You</dt><dd>{d.me.name}, admin</dd>
             </dl>
             <div className="row" style={{ gap: 'var(--s3)' }}>
-              <button type="button" className="linkish small" onClick={() => go(0)}>Change name or cycle</button>
+              <button type="button" className="linkish small" onClick={() => go(0)}>Change name or year</button>
               <button type="button" className="linkish small" onClick={() => go(2)}>Change people</button>
             </div>
             {result.snapshot.goals.length > 0 && (

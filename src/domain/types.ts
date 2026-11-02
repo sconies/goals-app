@@ -44,8 +44,12 @@ export interface MetricPlan {
   start: number;
   target: number;
   shape: PlanShape;
-  /** The week the plan starts from: 0, or the week a goal was set up mid-cycle. */
+  /** The week the plan starts from: 0, or the week a goal was set up mid-cycle. Negative once carried into a later cycle. */
   fromWeek?: number;
+  /** The week the target is due, counted from this cycle's start: the cycle's end unless the goal runs longer (e.g. to the end of the year). */
+  endWeek?: number;
+  /** Plan numbers set by hand at checkpoints between the start and the end. When present, the plan runs straight between them instead of following the shape. */
+  points?: { week: number; value: number }[];
 }
 
 export interface RangePlan {
@@ -76,12 +80,16 @@ interface GoalBase {
   effect: number | null;
   /** Optional: why we expect this goal to help the one it feeds. A hypothesis, not a proven cause. */
   whyHelps?: string;
+  /** Other goals it also helps, beyond the one it feeds: a dotted line on the map, not part of the tree. */
+  alsoHelps?: Id[];
   /** Where the number comes from and who owns that source. */
   source: string;
   definition: string;
   createdAt: string;
   /** A proposed plan change. Not used while target changes save directly; kept for governance later. */
   pending?: PendingChange | null;
+  /** Bumped on every save, so a save based on an older version is refused rather than overwriting a newer one. */
+  version?: number;
 }
 
 export interface PendingChange {
@@ -164,6 +172,8 @@ export interface CheckIn {
   pathToGreen: PathToGreen | null;
   next: string;
   dataFlagged: boolean;
+  /** Loaded later from a spreadsheet or another tool, not posted in its week. */
+  backfilled?: boolean;
 }
 
 /** A field that changed: values are already formatted for reading. */
@@ -224,6 +234,8 @@ export interface Review {
   people: Id[];
   createdBy: Id;
   createdAt: string;
+  /** Bumped on every save (see Goal.version). */
+  version?: number;
 }
 
 export interface Workspace {
@@ -246,6 +258,21 @@ export interface Snapshot {
   retros: Retro[];
   /** What people said about the app itself, from the feedback button. */
   feedback?: Feedback[];
+  /** Personal tokens for AI assistants (the MCP server). */
+  tokens?: ApiToken[];
+}
+
+/** A personal token an AI assistant uses to act as one person in one workspace. Only its hash is kept. */
+export interface ApiToken {
+  id: Id;
+  personId: Id;
+  /** What it's for, e.g. "Claude on my laptop". */
+  name: string;
+  tokenHash: string;
+  createdBy: Id;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
 }
 
 export interface Feedback {

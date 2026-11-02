@@ -1,0 +1,144 @@
+/* The goal map: the company's goals on a canvas you can pan, zoom and rearrange. North stars at the top, the goals
+   that feed them below. Solid lines: feeds into. Dotted: also helps. Bold red: the critical path, the inputs most
+   likely to make each top goal miss. Branches fold and unfold; a goal opens its story beside the map. */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
+import { Background, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { useApp } from '../app/state';
+import { LEVEL_LABEL } from '../domain/format';
+import { criticalPath, edges as mapEdges, layout, layoutIndented, NODE_H, NODE_W, withAncestors } from '../domain/map';
+import { LABEL, RANK } from '../domain/status';
+import { RESULT_TEXT } from '../domain/story';
+import { summarise } from '../domain/summary';
+import type { DisplayStatus, Goal } from '../domain/types';
+import { Chip, StatusShape } from '../ui/bits';
+import { StoryLines } from './GoalViews';
+
+type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: string | null; children: number; collapsed: boolean; critical: boolean; onToggle: (id: string) => void };
+
+function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
+  const { goal, status, owner, result, children, collapsed, critical, onToggle } = data;
+  return (
+    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '')} data-tone={status}>
+      <Handle type="target" position={Position.Bottom} isConnectable={false} />
+      <span className={'map-status tone-' + status}><StatusShape k={status} />{LABEL[status]}{result && <span className={'result-tag result-' + (result === 'Completed' ? 'completed' : result === 'Completed late' ? 'late' : 'missed')}>{result}</span>}</span>
+      <span className="map-title">{goal.title}</span>
+      <span className="map-meta">{owner}{goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}</span>
+      {children > 0 && (
+        <button type="button" className="map-toggle nodrag" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Show' : 'Hide'} the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>
+          {collapsed ? `+ ${children}` : '−'}
+        </button>
+      )}
+      <Handle type="source" position={Position.Top} isConnectable={false} />
+    </div>
+  );
+}
+const nodeTypes = { goal: GoalNode };
+
+const posKey = (ws: string) => `goals-map:${ws}`;
+const readPos = (ws: string): Record<string, { x: number; y: number }> => { try { return JSON.parse(localStorage.getItem(posKey(ws)) || '{}'); } catch { return {}; } };
+
+export function GoalMap({ goals }: { goals: Goal[] }) {
+  const app = useApp();
+  const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
+  const [onlyAttention, setOnlyAttention] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set<string>());
+  const [moved, setMoved] = useState(() => readPos(app.ws.id));
+  const canvas = useRef<HTMLDivElement>(null);
+  const statusOf = useCallback((g: Goal) => app.statusOf(g).status, [app]);
+  const critical = useMemo(() => criticalPath(goals, statusOf), [goals, statusOf]);
+  const only = useMemo(() => (onlyAttention ? withAncestors(goals, new Set(goals.filter((g) => ['off', 'risk', 'stale'].includes(statusOf(g))).map((g) => g.id))) : undefined), [onlyAttention, goals, statusOf]);
+  const toggle = useCallback((id: string) => setCollapsed((c) => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n; }), []);
+  // Worst first under each goal, so the critical path sits next to what it threatens.
+  const order = useCallback((a: Goal, b: Goal) => RANK[statusOf(b)] - RANK[statusOf(a)] || a.title.localeCompare(b.title), [statusOf]);
+  const placed = useMemo(() => (phone ? layoutIndented : layout)(goals, { collapsed, only, order }), [goals, collapsed, only, order, phone]);
+  const nodes: Node<GoalNodeData>[] = useMemo(() => placed.map((n) => ({
+    id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected,
+    ariaLabel: `${n.goal.title}: ${LABEL[statusOf(n.goal)]}${critical.has(n.id) ? ', on the critical path' : ''}`,
+    data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? RESULT_TEXT[r.kind] : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), onToggle: toggle },
+  })), [placed, moved, selected, statusOf, critical, app, toggle]);
+  const links: Edge[] = useMemo(() => mapEdges(placed, critical).map((e) => ({
+    id: e.id, source: e.from, target: e.to, type: e.kind === 'helps' ? 'default' : 'smoothstep', selectable: false,
+    className: 'map-edge ' + e.kind + (e.critical ? ' critical' : ''),
+    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+    ...(e.kind === 'helps' ? { style: { strokeDasharray: '6 5' } } : {}),
+  })), [placed, critical]);
+
+  useEffect(() => { try { localStorage.setItem(posKey(app.ws.id), JSON.stringify(moved)); } catch { /* storage blocked */ } }, [moved, app.ws.id]);
+  const sel = selected ? goals.find((g) => g.id === selected) : undefined;
+  // Open on what matters: the critical path, or failing that the top goals.
+  const focus = useMemo(() => {
+    // The worst top goal on a critical path, and its path; otherwise the first top goal.
+    const roots = placed.filter((n) => n.depth === 0);
+    const root = roots.filter((n) => critical.has(n.id)).sort((a, b) => RANK[statusOf(b.goal)] - RANK[statusOf(a.goal)])[0] ?? roots[0];
+    if (!root) return [];
+    const inTree = (n: (typeof placed)[number]) => { let g: Goal | undefined = n.goal; const seen = new Set<string>(); while (g && !seen.has(g.id)) { if (g.id === root.id) return true; seen.add(g.id); g = goals.find((x) => x.id === g!.parentId); } return false; };
+    return placed.filter((n) => n.id === root.id || (critical.has(n.id) && inTree(n))).map((n) => ({ id: n.id }));
+  }, [placed, critical, statusOf, goals]);
+  // As tall as the trees need (within the window), so a wide, shallow map doesn't float in empty space.
+  const levels = Math.max(1, ...placed.map((n) => n.depth + 1));
+  const height = phone ? '70vh' : `clamp(380px, ${Math.round(levels * 168 * 0.7 + 150)}px, 72vh)`;
+  const allIds = goals.filter((g) => goals.some((c) => c.parentId === g.id)).map((g) => g.id);
+
+  return (
+    <div className="goalmap">
+      <div className="row between map-bar">
+        <div className="map-legend" aria-label="Map key">
+          <span><i className="key-line" /> Feeds into</span>
+          <span><i className="key-line dotted" /> Also helps</span>
+          <span><i className="key-line critical" /> Critical path: most likely to make it miss</span>
+        </div>
+        <span className="row" style={{ gap: 'var(--s2)' }}>
+          <label className="check small"><input type="checkbox" checked={onlyAttention} onChange={(e) => setOnlyAttention(e.target.checked)} /> Only what needs attention</label>
+          <button type="button" className="btn sm" onClick={() => setCollapsed(collapsed.size ? new Set() : new Set(allIds))}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
+          {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
+        </span>
+      </div>
+      <div className="map-body">
+        <div className="map-canvas" ref={canvas} style={{ height }} role="region" aria-label="Goal map. Drag to move around, scroll or pinch to zoom, Tab to move between goals.">
+          <ReactFlow
+            key={(onlyAttention ? 'a' : 'all') + collapsed.size}
+            nodes={nodes} edges={links} nodeTypes={nodeTypes} minZoom={0.2} maxZoom={1.6}
+            onInit={(rf) => {
+              // Frame the critical path (or the top goals) ourselves, from the layout: no waiting for nodes to measure.
+              const box = canvas.current?.getBoundingClientRect();
+              const pts = placed.filter((n) => focus.some((f) => f.id === n.id)).map((n) => moved[n.id] ?? { x: n.x, y: n.y });
+              if (!box || !pts.length) return;
+              const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x)) + NODE_W;
+              const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y)) + NODE_H;
+              const zoom = phone ? Math.min(1, (box.width - 24) / (Math.max(...placed.map((n) => n.x)) + NODE_W)) : Math.max(0.7, Math.min(1, (box.width - 48) / (maxX - minX), (box.height - 64) / (maxY - minY)));
+              void rf.setViewport(phone ? { zoom, x: 12, y: 16 - minY * zoom } : { zoom, x: box.width / 2 - ((minX + maxX) / 2) * zoom, y: 32 - minY * zoom });
+            }}
+            nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }}
+            onNodeClick={(_, n) => setSelected(n.id)} onPaneClick={() => setSelected(null)}
+            onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
+          >
+            <Background gap={24} size={1} />
+            <Controls showInteractive={false} position="bottom-right" />
+          </ReactFlow>
+        </div>
+        {sel && <MapPanel goal={sel} onClose={() => setSelected(null)} critical={critical.has(sel.id)} />}
+      </div>
+    </div>
+  );
+}
+
+function MapPanel({ goal, onClose, critical }: { goal: Goal; onClose: () => void; critical: boolean }) {
+  const app = useApp();
+  const s = summarise(goal, app.snapshot, app.cycle, app.today, app.week);
+  const feeds = app.snapshot.goals.filter((g) => g.parentId === goal.id);
+  return (
+    <aside className="map-panel" aria-label={goal.title}>
+      <div className="row between nowrap"><Chip k={s.status} /><button type="button" className="iconbtn" aria-label="Close" onClick={onClose}>✕</button></div>
+      <h2 className="block-title">{goal.title}</h2>
+      <span className="hint">{s.owner} · {s.team}{s.story.feeds ? ` · ${s.story.feeds}` : ''}</span>
+      {critical && <span className="small tone-off strong">On the critical path</span>}
+      <span className="small">{s.story.where}</span>
+      <StoryLines s={s} />
+      {feeds.length > 0 && <span className="hint">{feeds.length} {feeds.length === 1 ? 'goal feeds' : 'goals feed'} it.</span>}
+      <Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link>
+    </aside>
+  );
+}

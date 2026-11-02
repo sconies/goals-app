@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
+import { periodLabel, periodWord } from '../domain/year';
 import { RESULT_LABEL, suggestedResult, wrapUpOpen } from '../domain/cycle';
 import { fmt, gapText } from '../domain/format';
 import { assessPosted } from '../domain/status';
@@ -24,6 +25,7 @@ export function WrapUp() {
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
   const open = wrapUpOpen(app.cycle, app.week);
+  const w = periodWord(app.cycle);
   const retroOf = (g: Goal) => app.snapshot.retros.find((r) => r.goalId === g.id);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   const myLeft = mine.filter((g) => !retroOf(g));
@@ -44,9 +46,9 @@ export function WrapUp() {
   return (
     <div className="page narrow">
       <div className="page-head">
-        <span className="eyebrow">{app.cycle.name} · week {app.week} of {app.cycle.weeks}</span>
-        <h1 className="title-xl">Wrap up the cycle</h1>
-        <span className="hint">Each owner says how their goals landed and what they learned. Then the next cycle starts with the goals that carry on.</span>
+        <span className="eyebrow">{periodLabel(app.cycle, app.week)}</span>
+        <h1 className="title-xl">Wrap up the {w}</h1>
+        <span className="hint">Each owner says how their goals landed and what they learned. Then next {w}’s goals start with the ones that carry on.</span>
       </div>
       {!open && (
         <div className="calm">The wrap-up opens in week {app.cycle.weeks - 1}. {app.cycle.weeks - 1 - app.week === 1 ? 'That’s next week.' : `That’s in ${app.cycle.weeks - 1 - app.week} weeks.`}</div>
@@ -57,7 +59,7 @@ export function WrapUp() {
           <ProgressRing done={mine.length - myLeft.length} total={mine.length} size={56} label={`${mine.length - myLeft.length} of ${mine.length} of your goals wrapped up`} />
           <div className="hero-body">
             <h2 className="hero-title">{myLeft.length ? (myLeft.length === 1 ? '1 goal to wrap up' : `${myLeft.length} goals to wrap up`) : 'Your goals are wrapped up'}</h2>
-            <span className="muted">{myLeft.length ? 'About a minute each: how it landed, one thing you learned, carry on or stop.' : 'You can still change what you wrote until the next cycle starts.'}</span>
+            <span className="muted">{myLeft.length ? 'About a minute each: how it landed, one thing you learned, carry on or stop.' : `You can still change what you wrote until next ${w} starts.`}</span>
             {myLeft.length > 0 && <div className="row" style={{ marginTop: 'var(--s2)' }}><Link className="btn primary big-btn" to={`/retro/${myLeft[0]!.id}`}>Wrap up {myLeft[0]!.title} →</Link></div>}
           </div>
         </section>
@@ -65,7 +67,7 @@ export function WrapUp() {
 
       <section className="block">
         <div className="row between">
-          <h2 className="block-title">How the cycle landed</h2>
+          <h2 className="block-title">How the {w} landed</h2>
           <span className="hint">{done.length} of {all.length} wrapped up</span>
         </div>
         {done.length > 0 && (
@@ -92,23 +94,23 @@ export function WrapUp() {
             );
           })}
         </ul>
-        {!all.length && <Empty title="No goals this cycle" />}
+        {!all.length && <Empty title={`No goals this ${w}`} />}
       </section>
 
       {app.viewer.admin && open && (
         <section className="block note-card">
           <span className="stack" style={{ gap: 'var(--s1)' }}>
-            <strong>Start the next cycle</strong>
+            <strong>Start next {w}</strong>
             <span className="hint">{carry.length} {carry.length === 1 ? 'goal carries' : 'goals carry'} on{all.length - carry.length ? `, ${all.length - carry.length} stop` : ''}.{left.length ? ` ${left.length} not wrapped up yet; they carry on unless their owner says stop.` : ''}</span>
           </span>
           <button className="btn" onClick={() => setConfirming(true)}>Start it</button>
         </section>
       )}
-      <Sheet open={confirming} onClose={() => setConfirming(false)} title="Start the next cycle?">
+      <Sheet open={confirming} onClose={() => setConfirming(false)} title={`Start next ${w}?`}>
         <div className="stack" style={{ gap: 'var(--s4)' }}>
-          <p>{carry.length} {carry.length === 1 ? 'goal moves' : 'goals move'} into a new {app.cycle.weeks}-week cycle, starting from where {carry.length === 1 ? 'it' : 'they'} ended. Owners can change targets in the first week. This cycle and its retros stay in the change log.</p>
+          <p>{carry.length} {carry.length === 1 ? 'goal moves' : 'goals move'} into next {w}, starting from where {carry.length === 1 ? 'it' : 'they'} ended. Owners can change targets in the first week. This {w} and its retros stay in the change log.</p>
           {left.length > 0 && <p className="hint tone-risk">{left.length} {left.length === 1 ? 'goal hasn’t' : 'goals haven’t'} been wrapped up.</p>}
-          <div className="foot-row"><button className="btn ghost big-btn" onClick={() => setConfirming(false)}>Not yet</button><button className="btn primary big-btn" disabled={busy} onClick={() => void start()}>{busy ? 'Starting…' : 'Start the next cycle'}</button></div>
+          <div className="foot-row"><button className="btn ghost big-btn" onClick={() => setConfirming(false)}>Not yet</button><button className="btn primary big-btn" disabled={busy} onClick={() => void start()}>{busy ? 'Starting…' : `Start next ${w}`}</button></div>
         </div>
       </Sheet>
     </div>
@@ -120,7 +122,7 @@ export function RetroGoal() {
   const app = useApp();
   const { goalId } = useParams();
   const goal = goalId ? app.goal(goalId) : undefined;
-  if (!goal) return <div className="page narrow"><Empty title="This goal isn’t in this cycle"><Link className="btn" to="/retro">Back to the wrap-up</Link></Empty></div>;
+  if (!goal) return <div className="page narrow"><Empty title={`This goal isn’t in this ${periodWord(app.cycle)}`}><Link className="btn" to="/retro">Back to the wrap-up</Link></Empty></div>;
   if (goal.ownerId !== app.viewer.id && !app.viewer.admin) return <div className="page narrow"><Empty title="Only its owner wraps up this goal"><Link className="btn" to="/retro">Back to the wrap-up</Link></Empty></div>;
   return <RetroForm key={goal.id} goal={goal} />;
 }
@@ -169,12 +171,12 @@ function RetroForm({ goal }: { goal: Goal }) {
           <textarea className={'input' + (tried && !ok ? ' invalid' : '')} rows={3} value={learned} onChange={(e) => setLearned(e.target.value)} placeholder="One thing worth knowing next time" aria-label="What did you learn?" />
           {tried && !ok && <span className="hint tone-off" role="alert">Write a sentence about what you learned.</span>}
         </label>
-        <div className="field"><span className="field-label" id="next-l">Next cycle</span>
+        <div className="field"><span className="field-label" id="next-l">Next {periodWord(app.cycle)}</span>
           <div className="seg full" role="group" aria-labelledby="next-l">
             <button type="button" aria-pressed={next === 'carry'} onClick={() => setNext('carry')}>Carry it on</button>
             <button type="button" aria-pressed={next === 'stop'} onClick={() => setNext('stop')}>Stop it here</button>
           </div>
-          <span className="hint">{next === 'carry' ? (goal.kind === 'metric' ? 'It starts the next cycle from where it ended; you can change the target then.' : 'It starts the next cycle with what’s left.') : 'It stays in this cycle’s history.'}</span>
+          <span className="hint">{next === 'carry' ? (goal.kind === 'metric' ? `It starts next ${periodWord(app.cycle)} from where it ended; you can change the target then.` : `It starts next ${periodWord(app.cycle)} with what’s left.`) : `It stays in this ${periodWord(app.cycle)}’s history.`}</span>
         </div>
         <div className="focus-foot"><div className="foot-row"><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : before ? 'Save changes' : 'Save and continue'}</button></div></div>
       </form>
