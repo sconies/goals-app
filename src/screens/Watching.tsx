@@ -51,7 +51,7 @@ export function WatchingBody() {
       <div className="split">
       <div className="split-a">
         <Group title="Needs attention" goals={bad} />
-        <Group title="Gone quiet" hint="No check-in for two weeks or more, so the status can’t be trusted." goals={quiet} />
+        <Group title="No recent update" hint="No check-in for two weeks or more, so the status can’t be trusted." goals={quiet} />
       </div>
       <aside className="split-side" aria-label="What changed">
       {recent.length > 0 && (
@@ -90,7 +90,7 @@ function WatchHead() {
 function summary(n: number, bad: number, quiet: number, changed: number) {
   const parts = [`${n} ${n === 1 ? 'goal' : 'goals'}`];
   if (bad) parts.push(`${bad} need${bad === 1 ? 's' : ''} attention`);
-  if (quiet) parts.push(`${quiet} gone quiet`);
+  if (quiet) parts.push(`${quiet} with no recent update`);
   if (changed) parts.push(`${changed} ${changed === 1 ? 'change' : 'changes'} this week`);
   if (!bad && !quiet) parts.push('nothing needs you');
   return parts.join(' · ') + '.';
@@ -148,7 +148,7 @@ function StartWatching() {
   const counts = LEVELS.map((l) => [l, app.snapshot.goals.filter((g) => g.level === l).length] as const).filter(([l, n]) => n && l !== 'team');
   return (
     <Empty title="You’re not watching anything yet">
-      <span className="muted">Watching puts the goals you care about in one place: what’s slipping, what’s gone quiet, what changed.</span>
+      <span className="muted">Watching puts the goals you care about in one place: what’s slipping, what has had no recent update, what changed.</span>
       <div className="stack" style={{ gap: 'var(--s2)', width: '100%', maxWidth: 360 }}>
         {counts.map(([l, n]) => (
           <button key={l} className="btn" onClick={async () => { await app.watch('level', l); app.toast(`Watching every ${LEVEL_LABEL[l]} goal`); }}>Watch every {LEVEL_LABEL[l]} goal ({n})</button>

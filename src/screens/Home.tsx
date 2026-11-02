@@ -45,7 +45,7 @@ export function GoalLine({ g }: { g: Goal }) {
     <Link to={'/goals/' + g.id} className="gline">
       <span className={'gline-status tone-' + st.status}><StatusShape k={st.status} />{LABEL[st.status]}</span>
       <span className="gline-title">{g.title}</span>
-      <span className="gline-now">{now}<span className={'tone-' + gap.tone}> · {st.status === 'stale' ? 'Stale' : gap.short}</span></span>
+      <span className="gline-now">{now}<span className={'tone-' + gap.tone}> · {st.status === 'stale' ? 'no recent update' : gap.short}</span></span>
       <span className="gline-spark">
         {g.kind !== 'milestone' ? <Spark goal={g} weeks={app.cycle.weeks} series={valueSeries(app.checkInsOf(g))} /> : a.kind === 'milestone' ? <StageSpark a={a} /> : null}
       </span>
@@ -206,7 +206,7 @@ function ImportantChanges() {
   const changed = watched.map((g) => {
     const st = app.statusOf(g);
     const moved = statusChange(g, app.snapshot.checkIns);
-    const reason = moved?.worse && moved.week >= app.week - 1 ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}` : st.status === 'stale' ? 'Gone quiet' : app.attentionOf(g).flags.some((f) => f.kind === 'trend') ? 'Trend getting worse' : null;
+    const reason = moved?.worse && moved.week >= app.week - 1 ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}` : st.status === 'stale' ? 'No recent update' : app.attentionOf(g).flags.some((f) => f.kind === 'trend') ? 'Trend getting worse' : null;
     return { g, reason };
   }).filter((x) => x.reason);
   if (!watched.length) return null;

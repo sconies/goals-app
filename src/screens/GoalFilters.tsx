@@ -1,6 +1,6 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
@@ -70,6 +70,8 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
           <input className="input" type="search" placeholder="Search goals, owners, teams, reasons" value={q.q} onChange={(e) => setQ((cur) => ({ ...cur, q: e.target.value }))} />
         </label>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{narrowed ? ` · ${chips.filter((c) => c.key !== 'q').length}` : ''}</button>
+        {/* The most common question in a weekly scan, one press away. */}
+        <button type="button" className="btn quick-filter" aria-pressed={q.needs.includes('decision')} onClick={() => setQ((cur) => ({ ...cur, needs: cur.needs.includes('decision') ? cur.needs.filter((n) => n !== 'decision') : [...cur.needs, 'decision'] }))}>{NEED_OPTIONS.find(([k]) => k === 'decision')![1]}</button>
         <label className="filter-sort inline-sort"><span className="sr">Sort</span>
           <select className="input" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">Sort: as grouped</option>
@@ -99,19 +101,29 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
   );
 }
 
-/** On a saved view: rename, pin (admins), delete. */
+/** On a saved view: rename, pin (admins), delete, kept in one small menu so they don't sit beside the filters. */
 function ViewActions({ view }: { view: SavedView }) {
   const app = useApp();
   const [, setParams] = useSearchParams();
   const [renaming, setRenaming] = useState(false);
+  const menu = useRef<HTMLDetailsElement>(null);
   const mine = view.personId === app.viewer.id;
+  const canRename = mine || app.viewer.admin;
+  const canDelete = mine || (app.viewer.admin && view.pinned);
+  if (!canRename && !app.viewer.admin && !canDelete) return null;
+  const close = () => { if (menu.current) menu.current.open = false; };
   return (
-    <span className="row" style={{ gap: 'var(--s2)' }}>
-      {(mine || app.viewer.admin) && <button type="button" className="linkish small" onClick={() => setRenaming(true)}>Rename</button>}
-      {app.viewer.admin && <button type="button" className="linkish small" onClick={() => void app.pinView(view.id, !view.pinned).then(() => app.toast(view.pinned ? 'Unpinned' : 'Pinned for everyone'))}>{view.pinned ? 'Unpin' : 'Pin for everyone'}</button>}
-      {(mine || (app.viewer.admin && view.pinned)) && <button type="button" className="linkish small" onClick={() => void app.deleteView(view.id).then(() => { setParams({}, { replace: true }); app.toast('View deleted'); })}>Delete</button>}
+    <>
+      <details className="view-menu" ref={menu}>
+        <summary className="btn ghost sm">Manage view</summary>
+        <div className="view-menu-list" role="group" aria-label={`Manage ${view.name}`}>
+          {canRename && <button type="button" className="menuitem" onClick={() => { close(); setRenaming(true); }}>Rename</button>}
+          {app.viewer.admin && <button type="button" className="menuitem" onClick={() => { close(); void app.pinView(view.id, !view.pinned).then(() => app.toast(view.pinned ? 'Unpinned' : 'Pinned for everyone')); }}>{view.pinned ? 'Unpin' : 'Pin for everyone'}</button>}
+          {canDelete && <button type="button" className="menuitem" onClick={() => { close(); void app.deleteView(view.id).then(() => { setParams({}, { replace: true }); app.toast('View deleted'); }); }}>Delete</button>}
+        </div>
+      </details>
       {renaming && <SaveViewSheet params={view.params} view={view} onClose={() => setRenaming(false)} />}
-    </span>
+    </>
   );
 }
 
@@ -174,7 +186,7 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
           </select>
         </fieldset>
         {checks('Status', STATUS_OPTIONS, 'status')}
-        {checks('Needs someone', NEED_OPTIONS, 'needs')}
+        {checks('Needs attention', NEED_OPTIONS, 'needs')}
         {checks('Level', levels, 'level')}
         {checks('Team', app.snapshot.teams.map((t) => [t.id, t.name] as [string, string]), 'team')}
         <fieldset className="filter-group"><legend className="field-label">Owner</legend>

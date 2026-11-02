@@ -98,11 +98,11 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
         </ul>
       )}
       <div className="row decide-buttons">
-        <button className="btn primary big-btn" disabled={busy} onClick={() => void next()}>{rv.done + (reviewed ? 0 : 1) >= rv.total ? 'Reviewed & finish' : 'Reviewed & next'}</button>
+        <button className="btn primary big-btn" disabled={busy} onClick={() => void next()}>{rv.session.done + (reviewed ? 0 : 1) >= rv.session.total ? 'Reviewed & finish' : rv.done + (reviewed ? 0 : 1) >= rv.total ? 'Reviewed & back to the review' : 'Reviewed & next'}</button>
         <button className="btn big-btn" disabled={busy} onClick={() => setMode('note')}>Add a note</button>
       </div>
       <div className="quiet-links">
-        {!own && <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner}</button>}
+        {!own && <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner} a question</button>}
         <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>
         {!reviewed && <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>}
       </div>
@@ -290,7 +290,7 @@ export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean 
           {flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}
         </span>
       </span>
-      <span className="trow-now"><span>{now}</span><span className={'tone-' + (st.status === 'stale' ? 'stale' : gap.tone)}>{st.status === 'stale' ? 'Stale' : gap.short}</span></span>
+      <span className="trow-now"><span>{now}</span><span className={'tone-' + (st.status === 'stale' ? 'stale' : gap.tone)}>{st.status === 'stale' ? 'no recent update' : gap.short}</span></span>
       {g.level !== 'team' && <span className="sr">{LEVEL_LABEL[g.level]} level</span>}
     </Link>
   );

@@ -63,6 +63,12 @@ export function sessionDate(r: Review, cycle: Cycle, week: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * A goal the review can take as read: on track or done, with nothing flagged beyond a check-in being due.
+ * Reviews walk the rest one at a time and acknowledge these together (Senior UX review, 2 Nov).
+ */
+export const isHealthy = (a: GoalAttention) => (a.status.status === 'on' || a.status.status === 'done') && a.flags.every((f) => f.kind === 'due');
+
 export interface ReviewSession {
   review: Review;
   week: number;

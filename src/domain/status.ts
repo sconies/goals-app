@@ -4,7 +4,7 @@ import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, Ra
 
 export const RANK: Record<DisplayStatus, number> = { done: 0, planned: 0, none: 0, on: 1, risk: 2, stale: 2, off: 3 };
 export const LABEL: Record<DisplayStatus, string> = {
-  on: 'On track', risk: 'At risk', off: 'Off track', done: 'Done', stale: 'Stale', planned: 'Not started', none: 'No check-in',
+  on: 'On track', risk: 'At risk', off: 'Off track', done: 'Done', stale: 'No recent update', planned: 'Not started', none: 'No check-in',
 };
 
 /** Thresholds, as the spec states them. */

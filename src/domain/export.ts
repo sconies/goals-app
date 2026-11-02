@@ -109,7 +109,7 @@ const README: Cell[][] = [
   ['Goals', 'Start, Target, Plan, Due week', 'Number goals: where it starts, the target, the plan’s shape (straight, back-loaded, stepped) and the week the target is due', 'Changes the plan; needs a reason once check-ins have started'],
   ['Goals', 'Limit, Must stay, Margin', 'Range goals: the limit, at most or at least, and how close counts as at risk', 'Changes the range'],
   ['Goals', 'Stages', 'Milestone goals: Name@week, separated by semicolons', 'Changes the stages'],
-  ['Goals', 'Status', 'On track: will hit the target if it carries on (95%+ of planned progress). At risk: could miss without a change (80–95%, or near a limit); the owner has said how it gets back. Off track: will miss without intervention (under 80%, a stage over two weeks late, or over a limit two weeks running). Stale: no check-in for two weeks or more.', 'Ignored'],
+  ['Goals', 'Status', 'On track: will hit the target if it carries on (95%+ of planned progress). At risk: could miss without a change (80–95%, or near a limit); the owner has said how it gets back. Off track: will miss without intervention (under 80%, a stage over two weeks late, or over a limit two weeks running). No recent update: no check-in for two weeks or more.', 'Ignored'],
   ['Goals', 'Result', 'Completed: hit the target by its due date. Completed late: hit it after the due date. Did not meet: the due date passed without hitting it.', 'Ignored'],
   ['Goals', 'Why it’s off, Recovery plan, By when, Needs, Next step, Warnings', 'The owner’s latest account when a goal is behind, and anything the numbers would hide (a date that slipped, no recovery plan, a call greener than the numbers)', 'Ignored'],
   ['Goals', 'Since, Now, Plan this week, Gap, Last check-in week, Forecast', 'Worked out by the app when exported', 'Ignored'],
@@ -242,7 +242,7 @@ export function aiBrief(x: ExportInput): string {
   out.push('');
   const lead = [
     `${sums.length} goals`,
-    off.length ? `${off.length} off track` : '', risk.length ? `${risk.length} at risk` : '', quiet.length ? `${quiet.length} gone quiet` : '',
+    off.length ? `${off.length} off track` : '', risk.length ? `${risk.length} at risk` : '', quiet.length ? `${quiet.length} with no recent update` : '',
     count('on') ? `${count('on')} on track` : '', count('done') ? `${count('done')} done` : '',
   ].filter(Boolean);
   out.push(`**${lead.join(', ')}.**${asks.length ? ` ${asks.length} ${asks.length === 1 ? 'owner needs' : 'owners need'} a decision or help.` : ''}${flagged.length ? ` ${flagged.length} ${flagged.length === 1 ? 'goal has' : 'goals have'} a warning below.` : ''}`);
@@ -270,7 +270,7 @@ export function aiBrief(x: ExportInput): string {
     for (const s of risk) out.push(...storyBlock(s, x.cycle.weeks));
   }
   if (quiet.length) {
-    out.push('## Gone quiet: no check-in for two weeks or more');
+    out.push('## No recent update: no check-in for two weeks or more');
     out.push('');
     for (const s of quiet) out.push(...storyBlock(s, x.cycle.weeks));
   }

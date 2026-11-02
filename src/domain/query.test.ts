@@ -58,7 +58,7 @@ describe('searching, filtering and sorting goals', () => {
   });
   it('says each filter in words, and can drop one', () => {
     const q: GoalQuery = { ...EMPTY_QUERY, status: ['off', 'risk'], due: 'quarter', needs: ['decision'] };
-    expect(describeQuery(q, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Off track or At risk', 'Waiting on a decision or help', 'Due this quarter']);
+    expect(describeQuery(q, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Off track or At risk', 'Decision or help needed', 'Due this quarter']);
     expect(without(q, 'due').due).toBeNull();
   });
 });

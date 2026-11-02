@@ -99,7 +99,7 @@
     {
       "id": "STALE",
       "area": "Status rules",
-      "text": "No owner check-in for 14 days shows as Stale, never as on track."
+      "text": "No owner check-in for 14 days shows as No recent update, never as on track."
     },
     {
       "id": "HIERARCHY",
@@ -305,6 +305,11 @@
       "id": "SAVED-VIEWS",
       "area": "Goals",
       "text": "Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name."
+    },
+    {
+      "id": "EXCEPTIONS-FIRST",
+      "area": "Leading",
+      "text": "A leader's attention goes to the exceptions. A weekly review walks the goals that need a look one at a time and takes the goals on track with nothing flagged together in one acknowledgement, which can be opened or walked instead. A goal page says which contributing goals are most likely to make it miss. A request for a decision has Respond beside it. Asking for an update leaves a lasting 'Asked' in place of the button. The table keeps each goal's story to one line, with Details to open it, and the board puts the north star first and folds healthy lanes to a count. New goal asks before resuming an unpublished one. One name per idea: No recent update, Contributing goals, Decision or help needed."
     }
   ],
   "notYetBuilt": [
@@ -407,6 +412,12 @@
       "title": "Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link",
       "who": "A leader",
       "budget": 18
+    },
+    {
+      "id": "U33",
+      "title": "A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table",
+      "who": "A leader",
+      "budget": 16
     }
   ],
   "easeCriteria": [

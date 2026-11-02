@@ -6,7 +6,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { WEEKDAY } from '../domain/progress';
-import { answerOf, goalsIn, reviewSession, type ReviewSession } from '../domain/review';
+import { answerOf, goalsIn, isHealthy, reviewSession, type ReviewSession } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
 import type { Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
@@ -63,13 +63,28 @@ export function ReviewHome() {
   const nav = useNavigate();
   const { reviewId } = useParams();
   const review = app.snapshot.reviews.find((r) => r.id === reviewId);
+  const [walkAll, setWalkAll] = useState(false);
+  const [busy, setBusy] = useState(false);
   if (!review) return <div className="page narrow"><Empty title="That review doesn’t exist"><Link className="btn" to="/reviews">All reviews</Link></Empty></div>;
   const s = reviewSession(review, app.snapshot, app.cycle, app.today, app.week);
   const thisWeek = s.week === Math.max(1, app.week);
-  const first = s.items.find((a) => !s.covered.has(a.goal.id));
+  // The walk is the exceptions, one at a time; healthy goals are acknowledged together below, or walked if you choose.
+  const exceptions = s.items.filter((a) => !isHealthy(a));
+  const healthy = s.items.filter(isHealthy);
+  const walk = walkAll || !exceptions.length ? s.items : exceptions;
+  const first = walk.find((a) => !s.covered.has(a.goal.id));
   const start = () => {
-    saveReviewOrder(app.ws.id, review.id, s.week, s.items.map((a) => a.goal.id));
+    saveReviewOrder(app.ws.id, review.id, s.week, walk.map((a) => a.goal.id));
     if (first) nav(`/goals/${first.goal.id}?review=${review.id}`);
+  };
+  const healthyLeft = healthy.filter((a) => !s.covered.has(a.goal.id));
+  const ackHealthy = async () => {
+    setBusy(true);
+    try {
+      for (const a of healthyLeft) await app.reviewCall(a.goal, review, s.week, 'acknowledge', '');
+      app.toast(`${goalsN(healthyLeft.length)} on track marked reviewed`);
+    } catch { /* the save already said what went wrong */ }
+    setBusy(false);
   };
   const done = s.total > 0 && s.done >= s.total;
   const people = review.people.map((id) => app.person(id)).filter((p) => !!p);
@@ -83,7 +98,7 @@ export function ReviewHome() {
   const notes = s.said.filter((d) => d.kind === 'note');
   // Reviewed without comment: covered, with nothing but "reviewed" said about it.
   const quiet = s.items.filter((a) => s.covered.has(a.goal.id) && !s.said.some((d) => d.goalId === a.goal.id && d.kind !== 'acknowledge'));
-  const remaining = s.items.filter((a) => !s.covered.has(a.goal.id));
+  const remaining = walk.filter((a) => !s.covered.has(a.goal.id));
   const reviewedItems = s.items.filter((a) => s.covered.has(a.goal.id));
   const firstName = (n: string) => n.split(' ')[0];
 
@@ -141,7 +156,8 @@ export function ReviewHome() {
           <h1 className="hero-title">{done ? `Review complete: ${goalsN(s.done)} reviewed` : review.name}</h1>
           <span className="muted">{done ? `${review.name}, ${dateText(s.date)}.` : `${thisWeek ? 'This week' : 'Next'}: ${dateText(s.date)}. Worst and stalest first.${thisWeek ? '' : ' You can start early; it counts for that session.'}`}</span>
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
-            {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(s.total)}`}</button>}
+            {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(walk.length)}`}</button>}
+            {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} on track reviewed</button>}
             {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
           </div>
@@ -152,6 +168,23 @@ export function ReviewHome() {
         <section className="block">
           <h2 className="block-title">Still to review · {remaining.length}</h2>
           <ul className="tree">{remaining.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>
+        </section>
+      )}
+      {!done && !walkAll && exceptions.length > 0 && healthyLeft.length > 0 && (
+        <section className="block healthy-group">
+          <div className="stack" style={{ gap: 2 }}>
+            <h2 className="block-title">On track, nothing new · {healthyLeft.length}</h2>
+            <span className="hint">{healthyLeft.length === 1 ? 'This goal is' : 'These goals are'} on track with nothing flagged. Mark them reviewed together, or open any one to look closer.</span>
+          </div>
+          <details className="disclose"><summary>Show {goalsN(healthyLeft.length)}</summary>
+            <ul className="tree">{healthyLeft.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>
+          </details>
+          {inIt && (
+            <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
+              {first && <button className="btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} reviewed</button>}
+              <button type="button" className="linkish small" onClick={() => setWalkAll(true)}>Walk them one at a time instead</button>
+            </div>
+          )}
         </section>
       )}
       {!done && s.said.length > 0 && record}

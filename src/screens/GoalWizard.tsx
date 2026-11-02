@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { dueOptions, isYear } from '../domain/year';
-import { goalDraftKey, useDraft } from '../app/drafts';
+import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, buildGoal, draftOf, overHundredHint, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
 import { fmt, LEVEL_LABEL } from '../domain/format';
@@ -31,10 +31,37 @@ const STEP_LABELS = ['What', 'Measure', 'Where it fits', 'Check and publish'];
 
 export function GoalWizard() {
   const app = useApp();
+  const nav = useNavigate();
   const { goalId } = useParams();
   const existing = goalId ? app.goal(goalId) ?? null : null;
+  // New goal with an unsaved one waiting: ask first, rather than opening someone else's step 4 (Senior UX review, 2 Nov).
+  const key = goalDraftKey(app.ws.id, null);
+  const [draft] = useState(() => (goalId ? null : peekDraft<GoalDraft & { step: number }>(key)));
+  const [choice, setChoice] = useState<'ask' | 'resume' | 'fresh'>(draft ? 'ask' : 'resume');
   if (goalId && !existing) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn" to="/goals">All goals</Link></Empty></div>;
-  return <Wizard key={goalId ?? 'new'} existing={existing} />;
+  if (!goalId && draft && choice === 'ask') {
+    const title = draft.title?.trim() || 'Untitled goal';
+    const at = Math.min(3, Math.max(0, draft.step ?? 0));
+    return (
+      <div className="focus">
+        <div className="focus-top">
+          <span className="small strong">New goal</span>
+          <span />
+          <button className="iconbtn" onClick={() => nav('/goals')} aria-label="Close">✕</button>
+        </div>
+        <div className="focus-body">
+          <h1 className="qtitle big">You have a goal you didn’t publish</h1>
+          <p className="muted">“{title}”, stopped at step {at + 1} of 4: {STEP_LABELS[at]!.toLowerCase()}.</p>
+          <div className="actions">
+            <button type="button" className="btn primary big-btn" onClick={() => setChoice('resume')}>Resume “{title}”</button>
+            <button type="button" className="btn big-btn" onClick={() => { clearDraft(key); setChoice('fresh'); }}>Start another goal</button>
+          </div>
+          <p className="hint">Starting another throws the unpublished one away.</p>
+        </div>
+      </div>
+    );
+  }
+  return <Wizard key={(goalId ?? 'new') + choice} existing={existing} />;
 }
 
 function Wizard({ existing }: { existing: Goal | null }) {

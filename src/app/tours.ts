@@ -43,9 +43,9 @@ export const TOURS: Tour[] = [
     ],
   },
   {
-    id: 'quiet', title: 'Chase a goal that’s gone quiet', role: 'Goal owner', personId: 'maya', start: '/watching',
+    id: 'quiet', title: 'Chase a goal with no recent update', role: 'Goal owner', personId: 'maya', start: '/watching',
     steps: [
-      { say: 'Watching gathers the goals Maya follows. Gone quiet means no check-in for two weeks, so its status can’t be trusted. Open that goal.', target: { selector: '.trow[data-tone="stale"]' }, doneWhen: { route: /^\/goals\/env/ } },
+      { say: 'Watching gathers the goals Maya follows. No recent update means no check-in for two weeks, so its status can’t be trusted. Open that goal.', target: { selector: '.trow[data-tone="stale"]' }, doneWhen: { route: /^\/goals\/env/ } },
       { say: 'It says when it was last heard of. Ask its owner for an update.', target: { selector: 'button', text: 'Ask' }, doneWhen: { text: 'Asked' } },
       { say: 'Jonas sees the request on his Home. Nothing here goes quiet for long without someone noticing.' },
     ],
