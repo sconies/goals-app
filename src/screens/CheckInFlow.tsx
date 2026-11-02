@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, draftFrom, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
 import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
@@ -125,7 +125,7 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
   return (
     <div className="celebrate" role="status">
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
-      <h1 className="title-xl">{updated ? 'Update saved' : 'Check-in saved'}</h1>
+      <h1 className="title-xl">Check-in saved</h1>{updated && <p className="muted">Kept alongside your earlier check-in this week; this one is now the week’s status.</p>}
       <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status is <Chip k={c.status} /></p>
       {!left && <p className="muted">{p.due.length ? `Still due this week: ${p.due.map((g) => g.title).join(', ')}.` : `All ${p.goals.length === 1 ? 'your goal is' : `${p.goals.length} of your goals are`} checked in for week ${app.week}${late ? ', after the review day' : ''}.`}</p>}
       <div className="row" style={{ justifyContent: 'center' }}>
@@ -149,9 +149,10 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const app = useApp();
   const { week, cycle } = app;
   const own = app.checkInsOf(goal);
-  const existing = own.find((c) => c.week === week) ?? null;
-  const previous = [...own].reverse().find((c) => c.week < week) ?? null;
-  const [draft, set, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => (existing ? draftFrom(existing) : emptyDraft(goal, previous)));
+  // Already checked in this week? This one is added alongside it (ad hoc), starting from where the last one left off.
+  const existing = [...own].reverse().find((c) => c.week === week) ?? null;
+  const previous = own[own.length - 1] ?? null;
+  const [draft, set, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => emptyDraft(goal, previous));
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showNext, setShowNext] = useState(!!draft.next);
@@ -180,7 +181,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const priorWay = needsWay && !!previous?.pathToGreen;
   // Once the owner has written their own reason or path, last week's is no longer offered (or pasted over it).
   const edited = (!!draft.why.trim() && draft.why !== previous?.why) || (!!draft.ptgWhat.trim() && draft.ptgWhat !== previous?.pathToGreen?.what) || (!!draft.cause && draft.cause !== previous?.cause);
-  const canCarry = !existing && !edited && !!previous && (needsWhy || needsWay) && (!needsWhy || priorWhy) && (!needsWay || priorWay);
+  const canCarry = !edited && !!previous && (needsWhy || needsWay) && (!needsWhy || priorWhy) && (!needsWay || priorWay);
   const fromLast = (): Partial<Draft> => ({
     ...(priorWhy ? { cause: previous!.cause, why: previous!.why } : {}),
     ...(priorWay ? { ptgWhat: previous!.pathToGreen!.what, ptgBy: (previous!.pathToGreen!.byWeek ?? 0) > week ? previous!.pathToGreen!.byWeek : null, ptgState: previous!.pathToGreen!.state ?? 'plan', needs: previous!.pathToGreen!.needs } : {}),
@@ -199,7 +200,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     setSaving(true);
     try {
       const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
-      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { needs: `${from.name}: ${d.ptgWhat.trim()}` } : {}) }, existing);
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { needs: `${from.name}: ${d.ptgWhat.trim()}` } : {}) }, null);
       clear();
       onPosted(c, !!existing);
     } catch {
@@ -215,7 +216,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const primary = () => {
     if (step === 'measure') {
       if (!valueOk || e.missing.some((m) => m.startsWith('why your call'))) { setTried(true); return; }
-      if (needsWhy || needsWay) go(canCarry && !existing ? 'carry' : needsWhy ? 'why' : 'way');
+      if (needsWhy || needsWay) go(canCarry ? 'carry' : needsWhy ? 'why' : 'way');
       else void post();
     } else if (step === 'why') {
       if (!whyOk || !targetOk) { setTried(true); return; }
@@ -239,7 +240,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     go(needsWhy ? 'why' : 'way');
   };
 
-  const label = saving ? 'Posting…' : last ? (existing ? 'Post update' : 'Post check-in') : 'Next';
+  const label = saving ? 'Posting…' : last ? 'Post check-in' : 'Next';
   // Count every step this check-in could need, so the total never grows partway through; "Still true" just finishes early.
   const carryOffered = useRef(false);
   if (canCarry) carryOffered.current = true;
@@ -249,7 +250,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   return (
     <form className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
       <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={full.length > 1 ? { at: stepNo, of: full.length } : undefined} />
-      {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This replaces it; the change log keeps both.</p>}
+      {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
       {step === 'measure' && (

@@ -53,7 +53,10 @@ describe('database schema', () => {
   });
 
   const reject = (q: string) => expect(db.query(q)).rejects.toThrow();
-  it('allows one check-in per goal per week', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('dup', 'triage', 'maya', 7, 'on', 'on')`));
+  it('keeps several check-ins in a week (ad hoc), each by its own id', async () => {
+    await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('again', 'triage', 'maya', 7, 'on', 'on')`);
+    await reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('again', 'triage', 'maya', 8, 'on', 'on')`);
+  });
   it('allows an at-risk check-in that is still investigating, with no date', async () => {
     await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('inv', 'triage', 'maya', 49, 'risk', 'risk', 'Looking into why intake doubled', 'investigating')`);
   });

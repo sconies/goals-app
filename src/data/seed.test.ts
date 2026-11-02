@@ -45,11 +45,13 @@ describe('browser store', () => {
     const s = await store.load('example');
     const c = s.checkIns.find((x) => x.goalId === 'triage' && x.week === 7)!;
     const change = { id: 'chg1', at: c.postedAt, actorId: 'maya', goalId: 'triage', entity: 'check-in' as const, entityId: 'new', action: 'edited' as const, summary: 'x', diffs: [] };
-    await store.commit('example', { checkIns: [{ ...c, id: 'new', value: 64 }], changes: [change] });
+    // A second check-in in the same week is kept alongside the first (ad hoc); saving one again by its id corrects it.
+    await store.commit('example', { checkIns: [{ ...c, id: 'new', value: 64, postedAt: new Date(Date.parse(c.postedAt) + 3_600_000).toISOString() }], changes: [change] });
     const again = await new BrowserStore().load('example');
     const week7 = again.checkIns.filter((x) => x.goalId === 'triage' && x.week === 7);
-    expect(week7).toHaveLength(1);
-    expect(week7[0]!.value).toBe(64);
+    expect(week7.map((x) => x.id).sort()).toEqual([c.id, 'new'].sort());
+    await store.commit('example', { checkIns: [{ ...c, value: 62 }], changes: [] });
+    expect((await store.load('example')).checkIns.filter((x) => x.goalId === 'triage' && x.week === 7)).toHaveLength(2);
     expect(again.changes.at(-1)!.id).toBe('chg1');
     await store.commit('example', { goals: [{ ...s.goals[0]!, title: 'Renamed' }], changes: [] });
     expect((await store.load('example')).goals[0]!.title).toBe('Renamed');

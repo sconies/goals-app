@@ -814,3 +814,4 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; 
 .hgrid-year .hcell svg { width: 10px; height: 10px; }
 .hgrid .q-start, .hgrid-year td:nth-child(15), .hgrid-year td:nth-child(28), .hgrid-year td:nth-child(41) { border-left: 1px solid var(--line-strong); }
 .local-banner { margin: 0 auto; max-width: 1040px; padding: var(--s2) var(--s4); background: var(--risk-bg); color: var(--risk-fg); font-size: var(--t-sm); font-weight: 550; text-align: center; }
+.first-checkin { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); }

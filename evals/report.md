@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-02 09:13 UTC.
+Run 2026-11-02 09:24 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -31,6 +31,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 21 | Type the week’s numbers in one table, and change several goals at once | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
 | 22 | An admin gives a teammate a token for an AI assistant, then revokes it | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 10) |
 | 23 | See the year in quarters: where we are, each quarter met or missed, and the year’s history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 6) |
+| 24 | Two people change the same goal at once: the second is told, not overwritten | **10** | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 8) |
+| 25 | Publish a goal, then post its first check-in straight away | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -45,7 +47,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**52 of 52 pass**. Spec scenarios 57/57.
+**54 of 54 pass**. Spec scenarios 57/57.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -65,12 +67,12 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **REASON-AHEAD** A reason is required when 120% or more ahead, and the check-in asks whether the target should change. | Check-in | 3 | U7 |
 | ✅ | **PATH-TO-GREEN** At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. | Check-in | 5 | U1 |
 | ✅ | **CHECKIN-STATUS-VS-PLAN** The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed. | Check-in | 1 | U1, U15 |
-| ✅ | **ONE-PER-WEEK** One check-in per goal per week; editing replaces it. | Check-in | 0 | U1 |
+| ✅ | **ONE-PER-WEEK** Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so and is logged as such. | Check-in | 0 | U1 |
 | ✅ | **UPDATE-ANYTIME** The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after. | Check-in | 0 | U1 |
 | ✅ | **OWNER-ONLY** Only the goal's owner can post its check-in. | Check-in | 0 | U9 |
 | ✅ | **STALE** No owner check-in for 14 days shows as Stale, never as on track. | Status rules | 6 | U2, U8 |
 | ✅ | **HIERARCHY** A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses. | Goals | 3 | U4, U9 |
-| ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | U4, U18 |
+| ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | U4, U18, U25 |
 | ✅ | **GOAL-PAGE** The goal page shows status strip, why, path to green, chart with plan/forecast/path back, and check-in history. | Goals | 0 | U6 |
 | ✅ | **PERSIST** Changes are saved and survive a reload; demo data can be reset. | Platform | 0 | U1 |
 | ✅ | **PHONE** Every screen works at phone width (390px) with no horizontal scrolling. | Platform | 0 | P3 |
@@ -101,6 +103,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **MCP-TOKENS** An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused. | AI assistants | 0 | U22 |
 | ✅ | **STORY** Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet. | Leaders | 0 | U19 |
 | ✅ | **YEAR** Goals are set for the year: a 52-week goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year. | Cycles | 0 | U18, U23 |
+| ✅ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | U24 |
+| ✅ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | U25 |
 
 ## Platform checks
 

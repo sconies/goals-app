@@ -303,6 +303,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       postCheckIn: async (goal, draft, existing) => {
         const c = toCheckIn(goal, cycle, week, draft, sc.checkIns, viewer.id, new Date(stamp()), existing?.id ?? newId('ci'));
         const change = checkInChange(existing, c, goal, viewer.id, newId('chg'));
+        // Another check-in in the same week is kept alongside the first; the latest is the week's status.
+        if (change && !existing && sc.checkIns.some((x) => x.goalId === goal.id && x.week === week)) change.summary = change.summary.replace('Checked in for week', 'Checked in again for week');
         await commit({ checkIns: [c], changes: change ? [change] : [] });
         return c;
       },

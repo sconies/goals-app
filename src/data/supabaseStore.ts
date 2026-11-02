@@ -114,8 +114,7 @@ export class SupabaseStore implements Store {
         if (stages.length) await this.must(this.db.from('okr_stages').upsert(stages), 'Saving stages');
       }
     }
-    // One check-in per goal and week: replace whatever was there.
-    if (c.checkIns?.length) await this.must(this.db.from('okr_check_ins').upsert(c.checkIns.map((x) => checkInToRow(ws, x)), { onConflict: 'goal_id,week' }), 'Saving the check-in');
+    if (c.checkIns?.length) await this.must(this.db.from('okr_check_ins').upsert(c.checkIns.map((x) => checkInToRow(ws, x))), 'Saving the check-in');
     if (c.reviews?.length) await this.must(this.db.from('okr_reviews').upsert(c.reviews.map((x) => reviewToRow(ws, x))), 'Saving the review');
     if (c.feedback?.length) await this.must(this.db.from('okr_feedback').insert(c.feedback.map((x) => feedbackToRow(ws, x))), 'Sending feedback');
     if (c.retros?.length) await this.must(this.db.from('okr_retros').upsert(c.retros.map((x) => retroToRow(ws, x))), 'Saving the retro');

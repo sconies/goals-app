@@ -323,7 +323,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const call = callRaw ? CALLS[callRaw] : null;
     if (callRaw && !call) { err('Check-ins', row, g.title, `Call “${val(r, 'call')}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`); continue; }
     // A row that says what's already there is left alone: history that hasn't changed isn't judged again.
-    const existing = checkInsFor(g, s.checkIns).find((c) => c.week === w) ?? null;
+    // A row for a week corrects that week's latest check-in (a spreadsheet has one row per goal and week).
+    const existing = checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
     if (existing && (!call || existing.status === call)
       && (g.kind === 'milestone' ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, 'value')))
       && (!has(r, 'why') || val(r, 'why') === existing.why)) { unchanged++; imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); continue; }

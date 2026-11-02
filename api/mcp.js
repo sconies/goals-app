@@ -23656,11 +23656,7 @@ function withExpectations(c, s) {
 					version: old.version ?? 0
 				}] : [];
 			}),
-			checkIns: (c.checkIns ?? []).map((ci) => ({
-				goalId: ci.goalId,
-				week: ci.week,
-				id: s.checkIns.find((x) => x.goalId === ci.goalId && x.week === ci.week)?.id ?? null
-			}))
+			checkIns: []
 		}
 	};
 }
@@ -23694,8 +23690,7 @@ function applyCommit(s, c) {
 		} else goals[i] = g;
 	}
 	const newIds = new Set((c.checkIns ?? []).map((n) => n.id));
-	const newWeeks = new Set((c.checkIns ?? []).map((n) => n.goalId + ":" + n.week));
-	const replaced = (x) => newIds.has(x.id) || newWeeks.has(x.goalId + ":" + x.week);
+	const replaced = (x) => newIds.has(x.id);
 	return {
 		...s,
 		people: upsert(s.people, c.people),
@@ -23824,7 +23819,7 @@ var SupabaseStore = class {
 				if (stages.length) await this.must(this.db.from("okr_stages").upsert(stages), "Saving stages");
 			}
 		}
-		if (c.checkIns?.length) await this.must(this.db.from("okr_check_ins").upsert(c.checkIns.map((x) => checkInToRow(ws, x)), { onConflict: "goal_id,week" }), "Saving the check-in");
+		if (c.checkIns?.length) await this.must(this.db.from("okr_check_ins").upsert(c.checkIns.map((x) => checkInToRow(ws, x))), "Saving the check-in");
 		if (c.reviews?.length) await this.must(this.db.from("okr_reviews").upsert(c.reviews.map((x) => reviewToRow(ws, x))), "Saving the review");
 		if (c.feedback?.length) await this.must(this.db.from("okr_feedback").insert(c.feedback.map((x) => feedbackToRow(ws, x))), "Sending feedback");
 		if (c.retros?.length) await this.must(this.db.from("okr_retros").upsert(c.retros.map((x) => retroToRow(ws, x))), "Saving the retro");
@@ -24591,7 +24586,7 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Call “${val(r, "call")}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`);
 			continue;
 		}
-		const existing = checkInsFor(g, s.checkIns).find((c) => c.week === w) ?? null;
+		const existing = checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
 		if (existing && (!call || existing.status === call) && (g.kind === "milestone" ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, "value"))) && (!has(r, "why") || val(r, "why") === existing.why)) {
 			unchanged++;
 			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
@@ -26064,7 +26059,7 @@ var TOOLS = [
 	{
 		name: "post_check_in",
 		title: "Post a check-in",
-		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Replaces any check-in already posted for that week.",
+		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Check in as often as you like: every check-in is kept, and the latest in a week is that week’s status.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,

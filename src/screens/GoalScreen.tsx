@@ -85,7 +85,8 @@ function GoalView({ goal }: { goal: Goal }) {
   const isOwner = app.viewer.id === goal.ownerId;
   const due = att.flags.some((f) => f.kind === 'due');
   const changes = app.snapshot.changes.filter((c) => c.goalId === goal.id).slice().reverse();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const published = params.get("published") === "1";
   const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>(params.get('tab') === 'comments' ? 'activity' : 'check-ins');
   const [allCheckIns, setAllCheckIns] = useState(false);
   const flags = att.flags.filter((f) => f.kind !== 'due');
@@ -124,11 +125,24 @@ function GoalView({ goal }: { goal: Goal }) {
           </span>
         </span>
         {!compact && <div className="actions">
-          {isOwner && week > 0 && <Link className={'btn' + (due ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Post an update'}</Link>}
+          {isOwner && week > 0 && <Link className={'btn' + (due && !(published && own.length === 0) ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Check in now'}</Link>}
           {canEdit && <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>}
           {!isOwner && <WatchButton goal={goal} />}
         </div>}
       </div>
+
+      {published && own.length === 0 && (
+        <section className="first-checkin" aria-label="First check-in">
+          <span className="strong">“{goal.title}” is published.</span>
+          {week < 1
+            ? <span>Its first check-in is due in week 1, when the year starts.</span>
+            : isOwner
+              ? <><span>Post its first check-in now, so everyone can see where it stands from today.</span>
+                  <span className="row"><Link className="btn primary" to={'/check-in/' + goal.id}>Post the first check-in</Link><button type="button" className="btn ghost" onClick={() => setParams({}, { replace: true })}>Later</button></span></>
+              : <><span>{owner?.name.split(' ')[0] ?? 'The owner'} posts its check-ins. Ask for the first one now?</span>
+                  <span className="row"><button type="button" className="btn" onClick={() => void askForUpdate().then(() => setParams({}, { replace: true }))}>Ask {owner?.name.split(' ')[0] ?? 'the owner'}</button><button type="button" className="btn ghost" onClick={() => setParams({}, { replace: true })}>Later</button></span></>}
+        </section>
+      )}
 
       {parent && goal.whyHelps && <p className="small muted why-helps">Feeds “{parent.title}”: {goal.whyHelps}</p>}
 
@@ -229,7 +243,7 @@ function GoalView({ goal }: { goal: Goal }) {
           <ol className="cilist">
             {[...own].reverse().slice(0, allCheckIns ? undefined : 8).map((c) => (
               <li key={c.id}>
-                <span className="strong">Week {c.week}</span>
+                <span className="strong">Week {c.week}{own.filter((x) => x.week === c.week).length > 1 ? <span className="hint"> · {new Date(c.postedAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span> : null}</span>
                 <span>{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
                 <Chip k={c.status} />
                 {c.why && c.why !== 'On plan.' && <span className="small cilist-why">{c.why}</span>}

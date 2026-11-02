@@ -172,17 +172,18 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.goto(url('/'));
   await p.reload();
   await see(p, 'Your check-ins are in', 'posted check-ins survive a reload, and home moves on to the review Sam is in');
-  // An update between check-ins is the same check-in flow, started from the goal page; it replaces the week's number and is logged.
+  // An ad hoc check-in, any time, from the goal page: kept alongside the first, and the latest is the week's status.
   await p.goto(url('/goals/review'));
-  await h.click(p.getByRole('link', { name: 'Post an update' }));
-  await see(p, `You checked in for week ${NOW} already`, 'an update says it replaces this week’s check-in');
+  await h.click(p.getByRole('link', { name: 'Check in now' }));
+  await see(p, `You checked in for week ${NOW} already`, 'a second check-in says it is kept alongside the first');
   const reviewV2 = String(Number(reviewV) - 1);
   await h.fill(p.getByLabel('This week’s value'), reviewV2);
-  await h.click(p.getByRole('button', { name: 'Post update' }));
-  await see(p, 'Update saved');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Kept alongside your earlier check-in this week');
   s = await h.snapshot();
-  const upd = s.changes.filter((c) => c.actorId === 'sam' && c.goalId === 'review' && c.action === 'edited').pop();
-  h.set('logged', !!upd && new RegExp(`update for week ${NOW}`).test(upd.summary) && upd.diffs.some((d) => d.field === 'Value' && d.from === reviewV + '%' && d.to === reviewV2 + '%'), 'the off-cycle update is not logged with the old and new number');
+  const again = s.changes.filter((c) => c.actorId === 'sam' && c.goalId === 'review' && c.action === 'posted').pop();
+  const weekCis = s.checkIns.filter((c) => c.goalId === 'review' && c.week === NOW);
+  h.set('logged', !!again && new RegExp(`Checked in again for week ${NOW}`).test(again.summary) && weekCis.length === 2 && weekCis.some((c) => c.value === Number(reviewV)) && weekCis.some((c) => c.value === Number(reviewV2)), 'the ad hoc check-in is not kept alongside the first, or not logged');
   await p.context().close();
 
   // Maya: behind plan. One question per screen: the number, then last week's note offered back.
@@ -1018,6 +1019,36 @@ journey('U24', ['NO-LOST-UPDATES'], 'Two people change the same goal at once: th
   h.set('progress', true);
   await a.context().close();
 }, ['entry', 'budget']);
+
+journey('U25', ['FIRST-CHECKIN', 'GOAL-CREATE'], 'Publish a goal, then post its first check-in straight away', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'kofi'));
+  await p.goto(url('/goals/new'));
+  await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.fill(p.getByLabel('Unit'), '%');
+  await h.fill(p.getByLabel(/^Today \(week/), '20');
+  await h.fill(p.getByLabel(/^Target \(week/), '90');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await see(p, 'is published', 'publishing does not offer the first check-in');
+  await h.inView(p.getByRole('link', { name: 'Post the first check-in' }), 'entry', 'Post the first check-in');
+  await h.checkpoint('published');
+  await h.click(p.getByRole('link', { name: 'Post the first check-in' }));
+  await h.fill(p.getByLabel('This week’s value'), '20');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const s = await h.snapshot();
+  const g = s.goals.find((x) => x.title === 'Runbooks with an owner');
+  const cis = s.checkIns.filter((c) => c.goalId === g?.id);
+  h.set('finish', cis.length === 1 && cis[0].week === NOW && cis[0].value === 20, 'the first check-in was not saved for this week');
+  h.set('logged', s.changes.some((c) => c.goalId === g?.id && c.action === 'posted'), 'the first check-in is not logged');
+  // Later is fine too: the prompt goes, and the goal waits for its first check-in.
+  await p.goto(url('/goals/scan?published=1'));
+  h.set('attention', (await p.getByText('is published').count()) === 0, 'the prompt shows on a goal that already has check-ins');
+  h.set('progress', true);
+  await p.context().close();
+}, ['errors']);
 
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {

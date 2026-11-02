@@ -78,7 +78,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
       await app.saveGoal(g, existing);
       clear();
       app.toast(existing ? 'Saved. The change is in the goal’s activity.' : `Published “${g.title}”`);
-      nav('/goals/' + g.id);
+      nav('/goals/' + g.id + (existing ? '' : '?published=1'));
     } catch {
       setSaving(false);
     }

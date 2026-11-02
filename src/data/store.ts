@@ -37,7 +37,8 @@ export function withExpectations(c: Commit, s: Snapshot): Commit {
     expect: {
       goals: (c.goals ?? []).flatMap((g) => { const old = s.goals.find((x) => x.id === g.id); return old ? [{ id: g.id, version: old.version ?? 0 }] : []; }),
       reviews: (c.reviews ?? []).flatMap((r) => { const old = s.reviews.find((x) => x.id === r.id); return old ? [{ id: r.id, version: old.version ?? 0 }] : []; }),
-      checkIns: (c.checkIns ?? []).map((ci) => ({ goalId: ci.goalId, week: ci.week, id: s.checkIns.find((x) => x.goalId === ci.goalId && x.week === ci.week)?.id ?? null })),
+      // Check-ins are added, not overwritten, so another person's check-in can't be lost to this one.
+      checkIns: [],
     },
   };
 }
@@ -66,7 +67,7 @@ export interface Store {
   readonly hasExample: boolean;
   workspaces(): Promise<Workspace[]>;
   load(workspaceId: string): Promise<Snapshot>;
-  /** Saves records and their change-log entries together. A check-in replaces any for the same goal and week. */
+  /** Saves records and their change-log entries together. A check-in with a new id is added; one with an existing id is corrected. */
   commit(workspaceId: string, c: Commit): Promise<void>;
   createWorkspace(ws: Workspace, data: Snapshot): Promise<void>;
   /** Starts an example workspace again from its demo data. Only the demo has examples. */
@@ -86,9 +87,9 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
   const byId = new Map(s.goals.map((g, i) => [g.id, i]));
   const goals = [...s.goals];
   for (const g of bump(s.goals, c.goals)) { const i = byId.get(g.id); if (i == null) { byId.set(g.id, goals.length); goals.push(g); } else goals[i] = g; }
+  // Check-ins are kept, any number a week; one is replaced only when it is saved again with its own id.
   const newIds = new Set((c.checkIns ?? []).map((n) => n.id));
-  const newWeeks = new Set((c.checkIns ?? []).map((n) => n.goalId + ':' + n.week));
-  const replaced = (x: CheckIn) => newIds.has(x.id) || newWeeks.has(x.goalId + ':' + x.week);
+  const replaced = (x: CheckIn) => newIds.has(x.id);
   return {
     ...s,
     people: upsert(s.people, c.people),

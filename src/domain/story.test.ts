@@ -49,3 +49,20 @@ describe('results once a goal is due', () => {
     expect(goalResult(goal('access'), cycle, s.checkIns, week)!.text).toBe(`Did not meet: due week ${toYear(6)}`);
   });
 });
+
+describe('ad hoc check-ins', () => {
+  it('keeps every check-in in a week, and the latest is the week’s status everywhere', async () => {
+    const { goalStatus, assessPosted } = await import('./status');
+    const { weeklyCalls } = await import('./summary');
+    const g = goal('alerts');
+    const own = s.checkIns.filter((c) => c.goalId === g.id);
+    const last = own.sort((a, b) => a.week - b.week).at(-1)!;
+    const later: CheckIn = { ...last, id: 'adhoc', status: 'on', calculated: 'on', cause: null, why: 'On plan.', pathToGreen: null, value: 99, postedAt: new Date(Date.parse(last.postedAt) + 3_600_000).toISOString() };
+    const all = [...s.checkIns, later];
+    expect(all.filter((c) => c.goalId === g.id && c.week === last.week)).toHaveLength(2);
+    expect(goalStatus(g, cycle, all, today).latest!.id).toBe('adhoc');
+    expect(weeklyCalls(all.filter((c) => c.goalId === g.id)).get(last.week)!.id).toBe('adhoc');
+    const a = assessPosted(g, cycle, all, week);
+    expect(a.kind === 'metric' && a.actual).toBe(99);
+  });
+});

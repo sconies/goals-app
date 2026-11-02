@@ -72,11 +72,11 @@ describe('database save functions, as the public user', () => {
     expect((await db.query<{ title: string }>(`select title from okr_goals where id = $1`, [g.id])).rows[0]!.title).toMatch(/renamed/);
   });
 
-  it('refuses a check-in for a week someone else has just posted', async () => {
+  it('keeps a second check-in in the same week alongside the first (ad hoc)', async () => {
     const g = snap.goals.find((x) => x.kind === 'metric')!;
-    const mine = toCheckIn(g, snap.cycles[0]!, 43, { ...emptyDraft(g, null), value: g.kind === 'metric' ? planAt(g.plan, 43, 52).toFixed(3) : '0', why: 'On plan.' }, [], g.ownerId, now, 'ci_rpc_2');
-    // Based on a snapshot with no check-in that week; the database has ci_rpc_1.
-    await expect(commit(withExpectations({ checkIns: [mine], changes: [] }, snap))).rejects.toThrow(/stale: check-in/);
+    const again = toCheckIn(g, snap.cycles[0]!, 43, { ...emptyDraft(g, null), value: g.kind === 'metric' ? planAt(g.plan, 43, 52).toFixed(3) : '0', why: 'On plan.' }, [], g.ownerId, now, 'ci_rpc_2');
+    await commit(withExpectations({ checkIns: [again], changes: [] }, snap));
+    expect(await count('okr_check_ins', `goal_id = '${g.id}' and week = 43`)).toBe(2);
   });
 
   it('logs a retried save only once', async () => {

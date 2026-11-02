@@ -159,7 +159,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'post_check_in',
     title: 'Post a check-in',
-    description: 'Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Replaces any check-in already posted for that week.',
+    description: 'Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Check in as often as you like: every check-in is kept, and the latest in a week is that week’s status.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: {
       goal_id: str('The goal’s ID.'),
       week: int('The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later.'),
