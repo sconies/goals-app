@@ -168,6 +168,8 @@ export interface CheckIn {
   pathToGreen: PathToGreen | null;
   next: string;
   dataFlagged: boolean;
+  /** Loaded later from a spreadsheet or another tool, not posted in its week. */
+  backfilled?: boolean;
 }
 
 /** A field that changed: values are already formatted for reading. */

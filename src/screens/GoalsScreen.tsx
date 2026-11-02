@@ -11,6 +11,11 @@ import { GoalLine } from './Home';
 import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
 import { WatchingBody } from './Watching';
 import { useNavMode } from '../app/navMode';
+import { watchedGoals } from '../domain/review';
+import type { Goal } from '../domain/types';
+import type { TreeNode } from '../domain/tree';
+import { GoalBoard, GoalCards, GoalTable, HistoryGrid, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
+import { ExportButton } from './Export';
 
 type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
@@ -24,6 +29,18 @@ export function GoalsScreen() {
   const navMode = useNavMode();
   const show: Show = (params.get('show') as Show) || 'outcomes';
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
+  const [layout, setLayout] = useLayout();
+  const flat = (n: TreeNode, depth = 0): { goal: Goal; depth: number }[] => [{ goal: n.goal, depth }, ...n.children.flatMap((c) => flat(c, depth + 1))];
+  const one = (key: string, title: string, goals: Goal[]): ViewGroup => ({ key, title, rows: goals.map((goal) => ({ goal, depth: 0 })) });
+  const groups: ViewGroup[] = show === 'outcomes'
+    ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
+    : show === 'attention' ? [one('attention', 'Needs attention', att.map((a) => a.goal))]
+    : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
+    : show === 'teams' ? app.snapshot.teams.map((t) => one(t.id, t.name, app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app)))).filter((g) => g.rows.length)
+    : show === 'mine' ? [one('mine', 'Mine', [...mine].sort(worstFirst(app)))]
+    : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))];
+  const shown = [...new Map(groups.flatMap((g) => g.rows.map((r) => [r.goal.id, r.goal] as const))).values()];
+  const alt = layout !== 'list';
   const tabs: [Show, string, number | null][] = [
     ['outcomes', 'Trees', null],
     ['attention', 'Needs attention', att.length],
@@ -49,10 +66,22 @@ export function GoalsScreen() {
           </button>
         ))}
       </div>
+      {app.snapshot.goals.length > 0 && (
+        <div className="row between view-bar">
+          <LayoutSwitch layout={layout} onChange={setLayout} />
+          <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
+        </div>
+      )}
 
-      {show === 'outcomes' && (
+      {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
+      {alt && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><span aria-hidden="true">✓</span> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
+      {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
+      {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
+      {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
+      {alt && shown.length > 0 && layout === 'cards' && <GoalCards groups={groups} />}
+
+      {!alt && show === 'outcomes' && (
         <>
-          {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
           {trees.map((t) => (
             <section key={t.goal.id} className="outcome" aria-label={t.goal.title}>
               <TreeCard node={t} />
@@ -71,11 +100,11 @@ export function GoalsScreen() {
         </>
       )}
 
-      {show === 'attention' && (att.length
+      {!alt && show === 'attention' && (att.length
         ? <div className="alist">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
         : <div className="calm"><span aria-hidden="true">✓</span> Nothing is off track, stale or slipping.</div>)}
 
-      {show === 'levels' && LEVELS.map((l) => {
+      {!alt && show === 'levels' && LEVELS.map((l) => {
         const list = app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app));
         if (!list.length) return null;
         return (
@@ -89,7 +118,7 @@ export function GoalsScreen() {
         );
       })}
 
-      {show === 'teams' && app.snapshot.teams.map((t) => {
+      {!alt && show === 'teams' && app.snapshot.teams.map((t) => {
         const list = app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app));
         if (!list.length) return null;
         const st = worst(list.map((g) => app.statusOf(g).status));
@@ -107,9 +136,9 @@ export function GoalsScreen() {
         );
       })}
 
-      {show === 'watching' && <WatchingBody />}
+      {!alt && show === 'watching' && <WatchingBody />}
 
-      {show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
+      {!alt && show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
     </div>
   );
 }

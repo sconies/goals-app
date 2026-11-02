@@ -225,6 +225,16 @@
       "id": "RETRO",
       "area": "Cycles",
       "text": "From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged."
+    },
+    {
+      "id": "VIEWS",
+      "area": "Views",
+      "text": "The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address."
+    },
+    {
+      "id": "EXPORT",
+      "area": "Data",
+      "text": "Goals export as an Excel workbook (goals, plan by week, check-ins, notes and actions, people, a README), CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."
     }
   ],
   "notYetBuilt": [

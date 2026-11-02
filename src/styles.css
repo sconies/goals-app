@@ -663,3 +663,68 @@ h1[tabindex='-1']:focus { outline: none; }
 .plantable .cycle-end-row td { border-bottom: 2px solid var(--line-strong); }
 .plan-input { width: 96px; min-height: 34px; text-align: right; padding: 4px 8px; }
 .plan-input.edited { border-color: var(--accent); font-weight: 650; }
+
+/* ---------- other layouts: table, board, history grid, cards ---------- */
+.view-bar { gap: var(--s3); align-items: center; }
+.layout-switch button { gap: 6px; }
+.table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.gtable, .hgrid { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.gtable th, .gtable td { padding: 10px var(--s3); text-align: left; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+.gtable thead th, .hgrid thead th { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface-2); white-space: nowrap; }
+.gtable tbody tr:last-child td { border-bottom: 0; }
+.gtable tbody tr:hover { background: var(--surface-2); }
+.gtable .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gt-goal { min-width: 220px; }
+.gt-goal a { color: inherit; font-weight: 600; text-decoration: none; }
+.gt-goal a:hover { text-decoration: underline; }
+.gt-goal .level { margin-left: var(--s2); vertical-align: 1px; }
+.sortbtn { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.sortbtn:hover { color: var(--fg); }
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s3); align-items: start; }
+.board-col { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); border-radius: 10px; background: var(--surface-3); min-width: 0; }
+.board-head { display: flex; align-items: center; gap: var(--s2); font-size: 14px; font-weight: 650; margin: 0 0 var(--s1); }
+.board-head svg { width: 13px; height: 13px; }
+.board-empty { padding: var(--s2) 0; }
+.board-card { display: flex; flex-direction: column; gap: 4px; padding: var(--s3); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
+.board-card:hover { border-color: var(--line-strong); }
+.board-title { font-weight: 600; font-size: 14px; line-height: 20px; }
+.board-title .level { margin-left: var(--s2); }
+.hlegend { display: flex; flex-wrap: wrap; gap: var(--s4); font-size: 13px; color: var(--muted); }
+.hcell-key { display: inline-flex; align-items: center; gap: 6px; }
+.hcell-key svg { width: 12px; height: 12px; }
+.hgrid th, .hgrid td { border-bottom: 1px solid var(--line-2); }
+.hgrid thead th { padding: 6px 0; text-align: center; min-width: 28px; }
+.hgrid thead th.now { color: var(--accent-text); }
+.hg-goal { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left !important; padding: 8px var(--s3) !important; min-width: 180px; max-width: 280px; font-weight: 600; }
+.hgrid thead .hg-goal { background: var(--surface-2); }
+.hg-goal a { color: inherit; text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hg-goal a:hover { text-decoration: underline; }
+.hcell { text-align: center; padding: 6px 0; height: 34px; }
+.hcell svg { width: 14px; height: 14px; vertical-align: middle; }
+.hcell.now { background: var(--accent-soft); }
+.hcell.future { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--surface-3) 4px 5px); }
+.hcell.backfilled svg { opacity: .65; }
+.hcell-empty { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--stale-mark); vertical-align: middle; }
+.gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--s3); }
+.gcard { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
+.gcard:hover { border-color: var(--line-strong); }
+.gcard[data-tone="off"] { border-left: 3px solid var(--off-mark); } .gcard[data-tone="risk"] { border-left: 3px solid var(--risk-mark); }
+.gcard-title { font-weight: 650; line-height: 22px; }
+.gcard-now { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+.gcard-now .big { font-size: 26px; font-weight: 700; line-height: 32px; font-variant-numeric: tabular-nums; }
+.export-list .opt { align-items: center; gap: var(--s3); text-align: left; padding: var(--s3) var(--s4); font-weight: 400; }
+.export-list .opt .stack { min-width: 0; }
+@media (max-width: 640px) {
+  .gtable .col-opt { display: none; }
+  .gt-goal { min-width: 0; }
+  .ls-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .layout-switch button { padding: 0 12px; }
+  .board { grid-template-columns: 1fr; }
+  .hg-goal { min-width: 130px; max-width: 150px; }
+  .export-list .opt.static { flex-direction: column; align-items: flex-start; }
+}
+.table-wrap, .hcell, .layout-switch button, .gtable th { position: relative; }
+.gt-plan { display: block; font-size: 12px; }
+.gtable td.col-opt { white-space: nowrap; }
+.gtable td.tone-on, .gtable td.tone-risk, .gtable td.tone-off, .gtable td.tone-ahead, .gtable td.tone-stale { min-width: 130px; }
+.gt-plan { white-space: nowrap; }

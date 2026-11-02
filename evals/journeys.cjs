@@ -783,6 +783,49 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE'], 'Set a year goal and its plan numb
   await p.context().close();
 }, ['errors']);
 
+journey('U19', ['VIEWS', 'EXPORT'], 'See the same goals as a table, board, history grid or cards, and export them', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'maya'));
+  await p.goto(url('/goals'));
+  const layout = p.getByRole('group', { name: 'Layout' });
+  await h.inView(layout, 'entry', 'the layout switch');
+  // Table: sorting by status puts the off-track goal first.
+  await h.click(layout.getByRole('button', { name: 'Table' }));
+  await p.locator('.gtable').first().waitFor();
+  await h.checkpoint('table');
+  await h.click(p.locator('.gtable').first().getByRole('button', { name: 'Status' }));
+  const first = await p.locator('.gtable').first().locator('tbody tr').first().getAttribute('data-tone');
+  h.set('attention', first === 'off', `sorting by status put “${first}” first`);
+  // Board: a column per status.
+  await h.click(layout.getByRole('button', { name: 'Board' }));
+  await p.locator('.board').waitFor();
+  for (const col of ['Off track', 'At risk', 'Gone quiet', 'On track']) await see(p, col);
+  await h.checkpoint('board');
+  // History: a square per goal per week, the owner's call.
+  await h.click(layout.getByRole('button', { name: 'History' }));
+  await p.locator('.hgrid').first().waitFor();
+  h.set('progress', (await p.locator('.hcell.tone-on, .hcell.tone-risk, .hcell.tone-off').count()) > 20, 'the history grid has too few check-ins');
+  await h.checkpoint('history');
+  await h.click(layout.getByRole('button', { name: 'Cards' }));
+  await p.locator('.gcard').first().waitFor();
+  await h.checkpoint('cards');
+  // The choice is remembered, and the tabs still choose which goals and how they're grouped.
+  await p.goto(url('/goals?show=teams'));
+  await p.locator('.gcard').first().waitFor();
+  h.set('parity', (await layout.getByRole('button', { name: 'Cards' }).getAttribute('aria-pressed')) === 'true', 'the layout was not remembered');
+  // Export: a workbook, and JSON another tool can read.
+  await h.click(p.getByRole('button', { name: 'Export' }));
+  await h.checkpoint('export');
+  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: /Excel workbook/ }))]);
+  const [json] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: /^JSON/ }))]);
+  const data = JSON.parse(fs.readFileSync(await json.path(), 'utf8'));
+  const [md] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Save .md' }))]);
+  const brief = fs.readFileSync(await md.path(), 'utf8');
+  const s = await h.snapshot();
+  h.set('finish', /\.xlsx$/.test(xlsx.suggestedFilename()) && fs.statSync(await xlsx.path()).size > 4000, 'the workbook was not saved');
+  h.set('logged', data.format === 'goals-app.export' && data.goals.length === s.goals.length && data.goals.some((g) => g.checkIns.length) && brief.includes('## Needs attention'), 'the JSON or brief is incomplete');
+  await p.context().close();
+}, ['errors']);
+
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
   const out = [];

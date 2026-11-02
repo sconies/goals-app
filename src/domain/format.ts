@@ -12,7 +12,7 @@ export function fmt(v: number, g: Numeric): string {
 /** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
 export function fmtDiff(v: number, g: Numeric): string {
   const n = Math.abs(v).toFixed(g.decimals);
-  if (g.unit === '%') return n + ' pts';
+  if (g.unit === '%') return n + (Number(n) === 1 ? ' pt' : ' pts');
   return g.unit ? n + ' ' + g.unit : n;
 }
 

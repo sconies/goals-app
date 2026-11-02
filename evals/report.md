@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-01 22:09 UTC.
+Run 2026-11-02 07:57 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -26,6 +26,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 16 | Home by responsibility, and the 4-tab navigation trial | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 2 (budget 4) |
 | 17 | Demo data sets, presenting without the bar, and deleting a workspace | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 12) |
 | 18 | Set a year goal and its plan numbers by hand | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
+| 19 | See the same goals as a table, board, history grid or cards, and export them | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 14) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -40,7 +41,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**45 of 45 pass**. Spec scenarios 57/57.
+**47 of 47 pass**. Spec scenarios 57/57.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -89,6 +90,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **REVIEW-RUN** What was said in a review is kept as its summary; owners see questions and actions on their goal page. | Reviews | 0 | U3 |
 | ✅ | **ADMIN** Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed. | People | 0 | U5, U14, U10 |
 | ✅ | **RETRO** From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged. | Cycles | 0 | U10 |
+| ✅ | **VIEWS** The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. | Views | 0 | U19 |
+| ✅ | **EXPORT** Goals export as an Excel workbook (goals, plan by week, check-ins, notes and actions, people, a README), CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens. | Data | 0 | U19 |
 
 ## Platform checks
 
