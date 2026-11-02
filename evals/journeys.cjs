@@ -1262,7 +1262,7 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS'], 'A leader acts on w
   await row.waitFor();
   const tall = await row.evaluate((r) => r.getBoundingClientRect().height);
   h.set('attention', tall <= 60, `a table story row is ${Math.round(tall)}px tall before it is opened`);
-  await h.click(row.getByRole('button', { name: /^Show the story/ }));
+  await h.click(row.getByRole('button', { name: /^Details/ }));
   h.set('finish', await row.locator('dl').isVisible(), 'Details does not open the story');
   // One press for the goals waiting on a decision (on a phone, it's in Filters).
   if (device === 'desktop') {

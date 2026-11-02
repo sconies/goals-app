@@ -440,7 +440,7 @@ function TableStory({ s }: { s: GoalSummary }) {
   return (
     <div className="table-story">
       {open ? <StoryLines s={s} compact /> : <span className="table-story-line small">{parts.join(' · ')}</span>}
-      <button type="button" className="linkish small table-story-toggle" aria-expanded={open} aria-label={`${open ? 'Hide' : 'Show'} the story of ${s.goal.title}`} onClick={() => setOpen((v) => !v)}>{open ? 'Less' : 'Details'}</button>
+      <button type="button" className="linkish small table-story-toggle" aria-expanded={open} aria-label={`${open ? 'Less' : 'Details'}: the story of ${s.goal.title}`} onClick={() => setOpen((v) => !v)}>{open ? 'Less' : 'Details'}</button>
     </div>
   );
 }

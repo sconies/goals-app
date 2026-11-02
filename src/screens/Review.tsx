@@ -65,6 +65,7 @@ export function ReviewHome() {
   const review = app.snapshot.reviews.find((r) => r.id === reviewId);
   const [walkAll, setWalkAll] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [listHealthy, setListHealthy] = useState(false);
   if (!review) return <div className="page narrow"><Empty title="That review doesn’t exist"><Link className="btn" to="/reviews">All reviews</Link></Empty></div>;
   const s = reviewSession(review, app.snapshot, app.cycle, app.today, app.week);
   const thisWeek = s.week === Math.max(1, app.week);
@@ -176,8 +177,9 @@ export function ReviewHome() {
             <h2 className="block-title">On track, nothing new · {healthyLeft.length}</h2>
             <span className="hint">{healthyLeft.length === 1 ? 'This goal is' : 'These goals are'} on track with nothing flagged. Mark them reviewed together, or open any one to look closer.</span>
           </div>
-          <details className="disclose"><summary>Show {goalsN(healthyLeft.length)}</summary>
-            <ul className="tree">{healthyLeft.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>
+          {/* The rows exist only once opened, so a folded group doesn't hide unlabelled status shapes. */}
+          <details className="disclose" onToggle={(e) => setListHealthy(e.currentTarget.open)}><summary>Show {goalsN(healthyLeft.length)}</summary>
+            {listHealthy && <ul className="tree">{healthyLeft.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>}
           </details>
           {inIt && (
             <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
