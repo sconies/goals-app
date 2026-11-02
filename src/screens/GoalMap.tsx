@@ -1,9 +1,9 @@
 /* The goal map: the company's goals on a canvas you can pan, zoom and rearrange. North stars at the top, the goals
    that feed them below. Solid lines: feeds into. Dotted: also helps. Bold red: the critical path, the inputs most
    likely to make each top goal miss. Branches fold and unfold; a goal opens its story beside the map. */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type EdgeProps, type Node, type NodeProps } from '@xyflow/react';
+import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type EdgeProps, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
@@ -92,7 +92,26 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
     return placed.filter((n) => n.id === root.id || (critical.has(n.id) && inTree(n))).map((n) => ({ id: n.id }));
   }, [placed, critical, statusOf, goals]);
   // On a desktop the canvas fills the window below the page's header: the map is the page.
-  const height = phone ? '70vh' : 'max(460px, calc(100vh - 250px))';
+  // Measured from where the canvas starts, so the whole map and its controls fit in the window (Senior UX review, 2 Nov).
+  const [top, setTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => { const r = canvas.current?.getBoundingClientRect(); if (r) setTop(r.top + window.scrollY); };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+  const height = phone ? '70vh' : `max(420px, calc(100vh - ${Math.round((top ?? 250) + 16)}px))`;
+  const flow = useRef<Pick<ReactFlowInstance, 'setViewport'> | null>(null);
+  // Frame the critical path (or the top goals) ourselves, from the layout: no waiting for nodes to measure.
+  const frame = (rf: Pick<ReactFlowInstance, 'setViewport'>) => {
+    const box = canvas.current?.getBoundingClientRect();
+    const pts = placed.filter((n) => focus.some((f) => f.id === n.id)).map((n) => moved[n.id] ?? { x: n.x, y: n.y });
+    if (!box || !pts.length) return;
+    const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x)) + NODE_W;
+    const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y)) + NODE_H;
+    const zoom = phone ? Math.min(1, (box.width - 24) / (Math.max(...placed.map((n) => n.x)) + NODE_W)) : Math.max(0.7, Math.min(1, (box.width - 48) / (maxX - minX), (box.height - 64) / (maxY - minY)));
+    void rf.setViewport(phone ? { zoom, x: 12, y: 16 - minY * zoom } : { zoom, x: box.width / 2 - ((minX + maxX) / 2) * zoom, y: 32 - minY * zoom });
+  };
   const allIds = goals.filter((g) => goals.some((c) => c.parentId === g.id)).map((g) => g.id);
 
   return (
@@ -101,12 +120,13 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
         <div className="map-legend" aria-label="Map key">
           <span><i className="key-line" /> Feeds into</span>
           <span><i className="key-line dotted" /> Also helps</span>
-          <span><i className="key-line critical" /> Critical path: most likely to make it miss, from status (off track, at risk, gone quiet) and how much each goal feeds the one above</span>
+          <span><i className="key-line critical" /> Critical path: most likely to make it miss, from status (off track, at risk, no recent update) and how much each goal feeds the one above</span>
         </div>
         <span className="row" style={{ gap: 'var(--s2)' }}>
           <label className="check small"><input type="checkbox" checked={onlyAttention} onChange={(e) => setOnlyAttention(e.target.checked)} /> Only what needs attention</label>
           <button type="button" className="btn sm" onClick={() => setCollapsed(collapsed.size ? new Set() : new Set(allIds))}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
+          <button type="button" className="btn ghost sm" onClick={() => { if (flow.current) frame(flow.current); }}>Reset view</button>
         </span>
       </div>
       <div className="map-body">
@@ -121,22 +141,13 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
           <ReactFlow
             key={(onlyAttention ? 'a' : 'all') + collapsed.size}
             nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={0.2} maxZoom={1.6}
-            onInit={(rf) => {
-              // Frame the critical path (or the top goals) ourselves, from the layout: no waiting for nodes to measure.
-              const box = canvas.current?.getBoundingClientRect();
-              const pts = placed.filter((n) => focus.some((f) => f.id === n.id)).map((n) => moved[n.id] ?? { x: n.x, y: n.y });
-              if (!box || !pts.length) return;
-              const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x)) + NODE_W;
-              const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y)) + NODE_H;
-              const zoom = phone ? Math.min(1, (box.width - 24) / (Math.max(...placed.map((n) => n.x)) + NODE_W)) : Math.max(0.7, Math.min(1, (box.width - 48) / (maxX - minX), (box.height - 64) / (maxY - minY)));
-              void rf.setViewport(phone ? { zoom, x: 12, y: 16 - minY * zoom } : { zoom, x: box.width / 2 - ((minX + maxX) / 2) * zoom, y: 32 - minY * zoom });
-            }}
+            onInit={(rf) => { flow.current = rf; frame(rf); }}
             nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
             onNodeClick={(_, n) => { fromKeys.current = null; setSelected(n.id); }} onPaneClick={() => setSelected(null)}
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
           >
             <Background gap={24} size={1} />
-            <Controls showInteractive={false} position="bottom-right" />
+            <Controls showInteractive={false} position="top-right" />
           </ReactFlow>
         </div>
         {sel && <MapPanel goal={sel} focus={!!fromKeys.current} critical={critical.has(sel.id)} onClose={() => {

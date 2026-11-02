@@ -22048,7 +22048,7 @@ var LABEL = {
 	risk: "At risk",
 	off: "Off track",
 	done: "Done",
-	stale: "Stale",
+	stale: "No recent update",
 	planned: "Not started",
 	none: "No check-in"
 };
@@ -24309,13 +24309,13 @@ function quarterResults(g, c, checkIns, week) {
 var STATUS_OPTIONS = [
 	["off", LABEL.off],
 	["risk", LABEL.risk],
-	["stale", "Gone quiet"],
+	["stale", LABEL.stale],
 	["on", LABEL.on],
 	["done", LABEL.done],
 	["planned", "Not started"]
 ];
 var NEED_OPTIONS = [
-	["decision", "Waiting on a decision or help"],
+	["decision", "Decision or help needed"],
 	["no-recovery", "No recovery plan"],
 	["slipped", "Recovery date slipped"],
 	["missed-date", "Missed its own date"],
@@ -25056,7 +25056,7 @@ var MEANING = {
 	on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
 	risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. There’s a plan to get it back.`,
 	off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
-	stale: `Gone quiet: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
+	stale: `No recent update: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
 	none: "Waiting for its first check-in.",
 	planned: "Not started: it starts this week.",
 	done: "Done: the owner has called it complete."
@@ -25173,7 +25173,7 @@ function storyOf(g, s, cycle, week, today) {
 		if (ptg) {
 			doing = ptg.what;
 			const state = ptg.state ?? "plan";
-			byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
+			byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === "help" ? ", once the decision or help arrives" : ""}` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
 			needs = ptg.needs?.trim() || null;
 		}
 		if (!ptg) warn("no-recovery", "No recovery plan: it is behind and the owner hasn’t said how it gets back.");
@@ -25530,7 +25530,7 @@ var README = [
 	[
 		"Goals",
 		"Status",
-		"On track: will hit the target if it carries on (95%+ of planned progress). At risk: could miss without a change (80–95%, or near a limit); the owner has said how it gets back. Off track: will miss without intervention (under 80%, a stage over two weeks late, or over a limit two weeks running). Stale: no check-in for two weeks or more.",
+		"On track: will hit the target if it carries on (95%+ of planned progress). At risk: could miss without a change (80–95%, or near a limit); the owner has said how it gets back. Off track: will miss without intervention (under 80%, a stage over two weeks late, or over a limit two weeks running). No recent update: no check-in for two weeks or more.",
 		"Ignored"
 	],
 	[
@@ -25894,7 +25894,7 @@ function aiBrief(x) {
 		`${sums.length} goals`,
 		off.length ? `${off.length} off track` : "",
 		risk.length ? `${risk.length} at risk` : "",
-		quiet.length ? `${quiet.length} gone quiet` : "",
+		quiet.length ? `${quiet.length} with no recent update` : "",
 		count("on") ? `${count("on")} on track` : "",
 		count("done") ? `${count("done")} done` : ""
 	].filter(Boolean);
@@ -25930,7 +25930,7 @@ function aiBrief(x) {
 		for (const s of risk) out.push(...storyBlock(s, x.cycle.weeks));
 	}
 	if (quiet.length) {
-		out.push("## Gone quiet: no check-in for two weeks or more");
+		out.push("## No recent update: no check-in for two weeks or more");
 		out.push("");
 		for (const s of quiet) out.push(...storyBlock(s, x.cycle.weeks));
 	}

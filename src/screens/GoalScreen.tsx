@@ -12,7 +12,8 @@ import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { weekDates } from '../domain/plan';
-import { ReviewBar, ReviewCallBar, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
+import { ReviewBar, ReviewCallBar, TreeRow, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
+import { criticalPath } from '../domain/map';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 
 export function GoalScreen() {
@@ -79,6 +80,10 @@ function GoalView({ goal }: { goal: Goal }) {
   const subtree = outcomeTrees(app.snapshot.goals, worstFirst(app)).trees.flatMap(function find(n): TreeNode[] { return n.goal.id === goal.id ? [n] : n.children.flatMap(find); })[0]
     ?? { goal, children: app.snapshot.goals.filter((g) => g.parentId === goal.id).map((c) => ({ goal: c, children: [] })) };
   const children = subtree.children.map((n) => n.goal);
+  // What threatens this goal: its inputs that need attention, the one on the critical path first. Shown under the status.
+  const needy = children.filter((c) => ['off', 'risk', 'stale'].includes(app.statusOf(c).status));
+  const onPath = needy.length ? criticalPath(app.snapshot.goals, (g) => app.statusOf(g).status) : new Set<string>();
+  const threats = [...needy].sort((a, b) => Number(onPath.has(b.id)) - Number(onPath.has(a.id)) || worstFirst(app)(a, b)).slice(0, 3);
   const rv = useReview(goal.id);
   const fc = forecastText(goal, a, cycle.weeks);
   const series = valueSeries(own);
@@ -100,6 +105,8 @@ function GoalView({ goal }: { goal: Goal }) {
 
   const stale = st.status === 'stale';
   const dateText = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  // A request for an update stays visible ("Asked 2 hours ago") until the next check-in, rather than a passing toast.
+  const asked = app.snapshot.changes.filter((c) => c.entity === 'note' && c.goalId === goal.id && (c.diffs[0]?.to ?? '').includes('could you post an update') && (!latest || c.at > latest.postedAt)).pop();
   const askForUpdate = async () => {
     try {
       await app.addNote(goal, `${owner?.name.split(' ')[0] ?? 'Hi'}, could you post an update? The last check-in was week ${latest?.week ?? '–'}.`);
@@ -159,10 +166,18 @@ function GoalView({ goal }: { goal: Goal }) {
         {stale
           ? <span className="small">{latest ? `Last reported: ${headlineNumber} in week ${latest.week} (${dateText(latest.postedAt)}), ${st.daysSinceCheckIn} days ago.` : 'Nothing reported yet.'} Without a newer check-in, the status and any projection can’t be trusted.</span>
           : a.kind === 'metric' && goal.kind === 'metric' && latest ? <span className="hint">{gap.long}.</span> : null}
-        {stale && !isOwner && <div><button type="button" className="btn sm" onClick={() => void askForUpdate()}>Ask {owner?.name.split(' ')[0] ?? 'the owner'} for an update</button></div>}
+        {stale && !isOwner && (asked
+          ? <span className="small strong" role="status">Asked {owner?.name.split(' ')[0] ?? 'the owner'} for an update {timeAgo(asked.at, app.today)}. It’s on their Home.</span>
+          : <div><button type="button" className="btn sm" onClick={() => void askForUpdate()}>Ask {owner?.name.split(' ')[0] ?? 'the owner'} for an update</button></div>)}
         {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
         {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
       </section>
+      {threats.length > 0 && (
+        <section className="block threats" aria-label="Most likely to make it miss">
+          <div className="row between"><h2 className="block-title">Most likely to make it miss</h2><span className="hint">{needy.length} of {children.length} contributing {children.length === 1 ? 'goal needs' : 'goals need'} attention</span></div>
+          <ul className="tree">{threats.map((g) => <li key={g.id}><TreeRow g={g} /></li>)}</ul>
+        </section>
+      )}
       </div>
       <div className="goal-rail split-side">
 
@@ -171,6 +186,8 @@ function GoalView({ goal }: { goal: Goal }) {
           <span className="field-label">Decision or help needed</span>
           <p className="strong">{ptg.needs}</p>
           <span className="hint">From {owner?.name.split(' ')[0]}’s week {latest?.week} check-in.</span>
+          {/* The answer belongs right here, not two screens away. */}
+          {!compact && <div><button type="button" className="btn sm" onClick={() => { setTab('activity'); setTimeout(() => { const el = document.getElementById('note-' + goal.id); el?.scrollIntoView({ block: 'center' }); el?.focus(); }, 60); }}>Respond</button></div>}
         </section>
       )}
 
@@ -202,8 +219,9 @@ function GoalView({ goal }: { goal: Goal }) {
           )}
           {ptg && (
             <div className="quote-block">
-              <span className="field-label">{ptg.byWeek != null ? <>Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</> : ptg.state === 'investigating' ? 'Still investigating; no recovery date yet' : ptg.state === 'help' ? 'Needs a decision or help before there’s a date' : ptg.state === 'target' ? 'The owner thinks the target should change' : 'No recovery date yet'}</span>
-              <p>{ptg.what}</p>
+              <span className="field-label">{ptg.byWeek != null ? <>Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.state === 'help' ? ', once the decision or help arrives' : ''}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</> : ptg.state === 'investigating' ? 'Still investigating; no recovery date yet' : ptg.state === 'help' ? 'No date until the decision or help arrives' : ptg.state === 'target' ? 'The owner thinks the target should change' : 'No recovery date yet'}</span>
+              {/* A decision request is shown once, above; here it's the date that matters. */}
+              <p>{ptg.state === 'help' && ptg.needs && (st.status === 'risk' || st.status === 'off') ? 'Waiting on the decision or help above.' : ptg.what}</p>
             </div>
           )}
         </section>
@@ -231,7 +249,7 @@ function GoalView({ goal }: { goal: Goal }) {
       )}
       {children.length > 0 && !compact && (
         <section className="block">
-          <div className="row between"><h2 className="block-title">Feeding this goal</h2><span className="hint">Worst first</span></div>
+          <div className="row between"><h2 className="block-title">Contributing goals</h2><span className="hint">Worst first</span></div>
           <div className="mix" role="img" aria-label={(['off', 'risk', 'stale', 'on', 'done'] as const).map((k) => `${children.filter((c) => app.statusOf(c).status === k).length} ${LABEL[k].toLowerCase()}`).join(', ')}>
             {(['off', 'risk', 'stale', 'on', 'done'] as const).map((k) => { const n = children.filter((c) => app.statusOf(c).status === k).length; return n ? <i key={k} className={'mix-' + k} style={{ flexGrow: n }} /> : null; })}
           </div>
@@ -301,7 +319,7 @@ function NoteComposer({ goal }: { goal: Goal }) {
   return (
     <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post(); }}>
       <label className="field"><span className="sr">Add a comment</span>
-        <textarea className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder={app.viewer.id === goal.ownerId ? 'Say why something changed' : 'Comment or ask a question'} aria-label="Add a comment" />
+        <textarea id={'note-' + goal.id} className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder={app.viewer.id === goal.ownerId ? 'Say why something changed' : 'Comment or ask a question'} aria-label="Add a comment" />
       </label>
       {text.trim() && <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post comment'}</button>}
     </form>

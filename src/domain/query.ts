@@ -7,7 +7,7 @@ import type { Cycle, Goal, GoalKind, Level } from './types';
 import { quarterOf } from './year';
 
 export type QStatus = 'off' | 'risk' | 'stale' | 'on' | 'done' | 'planned';
-/** Needs someone: a decision or help asked for, no recovery plan, a recovery date that slipped or was missed, or a call greener than the numbers. */
+/** Needs attention: a decision or help asked for, no recovery plan, a recovery date that slipped or was missed, or a call greener than the numbers. */
 export type Need = 'decision' | 'no-recovery' | 'slipped' | 'missed-date' | 'greener';
 export type Result = 'completed' | 'late' | 'missed' | 'open';
 export type SortKey = 'worst' | 'title' | 'owner' | 'team' | 'level' | 'gap' | 'last' | 'due';
@@ -39,12 +39,12 @@ export interface GoalQuery {
 
 export const EMPTY_QUERY: GoalQuery = { q: '', status: [], level: [], team: [], owner: [], kind: [], needs: [], due: null, quiet: null, quarter: null, result: [], feeds: null, helps: false, sort: null, dir: 1 };
 
-export const STATUS_OPTIONS: [QStatus, string][] = [['off', LABEL.off], ['risk', LABEL.risk], ['stale', 'Gone quiet'], ['on', LABEL.on], ['done', LABEL.done], ['planned', 'Not started']];
-export const NEED_OPTIONS: [Need, string][] = [['decision', 'Waiting on a decision or help'], ['no-recovery', 'No recovery plan'], ['slipped', 'Recovery date slipped'], ['missed-date', 'Missed its own date'], ['greener', 'Called greener than the numbers']];
+export const STATUS_OPTIONS: [QStatus, string][] = [['off', LABEL.off], ['risk', LABEL.risk], ['stale', LABEL.stale], ['on', LABEL.on], ['done', LABEL.done], ['planned', 'Not started']];
+export const NEED_OPTIONS: [Need, string][] = [['decision', 'Decision or help needed'], ['no-recovery', 'No recovery plan'], ['slipped', 'Recovery date slipped'], ['missed-date', 'Missed its own date'], ['greener', 'Called greener than the numbers']];
 export const RESULT_OPTIONS: [Result, string][] = [['completed', 'Completed'], ['late', 'Completed late'], ['missed', 'Did not meet'], ['open', 'Not finished yet']];
 export const KIND_OPTIONS: [GoalKind, string][] = [['metric', 'Move a number'], ['range', 'Keep in range'], ['milestone', 'Dated stages']];
 export const SORT_OPTIONS: [SortKey, string][] = [['worst', 'Worst first'], ['title', 'Name'], ['owner', 'Owner'], ['team', 'Team'], ['level', 'Level'], ['gap', 'Furthest from plan'], ['last', 'Longest since a check-in'], ['due', 'Due soonest']];
-const LEVELS: Level[] = ['north-star', 'svp', 'team'];
+export const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
 const list = <T extends string>(v: string | null, ok: readonly T[]): T[] => (v ? v.split(',').filter((x): x is T => (ok as readonly string[]).includes(x)) : []);
 const int = (v: string | null) => { const n = v == null ? NaN : Number(v); return Number.isInteger(n) && n > 0 ? n : null; };

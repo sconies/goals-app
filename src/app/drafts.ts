@@ -16,6 +16,11 @@ export function clearDraft(key: string) {
   try { localStorage.removeItem(PREFIX + key); } catch { /* storage blocked */ }
 }
 
+/** A draft's contents without restoring it, to offer it back by name. */
+export function peekDraft<T>(key: string): T | null {
+  return read<T>(key);
+}
+
 export function hasDraft(key: string): boolean {
   return read(key) != null;
 }

@@ -16,7 +16,7 @@ export const MEANING: Record<DisplayStatus, string> = {
   on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
   risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. There’s a plan to get it back.`,
   off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
-  stale: `Gone quiet: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
+  stale: `No recent update: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
   none: 'Waiting for its first check-in.',
   planned: 'Not started: it starts this week.',
   done: 'Done: the owner has called it complete.',
@@ -179,7 +179,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
     if (ptg) {
       doing = ptg.what;
       const state = ptg.state ?? 'plan';
-      byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})`
+      byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === 'help' ? ', once the decision or help arrives' : ''}`
         : state === 'investigating' ? 'No date yet: still working out what’s wrong'
         : state === 'help' ? 'No date until the decision or help arrives'
         : state === 'target' ? 'The owner says the target should change'

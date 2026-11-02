@@ -98,7 +98,7 @@ describe('the owner’s call and staleness', () => {
   it(R('STALE', '13 days after the last check-in it is still the owner’s call'), () => {
     expect(goalStatus(up, cycle, [posted('up', 4, '2026-10-05')], day('2026-10-18')).status).toBe('on');
   });
-  it(R('STALE', '14 days after the last check-in an on-track goal shows Stale'), () => {
+  it(R('STALE', '14 days after the last check-in an on-track goal shows No recent update'), () => {
     expect(goalStatus(up, cycle, [posted('up', 4, '2026-10-05')], day('2026-10-19')).status).toBe('stale');
   });
   it(R('STALE', 'a goal never checked in goes stale two weeks into the cycle'), () => {

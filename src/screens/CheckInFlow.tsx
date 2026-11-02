@@ -137,6 +137,7 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
       <h1 className="title-xl">Check-in saved</h1>{updated && <p className="muted">Kept alongside your earlier check-in this week; this one is now the week’s status.</p>}
       <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status is <Chip k={c.status} /></p>
+      {c.pathToGreen?.needs && <p className="small">Asked for: {c.pathToGreen.needs}. It shows on the goal and on their Home.</p>}
       {!left && <p className="muted">{p.due.length ? `Still due this week: ${p.due.map((g) => g.title).join(', ')}.` : `All ${p.goals.length === 1 ? 'your goal is' : `${p.goals.length} of your goals are`} checked in for week ${app.week}${late ? ', after the review day' : ''}.`}</p>}
       <div className="row" style={{ justifyContent: 'center' }}>
         {left
@@ -145,6 +146,8 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
         <Link className="btn big-btn" to={'/goals/' + goal.id}>View the goal</Link>
       </div>
       {left > 0 && <p className="tiny muted">{left} to go</p>}
+      {/* A mistake is cheap to fix: check in again and the newer one becomes the week's status; both are kept. */}
+      <p className="small muted">Got something wrong? <Link className="linkish" to={`/check-in/${goal.id}`}>Correct this check-in</Link></p>
     </div>
   );
 }
@@ -210,7 +213,9 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     setSaving(true);
     try {
       const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
-      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { needs: `${from.name}: ${d.ptgWhat.trim()}` } : {}) }, null);
+      // The app names who it's for, so a "Elena:" typed at the start isn't doubled ("Elena Ruiz: Elena: ...").
+      const ask = from ? d.ptgWhat.trim().replace(new RegExp(`^(${[from.name, from.name.split(' ')[0]!].map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*[:,–-]\\s*`, 'i'), '') : '';
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, null);
       clear();
       onPosted(c, !!existing);
     } catch {
@@ -347,7 +352,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
           <h2 className="qtitle">Where are you with getting it back on plan?</h2>
           <div className="optlist" role="radiogroup" aria-label="Where you are">
             {(Object.keys(RECOVERY) as RecoveryState[]).map((k) => (
-              <button key={k} type="button" role="radio" className="opt" aria-checked={(draft.ptgState ?? 'plan') === k} onClick={() => set({ ptgState: k, ...(k !== 'plan' ? { ptgBy: null } : {}) })}>
+              <button key={k} type="button" role="radio" className="opt" aria-checked={(draft.ptgState ?? 'plan') === k} onClick={() => set({ ptgState: k, ...(k !== 'plan' && k !== 'help' ? { ptgBy: null } : {}) })}>
                 <span>{RECOVERY[k].label}</span><span className="hint">{RECOVERY[k].hint}</span>
               </button>
             ))}
@@ -371,6 +376,12 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
               </select>
               {tried && !helpFrom && <span className="hint tone-off" role="alert">Pick who it goes to.</span>}
             </label>
+          ) : null}
+          {draft.ptgState === 'help' ? (
+            // A decision and a date can go together: the date it's back on plan once the decision or help arrives.
+            <div className="field"><span className="field-label" id="ptg-by-if">If it comes, back on plan by <span className="muted" style={{ fontWeight: 400 }}>optional</span></span>
+              <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} onPick={(w) => set({ ptgBy: draft.ptgBy === w ? null : w })} />
+            </div>
           ) : showNeeds
             ? <label className="field"><span className="field-label">Also need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional; shown at the top of the goal and in reviews</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Elena: approve an interim scope" /></label>
             : <div><button type="button" className="linkish tap" onClick={() => setShowNeeds(true)}>Also need a decision or help?</button></div>}

@@ -310,13 +310,20 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     await p.waitForURL((u) => u.href !== here);
     await p.waitForTimeout(120);
   }
+  // The walk is the exceptions; goals on track with nothing flagged are acknowledged together (Senior UX review, 2 Nov).
+  await see(p, 'On track, nothing new', 'healthy goals are not grouped after the exceptions');
+  const ack = p.getByRole('button', { name: /^Mark \d+ goals? on track reviewed/ });
+  const healthyN = Number(((await ack.innerText().catch(() => '')).match(/\d+/) || ['0'])[0]);
+  h.set('finish', healthyN > 0 && items + healthyN <= 14, `expected the healthy goals as one acknowledgement, saw ${healthyN} after walking ${items}`);
+  await h.checkpoint('healthy group');
+  await h.click(ack);
   await see(p, 'Review complete', 'the review ends on its record');
   await see(p, 'Can the golden path ship', 'what was said is kept in the summary');
   h.set('finish', await p.getByRole('link', { name: 'Reviews' }).first().isVisible(), 'no way on from the review record');
   const s = await h.snapshot();
   const calls = s.changes.filter((c) => c.actorId === 'elena' && c.entity === 'decision' && c.id !== 'chg_dec_weekly_6');
   const ask = calls.find((c) => c.action === 'asked');
-  h.set('logged', calls.length === items + 2 && !!ask && ask.diffs.some((d) => /golden path/.test(d.to)), `expected ${items} reviews plus a question and a note, logged, saw ${calls.length}`);
+  h.set('logged', calls.length === items + healthyN + 2 && !!ask && ask.diffs.some((d) => /golden path/.test(d.to)), `expected ${items + healthyN} reviews plus a question and a note, logged, saw ${calls.length}`);
   // The owner sees the question on the goal page.
   const asked = s.decisions.find((d) => d.kind === 'ask');
   await p.goto(url('/goals/' + asked.goalId));
@@ -563,9 +570,9 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING'], 'Watching: see what has gone q
   const p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/'));
   await navTo(h, p, 'Watching');
-  await see(p, 'Gone quiet');
+  await see(p, 'No recent update');
   await see(p, /\d+ goals · .*need/, 'the summary line counts what needs attention');
-  const quiet = p.locator('section', { has: p.getByRole('heading', { name: /Gone quiet/ }) }).locator('.trow').first();
+  const quiet = p.locator('section', { has: p.getByRole('heading', { name: /No recent update/ }) }).locator('.trow').first();
   await h.inView(p.getByRole('heading', { name: /Needs attention/ }), 'entry', 'Needs attention');
   await h.checkpoint('watching');
   h.set('attention', /No check-in for \d+ days/.test(await quiet.innerText()), 'a quiet goal does not say how long it has been');
@@ -636,7 +643,9 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await see(p, 'SRE fortnightly');
   await see(p, 'Every 4 weeks, Fridays');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
-  h.set('attention', await p.locator('.tree .trow').count() >= 2, 'the review does not list its goals');
+  // Exceptions are listed; goals on track with nothing flagged are one named group with a count.
+  const healthyN = Number(((await p.locator('.healthy-group .block-title').innerText().catch(() => '')).match(/(\d+)\s*$/) || ['', '0'])[1]);
+  h.set('attention', (await p.locator('.tree .trow').count()) + healthyN >= 2, 'the review does not list its goals');
   h.set('finish', await p.getByRole('button', { name: /^Start review/ }).isVisible().catch(() => false) || await p.getByText('Next:').isVisible().catch(() => false), 'no way to start the new review');
   const s = await h.snapshot();
   const r = s.reviews.find((x) => x.name === 'SRE fortnightly');
@@ -853,7 +862,7 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   // Board: a column per status.
   await h.click(layout.getByRole('button', { name: 'Board' }));
   await p.locator('.board').waitFor();
-  for (const col of ['Off track', 'At risk', 'Gone quiet', 'On track']) await see(p, col);
+  for (const col of ['Off track', 'At risk', 'No recent update', 'On track']) await see(p, col);
   await h.checkpoint('board');
   // History: a square per goal per week, the owner's call.
   await h.click(layout.getByRole('button', { name: 'History' }));
@@ -1189,10 +1198,11 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await h.click(p.getByRole('button', { name: /^Filters/ }));
   const sheet = p.getByRole('dialog', { name: 'Filter goals' });
   await h.click(sheet.getByLabel('Recovery date slipped'));
+  // Sort is in the sheet on every screen (a phone has no room for it in the bar).
+  await sheet.getByLabel('Sort').selectOption('due');
   await h.checkpoint('filters');
   await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
   await see(p, '2 of 13 goals', 'the slipped-date filter does not narrow the goals');
-  await p.getByLabel('Sort').selectOption('due');
   await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Table' }));
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
@@ -1219,10 +1229,60 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await see(other, '2 of 13 goals', 'a shared link does not open the same goals');
   await other.context().close();
   // Delete it: the tab goes.
+  // Rename, pin and delete live in one menu, not beside the filters.
+  await p.getByText('Manage view', { exact: true }).click();
   await p.getByRole('button', { name: 'Delete' }).click();
   await tab.waitFor({ state: 'detached' });
   await p.context().close();
 });
+
+journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS'], 'A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'elena'));
+  // The north star says which contributing goals are most likely to make it miss, near the top.
+  await p.goto(url('/goals/head'));
+  const threats = p.getByRole('region', { name: 'Most likely to make it miss' });
+  await threats.waitFor();
+  h.set('attention', (await threats.locator('.trow, .gline, li').count()) > 0, 'the north star does not name what threatens it');
+  await h.checkpoint('threats');
+  // A goal waiting on Elena's decision: Respond is beside the request and lands in the comment box.
+  await p.goto(url('/goals/access'));
+  const request = p.getByRole('region', { name: 'Decision or help needed' });
+  await request.waitFor();
+  await h.click(request.getByRole('button', { name: 'Respond' }));
+  await p.waitForFunction(() => document.activeElement?.id === 'note-access', null, { timeout: 3000 }).catch(() => {});
+  h.set('finish', await p.evaluate(() => document.activeElement?.id === 'note-access'), 'Respond did not land in the comment box');
+  const repeats = await p.locator('main').evaluate((m) => (m.innerText.match(/Elena Ruiz: Elena/g) || []).length);
+  h.set('attention', repeats === 0, 'the request names its recipient twice');
+  // Chasing a quiet goal leaves a lasting "Asked" in place of the button.
+  await p.goto(url('/goals/env'));
+  await h.click(p.getByRole('button', { name: /^Ask Jonas for an update/ }));
+  await see(p, 'Asked Jonas for an update', 'asking for an update leaves no lasting trace');
+  h.set('attention', !(await p.getByRole('button', { name: /^Ask Jonas for an update/ }).isVisible()), 'the ask button is still offered after asking');
+  const s1 = await h.snapshot();
+  h.set('logged', s1.changes.some((c) => c.goalId === 'env' && c.actorId === 'elena' && c.entity === 'note' && c.diffs.some((d) => /could you post an update/.test(d.to))), 'the request for an update was not logged');
+  // The table compares: one line of story per goal, Details to open it.
+  await p.goto(url('/goals?view=table'));
+  const row = p.locator('.story-row').first();
+  await row.waitFor();
+  const tall = await row.evaluate((r) => r.getBoundingClientRect().height);
+  h.set('attention', tall <= 60, `a table story row is ${Math.round(tall)}px tall before it is opened`);
+  await h.click(row.getByRole('button', { name: /^Details/ }));
+  h.set('finish', await row.locator('dl').isVisible(), 'Details does not open the story');
+  // One press for the goals waiting on a decision (on a phone, it's in Filters).
+  if (device === 'desktop') {
+    await h.click(p.getByRole('button', { name: 'Decision or help needed', exact: true }));
+    await see(p, 'of 13 goals', 'the decision filter did not narrow the goals');
+  }
+  // New goal with one left unpublished: asked first, not dropped into its last step.
+  await p.goto(url('/goals/new'));
+  await h.fill(p.getByRole('textbox').first(), 'Half-written goal');
+  await p.goto(url('/goals'));
+  await p.goto(url('/goals/new'));
+  await see(p, 'You have a goal you didn’t publish', 'New goal reopens the old draft without asking');
+  await h.click(p.getByRole('button', { name: 'Start another goal' }));
+  h.set('finish', (await p.getByRole('textbox').first().inputValue()) === '', 'Start another goal kept the old draft');
+  await p.context().close();
+}, ['entry', 'progress', 'errors']);
 
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
@@ -1395,7 +1455,7 @@ async function platformChecks() {
       const mute = await r.$$eval('svg.status-shape', (els) => els.filter((e) => {
         if (!e.getClientRects().length || e.closest('.hgrid, [aria-hidden="true"] [aria-hidden="true"]')) return false;
         const near = (e.parentElement?.innerText || '') + ' ' + (e.parentElement?.parentElement?.innerText || '');
-        return !/on track|at risk|off track|stale|done|not started|no check-in|met|missed|completed|gone quiet|nothing is|late|on schedule/i.test(near);
+        return !/on track|at risk|off track|stale|done|not started|no check-in|met|missed|completed|gone quiet|no recent update|nothing is|late|on schedule/i.test(near);
       }).map((e) => (e.closest('[class]')?.className || '').toString().split(' ')[0]));
       if (mute.length) problems.push(`${who} ${route}: ${mute.length} status shapes without a word (${[...new Set(mute)].join(', ')})`);
     }
@@ -1483,6 +1543,23 @@ async function platformChecks() {
     if (top > 640) wide.push(`1440×700 /goals/review: the chart starts at ${Math.round(top)}px, below the fold`);
     await c6.close();
   }
+  // P8: the goals start in the first screen. The Goals header (views, layout, search, filters) mustn't push them down.
+  const fold = [];
+  for (const [device, vp] of Object.entries(DEVICES)) {
+    const c7 = await browser.newContext({ viewport: vp });
+    const r = await c7.newPage();
+    for (const v of ['list', 'table', 'board']) {
+      await r.goto(url('/goals?view=' + v));
+      await r.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'maya'));
+      await r.reload();
+      await r.locator('.outcome, .gtable tbody tr, .board-card').first().waitFor();
+      const top = await r.evaluate(() => document.querySelector('.outcome, .gtable tbody tr, .board-card').getBoundingClientRect().top);
+      const limit = vp.height * (device === 'phone' ? 0.5 : 0.4);
+      if (top > limit) fold.push(`${device} ${v}: the first goal starts at ${Math.round(top)}px (limit ${Math.round(limit)})`);
+    }
+    await c7.close();
+  }
+  add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
   return out;
 }

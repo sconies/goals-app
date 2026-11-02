@@ -15,6 +15,7 @@ import { useWidth } from '../ui/useWidth';
 import { Chip, LevelTag, Sheet, StatusShape, WarnMark } from '../ui/bits';
 import { describe, type ChangeSet } from '../domain/changeset';
 import { LEVEL_LABEL } from '../domain/format';
+import { LEVELS } from '../domain/query';
 import type { Level } from '../domain/types';
 import { ExportButton } from './Export';
 
@@ -43,7 +44,7 @@ export function LayoutSwitch({ layout, onChange }: { layout: Layout; onChange: (
   return (
     <div className="seg layout-switch" role="group" aria-label="Layout">
       {LAYOUTS.map(([k, label]) => (
-        <button key={k} type="button" aria-pressed={layout === k} aria-label={label} onClick={() => onChange(k)}>
+        <button key={k} type="button" aria-pressed={layout === k} aria-label={label} title={label} onClick={() => onChange(k)}>
           <LayoutIcon k={k} /><span className="ls-label">{label}</span>
         </button>
       ))}
@@ -90,7 +91,7 @@ const COLS: [ColId, SortKey | null, string, string][] = [
   ['goal', 'goal', 'Goal', ''], ['owner', 'owner', 'Owner', 'col-opt'], ['status', 'status', 'Status', ''], ['now', null, 'Now', 'num'], ['target', null, 'Target', 'num col-opt'], ['gap', 'gap', 'Gap', 'col-opt'], ['trend', null, 'Trend', 'col-opt'],
 ];
 /** Columns that give way first when the table is narrow, so the rest fit without scrolling sideways (a phone hides more in CSS). */
-const shownCols = (w: number): Set<ColId> => new Set(COLS.map(([c]) => c).filter((c) => (c === 'trend' ? w >= 1180 : c === 'owner' ? w >= 1000 : true)));
+const shownCols = (w: number): Set<ColId> => new Set(COLS.map(([c]) => c).filter((c) => (c === 'trend' ? w >= 1180 : c === 'owner' ? w >= 1000 : c === 'target' || c === 'gap' ? w >= 600 : true)));
 
 export function GoalTable({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
@@ -147,11 +148,11 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                       {show.has('owner') && <td className="col-opt">{s.owner}</td>}
                       <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? `Last: week ${s.lastWeek}` : app.week > 0 ? 'No check-in yet' : ''}</span></td>
                       <td className="num">{s.now}{s.planThen ? <span className="hint gt-plan">plan {s.planThen}</span> : s.planNow != null && <span className="hint gt-plan">plan {s.planNowText} this week</span>}</td>
-                      <td className="num col-opt">{s.target}</td>
-                      <td className={'col-opt tone-' + s.gapTone + ' small'}>{s.gap}</td>
+                      {show.has('target') && <td className="num col-opt">{s.target}</td>}
+                      {show.has('gap') && <td className={'col-opt tone-' + s.gapTone + ' small'}>{s.gap}</td>}
                       {show.has('trend') && <td className="col-opt"><Trend s={s} /></td>}
                     </tr>
-                    {hasStory(s) && <tr className="story-row" data-tone={s.status}><td /><td colSpan={cols.length}><StoryLines s={s} compact /></td></tr>}
+                    {hasStory(s) && <tr className="story-row" data-tone={s.status}><td /><td colSpan={cols.length}><TableStory s={s} /></td></tr>}
                     </Fragment>
                   ))}
                 </tbody>
@@ -181,7 +182,7 @@ function Trend({ s }: { s: GoalSummary }) {
 const COLUMNS: { key: string; title: string; statuses: DisplayStatus[]; always: boolean }[] = [
   { key: 'off', title: 'Off track', statuses: ['off'], always: true },
   { key: 'risk', title: 'At risk', statuses: ['risk'], always: true },
-  { key: 'stale', title: 'Gone quiet', statuses: ['stale'], always: true },
+  { key: 'stale', title: LABEL.stale, statuses: ['stale'], always: true },
   { key: 'waiting', title: 'No check-in yet', statuses: ['none', 'planned'], always: false },
   { key: 'on', title: 'On track', statuses: ['on'], always: true },
   { key: 'done', title: 'Done', statuses: ['done'], always: false },
@@ -190,15 +191,22 @@ const COLUMNS: { key: string; title: string; statuses: DisplayStatus[]; always: 
 export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
   const sums = useSummaries(groups);
   const all = [...sums.values()];
-  const cols = COLUMNS.map((c) => ({ ...c, items: all.filter((s) => c.statuses.includes(s.status)).sort((a, b) => a.goal.title.localeCompare(b.goal.title)) })).filter((c) => c.always || c.items.length);
+  // Within a lane: the higher goals first (the north star leads), then those waiting on a decision, then by name.
+  const order = (a: GoalSummary, b: GoalSummary) => LEVELS.indexOf(a.goal.level) - LEVELS.indexOf(b.goal.level) || Number(!!b.story.needs) - Number(!!a.story.needs) || a.goal.title.localeCompare(b.goal.title);
+  const cols = COLUMNS.map((c) => ({ ...c, items: all.filter((s) => c.statuses.includes(s.status)).sort(order) })).filter((c) => c.always || c.items.length);
+  const [shown, setShown] = useState<Set<string>>(new Set());
   return (
     <div className="board">
-      {cols.map((c) => (
+      {cols.map((c) => {
+        // Healthy lanes show a few cards and a count; the exceptions show everything.
+        const healthy = c.key === 'on' || c.key === 'done';
+        const items = healthy && !shown.has(c.key) ? c.items.slice(0, 3) : c.items;
+        return (
         <section key={c.key} className="board-col" aria-label={`${c.title}, ${c.items.length}`}>
           <h2 className={'board-head tone-' + (c.key === 'waiting' ? 'stale' : c.key)}><StatusShape k={c.statuses[0]!} />{c.title}<span className="tabcount">{c.items.length}</span></h2>
           <span className="hint board-meaning">{SHORT_MEANING[c.statuses[0]!][0]!.toUpperCase() + SHORT_MEANING[c.statuses[0]!].slice(1)}</span>
           {c.items.length === 0 && <span className="hint board-empty">None</span>}
-          {c.items.map((s) => (
+          {items.map((s) => (
             <Link key={s.goal.id} to={'/goals/' + s.goal.id} className="board-card" data-tone={s.status}>
               <span className="board-title">{s.goal.title}<LevelTag level={s.goal.level} /></span>
               <span className="hint ellipsis">{s.owner} · {s.team}</span>
@@ -208,8 +216,10 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
               {hasStory(s) && <StoryLines s={s} compact brief />}
             </Link>
           ))}
+          {items.length < c.items.length && <button type="button" className="btn ghost sm board-more" onClick={() => setShown((v) => new Set(v).add(c.key))}>Show all {c.items.length}</button>}
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -408,6 +418,29 @@ export function StoryLines({ s, compact, brief }: { s: GoalSummary; compact?: bo
       {rows.length > 0 && <dl>{rows.map(([k, v]) => <Fragment key={k}><dt>{k}</dt><dd className={v === 'Not given' || v === 'No date given' ? 'tone-off' : undefined}>{v}</dd></Fragment>)}</dl>}
       {warnings.map((w) => <span key={w} className="story-warn"><WarnMark />{w}</span>)}
       {more > 0 && <span className="hint">and {more} more {more === 1 ? 'warning' : 'warnings'} on the goal</span>}
+    </div>
+  );
+}
+
+/**
+ * The story in a table: one line (what's needed, why, by when, how many warnings), so rows stay comparable,
+ * with Details to open the whole story in place (Senior UX review, 2 Nov).
+ */
+function TableStory({ s }: { s: GoalSummary }) {
+  const [open, setOpen] = useState(false);
+  const st = s.story;
+  const n = st.warnings.length;
+  const parts = s.status === 'stale'
+    ? [st.since ?? 'No check-in for two weeks or more']
+    : [
+      ...(st.needs ? ['Decision or help needed'] : []),
+      ...(['off', 'risk'].includes(s.status) ? [st.why ? `Why: ${st.why}` : 'No reason given', st.byWhen ? `By when: ${st.byWhen}` : 'No date given'] : []),
+    ];
+  if (n) parts.push(`${n} ${n === 1 ? 'warning' : 'warnings'}`);
+  return (
+    <div className="table-story">
+      {open ? <StoryLines s={s} compact /> : <span className="table-story-line small">{parts.join(' · ')}</span>}
+      <button type="button" className="linkish small table-story-toggle" aria-expanded={open} aria-label={`${open ? 'Less' : 'Details'}: the story of ${s.goal.title}`} onClick={() => setOpen((v) => !v)}>{open ? 'Less' : 'Details'}</button>
     </div>
   );
 }
