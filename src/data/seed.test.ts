@@ -9,13 +9,15 @@ describe('demo data', () => {
   const cycle = s.cycles[0]!;
   const status = (id: string) => goalStatus(s.goals.find((g) => g.id === id)!, cycle, s.checkIns, today);
 
-  it('puts today in week 7 of a 13-week cycle starting on a Monday', () => {
-    expect(cycle.startDate).toBe('2026-09-07');
+  it('puts today in week 43 of a 52-week goal year starting on a Monday', () => {
+    expect(cycle.startDate).toBe('2025-12-29');
+    expect(cycle.weeks).toBe(52);
+    expect(cycle.name).toBe('2026');
     expect(currentWeek(cycle, today)).toBe(SEED_WEEK);
   });
 
   it('builds every check-in through the same rules the app enforces', () => {
-    expect(s.checkIns.length).toBeGreaterThan(50);
+    expect(s.checkIns.length).toBeGreaterThan(400);
     expect(s.checkIns.every((c) => c.postedAt <= today.toISOString())).toBe(true);
   });
 

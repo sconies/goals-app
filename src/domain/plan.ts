@@ -58,13 +58,15 @@ export function planAt(plan: MetricPlan, week: number, weeks: number): number {
   return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week - from, end - from);
 }
 
-/** The checkpoints a plan table shows: every week for a cycle-length plan, every four weeks for a longer one, and the end. */
+/** The checkpoints a plan table shows: every week for a short plan; every four weeks and each quarter's end for a longer one; and the end. */
 export function planCheckpoints(from: number, end: number): number[] {
   const step = end - from > 16 ? 4 : 1;
-  const out: number[] = [];
-  for (let w = from + step; w < end; w += step) out.push(w);
-  out.push(end);
-  return out;
+  const out = new Set<number>();
+  for (let w = from + step; w < end; w += step) out.add(w);
+  // A plan longer than a quarter always shows each quarter's end (weeks 13, 26, 39), so quarter targets are in the table.
+  if (step > 1) for (let w = 13; w < end; w += 13) if (w > from) out.add(w);
+  out.add(end);
+  return [...out].sort((a, b) => a - b);
 }
 
 /** The week of 31 December in the year a cycle starts, counted from the cycle's start (at least 1). */

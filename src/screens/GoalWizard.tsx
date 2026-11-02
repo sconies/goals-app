@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
+import { dueOptions, isYear } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, buildGoal, draftOf, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
@@ -51,7 +52,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const step = d.step;
-  const endOptions: [number, string][] = [[cycle.weeks, `End of the cycle`], yearEnd > cycle.weeks ? [yearEnd, 'End of the year'] : [52, 'A year from now']];
+  const endOptions = dueOptions(cycle, week, yearEnd);
   const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
   const errors = validateGoal(d, cycle);
   const stepErrors = (i: number) => STEP_FIELDS[i]!.filter((k) => errors[k]);
@@ -149,7 +150,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                   <div className="seg full" role="group" aria-labelledby="end-l">
                     {endOptions.map(([w, l]) => <button key={w} type="button" aria-pressed={endChoice === w} onClick={() => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })}>{l}</button>)}
                   </div>
-                  <span className="hint">Due week {endChoice}, {weekDates(cycle, endChoice)}.{endChoice > cycle.weeks ? ' It carries into the next cycle with this plan.' : ''}</span>
+                  <span className="hint">Due week {endChoice}, {weekDates(cycle, endChoice)}.{endChoice > cycle.weeks ? ` It carries into next ${isYear(cycle) ? 'year' : 'cycle'} with this plan.` : ''}</span>
                 </div>
                 <div className="row" style={{ alignItems: 'flex-start' }}>
                   <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Today (week {existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>

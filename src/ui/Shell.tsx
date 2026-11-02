@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
+import { shortPeriod } from '../domain/year';
 import { weekProgress } from '../domain/progress';
 import { reviewSession, watchedGoals } from '../domain/review';
 import type { Person } from '../domain/types';
@@ -213,7 +214,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </button>
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
           <strong className="ellipsis">{title}</strong>
-          <span className="tiny muted ellipsis">{app.mode === 'demo' && !present && <span className="demo-tag">Demo</span>} {app.ws.kind === 'example' ? 'Example data' : app.ws.name}, week {app.week} of {app.cycle.weeks}</span>
+          <span className="tiny muted ellipsis">{app.mode === 'demo' && !present && <span className="demo-tag">Demo</span>} {app.ws.kind === 'example' ? 'Example data' : app.ws.name}, {shortPeriod(app.cycle, app.week).toLowerCase()}</span>
         </span>
         <button className="profilebtn" onClick={() => setSheet('profile')}>
           <Avatar p={app.viewer} />
@@ -226,7 +227,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{app.ws.name.slice(0, 1).toUpperCase()}</span>
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
               <b className="ellipsis">{app.ws.name}</b>
-              <span className="tiny muted">Week {app.week} of {app.cycle.weeks}</span>
+              <span className="tiny muted">{shortPeriod(app.cycle, app.week)}</span>
             </span>
             <span aria-hidden="true" className="muted">⌄</span>
           </button>

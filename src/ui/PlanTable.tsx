@@ -5,6 +5,7 @@ import { useApp } from '../app/state';
 import { fmt } from '../domain/format';
 import { planAt, planCheckpoints, planEnd, weekDates } from '../domain/plan';
 import type { CheckIn, MetricPlan } from '../domain/types';
+import { isYear, quarters } from '../domain/year';
 
 interface Numeric { unit: string; decimals: number }
 
@@ -27,6 +28,7 @@ export function PlanTable({ plan, unit, typed, onType, onReset, actuals, label =
   const editing = !!onType;
   const edited = editing && Object.values(typed ?? {}).some((v) => v.trim() !== '');
   const raw = (v: number) => Number(v.toFixed(unit.decimals)).toString();
+  const qEnd = (w: number) => (isYear(cycle) ? quarters(cycle).find((q) => q.to === w && w !== end) : undefined);
   return (
     <div className="plantable">
       <div className="row between">
@@ -44,8 +46,8 @@ export function PlanTable({ plan, unit, typed, onType, onReset, actuals, label =
             const hand = typed?.[String(w)] ?? '';
             const actual = actuals?.find((c) => c.week === w)?.value;
             return (
-              <tr key={w} className={(w === week ? 'now-row ' : '') + (w === cycle.weeks && end > cycle.weeks ? 'cycle-end-row' : '')}>
-                <td>{isEnd ? `Week ${w} · target` : `Week ${w}`}{w === week ? <span className="hint"> · now</span> : null}{w === cycle.weeks && end > cycle.weeks ? <span className="hint"> · cycle end</span> : null}</td>
+              <tr key={w} className={(w === week ? 'now-row ' : '') + (qEnd(w) ? 'quarter-row ' : '') + (w === cycle.weeks && end > cycle.weeks ? 'cycle-end-row' : '')}>
+                <td>{isEnd ? `Week ${w} · target` : `Week ${w}`}{qEnd(w) ? <span className="hint"> · end of {qEnd(w)!.label}</span> : null}{w === week ? <span className="hint"> · now</span> : null}{w === cycle.weeks && end > cycle.weeks ? <span className="hint"> · cycle end</span> : null}</td>
                 <td>{weekDates(cycle, w)}</td>
                 <td className="num">
                   {editing && !isEnd

@@ -16,7 +16,7 @@ export function fmtDiff(v: number, g: Numeric): string {
   return g.unit ? n + ' ' + g.unit : n;
 }
 
-export const weekLabel = (w: number, weeks: number) => (w >= weeks ? 'cycle end' : 'week ' + w);
+export const weekLabel = (w: number, weeks: number) => (w >= weeks ? (weeks >= 48 ? 'year end' : 'cycle end') : 'week ' + w);
 
 export function kindLabel(g: Goal): string {
   if (g.kind === 'milestone') return 'Hit dated stages';
@@ -39,7 +39,7 @@ export function targetText(g: Goal): string {
 
 /** Short words for the gap against plan, and its tone for colour. */
 export function gapText(g: Goal, a: Assessment): { short: string; long: string; tone: 'on' | 'risk' | 'off' | 'ahead' | 'stale' } {
-  if (a.calc === 'planned') return { short: 'Not started', long: 'The cycle starts this week', tone: 'stale' };
+  if (a.calc === 'planned') return { short: 'Not started', long: 'It starts this week', tone: 'stale' };
   if (a.calc === 'none') return { short: 'No value yet', long: 'Waiting for the first check-in', tone: 'stale' };
   if (a.kind === 'metric' && g.kind === 'metric') {
     const actual = a.actual as number;

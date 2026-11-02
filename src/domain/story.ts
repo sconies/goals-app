@@ -7,6 +7,7 @@ import { fmt, fmtDiff, LEVEL_LABEL } from './format';
 import { planAt, planEnd, weekDates } from './plan';
 import { assessPosted, checkInsFor, goalStatus, LABEL } from './status';
 import { forecastText } from './tree';
+import { isYear, quarterOf, quarterResults, targetAt, type QuarterResult } from './year';
 import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
 
 /* ---------- what each status means ---------- */
@@ -17,7 +18,7 @@ export const MEANING: Record<DisplayStatus, string> = {
   off: 'Will miss without intervention: under 80% of the planned progress, a stage more than two weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.',
   stale: 'Gone quiet: no check-in for two weeks or more, so its status can’t be trusted.',
   none: 'Waiting for its first check-in.',
-  planned: 'Not started: the cycle starts this week.',
+  planned: 'Not started: it starts this week.',
   done: 'Done: the owner has called it complete.',
 };
 export const SHORT_MEANING: Record<DisplayStatus, string> = {
@@ -52,8 +53,16 @@ export function goalResult(g: Goal, cycle: Cycle, checkIns: CheckIn[], week: num
   });
   let hit: number | null = null;
   if (g.kind === 'metric') {
+    // Before it's due, only the owner calling it done completes it: a number touching the target early can slip back.
     const up = g.plan.target >= g.plan.start;
-    hit = own.find((c) => c.status === 'done' || (c.value != null && (up ? c.value >= g.plan.target : c.value <= g.plan.target)))?.week ?? null;
+    const reached = (c: CheckIn) => c.value != null && (up ? c.value >= g.plan.target : c.value <= g.plan.target);
+    const doneCall = own.find((c) => c.status === 'done');
+    if (doneCall && doneCall.week <= due) hit = doneCall.week;
+    else if (week > due || own.some((c) => c.week >= due)) {
+      const atDue = own.filter((c) => c.week <= due && c.value != null).pop();
+      hit = atDue && atDue.week >= due - 1 && reached(atDue) ? atDue.week : own.find((c) => c.week > due && (reached(c) || c.status === 'done'))?.week ?? null;
+      if (hit == null && doneCall) hit = doneCall.week;
+    }
   } else if (g.kind === 'milestone') {
     const done = own.find((c) => c.status === 'done' || (c.stages && g.stages.every((s) => c.stages!.some((u) => u.stageId === s.id && u.doneWeek != null))));
     if (done) {
@@ -96,6 +105,8 @@ export interface Story {
   warnings: string[];
   feeds: string | null;
   result: Result | null;
+  /** In a goal year: each quarter against the plan (met, missed, open). */
+  quarters: QuarterResult[];
   /** The status as a short label, or the result once due. */
   label: string;
 }
@@ -124,7 +135,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
     since = n >= 2 ? `Since week ${from}, ${n} check-ins running` : `Since week ${from}`;
   }
   if (status === 'stale') {
-    since = last ? `No check-in for ${st.daysSinceCheckIn} days; last heard in week ${last.week}` : 'No check-in yet this cycle';
+    since = last ? `No check-in for ${st.daysSinceCheckIn} days; last heard in week ${last.week}` : 'No check-in yet';
   }
 
   // Where it is.
@@ -144,6 +155,13 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
     const late = a.late.map((x) => `${x.name} (due week ${x.dueWeek}, now expected week ${x.expectedWeek})`);
     where = `${a.doneCount} of ${a.stages.length} stages done.${late.length ? ` Late: ${late.join('; ')}.` : ''}`;
   }
+  if (isYear(cycle) && g.kind === 'metric' && week >= 1 && week <= due) {
+    const q = quarterOf(cycle, week);
+    const end = Math.min(q.to, due);
+    if (end < due) where += ` ${q.label} plan: ${fmt(targetAt(g, cycle, end)!, g)} by week ${end}.`;
+  }
+  const quarters = quarterResults(g, cycle, s.checkIns, week);
+  const lastEnded = [...quarters].reverse().find((x) => x.kind === 'met' || x.kind === 'missed');
   const fc = forecastText(g, a, cycle.weeks);
   const outlook = fc ? fc.text : null;
 
@@ -176,9 +194,10 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   if (st.greener && last && status !== 'stale') warnings.push(`Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : '.'}`);
   if (status === 'stale' && last) warnings.push(`Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== 'milestone' ? ` at ${fmt(last.value, g)}` : ''}. Ask ${first} for an update.`);
   if (fc?.warn && !behind && status !== 'done') warnings.push('Called on track, but the recent trend misses the target.');
+  if (lastEnded?.kind === 'missed' && !result) warnings.push(`Missed its ${lastEnded.text.replace(/^Q(\d): /, 'Q$1 plan: ')}.`);
 
   const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
   const feeds = parent ? `Feeds ${parent.title}${parent.level !== 'team' ? ` (${LEVEL_LABEL[parent.level]})` : ''}` : null;
   const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
-  return { status, since, where, outlook, why, doing, byWhen, needs, next: (behind || status === 'on') && last?.next ? last.next : null, warnings, feeds, result, label };
+  return { status, since, where, outlook, why, doing, byWhen, needs, next: (behind || status === 'on') && last?.next ? last.next : null, warnings, feeds, result, quarters, label };
 }

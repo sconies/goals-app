@@ -8,6 +8,7 @@ import { weekDates } from '../domain/plan';
 import { assessPosted, LABEL, RANK } from '../domain/status';
 import { summarise, weeklyCalls, type GoalSummary } from '../domain/summary';
 import { MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING } from '../domain/story';
+import { isYear, quarterOf, quarters } from '../domain/year';
 import type { DisplayStatus, Goal } from '../domain/types';
 import { Spark, StageSpark } from '../ui/charts';
 import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
@@ -206,7 +207,10 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
 export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
   const sums = useSummaries(groups);
-  const weeks = Array.from({ length: app.cycle.weeks }, (_, i) => i + 1);
+  const year = isYear(app.cycle);
+  const [span, setSpan] = useState<'quarter' | 'year'>('quarter');
+  const q = quarterOf(app.cycle, app.week);
+  const weeks = year && span === 'quarter' ? Array.from({ length: q.to - q.from + 1 }, (_, i) => q.from + i) : Array.from({ length: app.cycle.weeks }, (_, i) => i + 1);
   const cellText = (s: GoalSummary, w: number, c: ReturnType<typeof weeklyCalls>) => {
     const ci = c.get(w);
     if (!ci) return w <= app.week ? 'No check-in' : 'Not yet';
@@ -215,7 +219,15 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
   };
   return (
     <>
-      <p className="hint">Each square is the owner’s call that week. Hover or tap a goal to open it.</p>
+      <div className="row between" style={{ alignItems: 'center' }}>
+        <p className="hint" style={{ margin: 0 }}>Each square is the owner’s call that week. Hover or tap a goal to open it.</p>
+        {year && (
+          <div className="seg" role="group" aria-label="Weeks shown">
+            <button type="button" aria-pressed={span === 'quarter'} onClick={() => setSpan('quarter')}>This quarter ({q.label})</button>
+            <button type="button" aria-pressed={span === 'year'} onClick={() => setSpan('year')}>Whole year</button>
+          </div>
+        )}
+      </div>
       <div className="hlegend" aria-hidden="true">
         {(['on', 'risk', 'off', 'done'] as const).map((k) => <span key={k} className={'hcell-key tone-' + k}><StatusShape k={k} />{LABEL[k]}</span>)}
         <span className="hcell-key"><span className="hcell-empty" />No check-in</span>
@@ -226,11 +238,11 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
           <section key={g.key} className="block" aria-label={g.title}>
             {groups.length > 1 && <GroupHead g={g} count={g.rows.length} />}
             <div className="table-wrap">
-              <table className="hgrid">
+              <table className={'hgrid' + (year && span === 'year' ? ' hgrid-year' : '')}>
                 <thead>
                   <tr>
                     <th scope="col" className="hg-goal">Goal</th>
-                    {weeks.map((w) => <th key={w} scope="col" className={w === app.week ? 'now' : ''} title={weekDates(app.cycle, w)}><span className="sr">Week </span>{w}</th>)}
+                    {weeks.map((w) => <th key={w} scope="col" className={(w === app.week ? 'now' : '') + (year && quarters(app.cycle).some((x) => x.from === w) ? ' q-start' : '')} title={weekDates(app.cycle, w)}><span className="sr">Week </span>{year && span === 'year' ? (quarters(app.cycle).find((x) => x.from === w)?.label ?? '') : w}</th>)}
                   </tr>
                 </thead>
                 <tbody>

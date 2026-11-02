@@ -8,6 +8,7 @@ import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/pro
 import { openQuestions, reviewSession, watchedGoals } from '../domain/review';
 import { daysSince, weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
+import { periodWord, shortPeriod } from '../domain/year';
 import { assessPosted, LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
 import type { Goal } from '../domain/types';
@@ -81,7 +82,7 @@ function MyWeek() {
             </>
           ) : wrapLeft.length ? (
             <>
-              <span className="eyebrow">{app.week >= app.cycle.weeks ? 'The cycle has ended' : `The cycle ends next week`}</span>
+              <span className="eyebrow">{app.week >= app.cycle.weeks ? `The ${periodWord(app.cycle)} has ended` : `The ${periodWord(app.cycle)} ends next week`}</span>
               <h2 className="hero-title">Wrap up {wrapLeft.length === 1 ? 'your goal' : `your ${wrapLeft.length} goals`}</h2>
               <span className="muted">How each one landed, one thing you learned, and whether it carries on. About a minute each.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/retro/${wrapLeft[0]!.id}`}>Start the wrap-up →</Link></div>
@@ -95,7 +96,7 @@ function MyWeek() {
             </>
           ) : mine.length && app.week < 1 ? (
             <>
-              <span className="eyebrow">The cycle starts this week</span>
+              <span className="eyebrow">The {periodWord(app.cycle)} starts this week</span>
               <h2 className="hero-title">Your first check-in is next week</h2>
               <span className="muted">{mine.length === 1 ? 'Your goal is' : `Your ${mine.length} goals are`} set. Check in on {mine.length === 1 ? 'it' : 'each'} in week 1, before {WEEKDAY[app.cycle.reviewDay]}’s review.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
@@ -109,7 +110,7 @@ function MyWeek() {
             </>
           ) : (
             <>
-              <span className="eyebrow">Week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
+              <span className="eyebrow">{shortPeriod(app.cycle, app.week)}</span>
               <h2 className="hero-title">No check-ins or reviews due</h2>
               <span className="muted">You don’t own a goal. Watch the ones you care about, or set one up in about 3 minutes.</span>
               <div className="row" style={{ marginTop: 8 }}>{app.snapshot.goals.length
@@ -226,7 +227,7 @@ function AdminCard() {
     const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
     return (
       <section className="block note-card">
-        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>The cycle is ending</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next cycle when you’re ready.</span></span>
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>The {periodWord(app.cycle)} is ending</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next {periodWord(app.cycle)} when you’re ready.</span></span>
         <Link className="btn" to="/retro">See the wrap-up</Link>
       </section>
     );
@@ -279,7 +280,7 @@ export function Home() {
     <div className="page narrow">
       <div className="page-head">
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
-        <span className="muted small">{app.ws.name} · week {Math.max(0, app.week)} of {app.cycle.weeks}</span>
+        <span className="muted small">{app.ws.name} · {shortPeriod(app.cycle, app.week).toLowerCase()}</span>
       </div>
       <NeedsYou />
       <MyWeek />

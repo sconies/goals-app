@@ -9,6 +9,7 @@ import type { Change, Goal } from '../domain/types';
 import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
+import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { weekDates } from '../domain/plan';
 import { ReviewBar, ReviewCallBar, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
@@ -86,6 +87,7 @@ function GoalView({ goal }: { goal: Goal }) {
   const changes = app.snapshot.changes.filter((c) => c.goalId === goal.id).slice().reverse();
   const [params] = useSearchParams();
   const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>(params.get('tab') === 'comments' ? 'activity' : 'check-ins');
+  const [allCheckIns, setAllCheckIns] = useState(false);
   const flags = att.flags.filter((f) => f.kind !== 'due');
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
   const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind));
@@ -185,6 +187,8 @@ function GoalView({ goal }: { goal: Goal }) {
         </section>
       )}
 
+      {!compact && isYear(cycle) && <QuarterStrip goal={goal} />}
+
       {(() => { const chart = (<section className="block">
         {goal.kind === 'metric' && a.kind === 'metric' && (
           <figure className="card" style={{ margin: 0 }}>
@@ -219,9 +223,9 @@ function GoalView({ goal }: { goal: Goal }) {
         </div>
         {tab === 'activity' && <NoteComposer goal={goal} />}
         {tab === 'activity' && (changes.length ? <ol className="changes">{changes.map((c) => <ChangeItem key={c.id} c={c} />)}</ol> : <p className="small muted">No changes yet.</p>)}
-        {tab === 'check-ins' && (own.length ? (
+        {tab === 'check-ins' && (own.length ? (<>
           <ol className="cilist">
-            {[...own].reverse().map((c) => (
+            {[...own].reverse().slice(0, allCheckIns ? undefined : 8).map((c) => (
               <li key={c.id}>
                 <span className="strong">Week {c.week}</span>
                 <span>{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
@@ -230,7 +234,8 @@ function GoalView({ goal }: { goal: Goal }) {
               </li>
             ))}
           </ol>
-        ) : <p className="small muted">No check-ins yet.</p>)}
+          {own.length > 8 && !allCheckIns && <button type="button" className="linkish small" onClick={() => setAllCheckIns(true)}>Show all {own.length} check-ins</button>}
+        </>) : <p className="small muted">No check-ins yet.</p>)}
         {tab === 'details' && goal.kind === 'metric' && <PlanTable plan={goal.plan} unit={goal} actuals={own} label="Plan and actual by week" />}
         {tab === 'details' && (
           <dl className="details">
@@ -293,5 +298,27 @@ function CheckInList({ goal }: { goal: Goal }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+/** The year by quarter: each quarter's plan for this goal, and whether it was met. */
+function QuarterStrip({ goal }: { goal: Goal }) {
+  const app = useApp();
+  const now = quarterOf(app.cycle, app.week).n;
+  const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, app.week);
+  if (rs.every((r) => r.kind === 'none')) return null;
+  return (
+    <section className="block" aria-label="This year by quarter">
+      <h2 className="block-title">This year by quarter</h2>
+      <ol className="quarters">
+        {rs.map((r) => (
+          <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
+            <span className="row between nowrap"><span className="strong">{r.quarter.label} <span className="hint">{r.quarter.months}</span></span>
+              <span className="small strong">{r.kind === 'met' ? '✓ Met' : r.kind === 'missed' ? '✗ Missed' : r.kind === 'open' ? (r.quarter.n === now ? 'Now' : 'To come') : '—'}</span></span>
+            <span className="small">{r.text.replace(/^Q\d: /, '')}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

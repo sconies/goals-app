@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
+import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { LEVEL_LABEL } from '../domain/format';
@@ -43,7 +44,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const replanning = !!built && started && planChanged(goal, built);
   // When the target is due, and the plan from the shape (before any numbers typed by hand), for the plan table.
   const yearEnd = yearEndWeek(cycle);
-  const endOptions: [number, string][] = [[cycle.weeks, 'End of the cycle'], yearEnd > cycle.weeks ? [yearEnd, 'End of the year'] : [52, 'A year from now']];
+  const endOptions = dueOptions(cycle, week, yearEnd);
   const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
   const shapedPlan = goal.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null && parseNumber(d.start) !== parseNumber(d.target)
     ? { start: parseNumber(d.start) as number, target: parseNumber(d.target) as number, shape: d.shape, ...(goal.plan.fromWeek ? { fromWeek: goal.plan.fromWeek } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) }

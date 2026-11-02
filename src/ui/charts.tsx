@@ -33,8 +33,13 @@ function scales(f: Frame, weeks: number, values: number[]) {
 }
 
 const line = (pts: [number, number][]) => pts.map(([x, y]) => x.toFixed(1) + ',' + y.toFixed(1)).join(' ');
-const ticksFor = (weeks: number, today: number, wide: boolean) =>
-  [...new Set(wide ? [0, Math.round(weeks / 3), Math.round((2 * weeks) / 3), weeks, today] : [0, today, weeks])].sort((a, b) => a - b);
+/** Week ticks: in a goal year, the start of each quarter and now; otherwise thirds and now. Ticks too close to now are dropped. */
+const ticksFor = (weeks: number, today: number, wide: boolean) => {
+  const base = !wide ? [0, weeks] : weeks >= 48 ? [0, 13, 26, 39, weeks] : [0, Math.round(weeks / 3), Math.round((2 * weeks) / 3), weeks];
+  const near = weeks >= 48 ? 4 : 0;
+  return [...new Set([...base.filter((w) => Math.abs(w - today) > near || w === today), today])].sort((a, b) => a - b);
+};
+const tickLabel = (w: number, week: number, weeks: number) => (w === week ? 'Now' : weeks >= 48 ? (w === 0 ? 'Q1' : w === 13 ? 'Q2' : w === 26 ? 'Q3' : w === 39 ? 'Q4' : 'Wk ' + w) : 'Wk ' + w);
 
 interface MetricProps { goal: MetricGoal; weeks: number; week: number; series: Point[]; forecast: number | null; ptgBy?: number | null; height?: number }
 
@@ -64,7 +69,7 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series, forecast, ptgBy, W, 
           <text className="c-axis" x={f.padL - 6} y={Y(v) + 4} textAnchor="end">{v.toFixed(goal.decimals === 0 ? 0 : 1)}</text>
         </g>
       ))}
-      {ticksFor(weeks, week, !compact).map((w) => <text key={w} className="c-axis" x={X(w)} y={H - 6} textAnchor="middle">{w === week ? 'Now' : 'Wk ' + w}</text>)}
+      {ticksFor(weeks, week, !compact).map((w) => <text key={w} className="c-axis" x={X(w)} y={H - 6} textAnchor={w === 0 ? 'start' : 'middle'}>{tickLabel(w, week, weeks)}</text>)}
       <line className="c-today" x1={X(week)} x2={X(week)} y1={f.padT - 6} y2={H - f.padB} />
       <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(plan.target)} y2={Y(plan.target)} />
       <text className="c-target-t" x={f.padL + 4} y={Y(plan.target) + (plan.target < plan.start ? 14 : -6)}>Target {fmt(plan.target, goal)}</text>
@@ -115,7 +120,7 @@ function RangeSvg({ goal, weeks, week, series, W, H }: RangeProps & { W: number;
       <rect className="c-area" x={f.padL} y={Math.min(Y(limit), Y(inner))} width={W - f.padL - f.padR} height={Math.abs(Y(inner) - Y(limit))} />
       <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(limit)} y2={Y(limit)} />
       <text className="c-target-t" x={f.padL + 4} y={Y(limit) - 6}>Limit {fmt(limit, goal)}{compact ? '' : ' · shaded: warning margin'}</text>
-      {ticksFor(weeks, week, !compact).map((w) => <text key={w} className="c-axis" x={X(w)} y={H - 6} textAnchor="middle">{w === week ? 'Now' : 'Wk ' + w}</text>)}
+      {ticksFor(weeks, week, !compact).map((w) => <text key={w} className="c-axis" x={X(w)} y={H - 6} textAnchor={w === 0 ? 'start' : 'middle'}>{tickLabel(w, week, weeks)}</text>)}
       {series.length > 0 && <polyline className="c-act" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
       {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={out(p.value) ? 'c-breach' : 'c-dot'} />)}
     </svg>

@@ -1,6 +1,7 @@
 /* Load your own data: people and goals pasted from a spreadsheet (tab-separated) or a CSV file.
    Every row is checked with the same rules as the app's own forms before anything is saved. */
 import { blankGoal, buildGoal, validateGoal, type GoalDraft } from './goal';
+import { yearName } from './yearName';
 import type { Cycle, Goal, Level, Person, PlanShape, Snapshot, Team } from './types';
 
 export interface ImportIssue {
@@ -83,9 +84,10 @@ export function shapeOf(s: string): PlanShape | null {
   return null;
 }
 
-export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; now: Date; idSuffix: string; reviewDay?: number }): ImportResult {
+export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; now: Date; idSuffix: string; reviewDay?: number; weeks?: number }): ImportResult {
   const issues: ImportIssue[] = [];
-  const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: input.name.trim() || 'My cycle', startDate: input.startDate, weeks: 13, reviewDay: input.reviewDay ?? 3 };
+  const weeks = input.weeks ?? 52;
+  const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: weeks >= 48 ? yearName(input.startDate, weeks) : input.name.trim() || 'My cycle', startDate: input.startDate, weeks, reviewDay: input.reviewDay ?? 3 };
 
   // People and teams
   const p = records(input.people);

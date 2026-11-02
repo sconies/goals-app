@@ -801,3 +801,15 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; 
 .gcard .story dl, .board-card .story dl { grid-template-columns: 1fr; gap: 0; }
 .gcard .story dt, .board-card .story dt { font-size: 12px; margin-top: var(--s2); }
 .gcard .story dt:first-child, .board-card .story dt:first-child { margin-top: 0; }
+.plantable tr.quarter-row td { font-weight: 600; border-top: 1px solid var(--line-strong); }
+.quarters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); padding: 0; margin: 0; list-style: none; }
+.quarters li { display: flex; flex-direction: column; gap: 4px; padding: var(--s3); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.quarters li.q-met { border-top: 3px solid var(--on-mark); } .quarters li.q-met .strong:last-child { color: var(--on-fg); }
+.quarters li.q-missed { border-top: 3px solid var(--off-mark); background: var(--off-wash); } .quarters li.q-missed .small.strong { color: var(--off-fg); }
+.quarters li.q-now { box-shadow: 0 0 0 2px var(--accent-soft); }
+.quarters li.q-none, .quarters li.q-open:not(.q-now) { color: var(--muted); }
+@media (max-width: 640px) { .quarters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.hgrid-year thead th { min-width: 14px; font-size: 11px; text-align: left; padding: 6px 0 6px 2px; }
+.hgrid-year .hcell { padding: 4px 0; height: 26px; min-width: 14px; }
+.hgrid-year .hcell svg { width: 10px; height: 10px; }
+.hgrid .q-start, .hgrid-year td:nth-child(15), .hgrid-year td:nth-child(28), .hgrid-year td:nth-child(41) { border-left: 1px solid var(--line-strong); }

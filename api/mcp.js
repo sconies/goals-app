@@ -21891,13 +21891,16 @@ function planAt(plan, week, weeks) {
 	}
 	return plan.start + (plan.target - plan.start) * shapeProgress(plan.shape, week - from, end - from);
 }
-/** The checkpoints a plan table shows: every week for a cycle-length plan, every four weeks for a longer one, and the end. */
+/** The checkpoints a plan table shows: every week for a short plan; every four weeks and each quarter's end for a longer one; and the end. */
 function planCheckpoints(from, end) {
 	const step = end - from > 16 ? 4 : 1;
-	const out = [];
-	for (let w = from + step; w < end; w += step) out.push(w);
-	out.push(end);
-	return out;
+	const out = /* @__PURE__ */ new Set();
+	for (let w = from + step; w < end; w += step) out.add(w);
+	if (step > 1) {
+		for (let w = 13; w < end; w += 13) if (w > from) out.add(w);
+	}
+	out.add(end);
+	return [...out].sort((a, b) => a - b);
 }
 /** One value per week from the check-ins: the latest posted that week wins. */
 function valueSeries(checkIns) {
@@ -21923,6 +21926,17 @@ function forecast(series, weeks) {
 	if (!earlier) return null;
 	const slope = (last.value - earlier.value) / (last.week - earlier.week);
 	return last.value + slope * (weeks - last.week);
+}
+/** "2–8 Nov" (or "28 Oct–3 Nov"): the calendar days of a cycle week, Monday to Sunday. */
+function weekDates(cycle, week) {
+	const a = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
+	const b = new Date(a.getTime() + 5184e5);
+	const d = (x, month) => x.toLocaleDateString("en-GB", {
+		day: "numeric",
+		...month ? { month: "short" } : {},
+		timeZone: "UTC"
+	});
+	return a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
 }
 // src/domain/status.ts
 var RANK = {
@@ -22288,7 +22302,7 @@ function targetText(g) {
 function gapText(g, a) {
 	if (a.calc === "planned") return {
 		short: "Not started",
-		long: "The cycle starts this week",
+		long: "It starts this week",
 		tone: "stale"
 	};
 	if (a.calc === "none") return {
@@ -22467,6 +22481,67 @@ function checkInChange(before, after, g, actorId, id) {
 		diffs
 	};
 }
+// src/domain/yearName.ts
+/** "2026" for a year starting in January, "Apr 2026–Mar 2027" otherwise. */
+function yearName(startDate, weeks) {
+	const a = new Date(Date.parse(startDate + "T00:00:00Z") + 2592e5);
+	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 4) * 864e5);
+	const m = (d) => d.toLocaleDateString("en-GB", {
+		month: "short",
+		timeZone: "UTC"
+	});
+	if (a.getUTCMonth() === 0 || a.getUTCMonth() === 11 && a.getUTCDate() >= 25) return String(a.getUTCMonth() === 11 ? a.getUTCFullYear() + 1 : a.getUTCFullYear());
+	return `${m(a)} ${a.getUTCFullYear()}–${m(b)} ${b.getUTCFullYear()}`;
+}
+var toYear = (storyWeek) => storyWeek + 36;
+/**
+* A story value moved into the year: as far ahead of or behind the year's plan as it was against the
+* story's own 13-week plan, so the reasons people gave still hold.
+*/
+function storyValue(plan, decimals, storyWeek, value) {
+	const planned13 = planAt({
+		start: plan.start,
+		target: plan.target,
+		shape: plan.shape
+	}, storyWeek, 13) - plan.start;
+	const planned52 = planAt(plan, toYear(storyWeek), 52) - plan.start;
+	const raw = Math.abs(planned13) < 1e-9 ? 1 : (value - plan.start) / planned13;
+	const ratio = Math.min(1.25, Math.max(.6, raw));
+	return Number((plan.start + ratio * planned52).toFixed(decimals));
+}
+/** A steady week before the story: on plan, give or take a little, chosen so the rules call it on track. */
+function steadyDraft(g, cycle, week, base, history, rangeValue) {
+	if (g.kind === "milestone") return base;
+	const unit = 10 ** -g.decimals;
+	const candidates = [];
+	if (g.kind === "metric") {
+		const plan = planAt(g.plan, week, cycle.weeks);
+		const dir = Math.sign(g.plan.target - g.plan.start) || 1;
+		const wobble = (Math.sin(week * 1.7) * .6 + .4) * unit * 3;
+		for (const v of [
+			plan + dir * wobble,
+			plan,
+			plan + dir * unit,
+			plan + dir * 2 * unit,
+			plan - dir * unit
+		]) candidates.push(Number(v.toFixed(g.decimals)));
+	} else {
+		const v = rangeValue ?? g.range.limit;
+		candidates.push(Number((v + Math.sin(week * 1.3) * unit * 3).toFixed(g.decimals)), v);
+	}
+	const tryOne = (v) => {
+		const d = {
+			...base,
+			value: String(v)
+		};
+		return {
+			d,
+			e: evaluate(g, cycle, week, d, history)
+		};
+	};
+	const all = candidates.map(tryOne);
+	return (all.find((x) => x.e.status === "on" && !x.e.reason) ?? all.find((x) => x.e.status === "on") ?? all[0]).d;
+}
 var common = (id, teamId, ownerId, title, source) => ({
 	id,
 	cycleId: "cycle",
@@ -22528,7 +22603,7 @@ metric({
 	level: "svp"
 }, "%", 0, 30, 95, {
 	originalPlan: reviewOriginal,
-	rebaselinedWeek: 4
+	rebaselinedWeek: toYear(4)
 }), metric({
 	...common("lead", "devex", "sam", "Lead time for changes", "DORA dashboard"),
 	effect: 2
@@ -22541,7 +22616,7 @@ metric({
 }, "%", 0, 35, 80), metric({
 	...common("scan", "sec", "aisha", "AI-generated code scanned before merge", "Code scanning"),
 	guardrail: true
-}, "%", 0, 50, 100), { ...common("access", "sec", "aisha", "Repo-access controls for the Brain", "Jira SEC-88") }, { ...common("brain", "brain", "leo", "Brain data model and AI infrastructure live", "Jira BRN epics") }, metric({
+}, "%", 0, 50, 100), { ...common("access", "sec", "aisha", "Repo-access controls for the Brain", "Jira SEC-88") }, toYear(2), toYear(4), toYear(6), toYear(6), { ...common("brain", "brain", "leo", "Brain data model and AI infrastructure live", "Jira BRN epics") }, toYear(3), toYear(7), toYear(9), toYear(12), metric({
 	...common("idle", "infra", "jonas", "Idle environments shut down within 2 hours", "Platform API"),
 	parentId: "cost",
 	effect: 40
@@ -22550,6 +22625,8 @@ metric({
 	parentId: "cost",
 	effect: 25
 }, "%", 0, 50, 76);
+toYear(2), toYear(2), toYear(2), toYear(4), toYear(2), toYear(4), toYear(2), toYear(4), toYear(9), toYear(9), toYear(3), toYear(3), toYear(3), toYear(3);
+`${toYear(6)}${toYear(9)}`, `${toYear(9)}`;
 // src/data/examples.ts
 var DAY$1 = 864e5;
 var initials = (n) => n.split(/\s+/).map((w) => w[0].toUpperCase()).slice(0, 2).join("");
@@ -22559,12 +22636,13 @@ function mondayOf(d) {
 }
 /** Turns a description into a full workspace: goals, check-in history, change log, watches and reviews. */
 function buildExample(spec, today) {
-	const start = mondayOf(today) - 49 * DAY$1;
+	const start = mondayOf(today) - 301 * DAY$1;
+	const startDate = new Date(start).toISOString().slice(0, 10);
 	const cycle = {
 		id: "cycle",
-		name: spec.cycleName,
-		startDate: new Date(start).toISOString().slice(0, 10),
-		weeks: 13,
+		name: yearName(startDate, 52),
+		startDate,
+		weeks: 52,
 		reviewDay: spec.reviewDay
 	};
 	const people = spec.people.map((p) => ({
@@ -22619,7 +22697,7 @@ function buildExample(spec, today) {
 			stages: (g.stages ?? []).map(([name, due], k) => ({
 				id: `${g.id}_s${k}`,
 				name,
-				dueWeek: due
+				dueWeek: toYear(due)
 			}))
 		};
 	});
@@ -22627,11 +22705,13 @@ function buildExample(spec, today) {
 	const checkIns = [];
 	for (const g of goals) {
 		const s = spec.goals.find((x) => x.id === g.id);
-		const weeks = g.kind === "milestone" ? Array.from({ length: s.lastWeek ?? 6 }, (_, k) => k + 1) : (s.values ?? []).map((_, k) => k + 1);
-		for (const week of weeks) {
-			const draft = emptyDraft(g, null);
+		const story = g.kind === "milestone" ? s.lastWeek ?? 6 : (s.values ?? []).length;
+		for (let week = 1; week <= Math.min(36 + story, 43); week++) {
+			const sw = week - 36;
+			let draft = emptyDraft(g, null);
 			if (g.kind === "milestone") draft.stages = g.stages.map((st, k) => {
-				const [, due, done, forecast] = s.stages[k];
+				const [, due0, done0, forecast0] = s.stages[k];
+				const due = toYear(due0), done = done0 == null ? null : toYear(done0), forecast = forecast0 == null ? null : toYear(forecast0);
 				const isDone = done != null && done <= week;
 				return {
 					stageId: st.id,
@@ -22639,9 +22719,12 @@ function buildExample(spec, today) {
 					forecastWeek: isDone ? null : forecast != null && week >= due - 1 ? forecast : null
 				};
 			});
-			else draft.value = String(s.values[week - 1]);
+			else if (sw >= 1) {
+				const v = s.values[sw - 1];
+				draft.value = String(g.kind === "metric" ? storyValue(g.plan, g.decimals, sw, v) : v);
+			} else draft = steadyDraft(g, cycle, week, draft, checkIns, s.values?.[0]);
 			const e = evaluate(g, cycle, week, draft, checkIns);
-			const note = e.reason === "ahead" ? s.ahead : e.reason === "behind" ? s.behind : void 0;
+			const note = sw >= 1 ? e.reason === "ahead" ? s.ahead : e.reason === "behind" ? s.behind : void 0 : void 0;
 			Object.assign(draft, note ?? (e.reason ? {
 				cause: e.reason === "ahead" ? "early" : "slower",
 				why: e.reason === "ahead" ? "A change landed earlier than planned." : "Delivery is slower than planned this week."
@@ -23942,7 +24025,7 @@ function forecastText(goal, a, weeks) {
 	if (a.kind !== "metric" || goal.kind !== "metric" || a.forecast == null) return null;
 	const gap = a.forecast - goal.plan.target;
 	return a.forecastMisses ? {
-		text: `Projected end of cycle: ${fmt(a.forecast, goal)}, ${fmtDiff(gap, goal)} ${gap > 0 ? "above" : "below"} the ${fmt(goal.plan.target, goal)} target. An estimate from the recent trend.`,
+		text: `Projected at week ${goal.plan.endWeek ?? weeks}: ${fmt(a.forecast, goal)}, ${fmtDiff(gap, goal)} ${gap > 0 ? "above" : "below"} the ${fmt(goal.plan.target, goal)} target. An estimate from the recent trend.`,
 		warn: true
 	} : {
 		text: `Projected to reach the ${fmt(goal.plan.target, goal)} target by week ${goal.plan.endWeek ?? weeks}, on the recent trend.`,
@@ -24337,6 +24420,16 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Call “${val(r, "call")}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`);
 			continue;
 		}
+		const existing = s.checkIns.find((c) => c.goalId === g.id && c.week === w) ?? null;
+		if (existing && (!call || existing.status === call) && (g.kind === "milestone" ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, "value"))) && (!has(r, "why") || val(r, "why") === existing.why)) {
+			unchanged++;
+			ciOut.push(existing);
+			continue;
+		}
+		const asOf = g.kind === "metric" && g.originalPlan && g.rebaselinedWeek != null && w < g.rebaselinedWeek ? {
+			...g,
+			plan: g.originalPlan
+		} : g;
 		const cause = causeOf(val(r, "cause"));
 		if (cause === void 0) {
 			err("Check-ins", row, g.title, `Cause “${val(r, "cause")}” isn’t one of: ${[...new Set([...CAUSES_BEHIND, ...CAUSES_AHEAD].map(([, l]) => l))].join(", ")}.`);
@@ -24359,7 +24452,7 @@ function planChanges(input) {
 			next: val(r, "next step") || val(r, "next"),
 			dataFlagged: false
 		};
-		const e = evaluate(g, cycle, w, draft, ctx);
+		const e = evaluate(asOf, cycle, w, draft, ctx);
 		if (!e.canPost) {
 			const hint = {
 				"this week’s value": "a Value",
@@ -24373,19 +24466,13 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Week ${w} needs ${e.missing.map((m) => hint[m] ?? m).join("; ")}.`);
 			continue;
 		}
-		const existing = s.checkIns.find((c) => c.goalId === g.id && c.week === w) ?? null;
 		const backfilled = w < week;
 		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
 		const at = backfilled && due.toISOString() < now ? due : new Date(now);
 		const c = {
-			...toCheckIn(g, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci")),
+			...toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci")),
 			...backfilled ? { backfilled: true } : {}
 		};
-		if (existing && existing.value === c.value && existing.status === c.status && JSON.stringify(existing.stages) === JSON.stringify(c.stages) && existing.why === c.why) {
-			unchanged++;
-			ciOut.push(existing);
-			continue;
-		}
 		if (existing && existing.authorId !== actor.id) warn("Check-ins", row, g.title, `Replaces ${s.people.find((p) => p.id === existing.authorId)?.name ?? "someone"}’s check-in for week ${w}.`);
 		const ch = checkInChange(existing, c, g, actor.id, newId("chg"));
 		if (!ch) {
@@ -24460,6 +24547,255 @@ function planChanges(input) {
 	}
 	return result;
 }
+// src/domain/year.ts
+var isYear = (c) => c.weeks >= 48;
+var MONTHS = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec"
+];
+/** The month the year starts in: the month of its first Thursday, so a year starting 29 Dec is a January year. */
+function startMonth(c) {
+	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 2592e5).getUTCMonth();
+}
+function quarters(c) {
+	if (!isYear(c)) return [{
+		n: 1,
+		label: c.name,
+		months: "",
+		from: 1,
+		to: c.weeks
+	}];
+	const m0 = startMonth(c);
+	return [
+		1,
+		2,
+		3,
+		4
+	].map((n) => ({
+		n,
+		label: `Q${n}`,
+		months: `${MONTHS[(m0 + 3 * (n - 1)) % 12]}–${MONTHS[(m0 + 3 * (n - 1) + 2) % 12]}`,
+		from: (n - 1) * 13 + 1,
+		to: n === 4 ? c.weeks : n * 13
+	}));
+}
+function quarterOf(c, week) {
+	const qs = quarters(c);
+	return qs.find((q) => week >= q.from && week <= q.to) ?? (week < 1 ? qs[0] : qs[qs.length - 1]);
+}
+/** "Week 43 of 52 · Q4 (Oct–Dec) · 2026", or "Week 7 of 13 · Platform cycle" for a shorter cycle. */
+function periodLabel(c, week) {
+	if (!isYear(c)) return `Week ${Math.max(0, week)} of ${c.weeks} · ${c.name}`;
+	const q = quarterOf(c, week);
+	return `Week ${Math.max(0, week)} of ${c.weeks} · ${q.label} (${q.months}) · ${c.name}`;
+}
+/** The plan's number at the end of a quarter (or the week given), for a number goal. */
+function targetAt(g, c, week) {
+	if (g.kind !== "metric") return null;
+	return planAt(g.plan, Math.min(week, planEnd(g.plan, c.weeks)), c.weeks);
+}
+/** How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. */
+function quarterResult(g, c, checkIns, q, week) {
+	const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
+	const last = own[own.length - 1];
+	const ended = week > q.to;
+	const r = (kind, text) => ({
+		quarter: q,
+		kind,
+		text: `${q.label}: ${text}`
+	});
+	if (g.kind === "metric") {
+		if ((g.plan.fromWeek ?? 0) >= q.to || planEnd(g.plan, c.weeks) < q.from) return r("none", "nothing planned");
+		const t = targetAt(g, c, q.to);
+		if (!ended) return r("open", `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(g.plan, c.weeks))}`);
+		const v = last?.value;
+		if (v == null) return r("missed", `no number reported against a plan of ${fmt(t, g)}`);
+		const up = g.plan.target >= g.plan.start;
+		const diff = Number((v - t).toFixed(g.decimals));
+		const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
+		return r(met ? "met" : "missed", `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? "" : `, ${fmtDiff(diff, g)} short`}`);
+	}
+	if (g.kind === "milestone") {
+		const due = g.stages.filter((s) => s.dueWeek >= q.from && s.dueWeek <= q.to);
+		if (!due.length) return r("none", "no stages due");
+		if (!ended) return r("open", `${due.length} ${due.length === 1 ? "stage" : "stages"} due`);
+		const done = due.filter((s) => last?.stages?.some((u) => u.stageId === s.id && u.doneWeek != null && u.doneWeek <= q.to));
+		return r(done.length === due.length ? "met" : "missed", `${done.length} of ${due.length} ${due.length === 1 ? "stage" : "stages"} due ${done.length === 1 ? "was" : "were"} done`);
+	}
+	if (!ended) return r("open", `must stay ${g.range.bound === "atMost" ? "at most" : "at least"} ${fmt(g.range.limit, g)}`);
+	const v = last?.value;
+	if (v == null) return r("missed", "no number reported");
+	const out = g.range.bound === "atMost" ? v > g.range.limit : v < g.range.limit;
+	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? "outside" : "inside"} the ${fmt(g.range.limit, g)} limit`);
+}
+function quarterResults(g, c, checkIns, week) {
+	if (!isYear(c)) return [];
+	return quarters(c).map((q) => quarterResult(g, c, checkIns, q, week));
+}
+// src/domain/story.ts
+var MEANING = {
+	on: "Will hit the target if it carries on: at least 95% of the progress planned by now.",
+	risk: "Could miss without a change: 80–95% of the planned progress, or close to a limit. The owner has said how it gets back.",
+	off: "Will miss without intervention: under 80% of the planned progress, a stage more than two weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.",
+	stale: "Gone quiet: no check-in for two weeks or more, so its status can’t be trusted.",
+	none: "Waiting for its first check-in.",
+	planned: "Not started: it starts this week.",
+	done: "Done: the owner has called it complete."
+};
+var RESULT_TEXT = {
+	completed: "Completed",
+	late: "Completed late",
+	missed: "Did not meet"
+};
+var RESULT_MEANING = {
+	completed: "Hit the target by its due date.",
+	late: "Hit the target, but after its due date.",
+	missed: "The due date passed without hitting the target."
+};
+/** The week a goal is due: its plan's end, its last stage, or the end of the cycle. */
+function dueWeekOf(g, cycle) {
+	if (g.kind === "metric") return planEnd(g.plan, cycle.weeks);
+	if (g.kind === "milestone") return Math.max(1, ...g.stages.map((s) => s.dueWeek));
+	return cycle.weeks;
+}
+/** Completed, Completed late or Did not meet; null while the goal isn't due yet and isn't complete. */
+function goalResult(g, cycle, checkIns, week) {
+	const own = checkInsFor(g, checkIns);
+	const due = dueWeekOf(g, cycle);
+	const make = (kind, at) => ({
+		kind,
+		dueWeek: due,
+		week: at,
+		text: kind === "completed" ? `Completed${at != null ? ` in week ${at}` : ""}` : kind === "late" ? `Completed late: week ${at}, due week ${due}` : `Did not meet: due week ${due}`
+	});
+	let hit = null;
+	if (g.kind === "metric") {
+		const up = g.plan.target >= g.plan.start;
+		const reached = (c) => c.value != null && (up ? c.value >= g.plan.target : c.value <= g.plan.target);
+		const doneCall = own.find((c) => c.status === "done");
+		if (doneCall && doneCall.week <= due) hit = doneCall.week;
+		else if (week > due || own.some((c) => c.week >= due)) {
+			const atDue = own.filter((c) => c.week <= due && c.value != null).pop();
+			hit = atDue && atDue.week >= due - 1 && reached(atDue) ? atDue.week : own.find((c) => c.week > due && (reached(c) || c.status === "done"))?.week ?? null;
+			if (hit == null && doneCall) hit = doneCall.week;
+		}
+	} else if (g.kind === "milestone") {
+		const done = own.find((c) => c.status === "done" || c.stages && g.stages.every((s) => c.stages.some((u) => u.stageId === s.id && u.doneWeek != null)));
+		if (done) {
+			const weeks = (done.stages ?? []).filter((u) => u.doneWeek != null).map((u) => u.doneWeek);
+			hit = weeks.length ? Math.max(...weeks) : done.week;
+		}
+	} else {
+		const doneCall = own.find((c) => c.status === "done");
+		if (doneCall) hit = doneCall.week;
+		else {
+			const end = own.filter((c) => c.week >= due && c.value != null).pop();
+			if (!end) return week > due ? make("missed", null) : null;
+			return (g.range.bound === "atMost" ? end.value > g.range.limit : end.value < g.range.limit) ? make("missed", end.week) : make("completed", end.week);
+		}
+	}
+	if (hit != null) return make(hit <= due ? "completed" : "late", hit);
+	return week > due ? make("missed", null) : null;
+}
+var BEHIND = ["off", "risk"];
+function storyOf(g, s, cycle, week, today) {
+	const st = goalStatus(g, cycle, s.checkIns, today);
+	const own = checkInsFor(g, s.checkIns);
+	const last = own[own.length - 1] ?? null;
+	const a = assessPosted(g, cycle, s.checkIns, week);
+	const first = s.people.find((p) => p.id === g.ownerId)?.name.split(" ")[0] ?? "The owner";
+	const status = st.status;
+	const behind = BEHIND.includes(status);
+	const result = goalResult(g, cycle, s.checkIns, week);
+	const warnings = [];
+	let since = null;
+	if (last && (behind || status === "on")) {
+		let k = own.length - 1;
+		while (k > 0 && own[k - 1].status === last.status) k--;
+		const from = own[k].week;
+		const n = own.length - k;
+		since = n >= 2 ? `Since week ${from}, ${n} check-ins running` : `Since week ${from}`;
+	}
+	if (status === "stale") since = last ? `No check-in for ${st.daysSinceCheckIn} days; last heard in week ${last.week}` : "No check-in yet";
+	const due = dueWeekOf(g, cycle);
+	let where = "";
+	if (g.kind === "metric" && a.kind === "metric") {
+		if (a.actual == null) where = `No number yet. Target ${fmt(g.plan.target, g)} by week ${due}.`;
+		else {
+			const diff = Number((a.actual - a.plan).toFixed(g.decimals));
+			where = `${fmt(a.actual, g)} in week ${a.week}, against a plan of ${fmt(a.plan, g)}${diff ? ` (${fmtDiff(diff, g)} ${diff > 0 ? "above" : "below"})` : ""}. Target ${fmt(g.plan.target, g)} by week ${due} (${weekDates(cycle, due)}).`;
+			if (status === "stale") where += ` The plan for this week is ${fmt(planAt(g.plan, week, cycle.weeks), g)}.`;
+		}
+	} else if (g.kind === "range" && a.kind === "range") {
+		const lim = (g.range.bound === "atMost" ? "at most " : "at least ") + fmt(g.range.limit, g);
+		where = a.actual == null ? `No number yet. Must stay ${lim}.` : `${fmt(a.actual, g)} in week ${a.week}; must stay ${lim}${a.out ? ", and it isn’t" : a.near ? ", and it’s close" : ""}.`;
+	} else if (g.kind === "milestone" && a.kind === "milestone") {
+		const late = a.late.map((x) => `${x.name} (due week ${x.dueWeek}, now expected week ${x.expectedWeek})`);
+		where = `${a.doneCount} of ${a.stages.length} stages done.${late.length ? ` Late: ${late.join("; ")}.` : ""}`;
+	}
+	if (isYear(cycle) && g.kind === "metric" && week >= 1 && week <= due) {
+		const q = quarterOf(cycle, week);
+		const end = Math.min(q.to, due);
+		if (end < due) where += ` ${q.label} plan: ${fmt(targetAt(g, cycle, end), g)} by week ${end}.`;
+	}
+	const quarters = quarterResults(g, cycle, s.checkIns, week);
+	const lastEnded = [...quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed");
+	const fc = forecastText(g, a, cycle.weeks);
+	const outlook = fc ? fc.text : null;
+	let why = null, doing = null, byWhen = null, needs = null;
+	const ptg = last?.pathToGreen ?? null;
+	if (behind && last) {
+		const reason = last.why && last.why !== "On plan." ? last.why : "";
+		why = [last.cause ? causeLabel(last.cause) : "", reason].filter(Boolean).join(". ") || null;
+		if (ptg) {
+			doing = ptg.what;
+			const state = ptg.state ?? "plan";
+			byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
+			needs = ptg.needs?.trim() || null;
+		}
+		if (!ptg) warnings.push("No recovery plan: it is behind and the owner hasn’t said how it gets back.");
+		if (ptg && ptg.byWeek != null && ptg.byWeek < week) warnings.push(`Missed its own date: said it would be back on plan by week ${ptg.byWeek}.`);
+		let k = own.length - 1;
+		while (k > 0 && BEHIND.includes(own[k - 1].status)) k--;
+		const firstDate = own.slice(k).map((c) => c.pathToGreen?.byWeek).find((w) => w != null);
+		if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warnings.push(`The date has slipped: first said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
+		const run = own.slice(k);
+		if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warnings.push(`The same cause three check-ins running: ${causeLabel(last.cause).toLowerCase()}.`);
+	}
+	if (st.greener && last && status !== "stale") warnings.push(`Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : "."}`);
+	if (status === "stale" && last) warnings.push(`Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}. Ask ${first} for an update.`);
+	if (fc?.warn && !behind && status !== "done") warnings.push("Called on track, but the recent trend misses the target.");
+	if (lastEnded?.kind === "missed" && !result) warnings.push(`Missed its ${lastEnded.text.replace(/^Q(\d): /, "Q$1 plan: ")}.`);
+	const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
+	const feeds = parent ? `Feeds ${parent.title}${parent.level !== "team" ? ` (${LEVEL_LABEL[parent.level]})` : ""}` : null;
+	const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
+	return {
+		status,
+		since,
+		where,
+		outlook,
+		why,
+		doing,
+		byWhen,
+		needs,
+		next: (behind || status === "on") && last?.next ? last.next : null,
+		warnings,
+		feeds,
+		result,
+		quarters,
+		label
+	};
+}
 // src/domain/review.ts
 /**
 * The owner's answer to a question from a review: their first comment or check-in on the goal after it
@@ -24514,7 +24850,8 @@ function summarise(goal, s, cycle, today, week) {
 		pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : "") : "",
 		needs: behind ? ptg?.needs ?? "" : "",
 		series: valueSeries(own),
-		checkIns: own
+		checkIns: own,
+		story: storyOf(goal, s, cycle, week, today)
 	};
 }
 function summariseAll(goals, s, cycle, today, week) {
@@ -24584,11 +24921,23 @@ var GOAL_EXPORT_COLUMNS = [
 ];
 var GOAL_DERIVED_COLUMNS = [
 	"Status",
+	"Result",
+	"Since",
 	"Now",
 	"Plan this week",
 	"Gap",
 	"Last check-in week",
-	"Forecast"
+	"Forecast",
+	"Why it’s off",
+	"What the owner will do",
+	"By when",
+	"Needs",
+	"Next step",
+	"Warnings",
+	"Q1",
+	"Q2",
+	"Q3",
+	"Q4"
 ];
 var CHECKIN_EXPORT_COLUMNS = [
 	"Goal ID",
@@ -24641,11 +24990,28 @@ function goalRow(s, all) {
 		g.source || null,
 		g.definition || null,
 		s.statusLabel,
+		s.story.result?.text ?? null,
+		s.story.since,
 		s.now,
 		s.planNow != null ? s.planNowText : null,
 		s.gap,
 		s.lastWeek,
-		s.forecast
+		s.forecast,
+		s.story.why,
+		s.story.doing,
+		s.story.byWhen,
+		s.story.needs,
+		s.story.next,
+		s.story.warnings.join(" ") || null,
+		...[
+			1,
+			2,
+			3,
+			4
+		].map((n) => {
+			const q = s.story.quarters.find((y) => y.quarter.n === n);
+			return !q || q.kind === "none" ? null : `${q.kind === "met" ? "Met" : q.kind === "missed" ? "Missed" : "Open"}: ${q.text.replace(/^Q\d: /, "")}`;
+		})
 	];
 }
 function checkInRows(x, sums, name) {
@@ -24748,8 +25114,32 @@ var README = [
 	],
 	[
 		"Goals",
-		"Status, Now, Plan this week, Gap, Last check-in week, Forecast",
+		"Status",
+		"On track: will hit the target if it carries on (95%+ of planned progress). At risk: could miss without a change (80–95%, or near a limit); the owner has said how it gets back. Off track: will miss without intervention (under 80%, a stage over two weeks late, or over a limit two weeks running). Stale: no check-in for two weeks or more.",
+		"Ignored"
+	],
+	[
+		"Goals",
+		"Result",
+		"Completed: hit the target by its due date. Completed late: hit it after the due date. Did not meet: the due date passed without hitting it.",
+		"Ignored"
+	],
+	[
+		"Goals",
+		"Why it’s off, What the owner will do, By when, Needs, Next step, Warnings",
+		"The owner’s latest account when a goal is behind, and anything the numbers would hide (a date that slipped, no recovery plan, a call greener than the numbers)",
+		"Ignored"
+	],
+	[
+		"Goals",
+		"Since, Now, Plan this week, Gap, Last check-in week, Forecast",
 		"Worked out by the app when exported",
+		"Ignored"
+	],
+	[
+		"Goals",
+		"Q1, Q2, Q3, Q4",
+		"Each quarter against the owner’s plan: Met, Missed, or Open while it runs. A quarter’s target is the plan’s number at its end.",
 		"Ignored"
 	],
 	[
@@ -24887,7 +25277,7 @@ function toJson(x) {
 		format: EXPORT_FORMAT,
 		version: 1,
 		exportedAt: x.today.toISOString(),
-		about: "Goals, their plans and weekly check-ins. \"status\" is the owner’s latest call, or stale after 14 days without a check-in. Weeks count from the cycle start (week 0).",
+		about: "Goals, their status and the owner’s account of it, plans and weekly check-ins. \"status\" is the owner’s latest call, or stale after 14 days without a check-in; statusMeaning says what it means. \"story\" says why a goal is off, what the owner will do and by when. \"result\" is set once a goal is due: completed, late or missed. Weeks count from the cycle start (week 0).",
 		workspace: {
 			id: x.ws.id,
 			name: x.ws.name
@@ -24897,7 +25287,16 @@ function toJson(x) {
 			name: x.cycle.name,
 			startDate: x.cycle.startDate,
 			weeks: x.cycle.weeks,
-			currentWeek: x.week
+			currentWeek: x.week,
+			...isYear(x.cycle) ? {
+				quarter: quarterOf(x.cycle, x.week).label,
+				quarters: quarters(x.cycle).map((q) => ({
+					label: q.label,
+					months: q.months,
+					from: q.from,
+					to: q.to
+				}))
+			} : {}
 		},
 		people: x.snapshot.people.map((p) => ({
 			id: p.id,
@@ -24958,16 +25357,39 @@ function toJson(x) {
 				now: {
 					status: s.status,
 					statusLabel: s.statusLabel,
+					statusMeaning: MEANING[s.status],
 					value: s.nowValue,
 					text: s.now,
 					planThisWeek: s.planNow,
 					gap: s.gap,
 					lastCheckInWeek: s.lastWeek,
-					forecast: s.forecast,
-					why: s.why || null,
-					pathToGreen: s.pathToGreen || null,
-					needs: s.needs || null
+					forecast: s.forecast
 				},
+				story: {
+					since: s.story.since,
+					where: s.story.where,
+					outlook: s.story.outlook,
+					whyItsOff: s.story.why,
+					whatTheOwnerWillDo: s.story.doing,
+					byWhen: s.story.byWhen,
+					needs: s.story.needs,
+					nextStep: s.story.next,
+					warnings: s.story.warnings,
+					feeds: s.story.feeds
+				},
+				quarters: s.story.quarters.filter((q) => q.kind !== "none").map((q) => ({
+					quarter: q.quarter.label,
+					months: q.quarter.months,
+					weeks: [q.quarter.from, q.quarter.to],
+					result: q.kind,
+					text: q.text
+				})),
+				result: s.story.result ? {
+					kind: s.story.result.kind,
+					label: RESULT_TEXT[s.story.result.kind],
+					dueWeek: s.story.result.dueWeek,
+					week: s.story.result.week
+				} : null,
 				checkIns: s.checkIns.map((c) => ({
 					week: c.week,
 					weekStarting: weekDate(x.cycle, c.week),
@@ -25010,46 +25432,134 @@ function toJson(x) {
 		}))
 	};
 }
-/** A short, readable brief to paste into an AI chat: what's off and why, then every goal by tree, then the weekly numbers. */
+/** One goal's story, given room: why it's off, what the owner will do, by when, what they need. */
+function storyBlock(sm, cycleWeeks) {
+	const st = sm.story;
+	const g = sm.goal;
+	const first = sm.owner.split(" ")[0] || "The owner";
+	const out = [];
+	const tags = [st.since, st.result ? st.result.text : null].filter(Boolean).join(" · ");
+	out.push(`### ${g.title}`);
+	out.push(`**${LABEL[sm.status]}**${tags ? ` · ${tags}` : ""} · ${sm.owner}, ${sm.team}${st.feeds ? ` · ${st.feeds}` : ""}`);
+	out.push("");
+	out.push(`- **Where it is:** ${st.where}`);
+	if (st.outlook) out.push(`- **Where it’s heading:** ${st.outlook}`);
+	if (sm.status === "stale") {
+		out.push(`- **What we know:** nothing new. ${st.warnings.join(" ")}`);
+		return [...out, ""];
+	}
+	out.push(`- **Why it’s ${sm.status === "off" ? "off track" : "at risk"}:** ${st.why ?? "Not given."}`);
+	out.push(`- **What ${first} will do:** ${st.doing ?? "Not given."}`);
+	out.push(`- **By when:** ${st.byWhen ?? "No date given."}`);
+	if (st.needs) out.push(`- **Needs:** ${st.needs}`);
+	if (st.next) out.push(`- **Next step:** ${st.next}`);
+	for (const w of st.warnings) out.push(`- ⚠ ${w}`);
+	return [...out, ""];
+}
+/** A report a leader can read top to bottom: the decisions waiting on people, then every goal that's off, at risk or quiet told in full, results, then the rest. */
 function aiBrief(x) {
 	const { goals, sums } = prepare(x);
 	const by = new Map(sums.map((s) => [s.goal.id, s]));
 	const count = (k) => sums.filter((s) => s.status === k).length;
 	const out = [];
-	out.push(`# Goals: ${x.ws.name}, ${x.cycle.name}`);
+	const off = sums.filter((s) => s.status === "off"), risk = sums.filter((s) => s.status === "risk"), quiet = sums.filter((s) => s.status === "stale");
+	const results = sums.filter((s) => s.story.result);
+	const asks = sums.filter((s) => s.story.needs && ["off", "risk"].includes(s.status));
+	const flagged = sums.filter((s) => s.story.warnings.length && s.status !== "stale");
+	out.push(`# Goals: ${x.ws.name}`);
 	out.push("");
-	out.push(`Week ${x.week} of ${x.cycle.weeks}. Exported ${x.today.toISOString().slice(0, 10)}. The status is the owner’s latest call; “stale” means no check-in for two weeks or more. Gaps compare the latest number with that week’s plan.`);
+	out.push(`${periodLabel(x.cycle, x.week)} (${weekDates(x.cycle, x.week)}). Exported ${x.today.toISOString().slice(0, 10)}.`);
 	out.push("");
-	const parts = [
-		"off",
+	const lead = [
+		`${sums.length} goals`,
+		off.length ? `${off.length} off track` : "",
+		risk.length ? `${risk.length} at risk` : "",
+		quiet.length ? `${quiet.length} gone quiet` : "",
+		count("on") ? `${count("on")} on track` : "",
+		count("done") ? `${count("done")} done` : ""
+	].filter(Boolean);
+	out.push(`**${lead.join(", ")}.**${asks.length ? ` ${asks.length} ${asks.length === 1 ? "owner needs" : "owners need"} a decision or help.` : ""}${flagged.length ? ` ${flagged.length} ${flagged.length === 1 ? "goal has" : "goals have"} a warning below.` : ""}`);
+	out.push("");
+	out.push("## How to read the status");
+	out.push("The status is the owner’s call each week, checked against the numbers; if the call is greener than the numbers, it says so.");
+	for (const k of [
+		"on",
 		"risk",
-		"stale",
-		"none",
+		"off",
+		"stale"
+	]) out.push(`- **${LABEL[k]}:** ${MEANING[k]}`);
+	for (const k of [
+		"completed",
+		"late",
+		"missed"
+	]) out.push(`- **${RESULT_TEXT[k]}:** ${RESULT_MEANING[k]}`);
+	out.push("");
+	if (asks.length) {
+		out.push("## Decisions and help needed");
+		for (const s of asks) out.push(`- **${s.story.needs}** · for ${s.goal.title} (${s.owner}, ${LABEL[s.status].toLowerCase()})`);
+		out.push("");
+	}
+	if (off.length) {
+		out.push("## Off track: will miss without intervention");
+		out.push("");
+		for (const s of off) out.push(...storyBlock(s, x.cycle.weeks));
+	}
+	if (risk.length) {
+		out.push("## At risk: could miss without a change");
+		out.push("");
+		for (const s of risk) out.push(...storyBlock(s, x.cycle.weeks));
+	}
+	if (quiet.length) {
+		out.push("## Gone quiet: no check-in for two weeks or more");
+		out.push("");
+		for (const s of quiet) out.push(...storyBlock(s, x.cycle.weeks));
+	}
+	const otherWarnings = sums.filter((s) => [
 		"on",
 		"done",
-		"planned"
-	].map((k) => [k, count(k)]).filter(([, n]) => n).map(([k, n]) => `${n} ${LABEL[k].toLowerCase()}`);
-	out.push(`**${sums.length} goals:** ${parts.join(", ") || "none"}.`);
-	out.push("");
-	const bad = sums.filter((s) => [
-		"off",
-		"risk",
-		"stale"
-	].includes(s.status));
-	if (bad.length) {
-		out.push("## Needs attention");
-		for (const s of bad) {
-			out.push(`- **${s.goal.title}** (${s.owner}, ${s.team}): ${s.statusLabel}. Now ${s.now}${s.planNow != null ? `, plan ${s.planNowText}` : ""}; ${s.gap}.`);
-			if (s.why) out.push(`  - Why: ${s.why}`);
-			if (s.pathToGreen) out.push(`  - Path to green: ${s.pathToGreen}`);
-			if (s.needs) out.push(`  - Needs: ${s.needs}`);
+		"none"
+	].includes(s.status) && s.story.warnings.length);
+	if (otherWarnings.length) {
+		out.push("## Worth a look");
+		for (const s of otherWarnings) out.push(`- **${s.goal.title}** (${s.owner}): ${s.story.warnings.join(" ")}`);
+		out.push("");
+	}
+	if (results.length) {
+		out.push("## Results");
+		for (const k of [
+			"missed",
+			"late",
+			"completed"
+		]) {
+			const list = results.filter((s) => s.story.result.kind === k);
+			if (!list.length) continue;
+			out.push(`**${RESULT_TEXT[k]}** (${list.length})`);
+			for (const s of list) out.push(`- ${s.goal.title} (${s.owner}): ${s.story.result.text}. ${s.story.where}`);
 		}
 		out.push("");
+	}
+	if (isYear(x.cycle)) {
+		const ended = quarters(x.cycle).filter((q) => x.week > q.to);
+		if (ended.length) {
+			out.push("## Quarters so far");
+			out.push("Each quarter’s target is read off the owner’s own plan: where the plan said the goal would be at the quarter’s end.");
+			for (const q of ended) {
+				const rs = sums.map((s) => ({
+					s,
+					r: s.story.quarters.find((y) => y.quarter.n === q.n)
+				})).filter((y) => y.r && (y.r.kind === "met" || y.r.kind === "missed"));
+				const missed = rs.filter((y) => y.r.kind === "missed");
+				out.push(`- **${q.label} (${q.months}):** ${rs.length - missed.length} of ${rs.length} met their plan.${missed.length ? ` Missed: ${missed.map((y) => `${y.s.goal.title} (${y.r.text.replace(/^Q\d: /, "")})`).join("; ")}.` : ""}`);
+			}
+			const now = quarterOf(x.cycle, x.week);
+			out.push(`- **${now.label} (${now.months}):** in progress, week ${x.week - now.from + 1} of ${now.to - now.from + 1}.`);
+			out.push("");
+		}
 	}
 	out.push("## Every goal, by what it feeds");
 	const line = (s, depth) => {
 		const lvl = s.goal.level !== "team" ? ` [${LEVEL_LABEL[s.goal.level]}]` : "";
-		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${lvl}: ${s.statusLabel}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
+		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
 	};
 	const seen = /* @__PURE__ */ new Set();
 	const walk = (g, depth) => {
@@ -25064,26 +25574,27 @@ function aiBrief(x) {
 	const ids = new Set(goals.map((g) => g.id));
 	const open = x.snapshot.decisions.filter((d) => ids.has(d.goalId) && (d.kind === "action" || d.kind === "ask" && !answerOf(d, x.snapshot)));
 	if (open.length) {
-		out.push("## Open questions and actions");
+		out.push("## Open questions and actions from reviews");
 		const name = (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? "someone";
 		for (const d of open) {
 			const g = goals.find((y) => y.id === d.goalId);
-			out.push(d.kind === "ask" ? `- Question for ${name(g.ownerId)} on ${g.title} (week ${d.week}): ${d.note}` : `- Action for ${name(d.assigneeId ?? g.ownerId)}${d.dueWeek ? ` by week ${d.dueWeek}` : ""} on ${g.title}: ${d.note}`);
+			out.push(d.kind === "ask" ? `- Question for ${name(g.ownerId)} on ${g.title} (week ${d.week}), not answered yet: ${d.note}` : `- Action for ${name(d.assigneeId ?? g.ownerId)}${d.dueWeek ? ` by week ${d.dueWeek}` : ""} on ${g.title}: ${d.note}`);
 		}
 		out.push("");
 	}
 	const withHistory = sums.filter((s) => s.checkIns.length);
 	if (withHistory.length) {
 		out.push("## Weekly history");
-		out.push("Week: number (owner’s call). Plan in brackets for number goals.");
+		out.push("Week: number [plan that week] (owner’s call), and the reason when it was behind.");
 		for (const s of withHistory) {
 			const g = s.goal;
-			const cells = s.checkIns.map((c) => {
+			out.push(`- **${g.title}**${g.kind !== "milestone" && g.unit ? ` (${g.unit})` : ""}`);
+			for (const c of s.checkIns) {
 				const v = g.kind === "milestone" ? `${(c.stages ?? []).filter((u) => u.doneWeek != null).length}/${g.stages.length} stages` : c.value == null ? "—" : String(c.value);
 				const plan = g.kind === "metric" ? ` [${Number(planAt(g.plan, c.week, x.cycle.weeks).toFixed(g.decimals))}]` : "";
-				return `w${c.week} ${v}${plan} (${LABEL[c.status].toLowerCase()})`;
-			});
-			out.push(`- ${g.title}${g.kind !== "milestone" && g.unit ? ` (${g.unit})` : ""}: ${cells.join("; ")}`);
+				const said = ["off", "risk"].includes(c.status) && c.why && c.why !== "On plan." ? `: ${c.why}` : "";
+				out.push(`  - w${c.week} ${v}${plan} (${LABEL[c.status].toLowerCase()})${said}${c.backfilled ? " (loaded later)" : ""}`);
+			}
 		}
 		out.push("");
 	}

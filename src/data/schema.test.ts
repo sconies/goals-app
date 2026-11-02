@@ -55,11 +55,11 @@ describe('database schema', () => {
   const reject = (q: string) => expect(db.query(q)).rejects.toThrow();
   it('allows one check-in per goal per week', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('dup', 'triage', 'maya', 7, 'on', 'on')`));
   it('allows an at-risk check-in that is still investigating, with no date', async () => {
-    await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('inv', 'triage', 'maya', 9, 'risk', 'risk', 'Looking into why intake doubled', 'investigating')`);
+    await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('inv', 'triage', 'maya', 49, 'risk', 'risk', 'Looking into why intake doubled', 'investigating')`);
   });
-  it('still needs a week when the owner says they have a plan', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('pl', 'triage', 'maya', 10, 'risk', 'risk', 'Pairing on the scope', 'plan')`));
-  it('refuses an at-risk check-in without a path to green', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x1', 'triage', 'maya', 8, 'risk', 'risk')`));
-  it('refuses a greener call without a reason', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x2', 'triage', 'maya', 8, 'on', 'off')`));
+  it('still needs a week when the owner says they have a plan', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('pl', 'triage', 'maya', 50, 'risk', 'risk', 'Pairing on the scope', 'plan')`));
+  it('refuses an at-risk check-in without a path to green', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x1', 'triage', 'maya', 51, 'risk', 'risk')`));
+  it('refuses a greener call without a reason', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x2', 'triage', 'maya', 51, 'on', 'off')`));
   it('allows several north-star goals in a cycle', async () => {
     const n = await db.query<{ n: number }>("select count(*)::int as n from okr_goals where level = 'north-star'");
     expect(n.rows[0]!.n).toBeGreaterThan(1);

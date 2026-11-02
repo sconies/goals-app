@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
+import { periodLabel } from '../domain/year';
 import { attentionList } from '../domain/attention';
 import { LEVEL_LABEL } from '../domain/format';
 import { wrapUpOpen } from '../domain/cycle';
@@ -55,7 +56,7 @@ export function GoalsScreen() {
       <div className="page-head row between">
         <span className="stack" style={{ gap: 2 }}>
           <h1 className="title-xl">Goals</h1>
-          <span className="hint">Week {app.week} of {app.cycle.weeks}, {app.cycle.name}</span>
+          <span className="hint">{periodLabel(app.cycle, app.week)}</span>
         </span>
         <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>

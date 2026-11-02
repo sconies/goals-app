@@ -1,10 +1,12 @@
-/* More example workspaces for the demo, built from short descriptions. Each one is seven weeks into a
-   13-week cycle, with check-ins, reasons, a review and some watches. Dates are relative to today; all
-   names and numbers are invented. */
+/* More example workspaces for the demo, built from short descriptions. Each is a 52-week goal year, in week 43,
+   with a year of check-ins, the reasons people gave, a review and some watches. The descriptions are written as
+   the last seven weeks (story weeks 1–7); yearStory.ts places them at the end of the year. Dates are relative to
+   today; all names and numbers are invented. */
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../domain/checkin';
 import { checkInChange, goalChange } from '../domain/changes';
 import type { Cause, Change, CheckIn, Cycle, Goal, Level, Person, Review, Snapshot, StageUpdate, Team, Watch, Workspace } from '../domain/types';
-import { seed, SEED_WEEK } from './seed';
+import { seed } from './seed';
+import { SEED_WEEK, STORY_OFFSET, steadyDraft, storyValue, toYear, YEAR_WEEKS, yearName } from './yearStory';
 
 const DAY = 86_400_000;
 
@@ -44,7 +46,8 @@ function mondayOf(d: Date): number {
 /** Turns a description into a full workspace: goals, check-in history, change log, watches and reviews. */
 export function buildExample(spec: ExampleSpec, today: Date): Snapshot {
   const start = mondayOf(today) - SEED_WEEK * 7 * DAY;
-  const cycle: Cycle = { id: 'cycle', name: spec.cycleName, startDate: new Date(start).toISOString().slice(0, 10), weeks: 13, reviewDay: spec.reviewDay };
+  const startDate = new Date(start).toISOString().slice(0, 10);
+  const cycle: Cycle = { id: 'cycle', name: yearName(startDate, YEAR_WEEKS), startDate, weeks: YEAR_WEEKS, reviewDay: spec.reviewDay };
   const people: Person[] = spec.people.map((p) => ({ ...p, initials: initials(p.name), admin: !!p.admin }));
   const goals: Goal[] = spec.goals.map((g, i): Goal => {
     const base = {
@@ -54,25 +57,30 @@ export function buildExample(spec: ExampleSpec, today: Date): Snapshot {
     };
     if (g.metric) return { ...base, kind: 'metric', unit: g.metric.unit, decimals: g.metric.decimals ?? 0, plan: { start: g.metric.start, target: g.metric.target, shape: g.metric.shape ?? 'straight' }, originalPlan: null, rebaselinedWeek: null };
     if (g.range) return { ...base, kind: 'range', unit: g.range.unit, decimals: g.range.decimals ?? 0, range: { bound: g.range.bound, limit: g.range.limit, margin: g.range.margin } };
-    return { ...base, kind: 'milestone', stages: (g.stages ?? []).map(([name, due], k) => ({ id: `${g.id}_s${k}`, name, dueWeek: due })) };
+    return { ...base, kind: 'milestone', stages: (g.stages ?? []).map(([name, due], k) => ({ id: `${g.id}_s${k}`, name, dueWeek: toYear(due) })) };
   });
   const postedAt = (week: number) => new Date(Math.max(start + week * 7 * DAY, Math.min(start + week * 7 * DAY + 2 * DAY + 10 * 3_600_000, today.getTime() - 60_000)));
 
   const checkIns: CheckIn[] = [];
   for (const g of goals) {
     const s = spec.goals.find((x) => x.id === g.id)!;
-    const weeks = g.kind === 'milestone' ? Array.from({ length: s.lastWeek ?? SEED_WEEK - 1 }, (_, k) => k + 1) : (s.values ?? []).map((_, k) => k + 1);
-    for (const week of weeks) {
-      const draft: Draft = emptyDraft(g, null);
+    const story = g.kind === 'milestone' ? s.lastWeek ?? 6 : (s.values ?? []).length;
+    for (let week = 1; week <= Math.min(STORY_OFFSET + story, SEED_WEEK); week++) {
+      const sw = week - STORY_OFFSET;
+      let draft: Draft = emptyDraft(g, null);
       if (g.kind === 'milestone') {
         draft.stages = g.stages.map((st, k): StageUpdate => {
-          const [, due, done, forecast] = s.stages![k]!;
+          const [, due0, done0, forecast0] = s.stages![k]!;
+          const due = toYear(due0), done = done0 == null ? null : toYear(done0), forecast = forecast0 == null ? null : toYear(forecast0);
           const isDone = done != null && done <= week;
           return { stageId: st.id, doneWeek: isDone ? done : null, forecastWeek: isDone ? null : forecast != null && week >= due - 1 ? forecast : null };
         });
-      } else draft.value = String(s.values![week - 1]);
+      } else if (sw >= 1) {
+        const v = s.values![sw - 1]!;
+        draft.value = String(g.kind === 'metric' ? storyValue(g.plan, g.decimals, sw, v) : v);
+      } else draft = steadyDraft(g, cycle, week, draft, checkIns, s.values?.[0]);
       const e = evaluate(g, cycle, week, draft, checkIns);
-      const note = e.reason === 'ahead' ? s.ahead : e.reason === 'behind' ? s.behind : undefined;
+      const note = sw >= 1 ? (e.reason === 'ahead' ? s.ahead : e.reason === 'behind' ? s.behind : undefined) : undefined;
       Object.assign(draft, note ?? (e.reason ? { cause: e.reason === 'ahead' ? 'early' : 'slower', why: e.reason === 'ahead' ? 'A change landed earlier than planned.' : 'Delivery is slower than planned this week.' } : {}));
       if (e.needsPath) Object.assign(draft, { ptgWhat: s.path?.what ?? 'Re-plan the work with the team this week.', ptgBy: Math.min(cycle.weeks, week + (s.path?.in ?? 3)), needs: s.path?.needs ?? '' });
       if (!e.reason && !draft.why) draft.why = 'On plan.';

@@ -84,7 +84,7 @@ describe('bulk changes', () => {
 
   it('loads past weeks as backfilled check-ins, judged by the same rules', () => {
     const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'lead') };
-    const rows = [1, 2, 3].map((w) => ({ ...rec({ 'Goal ID': 'lead', Week: String(w), Value: String(planAt((s.goals.find((g) => g.id === 'lead') as MetricGoal).plan, w, cycle.weeks).toFixed(2)) }), __row: String(w + 1) }));
+    const rows = [1, 2, 3].map((w) => ({ ...rec({ 'Goal ID': 'lead', Week: String(w), Value: String(planAt((s.goals.find((g) => g.id === 'lead') as MetricGoal).plan, w, cycle.weeks).toFixed(3)) }), __row: String(w + 1) }));
     const cs = planChanges(base('sam', { checkIns: rows }, { snapshot: fresh }));
     expect(cs.issues).toEqual([]);
     expect(cs.counts.backfilled).toBe(3);
@@ -109,7 +109,8 @@ describe('bulk changes', () => {
   });
 
   it('replaces a week already posted, and says whose it was', () => {
-    const cs = planChanges(base('elena', { checkIns: [rec({ 'Goal ID': 'lead', Week: '6', Value: '3.0', Call: 'On track' })] }));
+    const v = planAt((s.goals.find((g) => g.id === 'lead') as MetricGoal).plan, 6, cycle.weeks).toFixed(3);
+    const cs = planChanges(base('elena', { checkIns: [rec({ 'Goal ID': 'lead', Week: '6', Value: v, Call: 'On track' })] }));
     expect(cs.counts.replaced).toBe(1);
     expect(cs.issues.find((i) => i.severity === 'warning')!.message).toMatch(/Replaces Sam Patel’s check-in for week 6/);
   });

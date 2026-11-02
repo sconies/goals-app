@@ -319,6 +319,13 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const callRaw = norm(val(r, 'call'));
     const call = callRaw ? CALLS[callRaw] : null;
     if (callRaw && !call) { err('Check-ins', row, g.title, `Call “${val(r, 'call')}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`); continue; }
+    // A row that says what's already there is left alone: history that hasn't changed isn't judged again.
+    const existing = s.checkIns.find((c) => c.goalId === g.id && c.week === w) ?? null;
+    if (existing && (!call || existing.status === call)
+      && (g.kind === 'milestone' ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, 'value')))
+      && (!has(r, 'why') || val(r, 'why') === existing.why)) { unchanged++; ciOut.push(existing); continue; }
+    // A week before the plan was changed is judged against the plan that applied then.
+    const asOf: Goal = g.kind === 'metric' && g.originalPlan && g.rebaselinedWeek != null && w < g.rebaselinedWeek ? { ...g, plan: g.originalPlan } : g;
     const cause = causeOf(val(r, 'cause'));
     if (cause === undefined) { err('Check-ins', row, g.title, `Cause “${val(r, 'cause')}” isn’t one of: ${[...new Set([...CAUSES_BEHIND, ...CAUSES_AHEAD].map(([, l]) => l))].join(', ')}.`); continue; }
     const recRaw = norm(val(r, 'recovery'));
@@ -330,7 +337,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       ptgWhat: val(r, 'path to green'), ptgBy: by, ptgState: (recRaw && RECOVERY[recRaw]) || 'plan', needs: val(r, 'needs'),
       next: val(r, 'next step') || val(r, 'next'), dataFlagged: false,
     };
-    const e = evaluate(g, cycle, w, draft, ctx);
+    const e = evaluate(asOf, cycle, w, draft, ctx);
     if (!e.canPost) {
       const hint: Record<string, string> = {
         'this week’s value': 'a Value', 'a number for this week’s value': 'a number in Value', 'a possible value': 'a possible Value',
@@ -341,12 +348,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
       err('Check-ins', row, g.title, `Week ${w} needs ${e.missing.map((m) => hint[m] ?? m).join('; ')}.`);
       continue;
     }
-    const existing = s.checkIns.find((c) => c.goalId === g.id && c.week === w) ?? null;
     const backfilled = w < week;
     const due = new Date(Date.parse(weekDate(cycle, w) + 'T09:00:00Z') + cycle.reviewDay * 86_400_000);
     const at = backfilled && due.toISOString() < now ? due : new Date(now);
-    const c: CheckIn = { ...toCheckIn(g, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId('ci')), ...(backfilled ? { backfilled: true } : {}) };
-    if (existing && existing.value === c.value && existing.status === c.status && JSON.stringify(existing.stages) === JSON.stringify(c.stages) && existing.why === c.why) { unchanged++; ciOut.push(existing); continue; }
+    const c: CheckIn = { ...toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId('ci')), ...(backfilled ? { backfilled: true } : {}) };
     if (existing && existing.authorId !== actor.id) warn('Check-ins', row, g.title, `Replaces ${s.people.find((p) => p.id === existing.authorId)?.name ?? 'someone'}’s check-in for week ${w}.`);
     const ch = checkInChange(existing, c, g, actor.id, newId('chg'));
     if (!ch) { unchanged++; continue; }

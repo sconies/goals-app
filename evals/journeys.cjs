@@ -18,6 +18,27 @@ const url = (p) => BASE + '/demo' + p + (p.includes('?') ? '&' : '?') + 'today='
 /** The real app, with its data kept in this browser (the eval build has no Supabase). */
 const live = (p) => BASE + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=' + TODAY;
 const consoleErrors = [];
+/* The demo is a 52-week goal year in week 43; its story weeks 1–7 are year weeks 37–43. */
+const NOW = 43;
+const W = (storyWeek) => storyWeek + 36;
+/** The plan's number for a week, as src/domain/plan.ts works it out. */
+function planAt(plan, week, weeks = 52) {
+  const end = plan.endWeek ?? weeks;
+  const from = Math.min(plan.fromWeek ?? 0, end - 1);
+  if (week <= from) return plan.start;
+  if (week >= end) return plan.target;
+  if (plan.points?.length) {
+    const pts = [{ week: from, value: plan.start }, ...plan.points.filter((p) => p.week > from && p.week < end).sort((a, b) => a.week - b.week), { week: end, value: plan.target }];
+    const i = pts.findIndex((p) => p.week >= week);
+    const a = pts[i - 1], b = pts[i];
+    return a.value + (b.value - a.value) * ((week - a.week) / (b.week - a.week));
+  }
+  const n = end - from, w = Math.max(0, Math.min(n, week - from));
+  const prog = plan.shape === 'back' ? Math.pow(w / n, 1.5) : plan.shape === 'stepped' ? ((w >= Math.floor(n / 3) + 1 ? 1 : 0) + (w >= Math.floor((2 * n) / 3) + 1 ? 1 : 0) + (w >= n ? 1 : 0)) / 3 : w / n;
+  return plan.start + (plan.target - plan.start) * prog;
+}
+/** A value `ratio` of the way the plan expected by the week (1 = on plan), with the goal's decimals. */
+const valueAt = (g, week, ratio = 1) => (g.plan.start + ratio * (planAt(g.plan, week) - g.plan.start)).toFixed(g.decimals);
 let browser;
 
 function fail(msg) { throw new Error(msg); }
@@ -122,41 +143,46 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await h.checkpoint('home');
   await h.click(p.getByRole('link', { name: /Start check-in/ }));
   await h.progressShown('check-in');
-  await h.fill(p.getByLabel('This week’s value'), '70');
-  await see(p, 'above week-7 plan', 'the verdict names the week it compares with');
+  const s0 = await h.snapshot();
+  const g0 = (id) => s0.goals.find((g) => g.id === id);
+  const reviewV = String(Math.round(planAt(g0('review').plan, NOW)) + 2);
+  await h.fill(p.getByLabel('This week’s value'), reviewV);
+  await see(p, `above week-${NOW} plan`, 'the verdict names the week it compares with');
   await h.checkpoint('first goal');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Check-in saved');
   await h.checkpoint('posted');
   await h.click(p.getByRole('button', { name: /Next: / }));
   // Leave mid-way and come back: the typed value is restored.
-  await p.getByLabel('This week’s value').fill('2.9');
+  const leadV = valueAt(g0('lead'), NOW, 1.05);
+  await p.getByLabel('This week’s value').fill(leadV);
   await p.goto(url('/'));
   await see(p, 'Pick up where you left off', 'a draft is offered back on home');
   await p.getByRole('link', { name: /Pick up where you left off/ }).click();
   const restored = await p.getByLabel('This week’s value').inputValue();
-  if (restored !== '2.9') fail('the draft value was not restored');
+  if (restored !== leadV) fail('the draft value was not restored');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   // The last post is the only confirmation: what was saved, that the week is done, and a way on.
-  await see(p, 'checked in for week 7', 'the last post says the week is done');
+  await see(p, `checked in for week ${NOW}`, 'the last post says the week is done');
   h.set('finish', await p.getByRole('link', { name: 'Back to home' }).isVisible() && await p.getByRole('link', { name: 'View the goal' }).isVisible(), 'no way on from the confirmation');
   await h.checkpoint('done');
   let s = await h.snapshot();
-  const posts = s.changes.filter((c) => c.actorId === 'sam' && c.action === 'posted' && /week 7/.test(c.summary));
-  h.set('logged', posts.length === 2 && posts.every((c) => c.diffs.some((d) => d.field === 'Value')), `expected two logged week-7 posts by Sam, saw ${posts.length}`);
+  const posts = s.changes.filter((c) => c.actorId === 'sam' && c.action === 'posted' && new RegExp(`week ${NOW}:`).test(c.summary));
+  h.set('logged', posts.length === 2 && posts.every((c) => c.diffs.some((d) => d.field === 'Value')), `expected two logged week-${NOW} posts by Sam, saw ${posts.length}`);
   await p.goto(url('/'));
   await p.reload();
   await see(p, 'Your check-ins are in', 'posted check-ins survive a reload, and home moves on to the review Sam is in');
   // An update between check-ins is the same check-in flow, started from the goal page; it replaces the week's number and is logged.
   await p.goto(url('/goals/review'));
   await h.click(p.getByRole('link', { name: 'Post an update' }));
-  await see(p, 'You checked in for week 7 already', 'an update says it replaces this week’s check-in');
-  await h.fill(p.getByLabel('This week’s value'), '69');
+  await see(p, `You checked in for week ${NOW} already`, 'an update says it replaces this week’s check-in');
+  const reviewV2 = String(Number(reviewV) - 1);
+  await h.fill(p.getByLabel('This week’s value'), reviewV2);
   await h.click(p.getByRole('button', { name: 'Post update' }));
   await see(p, 'Update saved');
   s = await h.snapshot();
   const upd = s.changes.filter((c) => c.actorId === 'sam' && c.goalId === 'review' && c.action === 'edited').pop();
-  h.set('logged', !!upd && /update for week 7/.test(upd.summary) && upd.diffs.some((d) => d.field === 'Value' && d.from === '70%' && d.to === '69%'), 'the off-cycle update is not logged with the old and new number');
+  h.set('logged', !!upd && new RegExp(`update for week ${NOW}`).test(upd.summary) && upd.diffs.some((d) => d.field === 'Value' && d.from === reviewV + '%' && d.to === reviewV2 + '%'), 'the off-cycle update is not logged with the old and new number');
   await p.context().close();
 
   // Maya: behind plan. One question per screen: the number, then last week's note offered back.
@@ -165,7 +191,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.goto(url('/check-in'));
   await p.locator('.focus-foot button[type=submit]').click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Type this week’s number' }).isVisible(), 'an empty number says nothing');
-  await h.fill(p.getByLabel('This week’s value'), '29.0');
+  const sm = await h.snapshot();
+  await h.fill(p.getByLabel('This week’s value'), valueAt(sm.goals.find((g) => g.id === 'head'), NOW, 0.5));
   h.set('attention', await p.locator('.verdict[data-tone=off]').isVisible(), 'behind plan is not flagged in the verdict');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await see(p, 'Is last week’s note still true?', 'last week’s reason and path are offered back');
@@ -288,7 +315,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), 'min');
   await h.fill(p.getByLabel(/^Today \(week/), '90');
-  await h.fill(p.getByLabel(/Target \(week 13\)/), '45');
+  await h.fill(p.getByLabel(/Target \(week 52\)/), '45');
   await h.click(p.getByRole('button', { name: /Back-loaded/ }));
   if (!(await p.getByLabel('Plan preview').isVisible())) fail('no plan preview');
   await h.checkpoint('step 2');
@@ -458,7 +485,7 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.actorId === 'maya' && c.goalId === 'access' && c.diffs.some((d) => /SEC-88 fix/.test(d.to))), 'the comment is not in the change log');
   await p.goto(url('/goals/review'));
-  await see(p, 'Target changed in week 4: 75% → 95%', 'the re-baseline is explained on the chart');
+  await see(p, `Target changed in week ${W(4)}: 75% → 95%`, 'the re-baseline is explained on the chart');
   await p.context().close();
 }, ['errors', 'budget']);
 
@@ -467,7 +494,8 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   await p.goto(url('/'));
   await h.inView(p.getByRole('link', { name: /Start check-in/ }), 'entry', 'Start check-in');
   await h.click(p.getByRole('link', { name: /Start check-in/ }));
-  await h.fill(p.getByLabel('This week’s value'), '90');
+  const s7 = await h.snapshot();
+  await h.fill(p.getByLabel('This week’s value'), valueAt(s7.goals.find((g) => g.id === 'review'), NOW, 1.5));
   await h.click(p.getByRole('button', { name: 'Next' }));
   // Last week's reason is offered back; this week's is different, so edit it.
   await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
@@ -486,11 +514,11 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   await h.fill(p.getByLabel('Why change it?'), 'The merge queue cut lead time faster than planned; 1.5 days is reachable.');
   await h.checkpoint('edit');
   await h.click(p.getByRole('button', { name: 'Save changes' }));
-  await see(p, 'Target changed in week 7: 2.0 days → 1.5 days', 'the chart keeps the original plan and says when it changed');
+  await see(p, `Target changed in week ${NOW}: 2.0 days → 1.5 days`, 'the chart keeps the original plan and says when it changed');
   const s = await h.snapshot();
   const lead = s.goals.find((g) => g.id === 'lead');
   const c = s.changes.filter((x) => x.actorId === 'sam' && x.goalId === 'lead' && x.action === 'edited').pop();
-  h.set('logged', lead.plan.target === 1.5 && lead.originalPlan?.target === 2 && lead.rebaselinedWeek === 7 && !!c && c.diffs.some((d) => d.field === 'Target') && c.diffs.some((d) => d.field === 'Why' && /merge queue/.test(d.to)), 'the plan change is not applied, kept as original, or logged with its reason');
+  h.set('logged', lead.plan.target === 1.5 && lead.originalPlan?.target === 2 && lead.rebaselinedWeek === NOW && !!c && c.diffs.some((d) => d.field === 'Target') && c.diffs.some((d) => d.field === 'Why' && /merge queue/.test(d.to)), 'the plan change is not applied, kept as original, or logged with its reason');
   // Same browser, Tom, who watches this goal: Watching shows the change.
   await p.locator('.rolebar').getByRole('button', { name: 'Tom', exact: true }).click();
   await see(p, 'Good');
@@ -619,10 +647,10 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
 
 journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap up their goals, an admin starts the next cycle', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'maya'));
-  // Seed the example at week 7, then come back in week 12, when the wrap-up opens.
+  // Seed the example in week 43, then come back in week 51, when the wrap-up opens.
   await p.goto(url('/'));
   await p.locator('.hero').waitFor();
-  const late = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-12-02';
+  const late = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-12-22';
   await p.goto(late('/goals'));
   await h.inView(p.getByRole('link', { name: 'Wrap up', exact: true }), 'entry', 'Wrap up');
   await h.click(p.getByRole('link', { name: 'Wrap up', exact: true }));
@@ -648,10 +676,10 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   h.set('logged', s.retros.length === 2 && s.changes.filter((c) => c.entity === 'retro' && c.actorId === 'maya').length === 2, 'the retros are not saved and logged');
   // Elena, an admin, starts the next cycle.
   await p.locator('.rolebar').getByRole('button', { name: 'Elena', exact: true }).click();
-  await see(p, 'The cycle is ending', 'an admin is told the cycle is ending');
+  await see(p, 'The year is ending', 'an admin is told the year is ending');
   await p.goto(late('/retro'));
   await h.click(p.getByRole('button', { name: 'Start it' }));
-  await h.click(p.getByRole('button', { name: 'Start the next cycle' }));
+  await h.click(p.getByRole('button', { name: 'Start next year' }));
   await see(p, 'has started');
   s = await h.snapshot();
   const c2 = s.cycles.find((c) => c.id !== 'cycle');
@@ -752,13 +780,14 @@ journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without 
   await p.context().close();
 }, ['logged']);
 
-journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE'], 'Set a year goal and its plan numbers by hand', 12, async (h, device) => {
+journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year and its plan numbers by hand', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'kofi'));
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  await h.inView(p.getByRole('button', { name: /End of the year|A year from now/ }), 'entry', 'the choice of when the target is due');
-  await h.click(p.getByRole('button', { name: /End of the year|A year from now/ }));
+  await h.inView(p.getByRole('button', { name: 'Year end' }), 'entry', 'the choice of when the target is due');
+  h.set('attention', (await p.getByRole('button', { name: 'Year end' }).getAttribute('aria-pressed')) === 'true', 'a new goal is not due at the year end by default');
+  await h.click(p.getByRole('button', { name: 'Year end' }));
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Today \(week/), '20');
   await h.fill(p.getByLabel(/^Target \(week/), '90');
@@ -777,7 +806,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE'], 'Set a year goal and its plan numb
   await see(p, 'Plan and actual by week');
   const s = await h.snapshot();
   const g = s.goals.find((x) => x.title === 'Runbooks with an owner');
-  h.set('logged', !!g && g.plan.endWeek > 13 && g.plan.points?.some((pt) => pt.value === 30), 'the year end or the hand-set number was not saved');
+  h.set('logged', !!g && (g.plan.endWeek ?? 52) === 52 && g.plan.points?.some((pt) => pt.value === 30), 'the year end or the hand-set number was not saved');
   h.set('progress', true);
   h.set('finish', true);
   await p.context().close();
@@ -843,11 +872,11 @@ journey('U20', ['BULK-IMPORT'], 'Load a spreadsheet: a new goal, then its past w
   await see(p, 'Saved: 1 new goal');
   // Its past weeks: a week in the future is refused, and nothing saves until it's fixed.
   await p.goto(url('/import'));
-  await input.setInputFiles(csv('history.csv', 'Goal,Week,Value\nRunbooks with an owner,5,20\nRunbooks with an owner,6,20\nRunbooks with an owner,9,20\n'));
+  await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\nRunbooks with an owner,${NOW + 2},20\n`));
   await see(p, 'hasn’t happened yet', 'a future week was not refused');
   h.set('errors', await p.getByRole('button', { name: /^Save/ }).isDisabled(), 'Save was allowed with a row that needs fixing');
   await h.click(p.getByRole('button', { name: 'Choose another file' }));
-  await input.setInputFiles(csv('history.csv', 'Goal,Week,Value\nRunbooks with an owner,5,20\nRunbooks with an owner,6,20\n'));
+  await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\n`));
   await see(p, '2 check-ins (2 for past weeks)');
   h.set('attention', await p.getByText('Runbooks with an owner').first().isVisible(), 'the preview does not name the goal');
   await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
@@ -866,14 +895,17 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await p.goto(url('/'));
   await h.inView(p.getByRole('link', { name: /all your numbers in one table/ }), 'entry', 'the one-table check-in');
   await h.click(p.getByRole('link', { name: /all your numbers in one table/ }));
+  const s21 = await h.snapshot();
+  const g21 = (id) => s21.goals.find((g) => g.id === id);
+  const alertsV = valueAt(g21('alerts'), NOW, 1.02), cacheV = valueAt(g21('cache'), NOW, 1.05);
   const alerts = p.getByLabel(/Alerts auto-triaged by AIOps: this week’s number/);
-  await h.fill(alerts, '30');
+  await h.fill(alerts, valueAt(g21('alerts'), NOW, 0.4));
   // Behind plan: the row asks why, and won't post without it.
   await h.click(p.getByRole('button', { name: 'Post 1 check-in' }));
   await see(p, 'needs a reason or a path to green');
   h.set('errors', true);
-  await h.fill(alerts, '42');
-  await h.fill(p.getByLabel(/Build cache hit rate: this week’s number/), '66');
+  await h.fill(alerts, alertsV);
+  await h.fill(p.getByLabel(/Build cache hit rate: this week’s number/), cacheV);
   await h.checkpoint('grid');
   h.set('progress', (await p.locator('.qstatus .chip').count()) === 2, 'each row does not show its status as you type');
   await h.click(p.getByRole('button', { name: 'Post 2 check-ins' }));
@@ -889,7 +921,7 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await h.click(p.getByRole('dialog').getByRole('button', { name: 'Save' }));
   await see(p, 'Saved: 2 goals changed');
   const s = await h.snapshot();
-  const posted = s.checkIns.filter((c) => c.week === 7 && ((c.goalId === 'alerts' && c.value === 42) || (c.goalId === 'cache' && c.value === 66)));
+  const posted = s.checkIns.filter((c) => c.week === NOW && ((c.goalId === 'alerts' && c.value === Number(alertsV)) || (c.goalId === 'cache' && c.value === Number(cacheV))));
   h.set('finish', posted.length === 2 && ['alerts', 'cache'].every((id) => s.goals.find((g) => g.id === id).level === 'svp'), 'the check-ins or the level change were not saved');
   h.set('attention', true);
   h.set('logged', s.changes.filter((c) => c.diffs.some((d) => d.field === 'Via' && d.to === 'Bulk edit')).length >= 4, 'bulk changes were not logged on each goal');
@@ -934,6 +966,30 @@ journey('U22', ['MCP-TOKENS'], 'An admin gives a teammate a token for an AI assi
   h.set('progress', true);
   await p.context().close();
 }, ['entry']);
+
+journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter met or missed, and the year’s history', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'elena'));
+  await p.goto(url('/goals'));
+  await see(p, 'Week 43 of 52 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
+  await h.inView(p.getByText('Week 43 of 52 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
+  await p.goto(url('/goals/scan'));
+  const strip = p.getByRole('region', { name: 'This year by quarter' });
+  await strip.waitFor();
+  const cells = await strip.locator('li').allInnerTexts();
+  h.set('attention', cells.length === 4 && cells.slice(0, 3).every((t) => /Met/.test(t) && /against a plan of/.test(t)) && /Now/.test(cells[3]), `the quarters read: ${cells.join(' | ')}`);
+  await h.checkpoint('quarters');
+  // The history grid shows this quarter by default, or the whole year.
+  await p.goto(url('/goals?view=history'));
+  const grid = p.locator('.hgrid').first();
+  await grid.waitFor();
+  const quarterCols = await grid.locator('thead th').count();
+  await h.click(p.getByRole('button', { name: 'Whole year' }));
+  const yearCols = await p.locator('.hgrid').first().locator('thead th').count();
+  h.set('progress', quarterCols === 14 && yearCols === 53, `expected 13 then 52 week columns, saw ${quarterCols - 1} then ${yearCols - 1}`);
+  await h.checkpoint('year grid');
+  h.set('finish', true);
+  await p.context().close();
+}, ['errors', 'logged', 'budget']);
 
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
