@@ -2,7 +2,7 @@
    with its requirement ID, so the scorecard can say which requirements hold. */
 import { describe, expect, it } from 'vitest';
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../src/domain/checkin';
-import { blankGoal, buildGoal, validateGoal } from '../src/domain/goal';
+import { blankGoal, buildGoal, draftOf, goalAsOf, validateGoal } from '../src/domain/goal';
 import { forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
@@ -174,3 +174,25 @@ describe('the demo story holds on any day', () => {
     });
   }
 });
+
+describe('numbers people can trust (research round 1)', () => {
+  const d = (value: string): Draft => ({ ...emptyDraft(up, null), value });
+  it(R('HONEST-NUMBERS', 'a share can’t be over 100%: 150% on a 20%→72% goal is refused'), () => {
+    expect(evaluate(up, cycle, 5, d('150'), []).missing).toContain('a possible value');
+  });
+  it(R('HONEST-NUMBERS', 'a percentage goal planned past 100% (growth) may report over 100%'), () => {
+    const growth: MetricGoal = { ...up, id: 'g', plan: { start: 100, target: 180, shape: 'straight' } };
+    expect(evaluate(growth, cycle, 5, d('130'), []).missing).not.toContain('a possible value');
+  });
+  it(R('HONEST-NUMBERS', 'letters are not a number, and say so before anything else'), () => {
+    expect(evaluate(up, cycle, 5, d('abc'), []).missing[0]).toBe('a number for this week’s value');
+  });
+  it(R('HONEST-NUMBERS', 'a re-plan keeps every earlier plan; each week is judged against the plan of its day'), () => {
+    const first = buildGoal({ ...draftOfUp(), target: '80' }, cycle, { id: 'up', createdAt: '' }, up, true, 4) as MetricGoal;
+    const second = buildGoal({ ...draftOfUp(), target: '90' }, cycle, { id: 'up', createdAt: '' }, first, true, 8) as MetricGoal;
+    expect(goalAsOf(second, 3).plan.target).toBe(72);
+    expect(goalAsOf(second, 6).plan.target).toBe(80);
+    expect(goalAsOf(second, 9).plan.target).toBe(90);
+  });
+});
+function draftOfUp() { return draftOf(up); }

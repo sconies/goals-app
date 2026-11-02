@@ -44,6 +44,8 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
   const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
   const [onlyAttention, setOnlyAttention] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  // Opened from the keyboard: the panel takes focus, and closing it gives focus back to the goal on the map.
+  const fromKeys = useRef<HTMLElement | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set<string>());
   const [moved, setMoved] = useState(() => readPos(app.ws.id));
   const canvas = useRef<HTMLDivElement>(null);
@@ -55,7 +57,7 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
   const order = useCallback((a: Goal, b: Goal) => RANK[statusOf(b)] - RANK[statusOf(a)] || a.title.localeCompare(b.title), [statusOf]);
   const placed = useMemo(() => (phone ? layoutIndented : layout)(goals, { collapsed, only, order }), [goals, collapsed, only, order, phone]);
   const nodes: Node<GoalNodeData>[] = useMemo(() => placed.map((n) => ({
-    id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected,
+    id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected, domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
     ariaLabel: `${n.goal.title}: ${LABEL[statusOf(n.goal)]}${critical.has(n.id) ? ', on the critical path' : ''}`,
     data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? RESULT_TEXT[r.kind] : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), onToggle: toggle },
   })), [placed, moved, selected, statusOf, critical, app, toggle]);
@@ -88,7 +90,7 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
         <div className="map-legend" aria-label="Map key">
           <span><i className="key-line" /> Feeds into</span>
           <span><i className="key-line dotted" /> Also helps</span>
-          <span><i className="key-line critical" /> Critical path: most likely to make it miss</span>
+          <span><i className="key-line critical" /> Critical path: most likely to make it miss, from status (off track, at risk, gone quiet) and how much each goal feeds the one above</span>
         </div>
         <span className="row" style={{ gap: 'var(--s2)' }}>
           <label className="check small"><input type="checkbox" checked={onlyAttention} onChange={(e) => setOnlyAttention(e.target.checked)} /> Only what needs attention</label>
@@ -97,7 +99,14 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
         </span>
       </div>
       <div className="map-body">
-        <div className="map-canvas" ref={canvas} style={{ height }} role="region" aria-label="Goal map. Drag to move around, scroll or pinch to zoom, Tab to move between goals.">
+        <div className="map-canvas" ref={canvas} style={{ height }} role="region" aria-label="Goal map. Drag to move around, scroll or pinch to zoom, Tab to move between goals, Enter to open one."
+          onKeyDown={(e) => {
+            const node = (e.target as HTMLElement).closest<HTMLElement>('.react-flow__node');
+            if (!node || (e.key !== 'Enter' && e.key !== ' ')) return;
+            e.preventDefault();
+            fromKeys.current = node;
+            setSelected(node.dataset.id ?? null);
+          }}>
           <ReactFlow
             key={(onlyAttention ? 'a' : 'all') + collapsed.size}
             nodes={nodes} edges={links} nodeTypes={nodeTypes} minZoom={0.2} maxZoom={1.6}
@@ -111,28 +120,35 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
               const zoom = phone ? Math.min(1, (box.width - 24) / (Math.max(...placed.map((n) => n.x)) + NODE_W)) : Math.max(0.7, Math.min(1, (box.width - 48) / (maxX - minX), (box.height - 64) / (maxY - minY)));
               void rf.setViewport(phone ? { zoom, x: 12, y: 16 - minY * zoom } : { zoom, x: box.width / 2 - ((minX + maxX) / 2) * zoom, y: 32 - minY * zoom });
             }}
-            nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }}
-            onNodeClick={(_, n) => setSelected(n.id)} onPaneClick={() => setSelected(null)}
+            nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
+            onNodeClick={(_, n) => { fromKeys.current = null; setSelected(n.id); }} onPaneClick={() => setSelected(null)}
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
           >
             <Background gap={24} size={1} />
             <Controls showInteractive={false} position="bottom-right" />
           </ReactFlow>
         </div>
-        {sel && <MapPanel goal={sel} onClose={() => setSelected(null)} critical={critical.has(sel.id)} />}
+        {sel && <MapPanel goal={sel} focus={!!fromKeys.current} critical={critical.has(sel.id)} onClose={() => {
+          const back = fromKeys.current;
+          setSelected(null);
+          fromKeys.current = null;
+          back?.focus();
+        }} />}
       </div>
     </div>
   );
 }
 
-function MapPanel({ goal, onClose, critical }: { goal: Goal; onClose: () => void; critical: boolean }) {
+function MapPanel({ goal, onClose, critical, focus }: { goal: Goal; onClose: () => void; critical: boolean; focus: boolean }) {
   const app = useApp();
+  const title = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (focus) title.current?.focus(); }, [focus, goal.id]);
   const s = summarise(goal, app.snapshot, app.cycle, app.today, app.week);
   const feeds = app.snapshot.goals.filter((g) => g.parentId === goal.id);
   return (
-    <aside className="map-panel" aria-label={goal.title}>
+    <aside className="map-panel" aria-label={goal.title} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div className="row between nowrap"><Chip k={s.status} /><button type="button" className="iconbtn" aria-label="Close" onClick={onClose}>✕</button></div>
-      <h2 className="block-title">{goal.title}</h2>
+      <h2 className="block-title" ref={title} tabIndex={-1}>{goal.title}</h2>
       <span className="hint">{s.owner} · {s.team}{s.story.feeds ? ` · ${s.story.feeds}` : ''}</span>
       {critical && <span className="small tone-off strong">On the critical path</span>}
       <span className="small">{s.story.where}</span>

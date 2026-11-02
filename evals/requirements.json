@@ -290,6 +290,11 @@
       "id": "RESEARCH",
       "area": "Research",
       "text": "A research hub for people and AI agents: what the app is for, a note that access control is deliberately not built yet, eleven goal-framed tasks, the protocol (first glance, think aloud, every flow and screen, try to break it, evidence and severity), and a report to paste or upload. While a session runs, a research bar asks a first-glance question on each new screen, pins notes to any part of a screen, and records each task as done, stuck or gave up with confidence. Notes are kept in the browser and sent to a table that can’t be read back through the app."
+    },
+    {
+      "id": "HONEST-NUMBERS",
+      "area": "Trust",
+      "text": "Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week."
     }
   ],
   "notYetBuilt": [
@@ -374,6 +379,12 @@
       "title": "Demo: pick a role, look around, start over, leave",
       "who": "Anyone evaluating the tool",
       "budget": 4
+    },
+    {
+      "id": "U30",
+      "title": "Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh",
+      "who": "A goal owner and a leader",
+      "budget": 16
     }
   ],
   "easeCriteria": [

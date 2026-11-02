@@ -1,6 +1,7 @@
 /* Goal reviews: the list, setting one up, and a review's session (start or continue, progress, what was said).
    Walking the goals happens on the goal pages themselves (see Inspect). */
 import { useMemo, useState } from 'react';
+import { useDraft } from '../app/drafts';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
@@ -177,11 +178,12 @@ export function ReviewEdit() {
   const nav = useNavigate();
   const { reviewId } = useParams();
   const existing = reviewId ? app.snapshot.reviews.find((r) => r.id === reviewId) ?? null : null;
-  const [r, setR] = useState<ReviewT>(() => existing ?? { id: newId('rev'), name: '', everyWeeks: 1, weekday: app.cycle.reviewDay, scope: { goals: [], trees: [], levels: [] }, people: [app.viewer.id], createdBy: app.viewer.id, createdAt: app.stamp() });
+  // Kept as you type, like a goal's draft, so a refresh or a wrong turn doesn't lose a half-set-up review.
+  const [r, setDraft, clearDraft, restored] = useDraft<ReviewT>(`${app.ws.id}:review:${reviewId ?? 'new'}`, () => existing ?? { id: newId('rev'), name: '', everyWeeks: 1, weekday: app.cycle.reviewDay, scope: { goals: [], trees: [], levels: [] }, people: [app.viewer.id], createdBy: app.viewer.id, createdAt: app.stamp() });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
-  const set = (p: Partial<ReviewT>) => setR((x) => ({ ...x, ...p }));
+  const set = (p: Partial<ReviewT>) => setDraft(p);
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const covered = useMemo(() => goalsIn(r.scope, app.snapshot.goals), [r.scope, app.snapshot.goals]);
   const tops = outcomeTrees(app.snapshot.goals, worstFirst(app)).trees.map((t) => t.goal);
@@ -193,6 +195,7 @@ export function ReviewEdit() {
     setBusy(true);
     try {
       await app.saveReview({ ...r, name: r.name.trim() }, existing);
+      clearDraft();
       app.toast(existing ? 'Review saved' : `Set up ${r.name.trim()}`);
       nav(`/reviews/${r.id}`);
     } catch { setBusy(false); }
@@ -203,9 +206,10 @@ export function ReviewEdit() {
       <div className="focus-top">
         <span className="small strong">{existing ? 'Change review' : 'Set up a review'}</span>
         <span />
-        <button className="iconbtn" onClick={() => nav(existing ? `/reviews/${existing.id}` : '/reviews')} aria-label="Close without saving">✕</button>
+        <button className="iconbtn" onClick={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} aria-label="Close without saving">✕</button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+        {restored && <p className="hint">Picked up where you left off. Close to throw these changes away.</p>}
         <label className="field"><span className="field-label">Name</span>
           <input className={'input' + (tried && !r.name.trim() ? ' invalid' : '')} autoFocus={!existing} value={r.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform monthly" />
         </label>

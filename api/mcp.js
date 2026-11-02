@@ -21557,6 +21557,7 @@ function goalToRows(ws, g) {
 			plan_points: g.kind === "metric" && g.plan.points?.length ? g.plan.points : null,
 			original_plan: g.kind === "metric" ? g.originalPlan : null,
 			rebaselined_week: g.kind === "metric" ? g.rebaselinedWeek : null,
+			plan_history: g.kind === "metric" && g.planHistory?.length ? g.planHistory : null,
 			range_bound: g.kind === "range" ? g.range.bound : null,
 			range_limit: g.kind === "range" ? g.range.limit : null,
 			range_margin: g.kind === "range" ? g.range.margin : null,
@@ -21573,6 +21574,17 @@ function goalToRows(ws, g) {
 		})) : []
 	};
 }
+var planOf = (op) => ({
+	start: Number(op.start),
+	target: Number(op.target),
+	shape: op.shape,
+	...op.fromWeek != null ? { fromWeek: Number(op.fromWeek) } : {},
+	...op.endWeek != null ? { endWeek: Number(op.endWeek) } : {},
+	...op.points?.length ? { points: op.points.map((p) => ({
+		week: Number(p.week),
+		value: Number(p.value)
+	})) } : {}
+});
 function goalFromRows(r, stageRows) {
 	const common = {
 		id: r.id,
@@ -21611,18 +21623,12 @@ function goalFromRows(r, stageRows) {
 					value: Number(p.value)
 				})) } : {}
 			},
-			originalPlan: op ? {
-				start: Number(op.start),
-				target: Number(op.target),
-				shape: op.shape,
-				...op.fromWeek != null ? { fromWeek: Number(op.fromWeek) } : {},
-				...op.endWeek != null ? { endWeek: Number(op.endWeek) } : {},
-				...op.points?.length ? { points: op.points.map((p) => ({
-					week: Number(p.week),
-					value: Number(p.value)
-				})) } : {}
-			} : null,
-			rebaselinedWeek: r.rebaselined_week
+			originalPlan: op ? planOf(op) : null,
+			rebaselinedWeek: r.rebaselined_week,
+			...r.plan_history?.length ? { planHistory: r.plan_history.map((v) => ({
+				untilWeek: Number(v.untilWeek),
+				plan: planOf(v.plan)
+			})) } : {}
 		};
 	}
 	if (r.kind === "range") return {
@@ -21981,7 +21987,8 @@ function weekDates(cycle, week) {
 		...month ? { month: "short" } : {},
 		timeZone: "UTC"
 	});
-	return a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
+	const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
+	return b.getUTCFullYear() !== Number(cycle.startDate.slice(0, 4)) ? `${range} ${b.getUTCFullYear()}` : range;
 }
 // src/domain/status.ts
 var RANK = {
@@ -22240,8 +22247,19 @@ function parseNumber(s) {
 	const n = Number(t);
 	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
 }
+/** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
+function withinHundred(goal) {
+	if (!goal) return false;
+	if (goal.kind === "metric") return [
+		goal.plan.start,
+		goal.plan.target,
+		...(goal.plan.points ?? []).map((p) => p.value)
+	].every((v) => v >= 0 && v <= 100);
+	if (goal.kind === "range") return goal.range.limit >= 0 && goal.range.limit <= 100;
+	return false;
+}
 /** Why a typed value can't be used, or a check worth making before posting it. */
-function valueProblem(raw, last, unit) {
+function valueProblem(raw, last, unit, goal) {
 	if (!raw.trim()) return {
 		block: true,
 		text: "Type this week’s number."
@@ -22255,7 +22273,10 @@ function valueProblem(raw, last, unit) {
 		block: true,
 		text: `It can’t be below zero${unit ? " " + unit : ""}.`
 	};
-	if (unit === "%" && n > 100) return {
+	if (unit === "%" && n > 100) return withinHundred(goal) ? {
+		block: true,
+		text: "It can’t be over 100%: this goal measures a share of something."
+	} : {
 		block: false,
 		text: "That’s over 100%. Is that right?"
 	};
@@ -22288,7 +22309,7 @@ function evaluate(goal, cycle, week, draft, all) {
 	const needsPath = status === "risk" || status === "off";
 	const missing = [];
 	if (goal.kind !== "milestone" && value == null) missing.push(draft.value.trim() ? "a number for this week’s value" : "this week’s value");
-	else if (goal.kind !== "milestone" && valueProblem(draft.value, null, goal.unit)?.block) missing.push("a possible value");
+	else if (goal.kind !== "milestone" && valueProblem(draft.value, null, goal.unit, goal)?.block) missing.push("a possible value");
 	if (greener && draft.greenerWhy.trim().length < 10) missing.push("why your call is greener");
 	if (reason && (!draft.cause || draft.why.trim().length < 10)) missing.push(reason === "ahead" ? "why it’s ahead" : "why it’s behind");
 	const planned = (draft.ptgState ?? "plan") === "plan";
@@ -24059,26 +24080,17 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 			...existing?.kind === "metric" ? existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {} : week > 0 ? { fromWeek: week } : {},
 			...end != null && end !== cycle.weeks ? { endWeek: end } : {}
 		}, d.points, cycle.weeks);
-		let originalPlan = null, rebaselinedWeek = null;
-		if (existing?.kind === "metric") {
-			originalPlan = existing.originalPlan;
-			rebaselinedWeek = existing.rebaselinedWeek;
-			if (planChanged(existing, {
-				...existing,
-				plan
-			}) && checkInsStarted) {
-				originalPlan = existing.originalPlan ?? existing.plan;
-				rebaselinedWeek = week;
-			}
-		}
+		const history = existing?.kind === "metric" ? replanned(existing, plan, checkInsStarted, week) : {
+			originalPlan: null,
+			rebaselinedWeek: null
+		};
 		return {
 			...common,
 			kind: "metric",
 			unit: d.unit.trim(),
 			decimals: num(d.decimals),
 			plan,
-			originalPlan,
-			rebaselinedWeek
+			...history
 		};
 	}
 	if (d.kind === "range") return {
@@ -24123,6 +24135,53 @@ function withPoints(plan, typed, weeks) {
 	return {
 		...base,
 		points
+	};
+}
+/** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
+function planHistoryOf(g) {
+	if (g.planHistory?.length) return g.planHistory;
+	return g.originalPlan && g.rebaselinedWeek != null ? [{
+		untilWeek: g.rebaselinedWeek,
+		plan: g.originalPlan
+	}] : [];
+}
+/**
+* What a number goal's plan fields become when its plan changes. Once check-ins have started, the plan being replaced is
+* kept with the week it stopped applying, so earlier weeks and closed quarters stay judged against the plan of their day.
+* Two changes in the same week keep the plan from before the first.
+*/
+function replanned(existing, plan, started, week) {
+	const history = planHistoryOf(existing);
+	const keep = {
+		originalPlan: existing.originalPlan,
+		rebaselinedWeek: existing.rebaselinedWeek,
+		...history.length ? { planHistory: history } : {}
+	};
+	if (!started || !planChanged(existing, {
+		...existing,
+		plan
+	})) return keep;
+	const next = history.at(-1)?.untilWeek === week ? history : [...history, {
+		untilWeek: week,
+		plan: existing.plan
+	}];
+	return {
+		originalPlan: existing.originalPlan ?? existing.plan,
+		rebaselinedWeek: week,
+		planHistory: next
+	};
+}
+/** The plan that applied in a given week. */
+function planAsOf(g, week) {
+	return planHistoryOf(g).find((v) => week < v.untilWeek)?.plan ?? g.plan;
+}
+/** The goal as it was planned in a given week: number goals take the plan that applied then; others are unchanged. */
+function goalAsOf(g, week) {
+	if (g.kind !== "metric") return g;
+	const plan = planAsOf(g, week);
+	return plan === g.plan ? g : {
+		...g,
+		plan
 	};
 }
 // src/domain/importer.ts
@@ -24289,7 +24348,6 @@ function planChanges(input) {
 			const same = [...work.values()].find((g) => norm(g.title) === norm(title));
 			if (same) return err("Goals", row, title, `A goal called “${same.title}” already exists. Put its ID in the ID column to change it, or give this one another name.`);
 		}
-		if (existing && !canChange(existing)) return err("Goals", row, existing.title, notYours(existing));
 		const ownerName = val(r, "owner");
 		const owner = ownerName ? person(ownerName) : null;
 		if (ownerName && !owner) return err("Goals", row, title || existing?.title || "", `“${ownerName}” isn’t in this workspace. Add them under Workspace first, or check the spelling.`);
@@ -24425,7 +24483,6 @@ function planChanges(input) {
 		const g = work.get(id);
 		if (!g) return err("Plan", row, val(r, "goal") || id, `There’s no goal with ID ${id}.`);
 		if (g.kind !== "metric") return err("Plan", row, g.title, "Only number goals have plan numbers.");
-		if (!canChange(g)) return err("Plan", row, g.title, notYours(g));
 		const from = g.plan.fromWeek ?? 0, end = planEnd(g.plan, cycle.weeks);
 		const typed = /* @__PURE__ */ new Map();
 		for (const [k, v] of Object.entries(r)) {
@@ -24440,6 +24497,7 @@ function planChanges(input) {
 			if (!touched.has(id)) unchanged++;
 			return;
 		}
+		if (!canChange(g)) return err("Plan", row, g.title, notYours(g));
 		const target = typed.get(end) ?? g.plan.target;
 		if (target === g.plan.start) return err("Plan", row, g.title, "The target has to differ from the start.");
 		const points = [...typed].filter(([w]) => w > from && w < end).sort((a, b) => a[0] - b[0]).map(([week, value]) => ({
@@ -24453,17 +24511,10 @@ function planChanges(input) {
 		};
 		const before = touched.get(id)?.before ?? s.goals.find((x) => x.id === id);
 		const original = before;
-		const rebase = started(id) && planChanged(original, {
-			...original,
-			plan
-		});
 		const next = {
 			...g,
 			plan,
-			...rebase ? {
-				originalPlan: original.originalPlan ?? original.plan,
-				rebaselinedWeek: week
-			} : {}
+			...replanned(original, plan, started(id), week)
 		};
 		work.set(id, next);
 		const t = touched.get(id);
@@ -24488,6 +24539,10 @@ function planChanges(input) {
 		const ch = goalChange(t.before, after, lookup, actor.id, now, newId("chg"));
 		if (!ch) {
 			unchanged++;
+			continue;
+		}
+		if (t.before && !canChange(t.before)) {
+			err(t.sheet, t.row, t.before.title, notYours(t.before));
 			continue;
 		}
 		const needs = !!t.before && t.plan && started(id);
@@ -24527,10 +24582,6 @@ function planChanges(input) {
 		const name = val(r, "goal") || val(r, "goal id");
 		if (!g) {
 			err("Check-ins", row, name, val(r, "goal id") ? `There’s no goal with ID ${val(r, "goal id")}.` : `There’s no goal called “${val(r, "goal")}”. Add the Goal ID column to be exact.`);
-			continue;
-		}
-		if (!canChange(g)) {
-			err("Check-ins", row, g.title, notYours(g));
 			continue;
 		}
 		const w = parseNumber(val(r, "week"));
@@ -24598,10 +24649,11 @@ function planChanges(input) {
 			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
 			continue;
 		}
-		const asOf = g.kind === "metric" && g.originalPlan && g.rebaselinedWeek != null && w < g.rebaselinedWeek ? {
-			...g,
-			plan: g.originalPlan
-		} : g;
+		if (!canChange(g)) {
+			err("Check-ins", row, g.title, notYours(g));
+			continue;
+		}
+		const asOf = goalAsOf(g, w);
 		const cause = causeOf(val(r, "cause"));
 		if (cause === void 0) {
 			err("Check-ins", row, g.title, `Cause “${val(r, "cause")}” isn’t one of: ${[...new Set([...CAUSES_BEHIND, ...CAUSES_AHEAD].map(([, l]) => l))].join(", ")}.`);
@@ -24788,12 +24840,13 @@ function quarterResult(g, c, checkIns, q, week) {
 		text: `${q.label}: ${text}`
 	});
 	if (g.kind === "metric") {
-		if ((g.plan.fromWeek ?? 0) >= q.to || planEnd(g.plan, c.weeks) < q.from) return r("none", "nothing planned");
-		const t = targetAt(g, c, q.to);
-		if (!ended) return r("open", `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(g.plan, c.weeks))}`);
+		const p = ended ? goalAsOf(g, q.to) : g;
+		if ((p.plan.fromWeek ?? 0) >= q.to || planEnd(p.plan, c.weeks) < q.from) return r("none", "nothing planned");
+		const t = targetAt(p, c, q.to);
+		if (!ended) return r("open", `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(p.plan, c.weeks))}`);
 		const v = last?.value;
 		if (v == null) return r("missed", `no number reported against a plan of ${fmt(t, g)}`);
-		const up = g.plan.target >= g.plan.start;
+		const up = p.plan.target >= p.plan.start;
 		const diff = Number((v - t).toFixed(g.decimals));
 		const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
 		return r(met ? "met" : "missed", `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? "" : `, ${fmtDiff(diff, g)} short`}`);
@@ -24923,7 +24976,7 @@ function storyOf(g, s, cycle, week, today) {
 	const quarters = quarterResults(g, cycle, s.checkIns, week);
 	const lastEnded = [...quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed");
 	const fc = forecastText(g, a, cycle.weeks);
-	const outlook = fc ? fc.text : null;
+	const outlook = fc && status !== "stale" ? fc.text : null;
 	let why = null, doing = null, byWhen = null, needs = null;
 	const ptg = last?.pathToGreen ?? null;
 	if (behind && last) {
@@ -25010,13 +25063,14 @@ function summarise(goal, s, cycle, today, week) {
 		nowValue,
 		planNow,
 		planNowText: planNow != null && goal.kind === "metric" ? fmt(planNow, goal) : "—",
+		planThen: a.kind === "metric" && a.actual != null && goal.kind === "metric" ? `${fmt(a.plan, goal)} in week ${a.week}` : null,
 		target: targetText(goal),
 		dueWeek: goal.kind === "metric" ? planEnd(goal.plan, cycle.weeks) : goal.kind === "milestone" ? Math.max(0, ...goal.stages.map((x) => x.dueWeek)) : cycle.weeks,
 		gap: st.status === "stale" ? "No recent check-in" : gap.short,
 		gapTone: st.status === "stale" ? "stale" : gap.tone,
 		lastWeek: last?.week ?? null,
 		lastPostedAt: last?.postedAt ?? null,
-		forecast: forecastText(goal, a, cycle.weeks)?.text ?? null,
+		forecast: st.status === "stale" ? null : forecastText(goal, a, cycle.weeks)?.text ?? null,
 		feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
 		why: behind && last ? [last.cause ? causeLabel(last.cause) : "", last.why].filter((x) => x && x !== "On plan.").join(": ") : "",
 		pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : "") : "",
@@ -25510,7 +25564,13 @@ function toJson(x) {
 							week: w,
 							value: Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals))
 						}))
-					}
+					},
+					earlierPlans: planHistoryOf(g).map((v) => ({
+						untilWeek: v.untilWeek,
+						start: v.plan.start,
+						target: v.plan.target,
+						shape: v.plan.shape
+					}))
 				} : {},
 				...g.kind === "range" ? {
 					unit: g.unit,
@@ -25730,7 +25790,7 @@ function aiBrief(x) {
 	out.push("## Every goal, by what it feeds");
 	const line = (s, depth) => {
 		const lvl = s.goal.level !== "team" ? ` [${LEVEL_LABEL[s.goal.level]}]` : "";
-		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
+		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
 	};
 	const seen = /* @__PURE__ */ new Set();
 	const walk = (g, depth) => {

@@ -161,7 +161,8 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   const quarters = quarterResults(g, cycle, s.checkIns, week);
   const lastEnded = [...quarters].reverse().find((x) => x.kind === 'met' || x.kind === 'missed');
   const fc = forecastText(g, a, cycle.weeks);
-  const outlook = fc ? fc.text : null;
+  // A goal gone quiet has no trustworthy forecast: its numbers are out of date.
+  const outlook = fc && status !== 'stale' ? fc.text : null;
 
   // Why, what the owner will do, by when, what they need.
   let why: string | null = null, doing: string | null = null, byWhen: string | null = null, needs: string | null = null;

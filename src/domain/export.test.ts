@@ -69,4 +69,15 @@ describe('exports', () => {
     for (const g of s.goals) expect(md).toContain(g.title);
     expect(md).toContain('## Weekly history');
   });
+
+  it('gives no forecast for a goal gone quiet, and says each date once (research round 1)', () => {
+    const md = aiBrief(input);
+    const quiet = s.goals.find((g) => g.id === 'env')!;
+    expect(summarise(quiet, s, cycle, today, week).status).toBe('stale');
+    // Every line about the quiet goal: none may forecast where it's heading.
+    const lines = md.split('\n').filter((l) => l.includes(quiet.title));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const l of lines) expect(l).not.toMatch(/[Pp]rojected|on the recent trend/);
+    expect(md).not.toMatch(/by week (\d+) by week \1/);
+  });
 });

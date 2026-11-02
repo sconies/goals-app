@@ -35,9 +35,10 @@ export function PlanTable({ plan, unit, typed, onType, onReset, actuals, label =
         <span className="field-label">{label}{end > cycle.weeks ? ` · to week ${end}` : ''}</span>
         {edited && onReset && <button type="button" className="linkish small" onClick={onReset}>Use the shape’s numbers again</button>}
       </div>
+      {isYear(cycle) && <span className="hint">Each week’s number is checked in during that week, so the one that closes a quarter comes in the week after it ends: week {quarters(cycle)[0]!.to}, checked in {weekDates(cycle, quarters(cycle)[0]!.to)}, closes {quarters(cycle)[0]!.label} ({quarters(cycle)[0]!.months}).</span>}
       {editing && <span className="hint">Filled in from the shape. Type over any week to set it yourself; the plan then runs straight between the numbers you see.</span>}
       <table>
-        <thead><tr><th scope="col">Week</th><th scope="col">Dates</th><th scope="col" className="num">Plan</th>{actuals && <th scope="col" className="num">Actual</th>}</tr></thead>
+        <thead><tr><th scope="col">Week</th><th scope="col">Checked in</th><th scope="col" className="num">Plan</th>{actuals && <th scope="col" className="num">Actual</th>}</tr></thead>
         <tbody>
           <tr className="muted-row"><td>{from <= 0 ? 'Start' : `Week ${from}`}</td><td>{from > 0 ? weekDates(cycle, from) : ''}</td><td className="num">{fmt(plan.start, unit)}</td>{actuals && <td />}</tr>
           {rows.map((w) => {
@@ -47,7 +48,7 @@ export function PlanTable({ plan, unit, typed, onType, onReset, actuals, label =
             const actual = actuals?.find((c) => c.week === w)?.value;
             return (
               <tr key={w} className={(w === week ? 'now-row ' : '') + (qEnd(w) ? 'quarter-row ' : '') + (w === cycle.weeks && end > cycle.weeks ? 'cycle-end-row' : '')}>
-                <td>{isEnd ? `Week ${w} · target` : `Week ${w}`}{qEnd(w) ? <span className="hint"> · end of {qEnd(w)!.label}</span> : null}{w === week ? <span className="hint"> · now</span> : null}{w === cycle.weeks && end > cycle.weeks ? <span className="hint"> · cycle end</span> : null}</td>
+                <td>{isEnd ? `Week ${w} · target` : `Week ${w}`}{qEnd(w) ? <span className="hint"> · closes {qEnd(w)!.label} ({qEnd(w)!.months})</span> : null}{w === week ? <span className="hint"> · now</span> : null}{w === cycle.weeks && end > cycle.weeks ? <span className="hint"> · cycle end</span> : null}</td>
                 <td>{weekDates(cycle, w)}</td>
                 <td className="num">
                   {editing && !isEnd

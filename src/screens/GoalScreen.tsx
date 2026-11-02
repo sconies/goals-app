@@ -5,7 +5,8 @@ import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL, weekLabel } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
-import type { Change, Goal } from '../domain/types';
+import type { Change, Goal, MetricGoal } from '../domain/types';
+import { planHistoryOf } from '../domain/goal';
 import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo, StatusShape } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
@@ -210,7 +211,7 @@ function GoalView({ goal }: { goal: Goal }) {
           <figure className="card" style={{ margin: 0 }}>
             <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} ptgBy={stale ? null : ptg?.byWeek ?? null} />
             <MetricLegend goal={goal} forecast={!stale && a.forecast != null} ptg={!!ptg && ptg.byWeek != null && ptg.byWeek > (series[series.length - 1]?.week ?? 0)} />
-            {goal.originalPlan && <figcaption className="tiny muted">Target changed in week {goal.rebaselinedWeek}: {fmt(goal.originalPlan.target, goal)} → {fmt(goal.plan.target, goal)}. The original plan is dotted.</figcaption>}
+            {goal.originalPlan && <PlanChanges goal={goal} />}
           </figure>
         )}
         {goal.kind === 'range' && <figure className="card" style={{ margin: 0 }}><RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} /></figure>}
@@ -337,4 +338,14 @@ function QuarterStrip({ goal }: { goal: Goal }) {
       </ol>
     </section>
   );
+}
+
+/** Under the chart: the latest plan change, and where the target started if it has changed more than once. */
+function PlanChanges({ goal }: { goal: MetricGoal }) {
+  const history = planHistoryOf(goal);
+  const last = history.at(-1);
+  if (!last) return null;
+  const what = last.plan.target !== goal.plan.target ? `Target changed in week ${last.untilWeek}: ${fmt(last.plan.target, goal)} → ${fmt(goal.plan.target, goal)}.` : `Plan changed in week ${last.untilWeek}.`;
+  const first = history.length > 1 ? ` It was first set at ${fmt(history[0]!.plan.target, goal)}, and has changed ${history.length} times.` : '';
+  return <figcaption className="tiny muted">{what}{first} The original plan is dotted; earlier weeks and closed quarters are judged against the plan of their day.</figcaption>;
 }

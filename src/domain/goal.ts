@@ -1,7 +1,7 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
 import { planAt, planCheckpoints, planEnd } from './plan';
-import type { Cycle, Goal, GoalKind, Io, Level, MetricPlan, PlanShape } from './types';
+import type { Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape, PlanVersion } from './types';
 
 export interface GoalDraft {
   kind: GoalKind;
@@ -122,17 +122,8 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
       ...(end != null && end !== cycle.weeks ? { endWeek: end } : {}),
     };
     const plan = withPoints(shaped, d.points, cycle.weeks);
-    let originalPlan: MetricPlan | null = null, rebaselinedWeek: number | null = null;
-    if (existing?.kind === 'metric') {
-      originalPlan = existing.originalPlan;
-      rebaselinedWeek = existing.rebaselinedWeek;
-      const changed = planChanged(existing, { ...existing, plan });
-      if (changed && checkInsStarted) {
-        originalPlan = existing.originalPlan ?? existing.plan;
-        rebaselinedWeek = week;
-      }
-    }
-    return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: num(d.decimals), plan, originalPlan, rebaselinedWeek };
+    const history = existing?.kind === 'metric' ? replanned(existing, plan, checkInsStarted, week) : { originalPlan: null, rebaselinedWeek: null };
+    return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: num(d.decimals), plan, ...history };
   }
   if (d.kind === 'range') {
     return { ...common, kind: 'range', unit: d.unit.trim(), decimals: num(d.decimals), range: { bound: d.bound, limit: num(d.limit), margin: num(d.margin) } };
@@ -159,4 +150,35 @@ export function withPoints(plan: MetricPlan, typed: Record<string, string>, week
     return { week: w, value: hand != null && hand.trim() !== '' && parseNumber(hand) != null ? (parseNumber(hand) as number) : planAt(base, w, weeks) };
   });
   return { ...base, points };
+}
+
+/** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
+export function planHistoryOf(g: MetricGoal): PlanVersion[] {
+  if (g.planHistory?.length) return g.planHistory;
+  return g.originalPlan && g.rebaselinedWeek != null ? [{ untilWeek: g.rebaselinedWeek, plan: g.originalPlan }] : [];
+}
+
+/**
+ * What a number goal's plan fields become when its plan changes. Once check-ins have started, the plan being replaced is
+ * kept with the week it stopped applying, so earlier weeks and closed quarters stay judged against the plan of their day.
+ * Two changes in the same week keep the plan from before the first.
+ */
+export function replanned(existing: MetricGoal, plan: MetricPlan, started: boolean, week: number): Pick<MetricGoal, 'originalPlan' | 'rebaselinedWeek' | 'planHistory'> {
+  const history = planHistoryOf(existing);
+  const keep = { originalPlan: existing.originalPlan, rebaselinedWeek: existing.rebaselinedWeek, ...(history.length ? { planHistory: history } : {}) };
+  if (!started || !planChanged(existing, { ...existing, plan })) return keep;
+  const next = history.at(-1)?.untilWeek === week ? history : [...history, { untilWeek: week, plan: existing.plan }];
+  return { originalPlan: existing.originalPlan ?? existing.plan, rebaselinedWeek: week, planHistory: next };
+}
+
+/** The plan that applied in a given week. */
+export function planAsOf(g: MetricGoal, week: number): MetricPlan {
+  return planHistoryOf(g).find((v) => week < v.untilWeek)?.plan ?? g.plan;
+}
+
+/** The goal as it was planned in a given week: number goals take the plan that applied then; others are unchanged. */
+export function goalAsOf<G extends Goal>(g: G, week: number): G {
+  if (g.kind !== 'metric') return g;
+  const plan = planAsOf(g, week);
+  return plan === g.plan ? g : { ...g, plan };
 }

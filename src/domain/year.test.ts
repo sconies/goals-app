@@ -1,11 +1,13 @@
 // @vitest-environment node
 import { seed } from '../data/seed';
 import { toYear } from '../data/yearStory';
+import { buildGoal, draftOf, goalAsOf, planHistoryOf } from './goal';
 import { currentWeek } from './plan';
 import { storyOf } from './story';
 import type { Cycle, MetricGoal } from './types';
 import { dueOptions, periodLabel, quarterOf, quarterResult, quarterResults, quarters, shortPeriod, startMonth, targetAt, yearStartFor } from './year';
 import { yearName } from './yearName';
+import { stagesFromNow } from './templates';
 
 const today = new Date('2026-10-30T12:00:00Z');
 const s = seed(today);
@@ -69,5 +71,28 @@ describe('quarters read off the owner’s plan', () => {
   });
   it('places the story at the end of the year', () => {
     expect(toYear(7)).toBe(week);
+  });
+
+  it('keeps closed quarters judged against the plan of their day when the target changes again (research round 1)', () => {
+    // The review goal's target went 75 → 95 in week 40; raising it to 98 in week 43 mustn't change Q1–Q3.
+    const before = goal('review') as MetricGoal;
+    const after = buildGoal({ ...draftOf(before), target: '98' }, cycle, { id: before.id, createdAt: before.createdAt }, before, true, week) as MetricGoal;
+    const closed = (g: MetricGoal) => quarterResults(g, cycle, s.checkIns, week).slice(0, 3).map((r) => r.text);
+    expect(closed(after)).toEqual(closed(before));
+    // Both earlier plans are kept, each with the week it stopped applying.
+    expect(planHistoryOf(after).map((v) => [v.untilWeek, v.plan.target])).toEqual([[toYear(4), 75], [week, 95]]);
+    expect(goalAsOf(after, week - 1).plan.target).toBe(95);
+    expect(goalAsOf(after, toYear(4) - 1).plan.target).toBe(75);
+    expect(goalAsOf(after, week).plan.target).toBe(98);
+    // A second change in the same week keeps the plan from before the first.
+    const again = buildGoal({ ...draftOf(after), target: '99' }, cycle, { id: before.id, createdAt: before.createdAt }, after, true, week) as MetricGoal;
+    expect(planHistoryOf(again).map((v) => v.plan.target)).toEqual([75, 95]);
+  });
+
+  it('counts a template’s stage weeks from now, within the year (research round 1)', () => {
+    expect(stagesFromNow('Design@3; Pilot with one team@7; All teams@12', 0)).toBe('Design@3; Pilot with one team@7; All teams@12');
+    expect(stagesFromNow('Design@3; Pilot with one team@7; All teams@12', 20)).toBe('Design@23; Pilot with one team@27; All teams@32');
+    // Week 43: nine weeks left, so the stages spread over them and the last lands at the year's end.
+    expect(stagesFromNow('Design@3; Pilot with one team@7; All teams@12', 43)).toBe('Design@45; Pilot with one team@48; All teams@52');
   });
 });

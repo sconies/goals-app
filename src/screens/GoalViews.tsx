@@ -137,7 +137,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                       </td>
                       <td className="col-opt">{s.owner}</td>
                       <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? `Last: week ${s.lastWeek}` : app.week > 0 ? 'No check-in yet' : ''}</span></td>
-                      <td className="num">{s.now}{s.planNow != null && <span className="hint gt-plan">plan {s.planNowText}</span>}</td>
+                      <td className="num">{s.now}{s.planThen ? <span className="hint gt-plan">plan {s.planThen}</span> : s.planNow != null && <span className="hint gt-plan">plan {s.planNowText} this week</span>}</td>
                       <td className="num col-opt">{s.target}</td>
                       <td className={'col-opt tone-' + s.gapTone + ' small'}>{s.gap}</td>
                       <td className="col-opt"><Trend s={s} /></td>
@@ -194,7 +194,9 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
               <span className="board-title">{s.goal.title}<LevelTag level={s.goal.level} /></span>
               <span className="hint ellipsis">{s.owner} · {s.team}</span>
               <ResultTag s={s} />
-              {hasStory(s) ? <StoryLines s={s} compact /> : <span className="small muted">{s.now} · {s.gap}</span>}
+              {/* The same evidence on every card: the number and its gap, then the owner's account when there is one. */}
+              <span className="small muted">{s.now} · {s.gap}</span>
+              {hasStory(s) && <StoryLines s={s} compact />}
             </Link>
           ))}
         </section>

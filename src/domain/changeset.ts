@@ -4,7 +4,7 @@
 import type { Commit } from '../data/store';
 import { goalChange, checkInChange, type Lookup } from './changes';
 import { CAUSES_AHEAD, CAUSES_BEHIND, evaluate, parseNumber, toCheckIn, type Draft } from './checkin';
-import { blankGoal, buildGoal, draftOf, planChanged, validateGoal, type GoalDraft } from './goal';
+import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, replanned, validateGoal, type GoalDraft } from './goal';
 import { levelOf, parseTable, shapeOf } from './importer';
 import { planAt, planEnd, weekDate } from './plan';
 import { checkInsFor } from './status';
@@ -139,7 +139,6 @@ export function planChanges(input: ChangeInput): ChangeSet {
       const same = [...work.values()].find((g) => norm(g.title) === norm(title));
       if (same) return err('Goals', row, title, `A goal called “${same.title}” already exists. Put its ID in the ID column to change it, or give this one another name.`);
     }
-    if (existing && !canChange(existing)) return err('Goals', row, existing.title, notYours(existing));
     const ownerName = val(r, 'owner');
     const owner = ownerName ? person(ownerName) : null;
     if (ownerName && !owner) return err('Goals', row, title || existing?.title || '', `“${ownerName}” isn’t in this workspace. Add them under Workspace first, or check the spelling.`);
@@ -232,7 +231,6 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const g = work.get(id);
     if (!g) return err('Plan', row, val(r, 'goal') || id, `There’s no goal with ID ${id}.`);
     if (g.kind !== 'metric') return err('Plan', row, g.title, 'Only number goals have plan numbers.');
-    if (!canChange(g)) return err('Plan', row, g.title, notYours(g));
     const from = g.plan.fromWeek ?? 0, end = planEnd(g.plan, cycle.weeks);
     const typed = new Map<number, number>();
     for (const [k, v] of Object.entries(r)) {
@@ -245,14 +243,14 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const tol = 0.5 * 10 ** -g.decimals;
     const changed = [...typed].some(([w, v]) => w > from && w <= end && Math.abs(v - (w === end ? g.plan.target : planAt(g.plan, w, cycle.weeks))) > tol);
     if (!changed) { if (!touched.has(id)) unchanged++; return; }
+    if (!canChange(g)) return err('Plan', row, g.title, notYours(g));
     const target = typed.get(end) ?? g.plan.target;
     if (target === g.plan.start) return err('Plan', row, g.title, 'The target has to differ from the start.');
     const points = [...typed].filter(([w]) => w > from && w < end).sort((a, b) => a[0] - b[0]).map(([week, value]) => ({ week, value }));
     const plan: MetricPlan = { ...g.plan, target, ...(points.length ? { points } : {}) };
     const before = touched.get(id)?.before ?? s.goals.find((x) => x.id === id)!;
     const original = before as MetricGoal;
-    const rebase = started(id) && planChanged(original, { ...original, plan });
-    const next: MetricGoal = { ...g, plan, ...(rebase ? { originalPlan: original.originalPlan ?? original.plan, rebaselinedWeek: week } : {}) };
+    const next: MetricGoal = { ...g, plan, ...replanned(original, plan, started(id), week) };
     work.set(id, next);
     const t = touched.get(id);
     touched.set(id, { before, row: t?.row ?? row, sheet: t?.sheet ?? 'Plan', reason: t?.reason || val(r, 'reason'), plan: true });
@@ -271,6 +269,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const after = work.get(id)!;
     const ch = goalChange(t.before, after, lookup, actor.id, now, newId('chg'));
     if (!ch) { unchanged++; continue; }
+    // Rows for other people's goals are fine as long as they don't change anything (a full workbook carries them all).
+    if (t.before && !canChange(t.before)) { err(t.sheet, t.row, t.before.title, notYours(t.before)); continue; }
     const needs = !!t.before && t.plan && started(id);
     const reason = t.reason || input.reason?.trim() || '';
     if (needs && !reason) needsReason = true;
@@ -295,7 +295,6 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const g = goalFor(r);
     const name = val(r, 'goal') || val(r, 'goal id');
     if (!g) { err('Check-ins', row, name, val(r, 'goal id') ? `There’s no goal with ID ${val(r, 'goal id')}.` : `There’s no goal called “${val(r, 'goal')}”. Add the Goal ID column to be exact.`); continue; }
-    if (!canChange(g)) { err('Check-ins', row, g.title, notYours(g)); continue; }
     const w = parseNumber(val(r, 'week'));
     if (w == null || !Number.isInteger(w) || w < 1) { err('Check-ins', row, g.title, w === 0 ? 'Check-ins start in week 1; week 0 is the start of the year.' : 'Week should be a whole number from 1, counted from the start of the year.'); continue; }
     if (w > week) { err('Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
@@ -328,8 +327,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (existing && (!call || existing.status === call)
       && (g.kind === 'milestone' ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, 'value')))
       && (!has(r, 'why') || val(r, 'why') === existing.why)) { unchanged++; imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); continue; }
+    if (!canChange(g)) { err('Check-ins', row, g.title, notYours(g)); continue; }
     // A week before the plan was changed is judged against the plan that applied then.
-    const asOf: Goal = g.kind === 'metric' && g.originalPlan && g.rebaselinedWeek != null && w < g.rebaselinedWeek ? { ...g, plan: g.originalPlan } : g;
+    const asOf: Goal = goalAsOf(g, w);
     const cause = causeOf(val(r, 'cause'));
     if (cause === undefined) { err('Check-ins', row, g.title, `Cause “${val(r, 'cause')}” isn’t one of: ${[...new Set([...CAUSES_BEHIND, ...CAUSES_AHEAD].map(([, l]) => l))].join(', ')}.`); continue; }
     const recRaw = norm(val(r, 'recovery'));

@@ -2,6 +2,7 @@
    split into four quarters of 13 weeks from the month it starts. Quarter targets aren't entered separately:
    they're read off the owner's own plan, so any week in between has a target too. */
 import { fmt, fmtDiff } from './format';
+import { goalAsOf } from './goal';
 import { planAt, planEnd } from './plan';
 import { checkInsFor } from './status';
 import type { CheckIn, Cycle, Goal } from './types';
@@ -67,12 +68,14 @@ export function quarterResult(g: Goal, c: Cycle, checkIns: CheckIn[], q: Quarter
   const ended = week > q.to;
   const r = (kind: QuarterResult['kind'], text: string): QuarterResult => ({ quarter: q, kind, text: `${q.label}: ${text}` });
   if (g.kind === 'metric') {
-    if ((g.plan.fromWeek ?? 0) >= q.to || planEnd(g.plan, c.weeks) < q.from) return r('none', 'nothing planned');
-    const t = targetAt(g, c, q.to)!;
-    if (!ended) return r('open', `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(g.plan, c.weeks))}`);
+    // A closed quarter is judged against the plan that applied at its end, not one set later.
+    const p = ended ? goalAsOf(g, q.to) : g;
+    if ((p.plan.fromWeek ?? 0) >= q.to || planEnd(p.plan, c.weeks) < q.from) return r('none', 'nothing planned');
+    const t = targetAt(p, c, q.to)!;
+    if (!ended) return r('open', `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(p.plan, c.weeks))}`);
     const v = last?.value;
     if (v == null) return r('missed', `no number reported against a plan of ${fmt(t, g)}`);
-    const up = g.plan.target >= g.plan.start;
+    const up = p.plan.target >= p.plan.start;
     const diff = Number((v - t).toFixed(g.decimals));
     const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
     return r(met ? 'met' : 'missed', `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? '' : `, ${fmtDiff(diff, g)} short`}`);

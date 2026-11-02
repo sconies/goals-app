@@ -1,6 +1,7 @@
 /* Exports: the same goals as a workbook (for Excel), CSV, JSON (for scripts and AIs) and a short brief in
    Markdown (to paste into any AI chat). Pure functions; the app turns them into files.
    The Goals, Plan and Check-ins sheets use the import's column names, so an export can be edited and loaded back. */
+import { planHistoryOf } from './goal';
 import { causeLabel } from './checkin';
 import { LEVEL_LABEL } from './format';
 import { planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
@@ -172,6 +173,7 @@ export function toJson(x: ExportInput) {
           unit: g.unit, decimals: g.decimals,
           plan: { start: g.plan.start, target: g.plan.target, shape: g.plan.shape, fromWeek: g.plan.fromWeek ?? 0, dueWeek: planEnd(g.plan, x.cycle.weeks), setByHand: !!g.plan.points?.length,
             byWeek: planCheckpoints(g.plan.fromWeek ?? 0, planEnd(g.plan, x.cycle.weeks)).map((w) => ({ week: w, value: Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals)) })) },
+          earlierPlans: planHistoryOf(g).map((v) => ({ untilWeek: v.untilWeek, start: v.plan.start, target: v.plan.target, shape: v.plan.shape })),
         } : {}),
         ...(g.kind === 'range' ? { unit: g.unit, decimals: g.decimals, range: { mustStay: g.range.bound === 'atMost' ? 'atMost' : 'atLeast', limit: g.range.limit, margin: g.range.margin } } : {}),
         ...(g.kind === 'milestone' ? { stages: g.stages.map((st) => ({ id: st.id, name: st.name, dueWeek: st.dueWeek })) } : {}),
@@ -308,7 +310,7 @@ export function aiBrief(x: ExportInput): string {
   out.push('## Every goal, by what it feeds');
   const line = (s: GoalSummary, depth: number) => {
     const lvl = s.goal.level !== 'team' ? ` [${LEVEL_LABEL[s.goal.level]}]` : '';
-    out.push(`${'  '.repeat(depth)}- **${s.goal.title}**${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks ? ` by week ${s.dueWeek}` : ''}; ${s.gap}. Owner ${s.owner}.${s.forecast ? ' ' + s.forecast : ''}`);
+    out.push(`${'  '.repeat(depth)}- **${s.goal.title}**${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ''}; ${s.gap}. Owner ${s.owner}.${s.forecast ? ' ' + s.forecast : ''}`);
   };
   const seen = new Set<string>();
   const walk = (g: Goal, depth: number) => {
