@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-02 07:57 UTC.
+Run 2026-11-02 08:26 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -26,7 +26,10 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 16 | Home by responsibility, and the 4-tab navigation trial | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 2 (budget 4) |
 | 17 | Demo data sets, presenting without the bar, and deleting a workspace | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 12) |
 | 18 | Set a year goal and its plan numbers by hand | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
-| 19 | See the same goals as a table, board, history grid or cards, and export them | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 14) |
+| 19 | See the same goals as a table, board, history grid or cards, and export them | **8.9** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✗ | 9 · 9 (budget 14) |
+| 20 | Load a spreadsheet: a new goal, then its past weeks, with every change shown before saving | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 14) |
+| 21 | Type the week’s numbers in one table, and change several goals at once | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
+| 22 | An admin gives a teammate a token for an AI assistant, then revokes it | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 10) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -39,9 +42,13 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - **a11y**: No serious accessibility issues; primary buttons are at least 44px tall on a phone
 - **logged**: The change it makes is in the change log with who, when and before → after
 
+### What cost points
+
+- **U19** See the same goals as a table, board, history grid or cards, and export them: phone logged: the JSON or brief is incomplete; desktop logged: the JSON or brief is incomplete
+
 ## Requirements
 
-**47 of 47 pass**. Spec scenarios 57/57.
+**50 of 50 pass**. Spec scenarios 57/57.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -92,6 +99,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **RETRO** From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged. | Cycles | 0 | U10 |
 | ✅ | **VIEWS** The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. | Views | 0 | U19 |
 | ✅ | **EXPORT** Goals export as an Excel workbook (goals, plan by week, check-ins, notes and actions, people, a README), CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens. | Data | 0 | U19 |
+| ✅ | **BULK-IMPORT** A workbook or CSV can add or change goals, set plan numbers and add check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet. | Data | 0 | U20 |
+| ✅ | **BULK-EDIT** An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log. | Data | 0 | U21 |
+| ✅ | **MCP-TOKENS** An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused. | AI assistants | 0 | U22 |
 
 ## Platform checks
 

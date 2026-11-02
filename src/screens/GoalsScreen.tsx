@@ -14,7 +14,7 @@ import { useNavMode } from '../app/navMode';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { GoalBoard, GoalCards, GoalTable, HistoryGrid, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
+import { GoalBoard, GoalCards, GoalTable, HistoryGrid, LayoutSwitch, StatusLegend, useLayout, type ViewGroup } from './GoalViews';
 import { ExportButton } from './Export';
 
 type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
@@ -76,6 +76,7 @@ export function GoalsScreen() {
         </div>
       )}
 
+      {app.snapshot.goals.length > 0 && <StatusLegend />}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
       {alt && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><span aria-hidden="true">✓</span> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}

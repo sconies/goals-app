@@ -5,6 +5,7 @@ import { fmt, gapText, kindLabel, LEVEL_LABEL, targetText } from './format';
 import { planAt, planEnd, valueSeries, weekDate, type Point } from './plan';
 import { assessPosted, checkInsFor, goalStatus, LABEL, RANK } from './status';
 import { forecastText } from './tree';
+import { storyOf, type Story } from './story';
 import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
 
 export interface GoalSummary {
@@ -35,6 +36,8 @@ export interface GoalSummary {
   needs: string;
   series: Point[];
   checkIns: CheckIn[];
+  /** Why it's off, what the owner will do, by when, what they need, and what the numbers would hide. */
+  story: Story;
 }
 
 export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, week: number): GoalSummary {
@@ -72,6 +75,7 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
     needs: behind ? ptg?.needs ?? '' : '',
     series: valueSeries(own),
     checkIns: own,
+    story: storyOf(goal, s, cycle, week, today),
   };
 }
 

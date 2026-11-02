@@ -1,12 +1,13 @@
 /* Other ways to see the same goals: a sortable table, a board by status, a week-by-week history grid and cards.
    The Goals tabs say which goals and how they're grouped; the layout says how they're drawn. Each person's
    choice is remembered, and it's in the address so a view can be shared. */
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { weekDates } from '../domain/plan';
 import { assessPosted, LABEL, RANK } from '../domain/status';
 import { summarise, weeklyCalls, type GoalSummary } from '../domain/summary';
+import { MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING } from '../domain/story';
 import type { DisplayStatus, Goal } from '../domain/types';
 import { Spark, StageSpark } from '../ui/charts';
 import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
@@ -126,18 +127,21 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                 </thead>
                 <tbody>
                   {rows.map(({ goal, depth, s }) => (
-                    <tr key={goal.id} data-tone={s.status} className={sel.has(goal.id) ? 'selected' : undefined}>
+                    <Fragment key={goal.id}>
+                    <tr data-tone={s.status} className={sel.has(goal.id) ? 'selected' : undefined}>
                       <td className="selcol"><input type="checkbox" aria-label={`Select ${goal.title}`} checked={sel.has(goal.id)} onChange={(e) => toggle([goal.id], e.target.checked)} /></td>
                       <td className="gt-goal" style={!sort && depth ? { paddingLeft: `calc(var(--s3) + ${depth * 16}px)` } : undefined}>
                         <Link to={'/goals/' + goal.id}>{goal.title}</Link><LevelTag level={goal.level} />
                       </td>
                       <td className="col-opt">{s.owner}</td>
-                      <td><Chip k={s.status} /><span className="hint gt-plan">{s.lastWeek != null ? `Last: week ${s.lastWeek}` : app.week > 0 ? 'No check-in yet' : ''}</span></td>
+                      <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? `Last: week ${s.lastWeek}` : app.week > 0 ? 'No check-in yet' : ''}</span></td>
                       <td className="num">{s.now}{s.planNow != null && <span className="hint gt-plan">plan {s.planNowText}</span>}</td>
                       <td className="num col-opt">{s.target}</td>
                       <td className={'col-opt tone-' + s.gapTone + ' small'}>{s.gap}</td>
                       <td className="col-opt"><Trend s={s} /></td>
                     </tr>
+                    {hasStory(s) && <tr className="story-row" data-tone={s.status}><td /><td colSpan={7}><StoryLines s={s} compact /></td></tr>}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -181,12 +185,14 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
       {cols.map((c) => (
         <section key={c.key} className="board-col" aria-label={`${c.title}, ${c.items.length}`}>
           <h2 className={'board-head tone-' + (c.key === 'waiting' ? 'stale' : c.key)}><StatusShape k={c.statuses[0]!} />{c.title}<span className="tabcount">{c.items.length}</span></h2>
+          <span className="hint board-meaning">{SHORT_MEANING[c.statuses[0]!][0]!.toUpperCase() + SHORT_MEANING[c.statuses[0]!].slice(1)}</span>
           {c.items.length === 0 && <span className="hint board-empty">None</span>}
           {c.items.map((s) => (
             <Link key={s.goal.id} to={'/goals/' + s.goal.id} className="board-card" data-tone={s.status}>
               <span className="board-title">{s.goal.title}<LevelTag level={s.goal.level} /></span>
-              <span className="small"><span className="strong">{s.now}</span> · <span className={'tone-' + s.gapTone}>{s.gap}</span></span>
               <span className="hint ellipsis">{s.owner} · {s.team}</span>
+              <ResultTag s={s} />
+              {hasStory(s) ? <StoryLines s={s} compact /> : <span className="small muted">{s.now} · {s.gap}</span>}
             </Link>
           ))}
         </section>
@@ -275,10 +281,10 @@ export function GoalCards({ groups }: { groups: ViewGroup[] }) {
                   <Link key={goal.id} to={'/goals/' + goal.id} className="gcard" data-tone={s.status}>
                     <span className="row between nowrap"><Chip k={s.status} /><LevelTag level={goal.level} /></span>
                     <span className="gcard-title">{goal.title}</span>
-                    <span className="gcard-now"><span className="big">{s.now}</span><span className="hint">target {s.target}</span></span>
-                    <Trend s={s} />
-                    <span className={'small tone-' + s.gapTone}>{s.gap}</span>
-                    <span className="hint ellipsis">{s.owner}</span>
+                    <span className="hint">{s.owner} · {s.team}{s.story.since && s.status !== 'stale' ? ` · ${s.story.since.toLowerCase()}` : ''}</span>
+                    <ResultTag s={s} />
+                    {hasStory(s) ? <StoryLines s={s} /> : <span className="small">{s.story.where}</span>}
+                    <span className="hint gcard-numbers">Now {s.now} · target {s.target} · <span className={'tone-' + s.gapTone}>{s.gap}</span></span>
                   </Link>
                 );
               })}
@@ -350,5 +356,49 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
         <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={!value || busy}>{busy ? 'Saving…' : 'Save'}</button></div>
       </form>
     </Sheet>
+  );
+}
+
+/* ---------- the story, the legend and results ---------- */
+
+const hasStory = (s: GoalSummary) => ['off', 'risk', 'stale'].includes(s.status) || s.story.warnings.length > 0;
+
+/** Why it's off, what the owner will do, by when, what they need, and any warnings. */
+export function StoryLines({ s, compact }: { s: GoalSummary; compact?: boolean }) {
+  const st = s.story;
+  const first = s.owner.split(' ')[0] || 'Owner';
+  const rows: [string, string][] = s.status === 'stale'
+    ? [['Last heard', st.since ?? '']]
+    : ['off', 'risk'].includes(s.status)
+      ? [['Why', st.why ?? 'Not given'], [`${first} will`, st.doing ?? 'Not given'], ['By when', st.byWhen ?? 'No date given'], ...(st.needs ? [['Needs', st.needs] as [string, string]] : [])]
+      : [];
+  return (
+    <div className={'story' + (compact ? ' compact' : '')}>
+      {rows.length > 0 && <dl>{rows.map(([k, v]) => <Fragment key={k}><dt>{k}</dt><dd className={v === 'Not given' || v === 'No date given' ? 'tone-off' : undefined}>{v}</dd></Fragment>)}</dl>}
+      {st.warnings.map((w) => <span key={w} className="story-warn"><span aria-hidden="true">⚠ </span>{w}</span>)}
+    </div>
+  );
+}
+
+export function ResultTag({ s }: { s: GoalSummary }) {
+  const r = s.story.result;
+  if (!r) return null;
+  return <span className={'result-tag result-' + r.kind} title={RESULT_MEANING[r.kind]}>{RESULT_TEXT[r.kind]}{r.kind === 'missed' ? ` · due week ${r.dueWeek}` : r.kind === 'late' ? ` · week ${r.week}, due ${r.dueWeek}` : ''}</span>;
+}
+
+/** What each status means, always in view where goals are listed. */
+export function StatusLegend() {
+  return (
+    <details className="legend">
+      <summary>
+        {(['on', 'risk', 'off', 'stale'] as const).map((k) => <span key={k} className={'legend-key tone-' + k}><StatusShape k={k} /><span className="strong">{LABEL[k]}</span><span className="muted">{SHORT_MEANING[k]}</span></span>)}
+        <span className="linkish small legend-more">What these mean</span>
+      </summary>
+      <dl className="legend-full">
+        {(['on', 'risk', 'off', 'stale'] as const).map((k) => <Fragment key={k}><dt className={'tone-' + k}>{LABEL[k]}</dt><dd>{MEANING[k]}</dd></Fragment>)}
+        {(['completed', 'late', 'missed'] as const).map((k) => <Fragment key={k}><dt><span className={'result-tag result-' + k}>{RESULT_TEXT[k]}</span></dt><dd>{RESULT_MEANING[k]}</dd></Fragment>)}
+        <dt>The call</dt><dd>The status is the owner’s call each week, checked against the numbers. A call greener than the numbers needs a reason, and is flagged.</dd>
+      </dl>
+    </details>
   );
 }
