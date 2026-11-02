@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-02 17:04 UTC.
+Run 2026-11-02 19:57 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -10,7 +10,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Weekly check-in, all due goals in one pass | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 17) |
 | 2 | What needs me? Home shows what’s due, off track, stale or slipping | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
-| 3 | Weekly review: walk the goals worst first and record what was said | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
+| 3 | Weekly review: walk the goals worst first and record what was said | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 14) |
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 12 · 11 (budget 13) |
 | 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 10 · 10 (budget 15) |
 | 11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 14) |
@@ -36,6 +36,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 30 | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 16) |
 | 31 | After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 13 · 13 (budget 16) |
 | 32 | Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 18) |
+| 33 | A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table | **10** | – | ✓ | – | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 6 (budget 16) |
 | 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
 | 27 | Take a walkthrough: the coach points the way and moves on as you do each step | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 6 · 6 (budget 10) |
 | 28 | A research session: first glances, a note pinned to the screen, a task result and a report | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
@@ -54,7 +55,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**61 of 61 pass**. Spec scenarios 65/65.
+**62 of 62 pass**. Spec scenarios 65/65.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -77,7 +78,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **ONE-PER-WEEK** Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so and is logged as such. | Check-in | 0 | U1 |
 | ✅ | **UPDATE-ANYTIME** The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after. | Check-in | 0 | U1 |
 | ✅ | **OWNER-ONLY** Only the goal's owner can post its check-in. | Check-in | 0 | U9 |
-| ✅ | **STALE** No owner check-in for 14 days shows as Stale, never as on track. | Status rules | 6 | U2, U8 |
+| ✅ | **STALE** No owner check-in for 14 days shows as No recent update, never as on track. | Status rules | 6 | U2, U8 |
 | ✅ | **HIERARCHY** A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses. | Goals | 3 | U4, U9 |
 | ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | U4, U18, U25 |
 | ✅ | **GOAL-PAGE** The goal page shows status strip, why, path to green, chart with plan/forecast/path back, and check-in history. | Goals | 0 | U6 |
@@ -108,7 +109,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **BULK-IMPORT** A workbook or CSV can add or change goals, set plan numbers and add check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet. | Data | 0 | U20 |
 | ✅ | **BULK-EDIT** An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log. | Data | 0 | U21 |
 | ✅ | **MCP-TOKENS** An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused. | AI assistants | 0 | U22 |
-| ✅ | **STORY** Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet. | Leaders | 0 | U19 |
+| ✅ | **STORY** Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet. | Leaders | 0 | U19, U33 |
 | ✅ | **YEAR** Goals are set for the year: a 52-week goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year. | Cycles | 0 | U18, U23 |
 | ✅ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | U24 |
 | ✅ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | U25 |
@@ -118,7 +119,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **RESEARCH** A research hub for people and AI agents: what the app is for, a note that access control is deliberately not built yet, eleven goal-framed tasks, the protocol (first glance, think aloud, every flow and screen, try to break it, evidence and severity), and a report to paste or upload. While a session runs, a research bar asks a first-glance question on each new screen, pins notes to any part of a screen, and records each task as done, stuck or gave up with confidence. Notes are kept in the browser and sent to a table that can’t be read back through the app. | Research | 0 | U28 |
 | ✅ | **HONEST-NUMBERS** Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. | Trust | 5 | U30, U31 |
 | ✅ | **WIDE-SCREENS** Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it. | Layout | 0 | P8, P7 |
-| ✅ | **SAVED-VIEWS** Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. | Goals | 3 | U32 |
+| ✅ | **SAVED-VIEWS** Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. | Goals | 3 | U32, U33 |
+| ✅ | **EXCEPTIONS-FIRST** A leader's attention goes to the exceptions. A weekly review walks the goals that need a look one at a time and takes the goals on track with nothing flagged together in one acknowledgement, which can be opened or walked instead. A goal page says which contributing goals are most likely to make it miss. A request for a decision has Respond beside it. Asking for an update leaves a lasting 'Asked' in place of the button. The table keeps each goal's story to one line, with Details to open it, and the board puts the north star first and folds healthy lanes to a count. New goal asks before resuming an unpublished one. One name per idea: No recent update, Contributing goals, Decision or help needed. | Leading | 0 | U33 |
 
 ## Platform checks
 
