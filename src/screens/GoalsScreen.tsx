@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodLabel } from '../domain/year';
@@ -25,7 +26,7 @@ const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 export function GoalsScreen() {
   const app = useApp();
   const [params, setParams] = useSearchParams();
-  const att = attentionList(app.snapshot, app.cycle, app.today);
+  const att = useMemo(() => attentionList(app.snapshot, app.cycle, app.today), [app.snapshot, app.cycle, app.today]);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   const navMode = useNavMode();
   const show: Show = (params.get('show') as Show) || 'outcomes';
@@ -33,13 +34,16 @@ export function GoalsScreen() {
   const [layout, setLayout] = useLayout();
   const flat = (n: TreeNode, depth = 0): { goal: Goal; depth: number }[] => [{ goal: n.goal, depth }, ...n.children.flatMap((c) => flat(c, depth + 1))];
   const one = (key: string, title: string, goals: Goal[]): ViewGroup => ({ key, title, rows: goals.map((goal) => ({ goal, depth: 0 })) });
-  const groups: ViewGroup[] = show === 'outcomes'
+  // Built once per change to the goals, so the views' summaries aren't recomputed on every render.
+  const groups: ViewGroup[] = useMemo(() => show === 'outcomes'
     ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
     : show === 'attention' ? [one('attention', 'Needs attention', att.map((a) => a.goal))]
     : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'teams' ? app.snapshot.teams.map((t) => one(t.id, t.name, app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'mine' ? [one('mine', 'Mine', [...mine].sort(worstFirst(app)))]
-    : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))];
+    : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [show, app.snapshot, app.viewer.id, att]);
   const shown = [...new Map(groups.flatMap((g) => g.rows.map((r) => [r.goal.id, r.goal] as const))).values()];
   const alt = layout !== 'list';
   const tabs: [Show, string, number | null][] = [

@@ -991,6 +991,34 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   await p.context().close();
 }, ['errors', 'logged', 'budget']);
 
+journey('U24', ['NO-LOST-UPDATES'], 'Two people change the same goal at once: the second is told, not overwritten', 8, async (h, device) => {
+  const a = h.use(await newPage(device, 'sam'));
+  const b = await a.context().newPage();
+  b.on('pageerror', (e) => consoleErrors.push(`${device} ${b.url()} · ${e.message}`));
+  await a.goto(url('/goals/lead/edit'));
+  await b.goto(url('/goals/lead/edit'));
+  await a.getByLabel('Name').first().waitFor();
+  await b.getByLabel('Name').first().waitFor();
+  // A renames it and saves.
+  await h.fill(a.getByLabel('Name').first(), 'Lead time for changes (DORA)');
+  await h.click(a.getByRole('button', { name: 'Save changes' }));
+  await see(a, 'Lead time for changes (DORA)');
+  // B, still looking at the old version, changes the source and saves: refused, and shown the latest.
+  await b.getByText('More details').click();
+  await h.fill(b.getByLabel('Data source'), 'Engineering metrics warehouse');
+  await h.click(b.getByRole('button', { name: 'Save changes' }));
+  await see(b, 'Someone else changed this a moment ago', 'the second save is not told it was refused');
+  h.set('errors', true);
+  await h.checkpoint('refused');
+  const s = await h.snapshot();
+  const g = s.goals.find((x) => x.id === 'lead');
+  h.set('finish', g.title === 'Lead time for changes (DORA)' && g.source !== 'Engineering metrics warehouse', `the first save was overwritten or the second landed (title “${g.title}”, source “${g.source}”)`);
+  h.set('logged', s.changes.filter((c) => c.goalId === 'lead' && c.action === 'edited').length === 1, 'the refused save was logged');
+  h.set('attention', true);
+  h.set('progress', true);
+  await a.context().close();
+}, ['entry', 'budget']);
+
 /* ---------------- platform checks ---------------- */
 async function platformChecks() {
   const out = [];

@@ -19,6 +19,41 @@ export interface Commit {
   unwatch?: string[];
   tokens?: ApiToken[];
   changes: Change[];
+  /** What the save was based on; filled in by withExpectations. A save is refused if any of it has changed since. */
+  expect?: Expectations;
+}
+
+export interface Expectations {
+  goals: { id: string; version: number }[];
+  reviews: { id: string; version: number }[];
+  /** For each check-in written: the check-in that was there for that goal and week (null: none). */
+  checkIns: { goalId: string; week: number; id: string | null }[];
+}
+
+/** The versions a save is based on, read from the snapshot the person was looking at. */
+export function withExpectations(c: Commit, s: Snapshot): Commit {
+  return {
+    ...c,
+    expect: {
+      goals: (c.goals ?? []).flatMap((g) => { const old = s.goals.find((x) => x.id === g.id); return old ? [{ id: g.id, version: old.version ?? 0 }] : []; }),
+      reviews: (c.reviews ?? []).flatMap((r) => { const old = s.reviews.find((x) => x.id === r.id); return old ? [{ id: r.id, version: old.version ?? 0 }] : []; }),
+      checkIns: (c.checkIns ?? []).map((ci) => ({ goalId: ci.goalId, week: ci.week, id: s.checkIns.find((x) => x.goalId === ci.goalId && x.week === ci.week)?.id ?? null })),
+    },
+  };
+}
+
+/** A save refused because someone else changed the same thing first. */
+export class StaleError extends Error {
+  constructor(what: string) { super('stale: ' + what); this.name = 'StaleError'; }
+}
+export const isStale = (e: unknown) => e instanceof StaleError || (e instanceof Error && /\bstale: /.test(e.message));
+
+/** Throws StaleError if the stored data has moved on from what the save expected. */
+export function checkExpectations(s: Snapshot, e: Expectations | undefined) {
+  if (!e) return;
+  for (const x of e.goals) { const g = s.goals.find((y) => y.id === x.id); if (g && (g.version ?? 0) !== x.version) throw new StaleError('goal ' + x.id); }
+  for (const x of e.reviews) { const r = s.reviews.find((y) => y.id === x.id); if (r && (r.version ?? 0) !== x.version) throw new StaleError('review ' + x.id); }
+  for (const x of e.checkIns) { const c = s.checkIns.find((y) => y.goalId === x.goalId && y.week === x.week); if ((c?.id ?? null) !== x.id) throw new StaleError(`check-in ${x.goalId} week ${x.week}`); }
 }
 
 /** The real app, or the demo: the example data, a role switcher and a reset, kept in each visitor's browser. */
@@ -46,8 +81,14 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     const ids = new Set(items.map((x) => x.id));
     return [...list.filter((x) => !ids.has(x.id)), ...items];
   };
-  const goals = (c.goals ?? []).reduce((acc, g) => (acc.some((x) => x.id === g.id) ? acc.map((x) => (x.id === g.id ? g : x)) : [...acc, g]), s.goals);
-  const replaced = (x: CheckIn) => (c.checkIns ?? []).some((n) => n.id === x.id || (n.goalId === x.goalId && n.week === x.week));
+  // A saved goal or review is one version on from the one it replaced.
+  const bump = <T extends { id: string; version?: number }>(list: T[], items: T[] = []) => items.map((x) => { const old = list.find((y) => y.id === x.id); return { ...x, version: old ? (old.version ?? 0) + 1 : 0 }; });
+  const byId = new Map(s.goals.map((g, i) => [g.id, i]));
+  const goals = [...s.goals];
+  for (const g of bump(s.goals, c.goals)) { const i = byId.get(g.id); if (i == null) { byId.set(g.id, goals.length); goals.push(g); } else goals[i] = g; }
+  const newIds = new Set((c.checkIns ?? []).map((n) => n.id));
+  const newWeeks = new Set((c.checkIns ?? []).map((n) => n.goalId + ':' + n.week));
+  const replaced = (x: CheckIn) => newIds.has(x.id) || newWeeks.has(x.goalId + ':' + x.week);
   return {
     ...s,
     people: upsert(s.people, c.people),
@@ -56,7 +97,7 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     decisions: upsert(s.decisions, c.decisions),
     changes: [...s.changes, ...c.changes],
     watches: upsert((s.watches ?? []).filter((w) => !(c.unwatch ?? []).includes(w.id)), c.watches),
-    reviews: upsert(s.reviews ?? [], c.reviews),
+    reviews: upsert(s.reviews ?? [], bump(s.reviews ?? [], c.reviews)),
     retros: upsert(s.retros ?? [], c.retros),
     cycles: upsert(s.cycles, c.cycles),
     feedback: upsert(s.feedback ?? [], c.feedback),
@@ -102,7 +143,8 @@ export class BrowserStore implements Store {
   }
 
   private current(id: string): Snapshot {
-    const s = this.memory.get(id) ?? this.get<Snapshot>(`${this.key}:${id}`);
+    // What's stored first: another tab may have saved since this one last looked.
+    const s = this.get<Snapshot>(`${this.key}:${id}`) ?? this.memory.get(id);
     if (s) return s;
     const build = this.hasExample ? exampleBuild(id) : undefined;
     if (!build) throw new Error('This workspace no longer exists in this browser.');
@@ -120,7 +162,11 @@ export class BrowserStore implements Store {
   }
 
   async commit(id: string, c: Commit) {
-    this.write(id, applyCommit(this.current(id), c));
+    // Read what's stored now, not this tab's copy: another tab may have saved since.
+    const stored = this.get<Snapshot>(`${this.key}:${id}`) ?? this.current(id);
+    checkExpectations(stored, c.expect);
+    const { expect: _e, ...rest } = c;
+    this.write(id, applyCommit(stored, rest));
   }
 
   async createWorkspace(ws: Workspace, data: Snapshot) {

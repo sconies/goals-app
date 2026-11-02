@@ -813,3 +813,4 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; 
 .hgrid-year .hcell { padding: 4px 0; height: 26px; min-width: 14px; }
 .hgrid-year .hcell svg { width: 10px; height: 10px; }
 .hgrid .q-start, .hgrid-year td:nth-child(15), .hgrid-year td:nth-child(28), .hgrid-year td:nth-child(41) { border-left: 1px solid var(--line-strong); }
+.local-banner { margin: 0 auto; max-width: 1040px; padding: var(--s2) var(--s4); background: var(--risk-bg); color: var(--risk-fg); font-size: var(--t-sm); font-weight: 550; text-align: center; }

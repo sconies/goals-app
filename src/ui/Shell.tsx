@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { useApp } from '../app/state';
+import { useApp, useToasts } from '../app/state';
 import { shortPeriod } from '../domain/year';
 import { weekProgress } from '../domain/progress';
 import { reviewSession, watchedGoals } from '../domain/review';
@@ -159,6 +159,7 @@ function FeedbackSheet({ onClose, path }: { onClose: () => void; path: string })
 
 export function Shell({ children }: { children: ReactNode }) {
   const app = useApp();
+  const toasts = useToasts();
   const { pathname, search } = useLocation();
   const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | 'feedback' | null>(null);
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
@@ -247,6 +248,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </button>
         </nav>
         <main className="work" ref={work} id="main">
+          {app.mode === 'live' && app.storeKind === 'browser' && <div className="local-banner" role="note">This is a copy kept in this browser only. Nobody else sees changes made here.</div>}
           {!focusMode && app.mode === 'demo' && !present && <DemoBar onPeople={() => setSheet('profile')} onHide={() => setPresent(true)} />}
           {children}
         </main>
@@ -279,7 +281,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <WorkspaceSheet open={sheet === 'workspace'} onClose={() => setSheet(null)} />
       {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} path={pathname} />}
       <div className="toasts" role="status" aria-live="polite">
-        {app.toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.kind === 'success' ? '✓ ' : ''}{t.text}</div>)}
+        {toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.kind === 'success' ? '✓ ' : ''}{t.text}</div>)}
       </div>
     </div>
   );

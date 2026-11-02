@@ -103,7 +103,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     me: { name: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
     template: '', outcome: blankGoal(), goals: [], fileGoals: '',
   }));
-  const [suffix] = useState(() => Math.random().toString(36).slice(2, 6));
+  // Ids are global in the database, so the suffix is long enough that two workspaces never share one.
+  const [suffix] = useState(() => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join(''));
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fileNote, setFileNote] = useState('');

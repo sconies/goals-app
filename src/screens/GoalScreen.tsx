@@ -99,8 +99,10 @@ function GoalView({ goal }: { goal: Goal }) {
   const stale = st.status === 'stale';
   const dateText = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const askForUpdate = async () => {
-    await app.addNote(goal, `${owner?.name.split(' ')[0] ?? 'Hi'}, could you post an update? The last check-in was week ${latest?.week ?? '–'}.`);
-    app.toast(`Asked ${owner?.name.split(' ')[0] ?? 'the owner'}. It’s on their Home under For you.`);
+    try {
+      await app.addNote(goal, `${owner?.name.split(' ')[0] ?? 'Hi'}, could you post an update? The last check-in was week ${latest?.week ?? '–'}.`);
+      app.toast(`Asked ${owner?.name.split(' ')[0] ?? 'the owner'}. It’s on their Home under For you.`);
+    } catch { /* the save already said what went wrong */ }
   };
   // In a review, the page is compact: result, what changed, what's needed; the rest folds away.
   const compact = rv.active;

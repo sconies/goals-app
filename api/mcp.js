@@ -21552,7 +21552,7 @@ function goalToRows(ws, g) {
 			plan_start: g.kind === "metric" ? g.plan.start : null,
 			plan_target: g.kind === "metric" ? g.plan.target : null,
 			plan_shape: g.kind === "metric" ? g.plan.shape : null,
-			plan_from_week: g.kind === "metric" ? g.plan.fromWeek ?? 0 : null,
+			plan_from_week: g.kind === "metric" ? g.plan.fromWeek ?? 0 : 0,
 			plan_end_week: g.kind === "metric" ? g.plan.endWeek ?? null : null,
 			plan_points: g.kind === "metric" && g.plan.points?.length ? g.plan.points : null,
 			original_plan: g.kind === "metric" ? g.originalPlan : null,
@@ -21588,7 +21588,8 @@ function goalFromRows(r, stageRows) {
 		source: r.source,
 		definition: r.definition,
 		createdAt: iso(r.created_at),
-		...r.pending ? { pending: r.pending } : {}
+		...r.pending ? { pending: r.pending } : {},
+		...r.version != null ? { version: Number(r.version) } : {}
 	};
 	if (r.kind === "metric") {
 		const op = r.original_plan;
@@ -21611,7 +21612,13 @@ function goalFromRows(r, stageRows) {
 			originalPlan: op ? {
 				start: Number(op.start),
 				target: Number(op.target),
-				shape: op.shape
+				shape: op.shape,
+				...op.fromWeek != null ? { fromWeek: Number(op.fromWeek) } : {},
+				...op.endWeek != null ? { endWeek: Number(op.endWeek) } : {},
+				...op.points?.length ? { points: op.points.map((p) => ({
+					week: Number(p.week),
+					value: Number(p.value)
+				})) } : {}
 			} : null,
 			rebaselinedWeek: r.rebaselined_week
 		};
@@ -21771,7 +21778,8 @@ var reviewFromRow = (r) => ({
 	},
 	people: r.people ?? [],
 	createdBy: r.created_by,
-	createdAt: iso(r.created_at)
+	createdAt: iso(r.created_at),
+	...r.version != null ? { version: Number(r.version) } : {}
 });
 var retroToRow = (ws, r) => ({
 	workspace_id: ws,
@@ -21832,6 +21840,41 @@ var tokenFromRow = (r) => ({
 	lastUsedAt: r.last_used_at ? iso(r.last_used_at) : null,
 	revokedAt: r.revoked_at ? iso(r.revoked_at) : null
 });
+/** One save as the payload okr_commit takes: rows for each table, stages per milestone, and what the save expects. */
+function commitPayload(ws, c) {
+	const goals = (c.goals ?? []).map((g) => ({
+		g,
+		...goalToRows(ws, g)
+	}));
+	return {
+		cycles: (c.cycles ?? []).map((x) => cycleToRow(ws, x)),
+		people: (c.people ?? []).map((p) => personToRow(ws, p)),
+		goals: goals.map((x) => x.goal),
+		stages: goals.filter((x) => x.g.kind === "milestone").map((x) => ({
+			goal_id: x.g.id,
+			keep: x.stages.map((st) => st.id),
+			rows: x.stages
+		})),
+		check_ins: (c.checkIns ?? []).map((x) => checkInToRow(ws, x)),
+		reviews: (c.reviews ?? []).map((x) => reviewToRow(ws, x)),
+		feedback: (c.feedback ?? []).map((x) => feedbackToRow(ws, x)),
+		retros: (c.retros ?? []).map((x) => retroToRow(ws, x)),
+		decisions: (c.decisions ?? []).map((x) => decisionToRow(ws, x)),
+		watches: (c.watches ?? []).map((x) => watchToRow(ws, x)),
+		unwatch: c.unwatch ?? [],
+		tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
+		changes: c.changes.map((x) => changeToRow(ws, x)),
+		expect: c.expect ? {
+			goals: c.expect.goals,
+			reviews: c.expect.reviews,
+			check_ins: c.expect.checkIns.map((x) => ({
+				goal_id: x.goalId,
+				week: x.week,
+				id: x.id
+			}))
+		} : null
+	};
+}
 // src/domain/plan.ts
 var DAY$3 = 864e5;
 /** Days between two ISO dates or timestamps, by calendar date in UTC. */
@@ -22008,7 +22051,7 @@ function assessMetric(goal, weeks, week, actual, history) {
 			behind: backwards
 		};
 	}
-	const ratio = (actual - start) / planned;
+	const ratio = Math.round((actual - start) / planned * 1e9) / 1e9;
 	const calc = ratio >= RULES.onTrack ? "on" : ratio >= RULES.atRisk ? "risk" : "off";
 	return {
 		...base,
@@ -22085,9 +22128,26 @@ function assessMilestone(goal, week, updates) {
 		late
 	};
 }
-/** The goal's own check-ins, oldest first. */
+var byGoalCache = /* @__PURE__ */ new WeakMap();
+/** The goal's own check-ins, oldest first. Indexed once per list of check-ins (and again if the list grows), so asking for every goal stays cheap. */
 function checkInsFor(goal, all) {
-	return all.filter((c) => c.goalId === goal.id).sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt));
+	let hit = byGoalCache.get(all);
+	if (!hit || hit.n !== all.length || hit.last !== all[all.length - 1]) {
+		const index = /* @__PURE__ */ new Map();
+		for (const c of all) {
+			const l = index.get(c.goalId);
+			if (l) l.push(c);
+			else index.set(c.goalId, [c]);
+		}
+		for (const l of index.values()) l.sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt));
+		hit = {
+			n: all.length,
+			last: all[all.length - 1],
+			index
+		};
+		byGoalCache.set(all, hit);
+	}
+	return [...hit.index.get(goal.id) ?? []];
 }
 /** Assess a goal from what has been posted: the latest check-in's numbers at its week. */
 function assessPosted(goal, cycle, checkIns, week) {
@@ -23577,6 +23637,80 @@ var EXAMPLE_PLATFORM = {
 }))];
 // src/data/store.ts
 var EXAMPLE = EXAMPLE_PLATFORM;
+/** The versions a save is based on, read from the snapshot the person was looking at. */
+function withExpectations(c, s) {
+	return {
+		...c,
+		expect: {
+			goals: (c.goals ?? []).flatMap((g) => {
+				const old = s.goals.find((x) => x.id === g.id);
+				return old ? [{
+					id: g.id,
+					version: old.version ?? 0
+				}] : [];
+			}),
+			reviews: (c.reviews ?? []).flatMap((r) => {
+				const old = s.reviews.find((x) => x.id === r.id);
+				return old ? [{
+					id: r.id,
+					version: old.version ?? 0
+				}] : [];
+			}),
+			checkIns: (c.checkIns ?? []).map((ci) => ({
+				goalId: ci.goalId,
+				week: ci.week,
+				id: s.checkIns.find((x) => x.goalId === ci.goalId && x.week === ci.week)?.id ?? null
+			}))
+		}
+	};
+}
+/** A save refused because someone else changed the same thing first. */
+var StaleError = class extends Error {
+	constructor(what) {
+		super("stale: " + what);
+		this.name = "StaleError";
+	}
+};
+/** Applies a commit to a snapshot. Shared by the browser store and the app's optimistic update. */
+function applyCommit(s, c) {
+	const upsert = (list, items = []) => {
+		const ids = new Set(items.map((x) => x.id));
+		return [...list.filter((x) => !ids.has(x.id)), ...items];
+	};
+	const bump = (list, items = []) => items.map((x) => {
+		const old = list.find((y) => y.id === x.id);
+		return {
+			...x,
+			version: old ? (old.version ?? 0) + 1 : 0
+		};
+	});
+	const byId = new Map(s.goals.map((g, i) => [g.id, i]));
+	const goals = [...s.goals];
+	for (const g of bump(s.goals, c.goals)) {
+		const i = byId.get(g.id);
+		if (i == null) {
+			byId.set(g.id, goals.length);
+			goals.push(g);
+		} else goals[i] = g;
+	}
+	const newIds = new Set((c.checkIns ?? []).map((n) => n.id));
+	const newWeeks = new Set((c.checkIns ?? []).map((n) => n.goalId + ":" + n.week));
+	const replaced = (x) => newIds.has(x.id) || newWeeks.has(x.goalId + ":" + x.week);
+	return {
+		...s,
+		people: upsert(s.people, c.people),
+		goals,
+		checkIns: [...s.checkIns.filter((x) => !replaced(x)), ...c.checkIns ?? []],
+		decisions: upsert(s.decisions, c.decisions),
+		changes: [...s.changes, ...c.changes],
+		watches: upsert((s.watches ?? []).filter((w) => !(c.unwatch ?? []).includes(w.id)), c.watches),
+		reviews: upsert(s.reviews ?? [], bump(s.reviews ?? [], c.reviews)),
+		retros: upsert(s.retros ?? [], c.retros),
+		cycles: upsert(s.cycles, c.cycles),
+		feedback: upsert(s.feedback ?? [], c.feedback),
+		tokens: upsert(s.tokens ?? [], c.tokens)
+	};
+}
 var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 // src/data/supabaseStore.ts
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
@@ -23606,11 +23740,16 @@ var SupabaseStore = class {
 	}
 	async all(table, ws) {
 		const out = [];
-		for (let from = 0;; from += PAGE) {
-			const { data, error } = await this.db.from(table).select("*").eq("workspace_id", ws).order("id").range(from, from + PAGE - 1);
+		let after = null;
+		for (;;) {
+			let q = this.db.from(table).select("*").eq("workspace_id", ws).order("id").limit(PAGE);
+			if (after != null) q = q.gt("id", after);
+			const { data, error } = await q;
 			if (error) throw new Error(`${table}: ${error.message}`);
-			out.push(...data ?? []);
-			if (!data || data.length < PAGE) return out;
+			const rows = data ?? [];
+			out.push(...rows);
+			if (rows.length < PAGE) return out;
+			after = rows[rows.length - 1].id;
 		}
 	}
 	async must(p, what) {
@@ -23654,7 +23793,24 @@ var SupabaseStore = class {
 			tokens: tokens.map(tokenFromRow)
 		};
 	}
+	/** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
+	async rpc(fn, args, what) {
+		const { error } = await this.db.rpc(fn, args);
+		if (!error) return;
+		if (error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message)) return "missing";
+		if (/stale: /.test(error.message)) throw new StaleError(error.message.replace(/^.*stale: /, ""));
+		throw new Error(`${what}: ${error.message}`);
+	}
+	/** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. */
 	async commit(ws, c) {
+		if (await this.rpc("okr_commit", {
+			ws,
+			payload: commitPayload(ws, c)
+		}, "Saving") !== "missing") return;
+		await this.legacyCommit(ws, c);
+	}
+	/** The save before migration 0011: one request per table, not in a transaction. Used only until 0011 is applied. */
+	async legacyCommit(ws, c) {
 		if (c.cycles?.length) await this.must(this.db.from("okr_cycles").upsert(c.cycles.map((x) => cycleToRow(ws, x))), "Saving the cycle");
 		if (c.people?.length) await this.must(this.db.from("okr_people").upsert(c.people.map((p) => personToRow(ws, p))), "Saving people");
 		for (const g of c.goals ?? []) {
@@ -23698,6 +23854,18 @@ var SupabaseStore = class {
 		await chunk("okr_changes", s.changes.map((c) => changeToRow(ws, c)), "Adding the change log");
 	}
 	async createWorkspace(w, data) {
+		const payload = {
+			...commitPayload(w.id, {
+				...data,
+				changes: data.changes
+			}),
+			teams: data.teams.map((t) => teamToRow(w.id, t)),
+			expect: null
+		};
+		if (await this.rpc("okr_create_workspace", {
+			w: workspaceToRow(w),
+			payload
+		}, "Creating the workspace") !== "missing") return;
 		await this.must(this.db.from("okr_workspaces").insert(workspaceToRow(w)), "Creating the workspace");
 		await this.insertAll(w.id, data);
 	}
@@ -23707,6 +23875,7 @@ var SupabaseStore = class {
 	/** Removes a workspace and everything in it. The tables don't cascade from the workspace, so children go first. */
 	async deleteWorkspace(ws) {
 		if (ws === EXAMPLE.id) throw new Error("The example can’t be deleted.");
+		if (await this.rpc("okr_delete_workspace", { ws }, "Deleting the workspace") !== "missing") return;
 		await this.must(this.db.from("okr_teams").update({ lead_id: null }).eq("workspace_id", ws), "Unlinking teams");
 		await this.must(this.db.from("okr_goals").update({ parent_id: null }).eq("workspace_id", ws), "Unlinking goals");
 		for (const t of [
@@ -24347,7 +24516,9 @@ function planChanges(input) {
 		r,
 		row: rowOf(r, i)
 	}));
-	const goalFor = (r) => val(r, "goal id") ? work.get(val(r, "goal id")) : [...work.values()].find((g) => norm(g.title) === norm(val(r, "goal")));
+	const byTitle = new Map([...work.values()].map((g) => [norm(g.title), g]));
+	const goalFor = (r) => val(r, "goal id") ? work.get(val(r, "goal id")) : byTitle.get(norm(val(r, "goal")));
+	const imported = /* @__PURE__ */ new Map();
 	rows.sort((a, b) => (goalFor(a.r)?.id ?? "").localeCompare(goalFor(b.r)?.id ?? "") || (parseNumber(val(a.r, "week")) ?? 0) - (parseNumber(val(b.r, "week")) ?? 0));
 	for (const { r, row } of rows) {
 		if (Object.entries(r).every(([k, v]) => k === "__row" || !v)) continue;
@@ -24362,8 +24533,8 @@ function planChanges(input) {
 			continue;
 		}
 		const w = parseNumber(val(r, "week"));
-		if (w == null || !Number.isInteger(w) || w < 0) {
-			err("Check-ins", row, g.title, "Week should be a whole number, counted from the cycle start.");
+		if (w == null || !Number.isInteger(w) || w < 1) {
+			err("Check-ins", row, g.title, w === 0 ? "Check-ins start in week 1; week 0 is the start of the year." : "Week should be a whole number from 1, counted from the start of the year.");
 			continue;
 		}
 		if (w > week) {
@@ -24376,7 +24547,7 @@ function planChanges(input) {
 			continue;
 		}
 		seen.add(key);
-		const ctx = [...s.checkIns.filter((c) => !(c.goalId === g.id && c.week === w)), ...ciOut.filter((c) => c.goalId === g.id)];
+		const ctx = [...checkInsFor(g, s.checkIns).filter((c) => c.week !== w), ...imported.get(g.id) ?? []];
 		const prev = checkInsFor(g, ctx).filter((c) => c.week < w).pop() ?? null;
 		let stages = [];
 		if (g.kind === "milestone") {
@@ -24420,10 +24591,10 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Call “${val(r, "call")}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`);
 			continue;
 		}
-		const existing = s.checkIns.find((c) => c.goalId === g.id && c.week === w) ?? null;
+		const existing = checkInsFor(g, s.checkIns).find((c) => c.week === w) ?? null;
 		if (existing && (!call || existing.status === call) && (g.kind === "milestone" ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, "value"))) && (!has(r, "why") || val(r, "why") === existing.why)) {
 			unchanged++;
-			ciOut.push(existing);
+			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
 			continue;
 		}
 		const asOf = g.kind === "metric" && g.originalPlan && g.rebaselinedWeek != null && w < g.rebaselinedWeek ? {
@@ -24482,6 +24653,7 @@ function planChanges(input) {
 		ch.at = now;
 		if (backfilled) ch.summary += " (loaded later)";
 		ciOut.push(c);
+		imported.set(g.id, [...imported.get(g.id) ?? [], c]);
 		changes.push(ch);
 		items.push({
 			sheet: "Check-ins",
@@ -24499,7 +24671,7 @@ function planChanges(input) {
 		from: "—",
 		to: VIA_LABEL[via]
 	});
-	const posted = ciOut.filter((c) => !s.checkIns.includes(c));
+	const posted = ciOut;
 	const counts = {
 		newGoals: items.filter((x) => x.kind === "new goal").length,
 		goals: items.filter((x) => x.kind === "goal").length,
@@ -24644,10 +24816,10 @@ function quarterResults(g, c, checkIns, week) {
 }
 // src/domain/story.ts
 var MEANING = {
-	on: "Will hit the target if it carries on: at least 95% of the progress planned by now.",
-	risk: "Could miss without a change: 80–95% of the planned progress, or close to a limit. The owner has said how it gets back.",
-	off: "Will miss without intervention: under 80% of the planned progress, a stage more than two weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.",
-	stale: "Gone quiet: no check-in for two weeks or more, so its status can’t be trusted.",
+	on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
+	risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. The owner has said how it gets back.`,
+	off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
+	stale: `Gone quiet: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
 	none: "Waiting for its first check-in.",
 	planned: "Not started: it starts this week.",
 	done: "Done: the owner has called it complete."
@@ -25265,7 +25437,7 @@ function toCsv(rows) {
 	const cell = (v) => {
 		if (v == null) return "";
 		let t = String(v);
-		if (typeof v === "string" && /^[=+\-@\t\r]/.test(t) && !/^-?\d/.test(t)) t = "'" + t;
+		if (typeof v === "string" && /^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = "'" + t;
 		return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, "\"\"")}"` : t;
 	};
 	return rows.map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
@@ -26298,7 +26470,11 @@ async function handle(msg, context) {
 /** A POST body: one message or a batch. Returns the replies to send (null when there are none: answer 202). */
 async function handleBody(body, context) {
 	if (Array.isArray(body)) {
-		const out = (await Promise.all(body.map((m) => handle(m, context)))).filter((x) => !!x);
+		const out = [];
+		for (const m of body) {
+			const r = await handle(m, context);
+			if (r) out.push(r);
+		}
 		return out.length ? out : null;
 	}
 	return handle(body, context);
@@ -26360,7 +26536,8 @@ async function serve(req, deps) {
 	let ctx = null;
 	const context = async () => {
 		if (ctx) return ctx;
-		const [all, name] = await Promise.all([deps.load(found.workspaceId), deps.workspaceName(found.workspaceId)]);
+		const [loaded, name] = await Promise.all([deps.load(found.workspaceId), deps.workspaceName(found.workspaceId)]);
+		let all = loaded;
 		const cycle = currentCycle(all.cycles, now);
 		if (!cycle) throw new Error("This workspace has no cycle yet.");
 		const actor = all.people.find((p) => p.id === found.token.personId);
@@ -26377,7 +26554,11 @@ async function serve(req, deps) {
 			actor,
 			now: now.toISOString(),
 			newId,
-			save: (c) => deps.commit(found.workspaceId, c)
+			save: async (c) => {
+				await deps.commit(found.workspaceId, withExpectations(c, all));
+				all = applyCommit(all, c);
+				ctx.snapshot = scopeToCycle(all, cycle);
+			}
 		};
 		return ctx;
 	};
@@ -26409,7 +26590,8 @@ function deps() {
 	return {
 		async findToken(hash) {
 			const { data, error } = await db.from("okr_api_tokens").select("*").eq("token_hash", hash).is("revoked_at", null).maybeSingle();
-			if (error || !data) return null;
+			if (error) throw new Error("The goals database didn’t answer. Try again in a moment.");
+			if (!data) return null;
 			const row = data;
 			return {
 				token: tokenFromRow(row),

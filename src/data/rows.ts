@@ -13,7 +13,7 @@ export interface GoalRow extends W {
   kind: Goal['kind']; io: Goal['io']; headline: boolean; level: Level; guardrail: boolean; effect: number | null; why_helps?: string | null; source: string; definition: string;
   unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null; plan_end_week?: number | null; plan_points?: MetricPlan['points'] | null;
   original_plan: MetricPlan | null; rebaselined_week: number | null; range_bound: 'atMost' | 'atLeast' | null; range_limit: number | null;
-  range_margin: number | null; created_at: string; pending?: Goal['pending'];
+  range_margin: number | null; created_at: string; pending?: Goal['pending']; version?: number;
 }
 export interface CheckInRow extends W {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
@@ -45,7 +45,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     id: g.id, cycle_id: g.cycleId, team_id: g.teamId, owner_id: g.ownerId, parent_id: g.parentId, title: g.title, kind: g.kind, io: g.io,
     headline: false, level: g.level, guardrail: g.guardrail, effect: g.effect, why_helps: g.whyHelps ?? null, source: g.source, definition: g.definition,
     unit: g.kind === 'milestone' ? null : g.unit, decimals: g.kind === 'milestone' ? null : g.decimals,
-    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : null, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
+    plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
     created_at: g.createdAt || new Date().toISOString(),
@@ -60,13 +60,19 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     id: r.id, cycleId: r.cycle_id, teamId: r.team_id, ownerId: r.owner_id, parentId: r.parent_id, title: r.title, io: r.io,
     level: r.level ?? (r.headline ? 'north-star' : 'team'), guardrail: r.guardrail, effect: num(r.effect), ...(r.why_helps ? { whyHelps: r.why_helps } : {}), source: r.source, definition: r.definition, createdAt: iso(r.created_at),
     ...(r.pending ? { pending: r.pending } : {}),
+    ...(r.version != null ? { version: Number(r.version) } : {}),
   };
   if (r.kind === 'metric') {
     const op = r.original_plan;
     return {
       ...common, kind: 'metric', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0),
       plan: { start: num(r.plan_start) as number, target: num(r.plan_target) as number, shape: r.plan_shape ?? 'straight', ...(r.plan_from_week ? { fromWeek: Number(r.plan_from_week) } : {}), ...(r.plan_end_week ? { endWeek: Number(r.plan_end_week) } : {}), ...(r.plan_points?.length ? { points: r.plan_points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}) },
-      originalPlan: op ? { start: Number(op.start), target: Number(op.target), shape: op.shape } : null, rebaselinedWeek: r.rebaselined_week,
+      originalPlan: op ? {
+        start: Number(op.start), target: Number(op.target), shape: op.shape,
+        // The whole first plan, so weeks before a re-plan are judged against exactly what applied then.
+        ...(op.fromWeek != null ? { fromWeek: Number(op.fromWeek) } : {}), ...(op.endWeek != null ? { endWeek: Number(op.endWeek) } : {}),
+        ...(op.points?.length ? { points: op.points.map((p) => ({ week: Number(p.week), value: Number(p.value) })) } : {}),
+      } : null, rebaselinedWeek: r.rebaselined_week,
     };
   }
   if (r.kind === 'range') {
@@ -101,14 +107,14 @@ export const watchToRow = (ws: string, w: Watch): WatchRow => ({ workspace_id: w
 export const watchFromRow = (r: WatchRow): Watch => ({ id: r.id, personId: r.person_id, kind: r.kind, ref: r.ref });
 
 export interface ReviewRow extends W {
-  id: string; name: string; every_weeks: number; weekday: number; scope: Review['scope']; people: string[]; created_by: string; created_at: string;
+  id: string; name: string; every_weeks: number; weekday: number; scope: Review['scope']; people: string[]; created_by: string; created_at: string; version?: number;
 }
 export const reviewToRow = (ws: string, r: Review): ReviewRow => ({
   workspace_id: ws, id: r.id, name: r.name, every_weeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people, created_by: r.createdBy, created_at: r.createdAt,
 });
 export const reviewFromRow = (r: ReviewRow): Review => ({
   id: r.id, name: r.name, everyWeeks: Number(r.every_weeks), weekday: Number(r.weekday),
-  scope: { goals: r.scope?.goals ?? [], trees: r.scope?.trees ?? [], levels: r.scope?.levels ?? [] }, people: r.people ?? [], createdBy: r.created_by, createdAt: iso(r.created_at),
+  scope: { goals: r.scope?.goals ?? [], trees: r.scope?.trees ?? [], levels: r.scope?.levels ?? [] }, people: r.people ?? [], createdBy: r.created_by, createdAt: iso(r.created_at), ...(r.version != null ? { version: Number(r.version) } : {}),
 });
 
 export interface RetroRow extends W {
@@ -124,3 +130,27 @@ export const feedbackFromRow = (r: FeedbackRow): Feedback => ({ id: r.id, person
 export interface TokenRow extends W { id: string; person_id: string; name: string; token_hash: string; created_by: string; created_at: string; last_used_at: string | null; revoked_at: string | null }
 export const tokenToRow = (ws: string, t: ApiToken): TokenRow => ({ workspace_id: ws, id: t.id, person_id: t.personId, name: t.name, token_hash: t.tokenHash, created_by: t.createdBy, created_at: t.createdAt, last_used_at: t.lastUsedAt, revoked_at: t.revokedAt });
 export const tokenFromRow = (r: TokenRow): ApiToken => ({ id: r.id, personId: r.person_id, name: r.name, tokenHash: r.token_hash, createdBy: r.created_by, createdAt: iso(r.created_at), lastUsedAt: r.last_used_at ? iso(r.last_used_at) : null, revokedAt: r.revoked_at ? iso(r.revoked_at) : null });
+
+/** One save as the payload okr_commit takes: rows for each table, stages per milestone, and what the save expects. */
+export function commitPayload(ws: string, c: import('./store').Commit) {
+  const goals = (c.goals ?? []).map((g) => ({ g, ...goalToRows(ws, g) }));
+  return {
+    cycles: (c.cycles ?? []).map((x) => cycleToRow(ws, x)),
+    people: (c.people ?? []).map((p) => personToRow(ws, p)),
+    goals: goals.map((x) => x.goal),
+    stages: goals.filter((x) => x.g.kind === 'milestone').map((x) => ({ goal_id: x.g.id, keep: x.stages.map((st) => st.id), rows: x.stages })),
+    check_ins: (c.checkIns ?? []).map((x) => checkInToRow(ws, x)),
+    reviews: (c.reviews ?? []).map((x) => reviewToRow(ws, x)),
+    feedback: (c.feedback ?? []).map((x) => feedbackToRow(ws, x)),
+    retros: (c.retros ?? []).map((x) => retroToRow(ws, x)),
+    decisions: (c.decisions ?? []).map((x) => decisionToRow(ws, x)),
+    watches: (c.watches ?? []).map((x) => watchToRow(ws, x)),
+    unwatch: c.unwatch ?? [],
+    tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
+    changes: c.changes.map((x) => changeToRow(ws, x)),
+    expect: c.expect ? {
+      goals: c.expect.goals, reviews: c.expect.reviews,
+      check_ins: c.expect.checkIns.map((x) => ({ goal_id: x.goalId, week: x.week, id: x.id })),
+    } : null,
+  };
+}

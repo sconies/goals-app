@@ -85,7 +85,8 @@ export function assessMetric(goal: MetricGoal, weeks: number, week: number, actu
     const backwards = (actual - start) * dir < 0;
     return { ...base, calc: backwards ? 'risk' : 'on', ratio: null, ahead: false, behind: backwards };
   }
-  const ratio = (actual - start) / planned;
+  // Rounded, so 95% of the plan is 95%, not 94.99999…% from floating point.
+  const ratio = Math.round(((actual - start) / planned) * 1e9) / 1e9;
   const calc: Status = ratio >= RULES.onTrack ? 'on' : ratio >= RULES.atRisk ? 'risk' : 'off';
   return { ...base, calc, ratio, ahead: ratio >= RULES.wellAhead, behind: ratio < RULES.onTrack };
 }
@@ -129,9 +130,19 @@ export function assessMilestone(goal: MilestoneGoal, week: number, updates: Stag
   return { kind: 'milestone', week, calc, stages, doneCount, dueCount, late };
 }
 
-/** The goal's own check-ins, oldest first. */
+const byGoalCache = new WeakMap<CheckIn[], { n: number; last: CheckIn | undefined; index: Map<string, CheckIn[]> }>();
+/** The goal's own check-ins, oldest first. Indexed once per list of check-ins (and again if the list grows), so asking for every goal stays cheap. */
 export function checkInsFor(goal: Goal, all: CheckIn[]): CheckIn[] {
-  return all.filter((c) => c.goalId === goal.id).sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt));
+  let hit = byGoalCache.get(all);
+  if (!hit || hit.n !== all.length || hit.last !== all[all.length - 1]) {
+    const index = new Map<string, CheckIn[]>();
+    for (const c of all) { const l = index.get(c.goalId); if (l) l.push(c); else index.set(c.goalId, [c]); }
+    for (const l of index.values()) l.sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt));
+    hit = { n: all.length, last: all[all.length - 1], index };
+    byGoalCache.set(all, hit);
+  }
+  const index = hit.index;
+  return [...(index.get(goal.id) ?? [])];
 }
 
 /** Assess a goal from what has been posted: the latest check-in's numbers at its week. */

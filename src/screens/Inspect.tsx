@@ -175,16 +175,20 @@ export function WatchButton({ goal }: { goal: Goal }) {
   const feeding = descendantsOf(goal, app).length;
   const label = w === null ? 'Watch' : w !== 'via' && w.kind === 'tree' ? 'Watching all' : 'Watching';
   const doWatch = async (kind: 'goal' | 'tree') => {
-    await app.watch(kind, goal.id);
-    if (kind === 'tree' && w && w !== 'via' && w.kind === 'goal') await app.unwatch(w.id);
-    app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`);
-    setOpen(false);
+    try {
+      await app.watch(kind, goal.id);
+      if (kind === 'tree' && w && w !== 'via' && w.kind === 'goal') await app.unwatch(w.id);
+      app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`);
+      setOpen(false);
+    } catch { /* the save already said what went wrong */ }
   };
   const stop = async (x: Watch) => {
-    await app.unwatch(x.id);
-    const still = covers.filter((c) => c.id !== x.id);
-    app.toast(still.length ? `Stopped. Still watching it as part of ${coverText(still[0]!)}.` : `Stopped watching ${goal.title}`);
-    setOpen(false);
+    try {
+      await app.unwatch(x.id);
+      const still = covers.filter((c) => c.id !== x.id);
+      app.toast(still.length ? `Stopped. Still watching it as part of ${coverText(still[0]!)}.` : `Stopped watching ${goal.title}`);
+      setOpen(false);
+    } catch { /* the save already said what went wrong */ }
   };
   return (
     <>

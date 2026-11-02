@@ -5,7 +5,7 @@
 import { causeLabel } from './checkin';
 import { fmt, fmtDiff, LEVEL_LABEL } from './format';
 import { planAt, planEnd, weekDates } from './plan';
-import { assessPosted, checkInsFor, goalStatus, LABEL } from './status';
+import { assessPosted, checkInsFor, goalStatus, LABEL, RULES } from './status';
 import { forecastText } from './tree';
 import { isYear, quarterOf, quarterResults, targetAt, type QuarterResult } from './year';
 import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
@@ -13,10 +13,10 @@ import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
 /* ---------- what each status means ---------- */
 
 export const MEANING: Record<DisplayStatus, string> = {
-  on: 'Will hit the target if it carries on: at least 95% of the progress planned by now.',
-  risk: 'Could miss without a change: 80–95% of the planned progress, or close to a limit. The owner has said how it gets back.',
-  off: 'Will miss without intervention: under 80% of the planned progress, a stage more than two weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.',
-  stale: 'Gone quiet: no check-in for two weeks or more, so its status can’t be trusted.',
+  on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
+  risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. The owner has said how it gets back.`,
+  off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
+  stale: `Gone quiet: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
   none: 'Waiting for its first check-in.',
   planned: 'Not started: it starts this week.',
   done: 'Done: the owner has called it complete.',

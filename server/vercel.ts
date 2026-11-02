@@ -14,7 +14,9 @@ function deps(): Deps {
   return {
     async findToken(hash) {
       const { data, error } = await db.from('okr_api_tokens').select('*').eq('token_hash', hash).is('revoked_at', null).maybeSingle();
-      if (error || !data) return null;
+      // A database fault is not a bad token: say so, rather than telling the person their token is wrong.
+      if (error) throw new Error('The goals database didn’t answer. Try again in a moment.');
+      if (!data) return null;
       const row = data as TokenRow;
       return { token: tokenFromRow(row), workspaceId: row.workspace_id };
     },

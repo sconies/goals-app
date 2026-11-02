@@ -7,7 +7,7 @@ import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
 import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
-import { applyCommit, EXAMPLE, newId, type Commit, type Mode, type Store } from '../data/store';
+import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
 import { hashToken, newToken } from '../mcp/protocol';
 
@@ -75,7 +75,6 @@ export interface AppState {
   revokeToken(id: string): Promise<void>;
   /** Now, as an ISO timestamp on the app's today. Use for anything saved. */
   stamp(): string;
-  toasts: Toast[];
   toast(text: string, kind?: Toast['kind']): void;
   storeKind: Store['kind'];
 }
@@ -107,7 +106,15 @@ export function useApp(): AppState {
 
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
-const realNow = () => new Date();
+/** Now, as the person's own wall-clock time: weeks turn over at their midnight on Sunday, wherever they are. */
+const realNow = () => {
+  const n = new Date();
+  return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), n.getMinutes(), n.getSeconds()));
+};
+
+const ToastCtx = createContext<Toast[]>([]);
+/** The messages on screen. Kept apart from the app state so a message coming and going doesn't recompute every screen. */
+export const useToasts = () => useContext(ToastCtx);
 
 export function AppProvider({ store, mode = 'demo', today = realNow, empty: renderEmpty, children }: { store: Store; mode?: Mode; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
   // The demo and the real app remember their own workspace and person, so one never opens the other's.
@@ -115,7 +122,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [wsId, setWsId] = useState<string | null>(() => read(K.ws) || (store.hasExample ? EXAMPLE.id : null));
   const [empty, setEmpty] = useState(false);
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  // The snapshot and the workspace it belongs to travel together, so a save can never go to a different workspace
+  // than the one on screen, even while another one is loading.
+  const [loaded, setLoaded] = useState<{ ws: string; snap: Snapshot; at: number } | null>(null);
+  const loadedRef = useRef(loaded);
+  loadedRef.current = loaded;
+  const saving = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [viewerId, setViewerId] = useState<string | null>(null);
@@ -138,12 +150,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       if (!live) return;
       setWorkspaces(list);
       const id = wsId && list.some((w) => w.id === wsId) ? wsId : list[0]?.id ?? null;
-      if (!id) { setEmpty(true); setSnapshot(null); return; }
+      if (!id) { setEmpty(true); setLoaded(null); return; }
       setEmpty(false);
       if (id !== wsId) { write(K.ws, id); setWsId(id); return; }
       const snap = await store.load(id);
       if (!live) return;
-      setSnapshot(snap);
+      setLoaded({ ws: id, snap, at: Date.now() });
       setViewerId(read(K.viewer + id));
     })().catch((e: unknown) => {
       if (!live) return;
@@ -175,19 +187,62 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
 
+  /** Reloads the open workspace from the store, unless a save has happened since the reload started. */
+  const reload = useCallback(async (ws: string) => {
+    const started = loadedRef.current?.at;
+    const snap = await store.load(ws);
+    setLoaded((l) => (l && l.ws === ws && l.at === started ? { ws, snap, at: Date.now() } : l));
+    return snap;
+  }, [store]);
+
   const commit = useCallback(async (c: Commit) => {
+    const cur = loadedRef.current;
+    saving.current++;
     try {
-      if (!wsId) throw new Error('no workspace is open');
-      await store.commit(wsId, c);
-      setSnapshot((s) => (s ? applyCommit(s, c) : s));
+      if (!cur) throw new Error('no workspace is open');
+      try {
+        // Says what the save was based on, so it is refused rather than overwriting a newer change.
+        await store.commit(cur.ws, withExpectations(c, cur.snap));
+      } catch (e) {
+        // A save that timed out may still have landed: look before calling it a failure, so a retry doesn't duplicate it.
+        const first = c.changes[0];
+        if (!isStale(e) && first && e instanceof Error && /did not answer in time|abort/i.test(e.message)) {
+          const fresh = await store.load(cur.ws).catch(() => null);
+          if (fresh?.changes.some((x) => x.id === first.id)) { setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: fresh, at: Date.now() } : l)); return; }
+        }
+        throw e;
+      }
+      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: Date.now() } : l));
     } catch (e) {
-      toast('Couldn’t save: ' + (e instanceof Error ? e.message : String(e)) + '. Your changes are still here; try again.', 'error');
+      if (isStale(e) && cur) {
+        await store.load(cur.ws).then((snap) => setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap, at: Date.now() } : l))).catch(() => undefined);
+        toast('Someone else changed this a moment ago, so yours wasn’t saved. You’re now looking at the latest: check it and try again.', 'error');
+      } else {
+        toast('Couldn’t save: ' + (e instanceof Error ? e.message : String(e)) + '. Your changes are still here; try again.', 'error');
+      }
       throw e;
+    } finally {
+      saving.current--;
     }
-  }, [store, wsId, toast]);
+  }, [store, toast]);
+
+  // See other people's changes: reload when coming back to the tab, and every two minutes while it's open.
+  useEffect(() => {
+    const refresh = () => {
+      const cur = loadedRef.current;
+      if (!cur || saving.current > 0 || document.visibilityState !== 'visible' || Date.now() - cur.at < 30_000) return;
+      void reload(cur.ws).catch(() => undefined);
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    const timer = setInterval(refresh, 120_000);
+    return () => { document.removeEventListener('visibilitychange', refresh); window.removeEventListener('focus', refresh); clearInterval(timer); };
+  }, [reload]);
 
   const value = useMemo<AppState | null>(() => {
-    if (!snapshot) return null;
+    if (!loaded) return null;
+    const snapshot = loaded.snap;
+    const wsId = loaded.ws;
     const now = today();
     const cycle = currentCycle(snapshot.cycles, now);
     if (!cycle) return null;
@@ -211,12 +266,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
     return {
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot: sc, cycle, week, today: now, viewer, lookup, stamp, toasts, toast, storeKind: store.kind,
+      ws, workspaces, snapshot: sc, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
         const s = await store.resetExample(ws.kind === 'example' ? ws.id : EXAMPLE.id);
-        if (ws.kind === 'example') setSnapshot(s);
+        if (ws.kind === 'example') setLoaded({ ws: ws.id, snap: s, at: Date.now() });
         toast('The example is back to its starting point');
       },
       deleteWorkspace: async () => {
@@ -226,7 +281,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         setWorkspaces(rest);
         const next = rest[0]?.id ?? null;
         write(K.ws, next ?? '');
-        setSnapshot(null);
+        setLoaded(null);
         setWsId(next);
         toast(`Deleted ${ws.name}`);
       },
@@ -347,7 +402,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         return next.cycle.name;
       },
     };
-  }, [snapshot, viewerId, store, today, workspaces, wsId, commit, toasts, toast, createWorkspace, mode]);
+  }, [loaded, viewerId, store, today, workspaces, commit, toast, createWorkspace, mode]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 
@@ -377,5 +432,5 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   } else {
     body = <Ctx.Provider value={value}>{children}</Ctx.Provider>;
   }
-  return <SetupCtx.Provider value={setup}>{body}</SetupCtx.Provider>;
+  return <ToastCtx.Provider value={toasts}><SetupCtx.Provider value={setup}>{body}</SetupCtx.Provider></ToastCtx.Provider>;
 }

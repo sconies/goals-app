@@ -86,6 +86,8 @@ interface GoalBase {
   createdAt: string;
   /** A proposed plan change. Not used while target changes save directly; kept for governance later. */
   pending?: PendingChange | null;
+  /** Bumped on every save, so a save based on an older version is refused rather than overwriting a newer one. */
+  version?: number;
 }
 
 export interface PendingChange {
@@ -230,6 +232,8 @@ export interface Review {
   people: Id[];
   createdBy: Id;
   createdAt: string;
+  /** Bumped on every save (see Goal.version). */
+  version?: number;
 }
 
 export interface Workspace {

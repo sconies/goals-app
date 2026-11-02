@@ -1,7 +1,7 @@
 /* The MCP endpoint: checks the personal token, loads that person's workspace and runs the tools as them.
    Data access is passed in, so the same code runs on Vercel (Supabase) and in tests (in memory). */
 import type { Commit } from '../src/data/store';
-import { newId } from '../src/data/store';
+import { applyCommit, newId, withExpectations } from '../src/data/store';
 import { currentCycle, scopeToCycle } from '../src/domain/cycle';
 import { currentWeek } from '../src/domain/plan';
 import type { ApiToken, Snapshot } from '../src/domain/types';
@@ -46,7 +46,8 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   let ctx: McpContext | null = null;
   const context = async (): Promise<McpContext> => {
     if (ctx) return ctx;
-    const [all, name] = await Promise.all([deps.load(found.workspaceId), deps.workspaceName(found.workspaceId)]);
+    const [loaded, name] = await Promise.all([deps.load(found.workspaceId), deps.workspaceName(found.workspaceId)]);
+    let all = loaded;
     const cycle = currentCycle(all.cycles, now);
     if (!cycle) throw new Error('This workspace has no cycle yet.');
     const actor = all.people.find((p) => p.id === found.token.personId);
@@ -54,7 +55,12 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
     ctx = {
       ws: { id: found.workspaceId, name }, snapshot: scopeToCycle(all, cycle), cycle, week: currentWeek(cycle, now), today: now, actor,
       now: now.toISOString(), newId,
-      save: (c) => deps.commit(found.workspaceId, c),
+      // Each save says what it was based on, and the context moves on with it, so later calls see it.
+      save: async (c) => {
+        await deps.commit(found.workspaceId, withExpectations(c, all));
+        all = applyCommit(all, c);
+        ctx!.snapshot = scopeToCycle(all, cycle);
+      },
     };
     return ctx;
   };

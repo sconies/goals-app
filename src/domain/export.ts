@@ -143,7 +143,7 @@ export function toCsv(rows: Cell[][]): string {
   const cell = (v: Cell) => {
     if (v == null) return '';
     let t = String(v);
-    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(t) && !/^-?\d/.test(t)) t = "'" + t;
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = "'" + t;
     return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
   return rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';

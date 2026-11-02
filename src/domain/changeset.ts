@@ -284,7 +284,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const ciOut: CheckIn[] = [];
   const seen = new Set<string>();
   const rows = (input.tables.checkIns ?? []).map((r, i) => ({ r, row: rowOf(r, i) }));
-  const goalFor = (r: Rec) => (val(r, 'goal id') ? work.get(val(r, 'goal id')) : [...work.values()].find((g) => norm(g.title) === norm(val(r, 'goal'))));
+  const byTitle = new Map([...work.values()].map((g) => [norm(g.title), g]));
+  const goalFor = (r: Rec) => (val(r, 'goal id') ? work.get(val(r, 'goal id')) : byTitle.get(norm(val(r, 'goal'))));
+  // This file's check-ins so far, by goal: later weeks are judged with the earlier ones.
+  const imported = new Map<string, CheckIn[]>();
   // Oldest first, so each week is judged with the weeks before it.
   rows.sort((a, b) => (goalFor(a.r)?.id ?? '').localeCompare(goalFor(b.r)?.id ?? '') || (parseNumber(val(a.r, 'week')) ?? 0) - (parseNumber(val(b.r, 'week')) ?? 0));
   for (const { r, row } of rows) {
@@ -294,13 +297,13 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!g) { err('Check-ins', row, name, val(r, 'goal id') ? `There’s no goal with ID ${val(r, 'goal id')}.` : `There’s no goal called “${val(r, 'goal')}”. Add the Goal ID column to be exact.`); continue; }
     if (!canChange(g)) { err('Check-ins', row, g.title, notYours(g)); continue; }
     const w = parseNumber(val(r, 'week'));
-    if (w == null || !Number.isInteger(w) || w < 0) { err('Check-ins', row, g.title, 'Week should be a whole number, counted from the cycle start.'); continue; }
+    if (w == null || !Number.isInteger(w) || w < 1) { err('Check-ins', row, g.title, w === 0 ? 'Check-ins start in week 1; week 0 is the start of the year.' : 'Week should be a whole number from 1, counted from the start of the year.'); continue; }
     if (w > week) { err('Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
     const key = g.id + ':' + w;
     if (seen.has(key)) { err('Check-ins', row, g.title, `Week ${w} appears twice for this goal.`); continue; }
     seen.add(key);
 
-    const ctx = [...s.checkIns.filter((c) => !(c.goalId === g.id && c.week === w)), ...ciOut.filter((c) => c.goalId === g.id)];
+    const ctx = [...checkInsFor(g, s.checkIns).filter((c) => c.week !== w), ...(imported.get(g.id) ?? [])];
     const prev = checkInsFor(g, ctx).filter((c) => c.week < w).pop() ?? null;
     let stages: StageUpdate[] = [];
     if (g.kind === 'milestone') {
@@ -320,10 +323,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const call = callRaw ? CALLS[callRaw] : null;
     if (callRaw && !call) { err('Check-ins', row, g.title, `Call “${val(r, 'call')}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`); continue; }
     // A row that says what's already there is left alone: history that hasn't changed isn't judged again.
-    const existing = s.checkIns.find((c) => c.goalId === g.id && c.week === w) ?? null;
+    const existing = checkInsFor(g, s.checkIns).find((c) => c.week === w) ?? null;
     if (existing && (!call || existing.status === call)
       && (g.kind === 'milestone' ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, 'value')))
-      && (!has(r, 'why') || val(r, 'why') === existing.why)) { unchanged++; ciOut.push(existing); continue; }
+      && (!has(r, 'why') || val(r, 'why') === existing.why)) { unchanged++; imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); continue; }
     // A week before the plan was changed is judged against the plan that applied then.
     const asOf: Goal = g.kind === 'metric' && g.originalPlan && g.rebaselinedWeek != null && w < g.rebaselinedWeek ? { ...g, plan: g.originalPlan } : g;
     const cause = causeOf(val(r, 'cause'));
@@ -358,12 +361,13 @@ export function planChanges(input: ChangeInput): ChangeSet {
     ch.at = now;
     if (backfilled) ch.summary += ' (loaded later)';
     ciOut.push(c);
+    imported.set(g.id, [...(imported.get(g.id) ?? []), c]);
     changes.push(ch);
     items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
   }
 
   for (const ch of changes) ch.diffs.push({ field: 'Via', from: '—', to: VIA_LABEL[via] });
-  const posted = ciOut.filter((c) => !s.checkIns.includes(c));
+  const posted = ciOut;
   const counts = {
     newGoals: items.filter((x) => x.kind === 'new goal').length,
     goals: items.filter((x) => x.kind === 'goal').length,

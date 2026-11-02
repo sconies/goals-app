@@ -51,7 +51,9 @@ export async function handle(msg: unknown, context: () => Promise<McpContext>): 
 /** A POST body: one message or a batch. Returns the replies to send (null when there are none: answer 202). */
 export async function handleBody(body: unknown, context: () => Promise<McpContext>): Promise<Reply | Reply[] | null> {
   if (Array.isArray(body)) {
-    const out = (await Promise.all(body.map((m) => handle(m, context)))).filter((x): x is Reply => !!x);
+    // One at a time, in order: a later call in the batch sees what an earlier one saved.
+    const out: Reply[] = [];
+    for (const m of body) { const r = await handle(m, context); if (r) out.push(r); }
     return out.length ? out : null;
   }
   return handle(body, context);
