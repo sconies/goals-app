@@ -39,7 +39,7 @@ describe('searching, filtering and sorting goals', () => {
   });
   it('filters by time and results', () => {
     expect(run({ quiet: 2 })).toEqual([id('Self-service environments in under 1 hour')]);
-    expect(run({ due: 42 })).toEqual([id('Repo-access controls for the Brain')]);
+    expect(run({ due: week - 1 })).toEqual([id('Repo-access controls for the Brain')]);
     expect(run({ result: ['missed'] })).toEqual([id('Repo-access controls for the Brain')]);
     expect(run({ quarter: 'missed' })).toEqual(expect.arrayContaining([id('Alerts auto-triaged by AIOps'), id('Lead time for changes')]));
   });

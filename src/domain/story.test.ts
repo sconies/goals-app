@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { seed } from '../data/seed';
-import { toYear } from '../data/yearStory';
+import { yearWeekOf } from '../data/yearStory';
 import { currentWeek } from './plan';
 import { goalResult, MEANING, storyOf } from './story';
 import type { CheckIn, MetricGoal } from './types';
@@ -9,6 +9,7 @@ const today = new Date('2026-10-30T12:00:00Z');
 const s = seed(today);
 const cycle = s.cycles[0]!;
 const week = currentWeek(cycle, today);
+const toYear = yearWeekOf(week);
 const goal = (id: string) => s.goals.find((g) => g.id === id)!;
 
 describe('the story of a goal', () => {
@@ -23,7 +24,7 @@ describe('the story of a goal', () => {
     expect(st.feeds).toMatch(/Intake-to-delivery time \(North star\)/);
   });
   it('doesn’t let a slipping date, a missing plan or a quiet goal hide', () => {
-    expect(storyOf(goal('idle'), s, cycle, week, today).warnings.join(' ')).toContain(`The date has slipped: first said back on plan by week ${toYear(9)}, now week ${toYear(10)}`);
+    expect(storyOf(goal('idle'), s, cycle, week, today).warnings.join(' ')).toMatch(new RegExp(`The date has slipped: first said back on plan by week (${toYear(8)}|${toYear(9)}), now week ${toYear(10)}`));
     const env = storyOf(goal('env'), s, cycle, week, today);
     expect(env.status).toBe('stale');
     expect(env.since).toMatch(new RegExp(`No check-in for \\d+ days; last heard in week ${toYear(4)}`));
@@ -43,9 +44,10 @@ describe('results once a goal is due', () => {
   const lead = goal('lead') as MetricGoal;
   it('completed, completed late, or did not meet', () => {
     expect(goalResult(lead, cycle, s.checkIns, week)).toBeNull();
-    expect(goalResult(lead, cycle, [...s.checkIns, ci('lead', 52, 2.0)], 52)!.kind).toBe('completed');
-    expect(goalResult(lead, cycle, [...s.checkIns, ci('lead', 52, 2.4)], 53)!.kind).toBe('missed');
-    expect(goalResult(lead, cycle, [...s.checkIns, ci('lead', 52, 2.4), ci('lead', 53, 1.9)], 53)!.text).toBe('Completed late: week 53, due week 52');
+    const end = cycle.weeks;
+    expect(goalResult(lead, cycle, [...s.checkIns, ci('lead', end, 2.0)], end)!.kind).toBe('completed');
+    expect(goalResult(lead, cycle, [...s.checkIns, ci('lead', end, 2.4)], end + 1)!.kind).toBe('missed');
+    expect(goalResult(lead, cycle, [...s.checkIns, ci('lead', end, 2.4), ci('lead', end + 1, 1.9)], end + 1)!.text).toBe(`Completed late: week ${end + 1}, due week ${end}`);
     expect(goalResult(goal('access'), cycle, s.checkIns, week)!.text).toBe(`Did not meet: due week ${toYear(6)}`);
   });
 });

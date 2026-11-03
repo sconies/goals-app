@@ -80,3 +80,58 @@ describe('database schema', () => {
   });
   it('refuses a metric goal without a plan', () => reject(`insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io) values ('m2', 'cycle', 'pm', 'maya', 'No plan', 'metric', 'input')`));
 });
+
+describe('moving goal years to calendar weeks (0018)', () => {
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  const before = files.filter((f) => f < '0018').map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
+  const move = readFileSync(join(dir, files.find((f) => f.startsWith('0018'))!), 'utf8');
+  let db: PGlite;
+  beforeAll(async () => {
+    db = new PGlite();
+    await db.exec(`create role anon nologin;`);
+    await db.exec(before);
+    await db.exec(`
+      insert into okr_teams (id, name, lead_id, objective) values ('t', 'Team', 'p', '');
+      insert into okr_people (id, name, role, initials, team_id, is_admin) values ('p', 'Pat', '', 'P', 't', true);
+      -- A January year under the old rule (week 0 held 1 January 2026), a shorter cycle, and a May year whose
+      -- 1st is a Friday, so both rules already agree.
+      insert into okr_cycles (id, name, start_date, weeks) values ('y', '2026', '2025-12-29', 52), ('short', 'Q4', '2026-10-26', 13), ('may', 'May 2026–Apr 2027', '2026-04-27', 52);
+      insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io, unit, decimals, plan_start, plan_target, plan_shape, plan_from_week, plan_end_week, plan_points, original_plan, rebaselined_week, plan_history, level)
+        values ('m', 'y', 't', 'p', 'Lead time', 'metric', 'output', 'days', 0, 10, 5, 'straight', 44, 52, '[{"week": 48, "value": 7}]',
+          '{"start": 10, "target": 6, "shape": "straight", "fromWeek": 40, "endWeek": 52}', 45,
+          '[{"untilWeek": 45, "plan": {"start": 10, "target": 6, "shape": "straight", "points": [{"week": 50, "value": 6}]}}]', 'team'),
+        ('s', 'short', 't', 'p', 'Short', 'metric', 'output', '%', 0, 1, 2, 'straight', 3, null, null, null, null, null, 'team'),
+        ('f', 'may', 't', 'p', 'May', 'metric', 'output', '%', 0, 1, 2, 'straight', 3, null, null, null, null, null, 'team');
+      insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io, level) values ('ms', 'y', 't', 'p', 'Launch', 'milestone', 'output', 'team');
+      insert into okr_stages (id, goal_id, name, due_week) values ('st', 'ms', 'Ship', 52);
+      insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_by_week) values ('c1', 'm', 'p', 44, 'off', 'off', 'Fix the pipeline', 47), ('c2', 's', 'p', 4, 'on', 'on', null, null), ('c3', 'f', 'p', 4, 'on', 'on', null, null);
+      insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_by_week, stages) values ('c4', 'ms', 'p', 44, 'risk', 'risk', 'Ship it a week late', 52, '[{"stageId": "st", "doneWeek": null, "forecastWeek": 52}]');
+      insert into okr_decisions (id, goal_id, week, kind, by_id, note, due_week) values ('d', 'm', 44, 'action', 'p', 'Do it', 50);
+    `);
+    await db.exec(move);
+    await db.exec(move);
+  }, 30_000);
+  const one = async (q: string) => (await db.query<Record<string, unknown>>(q)).rows[0]!;
+
+  it('starts a January year the week before ISO week 1, and gives 2026 its 53 weeks', async () => {
+    expect(await one(`select start_date::text d, weeks from okr_cycles where id = 'y'`)).toEqual({ d: '2025-12-22', weeks: 53 });
+    expect(await one(`select start_date::text d, weeks from okr_cycles where id = 'short'`)).toEqual({ d: '2026-10-26', weeks: 13 });
+    expect(await one(`select start_date::text d, weeks from okr_cycles where id = 'may'`)).toEqual({ d: '2026-04-27', weeks: 52 });
+  });
+  it('moves every stored week up by one, once, so each keeps its date', async () => {
+    expect(await one(`select plan_from_week, plan_end_week, rebaselined_week, plan_points, original_plan, plan_history from okr_goals where id = 'm'`)).toEqual({
+      plan_from_week: 45, plan_end_week: 53, rebaselined_week: 46, plan_points: [{ week: 49, value: 7 }],
+      original_plan: { start: 10, target: 6, shape: 'straight', fromWeek: 41, endWeek: 53 },
+      plan_history: [{ untilWeek: 46, plan: { start: 10, target: 6, shape: 'straight', points: [{ week: 51, value: 6 }] } }],
+    });
+    expect(await one(`select week, ptg_by_week from okr_check_ins where id = 'c1'`)).toEqual({ week: 45, ptg_by_week: 48 });
+    expect(await one(`select week, stages from okr_check_ins where id = 'c4'`)).toEqual({ week: 45, stages: [{ stageId: 'st', doneWeek: null, forecastWeek: 53 }] });
+    expect(await one(`select due_week from okr_stages where id = 'st'`)).toEqual({ due_week: 53 });
+    expect(await one(`select week, due_week from okr_decisions where id = 'd'`)).toEqual({ week: 45, due_week: 51 });
+  });
+  it('leaves shorter cycles and years that already matched alone', async () => {
+    expect(await one(`select week from okr_check_ins where id = 'c2'`)).toEqual({ week: 4 });
+    expect(await one(`select week from okr_check_ins where id = 'c3'`)).toEqual({ week: 4 });
+    expect(await one(`select plan_from_week from okr_goals where id = 's'`)).toEqual({ plan_from_week: 3 });
+  });
+});

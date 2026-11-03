@@ -3,12 +3,15 @@
 import { describe, expect, it } from 'vitest';
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../src/domain/checkin';
 import { blankGoal, buildGoal, draftOf, goalAsOf, overHundredHint, validateGoal } from '../src/domain/goal';
-import { forecast, planAt, shapeProgress } from '../src/domain/plan';
+import { currentWeek, forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
 import { seed } from '../src/data/seed';
 import { applyQuery, EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../src/domain/query';
 import { summariseAll } from '../src/domain/summary';
+import { goalYear, goalYearFor } from '../src/domain/year';
+import { yearName } from '../src/domain/yearName';
+import { nextCycle } from '../src/domain/cycle';
 
 const cycle: Cycle = { id: 'c', name: 'Eval cycle', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
 const base = { cycleId: 'c', teamId: 't', ownerId: 'o', io: 'input' as const, level: 'team' as const, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '' };
@@ -210,7 +213,7 @@ describe('search, filters and saved views', () => {
   const day0 = new Date('2026-10-30T12:00:00Z');
   const s0 = seed(day0);
   const c0 = s0.cycles[0]!;
-  const w0 = 43;
+  const w0 = currentWeek(c0, day0);
   const sums = summariseAll(s0.goals, s0, c0, day0, w0);
   const ids = (q: Partial<GoalQuery>) => applyQuery(sums, { ...EMPTY_QUERY, ...q }, { goals: s0.goals, cycle: c0, week: w0 }).map((x) => x.goal.id).sort();
   it(R('SAVED-VIEWS', 'every word of a search must appear somewhere in the goal or its story'), () => expect(ids({ q: 'vendor brain' })).toEqual(['access']));
@@ -221,3 +224,49 @@ describe('search, filters and saved views', () => {
   });
 });
 
+
+describe('calendar weeks for goal years', () => {
+  // ISO 8601 week of a date, worked out independently: the week (Monday to Sunday) whose Thursday is in the year.
+  const isoWeek = (d: Date) => {
+    const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    t.setUTCDate(t.getUTCDate() + 3 - ((t.getUTCDay() + 6) % 7));
+    const jan4 = Date.UTC(t.getUTCFullYear(), 0, 4);
+    const thursday1 = jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * 86_400_000 + 3 * 86_400_000;
+    return { year: t.getUTCFullYear(), week: 1 + Math.round((t.getTime() - thursday1) / 604_800_000) };
+  };
+  it(R('CALENDAR-WEEKS', 'in a January year, week n is ISO week n on every day from 2015 to 2035'), () => {
+    for (let t = Date.UTC(2015, 0, 1); t < Date.UTC(2035, 0, 1); t += 86_400_000) {
+      const day = new Date(t);
+      const iso = isoWeek(day);
+      const y = goalYear(iso.year, 0);
+      expect(currentWeek({ id: 'y', name: '', startDate: y.startDate, weeks: y.weeks, reviewDay: 3 }, day)).toBe(iso.week);
+    }
+  });
+  it(R('CALENDAR-WEEKS', 'a year has 52 or 53 weeks, as the ISO calendar does'), () => {
+    const long = Array.from({ length: 21 }, (_, i) => 2015 + i).filter((y) => goalYear(y, 0).weeks === 53);
+    expect(long).toEqual([2015, 2020, 2026, 2032]);
+  });
+  it(R('CALENDAR-WEEKS', 'week 0 is the week before week 1, and setting up in the last days of December sets up next year'), () => {
+    expect(goalYear(2027, 0)).toEqual({ startDate: '2026-12-28', weeks: 52 });
+    expect(goalYearFor(new Date('2026-12-30T09:00:00Z'), 0)).toEqual({ startDate: '2026-12-28', weeks: 52 });
+    expect(goalYearFor(new Date('2026-12-20T09:00:00Z'), 0).startDate).toBe('2025-12-22');
+  });
+  it(R('CALENDAR-WEEKS', 'a financial year starts with the week holding the first Thursday of its month'), () => {
+    // 1 April 2027 is a Thursday, so week 1 starts on Monday 29 March 2027.
+    expect(goalYear(2027, 3)).toEqual({ startDate: '2027-03-22', weeks: 53 });
+    expect(yearName('2027-03-22', 53)).toBe('Apr 2027–Mar 2028');
+  });
+  it(R('CALENDAR-WEEKS', 'the next goal year follows on with its own length and name'), () => {
+    const y2026: Cycle = { id: 'y', name: '2026', ...goalYear(2026, 0), reviewDay: 3 };
+    const { cycle } = nextCycle(y2026, [], [], [], { cycle: 'n', goal: (g) => g.id }, '');
+    expect([cycle.startDate, cycle.weeks, cycle.name]).toEqual(['2026-12-28', 52, '2027']);
+  });
+  it(R('CALENDAR-WEEKS', 'the demo is set in the real calendar year, so its week is today’s ISO week'), () => {
+    for (const d of ['2026-10-30', '2026-11-03', '2026-07-15', '2027-09-01']) {
+      const day = new Date(d + 'T12:00:00Z');
+      const c = seed(day).cycles[0]!;
+      expect(currentWeek(c, day)).toBe(isoWeek(day).week);
+      expect(c.name).toBe(String(isoWeek(day).year));
+    }
+  });
+});

@@ -7,7 +7,7 @@ import { useDraft } from '../app/drafts';
 import { downloadTemplate, readSpreadsheet } from '../app/spreadsheet';
 import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer';
 import type { Cycle } from '../domain/types';
-import { MONTH_NAMES, startMonth, yearStartFor } from '../domain/year';
+import { MONTH_NAMES, startMonth, yearStartFor, yearWeeks } from '../domain/year';
 import { yearName } from '../domain/yearName';
 import { stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
 import { currentWeek } from '../domain/plan';
@@ -151,8 +151,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const pickTemplate = (id: string) => {
     const t = TEMPLATES.find((x) => x.id === id);
     // Stage weeks in a template count from now, so a mid-year setup doesn't start with stages already overdue.
-    const now = currentWeek({ startDate: d.startDate, weeks: 52 } as Cycle, setup.today);
-    if (t) set({ template: id, outcome: { ...t.outcome, owner: d.me.name.trim() }, goals: t.goals.map((g) => ({ ...g, owner: d.me.name.trim(), ...(g.stages ? { stages: stagesFromNow(g.stages, now) } : {}) })) });
+    const now = currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today);
+    if (t) set({ template: id, outcome: { ...t.outcome, owner: d.me.name.trim() }, goals: t.goals.map((g) => ({ ...g, owner: d.me.name.trim(), ...(g.stages ? { stages: stagesFromNow(g.stages, now, yearWeeks(d.startDate)) } : {}) })) });
     else if (id === 'blank') set({ template: id, outcome: blankGoal(d.me.name.trim()), goals: [blankGoal(d.me.name.trim())] });
     else set({ template: id });
   };
@@ -207,6 +207,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <input className={'input big-input' + (tried && !d.name.trim() ? ' invalid' : '')} autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
             </label>
             {cycleOpen ? (
+              <>
               <div className="pair">
                 <label className="field"><span className="field-label">The goal year starts in</span>
                   <select className="input" value={startMonth({ startDate: d.startDate } as Cycle)} onChange={(e) => set({ startDate: yearStartFor(setup.today, Number(e.target.value)) })}>{MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
@@ -215,8 +216,10 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                   <select className="input" value={d.reviewDay} onChange={(e) => set({ reviewDay: Number(e.target.value) })}>{DAYS.map((x, i) => <option key={x} value={i}>{x}</option>)}</select>
                 </label>
               </div>
+              <span className="hint">Weeks follow the calendar: week 1 is the week with the first Thursday of {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}{startMonth({ startDate: d.startDate } as Cycle) === 0 ? ', so week numbers match ISO weeks' : ''}. This year has {yearWeeks(d.startDate)} weeks.</span>
+              </>
             ) : (
-              <span className="hint">Goals for the year {yearName(d.startDate, 52)}, in four quarters, with a weekly review on {DAYS[d.reviewDay]}s. <button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span>
+              <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review on {DAYS[d.reviewDay]}s. <button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span>
             )}
           </section>
         )}
@@ -305,7 +308,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </div>
             {d.goals.map((g, i) => (
               <div key={i} className="goalcard">
-                <GoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} week={currentWeek({ startDate: d.startDate, weeks: 52 } as Cycle, setup.today)} />
+                <GoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
                 <button type="button" className="linkish tap" onClick={() => set({ goals: d.goals.filter((_, k) => k !== i) })}>Remove this goal</button>
               </div>
             ))}
@@ -319,7 +322,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <dl className="details">
               <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
               <dt>Goals</dt><dd>{result.snapshot.goals.length ? `${result.snapshot.goals.length}, listed below` : 'Set up later'}</dd>
-              <dt>Goal year</dt><dd>{yearName(d.startDate, 52)}, starting in {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}; review on {DAYS[d.reviewDay]}s</dd>
+              <dt>Goal year</dt><dd>{yearName(d.startDate, yearWeeks(d.startDate))}, starting in {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}; review on {DAYS[d.reviewDay]}s</dd>
               <dt>You</dt><dd>{d.me.name}, admin</dd>
             </dl>
             <div className="row" style={{ gap: 'var(--s3)' }}>
@@ -355,7 +358,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function GoalFields({ g, owners, onChange, issue, headline, week = 0 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; headline?: boolean; week?: number }) {
+function GoalFields({ g, owners, onChange, issue, headline, week = 0, weeks = 52 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; headline?: boolean; week?: number; weeks?: number }) {
   return (
     <div className="stack" style={{ gap: 'var(--s3)' }}>
       <label className="field"><span className={headline ? 'sr' : 'field-label'}>{headline ? 'Outcome' : 'Goal'}</span>
@@ -365,7 +368,7 @@ function GoalFields({ g, owners, onChange, issue, headline, week = 0 }: { g: Goa
         <div className="optlist compact-opts" role="radiogroup" aria-label="Kind of goal">
           <button type="button" role="radio" className="opt" aria-checked={g.kind === 'metric'} onClick={() => onChange({ kind: 'metric' })}><span>Move a number</span></button>
           <button type="button" role="radio" className="opt" aria-checked={g.kind === 'range'} onClick={() => onChange({ kind: 'range', bound: g.bound ?? 'at most' })}><span>Keep a number in range</span></button>
-          <button type="button" role="radio" className="opt" aria-checked={g.kind === 'milestone'} onClick={() => onChange({ kind: 'milestone', stages: g.stages || stagesFromNow('Design@3; Pilot@7; Launch@12', week) })}><span>Hit dated stages</span></button>
+          <button type="button" role="radio" className="opt" aria-checked={g.kind === 'milestone'} onClick={() => onChange({ kind: 'milestone', stages: g.stages || stagesFromNow('Design@3; Pilot@7; Launch@12', week, weeks) })}><span>Hit dated stages</span></button>
         </div>
       )}
       {g.kind === 'metric' ? (

@@ -2,11 +2,14 @@
 import { serve, type Deps } from '../../server/mcp';
 import { applyCommit } from '../data/store';
 import { seed } from '../data/seed';
-import { planAt } from '../domain/plan';
+import { currentWeek, planAt } from '../domain/plan';
 import type { ApiToken, MetricGoal, Snapshot } from '../domain/types';
 import { hashToken, newToken } from './protocol';
 
 const today = new Date('2026-10-30T12:00:00Z');
+/** The demo's week today, and its year's length. */
+const demo = seed(today).cycles[0]!;
+const NOW = currentWeek(demo, today), WEEKS = demo.weeks;
 
 async function setup(personId = 'kofi') {
   let data: Snapshot = seed(today);
@@ -78,13 +81,13 @@ describe('MCP server', () => {
     const behind = await call('post_check_in', { goal_id: 'alerts', value: 30 });
     expect(behind.isError).toBe(true);
     expect(behind.content[0]!.text).toMatch(/needs a Cause and a Why/);
-    const onPlan = Math.round(planAt((data().goals.find((g) => g.id === 'alerts') as MetricGoal).plan, 43, 52));
+    const onPlan = Math.round(planAt((data().goals.find((g) => g.id === 'alerts') as MetricGoal).plan, NOW, WEEKS));
     const dry = await call('post_check_in', { goal_id: 'alerts', value: onPlan, dry_run: true });
     expect(dry.content[0]!.text).toMatch(/dry run/);
-    expect(data().checkIns.some((c) => c.goalId === 'alerts' && c.week === 43)).toBe(false);
+    expect(data().checkIns.some((c) => c.goalId === 'alerts' && c.week === NOW)).toBe(false);
     const ok = await call('post_check_in', { goal_id: 'alerts', value: onPlan });
     expect(ok.isError).toBe(false);
-    const c = data().checkIns.find((x) => x.goalId === 'alerts' && x.week === 43)!;
+    const c = data().checkIns.find((x) => x.goalId === 'alerts' && x.week === NOW)!;
     expect(c.authorId).toBe('kofi');
     expect(data().changes.at(-2)!.diffs).toEqual(expect.arrayContaining([{ field: 'Via', from: '—', to: 'AI assistant (MCP)' }]));
     expect(touched()).toBeGreaterThan(0);
@@ -104,7 +107,7 @@ describe('MCP server', () => {
     expect(no.content[0]!.text).toMatch(/needs a reason/);
     const yes = await call('set_plan_numbers', { goal_id: 'alerts', numbers: [{ week: 48, value: 50 }], reason: 'The classifier ships in week 8' });
     expect(yes.isError).toBe(false);
-    expect(planAt((data().goals.find((g) => g.id === 'alerts') as MetricGoal).plan, 48, 52)).toBe(50);
+    expect(planAt((data().goals.find((g) => g.id === 'alerts') as MetricGoal).plan, 48, WEEKS)).toBe(50);
   });
 
   it('checks a bulk change first and saves only with apply', async () => {

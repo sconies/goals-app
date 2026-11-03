@@ -8,15 +8,18 @@ import { onTimeStreak, weekProgress } from './progress';
 import { goalsIn, reviewSession, sessionWeek, watchedGoals, watchOf } from './review';
 import { outcomeTrees } from './tree';
 import { currentCycle, nextCycle, scopeToCycle, suggestedResult } from './cycle';
-import { seed, SEED_WEEK } from '../data/seed';
+import { seed } from '../data/seed';
 import { quarterResults } from './year';
-import { toYear } from '../data/yearStory';
-import { planAt } from './plan';
+import { yearWeekOf } from '../data/yearStory';
+import { currentWeek, planAt } from './plan';
 import type { Goal, MetricGoal } from './types';
 
 const today = new Date('2026-10-30T12:00:00Z');
 const s = seed(today);
 const cycle = s.cycles[0]!;
+/** Today's week in the demo year, and the year week of each story week. */
+const SEED_WEEK = currentWeek(cycle, today);
+const toYear = yearWeekOf(SEED_WEEK);
 const goal = (id: string) => s.goals.find((g) => g.id === id)!;
 const lookup = { person: (id: string) => s.people.find((p) => p.id === id), goal: (id: string) => s.goals.find((g) => g.id === id), teamName: (id: string) => s.teams.find((t) => t.id === id)?.name ?? id };
 const kinds = (id: string) => attentionFor(goal(id), s, cycle, today).flags.map((f) => f.kind);
@@ -255,7 +258,9 @@ describe('year goals and plan numbers', () => {
     expect(g.plan.points).toHaveLength(planCheckpoints(0, cycle.weeks).length - 1);
     expect(g.plan.points!.map((p) => p.week)).toEqual(expect.arrayContaining([13, 26, 39]));
     expect(planAt(g.plan, 8, cycle.weeks)).toBe(40);
-    expect(planAt(g.plan, 12, cycle.weeks)).toBe(30);
+    // Between two plan numbers, the plan is a straight line.
+    const next = g.plan.points!.filter((p) => p.week > 8).sort((a, b) => a.week - b.week)[0]!;
+    expect(planAt(g.plan, 9, cycle.weeks)).toBeCloseTo(40 + (next.value - 40) / (next.week - 8), 5);
   });
   it('a year goal carries into the next cycle with its plan, counted from the new start', () => {
     const year: MetricGoal = { ...(goal('lead') as MetricGoal), id: 'yr', plan: { start: 4, target: 2, shape: 'straight', endWeek: cycle.weeks + 20 } };
