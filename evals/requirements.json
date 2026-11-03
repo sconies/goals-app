@@ -314,7 +314,7 @@
     {
       "id": "DATA-TABLES",
       "area": "Data",
-      "text": "Every person, goal, check-in and plan is in a table anyone can read, search and sort. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged."
+      "text": "Every person, goal, check-in and plan is in a table anyone can read, search, sort and filter by any column: a value from its list, a number condition, words, or empty; the filters and sort are in the link. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged. Every record shows its own ID, which never changes."
     }
   ],
   "notYetBuilt": [
@@ -434,7 +434,7 @@
       "id": "U35",
       "title": "An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it",
       "who": "An admin and a goal owner",
-      "budget": 18
+      "budget": 26
     }
   ],
   "easeCriteria": [

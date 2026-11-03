@@ -8,6 +8,10 @@ import type { ChangeSet, Rec, Tables } from '../domain/changeset';
 import { GOAL_DERIVED_COLUMNS, workbook, type Cell } from '../domain/export';
 import { Sheet } from '../ui/bits';
 import { Preview } from './Import';
+import {
+  applyTable, columnKind, describeFilter, filterEntries, NO_VALUE, OP_LABEL, OPS, parseFilters, parseSort, SEP,
+  type ColumnKind, type Op, type PropFilter, type TableSort,
+} from '../domain/tableFilter';
 
 type Tab = 'people' | 'goals' | 'checkIns' | 'plan';
 const TABS: [Tab, string][] = [['goals', 'Goals'], ['checkIns', 'Check-ins'], ['plan', 'Plans'], ['people', 'People']];
@@ -31,7 +35,17 @@ export function DataTables() {
   const app = useApp();
   const [params, setParams] = useSearchParams();
   const tab: Tab = (TABS.find(([k]) => k === params.get('t'))?.[0]) ?? 'goals';
-  const setTab = (t: Tab) => { const p = new URLSearchParams(params); p.set('t', t); setParams(p, { replace: true }); };
+  // Search, filters and sort are in the link with the table, so a filtered table can be shared. A new table starts clear.
+  const setTab = (t: Tab) => setParams(new URLSearchParams([['t', t]]), { replace: true });
+  const q = params.get('q') ?? '';
+  const filters = parseFilters(params);
+  const sort = parseSort(params);
+  const setView = (next: { q?: string; filters?: PropFilter[]; sort?: TableSort | null }) => setParams((cur) => {
+    const nq = next.q ?? cur.get('q') ?? '';
+    const nf = next.filters ?? parseFilters(cur);
+    const ns = next.sort !== undefined ? next.sort : parseSort(cur);
+    return new URLSearchParams([['t', cur.get('t') ?? 'goals'], ...(nq ? [['q', nq] as [string, string]] : []), ...filterEntries(nf, ns)]);
+  }, { replace: true });
   const canEdit = app.viewer.admin;
   const book = useMemo(() => workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today }), [app.ws, app.snapshot, app.cycle, app.week, app.today]);
   const tables = useMemo(() => {
@@ -67,14 +81,13 @@ export function DataTables() {
   const total = TABS.reduce((n, [t]) => n + editCount(t), 0);
   const rowsEdited = TABS.reduce((n, [t]) => n + Object.keys(edits[t]).length, 0);
 
-  const [q, setQ] = useState('');
-  const [sort, setSort] = useState<{ col: number; dir: 1 | -1 } | null>(null);
   const [limit, setLimit] = useState(PAGE);
+  const [editing, setEditing] = useState<{ index: number | null } | null>(null);
   const { head, rows } = tables[tab];
   const cols = head.map((c, i) => ({ c, i })).filter(({ c }) => !HIDDEN[tab].includes(c));
-  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = rows.filter((r) => words.every((w) => r.cells.some((c) => c.toLowerCase().includes(w))));
-  if (sort) shown.sort((a, b) => { const x = a.cells[sort.col] ?? '', y = b.cells[sort.col] ?? ''; const nx = Number(x), ny = Number(y); return (x !== '' && y !== '' && !isNaN(nx) && !isNaN(ny) ? nx - ny : x.localeCompare(y)) * sort.dir; });
+  const shown = applyTable(rows, head, q, filters, sort);
+  const kinds = useMemo(() => Object.fromEntries(head.map((c, i) => [c, columnKind(rows.map((r) => r.cells[i] ?? ''))])) as Record<string, ColumnKind>, [head, rows]);
+  const narrowed = !!q.trim() || filters.length > 0;
 
   // Choices for the cells that have a fixed set of answers; the engine checks the rest.
   const options: Record<string, string[]> = {
@@ -126,21 +139,43 @@ export function DataTables() {
           : `Every goal, check-in, plan and person, to look through. Admins can change them here: ${admins.join(', ') || 'no one yet'}.`}</span>
       </div>
       <div className="seg tabs one-row" role="tablist" aria-label="Table">
-        {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setSort(null); setLimit(PAGE); }}>{l}<span className="tabcount">{tables[k].rows.length}</span>{editCount(k) > 0 && <span className="small"> · {editCount(k)} changed</span>}</button>)}
+        {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setLimit(PAGE); }}>{l}<span className="tabcount">{tables[k].rows.length}</span>{editCount(k) > 0 && <span className="small"> · {editCount(k)} changed</span>}</button>)}
       </div>
       <div className="filterbar-row">
         <label className="filter-search"><span className="sr">Search this table</span>
-          <input className="input" type="search" placeholder={`Search ${TABS.find(([k]) => k === tab)![1].toLowerCase()}`} value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} />
+          <input className="input" type="search" placeholder={`Search ${TABS.find(([k]) => k === tab)![1].toLowerCase()}`} value={q} onChange={(e) => { setView({ q: e.target.value }); setLimit(PAGE); }} />
         </label>
+        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setEditing({ index: null })}>+ Filter</button>
         <span className="small muted" role="status">{shown.length === rows.length ? `${rows.length} rows` : `${shown.length} of ${rows.length} rows`}</span>
       </div>
+      {(filters.length > 0 || sort) && (
+        <div className="filter-chips" aria-label="Filters and sort">
+          {filters.map((f, k) => (
+            <span key={k} className="prop-chip">
+              <button type="button" className="prop-chip-edit" aria-label={`Change filter: ${describeFilter(f)}`} onClick={() => setEditing({ index: k })}>{describeFilter(f)}</button>
+              <button type="button" className="prop-chip-x" aria-label={`Remove filter: ${describeFilter(f)}`} onClick={() => setView({ filters: filters.filter((_, j) => j !== k) })}>✕</button>
+            </span>
+          ))}
+          {sort && (
+            <span className="prop-chip">
+              <span className="prop-chip-edit">Sorted by {sort.col}, {kinds[sort.col] === 'number' ? (sort.dir === 1 ? 'lowest first' : 'highest first') : sort.dir === 1 ? 'A to Z' : 'Z to A'}</span>
+              <button type="button" className="prop-chip-x" aria-label="Remove the sort" onClick={() => setView({ sort: null })}>✕</button>
+            </span>
+          )}
+          <button type="button" className="linkish small" onClick={() => setView({ q: '', filters: [], sort: null })}>Clear all</button>
+        </div>
+      )}
+      {editing && <FilterEditor head={cols.map(({ c }) => c)} kinds={kinds} values={(c) => [...new Set(rows.map((r) => r.cells[head.indexOf(c)] ?? '').filter((v) => v.trim()))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))}
+        start={editing.index != null ? filters[editing.index] : undefined}
+        onSave={(f) => { setView({ filters: editing.index != null ? filters.map((x, j) => (j === editing.index ? f : x)) : [...filters, f] }); setEditing(null); setLimit(PAGE); }}
+        onClose={() => setEditing(null)} />}
 
       <div className="table-wrap data-wrap">
         <table className="dtable">
           <thead>
-            <tr>{cols.map(({ c, i }) => (
-              <th key={c} scope="col" className={c === 'ID' ? 'did' : c === NAME[tab] ? 'dname' : undefined} title={c === 'ID' ? 'Each record’s own ID. It never changes.' : undefined} aria-sort={sort?.col === i ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
-                <button type="button" className="sortbtn" onClick={() => setSort((s) => (s?.col === i ? (s.dir === 1 ? { col: i, dir: -1 } : null) : { col: i, dir: 1 }))}>{c}{sort?.col === i ? <span aria-hidden="true">{sort.dir === 1 ? ' ↑' : ' ↓'}</span> : null}</button>
+            <tr>{cols.map(({ c }) => (
+              <th key={c} scope="col" className={c === 'ID' ? 'did' : c === NAME[tab] ? 'dname' : undefined} title={c === 'ID' ? 'Each record’s own ID. It never changes.' : undefined} aria-sort={sort?.col === c ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
+                <button type="button" className="sortbtn" onClick={() => setView({ sort: sort?.col === c ? (sort.dir === 1 ? { col: c, dir: -1 } : null) : { col: c, dir: 1 } })}>{c}{sort?.col === c ? <span aria-hidden="true">{sort.dir === 1 ? ' ↑' : ' ↓'}</span> : null}</button>
               </th>
             ))}</tr>
           </thead>
@@ -168,6 +203,7 @@ export function DataTables() {
           </tbody>
         </table>
       </div>
+      {shown.length === 0 && narrowed && <div className="calm">No rows match. <button type="button" className="linkish" onClick={() => setView({ q: '', filters: [] })}>Clear the search and filters</button></div>}
       {shown.length > limit && <button type="button" className="btn" onClick={() => setLimit((n) => n + PAGE)}>Show {Math.min(PAGE, shown.length - limit)} more</button>}
 
       {canEdit && total > 0 && (
@@ -185,5 +221,44 @@ export function DataTables() {
         </Sheet>
       )}
     </div>
+  );
+}
+
+/** Add or change one filter: a column, a condition that suits it, and a value. */
+function FilterEditor({ head, kinds, values, start, onSave, onClose }: { head: string[]; kinds: Record<string, ColumnKind>; values: (col: string) => string[]; start?: PropFilter; onSave: (f: PropFilter) => void; onClose: () => void }) {
+  const [col, setCol] = useState(start?.col ?? head.find((c) => kinds[c] === 'choice') ?? head[0] ?? '');
+  const kind = kinds[col] ?? 'text';
+  const [op, setOp] = useState<Op>(start?.op ?? OPS[kind][0]!);
+  const [value, setValue] = useState(start?.value ?? '');
+  const pickCol = (c: string) => { setCol(c); setOp(OPS[kinds[c] ?? 'text'][0]!); setValue(''); };
+  const picked = value.split(SEP).filter(Boolean);
+  const multi = op === 'is' || op === 'isNot';
+  const ready = NO_VALUE.includes(op) || value.trim() !== '';
+  return (
+    <Sheet open onClose={onClose} title={start ? 'Change the filter' : 'Add a filter'}>
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); if (ready) onSave({ col, op, value: NO_VALUE.includes(op) ? '' : value }); }}>
+        <div className="prop-row">
+          <label className="field"><span className="field-label">Property</span>
+            <select className="input" value={col} onChange={(e) => pickCol(e.target.value)}>{head.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+          </label>
+          <label className="field"><span className="field-label">Condition</span>
+            <select className="input" value={op} onChange={(e) => { const next = e.target.value as Op; if ((next === 'is' || next === 'isNot') !== multi) setValue(''); setOp(next); }}>{OPS[kind].map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}</select>
+          </label>
+        </div>
+        {!NO_VALUE.includes(op) && (multi && kind !== 'number'
+          ? (
+            <fieldset className="filter-group"><legend className="field-label">Value</legend>
+              <span className="filter-options prop-values">{values(col).map((v) => (
+                <label key={v} className="check"><input type="checkbox" checked={picked.includes(v)} onChange={() => setValue((picked.includes(v) ? picked.filter((x) => x !== v) : [...picked, v]).join(SEP))} /> {v}</label>
+              ))}</span>
+            </fieldset>
+          )
+          : <label className="field"><span className="field-label">Value</span><input className="input" autoFocus inputMode={kind === 'number' ? 'decimal' : undefined} value={value} onChange={(e) => setValue(e.target.value)} placeholder={kind === 'number' ? 'A number' : 'Some text'} /></label>)}
+        <div className="sheet-foot">
+          <button type="button" className="linkish small" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn primary" disabled={!ready}>{start ? 'Change filter' : 'Add filter'}</button>
+        </div>
+      </form>
+    </Sheet>
   );
 }

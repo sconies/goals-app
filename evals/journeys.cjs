@@ -1320,7 +1320,7 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   await p.context().close();
 }, ['entry', 'errors', 'one-action']);
 
-journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it', 18, async (h, device) => {
+journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it', 26, async (h, device) => {
   const p = h.use(await newPage(device, 'priya'));
   // Everyone can open the tables; an admin types into cells across tables, then reviews and saves once.
   await p.goto(url('/data?t=people'));
@@ -1328,6 +1328,23 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await title.waitFor();
   await h.fill(title, 'Staff engineer, DevEx');
   await h.click(p.getByRole('tab', { name: /Check-ins/ }));
+  // Property filters: a goal from its list of values, and a number condition; then sort by a column.
+  await h.click(p.getByRole('button', { name: '+ Filter' }));
+  let sheet = p.getByRole('dialog', { name: 'Add a filter' });
+  await sheet.getByLabel('Property').selectOption('Goal');
+  await h.click(sheet.getByLabel('PRs with AI code review'));
+  await h.click(sheet.getByRole('button', { name: 'Add filter' }));
+  await h.click(p.getByRole('button', { name: '+ Filter' }));
+  sheet = p.getByRole('dialog', { name: 'Add a filter' });
+  await sheet.getByLabel('Property').selectOption('Week');
+  await sheet.getByLabel('Condition').selectOption('gte');
+  await h.fill(sheet.getByLabel('Value'), '38');
+  await h.click(sheet.getByRole('button', { name: 'Add filter' }));
+  await see(p, 'Goal is PRs with AI code review', 'the goal filter is not shown as words');
+  await see(p, 'Week ≥ 38', 'the week filter is not shown as words');
+  await h.click(p.locator('.dtable thead').getByRole('button', { name: /^Week$/ }));
+  const weeks = await p.locator('.dtable tbody tr').evaluateAll((trs) => trs.map((tr) => tr.querySelectorAll('td')[3]?.textContent ?? ''));
+  h.set('progress', weeks.length > 0 && weeks.every((w, i) => Number(w) >= 38 && (i === 0 || Number(w) >= Number(weeks[i - 1]))) && /f=Goal/.test(p.url()) && /s=Week/.test(p.url()), `filtered and sorted weeks: ${weeks.join(', ')}`);
   await h.fill(p.getByPlaceholder('Search check-ins'), 'reached GA');
   const why = p.getByLabel(/^Why, PRs with AI code review, week/).first();
   await why.waitFor();
