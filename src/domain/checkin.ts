@@ -3,10 +3,10 @@ import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Ass
 import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
-  ['aggressive', 'Plan too aggressive'], ['slower', 'Delivery slower'], ['blocked', 'Blocked by a dependency'], ['external', 'External factor'], ['data', 'Data problem'],
+  ['aggressive', 'Plan too aggressive'], ['slower', 'Delivery slower'], ['blocked', 'Blocked by a dependency'], ['external', 'External factor'], ['data', 'Data problem'], ['other', 'Something else'],
 ];
 export const CAUSES_AHEAD: [Cause, string][] = [
-  ['cautious', 'Plan too cautious'], ['early', 'Change landed early'], ['external', 'External factor'], ['oneoff', 'One-off, won’t last'], ['data', 'Data problem'],
+  ['cautious', 'Plan too cautious'], ['early', 'Change landed early'], ['external', 'External factor'], ['oneoff', 'One-off, won’t last'], ['data', 'Data problem'], ['other', 'Something else'],
 ];
 export const causeLabel = (c: Cause | null) => [...CAUSES_BEHIND, ...CAUSES_AHEAD].find(([k]) => k === c)?.[1] ?? '';
 

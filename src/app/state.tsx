@@ -10,6 +10,7 @@ import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/c
 import { personChange } from '../domain/people';
 import { answerRequest, linkRequest, requestsAfterCheckIn } from '../domain/requests';
 import { askChange, openUpdateAsk, undoAskChange, updateAskText } from '../domain/updateAsks';
+import { sendDemoFeedback } from './research';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
 import { hashToken, newToken } from '../mcp/protocol';
@@ -425,6 +426,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       sendFeedback: async (mood, text, path) => {
         await commit({ feedback: [{ id: newId('fb'), personId: viewer.id, path, mood, text: text.trim(), at: stamp() }], changes: [] });
+        // The demo's data lives in this browser only, so its feedback is also sent where the people building the app read it.
+        if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
       previewChanges: (tables, via, reason) => planChanges({ tables, snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, via, reason }),
       applyChanges: async (cs) => {

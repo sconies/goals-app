@@ -372,7 +372,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
           <label className="field">
             <span className="sr">What happened</span>
             <textarea className={'input' + (tried && draft.why.trim().length < MIN_REASON ? ' invalid' : '')} rows={3} value={draft.why} onChange={(ev) => set({ why: ev.target.value })} aria-label="What happened"
-              placeholder={e.reason === 'ahead' ? 'What happened, and will it last?' : 'What is causing the gap?'} />
+              placeholder={draft.cause === 'other' ? 'Say what’s going on, in your own words.' : e.reason === 'ahead' ? 'What happened, and will it last?' : 'What is causing the gap?'} />
           </label>
           {tried && !whyOk && <span className="hint tone-off" role="alert">{!draft.cause ? 'Pick a cause, then write a sentence.' : 'Write a sentence about what happened.'}</span>}
           {e.asksTarget && goal.kind === 'metric' && app.viewer.id === goal.ownerId && (

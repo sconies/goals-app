@@ -103,7 +103,7 @@ function FeedbackSheet({ onClose, path }: { onClose: () => void; path: string })
   const send = async () => {
     if (!mood || busy) return;
     setBusy(true);
-    try { await app.sendFeedback(mood, text, path); app.toast('Thanks. Your admins can read it on Workspace.'); onClose(); } catch { setBusy(false); }
+    try { await app.sendFeedback(mood, text, path); app.toast(app.mode === 'demo' ? 'Thanks. It goes to the people building this app.' : 'Thanks. Your admins can read it on Workspace.'); onClose(); } catch { setBusy(false); }
   };
   return (
     <Sheet open onClose={onClose} title="How is the app working for you?">

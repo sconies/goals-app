@@ -68,18 +68,48 @@ export async function addNote(s: ResearchSession, n: Omit<ResearchNote, 'id' | '
   return note;
 }
 
-async function send(n: ResearchNote) {
+/** Adds a row to the research table, where the app has a database. Anyone can add; nobody can read back through the app. */
+async function insertNote(row: Record<string, unknown>): Promise<boolean> {
   const { VITE_SUPABASE_URL: url, VITE_SUPABASE_KEY: key } = import.meta.env;
-  if (!url || !key) return;
+  if (!url || !key) return false;
   try {
     const { createClient } = await import('@supabase/supabase-js');
     const db = createClient(url, key, { auth: { persistSession: false } });
-    const { error } = await db.from('okr_research_notes').insert({
-      id: n.id, session_id: n.sessionId, researcher: n.researcher, researcher_kind: n.researcherKind, kind: n.kind, persona: n.persona, route: n.route, target: n.target,
-      task_id: n.taskId ?? null, outcome: n.outcome ?? null, severity: n.severity ?? null, rating: n.rating ?? null, text: n.text.slice(0, 20000), user_agent: navigator.userAgent.slice(0, 300),
-    });
-    if (!error) writeNotes(readNotes().map((x) => (x.id === n.id ? { ...x, sent: true } : x)));
-  } catch { /* kept here; can be downloaded */ }
+    const { error } = await db.from('okr_research_notes').insert({ ...row, user_agent: navigator.userAgent.slice(0, 300) });
+    return !error;
+  } catch { return false; }
+}
+
+async function send(n: ResearchNote) {
+  const ok = await insertNote({
+    id: n.id, session_id: n.sessionId, researcher: n.researcher, researcher_kind: n.researcherKind, kind: n.kind, persona: n.persona, route: n.route, target: n.target,
+    task_id: n.taskId ?? null, outcome: n.outcome ?? null, severity: n.severity ?? null, rating: n.rating ?? null, text: n.text.slice(0, 20000),
+  });
+  if (ok) writeNotes(readNotes().map((x) => (x.id === n.id ? { ...x, sent: true } : x)));
+}
+
+const MOOD_WORD = { good: 'It helps', meh: 'It’s OK', bad: 'It gets in the way' } as const;
+const MOOD_RATING = { good: 5, meh: 3, bad: 1 } as const;
+/** One id per browser, so feedback from the same visitor can be read together. */
+function visitorId(): string {
+  try {
+    const v = localStorage.getItem('goals-demo-visitor');
+    if (v) return v;
+    const id = 'dv_' + rid().slice(3);
+    localStorage.setItem('goals-demo-visitor', id);
+    return id;
+  } catch { return 'dv_unknown'; }
+}
+/**
+ * Feedback sent from the demo (research notes, 3 Nov): it used to stay in the sender's browser, so nobody read it. It's
+ * kept with the research notes, with the screen, the person the visitor was playing and how they felt.
+ */
+export async function sendDemoFeedback(f: { mood: keyof typeof MOOD_WORD; text: string; path: string; persona: string }): Promise<boolean> {
+  const s = readSession();
+  return insertNote({
+    id: rid(), session_id: s?.id ?? visitorId(), researcher: s?.researcher || 'Demo visitor', researcher_kind: s?.kind ?? 'person', kind: 'feedback',
+    persona: f.persona, route: f.path, target: '', rating: MOOD_RATING[f.mood], text: `${MOOD_WORD[f.mood]}${f.text.trim() ? ': ' + f.text.trim() : ''}`.slice(0, 20000),
+  });
 }
 
 /** Everything from a session as Markdown: to attach to a report, or to read back. */

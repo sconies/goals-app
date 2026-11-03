@@ -22446,14 +22446,16 @@ var CAUSES_BEHIND = [
 	["slower", "Delivery slower"],
 	["blocked", "Blocked by a dependency"],
 	["external", "External factor"],
-	["data", "Data problem"]
+	["data", "Data problem"],
+	["other", "Something else"]
 ];
 var CAUSES_AHEAD = [
 	["cautious", "Plan too cautious"],
 	["early", "Change landed early"],
 	["external", "External factor"],
 	["oneoff", "One-off, won’t last"],
-	["data", "Data problem"]
+	["data", "Data problem"],
+	["other", "Something else"]
 ];
 var causeLabel = (c) => [...CAUSES_BEHIND, ...CAUSES_AHEAD].find(([k]) => k === c)?.[1] ?? "";
 function emptyDraft(goal, previous) {
