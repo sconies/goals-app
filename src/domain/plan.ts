@@ -111,8 +111,10 @@ export function weekDates(cycle: Cycle, week: number): string {
   const b = new Date(a.getTime() + 6 * 86_400_000);
   const d = (x: Date, month: boolean) => x.toLocaleDateString('en-GB', { day: 'numeric', ...(month ? { month: 'short' } : {}), timeZone: 'UTC' });
   const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
-  // A week in another calendar year than the cycle's start says which: "28 Dec–3 Jan 2027".
-  return b.getUTCFullYear() !== Number(cycle.startDate.slice(0, 4)) ? `${range} ${b.getUTCFullYear()}` : range;
+  // A week in another calendar year than the cycle's own says which: "28 Dec–3 Jan 2027". The cycle's year is week 1's
+  // (its start can be the week before, in the previous December).
+  const own = new Date(Date.parse(cycle.startDate + 'T00:00:00Z') + 10 * 86_400_000).getUTCFullYear();
+  return b.getUTCFullYear() !== own || a.getUTCFullYear() !== own ? `${range} ${b.getUTCFullYear()}` : range;
 }
 
 /** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */

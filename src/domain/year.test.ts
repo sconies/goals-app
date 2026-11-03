@@ -2,7 +2,7 @@
 import { seed } from '../data/seed';
 import { yearWeekOf } from '../data/yearStory';
 import { buildGoal, draftOf, goalAsOf, planHistoryOf } from './goal';
-import { currentWeek, weekDate } from './plan';
+import { currentWeek, weekDate, weekDates } from './plan';
 import { assessPosted } from './status';
 import { storyOf } from './story';
 import type { Cycle, MetricGoal } from './types';
@@ -29,6 +29,10 @@ describe('the goal year', () => {
     expect(weekDate(cycle, 0)).toBe('2025-12-22');
     expect(weekDate(cycle, 53)).toBe('2026-12-28');
     expect(weekDate(cycle, 13)).toBe('2026-03-23');
+    // Dates in the year's own calendar year don't repeat it; the week before, and the last week, say which year.
+    expect(weekDates(cycle, 44)).toBe('26 Oct–1 Nov');
+    expect(weekDates(cycle, 0)).toBe('22–28 Dec 2025');
+    expect(weekDates(cycle, 53)).toBe('28 Dec–3 Jan 2027');
   });
   it('is 52 or 53 weeks, like the ISO calendar, and a set-up in the last days of December is for next year', () => {
     expect(goalYear(2027, 0)).toEqual({ startDate: '2026-12-28', weeks: 52 });

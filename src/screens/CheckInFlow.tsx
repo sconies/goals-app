@@ -153,11 +153,12 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
   );
 }
 
-type Step = 'measure' | 'carry' | 'why' | 'way';
+type Step = 'measure' | 'carry' | 'account';
 
 /**
- * One goal's check-in, one question per screen: the number; last week's note if it still applies;
- * why; the way back. An on-plan goal is just the number. The button always names the next step.
+ * One goal's check-in: the number first; then last week's note if it still applies ("Still true" posts it); then, when
+ * something changed, one short account on one screen: what changed, what happens next, by when (Senior UX review,
+ * finding 11). An on-plan goal is just the number. The button says Continue until the step that posts.
  */
 function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: CheckIn, updated: boolean) => void; onSkip?: () => void }) {
   const app = useApp();
@@ -179,7 +180,11 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const stepKey = checkInDraftKey(app.ws.id, goal.id, week) + ':step';
   const [step, setStepState] = useState<Step>(() => {
     if (!restored) return 'measure';
-    try { return (localStorage.getItem(stepKey) as Step | null) ?? 'measure'; } catch { return 'measure'; }
+    try {
+      const saved = localStorage.getItem(stepKey);
+      // A draft saved when the account was two screens comes back on the one.
+      return saved === 'why' || saved === 'way' ? 'account' : (saved as Step | null) ?? 'measure';
+    } catch { return 'measure'; }
   });
   const setStep = (to: Step) => { setStepState(to); try { if (to === 'measure') localStorage.removeItem(stepKey); else localStorage.setItem(stepKey, to); } catch { /* private mode */ } };
   const [trail, setTrail] = useState<Step[]>([]);
@@ -205,10 +210,11 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     ...(priorWhy ? { cause: previous!.cause, why: previous!.why } : {}),
     ...(priorWay ? { ptgWhat: previous!.pathToGreen!.what, ptgBy: (previous!.pathToGreen!.byWeek ?? 0) > week ? previous!.pathToGreen!.byWeek : null, ptgState: lastState === 'help' && !carriedAsk ? ((previous!.pathToGreen!.byWeek ?? 0) > week ? 'plan' : 'investigating') : lastState, needs: carriedAsk } : {}),
   });
-  // With last week's note on offer, "Still true" can finish at step two; the why and way steps count once they're needed.
-  const detailed = !canCarry || step === 'why' || step === 'way';
-  const plan: Step[] = ['measure', ...(canCarry ? ['carry' as const] : []), ...(detailed && needsWhy ? ['why' as const] : []), ...(detailed && needsWay ? ['way' as const] : [])];
-  const last = plan[plan.length - 1] === step || (step === 'why' && !needsWay);
+  // With last week's note on offer, "Still true" can finish at step two; the account counts once it's needed.
+  const needsAccount = needsWhy || needsWay;
+  const detailed = !canCarry || step === 'account';
+  const plan: Step[] = ['measure', ...(canCarry ? ['carry' as const] : []), ...(detailed && needsAccount ? ['account' as const] : [])];
+  const last = plan[plan.length - 1] === step;
 
   const go = (to: Step) => { setTrail((t) => [...t, step]); setStep(to); setTried(false); };
   const back = () => { setStep(trail[trail.length - 1] ?? 'measure'); setTrail((t) => t.slice(0, -1)); setTried(false); };
@@ -241,13 +247,10 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const primary = () => {
     if (step === 'measure') {
       if (!valueOk || e.missing.some((m) => m.startsWith('why your call'))) { setTried(true); return; }
-      if (needsWhy || needsWay) go(canCarry ? 'carry' : needsWhy ? 'why' : 'way');
+      if (needsAccount) go(canCarry ? 'carry' : 'account');
       else void post();
-    } else if (step === 'why') {
-      if (!whyOk || !targetOk) { setTried(true); return; }
-      if (needsWay) go('way'); else void post();
-    } else if (step === 'way') {
-      if (!wayOk) { setTried(true); return; }
+    } else if (step === 'account') {
+      if (!whyOk || !targetOk || !wayOk) { setTried(true); return; }
       void post();
     }
   };
@@ -263,20 +266,21 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     set(carried);
     const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns);
     if (check.canPost) void post(d);
-    else go(check.missing.some((m) => m.startsWith('why it’s')) ? 'why' : 'way');
+    else go('account');
   };
   const somethingChanged = () => {
     // Start from last week's words so they can be edited, the open request included: removing it there withdraws it.
     const f = fromLast();
     set(f);
-    go(needsWhy ? 'why' : 'way');
+    go('account');
   };
 
-  const label = saving ? 'Posting…' : last ? 'Post check-in' : 'Next';
+  // Continue until the step that posts; before a number is typed, the number's step isn't known to be the last.
+  const label = saving ? 'Posting…' : last && (step !== 'measure' || valueOk) ? 'Post check-in' : 'Continue';
   // Count every step this check-in could need, so the total never grows partway through; "Still true" just finishes early.
   const carryOffered = useRef(false);
   if (canCarry) carryOffered.current = true;
-  const full: Step[] = ['measure', ...(carryOffered.current ? ['carry' as const] : []), ...(needsWhy ? ['why' as const] : []), ...(needsWay ? ['way' as const] : [])];
+  const full: Step[] = ['measure', ...(carryOffered.current ? ['carry' as const] : []), ...(needsAccount ? ['account' as const] : [])];
   const stepNo = Math.max(1, full.indexOf(step) + 1);
 
   return (
@@ -357,9 +361,11 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
         </section>
       )}
 
-      {step === 'why' && (
-        <section className="qsection" aria-label="Why">
-          <h2 className="qtitle">{e.reason === 'ahead' ? 'Why is it ahead?' : goal.kind === 'milestone' ? 'Why is it late?' : 'Why is it behind?'}</h2>
+      {step === 'account' && (
+        <section className="qsection account" aria-label="What changed, and what happens next">
+          {needsWhy && (
+            <div className="stack account-part">
+          <h3 className="qtitle sm">{e.reason === 'ahead' ? 'Why is it ahead?' : goal.kind === 'milestone' ? 'Why is it late?' : 'Why is it behind?'}</h3>
           <div className="row" role="group" aria-label="Main cause">
             {(e.reason === 'ahead' ? CAUSES_AHEAD : CAUSES_BEHIND).map(([k, l]) => <button key={k} type="button" className="pill" aria-pressed={draft.cause === k} onClick={() => set({ cause: k })}>{l}</button>)}
           </div>
@@ -372,13 +378,11 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
           {e.asksTarget && goal.kind === 'metric' && app.viewer.id === goal.ownerId && (
             <p className="hint">Well ahead of plan. If the target should move, <Link className="linkish" to={`/goals/${goal.id}/edit`}>change it</Link> after posting; watchers see the change and your reason.</p>
           )}
-          {last && <NextStepField draft={draft} set={set} open={showNext} onOpen={() => setShowNext(true)} />}
-        </section>
-      )}
-
-      {step === 'way' && (
-        <section className="qsection" aria-label="The way back">
-          <h2 className="qtitle">Where are you with getting it back on plan?</h2>
+            </div>
+          )}
+          {needsWay && (
+            <div className="stack account-part">
+          <h3 className="qtitle sm">{needsWhy ? 'What happens next?' : 'Where are you with getting it back on plan?'}</h3>
           <div className="optlist" role="radiogroup" aria-label="Where you are">
             {(Object.keys(RECOVERY) as RecoveryState[]).map((k) => (
               <button key={k} type="button" role="radio" className="opt" aria-checked={(draft.ptgState ?? 'plan') === k} onClick={() => set({ ptgState: k, ...(k !== 'plan' && k !== 'help' ? { ptgBy: null } : {}) })}>
@@ -414,6 +418,8 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
           ) : showNeeds
             ? <label className="field"><span className="field-label">Also need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional; shown at the top of the goal and in reviews</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Elena: approve an interim scope" /></label>
             : <div><button type="button" className="linkish tap" onClick={() => setShowNeeds(true)}>Also need a decision or help?</button></div>}
+            </div>
+          )}
           <NextStepField draft={draft} set={set} open={showNext} onOpen={() => setShowNext(true)} />
         </section>
       )}
@@ -480,7 +486,8 @@ function WeekPicks({ week, weeks, value, onPick }: { week: number; weeks: number
     <div className="row" role="group" aria-labelledby="ptg-by">
       {Array.from({ length: Math.max(0, weeks - week) }, (_, i) => week + 1 + i).filter((w, i, arr) => i < 4 || w === arr[arr.length - 1] || (isYear(cycle) && w === quarterOf(cycle, week).to)).map((w) => {
         const name = w === weeks ? (isYear(cycle) ? 'Year end' : 'Cycle end') : isYear(cycle) && w === quarterOf(cycle, week).to && w > week + 4 ? `End of ${quarterOf(cycle, week).label}` : 'Week ' + w;
-        return <button key={w} type="button" className="pill" aria-pressed={value === w} onClick={() => onPick(w)} aria-label={`${name}${name.startsWith('Week') ? '' : ', week ' + w}, ${weekDates(cycle, w)}`}>{name}<span className="pill-sub">{weekDates(cycle, w)}</span></button>;
+        // The name read out is the words on the button, so what you see is what a screen reader says.
+        return <button key={w} type="button" className="pill" aria-pressed={value === w} onClick={() => onPick(w)}>{name}<span className="sr">{name.startsWith('Week') ? '' : `, week ${w}`}, </span><span className="pill-sub">{weekDates(cycle, w)}</span></button>;
       })}
     </div>
   );

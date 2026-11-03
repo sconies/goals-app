@@ -92,8 +92,18 @@ type ColId = 'goal' | 'owner' | 'status' | 'now' | 'target' | 'gap' | 'trend';
 const COLS: [ColId, SortKey | null, string, string][] = [
   ['goal', 'goal', 'Goal', ''], ['owner', 'owner', 'Owner', 'col-opt'], ['status', 'status', 'Status', ''], ['now', null, 'Now', 'num'], ['target', null, 'Target', 'num col-opt'], ['gap', 'gap', 'Gap', 'col-opt'], ['trend', null, 'Trend', 'col-opt'],
 ];
-/** Columns that give way first when the table is narrow, so the rest fit without scrolling sideways (a phone hides more in CSS). */
-const shownCols = (w: number): Set<ColId> => new Set(COLS.map(([c]) => c).filter((c) => (c === 'trend' ? w >= 1180 : c === 'owner' ? w >= 1000 : c === 'target' || c === 'gap' ? w >= 600 : true)));
+/**
+ * The optional columns that fit beside a readable goal name (visual review: 248–280px for Goal), in the order they give
+ * way. Their widths are the ones in styles.css; a column that doesn't fit is left out rather than squeezing the name.
+ */
+const BASE_W = 40 + 172 + 176, GOAL_MIN = 260;
+const OPTIONAL: [ColId, number][] = [['target', 120], ['gap', 200], ['owner', 150], ['trend', 120]];
+function shownCols(w: number): Set<ColId> {
+  const out = new Set<ColId>(['goal', 'status', 'now']);
+  let room = w - BASE_W - GOAL_MIN;
+  for (const [c, cw] of OPTIONAL) { if (room < cw) break; out.add(c); room -= cw; }
+  return out;
+}
 
 export function GoalTable({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
@@ -543,9 +553,9 @@ export function StoryLines({ s, compact, brief }: { s: GoalSummary; compact?: bo
   const full: [string, string][] = s.status === 'stale'
     ? [['Last heard', st.since ?? '']]
     : ['off', 'risk'].includes(s.status)
-      ? [['Why', st.why ?? 'Not given'], ['Recovery plan', st.doing ?? 'Not given'], ['By when', st.byWhen ?? 'No date given'], ...(st.needs ? [['Needs', st.needs] as [string, string]] : [])]
+      ? [['Why', st.why ?? 'Not given'], ['Recovery plan', st.doing ?? 'Not given'], ['Owner’s date', st.byWhen?.replace(/^Owner’s date: b/, 'B') ?? 'No date given'], ...(st.needs ? [['Needs', st.needs] as [string, string]] : [])]
       : [];
-  const rows = brief ? full.filter(([k]) => k === 'Why' || k === 'By when' || k === 'Last heard') : full;
+  const rows = brief ? full.filter(([k]) => k === 'Why' || k === 'Owner’s date' || k === 'Last heard') : full;
   const warnings = brief ? st.warnings.slice(0, 1) : st.warnings;
   const more = st.warnings.length - warnings.length;
   return (
@@ -569,7 +579,7 @@ function TableStory({ s }: { s: GoalSummary }) {
     ? [st.since ?? 'No check-in for two weeks or more']
     : [
       ...(st.needs ? ['Decision or help needed'] : []),
-      ...(['off', 'risk'].includes(s.status) ? [st.why ? `Why: ${st.why}` : 'No reason given', st.byWhen ? `By when: ${st.byWhen}` : 'No date given'] : []),
+      ...(['off', 'risk'].includes(s.status) ? [st.why ? `Why: ${st.why}` : 'No reason given', st.byWhen ?? 'No date given'] : []),
     ];
   if (n) parts.push(`${n} ${n === 1 ? 'warning' : 'warnings'}`);
   return (

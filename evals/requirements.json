@@ -287,6 +287,16 @@
       "text": "In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop."
     },
     {
+      "id": "ONE-ACCOUNT",
+      "area": "Check-ins",
+      "text": "When something changed, the owner gives one short account on one screen after the number: what changed, what happens next and by when, starting from last week's words. Progress is stable, the button says Continue until the step that posts, and Still true still posts last week's account in one press."
+    },
+    {
+      "id": "EVERY-WIDTH",
+      "area": "Platform",
+      "text": "Every main screen works at every width from a 360px phone, through a tablet held either way and a laptop, to a 3440px monitor: no sideways scroll, nothing cut off at the edge, navigation always there, and prose kept to a readable width."
+    },
+    {
       "id": "CALENDAR-WEEKS",
       "area": "Cycles",
       "text": "A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's."
