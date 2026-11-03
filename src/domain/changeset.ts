@@ -332,8 +332,13 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const w = parseNumber(val(r, 'week'));
     if (w == null || !Number.isInteger(w) || w < 1) { err('Check-ins', row, g.title, w === 0 ? 'Check-ins start in week 1; week 0 is the start of the year.' : 'Week should be a whole number from 1, counted from the start of the year.'); continue; }
     if (w > week) { err('Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
-    const key = g.id + ':' + w;
-    if (seen.has(key)) { err('Check-ins', row, g.title, `Week ${w} appears twice for this goal.`); continue; }
+    // The check-in's own ID, when the row has one, says exactly which check-in it is: it never changes, nor does its goal or week.
+    const cid = val(r, 'id');
+    const byId = cid ? s.checkIns.find((c) => c.id === cid) : undefined;
+    if (cid && (!byId || byId.goalId !== g.id)) { err('Check-ins', row, g.title, `There’s no check-in with ID ${cid} on this goal. Leave ID empty to add a check-in.`); continue; }
+    if (byId && byId.week !== w) { err('Check-ins', row, g.title, `Check-in ${cid} is for week ${byId.week}; a check-in’s week can’t change.`); continue; }
+    const key = cid || g.id + ':' + w;
+    if (seen.has(key)) { err('Check-ins', row, g.title, cid ? `Check-in ${cid} appears twice.` : `Week ${w} appears twice for this goal.`); continue; }
     seen.add(key);
 
     const ctx = [...checkInsFor(g, s.checkIns).filter((c) => c.week !== w), ...(imported.get(g.id) ?? [])];
@@ -357,7 +362,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (callRaw && !call) { err('Check-ins', row, g.title, `Call “${val(r, 'call')}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`); continue; }
     // A row that says what's already there is left alone: history that hasn't changed isn't judged again.
     // A row for a week corrects that week's latest check-in (a spreadsheet has one row per goal and week).
-    const existing = checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
+    const existing = byId ?? checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
     if (existing && (!call || existing.status === call)
       && (g.kind === 'milestone' ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, 'value')))
       && (!has(r, 'why') || val(r, 'why') === existing.why)) { unchanged++; imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); continue; }

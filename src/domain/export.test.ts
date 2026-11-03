@@ -95,7 +95,10 @@ describe('exports', () => {
     // The workbook's check-ins
     const rows = workbook(input)[2]!.rows;
     const col = rows[0]!.indexOf('Plan that week');
-    const row = rows.find((r) => r[0] === 'review' && r[2] === early.week)!;
+    const col_ = (h: string) => rows[0]!.indexOf(h);
+    const row = rows.find((r) => r[col_('ID')] === early.id)!;
+    expect(row[col_('Goal ID')]).toBe('review');
+    expect(row[col_('Week')]).toBe(early.week);
     expect(row[col]).toBe(then);
     // The JSON
     const json = toJson(input) as { goals: { id: string; checkIns: { week: number; planThatWeek: number | null }[] }[] };

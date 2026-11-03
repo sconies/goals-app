@@ -1150,7 +1150,9 @@ tr[title] .dcell { color: var(--muted); }
 .activity-page .filter-sort { flex: 0 1 150px; }
 .activity-page .filter-search { flex: 1 1 200px; }
 /* The goal or person's name stays in view while scrolling across the wide tables. */
-.dtable th:nth-child(2), .dtable td:nth-child(2) { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--line); }
-.dtable th:nth-child(2) { z-index: 3; }
-.dtable td:nth-child(2) { background: var(--surface); }
-.dtable td.dcell.ro:nth-child(2) { background: var(--surface-2); }
+.dtable th.dname, .dtable td.dname { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--line); }
+.dtable th.dname { z-index: 3; }
+.dtable td.dname { background: var(--surface); }
+.dtable td.dcell.ro.dname { background: var(--surface-2); }
+/* Each record's own ID: always shown, never editable, in a fixed-width face so it reads as an identifier. */
+.dcell.did { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }

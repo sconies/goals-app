@@ -24976,9 +24976,19 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`);
 			continue;
 		}
-		const key = g.id + ":" + w;
+		const cid = val(r, "id");
+		const byId = cid ? s.checkIns.find((c) => c.id === cid) : void 0;
+		if (cid && (!byId || byId.goalId !== g.id)) {
+			err("Check-ins", row, g.title, `There’s no check-in with ID ${cid} on this goal. Leave ID empty to add a check-in.`);
+			continue;
+		}
+		if (byId && byId.week !== w) {
+			err("Check-ins", row, g.title, `Check-in ${cid} is for week ${byId.week}; a check-in’s week can’t change.`);
+			continue;
+		}
+		const key = cid || g.id + ":" + w;
 		if (seen.has(key)) {
-			err("Check-ins", row, g.title, `Week ${w} appears twice for this goal.`);
+			err("Check-ins", row, g.title, cid ? `Check-in ${cid} appears twice.` : `Week ${w} appears twice for this goal.`);
 			continue;
 		}
 		seen.add(key);
@@ -25026,7 +25036,7 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Call “${val(r, "call")}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`);
 			continue;
 		}
-		const existing = checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
+		const existing = byId ?? checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
 		if (existing && (!call || existing.status === call) && (g.kind === "milestone" ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, "value"))) && (!has(r, "why") || val(r, "why") === existing.why)) {
 			unchanged++;
 			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
@@ -25478,6 +25488,7 @@ var GOAL_DERIVED_COLUMNS = [
 	"Q4"
 ];
 var CHECKIN_EXPORT_COLUMNS = [
+	"ID",
 	"Goal ID",
 	"Goal",
 	"Week",
@@ -25559,6 +25570,7 @@ function checkInRows(x, sums, name) {
 		for (const c of s.checkIns) {
 			const ptg = c.pathToGreen;
 			rows.push([
+				c.id,
 				g.id,
 				g.title,
 				c.week,
@@ -25582,7 +25594,7 @@ function checkInRows(x, sums, name) {
 			]);
 		}
 	}
-	return rows.sort((a, b) => String(a[1]).localeCompare(String(b[1])) || Number(a[2]) - Number(b[2]));
+	return rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])) || Number(a[3]) - Number(b[3]) || String(a[18]).localeCompare(String(b[18])));
 }
 /** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
 function planRows(x, sums) {
@@ -25688,9 +25700,15 @@ var README = [
 	],
 	[
 		"Check-ins",
+		"ID",
+		"The check-in’s own identity. It never changes. Keep it to correct that check-in; leave it empty to add one.",
+		"Matches the check-in"
+	],
+	[
+		"Check-ins",
 		"Goal ID, Week, Value or Stages",
-		"One row per goal per week",
-		"Adds or replaces that week’s check-in"
+		"One row per check-in: a goal and week, and what was reported",
+		"Adds a check-in, or corrects the one with that ID (or that week’s latest when there’s no ID)"
 	],
 	[
 		"Check-ins",
@@ -25712,9 +25730,15 @@ var README = [
 	],
 	[
 		"People",
+		"ID",
+		"The person’s own identity. It never changes.",
+		"Matches the person (in the data tables)"
+	],
+	[
+		"People",
 		"Name, Job title, Team, Admin, Team objective",
 		"Who’s who",
-		"Not loaded back yet"
+		"Changed in the data tables; not loaded back from a file yet"
 	]
 ];
 function workbook(x) {
@@ -25935,6 +25959,7 @@ function toJson(x) {
 					week: s.story.result.week
 				} : null,
 				checkIns: s.checkIns.map((c) => ({
+					id: c.id,
 					week: c.week,
 					weekStarting: weekDate(x.cycle, c.week),
 					value: c.value,

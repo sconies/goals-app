@@ -21,6 +21,8 @@ const EDITABLE: Record<Tab, (col: string) => boolean> = {
   checkIns: (c) => ['Value', 'Stages', 'Call', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step'].includes(c),
   plan: (c) => /^Week \d+$/.test(c),
 };
+/** The column that names each row: it stays in view while scrolling across. */
+const NAME: Record<Tab, string> = { people: 'Name', goals: 'Goal', checkIns: 'Goal', plan: 'Goal' };
 const HIDDEN: Record<Tab, string[]> = { people: ['Team objective'], goals: [], checkIns: [], plan: [] };
 
 const text = (v: Cell | undefined) => (v == null ? '' : String(v));
@@ -38,12 +40,14 @@ export function DataTables() {
       const sheet = book.find((x) => x.name === SHEET[t])!;
       const [head, ...body] = sheet.rows;
       const h = (head ?? []).map(text);
-      const rows: { key: string; cells: string[]; locked?: string }[] = body.map((r, i) => ({ key: t === 'checkIns' ? `${text(r[0])}:${text(r[2])}:${text(r[h.indexOf('Posted at')])}` : text(r[0]) || String(i), cells: r.map(text) as string[] }));
+      // Every record's own ID is its key: it's shown, and it never changes.
+      const rows: { key: string; cells: string[]; locked?: string }[] = body.map((r, i) => ({ key: text(r[0]) || String(i), cells: r.map(text) as string[] }));
       if (t === 'checkIns') {
         // A week with two check-ins: the latest is that week's; the earlier one stays as history.
+        const [gi, wi, pi] = ['Goal ID', 'Week', 'Posted at'].map((c) => h.indexOf(c)) as [number, number, number];
         const latest = new Map<string, string>();
-        for (const r of rows) { const k = r.cells[0] + ':' + r.cells[2]; const at = r.cells[h.indexOf('Posted at')]!; if ((latest.get(k) ?? '') < at) latest.set(k, at); }
-        for (const r of rows) if (latest.get(r.cells[0] + ':' + r.cells[2]) !== r.cells[h.indexOf('Posted at')]) r.locked = 'A later check-in that week replaced this one';
+        for (const r of rows) { const k = r.cells[gi] + ':' + r.cells[wi]; if ((latest.get(k) ?? '') < r.cells[pi]!) latest.set(k, r.cells[pi]!); }
+        for (const r of rows) if (latest.get(r.cells[gi] + ':' + r.cells[wi]) !== r.cells[pi]) r.locked = 'A later check-in that week replaced this one';
       }
       out[t] = { head: h, rows };
     }
@@ -135,7 +139,7 @@ export function DataTables() {
         <table className="dtable">
           <thead>
             <tr>{cols.map(({ c, i }) => (
-              <th key={c} scope="col" aria-sort={sort?.col === i ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
+              <th key={c} scope="col" className={c === 'ID' ? 'did' : c === NAME[tab] ? 'dname' : undefined} title={c === 'ID' ? 'Each record’s own ID. It never changes.' : undefined} aria-sort={sort?.col === i ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
                 <button type="button" className="sortbtn" onClick={() => setSort((s) => (s?.col === i ? (s.dir === 1 ? { col: i, dir: -1 } : null) : { col: i, dir: 1 }))}>{c}{sort?.col === i ? <span aria-hidden="true">{sort.dir === 1 ? ' ↑' : ' ↓'}</span> : null}</button>
               </th>
             ))}</tr>
@@ -147,11 +151,12 @@ export function DataTables() {
                   const original = r.cells[i] ?? '';
                   const changed = edits[tab][r.key]?.[c];
                   const value = changed ?? original;
-                  const label = `${c}, ${r.cells[1] || r.key}${tab === 'checkIns' ? `, week ${r.cells[2]}` : ''}`;
-                  if (!canEdit || r.locked || !EDITABLE[tab](c)) return <td key={c} className={'dcell ro' + (i === 1 ? ' strong' : '')} title={value.length > 30 ? value : undefined}>{c === 'Goal' && tab !== 'people' ? <Link className="linkish" to={'/goals/' + (tab === 'checkIns' ? r.cells[0] : r.key)}>{value}</Link> : value}</td>;
+                  const label = `${c}, ${r.cells[head.indexOf(NAME[tab])] || r.key}${tab === 'checkIns' ? `, week ${r.cells[head.indexOf('Week')]}` : ''}`;
+                  const kind = c === 'ID' ? ' did' : c === NAME[tab] ? ' dname' : '';
+                  if (!canEdit || r.locked || !EDITABLE[tab](c)) return <td key={c} className={'dcell ro' + kind + (c === NAME[tab] ? ' strong' : '')} title={c === 'ID' ? 'IDs never change' : value.length > 30 ? value : undefined}>{c === 'Goal' ? <Link className="linkish" to={'/goals/' + (tab === 'goals' || tab === 'plan' ? r.key : r.cells[head.indexOf('Goal ID')])}>{value}</Link> : value}</td>;
                   const opts = options[c];
                   return (
-                    <td key={c} className={'dcell' + (changed != null ? ' edited' : '')} title={changed != null ? `Was: ${original || '(empty)'}` : undefined}>
+                    <td key={c} className={'dcell' + kind + (changed != null ? ' edited' : '')} title={changed != null ? `Was: ${original || '(empty)'}` : undefined}>
                       {opts && (opts.includes(value) || value === '')
                         ? <select aria-label={label} value={value} onChange={(e) => edit(tab, r.key, c, e.target.value, original)}>{(opts.includes('') ? opts : ['', ...opts]).map((o) => <option key={o} value={o}>{o || '—'}</option>)}</select>
                         : <input aria-label={label} value={value} onChange={(e) => edit(tab, r.key, c, e.target.value, original)} />}

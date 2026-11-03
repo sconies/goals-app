@@ -49,7 +49,7 @@ function stagesText(g: Goal, c: CheckIn): string {
 
 export const GOAL_EXPORT_COLUMNS = ['ID', 'Goal', 'Level', 'Team', 'Owner', 'Type', 'Unit', 'Decimals', 'Start', 'Target', 'Plan', 'Plan from week', 'Due week', 'Limit', 'Must stay', 'Margin', 'Stages', 'Feeds into', 'Feeds into ID', 'Why it helps', 'Effect', 'Source', 'Definition'] as const;
 export const GOAL_DERIVED_COLUMNS = ['Status', 'Result', 'Since', 'Now', 'Plan this week', 'Gap', 'Last check-in week', 'Forecast', 'Why it’s off', 'Recovery plan', 'By when', 'Needs', 'Next step', 'Warnings', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
-export const CHECKIN_EXPORT_COLUMNS = ['Goal ID', 'Goal', 'Week', 'Week starting', 'Value', 'Stages', 'Call', 'Calculated', 'Plan that week', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step', 'Posted at', 'Posted by', 'Backfilled'] as const;
+export const CHECKIN_EXPORT_COLUMNS = ['ID', 'Goal ID', 'Goal', 'Week', 'Week starting', 'Value', 'Stages', 'Call', 'Calculated', 'Plan that week', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step', 'Posted at', 'Posted by', 'Backfilled'] as const;
 
 function goalRow(s: GoalSummary, all: Goal[]): Cell[] {
   const g = s.goal;
@@ -75,7 +75,7 @@ function checkInRows(x: ExportInput, sums: GoalSummary[], name: (id: string) => 
     for (const c of s.checkIns) {
       const ptg = c.pathToGreen;
       rows.push([
-        g.id, g.title, c.week, weekDate(x.cycle, c.week), c.value, stagesText(g, c) || null,
+        c.id, g.id, g.title, c.week, weekDate(x.cycle, c.week), c.value, stagesText(g, c) || null,
         LABEL[c.status], LABEL[c.calculated], g.kind === 'metric' ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
         c.cause ? causeLabel(c.cause) : null, c.why || null, c.greenerWhy || null,
         ptg?.what || null, ptg ? RECOVERY[ptg.state ?? 'plan'] : null, ptg?.byWeek ?? null, ptg?.needs || null,
@@ -83,7 +83,7 @@ function checkInRows(x: ExportInput, sums: GoalSummary[], name: (id: string) => 
       ]);
     }
   }
-  return rows.sort((a, b) => String(a[1]).localeCompare(String(b[1])) || Number(a[2]) - Number(b[2]));
+  return rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])) || Number(a[3]) - Number(b[3]) || String(a[18]).localeCompare(String(b[18])));
 }
 
 /** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
@@ -115,11 +115,13 @@ const README: Cell[][] = [
   ['Goals', 'Since, Now, Plan this week, Gap, Last check-in week, Forecast', 'Worked out by the app when exported', 'Ignored'],
   ['Goals', 'Q1, Q2, Q3, Q4', 'Each quarter against the owner’s plan: Met, Missed, or Open while it runs. A quarter’s target is the plan’s number at its end.', 'Ignored'],
   ['Plan', 'Week N', 'The current plan for each week. If the plan changed, earlier check-ins were judged against the plan of their day: see Plan that week on Check-ins. Type over any week to set the plan by hand', 'Sets the plan numbers'],
-  ['Check-ins', 'Goal ID, Week, Value or Stages', 'One row per goal per week', 'Adds or replaces that week’s check-in'],
+  ['Check-ins', 'ID', 'The check-in’s own identity. It never changes. Keep it to correct that check-in; leave it empty to add one.', 'Matches the check-in'],
+  ['Check-ins', 'Goal ID, Week, Value or Stages', 'One row per check-in: a goal and week, and what was reported', 'Adds a check-in, or corrects the one with that ID (or that week’s latest when there’s no ID)'],
   ['Check-ins', 'Call', 'The owner’s status call: On track, At risk, Off track or Done. Empty: the rules decide', 'Used as the call; a call greener than the numbers needs Why greener'],
   ['Check-ins', 'Cause, Why, Path to green, Back on plan by week, Needs', 'Why it’s ahead or behind, and how it gets back', 'Required when behind, as in the app'],
   ['Check-ins', 'Calculated, Plan that week, Posted at, Posted by, Backfilled', 'Recorded by the app', 'Ignored'],
-  ['People', 'Name, Job title, Team, Admin, Team objective', 'Who’s who', 'Not loaded back yet'],
+  ['People', 'ID', 'The person’s own identity. It never changes.', 'Matches the person (in the data tables)'],
+  ['People', 'Name, Job title, Team, Admin, Team objective', 'Who’s who', 'Changed in the data tables; not loaded back from a file yet'],
 ];
 
 export function workbook(x: ExportInput): Table[] {
@@ -182,7 +184,7 @@ export function toJson(x: ExportInput) {
         quarters: s.story.quarters.filter((q) => q.kind !== 'none').map((q) => ({ quarter: q.quarter.label, months: q.quarter.months, weeks: [q.quarter.from, q.quarter.to], result: q.kind, text: q.text })),
         result: s.story.result ? { kind: s.story.result.kind, label: RESULT_TEXT[s.story.result.kind], dueWeek: s.story.result.dueWeek, week: s.story.result.week } : null,
         checkIns: s.checkIns.map((c) => ({
-          week: c.week, weekStarting: weekDate(x.cycle, c.week), value: c.value, stages: c.stages,
+          id: c.id, week: c.week, weekStarting: weekDate(x.cycle, c.week), value: c.value, stages: c.stages,
           planThatWeek: g.kind === 'metric' ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
           call: c.status, calculated: c.calculated, cause: c.cause, why: c.why || null, whyGreener: c.greenerWhy || null,
           pathToGreen: c.pathToGreen ? { what: c.pathToGreen.what, byWeek: c.pathToGreen.byWeek, needs: c.pathToGreen.needs || null, state: c.pathToGreen.state ?? 'plan' } : null,

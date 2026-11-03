@@ -55,7 +55,7 @@ describe('an admin correcting a past check-in in the data tables', () => {
   it('replaces that week’s check-in, logged with the old and new words, no reason asked', () => {
     const rows = book.find((t) => t.name === 'Check-ins')!.rows;
     const head = rows[0]!.map(String);
-    const row = rows.find((r) => r[0] === 'review' && Number(r[2]) === week - 3)!;
+    const row = rows.find((r) => r[head.indexOf('Goal ID')] === 'review' && Number(r[head.indexOf('Week')]) === week - 3)!;
     const rec: Rec = { __row: '2' };
     head.forEach((h, i) => { rec[h.toLowerCase()] = row[i] == null ? '' : String(row[i]); });
     rec.why = rec.why!.replace('two weeks early', 'three weeks early');
@@ -68,6 +68,28 @@ describe('an admin correcting a past check-in in the data tables', () => {
     // The rules still apply: a number that makes the owner's call greener than the numbers needs that explained.
     const greener = planChanges(base('elena', { checkIns: [{ ...rec, value: '35' }] }));
     expect(greener.issues.some((i) => i.severity === 'error' && /Why greener/.test(i.message))).toBe(true);
+  });
+});
+
+describe('every record keeps its own ID', () => {
+  const rows = book.find((t) => t.name === 'Check-ins')!.rows;
+  const head = rows[0]!.map(String);
+  const recOf = (r: (string | number | null)[]): Rec => { const o: Rec = { __row: '2' }; head.forEach((h, i) => { o[h.toLowerCase()] = r[i] == null ? '' : String(r[i]); }); return o; };
+  it('exports each check-in with its own ID first, as goals, plans and people have', () => {
+    expect(head[0]).toBe('ID');
+    for (const t of ['Goals', 'Plan', 'People']) expect(book.find((x) => x.name === t)!.rows[0]![0]).toBe('ID');
+    expect(new Set(rows.slice(1).map((r) => r[0])).size).toBe(rows.length - 1);
+  });
+  it('corrects exactly the check-in its ID names, and refuses an unknown ID or a changed week', () => {
+    const r = rows.find((x) => x[head.indexOf('Goal ID')] === 'cache' && Number(x[head.indexOf('Week')]) === week - 2)!;
+    const rec = recOf(r);
+    const ok = planChanges(base('elena', { checkIns: [{ ...rec, why: rec.why + ' (checked)' }] }));
+    expect(ok.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    expect(ok.commit!.checkIns![0]!.id).toBe(rec.id);
+    const unknown = planChanges(base('elena', { checkIns: [{ ...rec, id: 'ci_nope' }] }));
+    expect(unknown.issues[0]!.message).toMatch(/no check-in with ID ci_nope/);
+    const moved = planChanges(base('elena', { checkIns: [{ ...rec, week: String(week - 1) }] }));
+    expect(moved.issues[0]!.message).toMatch(/week can’t change/);
   });
 });
 
