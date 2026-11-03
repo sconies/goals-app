@@ -186,9 +186,11 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 </div>
                 <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
                   <legend className="small strong" style={{ marginBottom: 8 }}>How will progress come?</legend>
-                  <div className="kindcards three">
-                    {SHAPES.map(([k, l, help]) => <button key={k} type="button" className="kindcard small-card" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}><span className="strong">{l}</span><span className="tiny muted">{help}</span></button>)}
+                  {/* One compact row, with the chosen one explained underneath: a secondary choice, so it stays small (visual review 2). */}
+                  <div className="seg full" role="group" aria-label="How will progress come?">
+                    {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}
                   </div>
+                  <span className="hint">{SHAPES.find(([k]) => k === d.shape)?.[2]}.</span>
                 </fieldset>
                 {preview ? (
                   <figure className="card" style={{ margin: 0 }} aria-label="Plan preview">

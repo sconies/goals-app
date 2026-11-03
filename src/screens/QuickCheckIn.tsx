@@ -1,6 +1,7 @@
 /* Type every number for the week in one table. Each row is judged as you type with the same rules as the
    check-in; a row that's behind or ahead opens just the fields it needs. Saved together through the bulk-change engine. */
 import { useMemo, useState } from 'react';
+import { useDraft } from '../app/drafts';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { describe, type Rec } from '../domain/changeset';
@@ -19,7 +20,10 @@ export function QuickCheckIn() {
   const nav = useNavigate();
   const goals = app.snapshot.goals.filter((g): g is MetricGoal | RangeGoal => g.ownerId === app.viewer.id && g.kind !== 'milestone' && app.statusOf(g).status !== 'done');
   const milestones = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id && g.kind === 'milestone' && app.statusOf(g).status !== 'done');
-  const [rows, setRows] = useState<Record<string, Row>>({});
+  // Kept as you type, like a single check-in's draft, so a refresh or a wrong turn doesn't lose the numbers (round 3 review).
+  const [rows, patchRows, clearRows, restored] = useDraft<Record<string, Row>>(`${app.ws.id}:bulk:${app.viewer.id}:${app.week}`, () => ({}));
+  const setRows = (f: (r: Record<string, Row>) => Record<string, Row>) => patchRows(f(rows));
+  const hasDraft = restored && Object.values(rows).some((r) => r.value.trim());
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const set = (id: string, patch: Partial<Row>) => setRows((r) => ({ ...r, [id]: { ...blank, ...r[id], ...patch } }));
@@ -50,6 +54,7 @@ export function QuickCheckIn() {
     setBusy(true);
     try {
       await app.applyChanges(cs);
+      clearRows();
       app.toast(`Saved: ${describe(cs).toLowerCase()}`);
       nav('/');
     } catch { setBusy(false); }
@@ -65,6 +70,7 @@ export function QuickCheckIn() {
       {!goals.length && <Empty title="No number goals to update"><Link className="btn" to="/check-in">Use the normal check-in</Link></Empty>}
       {goals.length > 0 && (
         <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+          {hasDraft && <p className="restored small">Picked up the numbers you hadn’t posted yet. <button type="button" className="linkish" onClick={() => { clearRows(); window.location.reload(); }}>Start over</button></p>}
           <div className="glist qgrid">
             {judged.map(({ g, r, posted, e: judgedE, problem }) => {
               const invalidNumber = !!problem?.block;

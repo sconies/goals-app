@@ -901,9 +901,9 @@ body.research-picking .research-bar, body.research-picking .research-bar * { cur
 .split > .split-side:empty { display: none; }
 .page.home .split, .page.watching .split { max-width: 800px; }
 .page.goal-page .split { max-width: 1040px; }
-@container page (min-width: 1100px) {
+@container page (min-width: 960px) {
   .page.home .split, .page.watching .split, .page.goal-page .split {
-    max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); grid-template-areas: "a side" "b side";
+    max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); grid-template-areas: "a side" "b side";
     align-items: start; column-gap: var(--s6); row-gap: var(--s5);
   }
   .split > .split-a { grid-area: a; }
@@ -980,8 +980,8 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 }
 .page.workspace { --page-max: 1440px; }
 .page.workspace .split { max-width: 800px; }
-@container page (min-width: 1100px) {
-  .page.workspace .split { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); grid-template-areas: "a side" "b side"; align-items: start; column-gap: var(--s6); row-gap: var(--s5); }
+@container page (min-width: 960px) {
+  .page.workspace .split { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); grid-template-areas: "a side" "b side"; align-items: start; column-gap: var(--s6); row-gap: var(--s5); }
 }
 .directory-find { gap: var(--s2); align-items: flex-end; }
 
@@ -1085,3 +1085,39 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .goalmap .react-flow__controls button svg { max-width: 16px; max-height: 16px; }
 .board { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 .board-more { align-self: flex-start; }
+
+/* ---------- Round 3 and second visual review (2 Nov) ---------- */
+/* A goal drawn on the map only because a matching goal feeds it: greyed, and it says so. */
+.map-node.context { opacity: .6; border-style: dashed; }
+/* Side columns from a 960px page (a 1280px laptop window with the sidebar), not 1100px, which a 1363px window missed.
+   Stacked, Watching keeps every watched goal together and puts what changed after them. */
+.page.watching .split > .split-side { order: 3; }
+/* Filters: one option per row, the less used groups folded, and the way back to the goals always in view. */
+.filter-options { flex-direction: column; flex-wrap: nowrap; gap: 0; }
+.filter-options .check { min-height: 36px; }
+@media (pointer: coarse) { .filter-options .check { min-height: 44px; } }
+.filter-more { margin-top: var(--s4); }
+.filter-more > .filter-sheet { margin-top: var(--s3); }
+.sheet-foot { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin: var(--s4) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--surface); border-top: 1px solid var(--line); }
+.gcard-figure { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px var(--s2); }
+.gcard-now { font-size: 22px; line-height: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+/* Levels are quiet words, not filled labels: the status, the number and the action carry the emphasis (visual review 2). */
+.level, .level-north-star { padding: 0; border: 0; border-radius: 0; background: none; font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.level-north-star { color: var(--accent-text); }
+.map-key-more { display: inline-block; position: relative; }
+.map-key-more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.map-key-more > summary::-webkit-details-marker { display: none; }
+.map-key-more[open] > .hint { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 320px; padding: var(--s3); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); }
+.map-panel > .btn.primary { align-self: flex-start; }
+/* One height for the Goals controls: buttons, search and selects line up at 40px (44px for touch); the segmented
+   groups are 40px outside, 34px buttons inside (visual review 2). */
+.goals-toolbar .btn, .filterbar .btn, .filterbar .input, .filterbar select.input { min-height: 40px; height: 40px; }
+.view-menu > summary.btn { min-height: 40px; height: 40px; }
+@media (pointer: coarse) { .goals-toolbar .btn, .filterbar .btn, .filterbar .input, .filterbar select.input, .view-menu > summary.btn { min-height: 44px; height: 44px; } }
+.goals-toolbar .seg button { min-height: 32px; }
+@media (max-width: 640px), (pointer: coarse) { .sheet-foot .btn { min-height: 44px; } }
+/* "No recent update" is longer than the other status words: it wraps inside its slot rather than running into the title. */
+.trow-icon, .gline-status { white-space: normal; align-items: flex-start; line-height: 18px; }
+.trow-icon svg, .gline-status svg { margin-top: 3px; }
+.gtable .chip { white-space: normal; text-align: left; }
+.ws-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 18px; overflow-wrap: anywhere; }

@@ -7,7 +7,7 @@ import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
-import { criticalPath, edges as mapEdges, layout, layoutIndented, NODE_H, NODE_W, withAncestors } from '../domain/map';
+import { criticalPath, edges as mapEdges, layout, layoutIndented, NODE_H, NODE_W } from '../domain/map';
 import { LABEL, RANK } from '../domain/status';
 import { RESULT_TEXT } from '../domain/story';
 import { summarise } from '../domain/summary';
@@ -15,16 +15,16 @@ import type { DisplayStatus, Goal } from '../domain/types';
 import { Chip, StatusShape } from '../ui/bits';
 import { StoryLines } from './GoalViews';
 
-type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: string | null; children: number; collapsed: boolean; critical: boolean; onToggle: (id: string) => void };
+type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: string | null; children: number; collapsed: boolean; critical: boolean; context: boolean; onToggle: (id: string) => void };
 
 function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
-  const { goal, status, owner, result, children, collapsed, critical, onToggle } = data;
+  const { goal, status, owner, result, children, collapsed, critical, context, onToggle } = data;
   return (
-    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '')} data-tone={status}>
+    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '')} data-tone={status}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
       <span className={'map-status tone-' + status}><StatusShape k={status} />{LABEL[status]}{result && <span className={'result-tag result-' + (result === 'Completed' ? 'completed' : result === 'Completed late' ? 'late' : 'missed')}>{result}</span>}</span>
       <span className="map-title">{goal.title}</span>
-      <span className="map-meta">{owner}{goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}</span>
+      <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${owner}${goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}`}</span>
       {children > 0 && (
         <button type="button" className="map-toggle nodrag" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Show' : 'Hide'} the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>
           {collapsed ? `+ ${children}` : '−'}
@@ -48,10 +48,14 @@ const edgeTypes = { bus: BusEdge };
 const posKey = (ws: string) => `goals-map:${ws}`;
 const readPos = (ws: string): Record<string, { x: number; y: number }> => { try { return JSON.parse(localStorage.getItem(posKey(ws)) || '{}'); } catch { return {}; } };
 
-export function GoalMap({ goals }: { goals: Goal[] }) {
+/**
+ * The map draws `goals`. When the Goals screen is filtered, `matches` are the goals that match; the rest are the goals
+ * they feed into, drawn greyed as context. "Only what needs attention" is the status filter itself, so the count, the
+ * link and "what's shown now" in Export always agree with what's drawn (round 3 review).
+ */
+export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goal[]; matches?: Set<string>; attention: boolean; onAttention: (on: boolean) => void }) {
   const app = useApp();
   const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
-  const [onlyAttention, setOnlyAttention] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   // Opened from the keyboard: the panel takes focus, and closing it gives focus back to the goal on the map.
   const fromKeys = useRef<HTMLElement | null>(null);
@@ -60,17 +64,16 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
   const canvas = useRef<HTMLDivElement>(null);
   const statusOf = useCallback((g: Goal) => app.statusOf(g).status, [app]);
   const critical = useMemo(() => criticalPath(goals, statusOf), [goals, statusOf]);
-  const only = useMemo(() => (onlyAttention ? withAncestors(goals, new Set(goals.filter((g) => ['off', 'risk', 'stale'].includes(statusOf(g))).map((g) => g.id))) : undefined), [onlyAttention, goals, statusOf]);
   const toggle = useCallback((id: string) => setCollapsed((c) => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n; }), []);
   // Worst first under each goal, so the critical path sits next to what it threatens.
   const order = useCallback((a: Goal, b: Goal) => RANK[statusOf(b)] - RANK[statusOf(a)] || a.title.localeCompare(b.title), [statusOf]);
   // On a desktop, a goal with many inputs stacks them in columns of three, so the map is a block rather than one long row.
-  const placed = useMemo(() => (phone ? layoutIndented(goals, { collapsed, only, order }) : layout(goals, { collapsed, only, order, stack: 3 })), [goals, collapsed, only, order, phone]);
+  const placed = useMemo(() => (phone ? layoutIndented(goals, { collapsed, order }) : layout(goals, { collapsed, order, stack: 3 })), [goals, collapsed, order, phone]);
   const nodes: Node<GoalNodeData>[] = useMemo(() => placed.map((n) => ({
     id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected, domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
-    ariaLabel: `${n.goal.title}: ${LABEL[statusOf(n.goal)]}${critical.has(n.id) ? ', on the critical path' : ''}`,
-    data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? RESULT_TEXT[r.kind] : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), onToggle: toggle },
-  })), [placed, moved, selected, statusOf, critical, app, toggle]);
+    ariaLabel: `${n.goal.title}: ${LABEL[statusOf(n.goal)]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
+    data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? RESULT_TEXT[r.kind] : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), context: !!matches && !matches.has(n.id), onToggle: toggle },
+  })), [placed, moved, selected, statusOf, critical, app, toggle, matches]);
   const busOf = useMemo(() => new Map(placed.filter((n) => n.bus != null).map((n) => [n.id, n.bus!])), [placed]);
   const links: Edge[] = useMemo(() => mapEdges(placed, critical).map((e) => ({
     id: e.id, source: e.from, target: e.to, selectable: false,
@@ -117,13 +120,14 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
   return (
     <div className="goalmap">
       <div className="row between map-bar">
+        {/* The key is one line; what the critical path means is a click away (visual review 2). */}
         <div className="map-legend" aria-label="Map key">
           <span><i className="key-line" /> Feeds into</span>
           <span><i className="key-line dotted" /> Also helps</span>
-          <span><i className="key-line critical" /> Critical path: most likely to make it miss, from status (off track, at risk, no recent update) and how much each goal feeds the one above</span>
+          <details className="map-key-more"><summary><i className="key-line critical" /> Critical path</summary><span className="hint">Most likely to make it miss, from status (off track, at risk, no recent update) and how much each goal feeds the one above.</span></details>
         </div>
         <span className="row" style={{ gap: 'var(--s2)' }}>
-          <label className="check small"><input type="checkbox" checked={onlyAttention} onChange={(e) => setOnlyAttention(e.target.checked)} /> Only what needs attention</label>
+          <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> Only what needs attention</label>
           <button type="button" className="btn sm" onClick={() => setCollapsed(collapsed.size ? new Set() : new Set(allIds))}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
           <button type="button" className="btn ghost sm" onClick={() => { if (flow.current) frame(flow.current); }}>Reset view</button>
@@ -139,7 +143,7 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
             setSelected(node.dataset.id ?? null);
           }}>
           <ReactFlow
-            key={(onlyAttention ? 'a' : 'all') + collapsed.size}
+            key={(attention ? 'a' : 'all') + goals.length + '-' + collapsed.size}
             nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={0.2} maxZoom={1.6}
             onInit={(rf) => { flow.current = rf; frame(rf); }}
             nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
@@ -147,7 +151,8 @@ export function GoalMap({ goals }: { goals: Goal[] }) {
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
           >
             <Background gap={24} size={1} />
-            <Controls showInteractive={false} position="top-right" />
+            {/* Fit view never shrinks the words below a readable size; scroll for the rest (visual review 2). */}
+            <Controls showInteractive={false} position="top-right" fitViewOptions={{ minZoom: 0.75, padding: 0.08 }} />
           </ReactFlow>
         </div>
         {sel && <MapPanel goal={sel} focus={!!fromKeys.current} critical={critical.has(sel.id)} onClose={() => {
@@ -171,12 +176,12 @@ function MapPanel({ goal, onClose, critical, focus }: { goal: Goal; onClose: () 
     <aside className="map-panel" aria-label={goal.title} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div className="row between nowrap"><Chip k={s.status} /><button type="button" className="iconbtn" aria-label="Close" onClick={onClose}>✕</button></div>
       <h2 className="block-title" ref={title} tabIndex={-1}>{goal.title}</h2>
+      <Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link>
       <span className="hint">{s.owner} · {s.team}{s.story.feeds ? ` · ${s.story.feeds}` : ''}</span>
       {critical && <span className="small tone-off strong">On the critical path</span>}
       <span className="small">{s.story.where}</span>
       <StoryLines s={s} />
       {feeds.length > 0 && <span className="hint">{feeds.length} {feeds.length === 1 ? 'goal feeds' : 'goals feed'} it.</span>}
-      <Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link>
     </aside>
   );
 }

@@ -193,7 +193,10 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
   const all = [...sums.values()];
   // Within a lane: the higher goals first (the north star leads), then those waiting on a decision, then by name.
   const order = (a: GoalSummary, b: GoalSummary) => LEVELS.indexOf(a.goal.level) - LEVELS.indexOf(b.goal.level) || Number(!!b.story.needs) - Number(!!a.story.needs) || a.goal.title.localeCompare(b.goal.title);
-  const cols = COLUMNS.map((c) => ({ ...c, items: all.filter((s) => c.statuses.includes(s.status)).sort(order) })).filter((c) => c.always || c.items.length);
+  // Filtered, an empty lane is noise: only the lanes with goals in them (round 3 and visual review 2).
+  const app = useApp();
+  const filtered = all.length < app.snapshot.goals.length;
+  const cols = COLUMNS.map((c) => ({ ...c, items: all.filter((s) => c.statuses.includes(s.status)).sort(order) })).filter((c) => c.items.length || (c.always && !filtered));
   const [shown, setShown] = useState<Set<string>>(new Set());
   return (
     <div className="board">
@@ -230,7 +233,10 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
   const sums = useSummaries(groups);
   const year = isYear(app.cycle);
-  const [span, setSpan] = useState<'quarter' | 'year'>('quarter');
+  // The range is in the link (weeks=year), so a saved or shared History view comes back the same (round 3 review).
+  const [params, setParams] = useSearchParams();
+  const span: 'quarter' | 'year' = params.get('weeks') === 'year' ? 'year' : 'quarter';
+  const setSpan = (v: 'quarter' | 'year') => { const p = new URLSearchParams(params); if (v === 'year') p.set('weeks', 'year'); else p.delete('weeks'); setParams(p, { replace: true }); };
   const q = quarterOf(app.cycle, app.week);
   const weeks = year && span === 'quarter' ? Array.from({ length: q.to - q.from + 1 }, (_, i) => q.from + i) : Array.from({ length: app.cycle.weeks }, (_, i) => i + 1);
   const cellText = (s: GoalSummary, w: number, c: ReturnType<typeof weeklyCalls>) => {
@@ -241,18 +247,19 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
   };
   return (
     <>
-      <div className="row between" style={{ alignItems: 'center' }}>
-        <p className="hint" style={{ margin: 0 }}>Each square is the owner’s call that week. Hover or tap a goal to open it.</p>
+      {/* One line above the grid: what a square means, its key, and the range. */}
+      <div className="row between history-head" style={{ alignItems: 'center' }}>
+        <div className="hlegend">
+          <span className="hint">Each square is the owner’s call that week:</span>
+          {(['on', 'risk', 'off', 'done'] as const).map((k) => <span key={k} className={'hcell-key tone-' + k}><StatusShape k={k} />{LABEL[k]}</span>)}
+          <span className="hcell-key"><span className="hcell-empty" aria-hidden="true" />No check-in</span>
+        </div>
         {year && (
           <div className="seg" role="group" aria-label="Weeks shown">
             <button type="button" aria-pressed={span === 'quarter'} onClick={() => setSpan('quarter')}>This quarter ({q.label})</button>
             <button type="button" aria-pressed={span === 'year'} onClick={() => setSpan('year')}>Whole year</button>
           </div>
         )}
-      </div>
-      <div className="hlegend" aria-hidden="true">
-        {(['on', 'risk', 'off', 'done'] as const).map((k) => <span key={k} className={'hcell-key tone-' + k}><StatusShape k={k} />{LABEL[k]}</span>)}
-        <span className="hcell-key"><span className="hcell-empty" />No check-in</span>
       </div>
       {groups.map((g) => {
         if (!g.rows.length) return null;
@@ -315,10 +322,11 @@ export function GoalCards({ groups }: { groups: ViewGroup[] }) {
                   <Link key={goal.id} to={'/goals/' + goal.id} className="gcard" data-tone={s.status}>
                     <span className="row between nowrap"><Chip k={s.status} /><LevelTag level={goal.level} /></span>
                     <span className="gcard-title">{goal.title}</span>
+                    {/* The number straight under the title, in the same place on every card, so cards compare (visual review 2). */}
+                    <span className="gcard-figure"><span className="gcard-now">{s.now}</span><span className="small">target {s.target} · <span className={'tone-' + s.gapTone}>{s.gap}</span></span></span>
                     <span className="hint">{s.owner} · {s.team}{s.story.since && s.status !== 'stale' ? ` · ${s.story.since.toLowerCase()}` : ''}</span>
                     <ResultTag s={s} />
                     {hasStory(s) ? <StoryLines s={s} brief /> : <span className="small">{s.story.where}</span>}
-                    <span className="hint gcard-numbers">Now {s.now} · target {s.target} · <span className={'tone-' + s.gapTone}>{s.gap}</span></span>
                   </Link>
                 );
               })}

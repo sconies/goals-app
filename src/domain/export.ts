@@ -4,7 +4,7 @@
 import { planHistoryOf } from './goal';
 import { causeLabel } from './checkin';
 import { LEVEL_LABEL } from './format';
-import { planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
+import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
 import { MEANING, RESULT_MEANING, RESULT_TEXT } from './story';
 import { isYear, periodLabel, quarterOf, quarters } from './year';
 import { answerOf } from './review';
@@ -76,7 +76,7 @@ function checkInRows(x: ExportInput, sums: GoalSummary[], name: (id: string) => 
       const ptg = c.pathToGreen;
       rows.push([
         g.id, g.title, c.week, weekDate(x.cycle, c.week), c.value, stagesText(g, c) || null,
-        LABEL[c.status], LABEL[c.calculated], g.kind === 'metric' ? Number(planAt(g.plan, c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
+        LABEL[c.status], LABEL[c.calculated], g.kind === 'metric' ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
         c.cause ? causeLabel(c.cause) : null, c.why || null, c.greenerWhy || null,
         ptg?.what || null, ptg ? RECOVERY[ptg.state ?? 'plan'] : null, ptg?.byWeek ?? null, ptg?.needs || null,
         c.next || null, c.postedAt, name(c.authorId) || null, c.backfilled ? 'yes' : null,
@@ -114,7 +114,7 @@ const README: Cell[][] = [
   ['Goals', 'Why it’s off, Recovery plan, By when, Needs, Next step, Warnings', 'The owner’s latest account when a goal is behind, and anything the numbers would hide (a date that slipped, no recovery plan, a call greener than the numbers)', 'Ignored'],
   ['Goals', 'Since, Now, Plan this week, Gap, Last check-in week, Forecast', 'Worked out by the app when exported', 'Ignored'],
   ['Goals', 'Q1, Q2, Q3, Q4', 'Each quarter against the owner’s plan: Met, Missed, or Open while it runs. A quarter’s target is the plan’s number at its end.', 'Ignored'],
-  ['Plan', 'Week N', 'The planned number each week. Type over any week to set the plan by hand', 'Sets the plan numbers'],
+  ['Plan', 'Week N', 'The current plan for each week. If the plan changed, earlier check-ins were judged against the plan of their day: see Plan that week on Check-ins. Type over any week to set the plan by hand', 'Sets the plan numbers'],
   ['Check-ins', 'Goal ID, Week, Value or Stages', 'One row per goal per week', 'Adds or replaces that week’s check-in'],
   ['Check-ins', 'Call', 'The owner’s status call: On track, At risk, Off track or Done. Empty: the rules decide', 'Used as the call; a call greener than the numbers needs Why greener'],
   ['Check-ins', 'Cause, Why, Path to green, Back on plan by week, Needs', 'Why it’s ahead or behind, and how it gets back', 'Required when behind, as in the app'],
@@ -183,6 +183,7 @@ export function toJson(x: ExportInput) {
         result: s.story.result ? { kind: s.story.result.kind, label: RESULT_TEXT[s.story.result.kind], dueWeek: s.story.result.dueWeek, week: s.story.result.week } : null,
         checkIns: s.checkIns.map((c) => ({
           week: c.week, weekStarting: weekDate(x.cycle, c.week), value: c.value, stages: c.stages,
+          planThatWeek: g.kind === 'metric' ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
           call: c.status, calculated: c.calculated, cause: c.cause, why: c.why || null, whyGreener: c.greenerWhy || null,
           pathToGreen: c.pathToGreen ? { what: c.pathToGreen.what, byWeek: c.pathToGreen.byWeek, needs: c.pathToGreen.needs || null, state: c.pathToGreen.state ?? 'plan' } : null,
           next: c.next || null, postedAt: c.postedAt, postedBy: name(c.authorId) || null, backfilled: !!c.backfilled,
@@ -346,7 +347,8 @@ export function aiBrief(x: ExportInput): string {
       out.push(`- **${g.title}**${g.kind !== 'milestone' && g.unit ? ` (${g.unit})` : ''}`);
       for (const c of s.checkIns) {
         const v = g.kind === 'milestone' ? `${(c.stages ?? []).filter((u) => u.doneWeek != null).length}/${g.stages.length} stages` : c.value == null ? '—' : String(c.value);
-        const plan = g.kind === 'metric' ? ` [${Number(planAt(g.plan, c.week, x.cycle.weeks).toFixed(g.decimals))}]` : '';
+        // The plan that applied in that week, as the goal page and quarter results judge it, not today's plan.
+        const plan = g.kind === 'metric' ? ` [${Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals))}]` : '';
         const said = ['off', 'risk'].includes(c.status) && c.why && c.why !== 'On plan.' ? `: ${c.why}` : '';
         out.push(`  - w${c.week} ${v}${plan} (${LABEL[c.status].toLowerCase()})${said}${c.backfilled ? ' (loaded later)' : ''}`);
       }

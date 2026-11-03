@@ -12,7 +12,7 @@ import type { Level, SavedView } from '../domain/types';
 import { Sheet } from '../ui/bits';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
-const VIEW_KEYS = ['show', 'view', ...QUERY_KEYS];
+const VIEW_KEYS = ['show', 'view', 'weeks', ...QUERY_KEYS];
 export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k]) => VIEW_KEYS.includes(k)).sort(([a], [b]) => VIEW_KEYS.indexOf(a) - VIEW_KEYS.indexOf(b))).toString();
 
 /** The query in the URL, and a way to change it that keeps everything else (grouping, layout, the demo's date). */
@@ -194,6 +194,11 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
           <input className="input" type="search" placeholder="Find an owner" value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Find an owner" />
           {match.length > 0 && <span className="filter-options">{match.map((p) => <button key={p.id} type="button" className="btn sm" onClick={() => { setQ((cur) => ({ ...cur, owner: [...cur.owner, p.id] })); setOwner(''); }}>{p.name}</button>)}</span>}
         </fieldset>
+      </div>
+      {/* Used less often: folded, and open when one of them is set. */}
+      <details className="disclose filter-more" open={!!(q.kind.length || q.due != null || q.quiet != null || q.quarter || q.result.length || q.feeds || q.helps)}>
+        <summary>More filters: type, due date, last check-in, last quarter, result, links</summary>
+      <div className="filter-sheet">
         {checks('Type', KIND_OPTIONS, 'kind')}
         <fieldset className="filter-group"><legend className="field-label">Due</legend>
           <select className="input" aria-label="Due" value={q.due == null ? '' : String(q.due)} onChange={(e) => setQ((cur) => ({ ...cur, due: e.target.value === '' ? null : e.target.value === 'quarter' ? 'quarter' : Number(e.target.value) }))}>
@@ -223,7 +228,9 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
           <label className="check"><input type="checkbox" checked={q.helps} onChange={(e) => setQ((cur) => ({ ...cur, helps: e.target.checked }))} /> With “also helps” links</label>
         </fieldset>
       </div>
-      <div className="row between" style={{ marginTop: 'var(--s4)' }}>
+      </details>
+      {/* Always in view at the bottom of the sheet, however long it is. */}
+      <div className="sheet-foot">
         <button type="button" className="linkish small" onClick={() => setQ((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))}>Clear filters</button>
         <button type="button" className="btn primary" onClick={onClose}>Show the goals</button>
       </div>

@@ -22,6 +22,9 @@ import { FilterBar, useGoalQuery, useViews, viewParams } from './GoalFilters';
 import { applyQuery, filters } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
+
+/** The map's "Only what needs attention": the statuses a leader acts on, as an ordinary status filter. */
+const ATTENTION = ['off', 'risk', 'stale'] as const;
 // The map loads only when someone opens it, so the rest of the app stays small.
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
 
@@ -51,7 +54,7 @@ export function GoalsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [show, app.snapshot, app.viewer.id, att]);
   // Search, filters and sort apply on top of the grouping, in every layout and in exports.
-  const [query] = useGoalQuery();
+  const [query, setQuery] = useGoalQuery();
   const narrowed = filters(query);
   const refined = narrowed || !!query.sort;
   const ranked = useMemo(() => {
@@ -130,7 +133,7 @@ export function GoalsScreen() {
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
       {alt && shown.length > 0 && layout === 'cards' && <GoalCards groups={groups} />}
-      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={mapGoals} /></Suspense>}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={ATTENTION.every((k) => query.status.includes(k)) && query.status.length === ATTENTION.length} onAttention={(on) => setQuery((cur) => ({ ...cur, status: on ? [...ATTENTION] : [] }))} /></Suspense>}
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
       {!alt && refined && groups.map((g) => (

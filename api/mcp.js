@@ -25053,7 +25053,7 @@ function planChanges(input) {
 }
 // src/domain/story.ts
 var MEANING = {
-	on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
+	on: `On plan so far: at least ${RULES.onTrack * 100}% of the progress planned by now. If the recent trend says it will still finish short, the goal says so beside its status.`,
 	risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. There’s a plan to get it back.`,
 	off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
 	stale: `No recent update: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
@@ -25444,7 +25444,7 @@ function checkInRows(x, sums, name) {
 				stagesText(g, c) || null,
 				LABEL[c.status],
 				LABEL[c.calculated],
-				g.kind === "metric" ? Number(planAt(g.plan, c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
+				g.kind === "metric" ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
 				c.cause ? causeLabel(c.cause) : null,
 				c.why || null,
 				c.greenerWhy || null,
@@ -25560,7 +25560,7 @@ var README = [
 	[
 		"Plan",
 		"Week N",
-		"The planned number each week. Type over any week to set the plan by hand",
+		"The current plan for each week. If the plan changed, earlier check-ins were judged against the plan of their day: see Plan that week on Check-ins. Type over any week to set the plan by hand",
 		"Sets the plan numbers"
 	],
 	[
@@ -25816,6 +25816,7 @@ function toJson(x) {
 					weekStarting: weekDate(x.cycle, c.week),
 					value: c.value,
 					stages: c.stages,
+					planThatWeek: g.kind === "metric" ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
 					call: c.status,
 					calculated: c.calculated,
 					cause: c.cause,
@@ -26011,7 +26012,7 @@ function aiBrief(x) {
 			out.push(`- **${g.title}**${g.kind !== "milestone" && g.unit ? ` (${g.unit})` : ""}`);
 			for (const c of s.checkIns) {
 				const v = g.kind === "milestone" ? `${(c.stages ?? []).filter((u) => u.doneWeek != null).length}/${g.stages.length} stages` : c.value == null ? "—" : String(c.value);
-				const plan = g.kind === "metric" ? ` [${Number(planAt(g.plan, c.week, x.cycle.weeks).toFixed(g.decimals))}]` : "";
+				const plan = g.kind === "metric" ? ` [${Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals))}]` : "";
 				const said = ["off", "risk"].includes(c.status) && c.why && c.why !== "On plan." ? `: ${c.why}` : "";
 				out.push(`  - w${c.week} ${v}${plan} (${LABEL[c.status].toLowerCase()})${said}${c.backfilled ? " (loaded later)" : ""}`);
 			}

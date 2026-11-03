@@ -43,6 +43,13 @@ export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
       <div className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
         <span className="small"><strong>{who?.name ?? c.actorId}</strong> {c.summary.charAt(0).toLowerCase() + c.summary.slice(1)}{showGoal && goal ? <> on <Link className="linkish" to={'/goals/' + goal.id}>{goal.title}</Link></> : null}</span>
         {c.entity === 'note' && <p className="note-text">{c.diffs[0]?.to}</p>}
+        {/* What was said in a review, said in place: the action, question or note, with who and by when (visual review 2). */}
+        {c.entity === 'decision' && (() => {
+          const said = c.diffs.find((d) => d.field === 'Action' || d.field === 'Question' || d.field === 'Note')?.to;
+          const who = c.diffs.find((d) => d.field === 'Who')?.to;
+          const due = c.diffs.find((d) => d.field === 'Due')?.to;
+          return said ? <p className="note-text">{said}{who ? <span className="hint"> · {who}{due ? `, by ${due}` : ''}</span> : null}</p> : null;
+        })()}
         <span className="tiny muted">{whenText(c.at, app.today)}</span>
         {diffs.length > 0 && c.entity !== 'note' && (
           <>
@@ -169,7 +176,7 @@ function GoalView({ goal }: { goal: Goal }) {
         {stale && !isOwner && (asked
           ? <span className="small strong" role="status">Asked {owner?.name.split(' ')[0] ?? 'the owner'} for an update {timeAgo(asked.at, app.today)}. It’s on their Home.</span>
           : <div><button type="button" className="btn sm" onClick={() => void askForUpdate()}>Ask {owner?.name.split(' ')[0] ?? 'the owner'} for an update</button></div>)}
-        {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
+        {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.warn && (st.status === 'on' || st.status === 'done') ? 'On track means on plan this week. ' : ''}{fc.text}</span>}
         {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
       </section>
       {threats.length > 0 && (
