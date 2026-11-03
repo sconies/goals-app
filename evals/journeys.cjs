@@ -760,12 +760,14 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   await see(p, 'Needs your response');
   const card = p.locator('.need', { hasText: 'A decision or help is needed from you' }).first();
   await h.inView(card, 'entry', 'the decision that needs Elena');
-  h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('link', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
+  h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('button', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
   await see(p, 'Important changes');
   await h.checkpoint('home');
-  await h.click(card.getByRole('link', { name: 'Respond' }));
-  await p.waitForURL(/\/goals\/(access|head)/);
-  await see(p, 'Decision or help needed');
+  // Respond opens the request itself, ready to answer (product review, 3 Nov).
+  await h.click(card.getByRole('button', { name: 'Respond' }));
+  const respond = p.getByRole('dialog', { name: 'Respond to the request' });
+  await see(respond, 'Your answer or decision', 'Respond does not open the request to answer');
+  await p.keyboard.press('Escape');
   // The 4-tab trial: Home, Goals, Reviews, More; Watching lives in Goals.
   await p.goto(url('/'));
   { const panel = await demoPanel(p, h); await h.click(panel.getByRole('button', { name: /Try 4 tabs/ })); await p.keyboard.press('Escape'); }
