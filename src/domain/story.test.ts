@@ -18,7 +18,7 @@ describe('the story of a goal', () => {
     expect(st.status).toBe('off');
     expect(st.why).toMatch(/vendor delivered late/);
     expect(st.doing).toMatch(/Interim read-only scope/);
-    expect(st.byWhen).toMatch(new RegExp(`^Back on plan by week ${toYear(9)} \\(`));
+    expect(st.byWhen).toMatch(new RegExp(`^Owner’s date: back on plan by week ${toYear(9)} \\(`));
     expect(st.needs).toMatch(/Elena Ruiz/);
     expect(st.where).toContain(`Late: Access controls built (due week ${toYear(6)}, now expected week ${toYear(9)})`);
     expect(st.feeds).toMatch(/Intake-to-delivery time \(North star\)/);

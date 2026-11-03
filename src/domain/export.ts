@@ -233,7 +233,7 @@ function storyBlock(sm: GoalSummary, cycleWeeks: number): string[] {
   }
   out.push(`- **Why it’s ${sm.status === 'off' ? 'off track' : 'at risk'}:** ${st.why ?? 'Not given.'}`);
   out.push(`- **Recovery plan:** ${st.doing ?? 'Not given.'}`);
-  out.push(`- **By when:** ${st.byWhen ?? 'No date given.'}`);
+  out.push(`- **Owner’s date:** ${st.byWhen?.replace(/^Owner’s date: b/, 'B') ?? 'No date given.'}`);
   if (st.needs) out.push(`- **Needs:** ${st.needs}`);
   if (st.next) out.push(`- **Next step:** ${st.next}`);
   for (const w of st.warnings) out.push(`- **Watch out:** ${w}`);

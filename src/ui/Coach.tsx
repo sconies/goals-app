@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { readTour, TOURS, writeTour, type TourState } from '../app/tours';
+import { placeCoach } from './coachPlace';
 
 function find(target: { selector: string; text?: string } | undefined): HTMLElement | null {
   if (!target) return null;
@@ -10,18 +11,11 @@ function find(target: { selector: string; text?: string } | undefined): HTMLElem
   return (target.text ? all.find((e) => e.textContent?.toLowerCase().includes(target.text!.toLowerCase())) : all[0]) ?? null;
 }
 
-/** Would the coach, in its usual place (bottom right; along the bottom on a phone), cover what it points at? */
-function hidesTarget(r: DOMRect): boolean {
-  const w = window.innerWidth, h = window.innerHeight;
-  const phone = w <= 640;
-  const box = phone ? { left: 0, right: w, top: h - 72 - 230, bottom: h } : { left: w - 400, right: w, top: h - 240, bottom: h };
-  return r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom;
-}
-
 export function Coach() {
   const [state, setState] = useState<TourState | null>(readTour);
   const [ring, setRing] = useState<DOMRect | null>(null);
   const [missing, setMissing] = useState(false);
+  const box = useRef<HTMLElement>(null);
   // A step that's done on reaching a page only counts once you've been somewhere else since it began, so starting a
   // walkthrough while already on that page doesn't skip the step.
   const away = useRef(false);
@@ -62,7 +56,7 @@ export function Coach() {
   return (
     <>
       {ring && <div className="coach-ring" aria-hidden="true" style={{ top: ring.top - 6, left: ring.left - 6, width: ring.width + 12, height: ring.height + 12 }} />}
-      <aside className={'coach' + (ring && hidesTarget(ring) ? ' at-top' : '')} role="dialog" aria-modal="false" aria-label={`Walkthrough: ${tour.title}`}>
+      <aside ref={box} className="coach" style={coachAt(ring, box.current)} role="dialog" aria-modal="false" aria-label={`Walkthrough: ${tour.title}`}>
         <span className="coach-head"><span className="label">{tour.role} · step {state.step + 1} of {tour.steps.length}</span><button type="button" className="linkish small" onClick={() => writeTour(null)}>End</button></span>
         <span className="coach-title">{tour.title}</span>
         <p className="coach-say" aria-live="polite">{missing && step.ifMissing ? step.ifMissing.say : step.say}</p>
@@ -75,4 +69,12 @@ export function Coach() {
       </aside>
     </>
   );
+}
+
+/** The coach beside its target (see coachPlace): on a phone, clear of the top bar and the tab bar. */
+function coachAt(ring: DOMRect | null, el: HTMLElement | null): { left: number; top: number } {
+  const w = window.innerWidth, h = window.innerHeight;
+  const phone = w <= 760;
+  const size = { width: el?.offsetWidth || Math.min(360, w - 32), height: el?.offsetHeight || 210 };
+  return placeCoach(ring && { left: ring.left - 6, top: ring.top - 6, width: ring.width + 12, height: ring.height + 12 }, size, { width: w, height: h, reservedTop: phone ? 60 : 0, reservedBottom: phone ? 80 : 0 });
 }

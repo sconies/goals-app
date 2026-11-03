@@ -183,7 +183,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
     if (ptg) {
       doing = ptg.what;
       const state = ptg.state ?? 'plan';
-      byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === 'help' ? ', once the decision or help arrives' : ''}`
+      byWhen = ptg.byWeek != null ? `Owner’s date: back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === 'help' ? ', once the decision or help arrives' : ''}`
         : state === 'investigating' ? 'No date yet: still working out what’s wrong'
         : state === 'help' ? 'No date until the decision or help arrives'
         : state === 'target' ? 'The owner says the target should change'

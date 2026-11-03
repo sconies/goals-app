@@ -856,12 +856,12 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; 
 .demo-as { font-size: 13px; color: var(--fg-2); }
 .demo-entry.compact { width: auto; padding: 4px 8px; flex-direction: row; }
 .menuitem.persona .strong { font-size: 15px; }
-.coach { position: fixed; z-index: 60; right: 20px; bottom: 20px; width: min(360px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 28px rgba(16, 24, 40, .18); }
+.coach { position: fixed; z-index: 60; width: min(360px, calc(100vw - 32px)); transition: top .2s, left .2s; display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 28px rgba(16, 24, 40, .18); }
 .coach-head { display: flex; justify-content: space-between; align-items: center; }
 .coach-title { font-weight: 700; }
 .coach-say { margin: 0; line-height: 22px; }
 .coach-ring { position: fixed; z-index: 59; pointer-events: none; border: 2px solid var(--accent); border-radius: 10px; transition: top .2s, left .2s, width .2s, height .2s; }
-@media (max-width: 640px) { .coach { left: 16px; right: 16px; width: auto; bottom: calc(72px + var(--s2)); } }
+@media (max-width: 640px) { .coach { width: calc(100vw - 32px); } }
 
 /* ---------- research ---------- */
 .note-box { padding: var(--s4); border: 1px solid var(--risk-line); border-radius: 10px; background: var(--risk-bg); }
@@ -881,8 +881,6 @@ body.research-picking .research-bar, body.research-picking .research-bar * { cur
   .research-strip { flex-direction: column; align-items: stretch; }
 }
 /* The coach moves out of the way of what it points at. */
-.coach.at-top { top: 20px; bottom: auto; }
-@media (max-width: 640px) { .coach.at-top { top: 76px; bottom: auto; } }
 
 /* ---------- Page frames: each kind of page gets the room it needs (responsive review, 2 Nov) ----------
    Focused tasks stay narrow (.focus). Reading pages are narrow. Home, a goal and Watching get a main column and a
@@ -968,7 +966,6 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 }
 
 /* A walkthrough moved to the top sits below a review's own bar rather than over its buttons. */
-.coach.at-top { top: 76px; bottom: auto; }
 
 /* A wider sheet for menus with several sections (the Demo menu): columns on a desktop, one column on a phone. */
 .sheet.wide { width: min(760px, 100%); }
@@ -1210,3 +1207,8 @@ button.prop-chip-edit:hover { background: var(--surface-3); }
   .qtable td.qcell { display: block; min-width: 0; padding: 6px 8px; border: 0; border-radius: 6px; }
   .qcell-label { display: block; }
 }
+/* One account on one screen: what changed, then what happens next and by when (Senior UX review, finding 11). */
+.qtitle.sm { font-size: var(--t-md); line-height: 22px; }
+.qsection.account { gap: var(--s5); }
+.account-part { gap: var(--s3); }
+.account-part + .account-part { padding-top: var(--s4); border-top: 1px solid var(--line-2); }

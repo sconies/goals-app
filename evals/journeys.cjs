@@ -220,7 +220,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   const sm = await h.snapshot();
   await h.fill(p.getByLabel('This week’s value'), valueAt(sm.goals.find((g) => g.id === 'head'), NOW, 0.5));
   h.set('attention', await p.locator('.verdict[data-tone=off]').isVisible(), 'behind plan is not flagged in the verdict');
-  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('button', { name: 'Continue' }));
   await see(p, 'Is last week’s note still true?', 'last week’s reason and path are offered back');
   await h.progressShown('carry');
   await h.checkpoint('carry');
@@ -534,7 +534,7 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   const s7 = await h.snapshot();
   // Well ahead, but still a possible coverage (under 100%).
   await h.fill(p.getByLabel('This week’s value'), valueAt(s7.goals.find((g) => g.id === 'review'), NOW, 1.25));
-  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('button', { name: 'Continue' }));
   // Last week's reason is offered back; this week's is different, so edit it.
   await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
   await see(p, 'Why is it ahead?');
@@ -1404,7 +1404,7 @@ journey('U36', ['PATH-TO-GREEN', 'ATTENTION', 'REVIEW-RUN'], 'An owner keeps las
   await p.goto(url('/check-in/head'));
   const s0 = await h.snapshot();
   await h.fill(p.getByLabel('This week’s value'), valueAt(s0.goals.find((g) => g.id === 'head'), NOW, 0.5));
-  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('button', { name: 'Continue' }));
   await see(p, 'Still asking:', 'the open request is not shown before posting');
   await h.click(p.getByLabel('Keep this request open on their Home'));
   await h.click(p.getByRole('button', { name: /^Still true/ }));
@@ -1537,6 +1537,62 @@ journey('U38', ['QUARTER-RESULTS', 'WEEK-INSPECTOR', 'NO-DOUBLE-POST', 'ASK-UNDO
   h.set('finish', true);
   await p.context().close();
 }, ['entry', 'one-action']);
+
+journey('U39', ['ONE-ACCOUNT', 'PATH-TO-GREEN', 'WALKTHROUGHS'], 'Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'kofi'));
+  await p.goto(url('/check-in/alerts'));
+  const s0 = await h.snapshot();
+  // Before a number is typed the button doesn't promise to post.
+  const before = await p.locator('form.focus-body button[type=submit]').innerText();
+  await h.fill(p.getByLabel('This week’s value'), valueAt(s0.goals.find((g) => g.id === 'alerts'), NOW, 0.4));
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
+  // One screen: the cause, the account, the way back and the week, with last week's words to edit.
+  const account = p.getByRole('region', { name: 'What changed, and what happens next' });
+  await account.waitFor();
+  const steps = await p.locator('.dots').getAttribute('aria-label');
+  const oneScreen = await account.getByRole('group', { name: 'Main cause' }).isVisible() && await account.getByRole('radiogroup', { name: 'Where you are' }).isVisible();
+  const prefilled = (await account.getByLabel('What happened').inputValue()).length > 10;
+  h.set('one-action', oneScreen && prefilled && steps === 'Step 3 of 3' && before === 'Continue', `one screen ${oneScreen}, last week’s words ${prefilled}, progress “${steps}”, first button “${before}”`);
+  await h.checkpoint('one account');
+  // An empty account is explained where it's missing, not posted.
+  await account.getByLabel('What happened').fill('');
+  await p.getByRole('button', { name: 'Post check-in' }).click();
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Write a sentence about what happened' }).isVisible(), 'an empty account is not explained');
+  await h.fill(account.getByLabel('What happened'), 'The paging alerts moved to a new pipeline and the classifier lost its labels.');
+  await h.click(account.getByRole('radio', { name: /I have a plan/ }));
+  await h.fill(account.getByLabel('What changes?'), 'Relabel the paging alerts this week, then turn auto-triage back on.');
+  await h.click(account.getByRole('group', { name: 'Back on plan by' }).getByRole('button').first());
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const s = await h.snapshot();
+  const c = s.checkIns.filter((x) => x.goalId === 'alerts').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).pop();
+  h.set('logged', !!c && /new pipeline/.test(c.why) && /Relabel/.test(c.pathToGreen?.what ?? '') && (c.pathToGreen?.byWeek ?? 0) > NOW, 'the account was not saved whole');
+  // The goal page says whose date is whose: the owner's recovery date and the app's projection.
+  await p.goto(url('/goals/alerts'));
+  await see(p, 'Owner’s date: back on plan by', 'the owner’s date is not labelled as theirs');
+  const proj = await p.getByText(/Projected by the app/).count();
+  h.set('attention', proj > 0, 'the projection is not labelled as the app’s estimate');
+  // The map walkthrough: the coach sits beside the goal it points at, never on it.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'elena'));
+  await p.goto(url('/goals?view=map'));
+  await p.locator('.react-flow__node').first().waitFor();
+  await p.evaluate(() => { sessionStorage.setItem('goals-tour', JSON.stringify({ id: 'map', step: 1 })); window.dispatchEvent(new Event('goals-tour')); });
+  const coach = p.locator('.coach');
+  await coach.waitFor().catch(() => {});
+  await p.waitForTimeout(900);
+  const clear = await p.evaluate(() => {
+    const c = document.querySelector('.coach')?.getBoundingClientRect();
+    const r = document.querySelector('.coach-ring')?.getBoundingClientRect();
+    if (!c || !r) return { ok: false, why: `coach ${!!c}, ring ${!!r}` };
+    const hit = c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top;
+    const inView = c.left >= 0 && c.top >= 0 && c.right <= innerWidth && c.bottom <= innerHeight;
+    return { ok: !hit && inView, why: `coach ${Math.round(c.left)},${Math.round(c.top)} ${Math.round(c.width)}×${Math.round(c.height)}; ring ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)}` };
+  });
+  h.set('progress', clear.ok, `the coach covers what it points at, or is off screen: ${clear.why}`);
+  h.set('finish', true);
+  await p.context().close();
+}, ['entry']);
 
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
@@ -1815,6 +1871,40 @@ async function platformChecks() {
     }
     await c7.close();
   }
+  // P9: every width in between (the reviewers couldn't resize their browsers). A small phone, a tablet both ways, a
+  // laptop and an ultra-wide monitor: no sideways scroll, nothing cut off at the edge, navigation always there, and
+  // prose never stretched across a wide screen.
+  const widths = [];
+  for (const [w, hgt] of [[360, 740], [768, 1024], [1024, 768], [1280, 800], [3440, 1440]]) {
+    const c8 = await browser.newContext({ viewport: { width: w, height: hgt }, hasTouch: w <= 1024 });
+    const r = await c8.newPage();
+    for (const [who, route] of [['maya', '/'], ['elena', '/'], ['elena', '/goals'], ['elena', '/goals?view=table'], ['elena', '/goals?view=history'], ['elena', '/goals?view=history&hist=weekly&weeks=year'], ['elena', '/goals?view=board'],
+      ['maya', '/goals/head'], ['kofi', '/check-in/alerts'], ['elena', '/reviews/weekly'], ['tom', '/watching'], ['elena', '/activity'], ['priya', '/data'], ['priya', '/workspace']]) {
+      await r.goto(url(route));
+      await r.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), who);
+      await r.reload();
+      await r.waitForTimeout(300);
+      const m = await r.evaluate(() => {
+        const W = window.innerWidth;
+        // Past the edge of what holds it: the screen, or a container that clips. Inside one that scrolls, you can reach it.
+        const holder = (el) => { for (let x = el.parentElement; x; x = x.parentElement) { const o = getComputedStyle(x).overflowX; if (o === 'auto' || o === 'scroll') return 'scrolls'; if (o === 'hidden' || o === 'clip') return x; } return null; };
+        const cutBy = (el) => { const h = holder(el); if (h === 'scrolls') return false; const b = el.getBoundingClientRect(); const box = h ? h.getBoundingClientRect() : { left: 0, right: W }; return b.right > Math.min(W, box.right) + 1 || b.left < Math.max(0, box.left) - 1; };
+        const seen = (el) => { const st = getComputedStyle(el); return el.getClientRects().length > 0 && st.visibility !== 'hidden' && !el.closest('[aria-hidden="true"], .sr'); };
+        const cut = [...document.querySelectorAll('button, a, input, select, textarea, h1, h2, h3, p, .chip, th, td')].filter((el) => seen(el) && getComputedStyle(el).textOverflow !== 'ellipsis' && cutBy(el))
+          .map((el) => el.tagName.toLowerCase() + ' “' + (el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 24) + '”');
+        const nav = [...document.querySelectorAll('.side, .tabbar')].some((n) => n.getClientRects().length && getComputedStyle(n).display !== 'none');
+        const wideProse = [...document.querySelectorAll('main p, .page p')].filter((el) => seen(el) && el.getBoundingClientRect().width > 960 && (el.textContent || '').length > 120).length;
+        return { sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth, cut: [...new Set(cut)].slice(0, 3), nav, wideProse };
+      });
+      const at = `${w}px ${who} ${route}`;
+      if (m.sideways > 1) widths.push(`${at}: ${m.sideways}px sideways`);
+      if (m.cut.length) widths.push(`${at}: cut off at the edge: ${m.cut.join(', ')}`);
+      if (!m.nav && !route.startsWith('/check-in')) widths.push(`${at}: no navigation`);
+      if (m.wideProse) widths.push(`${at}: ${m.wideProse} paragraph(s) wider than 960px`);
+    }
+    await c8.close();
+  }
+  add('P9', ['EVERY-WIDTH'], 'Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width', !widths.length, widths.slice(0, 8).join(' | '));
   add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
   return out;

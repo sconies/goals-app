@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-03 20:06 UTC.
+Run 2026-11-03 21:21 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -42,6 +42,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 36 | An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 12) |
 | 37 | Two goals wait on one decision: an owner links them, the leader answers once, and both goals show the answer | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 12) |
 | 38 | A leader reads the quarters, inspects a week, asks for an update and takes it back; an owner’s double press posts once | **10** | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 24) |
+| 39 | Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 8 · 8 (budget 14) |
 | 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
 | 27 | Take a walkthrough: the coach points the way and moves on as you do each step | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 6 · 6 (budget 10) |
 | 28 | A research session: first glances, a note pinned to the screen, a task result and a report | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
@@ -60,7 +61,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**69 of 69 pass**. Spec scenarios 71/71.
+**71 of 71 pass**. Spec scenarios 71/71.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -78,7 +79,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **GREENER** A call greener than the calculation needs a reason and is flagged on the goal. | Check-in | 3 | U15 |
 | ✅ | **REASON-BEHIND** A reason (cause and explanation) is required when behind plan (below 95%). | Check-in | 3 | U1 |
 | ✅ | **REASON-AHEAD** A reason is required when 120% or more ahead, and the check-in asks whether the target should change. | Check-in | 3 | U7 |
-| ✅ | **PATH-TO-GREEN** At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it. A request for a decision or help is a record: open until the person asked answers it or the owner withdraws it, shown once to the person asked however many goals wait on it, answered once for all of them, and the answer shown on each goal and in the next review. | Check-in | 5 | U1, U36, U37 |
+| ✅ | **PATH-TO-GREEN** At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it. A request for a decision or help is a record: open until the person asked answers it or the owner withdraws it, shown once to the person asked however many goals wait on it, answered once for all of them, and the answer shown on each goal and in the next review. | Check-in | 5 | U1, U36, U37, U39 |
 | ✅ | **CHECKIN-STATUS-VS-PLAN** The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed. | Check-in | 1 | U1, U15 |
 | ✅ | **ONE-PER-WEEK** Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so and is logged as such. | Check-in | 0 | U1 |
 | ✅ | **UPDATE-ANYTIME** The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after. | Check-in | 0 | U1 |
@@ -121,12 +122,14 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **NO-DOUBLE-POST** Pressing Post again, pressing Enter then clicking, or a double tap never posts a check-in twice; the same holds for the check-in table and answering a request. A check-in already being saved is waited for, not repeated. | Data | 0 | U38 |
 | ✅ | **ASK-UNDO** Asking a quiet goal's owner for an update shows next to its status as asked, and when, until they check in. Whoever asked can undo it; undoing is logged and takes it off the owner's Home. Asking twice before they check in asks once. | Watching | 0 | U38 |
 | ✅ | **STICKY-HEAD** In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop. | Goals | 0 | U38 |
+| ✅ | **ONE-ACCOUNT** When something changed, the owner gives one short account on one screen after the number: what changed, what happens next and by when, starting from last week's words. Progress is stable, the button says Continue until the step that posts, and Still true still posts last week's account in one press. | Check-ins | 0 | U39 |
+| ✅ | **EVERY-WIDTH** Every main screen works at every width from a 360px phone, through a tablet held either way and a laptop, to a 3440px monitor: no sideways scroll, nothing cut off at the edge, navigation always there, and prose kept to a readable width. | Platform | 0 | P9 |
 | ✅ | **CALENDAR-WEEKS** A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's. | Cycles | 6 | — |
 | ✅ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | U24 |
 | ✅ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | U25 |
 | ✅ | **DESIGN-RULES** The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge. | Design | 0 | P6 |
 | ✅ | **GOAL-MAP** A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold and framed when the map opens. Selecting a goal shows its story beside the map. On a phone the same map is indented, one goal per row. | Views | 0 | U30, U26 |
-| ✅ | **WALKTHROUGHS** Walkthroughs of the main journeys (weekly check-in, a review, chasing a quiet goal, the goal map, the leader’s brief, loading a spreadsheet), each as the right person: a coach card says what to do and points at it, you do the step yourself, and it moves on when you have. | Demo | 0 | U31, U27, U29 |
+| ✅ | **WALKTHROUGHS** Walkthroughs of the main journeys (weekly check-in, a review, chasing a quiet goal, the goal map, the leader’s brief, loading a spreadsheet), each as the right person: a coach card says what to do and points at it, you do the step yourself, and it moves on when you have. | Demo | 0 | U31, U39, U27, U29 |
 | ✅ | **RESEARCH** A research hub for people and AI agents: what the app is for, a note that access control is deliberately not built yet, eleven goal-framed tasks, the protocol (first glance, think aloud, every flow and screen, try to break it, evidence and severity), and a report to paste or upload. While a session runs, a research bar asks a first-glance question on each new screen, pins notes to any part of a screen, and records each task as done, stuck or gave up with confidence. Notes are kept in the browser and sent to a table that can’t be read back through the app. | Research | 0 | U28 |
 | ✅ | **HONEST-NUMBERS** Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. Exports judge every past check-in against the plan of its own week, as the screens do. What the map shows, the count, the link and "what's shown now" in Export are the same goals; goals drawn only for context are greyed and say so. While goals still have no check-in, the app says how many have reported rather than showing nothing needs attention; a milestone with no check-in isn't called on schedule, and the critical path only runs through goals whose status is known. | Trust | 5 | U30, U31, U34 |
 | ✅ | **WIDE-SCREENS** Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it. | Layout | 0 | P8, P7 |
@@ -141,6 +144,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **P3** Every screen on phone: no sideways scroll, no serious accessibility issues, status as shape plus word
 - ✅ **P4** Every screen on desktop: no sideways scroll, no serious accessibility issues, status as shape plus word
 - ✅ **P6** Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules
+- ✅ **P9** Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width
 - ✅ **P8** The goals start in the first screen: the Goals header stays short on a phone and a desktop
 - ✅ **P7** Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold
 - ✅ **P5** No console or page errors across every journey

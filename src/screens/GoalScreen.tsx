@@ -230,7 +230,7 @@ function GoalView({ goal }: { goal: Goal }) {
           )}
           {ptg && (
             <div className="quote-block">
-              <span className="field-label">{ptg.byWeek != null ? <>Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.state === 'help' ? ', once the decision or help arrives' : ''}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</> : ptg.state === 'investigating' ? 'Still investigating; no recovery date yet' : ptg.state === 'help' ? 'No date until the decision or help arrives' : ptg.state === 'target' ? 'The owner thinks the target should change' : 'No recovery date yet'}</span>
+              <span className="field-label">{ptg.byWeek != null ? <>Owner’s date: back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.state === 'help' ? ', once the decision or help arrives' : ''}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</> : ptg.state === 'investigating' ? 'Still investigating; no recovery date yet' : ptg.state === 'help' ? 'No date until the decision or help arrives' : ptg.state === 'target' ? 'The owner thinks the target should change' : 'No recovery date yet'}</span>
               {/* A decision request is shown once, above; here it's the date that matters. */}
               <p>{ptg.state === 'help' && openFor(goal.id, app.snapshot).length > 0 && (st.status === 'risk' || st.status === 'off') ? 'Waiting on the decision or help above.' : ptg.what}</p>
             </div>

@@ -22040,7 +22040,8 @@ function weekDates(cycle, week) {
 		timeZone: "UTC"
 	});
 	const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
-	return b.getUTCFullYear() !== Number(cycle.startDate.slice(0, 4)) ? `${range} ${b.getUTCFullYear()}` : range;
+	const own = new Date(Date.parse(cycle.startDate + "T00:00:00Z") + 864e6).getUTCFullYear();
+	return b.getUTCFullYear() !== own || a.getUTCFullYear() !== own ? `${range} ${b.getUTCFullYear()}` : range;
 }
 /** The earlier plans of a number goal, oldest first, including one kept only as the original plan (before the history existed). */
 function planHistoryOf(g) {
@@ -24746,10 +24747,10 @@ function forecastText(goal, a, weeks) {
 	if (a.kind !== "metric" || goal.kind !== "metric" || a.forecast == null) return null;
 	const gap = a.forecast - goal.plan.target;
 	return a.forecastMisses ? {
-		text: `Projected at week ${goal.plan.endWeek ?? weeks}: ${fmt(a.forecast, goal)}, ${fmtDiff(gap, goal)} ${gap > 0 ? "above" : "below"} the ${fmt(goal.plan.target, goal)} target. An estimate from the recent trend.`,
+		text: `Projected by the app at week ${goal.plan.endWeek ?? weeks}: ${fmt(a.forecast, goal)}, ${fmtDiff(gap, goal)} ${gap > 0 ? "above" : "below"} the ${fmt(goal.plan.target, goal)} target. An estimate from the recent trend, not the owner’s date.`,
 		warn: true
 	} : {
-		text: `Projected to reach the ${fmt(goal.plan.target, goal)} target by week ${goal.plan.endWeek ?? weeks}, on the recent trend.`,
+		text: `Projected by the app to reach the ${fmt(goal.plan.target, goal)} target by week ${goal.plan.endWeek ?? weeks}, on the recent trend.`,
 		warn: false
 	};
 }
@@ -25531,7 +25532,7 @@ function storyOf(g, s, cycle, week, today) {
 		if (ptg) {
 			doing = ptg.what;
 			const state = ptg.state ?? "plan";
-			byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === "help" ? ", once the decision or help arrives" : ""}` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
+			byWhen = ptg.byWeek != null ? `Owner’s date: back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === "help" ? ", once the decision or help arrives" : ""}` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
 		}
 		const open = openFor(g.id, s);
 		needs = open.map((r) => askText(r, s.people) + (r.goalIds[0] !== g.id ? ` (the same request as ${s.goals.find((x) => x.id === r.goalIds[0])?.title ?? "another goal"})` : "")).join("; ") || null;
@@ -26293,7 +26294,7 @@ function storyBlock(sm, cycleWeeks) {
 	}
 	out.push(`- **Why it’s ${sm.status === "off" ? "off track" : "at risk"}:** ${st.why ?? "Not given."}`);
 	out.push(`- **Recovery plan:** ${st.doing ?? "Not given."}`);
-	out.push(`- **By when:** ${st.byWhen ?? "No date given."}`);
+	out.push(`- **Owner’s date:** ${st.byWhen?.replace(/^Owner’s date: b/, "B") ?? "No date given."}`);
 	if (st.needs) out.push(`- **Needs:** ${st.needs}`);
 	if (st.next) out.push(`- **Next step:** ${st.next}`);
 	for (const w of st.warnings) out.push(`- **Watch out:** ${w}`);
