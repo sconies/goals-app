@@ -159,7 +159,7 @@
     {
       "id": "DRAFTS",
       "area": "Focus",
-      "text": "Unsaved answers survive leaving a flow and are offered back when the user returns."
+      "text": "Unsaved answers survive leaving a flow and are offered back when the user returns. Numbers typed in the one-table check-in are kept across a refresh until posted."
     },
     {
       "id": "WORKSPACES",
@@ -294,7 +294,7 @@
     {
       "id": "HONEST-NUMBERS",
       "area": "Trust",
-      "text": "Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week."
+      "text": "Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. Exports judge every past check-in against the plan of its own week, as the screens do. What the map shows, the count, the link and \"what's shown now\" in Export are the same goals; goals drawn only for context are greyed and say so."
     },
     {
       "id": "WIDE-SCREENS",
@@ -304,7 +304,7 @@
     {
       "id": "SAVED-VIEWS",
       "area": "Goals",
-      "text": "Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name."
+      "text": "Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link."
     },
     {
       "id": "EXCEPTIONS-FIRST",
@@ -418,6 +418,12 @@
       "title": "A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table",
       "who": "A leader",
       "budget": 16
+    },
+    {
+      "id": "U34",
+      "title": "What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes",
+      "who": "A goal owner",
+      "budget": 14
     }
   ],
   "easeCriteria": [

@@ -71,7 +71,7 @@ export function Import() {
         </>
       )}
 
-      {cs && <Preview cs={cs} name={name} reason={reason} setReason={setReason} busy={busy} onApply={() => void apply()} onAgain={() => { setTables(null); setReason(''); if (file.current) file.current.value = ''; }} />}
+      {cs && <Preview cs={cs} name={name} reason={reason} setReason={setReason} busy={busy} onApply={() => void apply()} onAgain={() => { setTables(null); setReason(''); if (file.current) file.current.value = ''; setTimeout(() => file.current?.click(), 0); }} />}
     </div>
   );
 }
@@ -86,7 +86,7 @@ function Preview({ cs, name, reason, setReason, busy, onApply, onAgain }: { cs: 
     <>
       <section className="block">
         <span className="hint">{name}</span>
-        <p className="lede">{total ? describe(cs) + '.' : 'Nothing in this file changes anything.'}{cs.unchanged ? ` ${cs.unchanged} ${cs.unchanged === 1 ? 'row is' : 'rows are'} the same as now.` : ''}</p>
+        <p className="lede">{total ? describe(cs) + '.' : errors.length ? `${errors.length} ${errors.length === 1 ? 'row has' : 'rows have'} a problem, so the file can’t be checked yet. Nothing has been saved.` : 'Nothing in this file changes anything.'}{cs.unchanged ? ` ${cs.unchanged} ${cs.unchanged === 1 ? 'row is' : 'rows are'} the same as now.` : ''}</p>
       </section>
 
       {errors.length > 0 && (

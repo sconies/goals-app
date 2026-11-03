@@ -13,7 +13,7 @@ import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
 /* ---------- what each status means ---------- */
 
 export const MEANING: Record<DisplayStatus, string> = {
-  on: `Will hit the target if it carries on: at least ${RULES.onTrack * 100}% of the progress planned by now.`,
+  on: `On plan so far: at least ${RULES.onTrack * 100}% of the progress planned by now. If the recent trend says it will still finish short, the goal says so beside its status.`,
   risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. There’s a plan to get it back.`,
   off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
   stale: `No recent update: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
@@ -22,7 +22,7 @@ export const MEANING: Record<DisplayStatus, string> = {
   done: 'Done: the owner has called it complete.',
 };
 export const SHORT_MEANING: Record<DisplayStatus, string> = {
-  on: 'will hit it', risk: 'could miss without a change', off: 'will miss without intervention', stale: 'no check-in for 2+ weeks', none: 'no check-in yet', planned: 'not started', done: 'complete',
+  on: 'on plan so far', risk: 'could miss without a change', off: 'will miss without intervention', stale: 'no check-in for 2+ weeks', none: 'no check-in yet', planned: 'not started', done: 'complete',
 };
 
 /* ---------- results, once a goal is due ---------- */

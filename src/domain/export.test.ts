@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { aiBrief, CHECKIN_EXPORT_COLUMNS, EXPORT_FORMAT, GOAL_EXPORT_COLUMNS, toCsv, toJson, workbook } from './export';
-import { currentWeek } from './plan';
+import { currentWeek, planAsOf, planAt } from './plan';
 import { summarise } from './summary';
 import { seed } from '../data/seed';
 
@@ -79,5 +79,26 @@ describe('exports', () => {
     expect(lines.length).toBeGreaterThan(0);
     for (const l of lines) expect(l).not.toMatch(/[Pp]rojected|on the recent trend/);
     expect(md).not.toMatch(/by week (\d+) by week \1/);
+  });
+
+  it('judges every exported check-in against the plan of its own week, as the goal page does (round 3 review)', () => {
+    const g = s.goals.find((x) => x.id === 'review')!;
+    if (g.kind !== 'metric') throw new Error('review is a number goal');
+    const at = (plan: typeof g.plan, w: number) => Number(planAt(plan, w, cycle.weeks).toFixed(g.decimals));
+    // A check-in from before the plan changed, where the old and new plans differ.
+    const early = s.checkIns.filter((c) => c.goalId === 'review' && at(planAsOf(g, c.week), c.week) !== at(g.plan, c.week))[0]!;
+    const then = at(planAsOf(g, early.week), early.week);
+    const now = at(g.plan, early.week);
+    expect(then).not.toBe(now); // the plan really did change since
+    // The brief's weekly history
+    expect(aiBrief(input)).toContain(`w${early.week} ${early.value} [${then}]`);
+    // The workbook's check-ins
+    const rows = workbook(input)[2]!.rows;
+    const col = rows[0]!.indexOf('Plan that week');
+    const row = rows.find((r) => r[0] === 'review' && r[2] === early.week)!;
+    expect(row[col]).toBe(then);
+    // The JSON
+    const json = toJson(input) as { goals: { id: string; checkIns: { week: number; planThatWeek: number | null }[] }[] };
+    expect(json.goals.find((x) => x.id === 'review')!.checkIns.find((c) => c.week === early.week)!.planThatWeek).toBe(then);
   });
 });

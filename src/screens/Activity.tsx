@@ -4,6 +4,7 @@ import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { watchedGoals } from '../domain/review';
 import type { Change, Level } from '../domain/types';
+import { Avatar } from '../ui/bits';
 import { ChangeItem } from './GoalScreen';
 
 type Filter = 'all' | 'check-in' | 'goal' | 'decision' | 'mine';
@@ -60,10 +61,43 @@ export function Activity() {
       {groups.length ? groups.map(([day, items]) => (
         <section key={day} className="block">
           <h2 className="label">{day}</h2>
-          <ol className="changes">{items.map((c) => <ChangeItem key={c.id} c={c} showGoal />)}</ol>
+          <ol className="changes">{runs(items).map((r) => (r.length >= 3
+            ? <ReviewedRun key={r[0]!.id} run={r} />
+            : r.map((c) => <ChangeItem key={c.id} c={c} showGoal />)))}</ol>
         </section>
       )) : <div className="calm">Nothing here yet.</div>}
       {list.length > shown.length && <button className="btn" onClick={() => setLimit((n) => n + 40)}>Show more ({list.length - shown.length} older)</button>}
     </div>
+  );
+}
+
+/**
+ * Runs of routine review coverage ("looked at it") by one person in one review, kept together so they don't push the
+ * real changes down the page. Every record is still there, one click away (visual review 2).
+ */
+function runs(items: Change[]): Change[][] {
+  const out: Change[][] = [];
+  for (const c of items) {
+    const last = out[out.length - 1];
+    const routine = c.entity === 'decision' && c.action === 'acknowledged';
+    if (routine && last && last[0]!.action === 'acknowledged' && last[0]!.entity === 'decision' && last[0]!.actorId === c.actorId && last[0]!.summary === c.summary) last.push(c);
+    else out.push([c]);
+  }
+  return out;
+}
+
+function ReviewedRun({ run }: { run: Change[] }) {
+  const app = useApp();
+  const who = app.person(run[0]!.actorId);
+  const where = run[0]!.summary.replace(/^Looked at it\s*/, '');
+  const [open, setOpen] = useState(false);
+  return (
+    <li className="change change-run">
+      <Avatar p={who ?? { name: run[0]!.actorId, initials: '?' }} size="sm" />
+      <details className="disclose" style={{ flex: 1, minWidth: 0 }} onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary className="small"><strong>{who?.name ?? run[0]!.actorId}</strong> reviewed {run.length} goals {where}, nothing to add</summary>
+        {open && <ol className="changes">{run.map((c) => <ChangeItem key={c.id} c={c} showGoal />)}</ol>}
+      </details>
+    </li>
   );
 }

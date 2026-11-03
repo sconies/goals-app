@@ -1284,6 +1284,40 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS'], 'A leader acts on w
   await p.context().close();
 }, ['entry', 'progress', 'errors']);
 
+journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'sam'));
+  // The map's "Only what needs attention" is the status filter: in the link, in the count, and in Export.
+  await p.goto(url('/goals?view=map'));
+  await p.getByRole('region', { name: /Goal map/ }).waitFor();
+  await h.click(p.getByLabel('Only what needs attention'));
+  await p.waitForURL(/status=off(%2C|,)risk(%2C|,)stale/, { timeout: 3000 }).catch(() => {});
+  h.set('logged', /status=off(%2C|,)risk(%2C|,)stale/.test(p.url()), 'the attention filter is not in the link');
+  await see(p, /\d+ of 13 goals/, 'the attention filter does not show in the count');
+  await h.click(p.getByRole('button', { name: /Export/ }));
+  const scope = p.getByRole('dialog', { name: 'Export goals' }).getByLabel(/What’s shown now/);
+  h.set('attention', await scope.isChecked().catch(() => false), 'a filtered export does not start from what is shown');
+  await p.keyboard.press('Escape');
+  await h.checkpoint('map attention');
+  // History's range is part of the view: chosen, refreshed, still there.
+  await p.goto(url('/goals?view=history'));
+  await h.click(p.getByRole('group', { name: 'Weeks shown' }).getByRole('button', { name: 'Whole year' }));
+  await p.waitForURL(/weeks=year/, { timeout: 3000 }).catch(() => {});
+  await p.reload();
+  const year = p.getByRole('group', { name: 'Weeks shown' }).getByRole('button', { name: 'Whole year' });
+  await year.waitFor();
+  h.set('finish', (await year.getAttribute('aria-pressed')) === 'true', 'History forgot the whole-year range on refresh');
+  // Numbers typed in the one table survive a refresh, and say so.
+  await p.goto(url('/quick-check-in'));
+  const row = p.locator('.qrow').first();
+  await row.waitFor();
+  await h.fill(row.getByRole('textbox').first(), '94');
+  await p.waitForTimeout(150);
+  await p.reload();
+  await see(p, 'Picked up the numbers you hadn’t posted yet', 'a refreshed table does not say it kept the numbers');
+  h.set('progress', (await p.locator('.qrow').first().getByRole('textbox').first().inputValue()) === '94', 'the typed number was lost on refresh');
+  await p.context().close();
+}, ['entry', 'errors', 'one-action']);
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
   await p.goto(url('/goals'));
@@ -1310,6 +1344,8 @@ journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map
   const folded = await p.locator('.react-flow__node').count();
   await h.click(p.getByRole('button', { name: 'Unfold all' }));
   await h.click(p.getByLabel('Only what needs attention'));
+  // It's the status filter now, so the map redraws from the link.
+  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length < n, before, { timeout: 3000 }).catch(() => {});
   const attention = await p.locator('.react-flow__node').count();
   h.set('progress', folded < before && attention < before && attention >= 3, `nodes: ${before} all, ${folded} folded, ${attention} needing attention`);
   // Dotted lines for goals that also help others.

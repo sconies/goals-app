@@ -24,7 +24,8 @@ function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewName: st
   const app = useApp();
   const all = app.snapshot.goals;
   const partial = goals.length < all.length;
-  const [scope, setScope] = useState<'all' | 'view'>('all');
+  // Filtered, the export starts from what's shown; everything is one click away (round 3 review).
+  const [scope, setScope] = useState<'all' | 'view'>(partial ? 'view' : 'all');
   const [busy, setBusy] = useState<string | null>(null);
   const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined };
   const base = `${slug(app.ws.name)}-${slug(app.cycle.name)}${scope === 'view' ? '-' + slug(viewName) : ''}-${app.today.toISOString().slice(0, 10)}`;

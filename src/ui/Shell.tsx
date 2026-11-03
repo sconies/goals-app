@@ -193,8 +193,9 @@ export function Shell({ children }: { children: ReactNode }) {
           <button className="wsbtn wide" onClick={() => setSheet('workspace')}>
             <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{app.ws.name.slice(0, 1).toUpperCase()}</span>
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
-              <b className="ellipsis">{app.ws.name}</b>
-              <span className="tiny muted">{shortPeriod(app.cycle, app.week)}</span>
+              {/* "Example: Developer Platform" was cut to "Example: Devel…": the name, with "Example" as the quieter line. */}
+              <b className="ws-name" title={app.ws.name}>{app.ws.name.replace(/^Example:\s*/, '')}</b>
+              <span className="tiny muted">{app.ws.kind === 'example' ? 'Example · ' : ''}{shortPeriod(app.cycle, app.week)}</span>
             </span>
             <span aria-hidden="true" className="muted">⌄</span>
           </button>
