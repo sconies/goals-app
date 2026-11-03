@@ -1594,6 +1594,54 @@ journey('U39', ['ONE-ACCOUNT', 'PATH-TO-GREEN', 'WALKTHROUGHS'], 'Something chan
   await p.context().close();
 }, ['entry']);
 
+journey('U40', ['OTHER-CAUSE', 'DEMO-FEEDBACK', 'RESEARCH'], 'Research notes followed up: a cause for anything else, demo feedback that says where it goes, and a research session that ends after its last task', 16, async (h, device) => {
+  // Kofi's goal is behind, and none of the named causes fits: Something else, in his own words.
+  const p = h.use(await newPage(device, 'kofi'));
+  await p.goto(url('/check-in/alerts'));
+  const s0 = await h.snapshot();
+  await h.fill(p.getByLabel('This week’s value'), valueAt(s0.goals.find((g) => g.id === 'alerts'), NOW, 0.4));
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
+  await h.click(p.getByRole('group', { name: 'Main cause' }).getByRole('button', { name: 'Something else' }));
+  await h.fill(p.getByLabel('What happened'), 'A reorganisation moved the alert owners to another team mid-week.');
+  await h.checkpoint('something else');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const s1 = await h.snapshot();
+  const c = s1.checkIns.filter((x) => x.goalId === 'alerts').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).pop();
+  h.set('logged', !!c && c.cause === 'other' && /reorganisation/.test(c.why), 'the Something else cause was not saved');
+  // Feedback in the demo says it goes to the people building the app (it used to stay in the browser).
+  await p.goto(url('/'));
+  await p.locator('main').first().waitFor();
+  if (await p.locator('.feedback-nav').isVisible().catch(() => false)) await h.click(p.locator('.feedback-nav'));
+  else { await h.click(p.locator('.tabbar').getByRole('button', { name: /More/ })); await h.click(p.getByRole('button', { name: /Send feedback/ })); }
+  const sheet = p.getByRole('dialog', { name: 'How is the app working for you?' });
+  await h.click(sheet.getByRole('button', { name: 'It gets in the way' }));
+  await h.fill(sheet.getByRole('textbox'), 'The causes didn’t fit my week.');
+  await h.checkpoint('feedback');
+  await h.click(sheet.getByRole('button', { name: 'Send' }));
+  await see(p, 'It goes to the people building this app', 'demo feedback does not say where it goes');
+  h.set('attention', true);
+  // A research session ends after its last task: no repeats of it, and a way to the report.
+  await p.evaluate(() => {
+    const s = { id: 'rs_eval', researcher: 'Eval agent', kind: 'ai', startedAt: new Date().toISOString(), task: 10 };
+    sessionStorage.setItem('goals-research', JSON.stringify(s)); localStorage.setItem('goals-research', JSON.stringify(s));
+  });
+  await p.reload();
+  const bar = p.getByRole('complementary', { name: 'Research' });
+  if (await bar.getByRole('button', { name: 'Save' }).isVisible().catch(() => false)) await bar.getByRole('button', { name: /Skip|Not now|Close|Cancel/ }).first().click().catch(() => {});
+  await h.click(bar.getByRole('button', { name: 'How did it go?' }));
+  await h.click(bar.getByLabel('Done'));
+  await h.click(bar.getByRole('button', { name: 'Save and next task' }));
+  await see(bar, 'All 11 tasks noted', 'the research bar does not say the tasks are done');
+  await h.checkpoint('research done');
+  const again = await bar.getByRole('button', { name: 'How did it go?' }).count();
+  const report = await bar.getByRole('link', { name: 'Write your report' }).count();
+  h.set('progress', again === 0 && report === 1, `after the last task: ${again} “How did it go?” buttons, ${report} report links`);
+  h.set('finish', true);
+  await p.context().close();
+}, ['entry', 'one-action', 'errors']);
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
   await p.goto(url('/goals'));

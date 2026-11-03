@@ -81,6 +81,27 @@ describe('database schema', () => {
   it('refuses a metric goal without a plan', () => reject(`insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io) values ('m2', 'cycle', 'pm', 'maya', 'No plan', 'metric', 'input')`));
 });
 
+describe('other causes and demo feedback (0019)', () => {
+  let db: PGlite;
+  beforeAll(async () => {
+    db = new PGlite();
+    await db.exec(`create role anon nologin;`);
+    await db.exec(sql);
+    await db.exec(`insert into okr_teams (id, name, lead_id, objective) values ('t', 'Team', 'p', '');
+      insert into okr_people (id, name, role, initials, team_id, is_admin) values ('p', 'Pat', '', 'P', 't', true);
+      insert into okr_cycles (id, name, start_date, weeks) values ('c', 'Q', '2026-10-26', 13);
+      insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io, unit, decimals, plan_start, plan_target, plan_shape, level) values ('g', 'c', 't', 'p', 'Deploys per week', 'metric', 'output', '%', 0, 1, 2, 'straight', 'team');`);
+  }, 30_000);
+  it('keeps a check-in whose cause is something else, and nothing outside the list', async () => {
+    await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, cause, why) values ('c1', 'g', 'p', 2, 'on', 'on', 'other', 'A reorg moved the team')`);
+    await expect(db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, cause) values ('c2', 'g', 'p', 3, 'on', 'on', 'whatever')`)).rejects.toThrow();
+  });
+  it('keeps feedback from the demo with the research notes', async () => {
+    await db.query(`insert into okr_research_notes (id, session_id, researcher, kind, persona, route, target, rating, text) values ('n1', 'dv_1', 'Demo visitor', 'feedback', 'Maya', '/', '', 5, 'It helps')`);
+    await expect(db.query(`insert into okr_research_notes (id, session_id, researcher, kind, persona, route, target, text) values ('n2', 'dv_1', 'x', 'gossip', 'Maya', '/', '', 'x')`)).rejects.toThrow();
+  });
+});
+
 describe('moving goal years to calendar weeks (0018)', () => {
   const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
   const before = files.filter((f) => f < '0018').map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');

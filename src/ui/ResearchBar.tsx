@@ -71,7 +71,8 @@ export function ResearchBar() {
     } else if (card.kind === 'task' && task) {
       if (!outcome) return;
       await addNote(s, { kind: 'task', persona, route: pathname, target: '', taskId: task.id, outcome, rating, text: text.trim() });
-      writeSession({ ...s, task: Math.min(TASKS.length - 1, s.task + 1) });
+      // After the last task the session moves past it: all done, and the hub asks for the report (no repeat of the last one).
+      writeSession({ ...s, task: Math.min(TASKS.length, s.task + 1) });
       app.toast(`Task ${s.task + 1} noted`);
     }
     setCard(null);
@@ -122,12 +123,12 @@ export function ResearchBar() {
       <div className="research-strip">
         <span className="stack" style={{ gap: 0, minWidth: 0 }}>
           <span className="label">Research · as {persona}</span>
-          {task && <span className="small strong ellipsis" title={task.detail}>Task {s.task + 1}: {task.title}</span>}
+          {task ? <span className="small strong ellipsis" title={task.detail}>Task {s.task + 1}: {task.title}</span> : <span className="small strong">All {TASKS.length} tasks noted</span>}
         </span>
         <span className="row nowrap" style={{ gap: 'var(--s1)' }}>
           {task && <button type="button" className="btn sm" onClick={() => { setText(''); setOutcome(null); setRating(4); setCard({ kind: 'task' }); }}>How did it go?</button>}
           <button type="button" className="btn sm" onClick={() => setCard({ kind: 'pick' })}>Note on this</button>
-          <Link className="btn ghost sm" to="/research">Hub</Link>
+          <Link className={'btn sm' + (task ? ' ghost' : '')} to="/research">{task ? 'Hub' : 'Write your report'}</Link>
         </span>
       </div>
     </aside>

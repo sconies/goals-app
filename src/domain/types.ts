@@ -133,8 +133,9 @@ export type Goal = MetricGoal | RangeGoal | MilestoneGoal;
 export type Status = 'on' | 'risk' | 'off' | 'done';
 export type DisplayStatus = Status | 'stale' | 'planned' | 'none';
 
-export type CauseBehind = 'aggressive' | 'slower' | 'blocked' | 'external' | 'data';
-export type CauseAhead = 'cautious' | 'early' | 'external' | 'oneoff' | 'data';
+// 'other' when none of the named causes fits (research, 2 Nov): the words then carry it.
+export type CauseBehind = 'aggressive' | 'slower' | 'blocked' | 'external' | 'data' | 'other';
+export type CauseAhead = 'cautious' | 'early' | 'external' | 'oneoff' | 'data' | 'other';
 export type Cause = CauseBehind | CauseAhead;
 
 export interface StageUpdate {
