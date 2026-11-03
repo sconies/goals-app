@@ -13,9 +13,9 @@ import {
   type ColumnKind, type Op, type PropFilter, type TableSort,
 } from '../domain/tableFilter';
 
-type Tab = 'people' | 'goals' | 'checkIns' | 'plan';
-const TABS: [Tab, string][] = [['goals', 'Goals'], ['checkIns', 'Check-ins'], ['plan', 'Plans'], ['people', 'People']];
-const SHEET: Record<Tab, string> = { goals: 'Goals', plan: 'Plan', checkIns: 'Check-ins', people: 'People' };
+type Tab = 'people' | 'goals' | 'checkIns' | 'plan' | 'requests';
+const TABS: [Tab, string][] = [['goals', 'Goals'], ['checkIns', 'Check-ins'], ['plan', 'Plans'], ['requests', 'Requests'], ['people', 'People']];
+const SHEET: Record<Tab, string> = { goals: 'Goals', plan: 'Plan', checkIns: 'Check-ins', people: 'People', requests: 'Requests' };
 const PAGE = 100;
 
 /** Columns people can change; everything else (IDs, what the app works out) is shown but not editable. */
@@ -24,18 +24,21 @@ const EDITABLE: Record<Tab, (col: string) => boolean> = {
   goals: (c) => !['ID', 'Type', 'Feeds into ID', ...GOAL_DERIVED_COLUMNS].includes(c),
   checkIns: (c) => ['Value', 'Stages', 'Call', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step'].includes(c),
   plan: (c) => /^Week \d+$/.test(c),
+  // Requests are raised in check-ins and answered on the goal; here they're for looking across.
+  requests: () => false,
 };
 /** The column that names each row: it stays in view while scrolling across. */
-const NAME: Record<Tab, string> = { people: 'Name', goals: 'Goal', checkIns: 'Goal', plan: 'Goal' };
+const NAME: Record<Tab, string> = { people: 'Name', goals: 'Goal', checkIns: 'Goal', plan: 'Goal', requests: 'Request' };
 /** What each table shows to start with: the columns people compare. Everything else is one click away under Columns. */
 const DEFAULT_COLS: Record<Tab, string[] | null> = {
   goals: ['ID', 'Goal', 'Level', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target', 'Status', 'Now', 'Gap', 'Last check-in week', 'Feeds into'],
   checkIns: ['ID', 'Goal', 'Week', 'Value', 'Stages', 'Call', 'Calculated', 'Plan that week', 'Why', 'Recovery', 'Back on plan by week', 'Needs', 'Posted by'],
   plan: null,
   people: null,
+  requests: ['ID', 'Request', 'Goals', 'Asked by', 'Asked of', 'Status', 'Asked at', 'Answer', 'Answered by'],
 };
 const colsKey = (t: Tab) => `goals-data-cols:${t}`;
-const HIDDEN: Record<Tab, string[]> = { people: ['Team objective'], goals: [], checkIns: [], plan: [] };
+const HIDDEN: Record<Tab, string[]> = { people: ['Team objective'], goals: [], checkIns: [], plan: [], requests: [] };
 
 const text = (v: Cell | undefined) => (v == null ? '' : String(v));
 
@@ -77,7 +80,7 @@ export function DataTables() {
   }, [book]);
 
   // Edits: per table, per row, per column. A cell typed back to what it was is no longer an edit.
-  const [edits, setEdits] = useState<Record<Tab, Record<string, Record<string, string>>>>({ people: {}, goals: {}, checkIns: {}, plan: {} });
+  const [edits, setEdits] = useState<Record<Tab, Record<string, Record<string, string>>>>({ people: {}, goals: {}, checkIns: {}, plan: {}, requests: {} });
   const edit = (t: Tab, key: string, col: string, value: string, original: string) => setEdits((e) => {
     const row = { ...(e[t][key] ?? {}) };
     if (value === original) delete row[col]; else row[col] = value;
@@ -125,7 +128,7 @@ export function DataTables() {
         h.forEach((c, i) => { rec[c.toLowerCase()] = changed[c] ?? r.cells[i] ?? ''; });
         return rec;
       });
-      if (recs.length) out[t] = recs;
+      if (recs.length && t !== 'requests') out[t] = recs;
     }
     return out;
   };
@@ -136,7 +139,7 @@ export function DataTables() {
     try {
       await app.applyChanges(cs);
       app.toast(`Saved ${total} ${total === 1 ? 'change' : 'changes'}`);
-      setEdits({ people: {}, goals: {}, checkIns: {}, plan: {} });
+      setEdits({ people: {}, goals: {}, checkIns: {}, plan: {}, requests: {} });
       setCs(null);
       setReason('');
     } catch { /* the save already said what went wrong */ }
@@ -245,7 +248,7 @@ export function DataTables() {
         <div className="data-foot" role="region" aria-label="Your changes">
           <span className="small strong">{total} {total === 1 ? 'change' : 'changes'} in {rowsEdited} {rowsEdited === 1 ? 'row' : 'rows'}, not saved yet</span>
           <span className="row" style={{ gap: 'var(--s2)' }}>
-            <button type="button" className="btn ghost" onClick={() => setEdits({ people: {}, goals: {}, checkIns: {}, plan: {} })}>Discard</button>
+            <button type="button" className="btn ghost" onClick={() => setEdits({ people: {}, goals: {}, checkIns: {}, plan: {}, requests: {} })}>Discard</button>
             <button type="button" className="btn primary" onClick={() => review()}>Review changes</button>
           </span>
         </div>

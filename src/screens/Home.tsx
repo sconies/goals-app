@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
@@ -12,11 +12,13 @@ import { wrapUpOpen } from '../domain/cycle';
 import { periodWord, shortPeriod } from '../domain/year';
 import { assessPosted, LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
-import type { Goal } from '../domain/types';
-import { AttentionCard, Avatar, ProgressRing, StatusShape } from '../ui/bits';
+import { openForPerson } from '../domain/requests';
+import type { Goal, HelpRequest } from '../domain/types';
+import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
 import { saveReviewOrder, TreeRow, worstFirst } from './Inspect';
 import { FirstReports } from './GoalsScreen';
+import { RespondSheet } from './Respond';
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -156,7 +158,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
   );
 }
 
-type Ask = { key: string; who: string; why: string; what: string; quote?: string; when?: string; to: string; action: string; at: string };
+type Ask = { key: string; who: string; why: string; what: string; quote?: string; when?: string; to: string; action: string; at: string; request?: HelpRequest };
 
 /**
  * Needs your response: things addressed to you. Each says why you're seeing it, what's needed,
@@ -164,6 +166,7 @@ type Ask = { key: string; who: string; why: string; what: string; quote?: string
  */
 function NeedsYou() {
   const app = useApp();
+  const [responding, setResponding] = useState<HelpRequest | null>(null);
   const me = app.viewer;
   const first = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
   const reviewDay = WEEKDAY[app.cycle.reviewDay];
@@ -172,13 +175,11 @@ function NeedsYou() {
     const r = app.snapshot.reviews.find((x) => x.id === d.reviewId);
     items.push({ key: d.id, who: d.byId, why: `${first(d.byId)} asked you${r ? ` in ${r.name}` : ''}`, what: `About ${app.goal(d.goalId)?.title}`, quote: d.note, when: `Before ${reviewDay}’s review`, to: `/goals/${d.goalId}?tab=comments`, action: 'Answer', at: d.at });
   }
-  // Help or a decision the owner named you for in their latest check-in, while the goal is behind.
-  for (const g of app.snapshot.goals) {
-    const st = app.statusOf(g);
-    const needs = st.latest?.pathToGreen?.needs ?? '';
-    if (g.ownerId !== me.id && needs.startsWith(me.name + ':') && (st.status === 'risk' || st.status === 'off')) {
-      items.push({ key: 'need-' + g.id, who: g.ownerId, why: 'A decision or help is needed from you', what: g.title, quote: needs.slice(me.name.length + 1).trim(), when: `From the week ${st.latest!.week} check-in, raised by its owner, ${first(g.ownerId)}`, to: `/goals/${g.id}?tab=comments`, action: 'Respond', at: st.latest!.postedAt });
-    }
+  // Open requests for a decision or help addressed to you: once each, however many goals are waiting on it.
+  for (const r of openForPerson(me.id, app.snapshot)) {
+    const goals = r.goalIds.map((id) => app.goal(id)).filter((g) => !!g);
+    if (!goals.length) continue;
+    items.push({ key: 'req-' + r.id, who: r.askedBy, why: 'A decision or help is needed from you', what: goals.length > 1 ? `${goals[0]!.title}, and ${goals.length - 1} more ${goals.length === 2 ? 'goal' : 'goals'} waiting on it` : goals[0]!.title, quote: r.ask, when: `Asked by ${first(r.askedBy)} ${timeAgo(r.createdAt, app.today)}; open until you answer`, to: `/goals/${goals[0]!.id}`, action: 'Respond', at: r.createdAt, request: r });
   }
   // Actions from reviews assigned to you that are due from this week on (or undated and recent).
   for (const d of app.snapshot.decisions) {
@@ -193,6 +194,7 @@ function NeedsYou() {
   }
   if (!items.length) return null;
   items.sort((a, b) => b.at.localeCompare(a.at));
+  const done = responding && !openForPerson(me.id, app.snapshot).some((r) => r.id === responding.id);
   return (
     <section className="block">
       <h2 className="block-title">Needs your response <span className="count-pill">{items.length}</span></h2>
@@ -206,10 +208,11 @@ function NeedsYou() {
               {x.quote && <span className="note-text">“{x.quote}”</span>}
               {x.when && <span className="hint">{x.when}</span>}
             </span>
-            <Link className="btn sm" to={x.to}>{x.action}</Link>
+            {x.request ? <button type="button" className="btn sm" onClick={() => setResponding(x.request!)}>{x.action}</button> : <Link className="btn sm" to={x.to}>{x.action}</Link>}
           </li>
         ))}
       </ul>
+      {responding && !done && <RespondSheet request={responding} onClose={() => setResponding(null)} />}
     </section>
   );
 }

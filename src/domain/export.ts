@@ -2,6 +2,7 @@
    Markdown (to paste into any AI chat). Pure functions; the app turns them into files.
    The Goals, Plan and Check-ins sheets use the import's column names, so an export can be edited and loaded back. */
 import { planHistoryOf } from './goal';
+import { requestsOf } from './requests';
 import { causeLabel } from './checkin';
 import { LEVEL_LABEL } from './format';
 import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
@@ -120,9 +121,20 @@ const README: Cell[][] = [
   ['Check-ins', 'Call', 'The owner’s status call: On track, At risk, Off track or Done. Empty: the rules decide', 'Used as the call; a call greener than the numbers needs Why greener'],
   ['Check-ins', 'Cause, Why, Path to green, Back on plan by week, Needs', 'Why it’s ahead or behind, and how it gets back', 'Required when behind, as in the app'],
   ['Check-ins', 'Calculated, Plan that week, Posted at, Posted by, Backfilled', 'Recorded by the app', 'Ignored'],
+  ['Requests', 'All columns', 'Requests for a decision or help: who asked whom, for which goals, and whether it was answered', 'Not loaded back; requests are raised in check-ins'],
   ['People', 'ID', 'The person’s own identity. It never changes.', 'Matches the person (in the data tables)'],
   ['People', 'Name, Job title, Team, Admin, Team objective', 'Who’s who', 'Changed in the data tables; not loaded back from a file yet'],
 ];
+
+/** Requests for a decision or help on the exported goals: open, answered or withdrawn, with every goal waiting on each. */
+function requestRows(x: ExportInput, ids: Set<string>, name: (id: string) => string): Cell[][] {
+  const title = (id: string) => x.snapshot.goals.find((g) => g.id === id)?.title ?? id;
+  const list = requestsOf(x.snapshot).filter((r) => r.goalIds.some((id) => ids.has(id)));
+  return [
+    ['ID', 'Goals', 'Goal IDs', 'Asked by', 'Asked of', 'Request', 'Status', 'Asked at', 'Answer', 'Answered by', 'Answered at'],
+    ...list.map((r) => [r.id, r.goalIds.map(title).join('; '), r.goalIds.join('; '), name(r.askedBy) || null, r.recipientId ? name(r.recipientId) || null : 'Anyone', r.ask, r.status === 'open' ? 'Open' : r.status === 'answered' ? 'Answered' : 'Withdrawn', r.createdAt, r.answer, r.answeredBy ? name(r.answeredBy) || null : null, r.answeredAt]),
+  ];
+}
 
 export function workbook(x: ExportInput): Table[] {
   const { goals, sums, name } = prepare(x);
@@ -134,6 +146,7 @@ export function workbook(x: ExportInput): Table[] {
     { name: 'Plan', rows: planRows(x, sums) },
     { name: 'Check-ins', rows: [[...CHECKIN_EXPORT_COLUMNS], ...checkInRows(x, sums, name)] },
     { name: 'Notes and actions', rows: [['Goal ID', 'Goal', 'Week', 'Kind', 'Said by', 'Text', 'Who', 'Due week', 'Review', 'Answer', 'At'], ...notes.map((d) => [d.goalId, goalTitle(d.goalId), d.week, d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note', name(d.byId), d.note, d.kind === 'action' ? name(d.assigneeId ?? '') || null : null, d.dueWeek ?? null, x.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? null, d.kind === 'ask' ? answerOf(d, x.snapshot)?.text ?? null : null, d.at])] },
+    { name: 'Requests', rows: requestRows(x, ids, name) },
     { name: 'People', rows: [['ID', 'Name', 'Job title', 'Team', 'Admin', 'Team objective'], ...x.snapshot.people.map((p) => { const t = x.snapshot.teams.find((t) => t.id === p.teamId); return [p.id, p.name, p.role || null, t?.name ?? null, p.admin ? 'yes' : null, t && t.leadId === p.id ? t.objective || null : null]; })] },
     { name: 'README', rows: [[`${x.ws.name}, ${x.cycle.name}. Exported ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`], [], ...README] },
   ];

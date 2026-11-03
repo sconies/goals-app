@@ -6,6 +6,7 @@ import { causeLabel } from './checkin';
 import { fmt, fmtDiff, LEVEL_LABEL } from './format';
 import { planAt, planEnd, weekDates } from './plan';
 import { assessPosted, checkInsFor, goalStatus, LABEL, RULES } from './status';
+import { answeredSince, askText, openFor } from './requests';
 import { forecastText } from './tree';
 import { isYear, quarterOf, quarterResults, targetAt, type QuarterResult } from './year';
 import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
@@ -101,7 +102,10 @@ export interface Story {
   doing: string | null;
   /** When it will be back on plan, or why there's no date. */
   byWhen: string | null;
+  /** What it's waiting on: the open requests for a decision or help (its own, and any it's linked to). */
   needs: string | null;
+  /** A request answered since the latest check-in: what the next review needs to know. */
+  answered: { ask: string; answer: string; by: string; at: string } | null;
   next: string | null;
   /** What the numbers would otherwise hide. */
   warnings: string[];
@@ -184,8 +188,11 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
         : state === 'help' ? 'No date until the decision or help arrives'
         : state === 'target' ? 'The owner says the target should change'
         : null;
-      needs = ptg.needs?.trim() || null;
     }
+    // What it's waiting on comes from the requests themselves: open until answered or withdrawn (domain/requests).
+    const open = openFor(g.id, s);
+    needs = open.map((r) => askText(r, s.people) + (r.goalIds[0] !== g.id ? ` (the same request as ${s.goals.find((x) => x.id === r.goalIds[0])?.title ?? 'another goal'})` : '')).join('; ') || null;
+    if (ptg && (ptg.state ?? 'plan') === 'help' && !open.length && answeredSince(g.id, last?.postedAt ?? null, s)) byWhen = 'Answer given: the owner’s next check-in says what it changes';
     if (!ptg) warn('no-recovery', 'No recovery plan: it is behind and the owner hasn’t said how it gets back.');
     if (ptg && ptg.byWeek != null && ptg.byWeek < week) warn('missed-date', `Missed its own date: said it would be back on plan by week ${ptg.byWeek}.`);
     // A date that keeps moving: the first date given in this run of weeks behind, against today's.
@@ -204,5 +211,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
   const feeds = parent ? `Feeds ${parent.title}${parent.level !== 'team' ? ` (${LEVEL_LABEL[parent.level]})` : ''}` : null;
   const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
-  return { status, since, where, outlook, why, doing, byWhen, needs, next: (behind || status === 'on') && last?.next ? last.next : null, warnings, flags, feeds, result, quarters, label };
+  const ans = answeredSince(g.id, last?.postedAt ?? null, s);
+  const answered = ans ? { ask: askText(ans, s.people), answer: ans.answer ?? '', by: s.people.find((p) => p.id === ans.answeredBy)?.name ?? 'someone', at: ans.answeredAt ?? '' } : null;
+  return { status, since, where, outlook, why, doing, byWhen, needs, answered, next: (behind || status === 'on') && last?.next ? last.next : null, warnings, flags, feeds, result, quarters, label };
 }

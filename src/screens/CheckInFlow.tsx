@@ -4,6 +4,7 @@ import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, useDraft } from '../app/drafts';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
+import { answeredSince, askText, openFor } from '../domain/requests';
 import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
@@ -195,9 +196,14 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   // Once the owner has written their own reason or path, last week's is no longer offered (or pasted over it).
   const edited = (!!draft.why.trim() && draft.why !== previous?.why) || (!!draft.ptgWhat.trim() && draft.ptgWhat !== previous?.pathToGreen?.what) || (!!draft.cause && draft.cause !== previous?.cause);
   const canCarry = !edited && !!previous && (needsWhy || needsWay) && (!needsWhy || priorWhy) && (!needsWay || priorWay);
+  // The ask carried forward is the goal's own request while it's still open; once answered or withdrawn it isn't raised again.
+  const ownOpen = openFor(goal.id, app.snapshot).find((r) => r.goalIds[0] === goal.id) ?? null;
+  const carriedAsk = ownOpen ? askText(ownOpen, app.snapshot.people) : '';
+  const answer = answeredSince(goal.id, previous?.postedAt ?? null, app.snapshot);
+  const lastState = previous?.pathToGreen?.state ?? 'plan';
   const fromLast = (): Partial<Draft> => ({
     ...(priorWhy ? { cause: previous!.cause, why: previous!.why } : {}),
-    ...(priorWay ? { ptgWhat: previous!.pathToGreen!.what, ptgBy: (previous!.pathToGreen!.byWeek ?? 0) > week ? previous!.pathToGreen!.byWeek : null, ptgState: previous!.pathToGreen!.state ?? 'plan', needs: previous!.pathToGreen!.needs } : {}),
+    ...(priorWay ? { ptgWhat: previous!.pathToGreen!.what, ptgBy: (previous!.pathToGreen!.byWeek ?? 0) > week ? previous!.pathToGreen!.byWeek : null, ptgState: lastState === 'help' && !carriedAsk ? ((previous!.pathToGreen!.byWeek ?? 0) > week ? 'plan' : 'investigating') : lastState, needs: carriedAsk } : {}),
   });
   // With last week's note on offer, "Still true" can finish at step two; the why and way steps count once they're needed.
   const detailed = !canCarry || step === 'why' || step === 'way';
@@ -243,7 +249,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   };
   // Last week's request for a decision or help is carried only if the owner keeps it (product review, 3 Nov):
   // the diagnosis can be unchanged while the ask has been answered or isn't needed any more.
-  const priorAsk = priorWay ? previous!.pathToGreen!.needs?.trim() ?? '' : '';
+  const priorAsk = priorWay ? carriedAsk : '';
   const [keepAsk, setKeepAsk] = useState(true);
   const stillTrue = () => {
     const last = fromLast();
@@ -256,9 +262,9 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     else go(check.missing.some((m) => m.startsWith('why it’s')) ? 'why' : 'way');
   };
   const somethingChanged = () => {
-    // Start from last week's words so they can be edited; the help request only if they open it again.
+    // Start from last week's words so they can be edited, the open request included: removing it there withdraws it.
     const f = fromLast();
-    set({ ...f, needs: '' });
+    set(f);
     go(needsWhy ? 'why' : 'way');
   };
 
@@ -327,6 +333,12 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
             {priorWhy && <p><strong>{causeLabel(previous.cause)}.</strong> {previous.why}</p>}
             {priorWay && <p><strong>{previous.pathToGreen!.byWeek != null ? `Back on plan by ${weekLabel(previous.pathToGreen!.byWeek, cycle.weeks)}.` : `${RECOVERY[previous.pathToGreen!.state ?? 'plan'].label}.`}</strong> {previous.pathToGreen!.what}</p>}
           </blockquote>
+          {answer && (
+            <div className="carry-ask">
+              <span className="small"><strong>Answered by {app.person(answer.answeredBy ?? '')?.name ?? 'someone'}:</strong> {answer.answer}</span>
+              <span className="hint">If it changes your plan or date, choose Something changed.</span>
+            </div>
+          )}
           {priorAsk && (
             <div className="carry-ask">
               <span className="small"><strong>Still asking:</strong> {priorAsk}</span>

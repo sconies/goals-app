@@ -1,5 +1,6 @@
 /* Closing a cycle: which cycle is current, the retro on each goal, and starting the next cycle
    with the goals that carry on. */
+import { requestsFromCheckIns } from './requests';
 import { assessMilestone, checkInsFor, goalStatus } from './status';
 import type { CheckIn, Cycle, Goal, Retro, Snapshot } from './types';
 
@@ -26,6 +27,8 @@ export function scopeToCycle(s: Snapshot, cycle: Cycle): Snapshot {
     checkIns: s.checkIns.filter((c) => ids.has(c.goalId)),
     decisions: s.decisions.filter((d) => ids.has(d.goalId)),
     retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
+    // Data from before requests existed: each goal's open request is read from its latest check-in.
+    requests: (s.requests ?? requestsFromCheckIns({ ...s, goals }, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id))),
   };
 }
 

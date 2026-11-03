@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Snapshot, Workspace } from '../domain/types';
 import {
-  changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows,
+  changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows, requestFromRow, requestToRow, type RequestRow,
   personFromRow, personToRow, teamFromRow, teamToRow, workspaceFromRow, workspaceToRow,
   type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, type ViewRow, viewFromRow, viewToRow, commitPayload } from './rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from './store';
@@ -59,7 +59,7 @@ export class SupabaseStore implements Store {
   }
 
   async load(ws: string): Promise<Snapshot> {
-    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views] = await Promise.all([
+    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests] = await Promise.all([
       this.all<TeamRow>('okr_teams', ws), this.all<PersonRow>('okr_people', ws), this.all<CycleRow>('okr_cycles', ws),
       this.all<GoalRow>('okr_goals', ws), this.all<StageRow>('okr_stages', ws), this.all<CheckInRow>('okr_check_ins', ws),
       this.all<DecisionRow>('okr_decisions', ws), this.all<ChangeRow>('okr_changes', ws),
@@ -68,6 +68,8 @@ export class SupabaseStore implements Store {
       this.all<TokenRow>('okr_api_tokens', ws).catch(() => [] as TokenRow[]),
       // Saved views arrive with migration 0016; until then there are none.
       this.all<ViewRow>('okr_views', ws).catch(() => [] as ViewRow[]),
+      // Requests arrive with migration 0017; until then they're read from each goal's latest check-in.
+      this.all<RequestRow>('okr_requests', ws).catch(() => null),
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     return {
@@ -84,6 +86,7 @@ export class SupabaseStore implements Store {
       feedback: feedback.map(feedbackFromRow),
       tokens: tokens.map(tokenFromRow),
       views: views.map(viewFromRow),
+      ...(requests ? { requests: requests.map(requestFromRow) } : {}),
     };
   }
 
@@ -125,6 +128,7 @@ export class SupabaseStore implements Store {
     if (c.watches?.length) await this.must(this.db.from('okr_watches').upsert(c.watches.map((x) => watchToRow(ws, x))), 'Watching');
     if (c.tokens?.length) await this.must(this.db.from('okr_api_tokens').upsert(c.tokens.map((x) => tokenToRow(ws, x))), 'Saving the token');
     if (c.views?.length) await this.must(this.db.from('okr_views').upsert(c.views.map((x) => viewToRow(ws, x))), 'Saving the view');
+    if (c.requests?.length) await this.must(this.db.from('okr_requests').upsert(c.requests.map((x) => requestToRow(ws, x))), 'Saving the request');
     for (const id of c.unwatch ?? []) await this.must(this.db.from('okr_watches').delete().eq('id', id), 'Stopping watching');
     if (c.changes.length) await this.must(this.db.from('okr_changes').insert(c.changes.map((x) => changeToRow(ws, x))), 'Logging the change');
   }
@@ -147,6 +151,7 @@ export class SupabaseStore implements Store {
     await chunk('okr_decisions', s.decisions.map((d) => decisionToRow(ws, d)), 'Adding decisions');
     await chunk('okr_watches', s.watches.map((w) => watchToRow(ws, w)), 'Adding watches');
     await chunk('okr_retros', (s.retros ?? []).map((r) => retroToRow(ws, r)), 'Adding retros');
+    if (s.requests?.length) await chunk('okr_requests', s.requests.map((r) => requestToRow(ws, r)), 'Adding requests');
     await chunk('okr_changes', s.changes.map((c) => changeToRow(ws, c)), 'Adding the change log');
   }
 

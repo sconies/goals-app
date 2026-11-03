@@ -74,7 +74,7 @@
     {
       "id": "PATH-TO-GREEN",
       "area": "Check-in",
-      "text": "At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it."
+      "text": "At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it. A request for a decision or help is a record: open until the person asked answers it or the owner withdraws it, shown once to the person asked however many goals wait on it, answered once for all of them, and the answer shown on each goal and in the next review."
     },
     {
       "id": "CHECKIN-STATUS-VS-PLAN",
@@ -440,6 +440,12 @@
       "id": "U36",
       "title": "An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them",
       "who": "A goal owner and a leader",
+      "budget": 12
+    },
+    {
+      "id": "U37",
+      "title": "Two goals wait on one decision: an owner links them, the leader answers once, and both goals show the answer",
+      "who": "Two goal owners and a leader",
       "budget": 12
     }
   ],

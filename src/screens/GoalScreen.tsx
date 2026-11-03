@@ -5,14 +5,16 @@ import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL, weekLabel } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
-import type { Change, Goal, MetricGoal } from '../domain/types';
+import { answeredSince, askText, canAnswer, openFor } from '../domain/requests';
+import type { Change, Goal, HelpRequest, MetricGoal } from '../domain/types';
 import { planHistoryOf } from '../domain/goal';
-import { Avatar, Chip, Empty, FlagPill, LevelTag, timeAgo, StatusShape } from '../ui/bits';
+import { Avatar, Chip, Empty, FlagPill, LevelTag, Sheet, timeAgo, StatusShape } from '../ui/bits';
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { weekDates } from '../domain/plan';
 import { ReviewBar, ReviewCallBar, TreeRow, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
+import { RespondSheet } from './Respond';
 import { criticalPath, threatReason } from '../domain/map';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 
@@ -189,15 +191,8 @@ function GoalView({ goal }: { goal: Goal }) {
       </div>
       <div className="goal-rail split-side">
 
-      {ptg?.needs && !stale && (st.status === 'risk' || st.status === 'off') && (
-        <section className="request-block" aria-label="Decision or help needed">
-          <span className="field-label">Decision or help needed</span>
-          <p className="strong">{ptg.needs}</p>
-          <span className="hint">From {owner?.name.split(' ')[0]}’s week {latest?.week} check-in.</span>
-          {/* The answer belongs right here, not two screens away. */}
-          {!compact && <div><button type="button" className="btn sm" onClick={() => { setTab('activity'); setTimeout(() => { const el = document.getElementById('note-' + goal.id); el?.scrollIntoView({ block: 'center' }); el?.focus(); }, 60); }}>Respond</button></div>}
-        </section>
-      )}
+      {/* Requests for a decision or help: open until answered or withdrawn, answered once for every goal waiting on it. */}
+      <Requests goal={goal} compact={compact} behind={st.status === 'risk' || st.status === 'off'} since={latest?.postedAt ?? null} />
 
       {asks.length > 0 && (
         <section className="why" aria-label="From reviews">
@@ -229,7 +224,7 @@ function GoalView({ goal }: { goal: Goal }) {
             <div className="quote-block">
               <span className="field-label">{ptg.byWeek != null ? <>Back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.state === 'help' ? ', once the decision or help arrives' : ''}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</> : ptg.state === 'investigating' ? 'Still investigating; no recovery date yet' : ptg.state === 'help' ? 'No date until the decision or help arrives' : ptg.state === 'target' ? 'The owner thinks the target should change' : 'No recovery date yet'}</span>
               {/* A decision request is shown once, above; here it's the date that matters. */}
-              <p>{ptg.state === 'help' && ptg.needs && (st.status === 'risk' || st.status === 'off') ? 'Waiting on the decision or help above.' : ptg.what}</p>
+              <p>{ptg.state === 'help' && openFor(goal.id, app.snapshot).length > 0 && (st.status === 'risk' || st.status === 'off') ? 'Waiting on the decision or help above.' : ptg.what}</p>
             </div>
           )}
         </section>
@@ -383,4 +378,62 @@ function PlanChanges({ goal }: { goal: MetricGoal }) {
   const what = last.plan.target !== goal.plan.target ? `Target changed in week ${last.untilWeek}: ${fmt(last.plan.target, goal)} → ${fmt(goal.plan.target, goal)}.` : `Plan changed in week ${last.untilWeek}.`;
   const first = history.length > 1 ? ` It was first set at ${fmt(history[0]!.plan.target, goal)}, and has changed ${history.length} times.` : '';
   return <figcaption className="tiny muted">{what}{first} The original plan is dotted; earlier weeks and closed quarters are judged against the plan of their day.</figcaption>;
+}
+
+/**
+ * The goal's requests for a decision or help: each with who asked whom and when, Respond for the person asked (and
+ * admins), Withdraw for the owner, the answer once given, and, for an owner whose goal is behind, a way to say it's
+ * waiting on a request already raised for another goal.
+ */
+function Requests({ goal, compact, behind, since }: { goal: Goal; compact: boolean; behind: boolean; since: string | null }) {
+  const app = useApp();
+  const [responding, setResponding] = useState<HelpRequest | null>(null);
+  const [linking, setLinking] = useState(false);
+  const open = openFor(goal.id, app.snapshot);
+  const answered = answeredSince(goal.id, since, app.snapshot);
+  const isOwner = goal.ownerId === app.viewer.id;
+  const others = (app.snapshot.requests ?? []).filter((r) => r.status === 'open' && !r.goalIds.includes(goal.id));
+  if (!open.length && !answered && !(isOwner && behind && others.length)) return null;
+  const first = (id: string | null) => (id ? app.person(id)?.name.split(' ')[0] ?? 'someone' : 'anyone');
+  return (
+    <>
+      {open.map((r) => {
+        const linked = r.goalIds[0] !== goal.id;
+        return (
+          <section key={r.id} className="request-block" aria-label="Decision or help needed">
+            <span className="field-label">Decision or help needed{r.recipientId ? ` from ${app.person(r.recipientId)?.name ?? 'someone'}` : ''}</span>
+            <p className="strong">{r.ask}</p>
+            <span className="hint">{linked ? <>The same request as <Link className="linkish" to={'/goals/' + r.goalIds[0]}>{app.goal(r.goalIds[0]!)?.title}</Link>, asked by {first(r.askedBy)} </> : <>Asked by {first(r.askedBy)} </>}{timeAgo(r.createdAt, app.today)}. Open until it’s answered{r.goalIds.length > 1 ? `; ${r.goalIds.length} goals are waiting on it` : ''}.</span>
+            {(canAnswer(r, app.viewer) || (!compact && (isOwner || app.viewer.admin))) && (
+              <div className="row" style={{ gap: 'var(--s3)' }}>
+                {canAnswer(r, app.viewer) && <button type="button" className="btn sm" onClick={() => setResponding(r)}>Respond</button>}
+                {!compact && (isOwner || app.viewer.admin) && <button type="button" className="linkish small" onClick={() => void app.withdrawRequest(r, goal).then(() => app.toast(linked ? 'No longer waiting on that request' : 'Request withdrawn'))}>{linked ? 'Not waiting on it any more' : 'Withdraw'}</button>}
+              </div>
+            )}
+          </section>
+        );
+      })}
+      {answered && (
+        <section className="request-block answered" aria-label="Request answered">
+          <span className="field-label">Answered by {app.person(answered.answeredBy ?? '')?.name ?? 'someone'} {timeAgo(answered.answeredAt ?? '', app.today)}</span>
+          <p className="strong">{answered.answer}</p>
+          <span className="hint">The request: “{answered.ask}”. {isOwner ? 'Your next check-in says what it changes.' : 'The owner’s next check-in says what it changes.'}</span>
+        </section>
+      )}
+      {isOwner && behind && !compact && others.length > 0 && <button type="button" className="linkish small" style={{ alignSelf: 'flex-start' }} onClick={() => setLinking(true)}>Waiting on a decision already asked for another goal?</button>}
+      {responding && <RespondSheet request={responding} onClose={() => setResponding(null)} />}
+      {linking && (
+        <Sheet open onClose={() => setLinking(false)} title="Waiting on the same decision">
+          <div className="stack" style={{ gap: 'var(--s3)' }}>
+            <span className="hint">Link {goal.title} to a request already raised, so it’s asked and answered once. Any open request of yours to the same person is withdrawn.</span>
+            <div className="optlist">{others.map((r) => (
+              <button key={r.id} type="button" className="opt" onClick={() => void app.linkRequest(r, goal).then(() => { setLinking(false); app.toast('Linked: one answer will cover both goals'); })}>
+                <span className="stack" style={{ gap: 2 }}><span className="strong">{askText(r, app.snapshot.people)}</span><span className="hint">For {r.goalIds.map((id) => app.goal(id)?.title).filter(Boolean).join(', ')} · asked by {first(r.askedBy)} {timeAgo(r.createdAt, app.today)}</span></span>
+              </button>
+            ))}</div>
+          </div>
+        </Sheet>
+      )}
+    </>
+  );
 }
