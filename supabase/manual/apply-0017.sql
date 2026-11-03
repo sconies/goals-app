@@ -49,6 +49,9 @@ select 'req_' || c.id, c.workspace_id, array[c.goal_id], c.author_id,
 from (
   select distinct on (goal_id) * from okr_check_ins order by goal_id, week desc, posted_at desc, id desc
 ) c
+-- Only workspaces that exist, asked by someone who's still in them (old example rows can be left without a workspace).
+join okr_workspaces w on w.id = c.workspace_id
+join okr_people a on a.id = c.author_id and a.workspace_id = c.workspace_id
 left join okr_people p on p.workspace_id = c.workspace_id and lower(c.ptg_needs) like lower(p.name) || ':%'
 where coalesce(trim(c.ptg_needs), '') <> ''
 on conflict (id) do nothing;
