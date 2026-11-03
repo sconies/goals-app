@@ -27,7 +27,9 @@ export function columnKind(values: string[]): ColumnKind {
   const filled = values.filter((v) => v.trim() !== '');
   if (filled.length && filled.every(isNum)) return 'number';
   const distinct = new Set(filled);
-  return distinct.size > 0 && distinct.size <= 24 && distinct.size < Math.max(4, filled.length * 0.6) && [...distinct].every((v) => v.length <= 40) ? 'choice' : 'text';
+  // A set of values: they repeat a lot (a goal's name down its check-ins), or there are only a few short ones (owners, levels).
+  const few = distinct.size <= 12 && [...distinct].every((v) => v.length <= 60);
+  return distinct.size > 0 && distinct.size <= 24 && (distinct.size <= filled.length * 0.6 || few) ? 'choice' : 'text';
 }
 
 /** Does one cell value pass the filter? */

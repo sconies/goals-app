@@ -518,7 +518,7 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.actorId === 'maya' && c.goalId === 'access' && c.diffs.some((d) => /SEC-88 fix/.test(d.to))), 'the comment is not in the change log');
   await p.goto(url('/goals/review'));
-  await see(p, `Target changed in week ${W(4)}: 75% → 95%`, 'the re-baseline is explained on the chart');
+  await see(p, `Target changed in week ${W(5)}: 75% → 95%`, 'the re-baseline is explained on the chart');
   await p.context().close();
 }, ['errors', 'budget']);
 
@@ -1338,7 +1338,7 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   sheet = p.getByRole('dialog', { name: 'Add a filter' });
   await sheet.getByLabel('Property').selectOption('Week');
   await sheet.getByLabel('Condition').selectOption('gte');
-  await h.fill(sheet.getByLabel('Value'), '38');
+  await h.fill(sheet.getByRole('textbox', { name: 'Value', exact: true }), '38');
   await h.click(sheet.getByRole('button', { name: 'Add filter' }));
   await see(p, 'Goal is PRs with AI code review', 'the goal filter is not shown as words');
   await see(p, 'Week ≥ 38', 'the week filter is not shown as words');

@@ -14,7 +14,10 @@ describe('property filters on a data table', () => {
   it('tells numbers, a fixed set of values and free text apart', () => {
     expect(columnKind(rows.map((r) => r.cells[3]!))).toBe('number');
     expect(columnKind(['Sam Patel', 'Sam Patel', 'Kofi Boateng', 'Kofi Boateng', 'Kofi Boateng'])).toBe('choice');
-    expect(columnKind(['Cache misses', 'Model needed labels', 'Vendor was late', 'Quota on GPUs', 'Two people on leave', 'Scope grew'])).toBe('text');
+    expect(columnKind(Array.from({ length: 14 }, (_, i) => `A different reason, number ${i}`))).toBe('text');
+    // A long name that repeats down a table is still a set of values: a goal's name on each of its check-ins.
+    const long = 'Brain data model and AI infrastructure live, across every team';
+    expect(columnKind([...Array(20).fill(long), ...Array(20).fill('Lead time for changes')])).toBe('choice');
   });
   it('matches each condition', () => {
     expect(passes('Sam Patel', { col: 'Owner', op: 'is', value: 'Kofi Boateng|sam patel' })).toBe(true);
