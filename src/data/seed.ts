@@ -53,7 +53,7 @@ const cost = metric(common('cost', 'infra', 'jonas', 'Cloud spend per developer'
 const goals: Goal[] = [
   head,
   metric({ ...common('triage', 'pm', 'maya', 'Requests triaged within 2 days', 'Jira intake board'), effect: 5, level: 'svp' }, '%', 0, 40, 85),
-  metric({ ...common('review', 'devex', 'sam', 'PRs with AI code review', 'GitHub pull request data'), effect: 4, level: 'svp' }, '%', 0, 30, 95, { originalPlan: reviewOriginal, rebaselinedWeek: toYear(4) }),
+  metric({ ...common('review', 'devex', 'sam', 'PRs with AI code review', 'GitHub pull request data'), effect: 4, level: 'svp' }, '%', 0, 30, 95, { originalPlan: reviewOriginal, rebaselinedWeek: toYear(4) + 1 }),
   metric({ ...common('lead', 'devex', 'sam', 'Lead time for changes', 'DORA dashboard'), effect: 2 }, 'days', 1, 4.2, 2.0),
   metric({ ...common('alerts', 'sre', 'kofi', 'Alerts auto-triaged by AIOps', 'Alerting + AIOps pipeline'), effect: 1 }, '%', 0, 20, 60),
   { ...common('cfr', 'sre', 'kofi', 'Change failure rate', 'DORA dashboard'), io: 'output', guardrail: true, kind: 'range', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 12, margin: 1 } } satisfies RangeGoal,
@@ -201,8 +201,9 @@ export function seed(today: Date): Snapshot {
   const asCreated = (g: Goal): Goal => (g.id === 'review' && g.kind === 'metric' ? { ...g, plan: reviewOriginal, originalPlan: null, rebaselinedWeek: null } : g);
   for (const g of allGoals) changes.push(goalChange(null, asCreated(g), lookup, g.ownerId, g.createdAt, 'chg_goal_' + g.id)!);
   for (const c of checkIns) changes.push(checkInChange(null, c, allGoals.find((g) => g.id === c.goalId)!, c.authorId, 'chg_' + c.id)!);
-  // In story week 4 Sam raised the AI review target from 75% to 95%; the first plan stays on the chart.
-  const raisedAt = new Date(Date.parse(checkIns.find((c) => c.id === `ci_review_${toYear(4)}`)!.postedAt) + 3_600_000).toISOString();
+  // At the start of story week 5, before that week's check-in, Sam raised the AI review target from 75% to 95%; weeks
+  // up to 4 stay judged against the first plan, which stays on the chart (a plan change applies from its own week).
+  const raisedAt = new Date(Date.parse(checkIns.find((c) => c.id === `ci_review_${toYear(5)}`)!.postedAt) - 3_600_000).toISOString();
   changes.push({
     id: 'chg_review_target_4', at: raisedAt, actorId: 'sam', goalId: 'review', entity: 'goal', entityId: 'review', action: 'edited',
     summary: 'Changed the target: 75% → 95%', diffs: [{ field: 'Target', from: '75%', to: '95%' }, { field: 'Why', from: '—', to: 'The AI review bot is the default for every repo now, so 75% was too easy.' }],

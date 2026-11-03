@@ -1121,3 +1121,36 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .trow-icon svg, .gline-status svg { margin-top: 3px; }
 .gtable .chip { white-space: normal; text-align: left; }
 .ws-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 18px; overflow-wrap: anywhere; }
+
+/* ---------- Data tables (3 Nov): every record, readable by everyone, editable by admins in one reviewed batch ---------- */
+.data-wrap { max-height: calc(100dvh - 260px); overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.dtable { border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 100%; }
+.dtable th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.dtable td { border-bottom: 1px solid var(--line-2); border-right: 1px solid var(--line-2); padding: 0; vertical-align: top; }
+.dcell.ro { padding: 8px 10px; color: var(--fg-2); background: var(--surface-2); max-width: 320px; overflow-wrap: anywhere; }
+.dcell.ro.strong { color: var(--fg); font-weight: 600; }
+.dcell input, .dcell select { width: 100%; min-width: 120px; min-height: 36px; padding: 6px 10px; border: 0; border-radius: 0; background: transparent; font: inherit; color: var(--fg); }
+.dcell input:focus, .dcell select:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--surface); }
+.dcell.edited { background: var(--accent-wash); }
+.dcell.edited input, .dcell.edited select { font-weight: 600; }
+tr[title] .dcell { color: var(--muted); }
+.data-foot { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s3); padding: var(--s3) var(--s4); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: var(--shadow); }
+@media (pointer: coarse) { .dcell input, .dcell select { min-height: 44px; } }
+@container app (max-width: 760px) { .data-wrap { max-height: none; } }
+.kind-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.kind-chips .filter-chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.kind-chips .filter-chip[aria-pressed="true"] .tabcount { color: inherit; }
+@container app (max-width: 760px) { .activity-page .filterbar-row { flex-wrap: wrap; } .activity-page .filter-search { flex-basis: 100%; } }
+/* One line per row, like a spreadsheet: long text is cut with its full value on hover; inputs scroll inside the cell. */
+.dtable { width: max-content; }
+.dcell.ro { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; min-width: 64px; overflow-wrap: normal; }
+.dcell input { min-width: 140px; }
+.dcell select { min-width: 120px; }
+.data-page .seg.tabs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+.activity-page .filter-sort { flex: 0 1 150px; }
+.activity-page .filter-search { flex: 1 1 200px; }
+/* The goal or person's name stays in view while scrolling across the wide tables. */
+.dtable th:nth-child(2), .dtable td:nth-child(2) { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--line); }
+.dtable th:nth-child(2) { z-index: 3; }
+.dtable td:nth-child(2) { background: var(--surface); }
+.dtable td.dcell.ro:nth-child(2) { background: var(--surface-2); }

@@ -154,7 +154,7 @@
     {
       "id": "CHANGE-LOG",
       "area": "Change log",
-      "text": "Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged."
+      "text": "Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line."
     },
     {
       "id": "DRAFTS",
@@ -310,6 +310,11 @@
       "id": "EXCEPTIONS-FIRST",
       "area": "Leading",
       "text": "A leader's attention goes to the exceptions. A weekly review walks the goals that need a look one at a time and takes the goals on track with nothing flagged together in one acknowledgement, which can be opened or walked instead. A goal page says which contributing goals are most likely to make it miss. A request for a decision has Respond beside it. Asking for an update leaves a lasting 'Asked' in place of the button. The table keeps each goal's story to one line, with Details to open it, and the board puts the north star first and folds healthy lanes to a count. New goal asks before resuming an unpublished one. One name per idea: No recent update, Contributing goals, Decision or help needed."
+    },
+    {
+      "id": "DATA-TABLES",
+      "area": "Data",
+      "text": "Every person, goal, check-in and plan is in a table anyone can read, search and sort. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged."
     }
   ],
   "notYetBuilt": [
@@ -424,6 +429,12 @@
       "title": "What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes",
       "who": "A goal owner",
       "budget": 14
+    },
+    {
+      "id": "U35",
+      "title": "An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it",
+      "who": "An admin and a goal owner",
+      "budget": 18
     }
   ],
   "easeCriteria": [

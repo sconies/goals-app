@@ -76,7 +76,8 @@ export function Import() {
   );
 }
 
-function Preview({ cs, name, reason, setReason, busy, onApply, onAgain }: { cs: ChangeSet; name: string; reason: string; setReason: (s: string) => void; busy: boolean; onApply: () => void; onAgain: () => void }) {
+/** What a change set will do, its problems, and Save. Used by Import and the data tables. */
+export function Preview({ cs, name, reason, setReason, busy, onApply, onAgain, againLabel = 'Choose another file', fixHint = 'Fix these in the file, then load it again.' }: { cs: ChangeSet; name: string; reason: string; setReason: (s: string) => void; busy: boolean; onApply: () => void; onAgain: () => void; againLabel?: string; fixHint?: string }) {
   const errors = cs.issues.filter((i) => i.severity === 'error');
   const warnings = cs.issues.filter((i) => i.severity === 'warning');
   const groups = new Map<string, Item[]>();
@@ -92,7 +93,7 @@ function Preview({ cs, name, reason, setReason, busy, onApply, onAgain }: { cs: 
       {errors.length > 0 && (
         <section className="block problems" aria-label="Problems to fix">
           <h2 className="block-title tone-off">{errors.length} {errors.length === 1 ? 'row needs' : 'rows need'} fixing first</h2>
-          <p className="hint">Nothing is saved until every row is right. Fix these in the file, then load it again.</p>
+          <p className="hint">Nothing is saved until every row is right. {fixHint}</p>
           <ul className="issue-list">{errors.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.goal ? ` · ${x.goal}` : ''}</span><span>{x.message}</span></li>)}</ul>
         </section>
       )}
@@ -134,7 +135,7 @@ function Preview({ cs, name, reason, setReason, busy, onApply, onAgain }: { cs: 
       )}
 
       <div className="foot-row">
-        <button type="button" className="btn ghost big-btn" onClick={onAgain}>Choose another file</button>
+        <button type="button" className="btn ghost big-btn" onClick={onAgain}>{againLabel}</button>
         <button type="button" className="btn primary big-btn" disabled={!cs.commit || busy} onClick={onApply}>{busy ? 'Saving…' : total ? `Save ${total} ${total === 1 ? 'change' : 'changes'}` : 'Nothing to save'}</button>
       </div>
       {!cs.commit && total > 0 && <p className="hint" role="status">{errors.length ? 'Fix the rows above to save.' : cs.needsReason ? 'Say why the plans are changing to save.' : ''}</p>}
@@ -142,4 +143,4 @@ function Preview({ cs, name, reason, setReason, busy, onApply, onAgain }: { cs: 
   );
 }
 
-const KIND: Record<Item['kind'], string> = { 'new goal': 'New goal', goal: 'Details', plan: 'Plan', 'check-in': 'Check-in', 'replaces check-in': 'Replaces a check-in' };
+const KIND: Record<Item['kind'], string> = { 'new goal': 'New goal', goal: 'Details', plan: 'Plan', 'check-in': 'Check-in', 'replaces check-in': 'Replaces a check-in', person: 'Person' };

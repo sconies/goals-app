@@ -81,7 +81,7 @@ describe('quarters read off the owner’s plan', () => {
     const closed = (g: MetricGoal) => quarterResults(g, cycle, s.checkIns, week).slice(0, 3).map((r) => r.text);
     expect(closed(after)).toEqual(closed(before));
     // Both earlier plans are kept, each with the week it stopped applying.
-    expect(planHistoryOf(after).map((v) => [v.untilWeek, v.plan.target])).toEqual([[toYear(4), 75], [week, 95]]);
+    expect(planHistoryOf(after).map((v) => [v.untilWeek, v.plan.target])).toEqual([[toYear(4) + 1, 75], [week, 95]]);
     expect(goalAsOf(after, week - 1).plan.target).toBe(95);
     expect(goalAsOf(after, toYear(4) - 1).plan.target).toBe(75);
     expect(goalAsOf(after, week).plan.target).toBe(98);
