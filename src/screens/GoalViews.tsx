@@ -236,7 +236,8 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
   // The range is in the link (weeks=year), so a saved or shared History view comes back the same (round 3 review).
   const [params, setParams] = useSearchParams();
   const span: 'quarter' | 'year' = params.get('weeks') === 'year' ? 'year' : 'quarter';
-  const setSpan = (v: 'quarter' | 'year') => { const p = new URLSearchParams(params); if (v === 'year') p.set('weeks', 'year'); else p.delete('weeks'); setParams(p, { replace: true }); };
+  // Built on the address as it is now, so a change made a moment ago elsewhere on the page isn't lost.
+  const setSpan = (v: 'quarter' | 'year') => { const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : params); if (v === 'year') p.set('weeks', 'year'); else p.delete('weeks'); setParams(p, { replace: true }); };
   const q = quarterOf(app.cycle, app.week);
   const weeks = year && span === 'quarter' ? Array.from({ length: q.to - q.from + 1 }, (_, i) => q.from + i) : Array.from({ length: app.cycle.weeks }, (_, i) => i + 1);
   const cellText = (s: GoalSummary, w: number, c: ReturnType<typeof weeklyCalls>) => {

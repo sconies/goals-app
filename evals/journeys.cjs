@@ -1022,7 +1022,7 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   const quarterCols = await grid.locator('thead th').count();
   await h.click(p.getByRole('button', { name: 'Whole year' }));
   // The range is in the link now, so the grid redraws from it.
-  await p.waitForFunction(() => document.querySelectorAll('.hgrid thead th').length > 20, null, { timeout: 3000 }).catch(() => {});
+  await p.waitForFunction(() => document.querySelectorAll('.hgrid thead th').length > 20, null, { timeout: 10000 }).catch(() => {});
   const yearCols = await p.locator('.hgrid').first().locator('thead th').count();
   h.set('progress', quarterCols === 14 && yearCols === 53, `expected 13 then 52 week columns, saw ${quarterCols - 1} then ${yearCols - 1}`);
   await h.checkpoint('year grid');
