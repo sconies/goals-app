@@ -1,6 +1,8 @@
 /* Closing a cycle: which cycle is current, the retro on each goal, and starting the next cycle
    with the goals that carry on. */
 import { requestsFromCheckIns } from './requests';
+import { isYear, yearWeeks } from './year';
+import { yearName } from './yearName';
 import { assessMilestone, checkInsFor, goalStatus } from './status';
 import type { CheckIn, Cycle, Goal, Retro, Snapshot } from './types';
 
@@ -60,8 +62,10 @@ export function cycleName(startDate: string, weeks: number): string {
  * new cycle. Links between carried goals are kept; a link to a goal that stops is dropped.
  */
 export function nextCycle(old: Cycle, goals: Goal[], checkIns: CheckIn[], retros: Retro[], ids: { cycle: string; goal: (old: Goal) => string }, now: string): { cycle: Cycle; goals: Goal[] } {
+  // The next goal year's week 0 is this year's last week; its own length (52 or 53 weeks) follows the calendar.
   const startDate = addDays(old.startDate, old.weeks * 7);
-  const cycle: Cycle = { ...old, id: ids.cycle, startDate, name: cycleName(startDate, old.weeks) };
+  const weeks = isYear(old) ? yearWeeks(startDate) : old.weeks;
+  const cycle: Cycle = { ...old, id: ids.cycle, startDate, weeks, name: isYear(old) ? yearName(startDate, weeks) : cycleName(startDate, weeks) };
   const carried = goals.filter((g) => g.cycleId === old.id && (retros.find((r) => r.goalId === g.id)?.next ?? 'carry') === 'carry');
   const map = new Map(carried.map((g) => [g.id, ids.goal(g)]));
   const out = carried.map((g): Goal => {

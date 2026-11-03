@@ -18,11 +18,13 @@ const url = (p) => BASE + '/demo' + p + (p.includes('?') ? '&' : '?') + 'today='
 /** The real app, with its data kept in this browser (the eval build has no Supabase). */
 const live = (p) => BASE + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=' + TODAY;
 const consoleErrors = [];
-/* The demo is a 52-week goal year in week 43; its story weeks 1–7 are year weeks 37–43. */
-const NOW = 43;
-const W = (storyWeek) => storyWeek + 36;
+/* The demo follows the calendar: on Friday 30 October 2026 it is in ISO week 44 of 2026, a 53-week year; its story
+   weeks 1–7 are year weeks 38–44. */
+const NOW = 44;
+const WEEKS = 53;
+const W = (storyWeek) => storyWeek + NOW - 7;
 /** The plan's number for a week, as src/domain/plan.ts works it out. */
-function planAt(plan, week, weeks = 52) {
+function planAt(plan, week, weeks = WEEKS) {
   const end = plan.endWeek ?? weeks;
   const from = Math.min(plan.fromWeek ?? 0, end - 1);
   if (week <= from) return plan.start;
@@ -348,7 +350,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), 'min');
   await h.fill(p.getByLabel(/^Today \(week/), '90');
-  await h.fill(p.getByLabel(/Target \(week 52\)/), '45');
+  await h.fill(p.getByLabel(new RegExp(`Target \\(week ${WEEKS}\\)`)), '45');
   await h.click(p.getByRole('button', { name: /Back-loaded/ }));
   if (!(await p.getByLabel('Plan preview').isVisible())) fail('no plan preview');
   await h.checkpoint('step 2');
@@ -685,7 +687,7 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
 
 journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap up their goals, an admin starts the next cycle', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'maya'));
-  // Seed the example in week 43, then come back in week 51, when the wrap-up opens.
+  // Seed the example in week 44, then come back in week 52, when the wrap-up opens.
   await p.goto(url('/'));
   await p.locator('.hero').waitFor();
   const late = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-12-22';
@@ -845,7 +847,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await see(p, 'Plan and actual by week');
   const s = await h.snapshot();
   const g = s.goals.find((x) => x.title === 'Runbooks with an owner');
-  h.set('logged', !!g && (g.plan.endWeek ?? 52) === 52 && g.plan.points?.some((pt) => pt.value === 30), 'the year end or the hand-set number was not saved');
+  h.set('logged', !!g && (g.plan.endWeek ?? WEEKS) === WEEKS && g.plan.points?.some((pt) => pt.value === 30), 'the year end or the hand-set number was not saved');
   h.set('progress', true);
   h.set('finish', true);
   await p.context().close();
@@ -1009,8 +1011,8 @@ journey('U22', ['MCP-TOKENS'], 'An admin gives a teammate a token for an AI assi
 journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter met or missed, and the year’s history', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
   await p.goto(url('/goals'));
-  await see(p, 'Week 43 of 52 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
-  await h.inView(p.getByText('Week 43 of 52 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
+  await see(p, 'Week 44 of 53 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
+  await h.inView(p.getByText('Week 44 of 53 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
   await p.goto(url('/goals/scan'));
   const strip = p.getByRole('region', { name: 'This year by quarter' });
   await strip.waitFor();
@@ -1028,7 +1030,7 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   await p.waitForFunction(() => document.querySelectorAll('.hgrid thead th').length > 20, null, { timeout: 10000 }).catch(() => {});
   const yearCols = await p.locator('.hgrid').first().locator('thead th').count();
   const pressed = await yearBtn.getAttribute('aria-pressed').catch(() => '?');
-  h.set('progress', quarterCols === 14 && yearCols === 53, `expected 13 then 52 week columns, saw ${quarterCols - 1} then ${yearCols - 1} (Whole year pressed: ${pressed}; link ${new URL(p.url()).search})`);
+  h.set('progress', quarterCols === WEEKS - 39 + 1 && yearCols === WEEKS + 1, `expected ${WEEKS - 39} then ${WEEKS} week columns, saw ${quarterCols - 1} then ${yearCols - 1} (Whole year pressed: ${pressed}; link ${new URL(p.url()).search})`);
   await h.checkpoint('year grid');
   h.set('finish', true);
   await p.context().close();

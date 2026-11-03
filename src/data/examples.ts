@@ -1,4 +1,4 @@
-/* More example workspaces for the demo, built from short descriptions. Each is a 52-week goal year, in week 43,
+/* More example workspaces for the demo, built from short descriptions. Each is set in the same real goal year as the main demo, up to today,
    with a year of check-ins, the reasons people gave, a review and some watches. The descriptions are written as
    the last seven weeks (story weeks 1–7); yearStory.ts places them at the end of the year. Dates are relative to
    today; all names and numbers are invented. */
@@ -6,7 +6,7 @@ import { emptyDraft, evaluate, toCheckIn, type Draft } from '../domain/checkin';
 import { checkInChange, goalChange } from '../domain/changes';
 import type { Cause, Change, CheckIn, Cycle, Goal, Level, Person, Review, Snapshot, StageUpdate, Team, Watch, Workspace } from '../domain/types';
 import { seed } from './seed';
-import { SEED_WEEK, STORY_OFFSET, steadyDraft, storyValue, toYear, YEAR_WEEKS, yearName } from './yearStory';
+import { demoYear, steadyDraft, storyOffset, storyValue, yearName, yearWeekOf } from './yearStory';
 
 const DAY = 86_400_000;
 
@@ -38,16 +38,13 @@ interface ExampleSpec {
 }
 
 const initials = (n: string) => n.split(/\s+/).map((w) => w[0]!.toUpperCase()).slice(0, 2).join('');
-function mondayOf(d: Date): number {
-  const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-  return day - ((new Date(day).getUTCDay() + 6) % 7) * DAY;
-}
-
 /** Turns a description into a full workspace: goals, check-in history, change log, watches and reviews. */
 export function buildExample(spec: ExampleSpec, today: Date): Snapshot {
-  const start = mondayOf(today) - SEED_WEEK * 7 * DAY;
-  const startDate = new Date(start).toISOString().slice(0, 10);
-  const cycle: Cycle = { id: 'cycle', name: yearName(startDate, YEAR_WEEKS), startDate, weeks: YEAR_WEEKS, reviewDay: spec.reviewDay };
+  const year = demoYear(today);
+  const NOW = year.week, STORY_OFFSET = storyOffset(NOW), toYear = yearWeekOf(NOW);
+  const startDate = year.startDate;
+  const start = Date.parse(startDate + 'T00:00:00Z');
+  const cycle: Cycle = { id: 'cycle', name: yearName(startDate, year.weeks), startDate, weeks: year.weeks, reviewDay: spec.reviewDay };
   const people: Person[] = spec.people.map((p) => ({ ...p, initials: initials(p.name), admin: !!p.admin }));
   const goals: Goal[] = spec.goals.map((g, i): Goal => {
     const base = {
@@ -65,7 +62,7 @@ export function buildExample(spec: ExampleSpec, today: Date): Snapshot {
   for (const g of goals) {
     const s = spec.goals.find((x) => x.id === g.id)!;
     const story = g.kind === 'milestone' ? s.lastWeek ?? 6 : (s.values ?? []).length;
-    for (let week = 1; week <= Math.min(STORY_OFFSET + story, SEED_WEEK); week++) {
+    for (let week = 1; week <= Math.min(STORY_OFFSET + story, NOW); week++) {
       const sw = week - STORY_OFFSET;
       let draft: Draft = emptyDraft(g, null);
       if (g.kind === 'milestone') {
@@ -77,7 +74,7 @@ export function buildExample(spec: ExampleSpec, today: Date): Snapshot {
         });
       } else if (sw >= 1) {
         const v = s.values![sw - 1]!;
-        draft.value = String(g.kind === 'metric' ? storyValue(g.plan, g.decimals, sw, v) : v);
+        draft.value = String(g.kind === 'metric' ? storyValue(g.plan, g.decimals, sw, v, year) : v);
       } else draft = steadyDraft(g, cycle, week, draft, checkIns, s.values?.[0]);
       const e = evaluate(g, cycle, week, draft, checkIns);
       const note = sw >= 1 ? (e.reason === 'ahead' ? s.ahead : e.reason === 'behind' ? s.behind : undefined) : undefined;

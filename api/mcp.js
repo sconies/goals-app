@@ -21936,12 +21936,12 @@ function commitPayload(ws, c) {
 	};
 }
 // src/domain/plan.ts
-var DAY$3 = 864e5;
+var DAY$4 = 864e5;
 /** Days between two ISO dates or timestamps, by calendar date in UTC. */
 function daysBetween(fromIso, to) {
 	const from = Date.parse(fromIso.slice(0, 10) + "T00:00:00Z");
 	const toDay = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
-	return Math.floor((toDay - from) / DAY$3);
+	return Math.floor((toDay - from) / DAY$4);
 }
 /** The cycle's week today: 0 in the first seven days, capped at the last checkpoint. */
 function currentWeek(cycle, today) {
@@ -21955,7 +21955,7 @@ function daysSince(iso, today) {
 }
 /** The ISO date of a week's checkpoint. */
 function weekDate(cycle, week) {
-	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$3;
+	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$4;
 	return new Date(t).toISOString().slice(0, 10);
 }
 /** Share of the change planned by a week, 0..1. */
@@ -22805,33 +22805,401 @@ function checkInChange(before, after, g, actorId, id) {
 		diffs
 	};
 }
+// src/domain/goal.ts
+function blankGoal(teamId, ownerId, parentId) {
+	return {
+		kind: "metric",
+		title: "",
+		teamId,
+		ownerId,
+		io: "input",
+		level: "team",
+		guardrail: false,
+		parentId,
+		effect: "",
+		whyHelps: "",
+		alsoHelps: [],
+		endWeek: "",
+		points: {},
+		source: "",
+		definition: "",
+		unit: "%",
+		decimals: "0",
+		start: "",
+		target: "",
+		shape: "straight",
+		bound: "atMost",
+		limit: "",
+		margin: "1",
+		stages: [{
+			id: "s1",
+			name: "",
+			dueWeek: ""
+		}]
+	};
+}
+function draftOf(g) {
+	const d = blankGoal(g.teamId, g.ownerId, g.parentId ?? "");
+	Object.assign(d, {
+		kind: g.kind,
+		title: g.title,
+		io: g.io,
+		level: g.level,
+		guardrail: g.guardrail,
+		effect: g.effect == null ? "" : String(g.effect),
+		whyHelps: g.whyHelps ?? "",
+		alsoHelps: g.alsoHelps ?? [],
+		source: g.source,
+		definition: g.definition
+	});
+	if (g.kind === "metric") Object.assign(d, {
+		unit: g.unit,
+		decimals: String(g.decimals),
+		start: String(g.plan.start),
+		target: String(g.plan.target),
+		shape: g.plan.shape,
+		endWeek: g.plan.endWeek ? String(g.plan.endWeek) : "",
+		points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)]))
+	});
+	if (g.kind === "range") Object.assign(d, {
+		unit: g.unit,
+		decimals: String(g.decimals),
+		bound: g.range.bound,
+		limit: String(g.range.limit),
+		margin: String(g.range.margin)
+	});
+	if (g.kind === "milestone") d.stages = g.stages.map((s) => ({
+		id: s.id,
+		name: s.name,
+		dueWeek: String(s.dueWeek)
+	}));
+	return d;
+}
+function validateGoal(d, cycle) {
+	const e = {};
+	if (d.title.trim().length < 3) e.title = "Give the goal a name of at least three characters.";
+	if (!d.teamId) e.teamId = "Choose a team.";
+	if (!d.ownerId) e.ownerId = "Choose an owner.";
+	if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = "Enter a number, or leave it empty.";
+	if (d.kind !== "milestone") {
+		const dp = parseNumber(d.decimals);
+		if (dp == null || dp < 0 || dp > 3 || !Number.isInteger(dp)) e.decimals = "Between 0 and 3.";
+	}
+	if (d.kind === "metric") {
+		const s = parseNumber(d.start), t = parseNumber(d.target);
+		if (s == null) e.start = "Enter where it starts.";
+		if (t == null) e.target = "Enter the target.";
+		else if (s != null && s === t) e.target = "The target has to differ from the start.";
+		if (Object.values(d.points).some((v) => v.trim() !== "" && parseNumber(v) == null)) e.points = "Every plan number has to be a number.";
+	}
+	if (d.kind === "range") {
+		if (parseNumber(d.limit) == null) e.limit = "Enter the limit.";
+		const m = parseNumber(d.margin);
+		if (m == null || m < 0) e.margin = "Enter a warning margin of zero or more.";
+	}
+	if (d.kind === "milestone") {
+		const rows = d.stages.filter((s) => s.name.trim() || s.dueWeek.trim());
+		if (!rows.length) e.stages = "Add at least one stage.";
+		else if (rows.some((s) => !s.name.trim())) e.stages = "Every stage needs a name.";
+		else if (rows.some((s) => {
+			const w = parseNumber(s.dueWeek);
+			return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks;
+		})) e.stages = "Every stage needs a due week between 1 and " + cycle.weeks + ".";
+	}
+	return e;
+}
+/** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
+function planChanged(a, b) {
+	if (a.kind !== b.kind) return true;
+	if (a.kind === "metric" && b.kind === "metric") return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
+	if (a.kind === "range" && b.kind === "range") return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.margin !== b.range.margin;
+	if (a.kind === "milestone" && b.kind === "milestone") return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
+	return false;
+}
+/**
+* Build the goal from a valid draft. When an existing metric goal's plan changes after
+* check-ins have started, the first plan is kept as the original and the change is dated.
+*/
+function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
+	const common = {
+		id: base.id,
+		cycleId: cycle.id,
+		teamId: d.teamId,
+		ownerId: d.ownerId,
+		title: d.title.trim(),
+		io: d.io,
+		level: d.level,
+		guardrail: d.guardrail,
+		parentId: d.parentId || null,
+		effect: d.parentId ? parseNumber(d.effect) : null,
+		...d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {},
+		...(d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id).length ? { alsoHelps: (d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id) } : {},
+		source: d.source.trim(),
+		definition: d.definition.trim(),
+		createdAt: base.createdAt
+	};
+	const num = (s) => parseNumber(s);
+	if (d.kind === "metric") {
+		const end = parseNumber(d.endWeek);
+		const plan = withPoints({
+			start: num(d.start),
+			target: num(d.target),
+			shape: d.shape,
+			...existing?.kind === "metric" ? existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {} : week > 0 ? { fromWeek: week } : {},
+			...end != null && end !== cycle.weeks ? { endWeek: end } : {}
+		}, d.points, cycle.weeks);
+		const history = existing?.kind === "metric" ? replanned(existing, plan, checkInsStarted, week) : {
+			originalPlan: null,
+			rebaselinedWeek: null
+		};
+		return {
+			...common,
+			kind: "metric",
+			unit: d.unit.trim(),
+			decimals: num(d.decimals),
+			plan,
+			...history
+		};
+	}
+	if (d.kind === "range") return {
+		...common,
+		kind: "range",
+		unit: d.unit.trim(),
+		decimals: num(d.decimals),
+		range: {
+			bound: d.bound,
+			limit: num(d.limit),
+			margin: num(d.margin)
+		}
+	};
+	const stages = d.stages.filter((s) => s.name.trim()).map((s) => ({
+		id: s.id,
+		name: s.name.trim(),
+		dueWeek: num(s.dueWeek)
+	})).sort((a, b) => a.dueWeek - b.dueWeek);
+	return {
+		...common,
+		kind: "milestone",
+		stages
+	};
+}
+/**
+* The plan with any numbers typed by hand. If one checkpoint is set by hand, every checkpoint is stored
+* (the rest at their shape defaults), so the plan is exactly the table people saw.
+*/
+function withPoints(plan, typed, weeks) {
+	const set = Object.entries(typed).filter(([, v]) => v.trim() !== "" && parseNumber(v) != null);
+	const { points: _drop, ...base } = plan;
+	if (!set.length) return base;
+	const from = plan.fromWeek ?? 0;
+	const end = planEnd(plan, weeks);
+	const points = planCheckpoints(from, end).filter((w) => w < end).map((w) => {
+		const hand = typed[String(w)];
+		return {
+			week: w,
+			value: hand != null && hand.trim() !== "" && parseNumber(hand) != null ? parseNumber(hand) : planAt(base, w, weeks)
+		};
+	});
+	return {
+		...base,
+		points
+	};
+}
+/**
+* What a number goal's plan fields become when its plan changes. Once check-ins have started, the plan being replaced is
+* kept with the week it stopped applying, so earlier weeks and closed quarters stay judged against the plan of their day.
+* Two changes in the same week keep the plan from before the first.
+*/
+function replanned(existing, plan, started, week) {
+	const history = planHistoryOf(existing);
+	const keep = {
+		originalPlan: existing.originalPlan,
+		rebaselinedWeek: existing.rebaselinedWeek,
+		...history.length ? { planHistory: history } : {}
+	};
+	if (!started || !planChanged(existing, {
+		...existing,
+		plan
+	})) return keep;
+	const next = history.at(-1)?.untilWeek === week ? history : [...history, {
+		untilWeek: week,
+		plan: existing.plan
+	}];
+	return {
+		originalPlan: existing.originalPlan ?? existing.plan,
+		rebaselinedWeek: week,
+		planHistory: next
+	};
+}
+// src/domain/year.ts
+var isYear = (c) => c.weeks >= 48;
+var DAY$3 = 864e5;
+var MONTHS = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec"
+];
+/** The month the year starts in: the month of week 1's Thursday. */
+function startMonth(c) {
+	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$3).getUTCMonth();
+}
+function quarters(c) {
+	if (!isYear(c)) return [{
+		n: 1,
+		label: c.name,
+		months: "",
+		from: 1,
+		to: c.weeks
+	}];
+	const m0 = startMonth(c);
+	return [
+		1,
+		2,
+		3,
+		4
+	].map((n) => ({
+		n,
+		label: `Q${n}`,
+		months: `${MONTHS[(m0 + 3 * (n - 1)) % 12]}–${MONTHS[(m0 + 3 * (n - 1) + 2) % 12]}`,
+		from: (n - 1) * 13 + 1,
+		to: n === 4 ? c.weeks : n * 13
+	}));
+}
+function quarterOf(c, week) {
+	const qs = quarters(c);
+	return qs.find((q) => week >= q.from && week <= q.to) ?? (week < 1 ? qs[0] : qs[qs.length - 1]);
+}
+/** "Week 45 of 53 · Q4 (Oct–Dec) · 2026", or "Week 7 of 13 · Platform cycle" for a shorter cycle. */
+function periodLabel(c, week) {
+	if (!isYear(c)) return `Week ${Math.max(0, week)} of ${c.weeks} · ${c.name}`;
+	const q = quarterOf(c, week);
+	return `Week ${Math.max(0, week)} of ${c.weeks} · ${q.label} (${q.months}) · ${c.name}`;
+}
+/** The plan's number at the end of a quarter (or the week given), for a number goal. */
+function targetAt(g, c, week) {
+	if (g.kind !== "metric") return null;
+	return planAt(g.plan, Math.min(week, planEnd(g.plan, c.weeks)), c.weeks);
+}
+/** How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. */
+function quarterResult(g, c, checkIns, q, week) {
+	const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
+	const last = own[own.length - 1];
+	const ended = week > q.to;
+	const r = (kind, text) => ({
+		quarter: q,
+		kind,
+		text: `${q.label}: ${text}`
+	});
+	if (g.kind === "metric") {
+		const p = ended ? goalAsOf(g, q.to) : g;
+		if ((p.plan.fromWeek ?? 0) >= q.to || planEnd(p.plan, c.weeks) < q.from) return r("none", "nothing planned");
+		const t = targetAt(p, c, q.to);
+		if (!ended) return r("open", `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(p.plan, c.weeks))}`);
+		const v = last?.value;
+		if (v == null) return r("missed", `no number reported against a plan of ${fmt(t, g)}`);
+		const up = p.plan.target >= p.plan.start;
+		const diff = Number((v - t).toFixed(g.decimals));
+		const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
+		return r(met ? "met" : "missed", `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? "" : `, ${fmtDiff(diff, g)} short`}`);
+	}
+	if (g.kind === "milestone") {
+		const due = g.stages.filter((s) => s.dueWeek >= q.from && s.dueWeek <= q.to);
+		if (!due.length) return r("none", "no stages due");
+		if (!ended) return r("open", `${due.length} ${due.length === 1 ? "stage" : "stages"} due`);
+		const done = due.filter((s) => last?.stages?.some((u) => u.stageId === s.id && u.doneWeek != null && u.doneWeek <= q.to));
+		return r(done.length === due.length ? "met" : "missed", `${done.length} of ${due.length} ${due.length === 1 ? "stage" : "stages"} due ${done.length === 1 ? "was" : "were"} done`);
+	}
+	if (!ended) return r("open", `must stay ${g.range.bound === "atMost" ? "at most" : "at least"} ${fmt(g.range.limit, g)}`);
+	const v = last?.value;
+	if (v == null) return r("missed", "no number reported");
+	const out = g.range.bound === "atMost" ? v > g.range.limit : v < g.range.limit;
+	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? "outside" : "inside"} the ${fmt(g.range.limit, g)} limit`);
+}
+function quarterResults(g, c, checkIns, week) {
+	if (!isYear(c)) return [];
+	return quarters(c).map((q) => quarterResult(g, c, checkIns, q, week));
+}
+/** The Monday of week 1 of a goal year starting in a month (0 = January): the week with that month's first Thursday. */
+function weekOneOf(year, month) {
+	const first = Date.UTC(year, month, 1);
+	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$3 - 3 * DAY$3;
+}
+/** A goal year: week 0 is the week before week 1, and it runs until the next year's week 1. */
+function goalYear(year, month) {
+	const a = weekOneOf(year, month), b = weekOneOf(year + 1, month);
+	return {
+		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$3)).toISOString().slice(0, 10),
+		weeks: Math.round((b - a) / (7 * DAY$3))
+	};
+}
+/** The goal year starting in a month that today is in, counting its week 0: set up in the last days of December, that's next year. */
+function goalYearFor(today, month) {
+	const t = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+	let y = today.getUTCFullYear() + 1;
+	while (weekOneOf(y, month) - 7 * DAY$3 > t) y--;
+	return goalYear(y, month);
+}
 // src/domain/yearName.ts
 /** "2026" for a year starting in January, "Apr 2026–Mar 2027" otherwise. */
 function yearName(startDate, weeks) {
-	const a = new Date(Date.parse(startDate + "T00:00:00Z") + 2592e5);
+	const a = new Date(Date.parse(startDate + "T00:00:00Z") + 864e6);
 	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 4) * 864e5);
 	const m = (d) => d.toLocaleDateString("en-GB", {
 		month: "short",
 		timeZone: "UTC"
 	});
-	if (a.getUTCMonth() === 0 || a.getUTCMonth() === 11 && a.getUTCDate() >= 25) return String(a.getUTCMonth() === 11 ? a.getUTCFullYear() + 1 : a.getUTCFullYear());
+	if (a.getUTCMonth() === 0) return String(a.getUTCFullYear());
 	return `${m(a)} ${a.getUTCFullYear()}–${m(b)} ${b.getUTCFullYear()}`;
 }
-var toYear = (storyWeek) => storyWeek + 36;
+/** The story's dated steps run up to five weeks past today. */
+var AHEAD = 5;
+var EARLIEST = 20;
+/**
+* The goal year the demo is set in: the calendar year when today is far enough into it and the story's next steps
+* still fit; otherwise the year starting in whichever month puts today nearest week 43 (a financial year).
+*/
+function demoYear(today) {
+	const at = (month) => {
+		const y = goalYearFor(today, month);
+		return {
+			...y,
+			week: currentWeek(y, today)
+		};
+	};
+	const fits = (y) => y.week >= EARLIEST && y.week <= y.weeks - AHEAD;
+	const calendar = at(0);
+	if (fits(calendar)) return calendar;
+	return Array.from({ length: 12 }, (_, m) => at(m)).filter(fits).sort((a, b) => Math.abs(a.week - 43) - Math.abs(b.week - 43))[0];
+}
+/** The story's seven weeks are the last seven, up to today: story week w is year week w + offset. */
+var storyOffset = (week) => week - 7;
+var yearWeekOf = (week) => (storyWeek) => storyWeek + storyOffset(week);
 /**
 * A story value moved into the year: as far ahead of or behind the year's plan as it was against the
 * story's own 13-week plan, so the reasons people gave still hold.
 */
-function storyValue(plan, decimals, storyWeek, value) {
+function storyValue(plan, decimals, storyWeek, value, year) {
 	const planned13 = planAt({
 		start: plan.start,
 		target: plan.target,
 		shape: plan.shape
 	}, storyWeek, 13) - plan.start;
-	const planned52 = planAt(plan, toYear(storyWeek), 52) - plan.start;
+	const plannedYear = planAt(plan, yearWeekOf(year.week)(storyWeek), year.weeks) - plan.start;
 	const raw = Math.abs(planned13) < 1e-9 ? 1 : (value - plan.start) / planned13;
 	const ratio = Math.min(1.25, Math.max(.6, raw));
-	return Number((plan.start + ratio * planned52).toFixed(decimals));
+	const f = 10 ** decimals;
+	const exact = (plan.start + ratio * plannedYear) * f;
+	if (ratio < 1) return Number((exact / f).toFixed(decimals));
+	return Number(((plannedYear >= 0 ? Math.ceil(exact - 1e-6) : Math.floor(exact + 1e-6)) / f).toFixed(decimals));
 }
 /** A steady week before the story: on plan, give or take a little, chosen so the rules call it on track. */
 function steadyDraft(g, cycle, week, base, history, rangeValue) {
@@ -22906,67 +23274,26 @@ metric(common("head", "pm", "maya", "Intake-to-delivery time", "Jira intake boar
 	},
 	definition: "Median days from a request being accepted at intake to it being live in production"
 });
-var reviewOriginal = {
-	start: 30,
-	target: 75,
-	shape: "straight"
-};
 metric(common("cost", "infra", "jonas", "Cloud spend per developer", "FinOps dashboard"), "USD", 0, 410, 330, {
 	io: "output",
 	level: "north-star",
 	parentId: null,
 	definition: "Monthly cloud bill for developer environments and CI, divided by active developers"
 });
-metric({
-	...common("triage", "pm", "maya", "Requests triaged within 2 days", "Jira intake board"),
-	effect: 5,
-	level: "svp"
-}, "%", 0, 40, 85), metric({
-	...common("review", "devex", "sam", "PRs with AI code review", "GitHub pull request data"),
-	effect: 4,
-	level: "svp"
-}, "%", 0, 30, 95, {
-	originalPlan: reviewOriginal,
-	rebaselinedWeek: toYear(4) + 1
-}), metric({
-	...common("lead", "devex", "sam", "Lead time for changes", "DORA dashboard"),
-	effect: 2
-}, "days", 1, 4.2, 2), metric({
-	...common("alerts", "sre", "kofi", "Alerts auto-triaged by AIOps", "Alerting + AIOps pipeline"),
-	effect: 1
-}, "%", 0, 20, 60), { ...common("cfr", "sre", "kofi", "Change failure rate", "DORA dashboard") }, metric({
-	...common("env", "infra", "jonas", "Self-service environments in under 1 hour", "Platform API"),
-	effect: 3
-}, "%", 0, 35, 80), metric({
-	...common("scan", "sec", "aisha", "AI-generated code scanned before merge", "Code scanning"),
-	guardrail: true
-}, "%", 0, 50, 100), { ...common("access", "sec", "aisha", "Repo-access controls for the Brain", "Jira SEC-88") }, toYear(2), toYear(4), toYear(6), toYear(6), { ...common("brain", "brain", "leo", "Brain data model and AI infrastructure live", "Jira BRN epics") }, toYear(3), toYear(7), toYear(9), toYear(12), metric({
-	...common("idle", "infra", "jonas", "Idle environments shut down within 2 hours", "Platform API"),
-	parentId: "cost",
-	effect: 40
-}, "%", 0, 30, 90), metric({
-	...common("cache", "sre", "kofi", "Build cache hit rate", "CI telemetry"),
-	parentId: "cost",
-	effect: 25
-}, "%", 0, 50, 76);
-toYear(2), toYear(2), toYear(2), toYear(4), toYear(2), toYear(4), toYear(2), toYear(4), toYear(9), toYear(9), toYear(3), toYear(3), toYear(3), toYear(3);
-`${toYear(6)}${toYear(9)}`, `${toYear(9)}`;
 // src/data/examples.ts
 var DAY$1 = 864e5;
 var initials$1 = (n) => n.split(/\s+/).map((w) => w[0].toUpperCase()).slice(0, 2).join("");
-function mondayOf(d) {
-	const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-	return day - (new Date(day).getUTCDay() + 6) % 7 * DAY$1;
-}
 /** Turns a description into a full workspace: goals, check-in history, change log, watches and reviews. */
 function buildExample(spec, today) {
-	const start = mondayOf(today) - 301 * DAY$1;
-	const startDate = new Date(start).toISOString().slice(0, 10);
+	const year = demoYear(today);
+	const NOW = year.week, STORY_OFFSET = storyOffset(NOW), toYear = yearWeekOf(NOW);
+	const startDate = year.startDate;
+	const start = Date.parse(startDate + "T00:00:00Z");
 	const cycle = {
 		id: "cycle",
-		name: yearName(startDate, 52),
+		name: yearName(startDate, year.weeks),
 		startDate,
-		weeks: 52,
+		weeks: year.weeks,
 		reviewDay: spec.reviewDay
 	};
 	const people = spec.people.map((p) => ({
@@ -23030,8 +23357,8 @@ function buildExample(spec, today) {
 	for (const g of goals) {
 		const s = spec.goals.find((x) => x.id === g.id);
 		const story = g.kind === "milestone" ? s.lastWeek ?? 6 : (s.values ?? []).length;
-		for (let week = 1; week <= Math.min(36 + story, 43); week++) {
-			const sw = week - 36;
+		for (let week = 1; week <= Math.min(STORY_OFFSET + story, NOW); week++) {
+			const sw = week - STORY_OFFSET;
 			let draft = emptyDraft(g, null);
 			if (g.kind === "milestone") draft.stages = g.stages.map((st, k) => {
 				const [, due0, done0, forecast0] = s.stages[k];
@@ -23045,7 +23372,7 @@ function buildExample(spec, today) {
 			});
 			else if (sw >= 1) {
 				const v = s.values[sw - 1];
-				draft.value = String(g.kind === "metric" ? storyValue(g.plan, g.decimals, sw, v) : v);
+				draft.value = String(g.kind === "metric" ? storyValue(g.plan, g.decimals, sw, v, year) : v);
 			} else draft = steadyDraft(g, cycle, week, draft, checkIns, s.values?.[0]);
 			const e = evaluate(g, cycle, week, draft, checkIns);
 			const note = sw >= 1 ? e.reason === "ahead" ? s.ahead : e.reason === "behind" ? s.behind : void 0 : void 0;
@@ -24189,328 +24516,6 @@ function scopeToCycle(s, cycle) {
 			goals
 		}, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id)))
 	};
-}
-// src/domain/goal.ts
-function blankGoal(teamId, ownerId, parentId) {
-	return {
-		kind: "metric",
-		title: "",
-		teamId,
-		ownerId,
-		io: "input",
-		level: "team",
-		guardrail: false,
-		parentId,
-		effect: "",
-		whyHelps: "",
-		alsoHelps: [],
-		endWeek: "",
-		points: {},
-		source: "",
-		definition: "",
-		unit: "%",
-		decimals: "0",
-		start: "",
-		target: "",
-		shape: "straight",
-		bound: "atMost",
-		limit: "",
-		margin: "1",
-		stages: [{
-			id: "s1",
-			name: "",
-			dueWeek: ""
-		}]
-	};
-}
-function draftOf(g) {
-	const d = blankGoal(g.teamId, g.ownerId, g.parentId ?? "");
-	Object.assign(d, {
-		kind: g.kind,
-		title: g.title,
-		io: g.io,
-		level: g.level,
-		guardrail: g.guardrail,
-		effect: g.effect == null ? "" : String(g.effect),
-		whyHelps: g.whyHelps ?? "",
-		alsoHelps: g.alsoHelps ?? [],
-		source: g.source,
-		definition: g.definition
-	});
-	if (g.kind === "metric") Object.assign(d, {
-		unit: g.unit,
-		decimals: String(g.decimals),
-		start: String(g.plan.start),
-		target: String(g.plan.target),
-		shape: g.plan.shape,
-		endWeek: g.plan.endWeek ? String(g.plan.endWeek) : "",
-		points: Object.fromEntries((g.plan.points ?? []).map((p) => [String(p.week), String(p.value)]))
-	});
-	if (g.kind === "range") Object.assign(d, {
-		unit: g.unit,
-		decimals: String(g.decimals),
-		bound: g.range.bound,
-		limit: String(g.range.limit),
-		margin: String(g.range.margin)
-	});
-	if (g.kind === "milestone") d.stages = g.stages.map((s) => ({
-		id: s.id,
-		name: s.name,
-		dueWeek: String(s.dueWeek)
-	}));
-	return d;
-}
-function validateGoal(d, cycle) {
-	const e = {};
-	if (d.title.trim().length < 3) e.title = "Give the goal a name of at least three characters.";
-	if (!d.teamId) e.teamId = "Choose a team.";
-	if (!d.ownerId) e.ownerId = "Choose an owner.";
-	if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = "Enter a number, or leave it empty.";
-	if (d.kind !== "milestone") {
-		const dp = parseNumber(d.decimals);
-		if (dp == null || dp < 0 || dp > 3 || !Number.isInteger(dp)) e.decimals = "Between 0 and 3.";
-	}
-	if (d.kind === "metric") {
-		const s = parseNumber(d.start), t = parseNumber(d.target);
-		if (s == null) e.start = "Enter where it starts.";
-		if (t == null) e.target = "Enter the target.";
-		else if (s != null && s === t) e.target = "The target has to differ from the start.";
-		if (Object.values(d.points).some((v) => v.trim() !== "" && parseNumber(v) == null)) e.points = "Every plan number has to be a number.";
-	}
-	if (d.kind === "range") {
-		if (parseNumber(d.limit) == null) e.limit = "Enter the limit.";
-		const m = parseNumber(d.margin);
-		if (m == null || m < 0) e.margin = "Enter a warning margin of zero or more.";
-	}
-	if (d.kind === "milestone") {
-		const rows = d.stages.filter((s) => s.name.trim() || s.dueWeek.trim());
-		if (!rows.length) e.stages = "Add at least one stage.";
-		else if (rows.some((s) => !s.name.trim())) e.stages = "Every stage needs a name.";
-		else if (rows.some((s) => {
-			const w = parseNumber(s.dueWeek);
-			return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks;
-		})) e.stages = "Every stage needs a due week between 1 and " + cycle.weeks + ".";
-	}
-	return e;
-}
-/** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
-function planChanged(a, b) {
-	if (a.kind !== b.kind) return true;
-	if (a.kind === "metric" && b.kind === "metric") return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
-	if (a.kind === "range" && b.kind === "range") return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.margin !== b.range.margin;
-	if (a.kind === "milestone" && b.kind === "milestone") return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
-	return false;
-}
-/**
-* Build the goal from a valid draft. When an existing metric goal's plan changes after
-* check-ins have started, the first plan is kept as the original and the change is dated.
-*/
-function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
-	const common = {
-		id: base.id,
-		cycleId: cycle.id,
-		teamId: d.teamId,
-		ownerId: d.ownerId,
-		title: d.title.trim(),
-		io: d.io,
-		level: d.level,
-		guardrail: d.guardrail,
-		parentId: d.parentId || null,
-		effect: d.parentId ? parseNumber(d.effect) : null,
-		...d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {},
-		...(d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id).length ? { alsoHelps: (d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id) } : {},
-		source: d.source.trim(),
-		definition: d.definition.trim(),
-		createdAt: base.createdAt
-	};
-	const num = (s) => parseNumber(s);
-	if (d.kind === "metric") {
-		const end = parseNumber(d.endWeek);
-		const plan = withPoints({
-			start: num(d.start),
-			target: num(d.target),
-			shape: d.shape,
-			...existing?.kind === "metric" ? existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {} : week > 0 ? { fromWeek: week } : {},
-			...end != null && end !== cycle.weeks ? { endWeek: end } : {}
-		}, d.points, cycle.weeks);
-		const history = existing?.kind === "metric" ? replanned(existing, plan, checkInsStarted, week) : {
-			originalPlan: null,
-			rebaselinedWeek: null
-		};
-		return {
-			...common,
-			kind: "metric",
-			unit: d.unit.trim(),
-			decimals: num(d.decimals),
-			plan,
-			...history
-		};
-	}
-	if (d.kind === "range") return {
-		...common,
-		kind: "range",
-		unit: d.unit.trim(),
-		decimals: num(d.decimals),
-		range: {
-			bound: d.bound,
-			limit: num(d.limit),
-			margin: num(d.margin)
-		}
-	};
-	const stages = d.stages.filter((s) => s.name.trim()).map((s) => ({
-		id: s.id,
-		name: s.name.trim(),
-		dueWeek: num(s.dueWeek)
-	})).sort((a, b) => a.dueWeek - b.dueWeek);
-	return {
-		...common,
-		kind: "milestone",
-		stages
-	};
-}
-/**
-* The plan with any numbers typed by hand. If one checkpoint is set by hand, every checkpoint is stored
-* (the rest at their shape defaults), so the plan is exactly the table people saw.
-*/
-function withPoints(plan, typed, weeks) {
-	const set = Object.entries(typed).filter(([, v]) => v.trim() !== "" && parseNumber(v) != null);
-	const { points: _drop, ...base } = plan;
-	if (!set.length) return base;
-	const from = plan.fromWeek ?? 0;
-	const end = planEnd(plan, weeks);
-	const points = planCheckpoints(from, end).filter((w) => w < end).map((w) => {
-		const hand = typed[String(w)];
-		return {
-			week: w,
-			value: hand != null && hand.trim() !== "" && parseNumber(hand) != null ? parseNumber(hand) : planAt(base, w, weeks)
-		};
-	});
-	return {
-		...base,
-		points
-	};
-}
-/**
-* What a number goal's plan fields become when its plan changes. Once check-ins have started, the plan being replaced is
-* kept with the week it stopped applying, so earlier weeks and closed quarters stay judged against the plan of their day.
-* Two changes in the same week keep the plan from before the first.
-*/
-function replanned(existing, plan, started, week) {
-	const history = planHistoryOf(existing);
-	const keep = {
-		originalPlan: existing.originalPlan,
-		rebaselinedWeek: existing.rebaselinedWeek,
-		...history.length ? { planHistory: history } : {}
-	};
-	if (!started || !planChanged(existing, {
-		...existing,
-		plan
-	})) return keep;
-	const next = history.at(-1)?.untilWeek === week ? history : [...history, {
-		untilWeek: week,
-		plan: existing.plan
-	}];
-	return {
-		originalPlan: existing.originalPlan ?? existing.plan,
-		rebaselinedWeek: week,
-		planHistory: next
-	};
-}
-// src/domain/year.ts
-var isYear = (c) => c.weeks >= 48;
-var MONTHS = [
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec"
-];
-/** The month the year starts in: the month of its first Thursday, so a year starting 29 Dec is a January year. */
-function startMonth(c) {
-	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 2592e5).getUTCMonth();
-}
-function quarters(c) {
-	if (!isYear(c)) return [{
-		n: 1,
-		label: c.name,
-		months: "",
-		from: 1,
-		to: c.weeks
-	}];
-	const m0 = startMonth(c);
-	return [
-		1,
-		2,
-		3,
-		4
-	].map((n) => ({
-		n,
-		label: `Q${n}`,
-		months: `${MONTHS[(m0 + 3 * (n - 1)) % 12]}–${MONTHS[(m0 + 3 * (n - 1) + 2) % 12]}`,
-		from: (n - 1) * 13 + 1,
-		to: n === 4 ? c.weeks : n * 13
-	}));
-}
-function quarterOf(c, week) {
-	const qs = quarters(c);
-	return qs.find((q) => week >= q.from && week <= q.to) ?? (week < 1 ? qs[0] : qs[qs.length - 1]);
-}
-/** "Week 43 of 52 · Q4 (Oct–Dec) · 2026", or "Week 7 of 13 · Platform cycle" for a shorter cycle. */
-function periodLabel(c, week) {
-	if (!isYear(c)) return `Week ${Math.max(0, week)} of ${c.weeks} · ${c.name}`;
-	const q = quarterOf(c, week);
-	return `Week ${Math.max(0, week)} of ${c.weeks} · ${q.label} (${q.months}) · ${c.name}`;
-}
-/** The plan's number at the end of a quarter (or the week given), for a number goal. */
-function targetAt(g, c, week) {
-	if (g.kind !== "metric") return null;
-	return planAt(g.plan, Math.min(week, planEnd(g.plan, c.weeks)), c.weeks);
-}
-/** How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. */
-function quarterResult(g, c, checkIns, q, week) {
-	const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
-	const last = own[own.length - 1];
-	const ended = week > q.to;
-	const r = (kind, text) => ({
-		quarter: q,
-		kind,
-		text: `${q.label}: ${text}`
-	});
-	if (g.kind === "metric") {
-		const p = ended ? goalAsOf(g, q.to) : g;
-		if ((p.plan.fromWeek ?? 0) >= q.to || planEnd(p.plan, c.weeks) < q.from) return r("none", "nothing planned");
-		const t = targetAt(p, c, q.to);
-		if (!ended) return r("open", `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(p.plan, c.weeks))}`);
-		const v = last?.value;
-		if (v == null) return r("missed", `no number reported against a plan of ${fmt(t, g)}`);
-		const up = p.plan.target >= p.plan.start;
-		const diff = Number((v - t).toFixed(g.decimals));
-		const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
-		return r(met ? "met" : "missed", `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? "" : `, ${fmtDiff(diff, g)} short`}`);
-	}
-	if (g.kind === "milestone") {
-		const due = g.stages.filter((s) => s.dueWeek >= q.from && s.dueWeek <= q.to);
-		if (!due.length) return r("none", "no stages due");
-		if (!ended) return r("open", `${due.length} ${due.length === 1 ? "stage" : "stages"} due`);
-		const done = due.filter((s) => last?.stages?.some((u) => u.stageId === s.id && u.doneWeek != null && u.doneWeek <= q.to));
-		return r(done.length === due.length ? "met" : "missed", `${done.length} of ${due.length} ${due.length === 1 ? "stage" : "stages"} due ${done.length === 1 ? "was" : "were"} done`);
-	}
-	if (!ended) return r("open", `must stay ${g.range.bound === "atMost" ? "at most" : "at least"} ${fmt(g.range.limit, g)}`);
-	const v = last?.value;
-	if (v == null) return r("missed", "no number reported");
-	const out = g.range.bound === "atMost" ? v > g.range.limit : v < g.range.limit;
-	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? "outside" : "inside"} the ${fmt(g.range.limit, g)} limit`);
-}
-function quarterResults(g, c, checkIns, week) {
-	if (!isYear(c)) return [];
-	return quarters(c).map((q) => quarterResult(g, c, checkIns, q, week));
 }
 // src/domain/query.ts
 var STATUS_OPTIONS = [

@@ -1,12 +1,12 @@
 // @vitest-environment node
 import { seed } from '../data/seed';
-import { toYear } from '../data/yearStory';
+import { yearWeekOf } from '../data/yearStory';
 import { buildGoal, draftOf, goalAsOf, planHistoryOf } from './goal';
-import { currentWeek } from './plan';
+import { currentWeek, weekDate } from './plan';
 import { assessPosted } from './status';
 import { storyOf } from './story';
 import type { Cycle, MetricGoal } from './types';
-import { dueOptions, periodLabel, quarterOf, quarterResult, quarterResults, quarters, shortPeriod, startMonth, targetAt, yearStartFor } from './year';
+import { dueOptions, goalYear, goalYearFor, periodLabel, quarterOf, quarterResult, quarterResults, quarters, shortPeriod, startMonth, targetAt, yearStartFor, yearWeeks } from './year';
 import { yearName } from './yearName';
 import { stagesFromNow } from './templates';
 
@@ -14,23 +14,42 @@ const today = new Date('2026-10-30T12:00:00Z');
 const s = seed(today);
 const cycle = s.cycles[0]!;
 const week = currentWeek(cycle, today);
+const toYear = yearWeekOf(week);
 const goal = (id: string) => s.goals.find((g) => g.id === id)!;
 
 describe('the goal year', () => {
-  it('is 52 weeks in four quarters of 13, named from the month it starts', () => {
-    expect(quarters(cycle).map((q) => [q.label, q.months, q.from, q.to])).toEqual([['Q1', 'Jan–Mar', 1, 13], ['Q2', 'Apr–Jun', 14, 26], ['Q3', 'Jul–Sep', 27, 39], ['Q4', 'Oct–Dec', 40, 52]]);
+  it('follows the calendar: week n is ISO week n, in four quarters of 13, and 2026 has 53 weeks', () => {
+    expect(quarters(cycle).map((q) => [q.label, q.months, q.from, q.to])).toEqual([['Q1', 'Jan–Mar', 1, 13], ['Q2', 'Apr–Jun', 14, 26], ['Q3', 'Jul–Sep', 27, 39], ['Q4', 'Oct–Dec', 40, 53]]);
     expect(quarterOf(cycle, week).label).toBe('Q4');
-    expect(periodLabel(cycle, week)).toBe('Week 43 of 52 · Q4 (Oct–Dec) · 2026');
-    expect(shortPeriod(cycle, week)).toBe('Week 43 · Q4');
+    // Friday 30 October 2026 is in ISO week 44.
+    expect(periodLabel(cycle, week)).toBe('Week 44 of 53 · Q4 (Oct–Dec) · 2026');
+    expect(shortPeriod(cycle, week)).toBe('Week 44 · Q4');
+    // Week 1 is ISO week 1 (29 Dec–4 Jan); week 0, the week before, is for starting numbers; the year ends 3 January 2027.
+    expect(weekDate(cycle, 1)).toBe('2025-12-29');
+    expect(weekDate(cycle, 0)).toBe('2025-12-22');
+    expect(weekDate(cycle, 53)).toBe('2026-12-28');
+    expect(weekDate(cycle, 13)).toBe('2026-03-23');
+  });
+  it('is 52 or 53 weeks, like the ISO calendar, and a set-up in the last days of December is for next year', () => {
+    expect(goalYear(2027, 0)).toEqual({ startDate: '2026-12-28', weeks: 52 });
+    expect(goalYear(2020, 0)).toEqual({ startDate: '2019-12-23', weeks: 53 });
+    expect(goalYearFor(new Date('2026-12-29T09:00:00Z'), 0).startDate).toBe('2026-12-28');
+    expect(goalYearFor(new Date('2026-12-27T09:00:00Z'), 0).startDate).toBe('2025-12-22');
+    expect(yearWeeks('2025-12-22')).toBe(53);
+    // A year stored before calendar weeks (week 0 held 1 January) still reads as a January year.
+    expect(startMonth({ startDate: '2025-12-29' })).toBe(0);
+    expect(yearName('2025-12-29', 52)).toBe('2026');
   });
   it('can start in any month, as a financial year', () => {
+    // 1 April 2026 is a Wednesday, so week 1 starts on Monday 30 March and week 0 a week before.
     const start = yearStartFor(new Date('2026-10-30T00:00:00Z'), 3);
-    expect(start).toBe('2026-03-30');
-    const fy: Cycle = { id: 'fy', name: yearName(start, 52), startDate: start, weeks: 52, reviewDay: 3 };
+    expect(start).toBe('2026-03-23');
+    const fy: Cycle = { id: 'fy', name: yearName(start, yearWeeks(start)), startDate: start, weeks: yearWeeks(start), reviewDay: 3 };
+    expect(fy.weeks).toBe(52);
     expect(fy.name).toBe('Apr 2026–Mar 2027');
     expect(startMonth(fy)).toBe(3);
     expect(quarters(fy)[0]!.months).toBe('Apr–Jun');
-    expect(yearStartFor(new Date('2026-02-10T00:00:00Z'), 3)).toBe('2025-03-31');
+    expect(yearStartFor(new Date('2026-02-10T00:00:00Z'), 3)).toBe('2025-03-24');
   });
   it('keeps a shorter cycle as one period', () => {
     const short: Cycle = { id: 'c', name: 'Platform cycle', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
@@ -43,8 +62,8 @@ describe('the goal year', () => {
 describe('quarters read off the owner’s plan', () => {
   it('a quarter’s target is the plan’s number at its end, and any week in between has one too', () => {
     const g = goal('triage') as MetricGoal;
-    expect(targetAt(g, cycle, 13)).toBeCloseTo(40 + (45 * 13) / 52, 5);
-    expect(targetAt(g, cycle, 52)).toBe(85);
+    expect(targetAt(g, cycle, 13)).toBeCloseTo(40 + (45 * 13) / 53, 5);
+    expect(targetAt(g, cycle, 53)).toBe(85);
   });
   it('says whether each ended quarter was met, and keeps the rest open', () => {
     const rs = quarterResults(goal('scan'), cycle, s.checkIns, week);
@@ -67,8 +86,8 @@ describe('quarters read off the owner’s plan', () => {
     expect([q3.kind, q3.text]).toEqual(['met', 'Q3: 1 of 1 stage due was done']);
   });
   it('offers the end of the year, or a quarter still to come, as a due date', () => {
-    expect(dueOptions(cycle, 10, 52)).toEqual([[52, 'Year end'], [13, 'End of Q1'], [26, 'End of Q2'], [39, 'End of Q3']]);
-    expect(dueOptions(cycle, week, 52)).toEqual([[52, 'Year end']]);
+    expect(dueOptions(cycle, 10, 53)).toEqual([[53, 'Year end'], [13, 'End of Q1'], [26, 'End of Q2'], [39, 'End of Q3']]);
+    expect(dueOptions(cycle, week, 53)).toEqual([[53, 'Year end']]);
   });
   it('places the story at the end of the year', () => {
     expect(toYear(7)).toBe(week);

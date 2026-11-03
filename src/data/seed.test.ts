@@ -1,6 +1,7 @@
 import { currentWeek } from '../domain/plan';
 import { goalStatus } from '../domain/status';
-import { seed, SEED_WEEK } from './seed';
+import { seed } from './seed';
+import { demoYear, yearName } from './yearStory';
 import { BrowserStore } from './store';
 
 describe('demo data', () => {
@@ -9,11 +10,24 @@ describe('demo data', () => {
   const cycle = s.cycles[0]!;
   const status = (id: string) => goalStatus(s.goals.find((g) => g.id === id)!, cycle, s.checkIns, today);
 
-  it('puts today in week 43 of a 52-week goal year starting on a Monday', () => {
-    expect(cycle.startDate).toBe('2025-12-29');
-    expect(cycle.weeks).toBe(52);
+  it('is set in the real calendar year, so its week is today’s ISO week', () => {
+    // ISO week 1 of 2026 starts on Monday 29 December 2025; week 0, the week before, is for starting numbers.
+    expect(cycle.startDate).toBe('2025-12-22');
+    expect(cycle.weeks).toBe(53);
     expect(cycle.name).toBe('2026');
-    expect(currentWeek(cycle, today)).toBe(SEED_WEEK);
+    expect(currentWeek(cycle, today)).toBe(44);
+  });
+
+  it('moves to a financial year when the story would not fit the calendar year', () => {
+    // Early in the year there isn't a year of history; at the very end, the story's next steps run past it.
+    for (const [d, name] of [['2027-02-10', 'May 2026–Apr 2027'], ['2026-12-15', 'Mar 2026–Feb 2027'], ['2026-04-01', 'Jun 2025–May 2026']] as const) {
+      const t = new Date(d + 'T09:00:00Z');
+      const y = demoYear(t);
+      expect(yearName(y.startDate, y.weeks)).toBe(name);
+      expect(y.week).toBeGreaterThanOrEqual(39);
+      expect(y.week).toBeLessThanOrEqual(y.weeks - 5);
+    }
+    expect(demoYear(new Date('2026-11-03T09:00:00Z')).week).toBe(45);
   });
 
   it('builds every check-in through the same rules the app enforces', () => {
@@ -33,7 +47,7 @@ describe('demo data', () => {
     for (const d of ['2026-11-02T00:30:00Z', '2026-11-08T23:30:00Z', '2027-02-10T09:00:00Z']) {
       const t = new Date(d);
       const x = seed(t);
-      expect(currentWeek(x.cycles[0]!, t)).toBe(SEED_WEEK);
+      expect(currentWeek(x.cycles[0]!, t)).toBe(demoYear(t).week);
       expect(x.checkIns.every((c) => c.postedAt <= t.toISOString())).toBe(true);
     }
   });
