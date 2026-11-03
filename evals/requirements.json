@@ -262,6 +262,31 @@
       "text": "Goals are set for the year: a goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year."
     },
     {
+      "id": "QUARTER-RESULTS",
+      "area": "Leaders",
+      "text": "History opens on quarter results: for every goal, each quarter's actual number at its end against the owner's plan, met or missed (shape plus word), with the current quarter in progress. The owners' weekly calls are a separate, clearly named option, so weekly confidence is never mistaken for a quarter's result."
+    },
+    {
+      "id": "WEEK-INSPECTOR",
+      "area": "Leaders",
+      "text": "Weekly status can be seen one quarter at a time (Q1 to Q4) or for the whole year. A selected square is described in words beside the grid: the week and its dates, the goal, the owner's call, the number and the plan that week. It works by mouse, touch and keyboard (one tab stop, then the arrow keys)."
+    },
+    {
+      "id": "NO-DOUBLE-POST",
+      "area": "Data",
+      "text": "Pressing Post again, pressing Enter then clicking, or a double tap never posts a check-in twice; the same holds for the check-in table and answering a request. A check-in already being saved is waited for, not repeated."
+    },
+    {
+      "id": "ASK-UNDO",
+      "area": "Watching",
+      "text": "Asking a quiet goal's owner for an update shows next to its status as asked, and when, until they check in. Whoever asked can undo it; undoing is logged and takes it off the owner's Home. Asking twice before they check in asks once."
+    },
+    {
+      "id": "STICKY-HEAD",
+      "area": "Goals",
+      "text": "In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop."
+    },
+    {
       "id": "CALENDAR-WEEKS",
       "area": "Cycles",
       "text": "A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's."

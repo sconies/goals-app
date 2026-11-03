@@ -213,9 +213,12 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const go = (to: Step) => { setTrail((t) => [...t, step]); setStep(to); setTried(false); };
   const back = () => { setStep(trail[trail.length - 1] ?? 'measure'); setTrail((t) => t.slice(0, -1)); setTried(false); };
 
+  // A second press, Enter then a click, or a double tap mustn't post twice: state updates too late to stop it, a ref doesn't.
+  const inFlight = useRef(false);
   const post = async (d: Draft = draft) => {
     const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns);
-    if (!check.canPost || saving) { setTried(true); return; }
+    if (!check.canPost || saving || inFlight.current) { if (!inFlight.current) setTried(true); return; }
+    inFlight.current = true;
     setSaving(true);
     try {
       const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
@@ -225,6 +228,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
       clear();
       onPosted(c, !!existing);
     } catch {
+      inFlight.current = false;
       setSaving(false);
     }
   };

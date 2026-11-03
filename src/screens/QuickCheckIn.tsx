@@ -1,6 +1,6 @@
 /* Type every number for the week in one table. Each row is judged as you type with the same rules as the
    check-in; a row that's behind or ahead opens just the fields it needs. Saved together through the bulk-change engine. */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useDraft } from '../app/drafts';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
@@ -43,7 +43,10 @@ export function QuickCheckIn() {
   const ready = filled.filter((x) => x.e!.canPost);
   const badNumbers = filled.filter((x) => x.problem?.block).length;
   const needReasons = filled.length - ready.length - badNumbers;
+  // A second press while saving does nothing (a ref, because state updates too late to stop a quick double tap).
+  const inFlight = useRef(false);
   const save = async () => {
+    if (inFlight.current) return;
     setTried(true);
     if (!filled.length || ready.length < filled.length) return;
     const recs: Rec[] = filled.map(({ g, r }, i) => ({
@@ -51,13 +54,14 @@ export function QuickCheckIn() {
     }));
     const cs = app.previewChanges({ checkIns: recs }, 'bulk');
     if (!cs.commit) { app.toast(cs.issues[0]?.message ?? 'Nothing to save', 'error'); return; }
+    inFlight.current = true;
     setBusy(true);
     try {
       await app.applyChanges(cs);
       clearRows();
       app.toast(`Saved: ${describe(cs).toLowerCase()}`);
       nav('/');
-    } catch { setBusy(false); }
+    } catch { inFlight.current = false; setBusy(false); }
   };
   const weeks = Array.from({ length: Math.max(0, app.cycle.weeks - app.week) }, (_, k) => app.week + 1 + k);
 

@@ -12,6 +12,7 @@ import { Avatar, Chip, Empty, FlagPill, LevelTag, Sheet, timeAgo, StatusShape } 
 import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
+import { openUpdateAsk } from '../domain/updateAsks';
 import { weekDates } from '../domain/plan';
 import { ReviewBar, ReviewCallBar, TreeRow, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
 import { RespondSheet } from './Respond';
@@ -115,13 +116,20 @@ function GoalView({ goal }: { goal: Goal }) {
   const stale = st.status === 'stale';
   const dateText = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   // A request for an update stays visible ("Asked 2 hours ago") until the next check-in, rather than a passing toast.
-  const asked = app.snapshot.changes.filter((c) => c.entity === 'note' && c.goalId === goal.id && (c.diffs[0]?.to ?? '').includes('could you post an update') && (!latest || c.at > latest.postedAt)).pop();
+  // Whoever asked can undo it (Senior UX review, finding 9); it's logged, and drops off the owner's Home.
+  const asked = openUpdateAsk(goal.id, app.snapshot, latest?.postedAt ?? null);
+  const [asking, setAsking] = useState(false);
   const askForUpdate = async () => {
-    try {
-      await app.addNote(goal, `${owner?.name.split(' ')[0] ?? 'Hi'}, could you post an update? The last check-in was week ${latest?.week ?? '–'}.`);
-      app.toast(`Asked ${owner?.name.split(' ')[0] ?? 'the owner'}. It’s on their Home under For you.`);
-    } catch { /* the save already said what went wrong */ }
+    if (asking) return;
+    setAsking(true);
+    try { await app.askForUpdate(goal); } catch { /* the save already said what went wrong */ } finally { setAsking(false); }
   };
+  const undoAsk = async () => {
+    if (asking) return;
+    setAsking(true);
+    try { await app.undoUpdateAsk(goal); app.toast('Undone. It’s off their Home.'); } catch { /* the save already said what went wrong */ } finally { setAsking(false); }
+  };
+  const ownerFirst = owner?.name.split(' ')[0] ?? 'the owner';
   // In a review, the page is compact: result, what changed, what's needed; the rest folds away.
   const compact = rv.active;
   const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? 'No value yet' : fmt(a.actual, goal);
@@ -157,7 +165,7 @@ function GoalView({ goal }: { goal: Goal }) {
               ? <><span>Post its first check-in now, so everyone can see where it stands from today.</span>
                   <span className="row"><Link className="btn primary" to={'/check-in/' + goal.id}>Post the first check-in</Link><button type="button" className="btn ghost" onClick={() => setParams({}, { replace: true })}>Later</button></span></>
               : <><span>{owner?.name.split(' ')[0] ?? 'The owner'} posts its check-ins. Ask for the first one now?</span>
-                  <span className="row"><button type="button" className="btn" onClick={() => void askForUpdate().then(() => setParams({}, { replace: true }))}>Ask {owner?.name.split(' ')[0] ?? 'the owner'}</button><button type="button" className="btn ghost" onClick={() => setParams({}, { replace: true })}>Later</button></span></>}
+                  <span className="row"><button type="button" className="btn" disabled={asking} onClick={() => void askForUpdate().then(() => { app.toast(`Asked ${ownerFirst}. It’s on their Home until they check in.`); setParams({}, { replace: true }); })}>Ask {ownerFirst}</button><button type="button" className="btn ghost" onClick={() => setParams({}, { replace: true })}>Later</button></span></>}
         </section>
       )}
 
@@ -176,8 +184,8 @@ function GoalView({ goal }: { goal: Goal }) {
           ? <span className="small">{latest ? `Last reported: ${headlineNumber} in week ${latest.week} (${dateText(latest.postedAt)}), ${st.daysSinceCheckIn} days ago.` : 'Nothing reported yet.'} Without a newer check-in, the status and any projection can’t be trusted.</span>
           : a.kind === 'metric' && goal.kind === 'metric' && latest ? <span className="hint">{gap.long}.</span> : null}
         {stale && !isOwner && (asked
-          ? <span className="small strong" role="status">Asked {owner?.name.split(' ')[0] ?? 'the owner'} for an update {timeAgo(asked.at, app.today)}. It’s on their Home.</span>
-          : <div><button type="button" className="btn sm" onClick={() => void askForUpdate()}>Ask {owner?.name.split(' ')[0] ?? 'the owner'} for an update</button></div>)}
+          ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(asked.at, app.today)}{asked.actorId !== app.viewer.id ? ` (${app.person(asked.actorId)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s on their Home until they check in.{asked.actorId === app.viewer.id && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
+          : <div><button type="button" className="btn sm" disabled={asking} onClick={() => void askForUpdate()}>Ask {ownerFirst} for an update</button></div>)}
         {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.warn && (st.status === 'on' || st.status === 'done') ? 'On track means on plan this week. ' : ''}{fc.text}</span>}
         {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
       </section>

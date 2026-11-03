@@ -12,7 +12,7 @@ import type { Level, SavedView } from '../domain/types';
 import { Sheet } from '../ui/bits';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
-const VIEW_KEYS = ['show', 'view', 'weeks', ...QUERY_KEYS];
+const VIEW_KEYS = ['show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
 export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k]) => VIEW_KEYS.includes(k)).sort(([a], [b]) => VIEW_KEYS.indexOf(a) - VIEW_KEYS.indexOf(b))).toString();
 
 /** The query in the URL, and a way to change it that keeps everything else (grouping, layout, the demo's date). */

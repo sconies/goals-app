@@ -1,14 +1,16 @@
 /* Other ways to see the same goals: a sortable table, a board by status, a week-by-week history grid and cards.
    The Goals tabs say which goals and how they're grouped; the layout says how they're drawn. Each person's
    choice is remembered, and it's in the address so a view can be shared. */
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { weekDates } from '../domain/plan';
+import { planAt, weekDates } from '../domain/plan';
+import { goalAsOf } from '../domain/goal';
+import { fmt } from '../domain/format';
 import { assessPosted, LABEL, RANK } from '../domain/status';
 import { summarise, weeklyCalls, type GoalSummary } from '../domain/summary';
 import { MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING } from '../domain/story';
-import { isYear, quarterOf, quarters } from '../domain/year';
+import { isYear, quarterOf, quarterResults, quarters } from '../domain/year';
 import type { DisplayStatus, Goal } from '../domain/types';
 import { Spark, StageSpark } from '../ui/charts';
 import { useWidth } from '../ui/useWidth';
@@ -123,7 +125,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
         return (
           <section key={g.key} className="block" aria-label={g.title}>
             {groups.length > 1 && <GroupHead g={g} count={rows.length} />}
-            <div className="table-wrap">
+            <div className="table-wrap sticky-head">
               <table className="gtable">
                 {/* One set of column widths for every group, so numbers line up from one tree to the next. */}
                 <colgroup><col className="c-sel" />{cols.map(([c]) => <col key={c} className={'c-' + c} />)}</colgroup>
@@ -227,52 +229,158 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
   );
 }
 
-/* ---------- history grid ---------- */
+/* ---------- history: quarter results, and the weekly status behind them ---------- */
 
+type Span = 'year' | 1 | 2 | 3 | 4;
+/** History opens on each quarter's actual against plan; the owners' weekly calls are a named option (Senior UX review, finding 14). */
 export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
+  const app = useApp();
+  const year = isYear(app.cycle);
+  const [params, setParams] = useSearchParams();
+  // Both choices are in the link, so a saved or shared History view comes back the same (round 3 review).
+  const now = quarterOf(app.cycle, app.week);
+  const read = (p: URLSearchParams) => {
+    const w = p.get('weeks');
+    return {
+      show: (year && p.get('hist') !== 'weekly' ? 'results' : 'weekly') as 'results' | 'weekly',
+      span: (w === 'year' ? 'year' : /^q[1-4]$/.test(w ?? '') ? Number(w!.slice(1)) : now.n) as Span,
+    };
+  };
+  // The screen follows a press at once; the address follows too, but the router applies it as a low-priority update
+  // that a busy render can hold back, so the choice is also kept here and re-read whenever the address changes.
+  const fromUrl = read(params);
+  const [shown, setShown] = useState(fromUrl);
+  const key = fromUrl.show + ':' + fromUrl.span;
+  useEffect(() => { setShown(read(params)); }, [key]);
+  const { show, span } = shown;
+  // Built on the address as it is now, so a change made a moment ago elsewhere on the page isn't lost.
+  const setParam = (k: string, v: string | null) => {
+    const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : params);
+    if (v == null) p.delete(k); else p.set(k, v);
+    setShown(read(p));
+    setParams(p, { replace: true });
+  };
+  return (
+    <>
+      {year && (
+        <div className="row between history-head" style={{ alignItems: 'center' }}>
+          <div className="seg" role="group" aria-label="Show">
+            <button type="button" aria-pressed={show === 'results'} onClick={() => setParam('hist', null)}>Quarter results</button>
+            <button type="button" aria-pressed={show === 'weekly'} onClick={() => setParam('hist', 'weekly')}>Weekly status</button>
+          </div>
+          <span className="hint">{show === 'results' ? 'Each quarter: the number at its end against the owner’s plan.' : 'Each square is the owner’s call that week, not a quarter result.'}</span>
+        </div>
+      )}
+      {show === 'results'
+        ? <QuarterResults groups={groups} />
+        : <WeeklyHistory groups={groups} span={year ? span : 'year'} setSpan={(v) => setParam('weeks', v === now.n ? null : v === 'year' ? 'year' : 'q' + v)} />}
+    </>
+  );
+}
+
+function QuarterResults({ groups }: { groups: ViewGroup[] }) {
+  const app = useApp();
+  const qs = quarters(app.cycle);
+  const nowQ = quarterOf(app.cycle, app.week).n;
+  return (
+    <>
+      {groups.map((g) => {
+        if (!g.rows.length) return null;
+        return (
+          <section key={g.key} className="block" aria-label={g.title}>
+            {groups.length > 1 && <GroupHead g={g} count={g.rows.length} />}
+            <div className="table-wrap sticky-head">
+              <table className="gtable qtable">
+                <thead>
+                  <tr>
+                    <th scope="col">Goal</th>
+                    {qs.map((q) => <th key={q.n} scope="col" className={q.n === nowQ ? 'now' : undefined}>{q.label} <span className="hint">{q.months}{q.n === nowQ ? ' · now' : ''}</span></th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.rows.map(({ goal, depth }) => {
+                    const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, app.week);
+                    return (
+                      <tr key={goal.id}>
+                        <th scope="row" className="gt-goal" style={depth ? { paddingLeft: `calc(var(--s3) + ${depth * 16}px)` } : undefined}><Link to={'/goals/' + goal.id}>{goal.title}</Link></th>
+                        {rs.map((r) => (
+                          <td key={r.quarter.n} className={'qcell q-' + r.kind}>
+                            <span className="qcell-label">{r.quarter.label} {r.quarter.months}</span>
+                            <span className="q-result">{r.kind === 'met' ? <><StatusShape k="on" />Met</> : r.kind === 'missed' ? <><StatusShape k="off" />Missed</> : r.kind === 'open' ? (r.quarter.n === nowQ ? 'In progress' : 'To come') : <span className="hint">Nothing due</span>}</span>
+                            {r.kind !== 'none' && <span className="hint qcell-text">{r.text.replace(/^Q\d: /, '')}</span>}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+function WeeklyHistory({ groups, span, setSpan }: { groups: ViewGroup[]; span: Span; setSpan: (v: Span) => void }) {
   const app = useApp();
   const sums = useSummaries(groups);
   const year = isYear(app.cycle);
-  // The range is in the link (weeks=year), so a saved or shared History view comes back the same (round 3 review).
-  const [params, setParams] = useSearchParams();
-  const span: 'quarter' | 'year' = params.get('weeks') === 'year' ? 'year' : 'quarter';
-  // Built on the address as it is now, so a change made a moment ago elsewhere on the page isn't lost.
-  const setSpan = (v: 'quarter' | 'year') => { const p = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : params); if (v === 'year') p.set('weeks', 'year'); else p.delete('weeks'); setParams(p, { replace: true }); };
-  const q = quarterOf(app.cycle, app.week);
-  const weeks = year && span === 'quarter' ? Array.from({ length: q.to - q.from + 1 }, (_, i) => q.from + i) : Array.from({ length: app.cycle.weeks }, (_, i) => i + 1);
+  const qs = quarters(app.cycle);
+  const q = span === 'year' ? null : qs[span - 1]!;
+  const weeks = q ? Array.from({ length: q.to - q.from + 1 }, (_, i) => q.from + i) : Array.from({ length: app.cycle.weeks }, (_, i) => i + 1);
+  const whole = year && span === 'year';
+  // The selected square: a goal and a week. Tap or click a square, or move with the arrow keys (one tab stop per grid).
+  const firstGoal = groups.find((g) => g.rows.length)?.rows[0]?.goal.id ?? null;
+  const [sel, setSel] = useState<{ goal: string | null; week: number }>({ goal: firstGoal, week: Math.max(1, Math.min(app.week, app.cycle.weeks)) });
+  const selWeek = weeks.includes(sel.week) ? sel.week : (weeks.includes(app.week) ? app.week : weeks[0]!);
+  const selGoal = sel.goal && groups.some((g) => g.rows.some((r) => r.goal.id === sel.goal)) ? sel.goal : firstGoal;
   const cellText = (s: GoalSummary, w: number, c: ReturnType<typeof weeklyCalls>) => {
     const ci = c.get(w);
     if (!ci) return w <= app.week ? 'No check-in' : 'Not yet';
     const v = s.goal.kind === 'milestone' ? `${(ci.stages ?? []).filter((u) => u.doneWeek != null).length} of ${s.goal.stages.length} stages` : ci.value == null ? '' : String(ci.value) + (s.goal.unit ? (s.goal.unit === '%' ? '%' : ' ' + s.goal.unit) : '');
     return `${LABEL[ci.status]}${v ? ', ' + v : ''}${ci.backfilled ? ' (loaded later)' : ''}`;
   };
+  const move = (e: React.KeyboardEvent, rows: string[], goalId: string, wk: number) => {
+    const i = rows.indexOf(goalId), j = weeks.indexOf(wk);
+    const to = e.key === 'ArrowRight' ? [i, j + 1] : e.key === 'ArrowLeft' ? [i, j - 1] : e.key === 'ArrowDown' ? [i + 1, j] : e.key === 'ArrowUp' ? [i - 1, j] : e.key === 'Home' ? [i, 0] : e.key === 'End' ? [i, weeks.length - 1] : null;
+    if (!to) return;
+    e.preventDefault();
+    const [r, c] = [Math.max(0, Math.min(rows.length - 1, to[0]!)), Math.max(0, Math.min(weeks.length - 1, to[1]!))];
+    setSel({ goal: rows[r]!, week: weeks[c]! });
+    const table = (e.currentTarget as HTMLElement).closest('table');
+    requestAnimationFrame(() => table?.querySelector<HTMLElement>(`[data-cell="${rows[r]}:${weeks[c]}"]`)?.focus());
+  };
+  const inspected = selGoal ? sums.get(selGoal) : undefined;
   return (
     <>
       {/* One line above the grid: what a square means, its key, and the range. */}
       <div className="row between history-head" style={{ alignItems: 'center' }}>
         <div className="hlegend">
-          <span className="hint">Each square is the owner’s call that week:</span>
           {(['on', 'risk', 'off', 'done'] as const).map((k) => <span key={k} className={'hcell-key tone-' + k}><StatusShape k={k} />{LABEL[k]}</span>)}
           <span className="hcell-key"><span className="hcell-empty" aria-hidden="true" />No check-in</span>
         </div>
         {year && (
           <div className="seg" role="group" aria-label="Weeks shown">
-            <button type="button" aria-pressed={span === 'quarter'} onClick={() => setSpan('quarter')}>This quarter ({q.label})</button>
+            {qs.map((x) => <button key={x.n} type="button" aria-pressed={span === x.n} onClick={() => setSpan(x.n as Span)}>{x.label}</button>)}
             <button type="button" aria-pressed={span === 'year'} onClick={() => setSpan('year')}>Whole year</button>
           </div>
         )}
       </div>
+      {inspected && <WeekInspector s={inspected} week={selWeek} text={cellText(inspected, selWeek, weeklyCalls(inspected.checkIns))} />}
       {groups.map((g) => {
         if (!g.rows.length) return null;
+        const rowIds = g.rows.map((r) => r.goal.id);
         return (
           <section key={g.key} className="block" aria-label={g.title}>
             {groups.length > 1 && <GroupHead g={g} count={g.rows.length} />}
             <div className="table-wrap">
-              <table className={'hgrid' + (year && span === 'year' ? ' hgrid-year' : '')}>
+              <table className={'hgrid' + (whole ? ' hgrid-year' : '')} role="grid" aria-label={`Weekly status, ${g.title}`}>
                 <thead>
                   <tr>
                     <th scope="col" className="hg-goal">Goal</th>
-                    {weeks.map((w) => <th key={w} scope="col" className={(w === app.week ? 'now' : '') + (year && quarters(app.cycle).some((x) => x.from === w) ? ' q-start' : '')} title={weekDates(app.cycle, w)}><span className="sr">Week </span>{year && span === 'year' ? (quarters(app.cycle).find((x) => x.from === w)?.label ?? '') : w}</th>)}
+                    {weeks.map((wk) => <th key={wk} scope="col" className={(wk === app.week ? 'now' : '') + (year && qs.some((x) => x.from === wk) ? ' q-start' : '') + (wk === selWeek ? ' sel' : '')} title={weekDates(app.cycle, wk)}><span className="sr">Week </span>{whole ? (qs.find((x) => x.from === wk)?.label ?? '') : wk}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -280,15 +388,17 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
                     const s = sums.get(goal.id)!;
                     const calls = weeklyCalls(s.checkIns);
                     return (
-                      <tr key={goal.id}>
+                      <tr key={goal.id} className={goal.id === selGoal ? 'sel-row' : undefined}>
                         <th scope="row" className="hg-goal" style={depth ? { paddingLeft: 8 + depth * 12 } : undefined}><Link to={'/goals/' + goal.id}>{goal.title}</Link></th>
-                        {weeks.map((w) => {
-                          const ci = calls.get(w);
-                          const text = cellText(s, w, calls);
+                        {weeks.map((wk) => {
+                          const ci = calls.get(wk);
+                          const text = cellText(s, wk, calls);
+                          const on = goal.id === selGoal && wk === selWeek;
                           return (
-                            <td key={w} className={'hcell' + (w === app.week ? ' now' : '') + (w > app.week ? ' future' : '') + (ci ? ' tone-' + ci.status : '') + (ci?.backfilled ? ' backfilled' : '')} title={`Week ${w}: ${text}`}>
-                              {ci ? <StatusShape k={ci.status} /> : w <= app.week ? <span className="hcell-empty" aria-hidden="true" /> : null}
-                              <span className="sr">{text}</span>
+                            <td key={wk} data-cell={`${goal.id}:${wk}`} tabIndex={on ? 0 : -1} aria-selected={on} onClick={() => setSel({ goal: goal.id, week: wk })} onFocus={() => !on && setSel({ goal: goal.id, week: wk })} onKeyDown={(e) => move(e, rowIds, goal.id, wk)}
+                              className={'hcell' + (wk === app.week ? ' now' : '') + (wk > app.week ? ' future' : '') + (ci ? ' tone-' + ci.status : '') + (ci?.backfilled ? ' backfilled' : '') + (on ? ' sel' : '') + (wk === selWeek ? ' sel-col' : '')} title={`Week ${wk}: ${text}`}>
+                              {ci ? <StatusShape k={ci.status} /> : wk <= app.week ? <span className="hcell-empty" aria-hidden="true" /> : null}
+                              <span className="sr">{goal.title}, week {wk}: {text}</span>
                             </td>
                           );
                         })}
@@ -302,6 +412,22 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
         );
       })}
     </>
+  );
+}
+
+/** The selected square, in words: which week and when, the owner's call, the number and the plan that week. */
+function WeekInspector({ s, week, text }: { s: GoalSummary; week: number; text: string }) {
+  const app = useApp();
+  const ci = weeklyCalls(s.checkIns).get(week);
+  const g = s.goal;
+  const planThen = g.kind === 'metric' && week <= app.cycle.weeks ? fmt(planAt(goalAsOf(g, week).plan, week, app.cycle.weeks), g) : null;
+  return (
+    <div className="week-inspector" role="status" aria-live="polite" aria-label="Selected week">
+      <span className="strong">Week {week} <span className="hint">· {weekDates(app.cycle, week)}{week === app.week ? ' · this week' : ''}</span></span>
+      <span className="wi-goal ellipsis"><Link to={'/goals/' + g.id}>{g.title}</Link></span>
+      <span className="row" style={{ gap: 6 }}>{ci && <StatusShape k={ci.status} />}<span>{text}</span>{planThen && <span className="hint">· plan {planThen}</span>}</span>
+      <span className="hint">Arrow keys move between weeks and goals.</span>
+    </div>
   );
 }
 
