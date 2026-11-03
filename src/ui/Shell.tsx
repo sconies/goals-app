@@ -11,7 +11,7 @@ import { Coach } from './Coach';
 import { ResearchBar } from './ResearchBar';
 import { useNavMode, type NavMode } from '../app/navMode';
 
-type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'new' | 'workspace';
+type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'data' | 'new' | 'workspace';
 const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
   home: { to: '/', label: 'Home', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 7 8 2.5 13.5 7v6.5h-11z" /><path d="M6.5 13.5v-4h3v4" /></svg> },
   checkin: { to: '/check-in', label: 'Check-in', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" /><path d="m5.5 8.2 1.8 1.8 3.3-3.6" /></svg> },
@@ -19,14 +19,15 @@ const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
   reviews: { to: '/reviews', label: 'Reviews', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><rect x="2.5" y="3" width="11" height="10.5" rx="2" /><path d="M2.5 6.5h11M5.5 1.8v2.4M10.5 1.8v2.4" /></svg> },
   goals: { to: '/goals', label: 'Goals', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2" /></svg> },
   activity: { to: '/activity', label: 'Activity', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 8h3l2-4.5 3 9 2-4.5h3" /></svg> },
+  data: { to: '/data', label: 'Data', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" /><path d="M2.5 6.5h11M2.5 10h11M6.5 6.5v7" /></svg> },
   new: { to: '/goals/new', label: 'New goal', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg> },
   workspace: { to: '/workspace', label: 'Workspace', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><rect x="9" y="9" width="4.5" height="4.5" rx="1" /></svg> },
 };
 /** Everyone gets the same places; check-in only appears for people who own goals. */
 function navFor(ownsGoals: boolean, mode: NavMode = 'current'): NavId[] {
   // The 4-tab trial: Home, Goals, Reviews on the bar; check-in is reached from Home and goal pages, Watching from Goals.
-  if (mode === 'four') return ['home', 'goals', 'reviews', ...(ownsGoals ? ['checkin' as const] : []), 'watching', 'activity', 'new', 'workspace'];
-  return ownsGoals ? ['home', 'checkin', 'watching', 'reviews', 'goals', 'activity', 'new', 'workspace'] : ['home', 'watching', 'reviews', 'goals', 'activity', 'new', 'workspace'];
+  if (mode === 'four') return ['home', 'goals', 'reviews', ...(ownsGoals ? ['checkin' as const] : []), 'watching', 'activity', 'data', 'new', 'workspace'];
+  return ownsGoals ? ['home', 'checkin', 'watching', 'reviews', 'goals', 'activity', 'data', 'new', 'workspace'] : ['home', 'watching', 'reviews', 'goals', 'activity', 'data', 'new', 'workspace'];
 }
 
 function isActive(id: NavId, path: string) {

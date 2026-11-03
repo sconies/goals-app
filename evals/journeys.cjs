@@ -518,7 +518,7 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.actorId === 'maya' && c.goalId === 'access' && c.diffs.some((d) => /SEC-88 fix/.test(d.to))), 'the comment is not in the change log');
   await p.goto(url('/goals/review'));
-  await see(p, `Target changed in week ${W(4)}: 75% → 95%`, 'the re-baseline is explained on the chart');
+  await see(p, `Target changed in week ${W(5)}: 75% → 95%`, 'the re-baseline is explained on the chart');
   await p.context().close();
 }, ['errors', 'budget']);
 
@@ -1320,6 +1320,69 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   await p.context().close();
 }, ['entry', 'errors', 'one-action']);
 
+journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it', 26, async (h, device) => {
+  const p = h.use(await newPage(device, 'priya'));
+  // Everyone can open the tables; an admin types into cells across tables, then reviews and saves once.
+  await p.goto(url('/data?t=people'));
+  const title = p.getByLabel('Job title, Tom Reid');
+  await title.waitFor();
+  await h.fill(title, 'Staff engineer, DevEx');
+  await h.click(p.getByRole('tab', { name: /Check-ins/ }));
+  // Property filters: a goal from its list of values, and a number condition; then sort by a column.
+  await h.click(p.getByRole('button', { name: '+ Filter' }));
+  let sheet = p.getByRole('dialog', { name: 'Add a filter' });
+  await sheet.getByLabel('Property').selectOption('Goal');
+  await h.click(sheet.getByLabel('PRs with AI code review'));
+  await h.click(sheet.getByRole('button', { name: 'Add filter' }));
+  await h.click(p.getByRole('button', { name: '+ Filter' }));
+  sheet = p.getByRole('dialog', { name: 'Add a filter' });
+  await sheet.getByLabel('Property').selectOption('Week');
+  await sheet.getByLabel('Condition').selectOption('gte');
+  await h.fill(sheet.getByRole('textbox', { name: 'Value', exact: true }), '38');
+  await h.click(sheet.getByRole('button', { name: 'Add filter' }));
+  await see(p, 'Goal is PRs with AI code review', 'the goal filter is not shown as words');
+  await see(p, 'Week ≥ 38', 'the week filter is not shown as words');
+  await h.click(p.locator('.dtable thead').getByRole('button', { name: /^Week$/ }));
+  const weeks = await p.locator('.dtable tbody tr').evaluateAll((trs) => trs.map((tr) => tr.querySelectorAll('td')[3]?.textContent ?? ''));
+  h.set('progress', weeks.length > 0 && weeks.every((w, i) => Number(w) >= 38 && (i === 0 || Number(w) >= Number(weeks[i - 1]))) && /f=Goal/.test(p.url()) && /s=Week/.test(p.url()), `filtered and sorted weeks: ${weeks.join(', ')}`);
+  await h.fill(p.getByPlaceholder('Search check-ins'), 'reached GA');
+  const why = p.getByLabel(/^Why, PRs with AI code review, week/).first();
+  await why.waitFor();
+  const was = await why.inputValue();
+  await h.fill(why, was.replace('two weeks early', 'three weeks early'));
+  await see(p, '2 changes in 2 rows, not saved yet', 'the tables do not say what is waiting to be saved');
+  h.set('attention', (await p.locator('.dcell.edited').count()) === 1 && (await why.getAttribute('aria-label')) !== null, 'a changed cell is not marked as changed');
+  await h.checkpoint('edited');
+  await h.click(p.getByRole('button', { name: 'Review changes' }));
+  const dialog = p.getByRole('dialog', { name: 'Review your changes' });
+  await see(dialog, 'Tom Reid', 'the review does not show the person change');
+  h.set('errors', !(await dialog.getByText('fixing first').isVisible().catch(() => false)), 'the review found problems with the edits');
+  await h.click(dialog.getByRole('button', { name: /^Save 2 changes/ }));
+  await see(p, 'Saved 2 changes', 'saving the tables did not confirm');
+  const s = await h.snapshot();
+  h.set('logged', s.people.find((x) => x.id === 'tom')?.role === 'Staff engineer, DevEx' && s.changes.some((c) => c.entity === 'check-in' && c.actorId === 'priya' && c.diffs.some((d) => d.field === 'Via' && d.to === 'Data tables')), 'the person or the check-in correction was not saved and logged');
+  // Someone who isn't an admin can look but not change anything.
+  const m = await newPage(device, 'maya');
+  await m.goto(url('/data'));
+  await see(m, 'Admins can change them here', 'a non-admin is not told who can change the data');
+  h.set('errors', (await m.locator('.dtable input, .dtable select').count()) === 0, 'a non-admin can type into the data tables');
+  await m.context().close();
+  // Activity: kind, who and when, all in the link; then save what's shown.
+  await p.goto(url('/activity'));
+  await h.click(p.getByRole('group', { name: 'Kind of change' }).getByRole('button', { name: /^Check-ins/ }));
+  await p.waitForURL(/kind=checkins/, { timeout: 3000 }).catch(() => {});
+  await h.click(p.getByRole('button', { name: /^Filters/ }));
+  await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByLabel('Only my changes'));
+  await h.click(p.getByRole('button', { name: 'Show the changes' }));
+  await p.waitForURL(/who=priya/, { timeout: 3000 }).catch(() => {});
+  h.set('finish', /kind=checkins/.test(p.url()) && /who=priya/.test(p.url()), 'the activity filters are not in the link');
+  await see(p, /\d+ of \d+ changes/, 'the filtered activity does not say how many it shows');
+  const download = p.waitForEvent('download', { timeout: 5000 }).catch(() => null);
+  await h.click(p.getByRole('button', { name: 'Save .csv' }));
+  h.set('progress', !!(await download), 'Save .csv did not download the filtered log');
+  await p.context().close();
+}, ['entry', 'one-action']);
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));
   await p.goto(url('/goals'));
@@ -1477,7 +1540,7 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['maya', '/'], ['elena', '/'], ['priya', '/'], ['tom', '/'], ['maya', '/goals'], ['elena', '/goals'], ['maya', '/goals/head'], ['maya', '/goals/access'], ['maya', '/activity'], ['maya', '/workspace'], ['elena', '/reviews'], ['elena', '/reviews/weekly'], ['leo', '/reviews/new'], ['maya', '/watching'], ['tom', '/watching'], ['leo', '/watching'], ['maya', '/goals?show=levels'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['sam', '/goals/new'], ['priya', '/workspace/new']]) {
+    for (const [who, route] of [['maya', '/'], ['elena', '/'], ['priya', '/'], ['tom', '/'], ['maya', '/goals'], ['elena', '/goals'], ['maya', '/goals/head'], ['maya', '/goals/access'], ['maya', '/activity'], ['maya', '/data'], ['priya', '/data?t=checkIns'], ['maya', '/workspace'], ['elena', '/reviews'], ['elena', '/reviews/weekly'], ['leo', '/reviews/new'], ['maya', '/watching'], ['tom', '/watching'], ['leo', '/watching'], ['maya', '/goals?show=levels'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['sam', '/goals/new'], ['priya', '/workspace/new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:example', w), who);
       await r.reload();
@@ -1506,7 +1569,7 @@ async function platformChecks() {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['maya', '/'], ['elena', '/'], ['maya', '/goals'], ['maya', '/goals?view=table'], ['maya', '/goals?view=board'], ['maya', '/goals?view=history'], ['maya', '/goals?view=cards'], ['maya', '/goals?view=map'],
-      ['maya', '/goals/head'], ['maya', '/goals/access'], ['elena', '/reviews/weekly'], ['maya', '/watching'], ['kofi', '/quick-check-in'], ['kofi', '/import'], ['maya', '/activity'], ['priya', '/workspace'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['maya', '/retro']]) {
+      ['maya', '/goals/head'], ['maya', '/goals/access'], ['elena', '/reviews/weekly'], ['maya', '/watching'], ['kofi', '/quick-check-in'], ['kofi', '/import'], ['maya', '/activity'], ['priya', '/data'], ['priya', '/workspace'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['maya', '/retro']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:example', w), who);
       await r.reload();

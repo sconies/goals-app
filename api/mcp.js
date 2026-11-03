@@ -22729,7 +22729,7 @@ metric({
 	level: "svp"
 }, "%", 0, 30, 95, {
 	originalPlan: reviewOriginal,
-	rebaselinedWeek: toYear(4)
+	rebaselinedWeek: toYear(4) + 1
 }), metric({
 	...common("lead", "devex", "sam", "Lead time for changes", "DORA dashboard"),
 	effect: 2
@@ -22755,7 +22755,7 @@ toYear(2), toYear(2), toYear(2), toYear(4), toYear(2), toYear(4), toYear(2), toY
 `${toYear(6)}${toYear(9)}`, `${toYear(9)}`;
 // src/data/examples.ts
 var DAY$1 = 864e5;
-var initials = (n) => n.split(/\s+/).map((w) => w[0].toUpperCase()).slice(0, 2).join("");
+var initials$1 = (n) => n.split(/\s+/).map((w) => w[0].toUpperCase()).slice(0, 2).join("");
 function mondayOf(d) {
 	const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 	return day - (new Date(day).getUTCDay() + 6) % 7 * DAY$1;
@@ -22773,7 +22773,7 @@ function buildExample(spec, today) {
 	};
 	const people = spec.people.map((p) => ({
 		...p,
-		initials: initials(p.name),
+		initials: initials$1(p.name),
 		admin: !!p.admin
 	}));
 	const goals = spec.goals.map((g, i) => {
@@ -24502,6 +24502,7 @@ var GOAL_COLUMNS = [
 	"Deploys rolled back	Platform	Ben Ortiz	range	%				5	at most	1		Deploy lead time			CI dashboard",
 	"Canary releases live	Platform	Ben Ortiz	milestone								Design@2; Pilot@6; All services@10	Deploy lead time		1	Jira PLAT epics"
 ].join("\n");
+var initials = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 function levelOf(r) {
 	const v = (r["level"] ?? "").toLowerCase().replace(/[^a-z]/g, "");
 	if (v.startsWith("north") || yes(r["headline"] ?? "")) return "north-star";
@@ -24540,11 +24541,64 @@ function forecastText(goal, a, weeks) {
 		warn: false
 	};
 }
+// src/domain/people.ts
+var norm$1 = (s) => s.trim().toLowerCase();
+/** What's wrong with saving `p` (empty if nothing): a name, a unique name, and always at least one admin. */
+function personProblems(p, people, before) {
+	const out = [];
+	if (!p.name.trim()) out.push("Add a name.");
+	const dup = people.find((x) => x.id !== p.id && norm$1(x.name) === norm$1(p.name));
+	if (p.name.trim() && dup) out.push(`${dup.name} is already here. Add a middle initial so people can tell you apart.`);
+	if (before?.admin && !p.admin && people.filter((x) => x.admin && x.id !== p.id).length === 0) out.push("The only admin stays one: make someone else an admin first.");
+	return out;
+}
+/** The change-log entry for adding or changing a person; null when nothing changed. */
+function personChange(before, after, teamName, actorId, at, id) {
+	const diffs = before ? [
+		...before.name !== after.name ? [{
+			field: "Name",
+			from: before.name,
+			to: after.name
+		}] : [],
+		...(before.role || "") !== (after.role || "") ? [{
+			field: "Job title",
+			from: before.role || "—",
+			to: after.role || "—"
+		}] : [],
+		...before.teamId !== after.teamId ? [{
+			field: "Team",
+			from: teamName(before.teamId ?? "") || "—",
+			to: teamName(after.teamId ?? "") || "—"
+		}] : [],
+		...before.admin !== after.admin ? [{
+			field: "Admin",
+			from: before.admin ? "Yes" : "No",
+			to: after.admin ? "Yes" : "No"
+		}] : []
+	] : [{
+		field: "Person",
+		from: "—",
+		to: after.name
+	}];
+	if (before && !diffs.length) return null;
+	return {
+		id,
+		at,
+		actorId,
+		goalId: null,
+		entity: "person",
+		entityId: after.id,
+		action: before ? "edited" : "created",
+		summary: before ? `Changed ${after.name}` : `Added ${after.name}`,
+		diffs
+	};
+}
 // src/domain/changeset.ts
 var VIA_LABEL = {
 	spreadsheet: "Spreadsheet",
 	bulk: "Bulk edit",
-	mcp: "AI assistant (MCP)"
+	mcp: "AI assistant (MCP)",
+	table: "Data tables"
 };
 var norm = (s) => s.trim().toLowerCase();
 var has = (r, k) => Object.prototype.hasOwnProperty.call(r, k);
@@ -24584,7 +24638,8 @@ function describe(cs) {
 		c.goals && `${c.goals} ${c.goals === 1 ? "goal" : "goals"} changed`,
 		c.plans && `${c.plans} ${c.plans === 1 ? "plan" : "plans"} changed`,
 		c.checkIns && `${c.checkIns} ${c.checkIns === 1 ? "check-in" : "check-ins"}${c.backfilled ? ` (${c.backfilled} for past weeks)` : ""}`,
-		c.replaced && `${c.replaced} replaced`
+		c.replaced && `${c.replaced} replaced`,
+		c.people && `${c.people} ${c.people === 1 ? "person" : "people"} changed`
 	].filter(Boolean);
 	return parts.length ? parts.join(", ") : "No changes";
 }
@@ -24607,7 +24662,56 @@ function planChanges(input) {
 		message,
 		severity: "warning"
 	});
-	const person = (name) => s.people.find((p) => norm(p.name) === norm(name));
+	const people = new Map(s.people.map((p) => [p.id, p]));
+	const peopleTouched = [];
+	(input.tables.people ?? []).forEach((r, i) => {
+		const row = rowOf(r, i);
+		const id = val(r, "id");
+		if (Object.entries(r).every(([k, v]) => k === "__row" || !v)) return;
+		const before = id ? s.people.find((p) => p.id === id) : void 0;
+		if (!before) return err("People", row, val(r, "name"), id ? `There’s no person with ID ${id}.` : "Add new people under Workspace; here you change the people already in it.");
+		const teamName = has(r, "team") ? val(r, "team") : null;
+		const tm = teamName ? s.teams.find((t) => norm(t.name) === norm(teamName)) : null;
+		if (teamName && !tm) return err("People", row, before.name, `There’s no team called “${teamName}”.`);
+		const adminRaw = has(r, "admin") ? norm(val(r, "admin")) : null;
+		if (adminRaw != null && ![
+			"",
+			"yes",
+			"no",
+			"true",
+			"false",
+			"y",
+			"n"
+		].includes(adminRaw)) return err("People", row, before.name, `Admin should be yes or no, not “${val(r, "admin")}”.`);
+		const name = has(r, "name") ? val(r, "name") : before.name;
+		const after = {
+			...before,
+			name,
+			initials: name === before.name ? before.initials : initials(name),
+			role: has(r, "job title") ? val(r, "job title") : before.role,
+			teamId: teamName == null ? before.teamId : tm?.id ?? null,
+			admin: adminRaw == null ? before.admin : [
+				"yes",
+				"true",
+				"y"
+			].includes(adminRaw)
+		};
+		if (JSON.stringify(after) === JSON.stringify(before)) {
+			unchanged++;
+			return;
+		}
+		if (!actor.admin) return err("People", row, before.name, "Only an admin can change people.");
+		people.set(id, after);
+		peopleTouched.push({
+			before,
+			row
+		});
+	});
+	for (const t of peopleTouched) {
+		const problems = personProblems(people.get(t.before.id), [...people.values()], t.before);
+		if (problems.length) err("People", t.row, t.before.name, problems.join(" "));
+	}
+	const person = (name) => [...people.values()].find((p) => norm(p.name) === norm(name));
 	const team = (name) => s.teams.find((t) => norm(t.name) === norm(name));
 	const work = new Map(s.goals.map((g) => [g.id, g]));
 	const touched = /* @__PURE__ */ new Map();
@@ -24872,9 +24976,19 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`);
 			continue;
 		}
-		const key = g.id + ":" + w;
+		const cid = val(r, "id");
+		const byId = cid ? s.checkIns.find((c) => c.id === cid) : void 0;
+		if (cid && (!byId || byId.goalId !== g.id)) {
+			err("Check-ins", row, g.title, `There’s no check-in with ID ${cid} on this goal. Leave ID empty to add a check-in.`);
+			continue;
+		}
+		if (byId && byId.week !== w) {
+			err("Check-ins", row, g.title, `Check-in ${cid} is for week ${byId.week}; a check-in’s week can’t change.`);
+			continue;
+		}
+		const key = cid || g.id + ":" + w;
 		if (seen.has(key)) {
-			err("Check-ins", row, g.title, `Week ${w} appears twice for this goal.`);
+			err("Check-ins", row, g.title, cid ? `Check-in ${cid} appears twice.` : `Week ${w} appears twice for this goal.`);
 			continue;
 		}
 		seen.add(key);
@@ -24922,7 +25036,7 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Call “${val(r, "call")}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`);
 			continue;
 		}
-		const existing = checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
+		const existing = byId ?? checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
 		if (existing && (!call || existing.status === call) && (g.kind === "milestone" ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, "value"))) && (!has(r, "why") || val(r, "why") === existing.why)) {
 			unchanged++;
 			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
@@ -24998,6 +25112,23 @@ function planChanges(input) {
 			backfilled
 		});
 	}
+	const peopleOut = [];
+	for (const t of peopleTouched) {
+		const after = people.get(t.before.id);
+		const ch = personChange(t.before, after, (tid) => s.teams.find((x) => x.id === tid)?.name ?? "", actor.id, now, newId("chg"));
+		if (!ch) continue;
+		peopleOut.push(after);
+		changes.push(ch);
+		items.push({
+			sheet: "People",
+			row: t.row,
+			goalId: "",
+			goal: after.name,
+			kind: "person",
+			summary: ch.summary,
+			diffs: ch.diffs
+		});
+	}
 	for (const ch of changes) ch.diffs.push({
 		field: "Via",
 		from: "—",
@@ -25010,7 +25141,8 @@ function planChanges(input) {
 		plans: items.filter((x) => x.kind === "plan").length,
 		checkIns: items.filter((x) => x.kind === "check-in" || x.kind === "replaces check-in").length,
 		backfilled: items.filter((x) => x.backfilled).length,
-		replaced: items.filter((x) => x.kind === "replaces check-in").length
+		replaced: items.filter((x) => x.kind === "replaces check-in").length,
+		people: items.filter((x) => x.kind === "person").length
 	};
 	const ok = !issues.some((x) => x.severity === "error") && !needsReason && items.length > 0;
 	const result = {
@@ -25030,7 +25162,7 @@ function planChanges(input) {
 			entity: "workspace",
 			entityId: newId("imp"),
 			action: "imported",
-			summary: `${via === "spreadsheet" ? "Loaded a spreadsheet" : via === "mcp" ? "Changes from an AI assistant" : "Bulk edit"}: ${describe(result).toLowerCase()}`,
+			summary: `${via === "spreadsheet" ? "Loaded a spreadsheet" : via === "mcp" ? "Changes from an AI assistant" : via === "table" ? "Edited the data tables" : "Bulk edit"}: ${describe(result).toLowerCase()}`,
 			diffs: [{
 				field: "Via",
 				from: "—",
@@ -25044,6 +25176,7 @@ function planChanges(input) {
 			ordered.push(...pending.splice(i < 0 ? 0 : i, 1));
 		}
 		result.commit = {
+			...peopleOut.length ? { people: peopleOut } : {},
 			goals: ordered,
 			checkIns: posted,
 			changes: [...changes, summary]
@@ -25355,6 +25488,7 @@ var GOAL_DERIVED_COLUMNS = [
 	"Q4"
 ];
 var CHECKIN_EXPORT_COLUMNS = [
+	"ID",
 	"Goal ID",
 	"Goal",
 	"Week",
@@ -25436,6 +25570,7 @@ function checkInRows(x, sums, name) {
 		for (const c of s.checkIns) {
 			const ptg = c.pathToGreen;
 			rows.push([
+				c.id,
 				g.id,
 				g.title,
 				c.week,
@@ -25459,7 +25594,7 @@ function checkInRows(x, sums, name) {
 			]);
 		}
 	}
-	return rows.sort((a, b) => String(a[1]).localeCompare(String(b[1])) || Number(a[2]) - Number(b[2]));
+	return rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])) || Number(a[3]) - Number(b[3]) || String(a[18]).localeCompare(String(b[18])));
 }
 /** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
 function planRows(x, sums) {
@@ -25565,9 +25700,15 @@ var README = [
 	],
 	[
 		"Check-ins",
+		"ID",
+		"The check-in’s own identity. It never changes. Keep it to correct that check-in; leave it empty to add one.",
+		"Matches the check-in"
+	],
+	[
+		"Check-ins",
 		"Goal ID, Week, Value or Stages",
-		"One row per goal per week",
-		"Adds or replaces that week’s check-in"
+		"One row per check-in: a goal and week, and what was reported",
+		"Adds a check-in, or corrects the one with that ID (or that week’s latest when there’s no ID)"
 	],
 	[
 		"Check-ins",
@@ -25589,9 +25730,15 @@ var README = [
 	],
 	[
 		"People",
+		"ID",
+		"The person’s own identity. It never changes.",
+		"Matches the person (in the data tables)"
+	],
+	[
+		"People",
 		"Name, Job title, Team, Admin, Team objective",
 		"Who’s who",
-		"Not loaded back yet"
+		"Changed in the data tables; not loaded back from a file yet"
 	]
 ];
 function workbook(x) {
@@ -25812,6 +25959,7 @@ function toJson(x) {
 					week: s.story.result.week
 				} : null,
 				checkIns: s.checkIns.map((c) => ({
+					id: c.id,
 					week: c.week,
 					weekStarting: weekDate(x.cycle, c.week),
 					value: c.value,

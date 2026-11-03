@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { initials } from '../domain/importer';
+import { personProblems } from '../domain/people';
 import type { Person } from '../domain/types';
 import { newId } from '../data/store';
 import { Avatar, Sheet, timeAgo } from '../ui/bits';
@@ -100,8 +101,7 @@ function PersonSheet({ person, onClose }: { person: Person | null; onClose: () =
   const lastAdmin = !!person?.admin && app.snapshot.people.filter((x) => x.admin).length === 1;
   const save = async () => {
     setTried(true);
-    if (!p.name.trim()) return;
-    if (app.snapshot.people.some((x) => x.id !== p.id && x.name.trim().toLowerCase() === p.name.trim().toLowerCase())) return;
+    if (personProblems(p, app.snapshot.people, person).length) return;
     await app.savePerson({ ...p, name: p.name.trim(), role: p.role.trim(), initials: initials(p.name.trim()) }, person);
     app.toast(person ? 'Saved' : `Added ${p.name.trim()}`);
     onClose();

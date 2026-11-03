@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-03 00:17 UTC.
+Run 2026-11-03 11:33 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -38,6 +38,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 32 | Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 18) |
 | 33 | A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table | **10** | – | ✓ | – | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 6 (budget 16) |
 | 34 | What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 14) |
+| 35 | An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it | **10** | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 18 · 18 (budget 26) |
 | 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
 | 27 | Take a walkthrough: the coach points the way and moves on as you do each step | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 6 · 6 (budget 10) |
 | 28 | A research session: first glances, a note pinned to the screen, a task result and a report | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
@@ -56,7 +57,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**62 of 62 pass**. Spec scenarios 65/65.
+**63 of 63 pass**. Spec scenarios 65/65.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -90,7 +91,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **PROFILES** There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings. | People | 0 | U1, U2, U9 |
 | ✅ | **ATTENTION** Off track, stale, a worsening trend, a missed or missing path to green, and pending proposals are flagged where the user starts, with the reason in one line. | Attention | 0 | U2, U3, U6, U8, U16 |
 | ✅ | **REVIEW** A review walks its goals worst and stalest first, one goal page at a time, with next and previous. | Reviews | 0 | U3 |
-| ✅ | **CHANGE-LOG** Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. | Change log | 0 | U1, U3, U4, U5, U11, U6, U7, U13, U14, U10 |
+| ✅ | **CHANGE-LOG** Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line. | Change log | 0 | U1, U3, U4, U5, U11, U6, U7, U13, U14, U10, U35 |
 | ✅ | **DRAFTS** Unsaved answers survive leaving a flow and are offered back when the user returns. Numbers typed in the one-table check-in are kept across a refresh until posted. | Focus | 0 | U1, U4, U30, U34 |
 | ✅ | **WORKSPACES** The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back. | Data | 0 | U5, U17 |
 | ✅ | **MOTION** Motion is subtle and never blocks; it switches off under reduced motion. Loading shows a skeleton, not a blank page. | Platform | 0 | P1, P2 |
@@ -122,6 +123,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **WIDE-SCREENS** Every screen size gets a layout made for it, from a 360px phone to a 3440px monitor. Focused tasks stay narrow. Home, a goal and Watching put a side column beside the main one when there's room. Tables, boards and cards use a wide frame without clipping, and the map fills the window. On a very wide monitor, pages stay near the sidebar rather than floating mid-screen. On a short laptop, a goal's chart is above the fold. Every status shape has its word beside it. | Layout | 0 | P8, P7 |
 | ✅ | **SAVED-VIEWS** Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. | Goals | 3 | U32, U33, U34 |
 | ✅ | **EXCEPTIONS-FIRST** A leader's attention goes to the exceptions. A weekly review walks the goals that need a look one at a time and takes the goals on track with nothing flagged together in one acknowledgement, which can be opened or walked instead. A goal page says which contributing goals are most likely to make it miss. A request for a decision has Respond beside it. Asking for an update leaves a lasting 'Asked' in place of the button. The table keeps each goal's story to one line, with Details to open it, and the board puts the north star first and folds healthy lanes to a count. New goal asks before resuming an unpublished one. One name per idea: No recent update, Contributing goals, Decision or help needed. | Leading | 0 | U33 |
+| ✅ | **DATA-TABLES** Every person, goal, check-in and plan is in a table anyone can read, search, sort and filter by any column: a value from its list, a number condition, words, or empty; the filters and sort are in the link. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged. Every record shows its own ID, which never changes. | Data | 0 | U35 |
 
 ## Platform checks
 

@@ -7,6 +7,7 @@ import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
 import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
+import { personChange } from '../domain/people';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
 import { hashToken, newToken } from '../mcp/protocol';
@@ -352,10 +353,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       unwatch: async (watchId) => { await commit({ unwatch: [watchId], changes: [] }); },
       savePerson: async (p, before) => {
-        const diffs = before
-          ? [...(before.name !== p.name ? [{ field: 'Name', from: before.name, to: p.name }] : []), ...(before.teamId !== p.teamId ? [{ field: 'Team', from: lookup.teamName(before.teamId ?? '') || '—', to: lookup.teamName(p.teamId ?? '') || '—' }] : []), ...(before.admin !== p.admin ? [{ field: 'Admin', from: before.admin ? 'Yes' : 'No', to: p.admin ? 'Yes' : 'No' }] : [])]
-          : [{ field: 'Person', from: '—', to: p.name }];
-        await commit({ people: [p], changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: null, entity: 'person', entityId: p.id, action: before ? 'edited' : 'created', summary: before ? `Changed ${p.name}` : `Added ${p.name}`, diffs }] });
+        const ch = personChange(before, p, lookup.teamName, viewer.id, stamp(), newId('chg'));
+        await commit({ people: [p], changes: ch ? [ch] : [] });
       },
       saveReview: async (review, before) => {
         const at = stamp();

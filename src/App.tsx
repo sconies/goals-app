@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { AppProvider, useApp } from './app/state';
 import type { Mode, Store } from './data/store';
 import { Activity } from './screens/Activity';
+import { DataTables } from './screens/DataTables';
 import { CheckInFlow } from './screens/CheckInFlow';
 import { GoalEdit } from './screens/GoalEdit';
 import { GoalScreen } from './screens/GoalScreen';
@@ -45,6 +46,7 @@ export function Routed() {
         <Route path="/goals/:goalId" element={<GoalScreen />} />
         <Route path="/goals/:goalId/edit" element={<GoalEdit />} />
         <Route path="/activity" element={<Activity />} />
+        <Route path="/data" element={<DataTables />} />
         <Route path="/workspace" element={<WorkspaceHome />} />
         <Route path="/workspace/new" element={<Onboarding />} />
         <Route path="/ready" element={<Ready />} />

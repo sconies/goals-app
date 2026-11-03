@@ -9,21 +9,23 @@ import { levelOf, parseTable, shapeOf } from './importer';
 import { planAt, planEnd, weekDate } from './plan';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
+import { personChange, personProblems } from './people';
+import { initials } from './importer';
 import type { Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, RecoveryState, Snapshot, StageUpdate, Status } from './types';
 
 /** A row as a header → value map (lower-case headers), and its row number in the sheet. */
 export type Rec = Record<string, string> & { __row?: string };
-export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[] }
-export type Via = 'spreadsheet' | 'bulk' | 'mcp';
-export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'AI assistant (MCP)' };
+export interface Tables { goals?: Rec[]; plan?: Rec[]; checkIns?: Rec[]; people?: Rec[] }
+export type Via = 'spreadsheet' | 'bulk' | 'mcp' | 'table';
+export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'AI assistant (MCP)', table: 'Data tables' };
 
-export interface Issue { sheet: 'Goals' | 'Plan' | 'Check-ins'; row: number; goal: string; message: string; severity: 'error' | 'warning' }
+export interface Issue { sheet: 'Goals' | 'Plan' | 'Check-ins' | 'People'; row: number; goal: string; message: string; severity: 'error' | 'warning' }
 export interface Item {
   sheet: Issue['sheet'];
   row: number;
   goalId: string;
   goal: string;
-  kind: 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in';
+  kind: 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person';
   summary: string;
   diffs: Diff[];
   backfilled?: boolean;
@@ -38,7 +40,7 @@ export interface ChangeSet {
   needsReason: boolean;
   /** Ready to save: null while there are errors or a reason is missing. */
   commit: Commit | null;
-  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number };
+  counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number };
 }
 
 export interface ChangeInput {
@@ -102,6 +104,7 @@ export function describe(cs: ChangeSet): string {
     c.plans && `${c.plans} ${c.plans === 1 ? 'plan' : 'plans'} changed`,
     c.checkIns && `${c.checkIns} ${c.checkIns === 1 ? 'check-in' : 'check-ins'}${c.backfilled ? ` (${c.backfilled} for past weeks)` : ''}`,
     c.replaced && `${c.replaced} replaced`,
+    c.people && `${c.people} ${c.people === 1 ? 'person' : 'people'} changed`,
   ].filter(Boolean);
   return parts.length ? parts.join(', ') : 'No changes';
 }
@@ -115,7 +118,38 @@ export function planChanges(input: ChangeInput): ChangeSet {
   let unchanged = 0;
   const err = (sheet: Issue['sheet'], row: number, goal: string, message: string) => issues.push({ sheet, row, goal, message, severity: 'error' });
   const warn = (sheet: Issue['sheet'], row: number, goal: string, message: string) => issues.push({ sheet, row, goal, message, severity: 'warning' });
-  const person = (name: string) => s.people.find((p) => norm(p.name) === norm(name));
+  // People first, so a goal row can name someone by the name this same change gives them.
+  const people = new Map<string, Person>(s.people.map((p) => [p.id, p]));
+  const peopleTouched: { before: Person; row: number }[] = [];
+  (input.tables.people ?? []).forEach((r, i) => {
+    const row = rowOf(r, i);
+    const id = val(r, 'id');
+    if (Object.entries(r).every(([k, v]) => k === '__row' || !v)) return;
+    const before = id ? s.people.find((p) => p.id === id) : undefined;
+    if (!before) return err('People', row, val(r, 'name'), id ? `There’s no person with ID ${id}.` : 'Add new people under Workspace; here you change the people already in it.');
+    const teamName = has(r, 'team') ? val(r, 'team') : null;
+    const tm = teamName ? s.teams.find((t) => norm(t.name) === norm(teamName)) : null;
+    if (teamName && !tm) return err('People', row, before.name, `There’s no team called “${teamName}”.`);
+    const adminRaw = has(r, 'admin') ? norm(val(r, 'admin')) : null;
+    if (adminRaw != null && !['', 'yes', 'no', 'true', 'false', 'y', 'n'].includes(adminRaw)) return err('People', row, before.name, `Admin should be yes or no, not “${val(r, 'admin')}”.`);
+    const name = has(r, 'name') ? val(r, 'name') : before.name;
+    const after: Person = {
+      ...before, name, initials: name === before.name ? before.initials : initials(name),
+      role: has(r, 'job title') ? val(r, 'job title') : before.role,
+      teamId: teamName == null ? before.teamId : tm?.id ?? null,
+      admin: adminRaw == null ? before.admin : ['yes', 'true', 'y'].includes(adminRaw),
+    };
+    if (JSON.stringify(after) === JSON.stringify(before)) { unchanged++; return; }
+    if (!actor.admin) return err('People', row, before.name, 'Only an admin can change people.');
+    people.set(id, after);
+    peopleTouched.push({ before, row });
+  });
+  for (const t of peopleTouched) {
+    const after = people.get(t.before.id)!;
+    const problems = personProblems(after, [...people.values()], t.before);
+    if (problems.length) err('People', t.row, t.before.name, problems.join(' '));
+  }
+  const person = (name: string) => [...people.values()].find((p) => norm(p.name) === norm(name));
   const team = (name: string) => s.teams.find((t) => norm(t.name) === norm(name));
 
   // The working set: goals as they will be after this change, by id.
@@ -298,8 +332,13 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const w = parseNumber(val(r, 'week'));
     if (w == null || !Number.isInteger(w) || w < 1) { err('Check-ins', row, g.title, w === 0 ? 'Check-ins start in week 1; week 0 is the start of the year.' : 'Week should be a whole number from 1, counted from the start of the year.'); continue; }
     if (w > week) { err('Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
-    const key = g.id + ':' + w;
-    if (seen.has(key)) { err('Check-ins', row, g.title, `Week ${w} appears twice for this goal.`); continue; }
+    // The check-in's own ID, when the row has one, says exactly which check-in it is: it never changes, nor does its goal or week.
+    const cid = val(r, 'id');
+    const byId = cid ? s.checkIns.find((c) => c.id === cid) : undefined;
+    if (cid && (!byId || byId.goalId !== g.id)) { err('Check-ins', row, g.title, `There’s no check-in with ID ${cid} on this goal. Leave ID empty to add a check-in.`); continue; }
+    if (byId && byId.week !== w) { err('Check-ins', row, g.title, `Check-in ${cid} is for week ${byId.week}; a check-in’s week can’t change.`); continue; }
+    const key = cid || g.id + ':' + w;
+    if (seen.has(key)) { err('Check-ins', row, g.title, cid ? `Check-in ${cid} appears twice.` : `Week ${w} appears twice for this goal.`); continue; }
     seen.add(key);
 
     const ctx = [...checkInsFor(g, s.checkIns).filter((c) => c.week !== w), ...(imported.get(g.id) ?? [])];
@@ -323,7 +362,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (callRaw && !call) { err('Check-ins', row, g.title, `Call “${val(r, 'call')}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`); continue; }
     // A row that says what's already there is left alone: history that hasn't changed isn't judged again.
     // A row for a week corrects that week's latest check-in (a spreadsheet has one row per goal and week).
-    const existing = checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
+    const existing = byId ?? checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
     if (existing && (!call || existing.status === call)
       && (g.kind === 'milestone' ? JSON.stringify(existing.stages ?? []) === JSON.stringify(stages) : existing.value === parseNumber(val(r, 'value')))
       && (!has(r, 'why') || val(r, 'why') === existing.why)) { unchanged++; imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); continue; }
@@ -367,6 +406,17 @@ export function planChanges(input: ChangeInput): ChangeSet {
     items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
   }
 
+  /* People: what changed */
+  const peopleOut: Person[] = [];
+  for (const t of peopleTouched) {
+    const after = people.get(t.before.id)!;
+    const ch = personChange(t.before, after, (tid) => s.teams.find((x) => x.id === tid)?.name ?? '', actor.id, now, newId('chg'));
+    if (!ch) continue;
+    peopleOut.push(after);
+    changes.push(ch);
+    items.push({ sheet: 'People', row: t.row, goalId: '', goal: after.name, kind: 'person', summary: ch.summary, diffs: ch.diffs });
+  }
+
   for (const ch of changes) ch.diffs.push({ field: 'Via', from: '—', to: VIA_LABEL[via] });
   const posted = ciOut;
   const counts = {
@@ -376,13 +426,14 @@ export function planChanges(input: ChangeInput): ChangeSet {
     checkIns: items.filter((x) => x.kind === 'check-in' || x.kind === 'replaces check-in').length,
     backfilled: items.filter((x) => x.backfilled).length,
     replaced: items.filter((x) => x.kind === 'replaces check-in').length,
+    people: items.filter((x) => x.kind === 'person').length,
   };
   const ok = !issues.some((x) => x.severity === 'error') && !needsReason && items.length > 0;
   const result: ChangeSet = { items, unchanged, issues, needsReason, commit: null, counts };
   if (ok) {
     const summary: Change = {
       id: newId('chg'), at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: newId('imp'), action: 'imported',
-      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes from an AI assistant' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
+      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes from an AI assistant' : via === 'table' ? 'Edited the data tables' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
     };
     // New goals before the goals that feed into them, so each link points at a goal that's already saved.
     const ordered: Goal[] = [];
@@ -391,7 +442,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       const i = pending.findIndex((g) => !g.parentId || !pending.some((x) => x.id === g.parentId));
       ordered.push(...pending.splice(i < 0 ? 0 : i, 1));
     }
-    result.commit = { goals: ordered, checkIns: posted, changes: [...changes, summary] };
+    result.commit = { ...(peopleOut.length ? { people: peopleOut } : {}), goals: ordered, checkIns: posted, changes: [...changes, summary] };
   }
   return result;
 }
