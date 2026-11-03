@@ -22217,7 +22217,11 @@ function assessPosted(goal, cycle, checkIns, week) {
 		const prev = own.filter((c) => c.week < at && c.value != null).pop();
 		return assessRange(goal, at, latest?.value ?? null, prev?.value ?? null);
 	}
-	return assessMilestone(goal, week, latest?.stages ?? null);
+	const m = assessMilestone(goal, week, latest?.stages ?? null);
+	return !latest && m.calc === "on" ? {
+		...m,
+		calc: "none"
+	} : m;
 }
 function goalStatus(goal, cycle, checkIns, today) {
 	const week = currentWeek(cycle, today);
@@ -22431,7 +22435,7 @@ function gapText(g, a) {
 		tone: "stale"
 	};
 	if (a.calc === "none") return {
-		short: "No value yet",
+		short: g.kind === "milestone" ? "No check-in yet" : "No value yet",
 		long: "Waiting for the first check-in",
 		tone: "stale"
 	};

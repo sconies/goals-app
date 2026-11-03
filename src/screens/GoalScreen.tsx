@@ -13,7 +13,7 @@ import { PlanTable } from '../ui/PlanTable';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { weekDates } from '../domain/plan';
 import { ReviewBar, ReviewCallBar, TreeRow, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
-import { criticalPath } from '../domain/map';
+import { criticalPath, threatReason } from '../domain/map';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 
 export function GoalScreen() {
@@ -182,7 +182,8 @@ function GoalView({ goal }: { goal: Goal }) {
       {threats.length > 0 && (
         <section className="block threats" aria-label="Most likely to make it miss">
           <div className="row between"><h2 className="block-title">Most likely to make it miss</h2><span className="hint">{needy.length} of {children.length} contributing {children.length === 1 ? 'goal needs' : 'goals need'} attention</span></div>
-          <ul className="tree">{threats.map((g) => <li key={g.id}><TreeRow g={g} /></li>)}</ul>
+          <ul className="tree">{threats.map((g) => <li key={g.id} className="threat"><TreeRow g={g} /><span className="hint threat-why">Why it’s here: {threatReason(app.attentionOf(g), onPath.has(g.id))}</span></li>)}</ul>
+          {children.length > threats.length && <Link className="linkish small" to={`/goals?feeds=${goal.id}`}>See all {children.length} contributing goals</Link>}
         </section>
       )}
       </div>

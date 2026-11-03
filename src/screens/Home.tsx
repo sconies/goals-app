@@ -6,7 +6,7 @@ import { attentionList } from '../domain/attention';
 import { fmt, gapText } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
-import { openQuestions, reviewSession, watchedGoals } from '../domain/review';
+import { agendaOf, openQuestions, reviewSession, watchedGoals } from '../domain/review';
 import { daysSince, weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { periodWord, shortPeriod } from '../domain/year';
@@ -15,7 +15,8 @@ import { statusChange } from '../domain/tree';
 import type { Goal } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
-import { TreeRow, worstFirst } from './Inspect';
+import { saveReviewOrder, TreeRow, worstFirst } from './Inspect';
+import { FirstReports } from './GoalsScreen';
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -95,9 +96,23 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
           ) : myReview ? (
             <>
               <span className="eyebrow">{myReview.review.name}</span>
-              <h2 className="hero-title">{myReview.total - myReview.done === 1 ? '1 goal to review' : `${myReview.total - myReview.done} goals to review`}</h2>
-              <span className="muted">{mine.length ? 'Your check-ins are in. ' : ''}Worst and stalest first, one at a time.</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/reviews/${myReview.review.id}`}>{myReview.done ? 'Continue the review' : 'Open the review'} →</Link></div>
+              {/* The same agenda as the review itself: what needs judgment, and what can be covered together (product review, 3 Nov). */}
+              {(() => {
+                const { discuss, healthy } = agendaOf(myReview);
+                const next = discuss[0] ?? healthy[0];
+                const resume = myReview.done > 0 && discuss.length > 0;
+                return (
+                  <>
+                    <h2 className="hero-title">{discuss.length ? `${discuss.length} ${discuss.length === 1 ? 'goal' : 'goals'} to discuss` : `${healthy.length} on track to mark reviewed`}</h2>
+                    <span className="muted">{mine.length ? 'Your check-ins are in. ' : ''}{discuss.length && healthy.length ? `${healthy.length} more ${healthy.length === 1 ? 'is' : 'are'} on track with nothing flagged: mark them together at the end.` : 'Worst and stalest first, one at a time.'}</span>
+                    <div className="row" style={{ marginTop: 8 }}>
+                      {resume && next
+                        ? <Link className="btn primary big-btn" to={`/goals/${next.goal.id}?review=${myReview.review.id}`} onClick={() => saveReviewOrder(app.ws.id, myReview.review.id, myReview.week, discuss.map((a) => a.goal.id))}>Continue: {next.goal.title} →</Link>
+                        : <Link className="btn primary big-btn" to={`/reviews/${myReview.review.id}`}>{myReview.done ? 'Continue the review' : 'Open the review'} →</Link>}
+                    </div>
+                  </>
+                );
+              })()}
             </>
           ) : mine.length && app.week < 1 ? (
             <>
@@ -127,6 +142,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
       </section>
       <aside className="home-side split-side" aria-label="For you">{side}</aside>
       <div className="home-main split-b">
+        <FirstReports />
         {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
         {rest.length > 0 && (
           <section className="block">

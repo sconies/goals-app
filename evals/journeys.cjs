@@ -222,6 +222,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await see(p, 'Is last week’s note still true?', 'last week’s reason and path are offered back');
   await h.progressShown('carry');
   await h.checkpoint('carry');
+  // What "Still true" will carry, the open request included, is shown before posting (product review, 3 Nov).
+  h.set('attention', await p.getByText('Still asking:').isVisible(), 'the request that Still true carries forward is not shown');
   await h.click(p.getByRole('button', { name: /^Still true/ }));
   if (await p.getByRole('group', { name: 'Back on plan by' }).isVisible().catch(() => false)) {
     await h.click(p.getByRole('group', { name: 'Back on plan by' }).getByRole('button').first());
@@ -264,7 +266,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     'the tree does not lead with the worst goal and its reason');
   // Home leads with the review Elena is in.
   await p.goto(url('/'));
-  await see(p, 'goals to review');
+  await see(p, 'goals to discuss');
   await h.inView(p.getByRole('link', { name: /Open the review/ }), 'entry', 'Open the review');
   await h.checkpoint('home');
   await h.click(p.getByRole('link', { name: /Open the review/ }));
@@ -487,7 +489,7 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
   h.set('attention', await panel.getByRole('button', { name: /^Leader/ }).first().isVisible() && await panel.getByRole('button', { name: /^Goal owner/ }).first().isVisible(), 'the demo panel does not lead with roles');
   await h.click(panel.getByRole('button', { name: /Elena/ }).first());
   await see(p, 'Good', 'Elena’s home opens');
-  await see(p, 'goals to review', 'Elena’s home leads with her review');
+  await see(p, 'goals to discuss', 'Elena’s home leads with her review');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'no progress on Elena’s home');
   // A change in the demo stays in this browser and can be undone in one place.
   await p.goto(url('/workspace'));
@@ -1100,7 +1102,8 @@ journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust,
   // Coverage can't pass 100%: refused in place, and the summary names the real problem.
   await h.fill(row.getByRole('textbox'), '150');
   await see(row, 'can’t be over 100%', 'a coverage of 150% is not refused');
-  await h.click(p.getByRole('button', { name: /^Post/ }));
+  // The button says what's wrong rather than offering to post (product review, 3 Nov).
+  await h.click(p.getByRole('button', { name: /^Fix 1 value/ }));
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'needs a possible number' }).isVisible(), 'the summary blames a reason, not the number');
   const s = await h.snapshot();
   h.set('logged', !s.checkIns.some((c) => c.goalId === 'review' && c.value === 150), 'an impossible coverage was saved');
@@ -1343,7 +1346,8 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await see(p, 'Goal is PRs with AI code review', 'the goal filter is not shown as words');
   await see(p, 'Week ≥ 38', 'the week filter is not shown as words');
   await h.click(p.locator('.dtable thead').getByRole('button', { name: /^Week$/ }));
-  const weeks = await p.locator('.dtable tbody tr').evaluateAll((trs) => trs.map((tr) => tr.querySelectorAll('td')[3]?.textContent ?? ''));
+  const weekCol = (await p.locator('.dtable thead th').allInnerTexts()).findIndex((t) => /^Week/.test(t.trim()));
+  const weeks = await p.locator('.dtable tbody tr').evaluateAll((trs, i) => trs.map((tr) => tr.querySelectorAll('td')[i]?.textContent ?? ''), weekCol);
   h.set('progress', weeks.length > 0 && weeks.every((w, i) => Number(w) >= 38 && (i === 0 || Number(w) >= Number(weeks[i - 1]))) && /f=Goal/.test(p.url()) && /s=Week/.test(p.url()), `filtered and sorted weeks: ${weeks.join(', ')}`);
   await h.fill(p.getByPlaceholder('Search check-ins'), 'reached GA');
   const why = p.getByLabel(/^Why, PRs with AI code review, week/).first();
@@ -1382,6 +1386,40 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   h.set('progress', !!(await download), 'Save .csv did not download the filtered log');
   await p.context().close();
 }, ['entry', 'one-action']);
+
+journey('U36', ['PATH-TO-GREEN', 'ATTENTION', 'REVIEW-RUN'], 'An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them', 12, async (h, device) => {
+  // Maya: the same account as last week, but Elena's decision isn't needed any more.
+  const p = h.use(await newPage(device, 'maya'));
+  await p.goto(url('/check-in/head'));
+  const s0 = await h.snapshot();
+  await h.fill(p.getByLabel('This week’s value'), valueAt(s0.goals.find((g) => g.id === 'head'), NOW, 0.5));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'Still asking:', 'the open request is not shown before posting');
+  await h.click(p.getByLabel('Keep this request open on their Home'));
+  await h.click(p.getByRole('button', { name: /^Still true/ }));
+  if (await p.getByRole('group', { name: 'Back on plan by' }).isVisible().catch(() => false)) {
+    await h.click(p.getByRole('group', { name: 'Back on plan by' }).getByRole('button').first());
+    await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  }
+  await see(p, 'Check-in saved');
+  const s = await h.snapshot();
+  const c = s.checkIns.filter((x) => x.goalId === 'head').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).pop();
+  h.set('logged', !!c && !c.pathToGreen?.needs && /Brain/.test(c.pathToGreen?.what ?? ''), 'the withdrawn request was posted again, or the account was lost');
+  h.set('progress', await p.locator('.celebrate').isVisible(), 'no confirmation after posting');
+  await h.checkpoint('posted');
+  // Elena, in the same demo data: Maya's request has gone from Home; Home and the review describe the same agenda.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'elena'));
+  await p.goto(url('/'));
+  await see(p, 'goals to discuss', 'Home does not say how many goals need discussion');
+  const home = await p.locator('main').innerText();
+  h.set('attention', !/Intake-to-delivery time[\s\S]{0,120}approve an interim read-only scope for the Brain/.test(home), 'Maya’s withdrawn request is still on Elena’s Home');
+  const discuss = Number((home.match(/(\d+) goals? to discuss/) || [])[1]);
+  await h.click(p.getByRole('link', { name: /Open the review|Continue/ }));
+  await see(p, `Start review · ${discuss} goal`, 'Home and the review disagree on how many goals need discussion');
+  h.set('finish', discuss > 0, 'no agenda count on Home');
+  await h.checkpoint('review');
+  await p.context().close();
+}, ['entry', 'one-action', 'errors']);
 
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));

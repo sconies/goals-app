@@ -27,6 +27,14 @@ const EDITABLE: Record<Tab, (col: string) => boolean> = {
 };
 /** The column that names each row: it stays in view while scrolling across. */
 const NAME: Record<Tab, string> = { people: 'Name', goals: 'Goal', checkIns: 'Goal', plan: 'Goal' };
+/** What each table shows to start with: the columns people compare. Everything else is one click away under Columns. */
+const DEFAULT_COLS: Record<Tab, string[] | null> = {
+  goals: ['ID', 'Goal', 'Level', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target', 'Status', 'Now', 'Gap', 'Last check-in week', 'Feeds into'],
+  checkIns: ['ID', 'Goal', 'Week', 'Value', 'Stages', 'Call', 'Calculated', 'Plan that week', 'Why', 'Recovery', 'Back on plan by week', 'Needs', 'Posted by'],
+  plan: null,
+  people: null,
+};
+const colsKey = (t: Tab) => `goals-data-cols:${t}`;
 const HIDDEN: Record<Tab, string[]> = { people: ['Team objective'], goals: [], checkIns: [], plan: [] };
 
 const text = (v: Cell | undefined) => (v == null ? '' : String(v));
@@ -84,7 +92,13 @@ export function DataTables() {
   const [limit, setLimit] = useState(PAGE);
   const [editing, setEditing] = useState<{ index: number | null } | null>(null);
   const { head, rows } = tables[tab];
-  const cols = head.map((c, i) => ({ c, i })).filter(({ c }) => !HIDDEN[tab].includes(c));
+  // Columns: the compact default, or this person's own choice (kept in this browser). ID and the name always show.
+  const [chosen, setChosen] = useState<Record<string, string[] | null>>(() => Object.fromEntries(TABS.map(([t]) => { try { const v = localStorage.getItem(colsKey(t)); return [t, v ? JSON.parse(v) as string[] : null]; } catch { return [t, null]; } })));
+  const pick = chosen[tab] ?? DEFAULT_COLS[tab];
+  const always = ['ID', NAME[tab]];
+  const cols = head.map((c, i) => ({ c, i })).filter(({ c }) => !HIDDEN[tab].includes(c) && (!pick || always.includes(c) || pick.includes(c)));
+  const setCols = (next: string[] | null) => { setChosen((x) => ({ ...x, [tab]: next })); try { if (next) localStorage.setItem(colsKey(tab), JSON.stringify(next)); else localStorage.removeItem(colsKey(tab)); } catch { /* storage blocked */ } };
+  const [choosing, setChoosing] = useState(false);
   const shown = applyTable(rows, head, q, filters, sort);
   const kinds = useMemo(() => Object.fromEntries(head.map((c, i) => [c, columnKind(rows.map((r) => r.cells[i] ?? ''))])) as Record<string, ColumnKind>, [head, rows]);
   const narrowed = !!q.trim() || filters.length > 0;
@@ -146,6 +160,7 @@ export function DataTables() {
           <input className="input" type="search" placeholder={`Search ${TABS.find(([k]) => k === tab)![1].toLowerCase()}`} value={q} onChange={(e) => { setView({ q: e.target.value }); setLimit(PAGE); }} />
         </label>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setEditing({ index: null })}>+ Filter</button>
+        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setChoosing(true)}>Columns · {cols.length} of {head.length - HIDDEN[tab].length}</button>
         <span className="small muted" role="status">{shown.length === rows.length ? `${rows.length} rows` : `${shown.length} of ${rows.length} rows`}</span>
       </div>
       {(filters.length > 0 || sort) && (
@@ -165,7 +180,27 @@ export function DataTables() {
           <button type="button" className="linkish small" onClick={() => setView({ q: '', filters: [], sort: null })}>Clear all</button>
         </div>
       )}
-      {editing && <FilterEditor head={cols.map(({ c }) => c)} kinds={kinds} values={(c) => [...new Set(rows.map((r) => r.cells[head.indexOf(c)] ?? '').filter((v) => v.trim()))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))}
+      {choosing && (
+        <Sheet open onClose={() => setChoosing(false)} title="Columns">
+          <div className="stack" style={{ gap: 'var(--s3)' }}>
+            <span className="hint">Choose what this table shows; it stays this way in this browser. ID and {NAME[tab].toLowerCase()} always show.</span>
+            <span className="filter-options prop-values">{head.filter((c) => !HIDDEN[tab].includes(c)).map((c) => (
+              <label key={c} className="check"><input type="checkbox" disabled={always.includes(c)} checked={cols.some((x) => x.c === c)} onChange={(e) => {
+                const now = cols.map((x) => x.c);
+                setCols(e.target.checked ? [...now, c] : now.filter((x) => x !== c));
+              }} /> {c}</label>
+            ))}</span>
+            <div className="sheet-foot">
+              <span className="row" style={{ gap: 'var(--s3)' }}>
+                <button type="button" className="linkish small" onClick={() => setCols(null)}>The usual columns</button>
+                <button type="button" className="linkish small" onClick={() => setCols(head.filter((c) => !HIDDEN[tab].includes(c)))}>Every column</button>
+              </span>
+              <button type="button" className="btn primary" onClick={() => setChoosing(false)}>Done</button>
+            </div>
+          </div>
+        </Sheet>
+      )}
+      {editing && <FilterEditor head={head.filter((c) => !HIDDEN[tab].includes(c))} kinds={kinds} values={(c) => [...new Set(rows.map((r) => r.cells[head.indexOf(c)] ?? '').filter((v) => v.trim()))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))}
         start={editing.index != null ? filters[editing.index] : undefined}
         onSave={(f) => { setView({ filters: editing.index != null ? filters.map((x, j) => (j === editing.index ? f : x)) : [...filters, f] }); setEditing(null); setLimit(PAGE); }}
         onClose={() => setEditing(null)} />}

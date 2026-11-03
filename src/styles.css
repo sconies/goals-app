@@ -1166,3 +1166,8 @@ button.prop-chip-edit:hover { background: var(--surface-3); }
 .prop-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
 .prop-values { max-height: 280px; overflow-y: auto; }
 @container app (max-width: 520px) { .prop-row { grid-template-columns: 1fr; } }
+.first-reports { margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg-2); }
+.threats li.threat { display: flex; flex-direction: column; } .threat-why { padding: 0 var(--s4) var(--s3) calc(104px + var(--s4) + var(--s3)); } @container app (max-width: 760px) { .threat-why { padding-left: var(--s4); } }
+/* The layout you're in always says its name, even when the others are icons. */
+@container page (max-width: 1400px) { .layout-switch button[aria-pressed="true"] .ls-label { display: inline; } }
+@container app (max-width: 760px) { .layout-switch button[aria-pressed="true"] .ls-label { display: none; } }

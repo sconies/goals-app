@@ -133,7 +133,7 @@ export function QuickCheckIn() {
           {milestones.length > 0 && <p className="hint">Stage goals ({milestones.map((g: Goal) => g.title).join(', ')}) use the <Link to="/check-in">normal check-in</Link>.</p>}
           <div className="foot-row">
             <Link className="btn ghost big-btn" to="/">Cancel</Link>
-            <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : filled.length ? `Post ${filled.length} ${filled.length === 1 ? 'check-in' : 'check-ins'}` : 'Post check-ins'}</button>
+            <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : badNumbers ? `Fix ${badNumbers} ${badNumbers === 1 ? 'value' : 'values'} to post` : filled.length ? `Post ${filled.length} ${filled.length === 1 ? 'check-in' : 'check-ins'}` : 'Post check-ins'}</button>
           </div>
           {tried && !filled.length && <p className="hint tone-off" role="alert">Type at least one number.</p>}
           {tried && filled.length > ready.length && (

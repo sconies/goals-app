@@ -69,6 +69,12 @@ export function sessionDate(r: Review, cycle: Cycle, week: number): string {
  */
 export const isHealthy = (a: GoalAttention) => (a.status.status === 'on' || a.status.status === 'done') && a.flags.every((f) => f.kind === 'due');
 
+/** What a session still has to do: goals to discuss one at a time, and goals on track to cover together. */
+export function agendaOf(s: ReviewSession): { discuss: GoalAttention[]; healthy: GoalAttention[] } {
+  const left = s.items.filter((a) => !s.covered.has(a.goal.id));
+  return { discuss: left.filter((a) => !isHealthy(a)), healthy: left.filter(isHealthy) };
+}
+
 export interface ReviewSession {
   review: Review;
   week: number;

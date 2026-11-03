@@ -69,7 +69,7 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
         <label className="filter-search"><span className="sr">Search goals</span>
           <input className="input" type="search" placeholder="Search goals, owners, teams, reasons" value={q.q} onChange={(e) => setQ((cur) => ({ ...cur, q: e.target.value }))} />
         </label>
-        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{narrowed ? ` · ${chips.filter((c) => c.key !== 'q').length}` : ''}</button>
+        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{chips.some((c) => c.key !== 'q') ? ` · ${chips.filter((c) => c.key !== 'q').length}` : ''}</button>
         {/* The most common question in a weekly scan, one press away. */}
         <button type="button" className="btn quick-filter" aria-pressed={q.needs.includes('decision')} onClick={() => setQ((cur) => ({ ...cur, needs: cur.needs.includes('decision') ? cur.needs.filter((n) => n !== 'decision') : [...cur.needs, 'decision'] }))}>{NEED_OPTIONS.find(([k]) => k === 'decision')![1]}</button>
         <label className="filter-sort inline-sort"><span className="sr">Sort</span>

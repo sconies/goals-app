@@ -159,7 +159,10 @@ export function assessPosted(goal: Goal, cycle: Cycle, checkIns: CheckIn[], week
     const prev = own.filter((c) => c.week < at && c.value != null).pop();
     return assessRange(goal, at, latest?.value ?? null, prev?.value ?? null);
   }
-  return assessMilestone(goal, week, latest?.stages ?? null);
+  // Nothing reported yet and nothing due: that's no evidence, not "on schedule" (product review, 3 Nov). A stage
+  // that's already late is late whether or not anyone has checked in.
+  const m = assessMilestone(goal, week, latest?.stages ?? null);
+  return !latest && m.calc === 'on' ? { ...m, calc: 'none' } : m;
 }
 
 export interface GoalStatus {

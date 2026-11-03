@@ -241,9 +241,16 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
       void post();
     }
   };
+  // Last week's request for a decision or help is carried only if the owner keeps it (product review, 3 Nov):
+  // the diagnosis can be unchanged while the ask has been answered or isn't needed any more.
+  const priorAsk = priorWay ? previous!.pathToGreen!.needs?.trim() ?? '' : '';
+  const [keepAsk, setKeepAsk] = useState(true);
   const stillTrue = () => {
-    const d = { ...draft, ...fromLast() };
-    set(fromLast());
+    const last = fromLast();
+    const dropped = priorAsk && !keepAsk;
+    const carried: Partial<Draft> = dropped ? { ...last, needs: '', ptgState: last.ptgState === 'help' ? (last.ptgBy ? 'plan' : 'investigating') : last.ptgState } : last;
+    const d = { ...draft, ...carried };
+    set(carried);
     const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns);
     if (check.canPost) void post(d);
     else go(check.missing.some((m) => m.startsWith('why it’s')) ? 'why' : 'way');
@@ -320,6 +327,12 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
             {priorWhy && <p><strong>{causeLabel(previous.cause)}.</strong> {previous.why}</p>}
             {priorWay && <p><strong>{previous.pathToGreen!.byWeek != null ? `Back on plan by ${weekLabel(previous.pathToGreen!.byWeek, cycle.weeks)}.` : `${RECOVERY[previous.pathToGreen!.state ?? 'plan'].label}.`}</strong> {previous.pathToGreen!.what}</p>}
           </blockquote>
+          {priorAsk && (
+            <div className="carry-ask">
+              <span className="small"><strong>Still asking:</strong> {priorAsk}</span>
+              <label className="check small"><input type="checkbox" checked={keepAsk} onChange={(e) => setKeepAsk(e.target.checked)} /> Keep this request open on their Home</label>
+            </div>
+          )}
           <div className="choice">
             <button type="button" className="btn primary big-btn" disabled={saving} onClick={stillTrue}>{saving ? 'Posting…' : 'Still true: post check-in'}</button>
             <button type="button" className="btn big-btn" onClick={somethingChanged}>Something changed</button>
