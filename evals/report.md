@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-03 19:25 UTC.
+Run 2026-11-03 20:06 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -26,7 +26,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 16 | Home by responsibility, and the 4-tab navigation trial | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 4) |
 | 17 | Demo data sets, presenting without the bar, and deleting a workspace | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 12) |
 | 18 | Set a goal for the year and its plan numbers by hand | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
-| 19 | See the same goals as a table, board, history grid or cards, and export them | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 14) |
+| 19 | See the same goals as a table, board, history grid or cards, and export them | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
 | 20 | Load a spreadsheet: a new goal, then its past weeks, with every change shown before saving | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 14) |
 | 21 | Type the week’s numbers in one table, and change several goals at once | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
 | 22 | An admin gives a teammate a token for an AI assistant, then revokes it | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 10) |
@@ -41,6 +41,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 35 | An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it | **10** | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 18 · 18 (budget 26) |
 | 36 | An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 12) |
 | 37 | Two goals wait on one decision: an owner links them, the leader answers once, and both goals show the answer | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 12) |
+| 38 | A leader reads the quarters, inspects a week, asks for an update and takes it back; an owner’s double press posts once | **10** | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 24) |
 | 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
 | 27 | Take a walkthrough: the coach points the way and moves on as you do each step | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 6 · 6 (budget 10) |
 | 28 | A research session: first glances, a note pinned to the screen, a task result and a report | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
@@ -59,7 +60,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**64 of 64 pass**. Spec scenarios 71/71.
+**69 of 69 pass**. Spec scenarios 71/71.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -115,6 +116,11 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **MCP-TOKENS** An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused. | AI assistants | 0 | U22 |
 | ✅ | **STORY** Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet. | Leaders | 0 | U19, U33 |
 | ✅ | **YEAR** Goals are set for the year: a goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year. | Cycles | 0 | U18, U23 |
+| ✅ | **QUARTER-RESULTS** History opens on quarter results: for every goal, each quarter's actual number at its end against the owner's plan, met or missed (shape plus word), with the current quarter in progress. The owners' weekly calls are a separate, clearly named option, so weekly confidence is never mistaken for a quarter's result. | Leaders | 0 | U38 |
+| ✅ | **WEEK-INSPECTOR** Weekly status can be seen one quarter at a time (Q1 to Q4) or for the whole year. A selected square is described in words beside the grid: the week and its dates, the goal, the owner's call, the number and the plan that week. It works by mouse, touch and keyboard (one tab stop, then the arrow keys). | Leaders | 0 | U38 |
+| ✅ | **NO-DOUBLE-POST** Pressing Post again, pressing Enter then clicking, or a double tap never posts a check-in twice; the same holds for the check-in table and answering a request. A check-in already being saved is waited for, not repeated. | Data | 0 | U38 |
+| ✅ | **ASK-UNDO** Asking a quiet goal's owner for an update shows next to its status as asked, and when, until they check in. Whoever asked can undo it; undoing is logged and takes it off the owner's Home. Asking twice before they check in asks once. | Watching | 0 | U38 |
+| ✅ | **STICKY-HEAD** In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop. | Goals | 0 | U38 |
 | ✅ | **CALENDAR-WEEKS** A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's. | Cycles | 6 | — |
 | ✅ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | U24 |
 | ✅ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | U25 |

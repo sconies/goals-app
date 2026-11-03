@@ -872,6 +872,9 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   await h.checkpoint('board');
   // History: a square per goal per week, the owner's call.
   await h.click(layout.getByRole('button', { name: 'History' }));
+  // History opens on quarter results; the owners' weekly calls are one press away.
+  await p.locator('.qtable').first().waitFor();
+  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Weekly status' }));
   await p.locator('.hgrid').first().waitFor();
   h.set('progress', (await p.locator('.hcell.tone-on, .hcell.tone-risk, .hcell.tone-off').count()) > 20, 'the history grid has too few check-ins');
   await h.checkpoint('history');
@@ -1019,8 +1022,8 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   const cells = await strip.locator('li').allInnerTexts();
   h.set('attention', cells.length === 4 && cells.slice(0, 3).every((t) => /Met/.test(t) && /against a plan of/.test(t)) && /Now/.test(cells[3]), `the quarters read: ${cells.join(' | ')}`);
   await h.checkpoint('quarters');
-  // The history grid shows this quarter by default, or the whole year.
-  await p.goto(url('/goals?view=history'));
+  // The weekly history grid shows this quarter by default, or the whole year.
+  await p.goto(url('/goals?view=history&hist=weekly'));
   const grid = p.locator('.hgrid').first();
   await grid.waitFor();
   const quarterCols = await grid.locator('thead th').count();
@@ -1312,7 +1315,7 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   await p.keyboard.press('Escape');
   await h.checkpoint('map attention');
   // History's range is part of the view: chosen, refreshed, still there.
-  await p.goto(url('/goals?view=history'));
+  await p.goto(url('/goals?view=history&hist=weekly'));
   await h.click(p.getByRole('group', { name: 'Weeks shown' }).getByRole('button', { name: 'Whole year' }));
   await p.waitForURL(/weeks=year/, { timeout: 3000 }).catch(() => {});
   await p.reload();
@@ -1460,6 +1463,80 @@ journey('U37', ['PATH-TO-GREEN', 'ATTENTION', 'CHANGE-LOG'], 'Two goals wait on 
   h.set('finish', true);
   await p.context().close();
 }, ['entry', 'one-action', 'errors']);
+
+journey('U38', ['QUARTER-RESULTS', 'WEEK-INSPECTOR', 'NO-DOUBLE-POST', 'ASK-UNDO', 'STICKY-HEAD'], 'A leader reads the quarters, inspects a week, asks for an update and takes it back; an owner’s double press posts once', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'elena'));
+  // History opens on each quarter's actual against plan, not the owners' weekly calls.
+  await p.goto(url('/goals?view=history'));
+  await p.locator('.qtable').first().waitFor();
+  const met = await p.locator('.qcell.q-met').count();
+  const missed = await p.locator('.qcell.q-missed').count();
+  h.set('attention', met > 0 && missed > 0 && (await p.locator('.qcell').filter({ hasText: 'In progress' }).count()) > 0, `quarter results should show met, missed and in progress; saw ${met} met, ${missed} missed`);
+  await h.checkpoint('quarter results');
+  // Weekly status, one quarter at a time or the whole year, with the selected week in words.
+  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Weekly status' }));
+  await p.locator('.hgrid').first().waitFor();
+  await h.click(p.getByRole('group', { name: 'Weeks shown' }).getByRole('button', { name: 'Q3' }));
+  await p.waitForFunction(() => /27/.test(document.querySelector('.hgrid thead th:nth-child(2)')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
+  const q3 = await p.locator('.hgrid').first().locator('thead th:nth-child(2)').innerText().catch(() => '');
+  await h.click(p.getByRole('group', { name: 'Weeks shown' }).getByRole('button', { name: 'Whole year' }));
+  await p.waitForFunction(() => document.querySelectorAll('.hgrid thead th').length > 40, null, { timeout: 10000 }).catch(() => {});
+  const inspector = p.locator('.week-inspector');
+  await see(inspector, `Week ${NOW}`, 'the inspector does not start on this week');
+  // By keyboard: one tab stop, then the arrow keys.
+  await p.locator('.hgrid').first().locator('td[tabindex="0"]').focus();
+  await p.keyboard.press('ArrowLeft');
+  await p.keyboard.press('ArrowLeft');
+  await see(inspector, `Week ${NOW - 2}`, 'the arrow keys do not move the selected week');
+  const said = await inspector.innerText();
+  // By touch or mouse: a square.
+  await h.click(p.locator('.hgrid').first().locator('tbody tr').nth(1).locator('td.hcell').nth(9));
+  await see(inspector, 'Week 10', 'tapping a square does not select it');
+  h.set('progress', /27/.test(q3) && /(On track|At risk|Off track|Done|No check-in)/.test(said), `Q3 starts “${q3}”; the inspector said “${said.replace(/\n/g, ' ')}”`);
+  await h.checkpoint('week inspector');
+  // The Table's header stays in view while the goals scroll under it.
+  await p.goto(url('/goals?view=table'));
+  const head = p.locator('.gtable').first().locator('thead th').nth(1);
+  await head.waitFor();
+  await p.evaluate(() => { const t = document.querySelector('.gtable'); window.scrollBy(0, t.getBoundingClientRect().top + 220); });
+  await p.waitForTimeout(150);
+  const stuck = await p.evaluate(() => { const t = document.querySelector('.gtable'); const th = t.querySelector('thead th'); const r = th.getBoundingClientRect(); return { top: Math.round(r.top), table: Math.round(t.getBoundingClientRect().top), bottom: Math.round(t.getBoundingClientRect().bottom) }; });
+  h.set('parity', stuck.table < 0 && stuck.top >= 0 && stuck.top <= 90 && stuck.bottom > stuck.top + 40, `the table header scrolled away: ${JSON.stringify(stuck)}`);
+  await h.checkpoint('sticky header');
+  // Asking Jonas for an update shows as asked, with an Undo; undone, it leaves his Home too.
+  await p.goto(url('/goals/env'));
+  await h.click(p.getByRole('button', { name: 'Ask Jonas for an update' }));
+  await see(p, 'Asked Jonas for an update', 'asking does not show as asked');
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'jonas'));
+  await p.goto(url('/'));
+  await see(p, 'Elena asked for an update', 'the ask is not on Jonas’s Home');
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'elena'));
+  await p.goto(url('/goals/env'));
+  await h.click(p.getByRole('button', { name: 'Undo' }));
+  await p.getByRole('button', { name: 'Ask Jonas for an update' }).waitFor();
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'jonas'));
+  await p.goto(url('/'));
+  await p.locator('main').waitFor();
+  await p.waitForTimeout(300);
+  const left = await p.getByText('Elena asked for an update').count();
+  const s1 = await h.snapshot();
+  const asks = s1.changes.filter((c) => c.goalId === 'env' && c.entity === 'note');
+  h.set('logged', left === 0 && asks.some((c) => c.action === 'noted') && asks.some((c) => c.action === 'withdrawn'), `undoing left ${left} asks on Home; logged ${asks.map((c) => c.action).join(', ')}`);
+  await h.checkpoint('ask undone');
+  // Sam presses Post twice before the screen can react: one check-in, not two.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'sam'));
+  const before = (await h.snapshot()).checkIns.filter((c) => c.goalId === 'lead' && c.week === NOW).length;
+  await p.goto(url('/check-in/lead'));
+  await h.fill(p.getByLabel('This week’s value'), valueAt(s1.goals.find((g) => g.id === 'lead'), NOW, 1.05));
+  const label = await p.locator('form.focus-body button[type=submit]').innerText();
+  await p.evaluate(() => { const b = document.querySelector('form.focus-body button[type=submit]'); b.click(); b.click(); b.click(); });
+  await see(p, 'Check-in saved', 'the check-in did not post');
+  await p.waitForTimeout(500);
+  const after = (await h.snapshot()).checkIns.filter((c) => c.goalId === 'lead' && c.week === NOW).length;
+  h.set('errors', label === 'Post check-in' && after - before === 1, `three quick presses on “${label}” posted ${after - before} check-ins`);
+  h.set('finish', true);
+  await p.context().close();
+}, ['entry', 'one-action']);
 
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'elena'));

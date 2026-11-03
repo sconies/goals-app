@@ -9,11 +9,12 @@ import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/pro
 import { agendaOf, openQuestions, reviewSession, watchedGoals } from '../domain/review';
 import { daysSince, weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
+import { isUpdateAsk, liveNotes } from '../domain/updateAsks';
 import { periodWord, shortPeriod } from '../domain/year';
 import { assessPosted, LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
 import { openForPerson } from '../domain/requests';
-import type { Goal, HelpRequest } from '../domain/types';
+import type { Change, Goal, HelpRequest } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
 import { saveReviewOrder, TreeRow, worstFirst } from './Inspect';
@@ -189,8 +190,10 @@ function NeedsYou() {
     items.push({ key: d.id, who: d.byId, why: `Action for you from ${app.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? 'a review'}`, what: app.goal(d.goalId)?.title ?? '', quote: d.note, when: due != null ? (due === app.week ? `Due this week (${weekDates(app.cycle, due)})` : `Due week ${due} (${weekDates(app.cycle, due)})`) : 'No date set', to: `/goals/${d.goalId}`, action: 'Open the goal', at: d.at });
   }
   const mine = new Set(app.snapshot.goals.filter((g) => g.ownerId === me.id).map((g) => g.id));
-  for (const c of app.snapshot.changes.filter((c) => c.entity === 'note' && c.goalId && mine.has(c.goalId) && c.actorId !== me.id && daysSince(c.at, app.today) <= 7).slice(-3)) {
-    items.push({ key: c.id, who: c.actorId, why: `${first(c.actorId)} commented on your goal`, what: app.goal(c.goalId!)?.title ?? '', quote: c.diffs[0]?.to, to: `/goals/${c.goalId}?tab=comments`, action: 'Reply', at: c.at });
+  // An ask for an update is done once they've checked in since.
+  const answeredAsk = (c: Change) => isUpdateAsk(c) && app.snapshot.checkIns.some((x) => x.goalId === c.goalId && x.postedAt > c.at);
+  for (const c of liveNotes(app.snapshot.changes).filter((c) => c.goalId && mine.has(c.goalId) && c.actorId !== me.id && daysSince(c.at, app.today) <= 7 && !answeredAsk(c)).slice(-3)) {
+    items.push({ key: c.id, who: c.actorId, why: isUpdateAsk(c) ? `${first(c.actorId)} asked for an update` : `${first(c.actorId)} commented on your goal`, what: app.goal(c.goalId!)?.title ?? '', quote: c.diffs[0]?.to, ...(isUpdateAsk(c) ? { to: `/check-in/${c.goalId}`, action: 'Check in' } : { to: `/goals/${c.goalId}?tab=comments`, action: 'Reply' }), at: c.at });
   }
   if (!items.length) return null;
   items.sort((a, b) => b.at.localeCompare(a.at));

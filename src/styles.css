@@ -1171,3 +1171,42 @@ button.prop-chip-edit:hover { background: var(--surface-3); }
 /* The layout you're in always says its name, even when the others are icons. */
 @container page (max-width: 1400px) { .layout-switch button[aria-pressed="true"] .ls-label { display: inline; } }
 @container app (max-width: 760px) { .layout-switch button[aria-pressed="true"] .ls-label { display: none; } }
+
+/* ---------- table header in view while scrolling; quarter results; the selected week (Senior UX review 6, 14) ---------- */
+/* The goal tables fit their width (columns give way first), so their wrapper clips instead of scrolling, and the header can stick to the page. */
+.table-wrap.sticky-head { overflow: clip; }
+.gtable thead th { position: sticky; top: var(--sticky-top, 0px); z-index: 2; box-shadow: 0 1px 0 var(--line); }
+.qtable th[scope="row"] { font-weight: 600; text-align: left; }
+.qtable thead th.now { color: var(--accent-text); }
+.qtable .hint { font-weight: 400; }
+.qcell { vertical-align: top; min-width: 120px; }
+.qcell .q-result { display: flex; }
+.qcell-text { display: block; margin-top: 2px; font-size: 12px; line-height: 16px; }
+.qcell.q-met .q-result { color: var(--on-fg); }
+.qcell.q-missed { background: var(--off-wash); }
+.qcell.q-missed .q-result { color: var(--off-fg); }
+.week-inspector { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--s4); margin-bottom: var(--s3); padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 13px; }
+.week-inspector .wi-goal { max-width: 320px; font-weight: 600; }
+.week-inspector .wi-goal a { color: inherit; }
+.week-inspector svg { width: 12px; height: 12px; }
+.hcell { cursor: pointer; }
+.hcell.sel-col { background: var(--surface-2); }
+.hcell.sel { box-shadow: inset 0 0 0 2px var(--accent); }
+.hcell:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.hgrid thead th.sel { color: var(--fg); }
+.asked-line .linkish { margin-left: 2px; }
+@container app (max-width: 760px) { .gtable thead th { top: var(--sticky-top-phone, 61px); } }
+.qtable { table-layout: fixed; }
+.qtable thead th:first-child { width: 28%; }
+.qtable th[scope="row"] { white-space: normal; overflow-wrap: break-word; }
+.qcell-label { display: none; font-size: 12px; font-weight: 600; color: var(--muted); }
+/* On a phone, each goal is a block: its name, then its four quarters two by two. */
+@container app (max-width: 760px) {
+  .qtable, .qtable tbody { display: block; }
+  .qtable thead { display: none; }
+  .qtable tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: var(--s3); border-bottom: 1px solid var(--line-2); }
+  .qtable tbody tr:last-child { border-bottom: 0; }
+  .qtable th[scope="row"] { grid-column: 1 / -1; padding: 0 !important; border: 0; }
+  .qtable td.qcell { display: block; min-width: 0; padding: 6px 8px; border: 0; border-radius: 6px; }
+  .qcell-label { display: block; }
+}

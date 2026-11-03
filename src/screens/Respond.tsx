@@ -1,7 +1,7 @@
 /* Answering a request for a decision or help (product review, 3 Nov): the exact ask, who raised it and when, every goal
    waiting on it, and a focused place to answer. Answering closes the request for every linked goal; asking the owner a
    question instead leaves it open. Review coverage ("Reviewed & next") is separate and never answers a request. */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { canAnswer } from '../domain/requests';
@@ -17,9 +17,11 @@ export function RespondSheet({ request: r, onClose }: { request: HelpRequest; on
   const asker = app.person(r.askedBy);
   const goals = r.goalIds.map((id) => app.goal(id)).filter((g) => !!g);
   const allowed = canAnswer(r, app.viewer);
+  const inFlight = useRef(false);
   const save = async () => {
     setTried(true);
-    if (text.trim().length < 3 || busy) return;
+    if (text.trim().length < 3 || busy || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     try {
       if (mode === 'answer') {
@@ -30,7 +32,7 @@ export function RespondSheet({ request: r, onClose }: { request: HelpRequest; on
         app.toast('Asked. The request stays open until it’s answered.');
       }
       onClose();
-    } catch { setBusy(false); }
+    } catch { inFlight.current = false; setBusy(false); }
   };
   return (
     <Sheet open onClose={onClose} title="Respond to the request">

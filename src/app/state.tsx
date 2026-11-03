@@ -9,6 +9,7 @@ import { makesLoop } from '../domain/tree';
 import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
 import { personChange } from '../domain/people';
 import { answerRequest, linkRequest, requestsAfterCheckIn } from '../domain/requests';
+import { askChange, openUpdateAsk, undoAskChange, updateAskText } from '../domain/updateAsks';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
 import { hashToken, newToken } from '../mcp/protocol';
@@ -56,6 +57,9 @@ export interface AppState {
   saveGoal(after: Goal, before: Goal | null, why?: string): Promise<void>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status. */
   addNote(goal: Goal, text: string): Promise<void>;
+  /** Ask a goal's owner for an update: shown on their Home until they check in, or until it's undone. */
+  askForUpdate(goal: Goal): Promise<void>;
+  undoUpdateAsk(goal: Goal): Promise<void>;
   /** What someone says about a goal in a review: seen, a note, a question for the owner, or an action. */
   reviewCall(goal: Goal, review: Review, week: number, kind: 'acknowledge' | 'note' | 'ask' | 'action', note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Promise<void>;
   /** Correct a note, question or action someone said; the change log keeps the before and after. */
@@ -142,6 +146,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   const loadedRef = useRef(loaded);
   loadedRef.current = loaded;
   const saving = useRef(0);
+  // A check-in being saved, by goal: pressing Post again (or a second tap) waits for it rather than posting twice.
+  const posting = useRef(new Map<string, Promise<CheckIn>>());
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [viewerId, setViewerId] = useState<string | null>(null);
@@ -314,7 +320,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         return a;
       },
       checkInsOf: (g) => checkInsFor(g, sc.checkIns),
-      postCheckIn: async (goal, draft, existing) => {
+      postCheckIn: (goal, draft, existing) => {
+        const inFlight = posting.current.get(goal.id);
+        if (inFlight) return inFlight;
+        const run = (async () => {
         const c = toCheckIn(goal, cycle, week, draft, sc.checkIns, viewer.id, new Date(stamp()), existing?.id ?? newId('ci'));
         const change = checkInChange(existing, c, goal, viewer.id, newId('chg'));
         // Another check-in in the same week is kept alongside the first; the latest is the week's status.
@@ -323,6 +332,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         const req = requestsAfterCheckIn(goal, c, sc, viewer.id, c.postedAt, newId);
         await commit({ checkIns: [c], requests: req.requests, changes: [...(change ? [change] : []), ...req.changes] });
         return c;
+        })();
+        posting.current.set(goal.id, run);
+        void run.catch(() => undefined).finally(() => posting.current.delete(goal.id));
+        return run;
       },
       answerRequest: async (r, answer) => {
         const { request, changes } = answerRequest(r, answer, viewer.id, stamp(), newId);
@@ -350,6 +363,19 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       addNote: async (goal, text) => {
         const t = text.trim();
         await commit({ changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'note', entityId: newId('note'), action: 'noted', summary: 'Commented', diffs: [{ field: 'Comment', from: '—', to: t }] }] });
+      },
+      askForUpdate: async (goal) => {
+        const latest = checkInsFor(goal, sc.checkIns).at(-1) ?? null;
+        // Already asked since the last check-in: once is enough (a second tap doesn't ask twice).
+        if (openUpdateAsk(goal.id, sc, latest?.postedAt ?? null)) return;
+        const owner = sc.people.find((p) => p.id === goal.ownerId);
+        await commit({ changes: [askChange(goal.id, updateAskText(owner?.name.split(' ')[0], latest?.week ?? null), viewer.id, stamp(), { change: newId('chg'), note: newId('note') })] });
+      },
+      undoUpdateAsk: async (goal) => {
+        const latest = checkInsFor(goal, sc.checkIns).at(-1) ?? null;
+        const ask = openUpdateAsk(goal.id, sc, latest?.postedAt ?? null);
+        if (!ask) return;
+        await commit({ changes: [undoAskChange(ask, viewer.id, stamp(), newId('chg'))] });
       },
       reviewCall: async (goal, review, sessionWeek, kind, note, extra) => {
         const d: Decision = { id: newId('dec'), goalId: goal.id, checkInId: null, reviewId: review.id, week: sessionWeek, kind, byId: viewer.id, at: stamp(), note: note.trim(), ...(kind === 'action' ? { assigneeId: extra?.assigneeId ?? goal.ownerId, dueWeek: extra?.dueWeek ?? null } : {}) };
