@@ -40,7 +40,7 @@ export function targetText(g: Goal): string {
 /** Short words for the gap against plan, and its tone for colour. */
 export function gapText(g: Goal, a: Assessment): { short: string; long: string; tone: 'on' | 'risk' | 'off' | 'ahead' | 'stale' } {
   if (a.calc === 'planned') return { short: 'Not started', long: 'It starts this week', tone: 'stale' };
-  if (a.calc === 'none') return { short: 'No value yet', long: 'Waiting for the first check-in', tone: 'stale' };
+  if (a.calc === 'none') return { short: g.kind === 'milestone' ? 'No check-in yet' : 'No value yet', long: 'Waiting for the first check-in', tone: 'stale' };
   if (a.kind === 'metric' && g.kind === 'metric') {
     const actual = a.actual as number;
     if (a.ratio == null) return { short: a.behind ? 'Going backwards' : 'On plan', long: 'No change planned yet', tone: a.behind ? 'risk' : 'on' };

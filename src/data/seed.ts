@@ -3,6 +3,8 @@
    seven weeks is written below in story weeks 1–7 and placed at the end of the year by yearStory.ts. */
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../domain/checkin';
 import { checkInChange, goalChange } from '../domain/changes';
+import { requestsFromCheckIns } from '../domain/requests';
+import { checkInsFor } from '../domain/status';
 import type { Cause, Change, CheckIn, Cycle, Decision, Goal, Level, MetricGoal, MilestoneGoal, Person, RangeGoal, Review, Snapshot, StageUpdate, Team, Watch } from '../domain/types';
 
 import { SEED_WEEK, STORY_OFFSET, steadyDraft, storyValue, toYear, YEAR_WEEKS, yearName } from './yearStory';
@@ -229,5 +231,7 @@ export function seed(today: Date): Snapshot {
     summary: 'Added a note in Platform weekly review', diffs: [{ field: 'Note', from: '—', to: decisions[0]!.note }],
   });
   changes.sort((a, b) => a.at.localeCompare(b.at));
-  return { people, teams, cycles: [cycle], goals: allGoals, checkIns, decisions, changes, watches, reviews, retros: [] };
+  const base = { people, teams, cycles: [cycle], goals: allGoals, checkIns, decisions, changes, watches, reviews, retros: [] };
+  // Every open request for a decision or help, from each goal's latest check-in.
+  return { ...base, requests: requestsFromCheckIns(base, (g) => checkInsFor(g, checkIns).at(-1) ?? null) };
 }

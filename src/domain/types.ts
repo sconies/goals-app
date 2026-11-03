@@ -194,9 +194,9 @@ export interface Change {
   at: string;
   actorId: Id;
   goalId: Id | null;
-  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person' | 'retro' | 'cycle';
+  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person' | 'retro' | 'cycle' | 'request';
   entityId: Id;
-  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed';
+  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed' | 'answered' | 'linked';
   summary: string;
   diffs: Diff[];
 }
@@ -267,6 +267,32 @@ export interface Snapshot {
   tokens?: ApiToken[];
   /** Saved views of the goals: each person's own, and any an admin pinned for everyone. */
   views?: SavedView[];
+  /** Requests for a decision or help, raised in check-ins: open until answered or withdrawn. */
+  requests?: HelpRequest[];
+}
+
+export type RequestStatus = 'open' | 'answered' | 'withdrawn';
+
+/**
+ * A request for a decision or help, raised by a goal's owner in a check-in and addressed to one person (or anyone).
+ * It stays open from check-in to check-in until it's answered or withdrawn, so "was it answered?" has a clear answer.
+ * One request can apply to several goals: an owner links their goal to a request already raised for another, and one
+ * answer then applies to all of them. The first goal is the one it was raised on.
+ */
+export interface HelpRequest {
+  id: Id;
+  goalIds: Id[];
+  askedBy: Id;
+  recipientId: Id | null;
+  ask: string;
+  status: RequestStatus;
+  /** The check-in that raised it. */
+  checkInId: Id | null;
+  createdAt: string;
+  updatedAt: string;
+  answer: string | null;
+  answeredBy: Id | null;
+  answeredAt: string | null;
 }
 
 /**

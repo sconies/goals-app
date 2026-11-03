@@ -21859,6 +21859,35 @@ var viewFromRow = (r) => ({
 	updatedAt: iso(r.updated_at),
 	deletedAt: r.deleted_at ? iso(r.deleted_at) : null
 });
+var requestToRow = (ws, r) => ({
+	workspace_id: ws,
+	id: r.id,
+	goal_ids: r.goalIds,
+	asked_by: r.askedBy,
+	recipient_id: r.recipientId,
+	ask: r.ask,
+	status: r.status,
+	check_in_id: r.checkInId,
+	answer: r.answer,
+	answered_by: r.answeredBy,
+	answered_at: r.answeredAt,
+	created_at: r.createdAt,
+	updated_at: r.updatedAt
+});
+var requestFromRow = (r) => ({
+	id: r.id,
+	goalIds: r.goal_ids ?? [],
+	askedBy: r.asked_by,
+	recipientId: r.recipient_id,
+	ask: r.ask,
+	status: r.status,
+	checkInId: r.check_in_id,
+	answer: r.answer,
+	answeredBy: r.answered_by,
+	answeredAt: r.answered_at ? iso(r.answered_at) : null,
+	createdAt: iso(r.created_at),
+	updatedAt: iso(r.updated_at)
+});
 var tokenFromRow = (r) => ({
 	id: r.id,
 	personId: r.person_id,
@@ -21893,6 +21922,7 @@ function commitPayload(ws, c) {
 		unwatch: c.unwatch ?? [],
 		tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
 		views: (c.views ?? []).map((x) => viewToRow(ws, x)),
+		requests: (c.requests ?? []).map((x) => requestToRow(ws, x)),
 		changes: c.changes.map((x) => changeToRow(ws, x)),
 		expect: c.expect ? {
 			goals: c.expect.goals,
@@ -22217,7 +22247,11 @@ function assessPosted(goal, cycle, checkIns, week) {
 		const prev = own.filter((c) => c.week < at && c.value != null).pop();
 		return assessRange(goal, at, latest?.value ?? null, prev?.value ?? null);
 	}
-	return assessMilestone(goal, week, latest?.stages ?? null);
+	const m = assessMilestone(goal, week, latest?.stages ?? null);
+	return !latest && m.calc === "on" ? {
+		...m,
+		calc: "none"
+	} : m;
 }
 function goalStatus(goal, cycle, checkIns, today) {
 	const week = currentWeek(cycle, today);
@@ -22240,6 +22274,170 @@ function goalStatus(goal, cycle, checkIns, today) {
 		daysSinceCheckIn: days,
 		week
 	};
+}
+// src/domain/requests.ts
+var norm$2 = (s) => s.trim().toLowerCase();
+/** "Elena Ruiz: approve the interim scope" → Elena, and the ask itself. Without a name it's for anyone. */
+function parseAsk(needs, people) {
+	const t = needs.trim();
+	const i = t.indexOf(":");
+	if (i > 0) {
+		const who = people.find((p) => norm$2(p.name) === norm$2(t.slice(0, i)));
+		if (who) return {
+			recipientId: who.id,
+			ask: t.slice(i + 1).trim()
+		};
+	}
+	return {
+		recipientId: null,
+		ask: t
+	};
+}
+/** "Elena Ruiz: approve the interim scope", as a check-in and the story put it. */
+function askText(r, people) {
+	const who = r.recipientId ? people.find((p) => p.id === r.recipientId)?.name : null;
+	return who ? `${who}: ${r.ask}` : r.ask;
+}
+var all = (s) => s.requests ?? (s.goals && s.checkIns ? requestsFromCheckIns(s, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null) : []);
+/** Every request in a workspace (read from check-ins for data from before requests were stored). */
+var requestsOf = (s) => all(s);
+/** Open requests a goal is waiting on: its own, and any it's linked to. */
+var openFor = (goalId, s) => all(s).filter((r) => r.status === "open" && r.goalIds.includes(goalId));
+/** The latest answer a goal has had since its latest check-in, if any: what the next review should know. */
+function answeredSince(goalId, since, s) {
+	return all(s).filter((r) => r.status === "answered" && r.goalIds.includes(goalId) && (!since || (r.answeredAt ?? "") > since)).sort((a, b) => (a.answeredAt ?? "").localeCompare(b.answeredAt ?? "")).pop() ?? null;
+}
+var change$1 = (r, goalId, actorId, at, id, action, summary, diffs) => ({
+	id,
+	at,
+	actorId,
+	goalId,
+	entity: "request",
+	entityId: r.id,
+	action,
+	summary,
+	diffs
+});
+/**
+* What a check-in does to requests. Only the goal's latest check-in counts (a past week loaded later doesn't).
+* With an ask: the same request carries on (its words updated if the owner changed them), or a new one is raised.
+* Without one: the goal's own open request is withdrawn, and a link to someone else's request is dropped.
+*/
+function requestsAfterCheckIn(goal, c, s, actorId, now, newId) {
+	const out = [];
+	const changes = [];
+	const needs = c.pathToGreen?.needs?.trim() ?? "";
+	const open = openFor(goal.id, s);
+	if (needs) {
+		const { recipientId, ask } = parseAsk(needs, s.people);
+		const same = open.find((r) => r.recipientId === recipientId);
+		if (same) {
+			if (same.goalIds[0] === goal.id && norm$2(same.ask) !== norm$2(ask)) {
+				const next = {
+					...same,
+					ask,
+					checkInId: c.id,
+					updatedAt: now
+				};
+				out.push(next);
+				changes.push(change$1(next, goal.id, actorId, now, newId("chg"), "edited", "Changed the request", [{
+					field: "Request",
+					from: same.ask,
+					to: ask
+				}]));
+			}
+		} else {
+			const r = {
+				id: newId("req"),
+				goalIds: [goal.id],
+				askedBy: actorId,
+				recipientId,
+				ask,
+				status: "open",
+				checkInId: c.id,
+				createdAt: now,
+				updatedAt: now,
+				answer: null,
+				answeredBy: null,
+				answeredAt: null
+			};
+			out.push(r);
+			const who = recipientId ? s.people.find((p) => p.id === recipientId)?.name ?? "someone" : "anyone";
+			changes.push(change$1(r, goal.id, actorId, now, newId("chg"), "asked", `Asked ${who} for a decision or help`, [{
+				field: "Request",
+				from: "—",
+				to: ask
+			}]));
+		}
+		for (const r of open.filter((x) => x.goalIds[0] === goal.id && x.recipientId !== recipientId)) {
+			out.push({
+				...r,
+				status: "withdrawn",
+				updatedAt: now
+			});
+			changes.push(change$1(r, goal.id, actorId, now, newId("chg"), "withdrawn", "Withdrew the request", [{
+				field: "Request",
+				from: r.ask,
+				to: "Withdrawn: replaced by a new request"
+			}]));
+		}
+		return {
+			requests: out,
+			changes
+		};
+	}
+	for (const r of open) if (r.goalIds[0] === goal.id) {
+		out.push({
+			...r,
+			status: "withdrawn",
+			updatedAt: now
+		});
+		changes.push(change$1(r, goal.id, actorId, now, newId("chg"), "withdrawn", "Withdrew the request", [{
+			field: "Request",
+			from: r.ask,
+			to: "Withdrawn: not needed any more"
+		}]));
+	} else {
+		out.push({
+			...r,
+			goalIds: r.goalIds.filter((g) => g !== goal.id),
+			updatedAt: now
+		});
+		changes.push(change$1(r, goal.id, actorId, now, newId("chg"), "withdrawn", "No longer waiting on this request", [{
+			field: "Waiting on",
+			from: r.ask,
+			to: "—"
+		}]));
+	}
+	return {
+		requests: out,
+		changes
+	};
+}
+/** The requests a workspace starts with, read from each goal's latest check-in (for data from before requests existed). */
+function requestsFromCheckIns(s, latestOf) {
+	const out = [];
+	for (const g of s.goals) {
+		const c = latestOf(g);
+		const needs = c?.pathToGreen?.needs?.trim();
+		if (!c || !needs) continue;
+		const { recipientId, ask } = parseAsk(needs, s.people);
+		out.push({
+			id: `req_${c.id}`,
+			goalIds: [g.id],
+			askedBy: c.authorId,
+			recipientId,
+			ask,
+			status: "open",
+			checkInId: c.id,
+			createdAt: c.postedAt,
+			updatedAt: c.postedAt,
+			answer: null,
+			answeredBy: null,
+			answeredAt: null
+		});
+	}
+	return out;
 }
 // src/domain/checkin.ts
 var CAUSES_BEHIND = [
@@ -22431,7 +22629,7 @@ function gapText(g, a) {
 		tone: "stale"
 	};
 	if (a.calc === "none") return {
-		short: "No value yet",
+		short: g.kind === "milestone" ? "No check-in yet" : "No value yet",
 		long: "Waiting for the first check-in",
 		tone: "stale"
 	};
@@ -23770,7 +23968,8 @@ function applyCommit(s, c) {
 		cycles: upsert(s.cycles, c.cycles),
 		feedback: upsert(s.feedback ?? [], c.feedback),
 		tokens: upsert(s.tokens ?? [], c.tokens),
-		views: upsert(s.views ?? [], c.views)
+		views: upsert(s.views ?? [], c.views),
+		requests: c.requests?.length || s.requests ? upsert(s.requests ?? requestsOf(s), c.requests) : s.requests
 	};
 }
 var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -23824,7 +24023,7 @@ var SupabaseStore = class {
 		return (data ?? []).map(workspaceFromRow).filter((w) => w.kind !== "example" && w.id !== EXAMPLE.id);
 	}
 	async load(ws) {
-		const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views] = await Promise.all([
+		const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests] = await Promise.all([
 			this.all("okr_teams", ws),
 			this.all("okr_people", ws),
 			this.all("okr_cycles", ws),
@@ -23838,7 +24037,8 @@ var SupabaseStore = class {
 			this.all("okr_retros", ws),
 			this.all("okr_feedback", ws),
 			this.all("okr_api_tokens", ws).catch(() => []),
-			this.all("okr_views", ws).catch(() => [])
+			this.all("okr_views", ws).catch(() => []),
+			this.all("okr_requests", ws).catch(() => null)
 		]);
 		if (!cycles.length) throw new Error("This workspace has no cycle yet.");
 		return {
@@ -23854,7 +24054,8 @@ var SupabaseStore = class {
 			retros: retros.map(retroFromRow),
 			feedback: feedback.map(feedbackFromRow),
 			tokens: tokens.map(tokenFromRow),
-			views: views.map(viewFromRow)
+			views: views.map(viewFromRow),
+			...requests ? { requests: requests.map(requestFromRow) } : {}
 		};
 	}
 	/** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
@@ -23896,6 +24097,7 @@ var SupabaseStore = class {
 		if (c.watches?.length) await this.must(this.db.from("okr_watches").upsert(c.watches.map((x) => watchToRow(ws, x))), "Watching");
 		if (c.tokens?.length) await this.must(this.db.from("okr_api_tokens").upsert(c.tokens.map((x) => tokenToRow(ws, x))), "Saving the token");
 		if (c.views?.length) await this.must(this.db.from("okr_views").upsert(c.views.map((x) => viewToRow(ws, x))), "Saving the view");
+		if (c.requests?.length) await this.must(this.db.from("okr_requests").upsert(c.requests.map((x) => requestToRow(ws, x))), "Saving the request");
 		for (const id of c.unwatch ?? []) await this.must(this.db.from("okr_watches").delete().eq("id", id), "Stopping watching");
 		if (c.changes.length) await this.must(this.db.from("okr_changes").insert(c.changes.map((x) => changeToRow(ws, x))), "Logging the change");
 	}
@@ -23916,6 +24118,7 @@ var SupabaseStore = class {
 		await chunk("okr_decisions", s.decisions.map((d) => decisionToRow(ws, d)), "Adding decisions");
 		await chunk("okr_watches", s.watches.map((w) => watchToRow(ws, w)), "Adding watches");
 		await chunk("okr_retros", (s.retros ?? []).map((r) => retroToRow(ws, r)), "Adding retros");
+		if (s.requests?.length) await chunk("okr_requests", s.requests.map((r) => requestToRow(ws, r)), "Adding requests");
 		await chunk("okr_changes", s.changes.map((c) => changeToRow(ws, c)), "Adding the change log");
 	}
 	async createWorkspace(w, data) {
@@ -23980,7 +24183,11 @@ function scopeToCycle(s, cycle) {
 		goals,
 		checkIns: s.checkIns.filter((c) => ids.has(c.goalId)),
 		decisions: s.decisions.filter((d) => ids.has(d.goalId)),
-		retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id)
+		retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
+		requests: (s.requests ?? requestsFromCheckIns({
+			...s,
+			goals
+		}, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id)))
 	};
 }
 // src/domain/goal.ts
@@ -25112,6 +25319,18 @@ function planChanges(input) {
 			backfilled
 		});
 	}
+	const reqOut = /* @__PURE__ */ new Map();
+	for (const c of ciOut) {
+		const later = s.checkIns.some((x) => x.goalId === c.goalId && x.week > c.week) || ciOut.some((x) => x.goalId === c.goalId && x.week > c.week);
+		const g = work.get(c.goalId);
+		if (later || !g) continue;
+		const r = requestsAfterCheckIn(g, c, {
+			...s,
+			requests: [...(s.requests ?? []).filter((x) => !reqOut.has(x.id)), ...reqOut.values()]
+		}, actor.id, now, newId);
+		for (const x of r.requests) reqOut.set(x.id, x);
+		changes.push(...r.changes);
+	}
 	const peopleOut = [];
 	for (const t of peopleTouched) {
 		const after = people.get(t.before.id);
@@ -25179,6 +25398,7 @@ function planChanges(input) {
 			...peopleOut.length ? { people: peopleOut } : {},
 			goals: ordered,
 			checkIns: posted,
+			...reqOut.size ? { requests: [...reqOut.values()] } : {},
 			changes: [...changes, summary]
 		};
 	}
@@ -25307,8 +25527,10 @@ function storyOf(g, s, cycle, week, today) {
 			doing = ptg.what;
 			const state = ptg.state ?? "plan";
 			byWhen = ptg.byWeek != null ? `Back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === "help" ? ", once the decision or help arrives" : ""}` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
-			needs = ptg.needs?.trim() || null;
 		}
+		const open = openFor(g.id, s);
+		needs = open.map((r) => askText(r, s.people) + (r.goalIds[0] !== g.id ? ` (the same request as ${s.goals.find((x) => x.id === r.goalIds[0])?.title ?? "another goal"})` : "")).join("; ") || null;
+		if (ptg && (ptg.state ?? "plan") === "help" && !open.length && answeredSince(g.id, last?.postedAt ?? null, s)) byWhen = "Answer given: the owner’s next check-in says what it changes";
 		if (!ptg) warn("no-recovery", "No recovery plan: it is behind and the owner hasn’t said how it gets back.");
 		if (ptg && ptg.byWeek != null && ptg.byWeek < week) warn("missed-date", `Missed its own date: said it would be back on plan by week ${ptg.byWeek}.`);
 		let k = own.length - 1;
@@ -25325,6 +25547,13 @@ function storyOf(g, s, cycle, week, today) {
 	const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
 	const feeds = parent ? `Feeds ${parent.title}${parent.level !== "team" ? ` (${LEVEL_LABEL[parent.level]})` : ""}` : null;
 	const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
+	const ans = answeredSince(g.id, last?.postedAt ?? null, s);
+	const answered = ans ? {
+		ask: askText(ans, s.people),
+		answer: ans.answer ?? "",
+		by: s.people.find((p) => p.id === ans.answeredBy)?.name ?? "someone",
+		at: ans.answeredAt ?? ""
+	} : null;
 	return {
 		status,
 		since,
@@ -25334,6 +25563,7 @@ function storyOf(g, s, cycle, week, today) {
 		doing,
 		byWhen,
 		needs,
+		answered,
 		next: (behind || status === "on") && last?.next ? last.next : null,
 		warnings,
 		flags,
@@ -25729,6 +25959,12 @@ var README = [
 		"Ignored"
 	],
 	[
+		"Requests",
+		"All columns",
+		"Requests for a decision or help: who asked whom, for which goals, and whether it was answered",
+		"Not loaded back; requests are raised in check-ins"
+	],
+	[
 		"People",
 		"ID",
 		"The person’s own identity. It never changes.",
@@ -25741,6 +25977,35 @@ var README = [
 		"Changed in the data tables; not loaded back from a file yet"
 	]
 ];
+/** Requests for a decision or help on the exported goals: open, answered or withdrawn, with every goal waiting on each. */
+function requestRows(x, ids, name) {
+	const title = (id) => x.snapshot.goals.find((g) => g.id === id)?.title ?? id;
+	return [[
+		"ID",
+		"Goals",
+		"Goal IDs",
+		"Asked by",
+		"Asked of",
+		"Request",
+		"Status",
+		"Asked at",
+		"Answer",
+		"Answered by",
+		"Answered at"
+	], ...requestsOf(x.snapshot).filter((r) => r.goalIds.some((id) => ids.has(id))).map((r) => [
+		r.id,
+		r.goalIds.map(title).join("; "),
+		r.goalIds.join("; "),
+		name(r.askedBy) || null,
+		r.recipientId ? name(r.recipientId) || null : "Anyone",
+		r.ask,
+		r.status === "open" ? "Open" : r.status === "answered" ? "Answered" : "Withdrawn",
+		r.createdAt,
+		r.answer,
+		r.answeredBy ? name(r.answeredBy) || null : null,
+		r.answeredAt
+	])];
+}
 function workbook(x) {
 	const { goals, sums, name } = prepare(x);
 	const ids = new Set(goals.map((g) => g.id));
@@ -25790,6 +26055,10 @@ function workbook(x) {
 				d.kind === "ask" ? answerOf(d, x.snapshot)?.text ?? null : null,
 				d.at
 			])]
+		},
+		{
+			name: "Requests",
+			rows: requestRows(x, ids, name)
 		},
 		{
 			name: "People",

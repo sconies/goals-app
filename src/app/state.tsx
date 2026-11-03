@@ -4,10 +4,11 @@ import { checkInChange, goalChange, type Lookup } from '../domain/changes';
 import { toCheckIn, type Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
-import type { CheckIn, Cycle, Decision, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import type { CheckIn, Cycle, Decision, Goal, HelpRequest, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
 import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
 import { personChange } from '../domain/people';
+import { answerRequest, linkRequest, requestsAfterCheckIn } from '../domain/requests';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
 import { hashToken, newToken } from '../mcp/protocol';
@@ -45,6 +46,12 @@ export interface AppState {
   lookup: Lookup;
   /** Posts (or replaces) this week's check-in and logs it. */
   postCheckIn(goal: Goal, draft: Draft, existing: CheckIn | null): Promise<CheckIn>;
+  /** Answer a request for a decision or help: one answer for every goal it applies to. */
+  answerRequest(r: HelpRequest, answer: string): Promise<void>;
+  /** Link a goal to a request raised for another goal: waiting on the same decision. */
+  linkRequest(r: HelpRequest, goal: Goal): Promise<void>;
+  /** The owner withdraws their request between check-ins. */
+  withdrawRequest(r: HelpRequest, goal: Goal): Promise<void>;
   /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. */
   saveGoal(after: Goal, before: Goal | null, why?: string): Promise<void>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status. */
@@ -312,8 +319,24 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         const change = checkInChange(existing, c, goal, viewer.id, newId('chg'));
         // Another check-in in the same week is kept alongside the first; the latest is the week's status.
         if (change && !existing && sc.checkIns.some((x) => x.goalId === goal.id && x.week === week)) change.summary = change.summary.replace('Checked in for week', 'Checked in again for week');
-        await commit({ checkIns: [c], changes: change ? [change] : [] });
+        // The ask in a check-in raises, continues or withdraws a request (domain/requests).
+        const req = requestsAfterCheckIn(goal, c, sc, viewer.id, c.postedAt, newId);
+        await commit({ checkIns: [c], requests: req.requests, changes: [...(change ? [change] : []), ...req.changes] });
         return c;
+      },
+      answerRequest: async (r, answer) => {
+        const { request, changes } = answerRequest(r, answer, viewer.id, stamp(), newId);
+        await commit({ requests: [request], changes });
+      },
+      linkRequest: async (r, goal) => {
+        const { requests, changes } = linkRequest(r, goal, sc, viewer.id, stamp(), newId);
+        await commit({ requests, changes });
+      },
+      withdrawRequest: async (r, goal) => {
+        const at = stamp();
+        const own = r.goalIds[0] === goal.id;
+        const next = own ? { ...r, status: 'withdrawn' as const, updatedAt: at } : { ...r, goalIds: r.goalIds.filter((g) => g !== goal.id), updatedAt: at };
+        await commit({ requests: [next], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: goal.id, entity: 'request', entityId: r.id, action: 'withdrawn', summary: own ? 'Withdrew the request' : 'No longer waiting on this request', diffs: [{ field: 'Request', from: r.ask, to: 'Withdrawn' }] }] });
       },
       saveGoal: async (after, before, why) => {
         if (makesLoop(after.id, after.parentId, sc.goals)) {

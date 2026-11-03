@@ -22,6 +22,7 @@ import { FilterBar, useGoalQuery, useViews, viewParams } from './GoalFilters';
 import { applyQuery, filters } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
+import { firstReports } from '../domain/progress';
 
 /** The map's "Only what needs attention": the statuses a leader acts on, as an ordinary status filter. */
 const ATTENTION = ['off', 'risk', 'stale'] as const;
@@ -126,6 +127,7 @@ export function GoalsScreen() {
       </div>
 
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
+      <FirstReports />
       {refined && shown.length === 0 && <div className="calm">No goals match. Remove a filter above, or clear them.</div>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
       {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
@@ -205,5 +207,20 @@ export function GoalsScreen() {
       {/* The key sits after the goals: every row already shows its status in words. */}
       {app.snapshot.goals.length > 0 && layout !== 'map' && <StatusLegend />}
     </div>
+  );
+}
+
+/** While goals are still waiting for their first check-in: how many are in, and who hasn't reported yet. */
+export function FirstReports() {
+  const app = useApp();
+  const f = firstReports(app.snapshot, app.cycle, app.week);
+  if (!f) return null;
+  const names = f.waiting.map((w) => app.person(w.ownerId)?.name.split(' ')[0] ?? 'someone');
+  const date = new Date(f.due + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  return (
+    <p className="first-reports small" role="status">
+      <strong>{f.reported} of {f.total} goals have had their first check-in.</strong> Until they have, “nothing needs attention” only means nobody has reported.
+      {' '}Waiting on {names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(names.length === 2 ? ' and ' : ', ')}; this week’s are due {date}.
+    </p>
   );
 }

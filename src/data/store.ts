@@ -1,4 +1,5 @@
-import type { ApiToken, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
+import { requestsOf } from '../domain/requests';
+import type { ApiToken, HelpRequest, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
 
 export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
@@ -19,6 +20,7 @@ export interface Commit {
   unwatch?: string[];
   tokens?: ApiToken[];
   views?: SavedView[];
+  requests?: HelpRequest[];
   changes: Change[];
   /** What the save was based on; filled in by withExpectations. A save is refused if any of it has changed since. */
   expect?: Expectations;
@@ -105,6 +107,8 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     feedback: upsert(s.feedback ?? [], c.feedback),
     tokens: upsert(s.tokens ?? [], c.tokens),
     views: upsert(s.views ?? [], c.views),
+    // Data from before requests were stored: start from the requests read from check-ins, so a first save keeps them.
+    requests: c.requests?.length || s.requests ? upsert(s.requests ?? requestsOf(s), c.requests) : s.requests,
   };
 }
 

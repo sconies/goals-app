@@ -104,7 +104,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
     return () => window.removeEventListener('resize', measure);
   }, []);
   const height = phone ? '70vh' : `max(420px, calc(100vh - ${Math.round((top ?? 250) + 16)}px))`;
-  const flow = useRef<Pick<ReactFlowInstance, 'setViewport'> | null>(null);
+  const flow = useRef<Pick<ReactFlowInstance<Node<GoalNodeData>, Edge>, 'setViewport' | 'fitView'> | null>(null);
   // Frame the critical path (or the top goals) ourselves, from the layout: no waiting for nodes to measure.
   const frame = (rf: Pick<ReactFlowInstance, 'setViewport'>) => {
     const box = canvas.current?.getBoundingClientRect();
@@ -130,7 +130,9 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> Only what needs attention</label>
           <button type="button" className="btn sm" onClick={() => setCollapsed(collapsed.size ? new Set() : new Set(allIds))}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
-          <button type="button" className="btn ghost sm" onClick={() => { if (flow.current) frame(flow.current); }}>Reset view</button>
+          {/* Two views, named: everything at once (small), or the critical path at a readable size (product review, 3 Nov). */}
+          <button type="button" className="btn ghost sm" onClick={() => { void flow.current?.fitView({ padding: 0.06, minZoom: 0.2, maxZoom: 1 }); }}>See everything</button>
+          <button type="button" className="btn ghost sm" onClick={() => { if (flow.current) frame(flow.current); }}>Readable view</button>
         </span>
       </div>
       <div className="map-body">
@@ -152,7 +154,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           >
             <Background gap={24} size={1} />
             {/* Fit view never shrinks the words below a readable size; scroll for the rest (visual review 2). */}
-            <Controls showInteractive={false} position="top-right" fitViewOptions={{ minZoom: 0.75, padding: 0.08 }} />
+            <Controls showInteractive={false} showFitView={false} position="bottom-left" />
           </ReactFlow>
         </div>
         {sel && <MapPanel goal={sel} focus={!!fromKeys.current} critical={critical.has(sel.id)} onClose={() => {

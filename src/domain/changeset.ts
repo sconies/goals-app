@@ -10,8 +10,9 @@ import { planAt, planEnd, weekDate } from './plan';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { personChange, personProblems } from './people';
+import { requestsAfterCheckIn } from './requests';
 import { initials } from './importer';
-import type { Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, RecoveryState, Snapshot, StageUpdate, Status } from './types';
+import type { Change, CheckIn, Cycle, Diff, Goal, HelpRequest, MetricGoal, MetricPlan, Person, RecoveryState, Snapshot, StageUpdate, Status } from './types';
 
 /** A row as a header → value map (lower-case headers), and its row number in the sheet. */
 export type Rec = Record<string, string> & { __row?: string };
@@ -406,6 +407,17 @@ export function planChanges(input: ChangeInput): ChangeSet {
     items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
   }
 
+  /* Requests: a goal's latest check-in raises, continues or withdraws its request, as in the app (domain/requests). */
+  const reqOut = new Map<string, HelpRequest>();
+  for (const c of ciOut) {
+    const later = s.checkIns.some((x) => x.goalId === c.goalId && x.week > c.week) || ciOut.some((x) => x.goalId === c.goalId && x.week > c.week);
+    const g = work.get(c.goalId);
+    if (later || !g) continue;
+    const r = requestsAfterCheckIn(g, c, { ...s, requests: [...(s.requests ?? []).filter((x) => !reqOut.has(x.id)), ...reqOut.values()] }, actor.id, now, newId);
+    for (const x of r.requests) reqOut.set(x.id, x);
+    changes.push(...r.changes);
+  }
+
   /* People: what changed */
   const peopleOut: Person[] = [];
   for (const t of peopleTouched) {
@@ -442,7 +454,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       const i = pending.findIndex((g) => !g.parentId || !pending.some((x) => x.id === g.parentId));
       ordered.push(...pending.splice(i < 0 ? 0 : i, 1));
     }
-    result.commit = { ...(peopleOut.length ? { people: peopleOut } : {}), goals: ordered, checkIns: posted, changes: [...changes, summary] };
+    result.commit = { ...(peopleOut.length ? { people: peopleOut } : {}), goals: ordered, checkIns: posted, ...(reqOut.size ? { requests: [...reqOut.values()] } : {}), changes: [...changes, summary] };
   }
   return result;
 }

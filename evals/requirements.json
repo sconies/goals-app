@@ -74,7 +74,7 @@
     {
       "id": "PATH-TO-GREEN",
       "area": "Check-in",
-      "text": "At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed."
+      "text": "At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it. A request for a decision or help is a record: open until the person asked answers it or the owner withdraws it, shown once to the person asked however many goals wait on it, answered once for all of them, and the answer shown on each goal and in the next review."
     },
     {
       "id": "CHECKIN-STATUS-VS-PLAN",
@@ -294,7 +294,7 @@
     {
       "id": "HONEST-NUMBERS",
       "area": "Trust",
-      "text": "Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. Exports judge every past check-in against the plan of its own week, as the screens do. What the map shows, the count, the link and \"what's shown now\" in Export are the same goals; goals drawn only for context are greyed and say so."
+      "text": "Numbers people can trust. A whole workbook loads back for a goal owner, with only the rows they changed checked against who may change them. Every earlier plan is kept with the week it stopped applying, so old weeks and closed quarters stay judged against the plan of their day. A goal that measures a share can't report over 100%, and a value has to be a number before any status is shown. A goal gone quiet has no forecast in any view or export. A table compares a number with the plan for the same week. Exports judge every past check-in against the plan of its own week, as the screens do. What the map shows, the count, the link and \"what's shown now\" in Export are the same goals; goals drawn only for context are greyed and say so. While goals still have no check-in, the app says how many have reported rather than showing nothing needs attention; a milestone with no check-in isn't called on schedule, and the critical path only runs through goals whose status is known."
     },
     {
       "id": "WIDE-SCREENS",
@@ -435,6 +435,18 @@
       "title": "An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it",
       "who": "An admin and a goal owner",
       "budget": 26
+    },
+    {
+      "id": "U36",
+      "title": "An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them",
+      "who": "A goal owner and a leader",
+      "budget": 12
+    },
+    {
+      "id": "U37",
+      "title": "Two goals wait on one decision: an owner links them, the leader answers once, and both goals show the answer",
+      "who": "Two goal owners and a leader",
+      "budget": 12
     }
   ],
   "easeCriteria": [

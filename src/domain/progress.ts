@@ -50,3 +50,16 @@ export function daysToReview(cycle: Cycle, week: number, today: Date): number {
 }
 
 export const WEEKDAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/**
+ * Goals that have never had a check-in, and their owners: while a portfolio is starting up, "nothing needs attention"
+ * can just mean nobody has reported. Shown as "2 of 4 first check-ins in" until every goal has one (product review, 3 Nov).
+ */
+export function firstReports(s: Snapshot, cycle: Cycle, week: number): { total: number; reported: number; waiting: { ownerId: string; goals: number }[]; due: string } | null {
+  const live = s.goals.filter((g) => (g.kind !== 'metric' || (g.plan.fromWeek ?? 0) < Math.max(1, week)));
+  const silent = live.filter((g) => !s.checkIns.some((c) => c.goalId === g.id));
+  if (week < 1 || !live.length || !silent.length) return null;
+  const by = new Map<string, number>();
+  for (const g of silent) by.set(g.ownerId, (by.get(g.ownerId) ?? 0) + 1);
+  return { total: live.length, reported: live.length - silent.length, waiting: [...by].map(([ownerId, goals]) => ({ ownerId, goals })), due: reviewDate(cycle, week) };
+}

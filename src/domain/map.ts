@@ -1,7 +1,8 @@
 /* The goal map: every goal as a node, laid out as trees (north stars at the top, the goals that feed them below),
    solid lines for "feeds into", dotted lines for "also helps", and the critical path: from each top goal, the chain
    of inputs most likely to make it miss. Pure functions; the screen draws them. */
-import { RANK } from './status';
+import type { GoalAttention } from './attention';
+import { LABEL, RANK } from './status';
 import type { DisplayStatus, Goal } from './types';
 
 export interface MapNode {
@@ -20,7 +21,8 @@ const BUS_INDENT = 28;
 const STACK_GAP = 40;
 
 /** How much a goal's state threatens what it feeds: off track most, then at risk or gone quiet; on track or done not at all. */
-const threat = (s: DisplayStatus) => (s === 'off' ? 4 : s === 'risk' || s === 'stale' ? 2 : s === 'none' ? 1 : 0);
+// A goal with no check-in yet isn't a threat: its status is unknown, not bad (product review, 3 Nov).
+const threat = (s: DisplayStatus) => (s === 'off' ? 4 : s === 'risk' || s === 'stale' ? 2 : 0);
 
 /**
  * The critical path from each top goal: at each step, the input most likely to sink it, weighing how badly it's
@@ -144,4 +146,17 @@ export function layoutIndented(goals: Goal[], opts: { collapsed?: Set<string>; o
   };
   for (const r of roots) if (!seen.has(r.id)) place(r, 0);
   return out;
+}
+
+/**
+ * Why a contributing goal is listed as a threat to the goal it feeds, in a line: whether it's on the critical path
+ * (worst status among what feeds the most), and what's actually known about it, so a reporting gap reads differently
+ * from a delivery problem (product review, 3 Nov).
+ */
+export function threatReason(a: GoalAttention, onPath: boolean): string {
+  const f = a.flags.find((x) => x.kind !== 'due');
+  const known = a.status.status === 'stale'
+    ? `Last result unknown: no check-in for ${a.status.daysSinceCheckIn} days`
+    : f ? `${f.label}: ${f.detail.length > 110 ? f.detail.slice(0, 107).trimEnd() + '…' : f.detail}` : LABEL[a.status.status];
+  return (onPath ? 'On the critical path. ' : '') + known;
 }

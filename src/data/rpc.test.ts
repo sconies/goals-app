@@ -89,6 +89,31 @@ describe('database save functions, as the public user', () => {
     expect(rows[0]!.deleted_at).not.toBeNull();
   });
 
+  it('saves a request with its change-log entry, then its answer for every goal waiting on it (0017)', async () => {
+    const [g1, g2] = snap.goals;
+    const by = snap.people[0]!.id, to = snap.people[1]!.id;
+    const r = { id: 'req_rpc_1', goalIds: [g1!.id], askedBy: by, recipientId: to, ask: 'Approve the interim scope', status: 'open' as const, checkInId: null, createdAt: now.toISOString(), updatedAt: now.toISOString(), answer: null, answeredBy: null, answeredAt: null };
+    await commit({ requests: [r], changes: [{ id: 'chg_req_1', at: now.toISOString(), actorId: by, goalId: g1!.id, entity: 'request', entityId: r.id, action: 'asked', summary: 'Asked for a decision or help', diffs: [] }] });
+    await commit({ requests: [{ ...r, goalIds: [g1!.id, g2!.id], status: 'answered', answer: 'Approved.', answeredBy: to, answeredAt: now.toISOString() }], changes: [{ id: 'chg_req_2', at: now.toISOString(), actorId: to, goalId: g1!.id, entity: 'request', entityId: r.id, action: 'answered', summary: 'Answered the request', diffs: [] }] });
+    const rows = (await db.query<{ status: string; goal_ids: string[]; answer: string }>('select status, goal_ids, answer from okr_requests where id = $1', ['req_rpc_1'])).rows;
+    expect(rows).toEqual([{ status: 'answered', goal_ids: [g1!.id, g2!.id], answer: 'Approved.' }]);
+    expect(await count('okr_changes', `entity = 'request' and workspace_id = '${ws}'`)).toBe(2);
+    // An answered request must carry its answer.
+    await expect(commit({ requests: [{ ...r, id: 'req_rpc_2', status: 'answered' }], changes: [] })).rejects.toThrow();
+  });
+
+  it('turns asks already in check-ins into open requests, addressed to the person named (0017 backfill)', async () => {
+    const goalId = (await db.query<{ goal_id: string }>(`select goal_id from okr_check_ins where workspace_id = '${ws}' limit 1`)).rows[0]!.goal_id;
+    const g = snap.goals.find((x) => x.id === goalId)!;
+    const asker = snap.people[0]!, named = snap.people[1]!;
+    await db.exec(`update okr_check_ins set ptg_needs = '${named.name.replace(/'/g, "''")}: sign off the interim plan' where goal_id = '${g.id}'`);
+    const backfill = readFileSync(join(dir, '0017_requests.sql'), 'utf8').match(/insert into okr_requests[\s\S]*?on conflict \(id\) do nothing;/)![0];
+    await db.exec(backfill);
+    const rows = (await db.query<{ goal_ids: string[]; recipient_id: string; ask: string; status: string }>(`select goal_ids, recipient_id, ask, status from okr_requests where workspace_id = '${ws}' and id like 'req_ci%'`)).rows;
+    expect(rows).toEqual([{ goal_ids: [g.id], recipient_id: named.id, ask: 'sign off the interim plan', status: 'open' }]);
+    expect(asker.id).toBeTruthy();
+  });
+
   it('logs a retried save only once', async () => {
     const entry = { id: 'chg_rpc_retry', at: now.toISOString(), actorId: snap.people[0]!.id, goalId: null, entity: 'note' as const, entityId: 'n1', action: 'noted' as const, summary: 'Commented', diffs: [] };
     await commit({ changes: [entry] });
