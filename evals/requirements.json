@@ -252,6 +252,11 @@
       "text": "An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused."
     },
     {
+      "id": "MCP-PARITY",
+      "area": "AI assistants",
+      "text": "Everything a person can do in the app, their AI assistant can do through the MCP server, with exactly that person's rights and the app's rules, logged as them via the assistant: reading every screen (what needs them, goals, reviews, requests, watching, people, activity, views, tokens, the wrap-up) and every action (check-ins, goals, plans, comments, asks for an update, answering, linking and withdrawing requests, review calls, reviews, watching, people, wrap-ups, the next cycle, views, tokens, feedback, deleting the workspace). Only workspace set-up and switching stay in the app. A parity map is checked against the app's actions and screens."
+    },
+    {
       "id": "STORY",
       "area": "Leaders",
       "text": "Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet."
