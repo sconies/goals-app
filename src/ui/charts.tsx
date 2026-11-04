@@ -42,26 +42,41 @@ const ticksFor = (weeks: number, today: number, wide: boolean) => {
   const near = weeks >= 48 ? 4 : 0;
   return [...new Set([...base.filter((w) => Math.abs(w - today) > near || w === today), today])].sort((a, b) => a - b);
 };
+/** A tick for each week from the first to the last, or every other week (or more) when a week is under 44px; the last always. */
+const weekTicks = (from: number, to: number, perWeek: number) => {
+  const step = Math.max(1, Math.ceil(44 / Math.max(1, perWeek)));
+  const out: number[] = [];
+  for (let w = from; w < to; w += step) if (to - w >= step || w === from) out.push(w);
+  return [...out, to];
+};
 const tickLabel = (w: number, week: number, weeks: number) => (w === week ? 'Now' : weeks >= 48 ? (w === 0 ? 'Q1' : w === 13 ? 'Q2' : w === 26 ? 'Q3' : w === 39 ? 'Q4' : 'Wk ' + w) : 'Wk ' + w);
 
-interface MetricProps { goal: MetricGoal; weeks: number; week: number; series: Point[]; forecast: number | null; ptgBy?: number | null; height?: number }
+interface MetricProps {
+  goal: MetricGoal; weeks: number; week: number; series: Point[]; forecast: number | null; ptgBy?: number | null; height?: number;
+  /** Draw only from this week to the plan's end, with a tick for each week (every other one when narrow): the plan preview. */
+  fromWeek?: number;
+}
 
 export function MetricChart(p: MetricProps) {
   return <Sized height={p.height ?? 220}>{(w) => <MetricSvg {...p} W={w} H={p.height ?? 220} />}</Sized>;
 }
 
-function MetricSvg({ goal, weeks: cycleWeeks, week, series, forecast, ptgBy, W, H }: MetricProps & { W: number; H: number }) {
+function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast, ptgBy, fromWeek, W, H }: MetricProps & { W: number; H: number }) {
   // A goal that runs past the cycle (to the end of the year) is drawn to its own end.
   const weeks = Math.max(cycleWeeks, planEnd(goal.plan, cycleWeeks));
+  const x0 = fromWeek != null ? Math.max(0, Math.min(fromWeek, weeks - 1)) : 0;
+  const series = x0 ? allSeries.filter((p) => p.week >= x0) : allSeries;
   const compact = W < 420;
-  const f: Frame = { W, H, padL: compact ? 34 : 44, padR: 12, padT: 24, padB: 22 };
+  // With a tick each week, the last label is centred on the end, so it needs room to the right.
+  const f: Frame = { W, H, padL: compact ? 34 : 44, padR: fromWeek != null ? 20 : 12, padT: 24, padB: 22 };
   const { plan, originalPlan } = goal;
   const share = isShare(goal);
   const vals = [plan.start, plan.target, ...series.map((p) => p.value)];
   if (originalPlan) vals.push(originalPlan.target);
   if (forecast != null) vals.push(share ? Math.min(100, Math.max(0, forecast)) : forecast);
-  const { lo, hi, X, Y } = scales(f, weeks, vals, share ? [0, 100] : undefined);
-  const planPts = (pl: MetricGoal['plan']) => Array.from({ length: weeks + 1 }, (_, w) => [X(w), Y(planAt(pl, w, weeks))] as [number, number]);
+  const { lo, hi, X: X0, Y } = scales(f, weeks - x0, vals, share ? [0, 100] : undefined);
+  const X = (w: number) => X0(w - x0);
+  const planPts = (pl: MetricGoal['plan']) => Array.from({ length: weeks - x0 + 1 }, (_, i) => [X(x0 + i), Y(planAt(pl, x0 + i, weeks))] as [number, number]);
   const last = series[series.length - 1];
   const label = `${goal.title}: ${last ? 'latest ' + fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, plan for week ${week} ${fmt(planAt(plan, week, weeks), goal)}, target ${fmt(plan.target, goal)}`;
   const ticks = compact ? [lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1] : [0, 1, 2, 3, 4].map((i) => lo + ((hi - lo) * i) / 4);
@@ -73,7 +88,7 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series, forecast, ptgBy, W, 
           <text className="c-axis" x={f.padL - 6} y={Y(v) + 4} textAnchor="end">{v.toFixed(goal.decimals === 0 ? 0 : 1)}</text>
         </g>
       ))}
-      {ticksFor(weeks, week, !compact).map((w) => <text key={w} className="c-axis" x={X(w)} y={H - 6} textAnchor={w === 0 ? 'start' : 'middle'}>{tickLabel(w, week, weeks)}</text>)}
+      {(fromWeek != null ? weekTicks(x0, weeks, (W - f.padL - f.padR) / (weeks - x0)) : ticksFor(weeks, week, !compact)).map((w) => <text key={w} className="c-axis" x={X(w)} y={H - 6} textAnchor={w === x0 ? 'start' : 'middle'}>{fromWeek != null ? (w === week ? 'Now' : 'Wk ' + w) : tickLabel(w, week, weeks)}</text>)}
       <line className="c-today" x1={X(week)} x2={X(week)} y1={f.padT - 6} y2={H - f.padB} />
       <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(plan.target)} y2={Y(plan.target)} />
       <text className="c-target-t" x={f.padL + 4} y={Y(plan.target) + (plan.target < plan.start ? 14 : -6)}>Target {fmt(plan.target, goal)}</text>

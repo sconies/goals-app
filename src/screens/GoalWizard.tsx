@@ -8,12 +8,12 @@ import { blankGoal, buildGoal, draftOf, overHundredHint, validateGoal, withPoint
 import { fmt, LEVEL_LABEL } from '../domain/format';
 import type { Goal, GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
 
-const LEVEL_ORDER: Level[] = ['team', 'svp', 'north-star'];
 const LEVEL_RANK: Record<Level, number> = { 'north-star': 0, svp: 1, team: 2 };
 import { newId } from '../data/store';
 import { Empty, Steps } from '../ui/bits';
 import { MetricChart } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
+import { DateRange, DueField, FieldError, LevelField, StageFields } from '../ui/GoalFields';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { Icon } from '../ui/Icon';
 
@@ -44,7 +44,7 @@ export function GoalWizard() {
     const title = draft.title?.trim() || 'Untitled goal';
     const at = Math.min(3, Math.max(0, draft.step ?? 0));
     return (
-      <div className="focus">
+      <div className="focus goal-form">
         <div className="focus-top">
           <span className="small strong">New goal</span>
           <span />
@@ -53,8 +53,8 @@ export function GoalWizard() {
         <div className="focus-body">
           <h1 className="qtitle big">You have a goal you didn’t publish</h1>
           <p className="muted">“{title}”, stopped at step {at + 1} of 4: {STEP_LABELS[at]!.toLowerCase()}.</p>
-          <div className="actions">
-            <button type="button" className="btn primary big-btn" onClick={() => setChoice('resume')}>Resume “{title}”</button>
+          <div className="actions resume-actions">
+            <button type="button" className="btn primary big-btn" onClick={() => setChoice('resume')}>Resume</button>
             <button type="button" className="btn big-btn" onClick={() => { clearDraft(key); setChoice('fresh'); }}>Start another goal</button>
           </div>
           <p className="hint">Starting another throws the unpublished one away.</p>
@@ -84,7 +84,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
   const errors = validateGoal(d, cycle);
   const stepErrors = (i: number) => STEP_FIELDS[i]!.filter((k) => errors[k]);
-  const showErr = (k: keyof GoalErrors) => tried.includes(step) && errors[k] ? <span className="tiny tone-off" role="alert">{errors[k]}</span> : null;
+  const showErr = (k: keyof GoalErrors) => tried.includes(step) && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
   const top = useRef<HTMLDivElement>(null);
   // After “Change …” on the summary, Continue comes straight back to it.
   const [fromSummary, setFromSummary] = useState(false);
@@ -129,10 +129,19 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const owner = app.person(d.ownerId);
   const parent = app.goal(d.parentId);
   const unitFmt = { unit: d.unit, decimals: parseNumber(d.decimals) ?? 0 };
+  // A few words for each step on the summary, beside its Change.
+  const num = (s: string) => { const n = parseNumber(s); return n == null ? '' : fmt(n, unitFmt); };
+  const reviewValue = [
+    KINDS.find(([k]) => k === d.kind)?.[1] ?? '',
+    d.kind === 'metric' ? (num(d.start) && num(d.target) ? `${num(d.start)} to ${num(d.target)}` : '')
+      : d.kind === 'range' ? (num(d.limit) ? `${d.bound === 'atMost' ? 'At most' : 'At least'} ${num(d.limit)}` : '')
+        : ((n) => (n === 1 ? '1 stage' : `${n} stages`))(d.stages.filter((s) => s.name.trim()).length),
+    [app.snapshot.teams.find((t) => t.id === d.teamId)?.name, owner?.name].filter(Boolean).join(' · '),
+  ];
 
   return (
-    <div className="focus" ref={top}>
-      <div className="focus-top">
+    <div className="focus goal-form" ref={top}>
+      <div className="focus-top wiz-top">
         <span className="small strong">{existing ? 'Edit goal' : 'New goal'}</span>
         <Steps at={step + 1} of={4} label={STEP_LABELS[step]} />
         <button className="iconbtn" onClick={() => nav(existing ? '/goals/' + existing.id : '/goals')} aria-label="Close and keep the draft"><Icon name="close" /></button>
@@ -167,23 +176,19 @@ function Wizard({ existing }: { existing: Goal | null }) {
           <>
             <h1 className="qtitle big">{d.kind === 'metric' ? 'Where does it start, and where should it end?' : d.kind === 'range' ? 'Where is the line it mustn’t cross?' : 'What are the stages, and when is each due?'}</h1>
             {d.kind !== 'milestone' && (
-              <div className="row" style={{ alignItems: 'flex-start' }}>
-                <label className="field" style={{ flex: '0 1 150px' }}><span className="small strong">Unit</span><input className="input" value={d.unit} onChange={(e) => set({ unit: e.target.value })} placeholder="%, days, ms" /></label>
-                <label className="field" style={{ flex: '0 1 110px' }}><span className="small strong">Decimals</span><input className="input" inputMode="numeric" value={d.decimals} onChange={(e) => set({ decimals: e.target.value })} />{showErr('decimals')}</label>
+              <div className="num-pair">
+                <label className="field"><span className="small strong">Unit</span><input className="input" value={d.unit} onChange={(e) => set({ unit: e.target.value })} placeholder="%, days, ms" /></label>
+                <label className="field"><span className="small strong">Decimals</span><input className="input" inputMode="numeric" value={d.decimals} onChange={(e) => set({ decimals: e.target.value })} aria-invalid={tried.includes(1) && !!errors.decimals} />{showErr('decimals')}</label>
               </div>
             )}
             {d.kind === 'metric' && (
               <>
-                <div className="field"><span className="small strong" id="end-l">By when?</span>
-                  <div className="seg full" role="group" aria-labelledby="end-l">
-                    {endOptions.map(([w, l]) => <button key={w} type="button" aria-pressed={endChoice === w} onClick={() => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })}>{l}</button>)}
-                  </div>
-                  <span className="hint">Due week {endChoice}, {weekDates(cycle, endChoice)}.{endChoice > cycle.weeks ? ` It carries into next ${isYear(cycle) ? 'year' : 'cycle'} with this plan.` : ''}</span>
-                </div>
-                <div className="row" style={{ alignItems: 'flex-start' }}>
-                  <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Today (week {existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>
+                <DueField label="By when?" labelClass="small strong" options={endOptions} choice={endChoice} onChoose={(w) => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })} dates={weekDates(cycle, endChoice)}
+                  after={endChoice > cycle.weeks ? `It carries into next ${isYear(cycle) ? 'year' : 'cycle'} with this plan.` : undefined} />
+                <div className="num-pair with-arrow">
+                  <label className="field"><span className="small strong">Today (week {existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>
                   <span className="arrow"><Icon name="arrow-right" /></span>
-                  <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}{overHundredHint(d.unit, d.start, d.target) && <span className="hint tone-risk" role="status">{overHundredHint(d.unit, d.start, d.target)}</span>}</label>
+                  <label className="field"><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}{overHundredHint(d.unit, d.start, d.target) && <span className="hint tone-risk" role="status">{overHundredHint(d.unit, d.start, d.target)}</span>}</label>
                 </div>
                 <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
                   <legend className="small strong" style={{ marginBottom: 8 }}>How will progress come?</legend>
@@ -195,7 +200,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 </fieldset>
                 {preview ? (
                   <figure className="card" style={{ margin: 0 }} aria-label="Plan preview">
-                    <MetricChart goal={{ ...preview, plan: withPoints(preview.plan, d.points, cycle.weeks) }} weeks={cycle.weeks} week={week} series={existing ? app.checkInsOf(existing).filter((c) => c.value != null).map((c) => ({ week: c.week, value: c.value as number })) : []} forecast={null} height={170} />
+                    <MetricChart goal={{ ...preview, plan: withPoints(preview.plan, d.points, cycle.weeks) }} weeks={cycle.weeks} week={week} series={existing ? app.checkInsOf(existing).filter((c) => c.value != null).map((c) => ({ week: c.week, value: c.value as number })) : []} forecast={null} height={170} fromWeek={preview.plan.fromWeek || undefined} />
                     <figcaption className="tiny muted">The blue line is the weekly plan that status is judged against.</figcaption>
                   </figure>
                 ) : <p className="small muted">Enter both numbers to see the plan.</p>}
@@ -205,29 +210,20 @@ function Wizard({ existing }: { existing: Goal | null }) {
               </>
             )}
             {d.kind === 'range' && (
-              <div className="row" style={{ alignItems: 'flex-start' }}>
-                <div className="field"><span className="small strong" id="bound">Must stay</span>
-                  <div className="seg" role="group" aria-labelledby="bound">
+              <div className="limits">
+                <div className="field limits-bound"><span className="small strong" id="bound">Must stay</span>
+                  <div className="seg full" role="group" aria-labelledby="bound">
                     <button type="button" aria-pressed={d.bound === 'atMost'} onClick={() => set({ bound: 'atMost' })}>At most</button>
                     <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
                   </div>
                 </div>
-                <label className="field" style={{ flex: '1 1 130px' }}><span className="small strong">Limit</span><input className="input big-input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried.includes(1) && !!errors.limit} />{showErr('limit')}</label>
-                <label className="field" style={{ flex: '1 1 130px' }}><span className="small strong">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} />{showErr('margin')}</label>
+                <label className="field"><span className="small strong">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried.includes(1) && !!errors.limit} />{showErr('limit')}</label>
+                <label className="field"><span className="small strong">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried.includes(1) && !!errors.margin} />{showErr('margin')}</label>
               </div>
             )}
             {d.kind === 'milestone' && (
-              <div className="stack">
-                {d.stages.map((s, i) => (
-                  <div key={s.id} className="row nowrap" style={{ alignItems: 'flex-end' }}>
-                    <label className="field" style={{ flex: '3 1 200px' }}><span className="small strong">Stage {i + 1}</span><input className="input" value={s.name} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x)) })} placeholder="e.g. Threat model" /></label>
-                    <label className="field" style={{ flex: '0 0 96px' }}><span className="small strong" aria-hidden="true">Week</span><input className="input" inputMode="numeric" aria-label={`Stage ${i + 1}: due week`} value={s.dueWeek} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, dueWeek: e.target.value } : x)) })} /></label>
-                    {d.stages.length > 1 && <button type="button" className="iconbtn" onClick={() => set({ stages: d.stages.filter((x) => x.id !== s.id) })} aria-label={'Remove stage ' + (i + 1)}><Icon name="close" /></button>}
-                  </div>
-                ))}
-                <div><button type="button" className="btn sm" onClick={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })}><Icon name="plus" />Add a stage</button></div>
-                {showErr('stages')}
-              </div>
+              <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="small strong" error={tried.includes(1) ? errors.stages ?? null : null}
+                onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
             )}
           </>
         )}
@@ -242,11 +238,11 @@ function Wizard({ existing }: { existing: Goal | null }) {
               </select>
               {!d.parentId && parents.length > 0 && <span className="hint">Goals that feed nothing and have nothing feeding them show as not linked.</span>}
             </label>
-            <div className="row" style={{ alignItems: 'flex-start' }}>
-              <label className="field" style={{ flex: '1 1 200px' }}><span className="small strong">Team</span>
+            <div className="fit-pair">
+              <label className="field"><span className="small strong">Team</span>
                 <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
               </label>
-              <label className="field" style={{ flex: '1 1 200px' }}><span className="small strong">Owner · checks in weekly</span>
+              <label className="field"><span className="small strong">Owner · checks in weekly</span>
                 <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               </label>
             </div>
@@ -260,12 +256,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <textarea className="input" rows={2} value={d.whyHelps} onChange={(e) => set({ whyHelps: e.target.value })} placeholder={`e.g. Faster triage means requests start sooner, which should cut “${parent?.title ?? 'its'}” time`} />
               </label>
             )}
-            <div className="field"><span className="small strong" id="level-l">Level</span>
-              <div className="seg full" role="group" aria-labelledby="level-l">
-                {LEVEL_ORDER.map((l) => <button key={l} type="button" aria-pressed={d.level === l} onClick={() => set({ level: l })}>{LEVEL_LABEL[l]}</button>)}
-              </div>
-              <span className="hint">{d.level === 'team' ? 'Most goals. Flag SVP or North star only for goals reported at major reviews.' : d.level === 'svp' ? 'Reported at SVP reviews.' : 'Reported at the top. You can have several.'}</span>
-            </div>
+            <LevelField level={d.level} onChange={(level) => set({ level })} labelClass="small strong" />
             <label className="check"><input type="checkbox" checked={d.guardrail} onChange={(e) => set({ guardrail: e.target.checked })} /><span>It’s a guardrail: protects quality while the rest moves</span></label>
             <details className="disclose"><summary>Data source and definition (optional)</summary>
               <label className="field"><span className="small strong">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} placeholder="e.g. Jira intake board" /></label>
@@ -281,13 +272,21 @@ function Wizard({ existing }: { existing: Goal | null }) {
               <span className="h3">{d.title || 'Untitled goal'}</span>
               <p>
                 <strong>{owner?.name ?? 'Someone'}</strong> owns it and checks in weekly. {d.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null
-                  ? <>It moves from <strong>{fmt(parseNumber(d.start)!, unitFmt)}</strong> to <strong>{fmt(parseNumber(d.target)!, unitFmt)}</strong> by week {endChoice} ({weekDates(cycle, endChoice)}), {Object.values(d.points).some((v) => v.trim()) ? 'with plan numbers set by hand' : SHAPES.find((s) => s[0] === d.shape)?.[1].toLowerCase()}.</>
+                  ? <>It moves from <strong>{fmt(parseNumber(d.start)!, unitFmt)}</strong> to <strong>{fmt(parseNumber(d.target)!, unitFmt)}</strong> by week {endChoice} <DateRange>({weekDates(cycle, endChoice)})</DateRange>, {Object.values(d.points).some((v) => v.trim()) ? 'with plan numbers set by hand' : SHAPES.find((s) => s[0] === d.shape)?.[1].toLowerCase()}.</>
                   : d.kind === 'range' && parseNumber(d.limit) != null ? <>It stays {d.bound === 'atMost' ? 'at or under' : 'at or above'} <strong>{fmt(parseNumber(d.limit)!, unitFmt)}</strong>, with a warning within {d.margin || 0}.</>
                     : d.kind === 'milestone' ? <>{d.stages.filter((s) => s.name).length} stages, the last due week {Math.max(0, ...d.stages.map((s) => parseNumber(s.dueWeek) ?? 0))}.</> : null}
               </p>
               <p className="small muted">{d.level !== 'team' ? `${LEVEL_LABEL[d.level]} level. ` : ''}{parent ? `It feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}.` : 'It’s at the top of its own tree.'}{d.guardrail ? ' Guardrail.' : ''}</p>
-              <div className="row">{[0, 1, 2].map((i) => <button key={i} type="button" className="linkish small" onClick={() => { setFromSummary(true); go(i); }}>Change {STEP_LABELS[i]!.toLowerCase()}</button>)}</div>
             </div>
+            <ul className="review-rows" aria-label="Change a step">
+              {[0, 1, 2].map((i) => (
+                <li key={i}>
+                  <span className="strong">{STEP_LABELS[i]}</span>
+                  <span className="muted rr-value">{reviewValue[i]}</span>
+                  <button type="button" className="linkish" aria-label={'Change ' + STEP_LABELS[i]!.toLowerCase()} onClick={() => { setFromSummary(true); go(i); }}>Change</button>
+                </li>
+              ))}
+            </ul>
             {[0, 1, 2].some((i) => stepErrors(i).length) && <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>}
           </>
         )}

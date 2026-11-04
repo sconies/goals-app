@@ -6,16 +6,16 @@ import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { LEVEL_LABEL } from '../domain/format';
 import { buildGoal, draftOf, overHundredHint, planChanged, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
-import type { Goal, Level, PlanShape } from '../domain/types';
+import type { Goal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
 import { PlanTable } from '../ui/PlanTable';
+import { DueField, FieldError, LevelField, StageFields } from '../ui/GoalFields';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { parseNumber } from '../domain/checkin';
 import { Icon } from '../ui/Icon';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
-const LEVELS: [Level, string][] = [['team', 'Most goals'], ['svp', 'Reported at SVP reviews'], ['north-star', 'Reported at the top']];
 
 /** Editing an existing goal: one short screen, for its owner or an admin. Once check-ins have started, a plan change needs a reason and is flagged. */
 export function GoalEdit() {
@@ -39,7 +39,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const errors = validateGoal(d, cycle);
-  const err = (k: keyof GoalErrors) => tried && errors[k] ? <span className="tiny tone-off" role="alert">{errors[k]}</span> : null;
+  const err = (k: keyof GoalErrors) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
   const valid = Object.keys(errors).length === 0;
   const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
   const replanning = !!built && started && planChanged(goal, built);
@@ -75,15 +75,24 @@ function EditSheet({ goal }: { goal: Goal }) {
   };
 
   const label = saving ? 'Saving…' : !valid && tried ? 'Fix the highlighted fields' : 'Save changes';
+  // Asked right under what changed (the numbers), not at the bottom of the section.
+  const reasonField = replanning && (
+    <label className="field reason-field">
+      <span className="field-label">Why change it?</span>
+      <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="e.g. The vendor contract moved the start to week 6" aria-label="Why change it?" />
+      {tried && !reasonOk ? <FieldError>Say why, in a sentence. People watching this goal will see it.</FieldError> : <span className="hint">The original plan stays on the chart, dotted.</span>}
+    </label>
+  );
 
   return (
-    <div className="focus">
+    <div className="focus goal-form goal-edit">
       <div className="focus-top">
         <span className="field-label">Edit goal</span>
         <span />
         <button className="iconbtn" onClick={back} aria-label="Close and keep the draft"><Icon name="close" /></button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+        <h1 className="qtitle big">Edit {goal.title}</h1>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}
         <label className="field">
           <span className="field-label">Name</span>
@@ -102,17 +111,13 @@ function EditSheet({ goal }: { goal: Goal }) {
                 <label className="field"><span className="field-label">Start{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
                 <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}{overHundredHint(d.unit, d.start, d.target) && <span className="hint tone-risk" role="status">{overHundredHint(d.unit, d.start, d.target)}</span>}</label>
               </div>
+              {reasonField}
               <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
                 <div className="seg full" role="group" aria-labelledby="shape-l">
                   {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}
                 </div>
               </div>
-              <div className="field"><span className="field-label" id="end-l">When it’s due</span>
-                <div className="seg full" role="group" aria-labelledby="end-l">
-                  {endOptions.map(([w, l]) => <button key={w} type="button" aria-pressed={endChoice === w} onClick={() => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })}>{l}</button>)}
-                </div>
-                <span className="hint">Week {endChoice}, {weekDates(cycle, endChoice)}.</span>
-              </div>
+              <DueField label="When it’s due" labelClass="field-label" options={endOptions} choice={endChoice} onChoose={(w) => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })} dates={weekDates(cycle, endChoice)} />
               {/* The week-by-week numbers are for the few who set them by hand; a rename or a new owner shouldn't wade through them. */}
               {shapedPlan && (
                 <details className="disclose" open={Object.values(d.points ?? {}).some((v) => String(v).trim() !== '')}>
@@ -124,37 +129,22 @@ function EditSheet({ goal }: { goal: Goal }) {
             </>
           )}
           {goal.kind === 'range' && (
-            <div className="row" style={{ alignItems: 'flex-start' }}>
-              <div className="field"><span className="field-label" id="bound">Must stay</span>
-                <div className="seg" role="group" aria-labelledby="bound">
+            <div className="limits">
+              <div className="field limits-bound"><span className="field-label" id="bound">Must stay</span>
+                <div className="seg full" role="group" aria-labelledby="bound">
                   <button type="button" aria-pressed={d.bound === 'atMost'} onClick={() => set({ bound: 'atMost' })}>At most</button>
                   <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
                 </div>
               </div>
-              <label className="field" style={{ flex: '1 1 110px' }}><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
-              <label className="field" style={{ flex: '1 1 110px' }}><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} />{err('margin')}</label>
+              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
+              <label className="field"><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried && !!errors.margin} />{err('margin')}</label>
             </div>
           )}
           {goal.kind === 'milestone' && (
-            <div className="stack" style={{ gap: 8 }}>
-              {d.stages.map((s, i) => (
-                <div key={s.id} className="row nowrap" style={{ alignItems: 'flex-end' }}>
-                  <label className="field" style={{ flex: '3 1 180px' }}><span className="sr">Stage {i + 1}</span><input className="input" value={s.name} aria-label={'Stage ' + (i + 1)} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x)) })} placeholder="Stage name" /></label>
-                  <label className="field" style={{ flex: '0 0 84px' }}><span className="sr">Due week</span><input className="input" inputMode="numeric" aria-label={'Stage ' + (i + 1) + ' due week'} value={s.dueWeek} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, dueWeek: e.target.value } : x)) })} placeholder="Week" /></label>
-                  {d.stages.length > 1 && <button type="button" className="iconbtn" onClick={() => set({ stages: d.stages.filter((x) => x.id !== s.id) })} aria-label={'Remove stage ' + (i + 1)}><Icon name="close" /></button>}
-                </div>
-              ))}
-              <div><button type="button" className="btn sm" onClick={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })}><Icon name="plus" />Add a stage</button></div>
-              {err('stages')}
-            </div>
+            <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="field-label" error={tried ? errors.stages ?? null : null}
+              onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
           )}
-          {replanning && (
-            <label className="field">
-              <span className="field-label">Why change it?</span>
-              <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="e.g. The vendor contract moved the start to week 6" aria-label="Why change it?" />
-              {tried && !reasonOk ? <span className="hint tone-off" role="alert">Say why, in a sentence. People watching this goal will see it.</span> : <span className="hint">The original plan stays on the chart, dotted.</span>}
-            </label>
-          )}
+          {goal.kind !== 'metric' && reasonField}
         </section>
 
         <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="fit-h">
@@ -167,11 +157,7 @@ function EditSheet({ goal }: { goal: Goal }) {
               <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
             </label>
           </div>
-          <div className="field"><span className="field-label" id="level-l">Level</span>
-            <div className="optlist" role="radiogroup" aria-labelledby="level-l">
-              {LEVELS.map(([l, hint]) => <button key={l} type="button" role="radio" className="opt" aria-checked={d.level === l} onClick={() => set({ level: l })}><span>{LEVEL_LABEL[l]}</span><span className="hint">{hint}</span></button>)}
-            </div>
-          </div>
+          <LevelField level={d.level} onChange={(level) => set({ level })} labelClass="field-label" />
           {(
             <label className="field"><span className="field-label">Feeds into</span>
               <select className="input" value={d.parentId} onChange={(e) => set({ parentId: e.target.value })}>
