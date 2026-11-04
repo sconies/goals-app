@@ -12,7 +12,7 @@ import { summarise, weeklyCalls, type GoalSummary } from '../domain/summary';
 import { MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING } from '../domain/story';
 import { isYear, quarterOf, quarterResults, quarters } from '../domain/year';
 import type { DisplayStatus, Goal } from '../domain/types';
-import { Spark, StageSpark } from '../ui/charts';
+import { QuarterMark, quarterWords, Spark, StageSpark } from '../ui/charts';
 import { useWidth } from '../ui/useWidth';
 import { Chip, LevelTag, Sheet, StatusShape, WarnMark } from '../ui/bits';
 import { describe, type ChangeSet } from '../domain/changeset';
@@ -270,23 +270,58 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
     setShown(read(p));
     setParams(p, { replace: true });
   };
+  const qs = quarters(app.cycle);
+  const setSpan = (v: Span) => setParam('weeks', v === now.n ? null : v === 'year' ? 'year' : 'q' + v);
+  const weekly = show === 'weekly' || !year;
   return (
     <>
-      {year && (
-        <div className="row between history-head" style={{ alignItems: 'center' }}>
-          <div className="seg" role="group" aria-label="Show">
-            <button type="button" aria-pressed={show === 'results'} onClick={() => setParam('hist', null)}>Quarter results</button>
-            <button type="button" aria-pressed={show === 'weekly'} onClick={() => setParam('hist', 'weekly')}>Weekly status</button>
+      {/* One place for the controls, one line saying what a mark means, then the key for this view. */}
+      <div className="history-head">
+        {year && (
+          <div className="history-controls">
+            <div className="seg" role="group" aria-label="Show">
+              <button type="button" aria-pressed={show === 'results'} onClick={() => setParam('hist', null)}>Quarter results</button>
+              <button type="button" aria-pressed={show === 'weekly'} onClick={() => setParam('hist', 'weekly')}>Weekly status</button>
+            </div>
+            {show === 'weekly' && (
+              <div className="history-weeks">
+                <span className="history-label" aria-hidden="true">Weeks</span>
+                <div className="seg" role="group" aria-label="Weeks shown">
+                  {qs.map((x) => <button key={x.n} type="button" aria-pressed={span === x.n} onClick={() => setSpan(x.n as Span)}>{x.label}</button>)}
+                  <button type="button" aria-pressed={span === 'year'} onClick={() => setSpan('year')}>Whole year</button>
+                </div>
+              </div>
+            )}
           </div>
-          <span className="hint">{show === 'results' ? 'Each quarter: the number at its end against the owner’s plan.' : 'Each square is the owner’s call that week, not a quarter result.'}</span>
-        </div>
-      )}
-      {show === 'results'
+        )}
+        <p className="history-hint">
+          {!weekly ? 'Each quarter: the number at its end against the owner’s plan.' : year ? 'Each mark is the owner’s call that week, not a quarter result.' : 'Each mark is the owner’s call that week.'}
+          {weekly && <span className="key-hint"> Arrow keys move between weeks and goals.</span>}
+        </p>
+        {weekly
+          ? (
+            <div className="hlegend" aria-label="Key">
+              {(['on', 'risk', 'off', 'done'] as const).map((k) => <span key={k} className={'hcell-key tone-' + k}><StatusShape k={k} />{LABEL[k]}</span>)}
+              <span className="hcell-key"><span className="hcell-empty" aria-hidden="true" />No check-in</span>
+            </div>
+          ) : (
+            <div className="hlegend qlegend" aria-label="Key">
+              <span className="hcell-key q-met"><QuarterMark kind="met" />Met</span>
+              <span className="hcell-key q-missed"><QuarterMark kind="missed" />Missed</span>
+              <span className="hcell-key q-open"><QuarterMark kind="open" done={0.5} />In progress</span>
+              <span className="hcell-key q-none"><QuarterMark kind="none" />Nothing due</span>
+            </div>
+          )}
+      </div>
+      {!weekly
         ? <QuarterResults groups={groups} />
-        : <WeeklyHistory groups={groups} span={year ? span : 'year'} setSpan={(v) => setParam('weeks', v === now.n ? null : v === 'year' ? 'year' : 'q' + v)} />}
+        : <WeeklyHistory groups={groups} span={year ? span : 'year'} />}
     </>
   );
 }
+
+/** How far through a quarter this week is, for the ring of a quarter in progress. */
+const quarterDone = (q: { from: number; to: number }, week: number) => (week - q.from + 1) / (q.to - q.from + 1);
 
 function QuarterResults({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
@@ -312,12 +347,12 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
                     const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, app.week);
                     return (
                       <tr key={goal.id}>
-                        <th scope="row" className="gt-goal" style={depth ? { paddingLeft: `calc(var(--s3) + ${depth * 16}px)` } : undefined}><Link to={'/goals/' + goal.id}>{goal.title}</Link></th>
+                        <th scope="row" className={'gt-goal' + (depth ? ' child' : '')} style={depth ? { paddingLeft: 12 + depth * 16 } : undefined}><Link to={'/goals/' + goal.id}>{goal.title}</Link></th>
                         {rs.map((r) => (
-                          <td key={r.quarter.n} className={'qcell q-' + r.kind}>
-                            <span className="qcell-label">{r.quarter.label} {r.quarter.months}</span>
-                            <span className="q-result">{r.kind === 'met' ? <><StatusShape k="on" />Met</> : r.kind === 'missed' ? <><StatusShape k="off" />Missed</> : r.kind === 'open' ? (r.quarter.n === nowQ ? 'In progress' : 'To come') : <span className="hint">Nothing due</span>}</span>
-                            {r.kind !== 'none' && <span className="hint qcell-text">{r.text.replace(/^Q\d: /, '')}</span>}
+                          <td key={r.quarter.n} className={'qcell q-' + r.kind + (r.quarter.n === nowQ ? ' q-now' : '')}>
+                            <span className="qcell-label">{r.quarter.label} {r.quarter.months}{r.quarter.n === nowQ ? ' · now' : ''}</span>
+                            <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === nowQ ? quarterDone(r.quarter, app.week) : 0} />{r.kind === 'met' ? 'Met' : r.kind === 'missed' ? 'Missed' : r.kind === 'open' ? (r.quarter.n === nowQ ? 'In progress' : 'To come') : 'Nothing due'}</span>
+                            {r.kind !== 'none' && <span className="hint qcell-text">{quarterWords(r.text, true)}</span>}
                           </td>
                         ))}
                       </tr>
@@ -333,7 +368,24 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
   );
 }
 
-function WeeklyHistory({ groups, span, setSpan }: { groups: ViewGroup[]; span: Span; setSpan: (v: Span) => void }) {
+/** A table that scrolls sideways says so: a shadow on the goal column once scrolled, a fade at the edge until the end. */
+const scrollEdges = (el: HTMLElement | null) => {
+  if (!el) return;
+  el.classList.toggle('scrolled', el.scrollLeft > 0);
+  el.classList.toggle('at-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+};
+/** Keeps those cues right as the grid or the window changes size (a range of weeks, a rotated phone). */
+const watchEdges = (el: HTMLElement | null) => {
+  if (!el) return;
+  scrollEdges(el);
+  if (typeof ResizeObserver === 'undefined') return;
+  const ro = new ResizeObserver(() => scrollEdges(el));
+  ro.observe(el);
+  if (el.firstElementChild) ro.observe(el.firstElementChild);
+  return () => ro.disconnect();
+};
+
+function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
   const app = useApp();
   const sums = useSummaries(groups);
   const year = isYear(app.cycle);
@@ -362,22 +414,11 @@ function WeeklyHistory({ groups, span, setSpan }: { groups: ViewGroup[]; span: S
     const table = (e.currentTarget as HTMLElement).closest('table');
     requestAnimationFrame(() => table?.querySelector<HTMLElement>(`[data-cell="${rows[r]}:${weeks[c]}"]`)?.focus());
   };
+  // In the whole year, the header names each quarter and, under it, every fourth week and this one.
+  const numbered = (wk: number) => wk === app.week || (Math.abs(wk - app.week) > 1 && (wk === app.cycle.weeks || qs.some((x) => wk >= x.from && wk <= x.to && (wk - x.from) % 4 === 0 && x.to - wk >= 2)));
   const inspected = selGoal ? sums.get(selGoal) : undefined;
   return (
     <>
-      {/* One line above the grid: what a square means, its key, and the range. */}
-      <div className="row between history-head" style={{ alignItems: 'center' }}>
-        <div className="hlegend">
-          {(['on', 'risk', 'off', 'done'] as const).map((k) => <span key={k} className={'hcell-key tone-' + k}><StatusShape k={k} />{LABEL[k]}</span>)}
-          <span className="hcell-key"><span className="hcell-empty" aria-hidden="true" />No check-in</span>
-        </div>
-        {year && (
-          <div className="seg" role="group" aria-label="Weeks shown">
-            {qs.map((x) => <button key={x.n} type="button" aria-pressed={span === x.n} onClick={() => setSpan(x.n as Span)}>{x.label}</button>)}
-            <button type="button" aria-pressed={span === 'year'} onClick={() => setSpan('year')}>Whole year</button>
-          </div>
-        )}
-      </div>
       {inspected && <WeekInspector s={inspected} week={selWeek} text={cellText(inspected, selWeek, weeklyCalls(inspected.checkIns))} />}
       {groups.map((g) => {
         if (!g.rows.length) return null;
@@ -385,12 +426,21 @@ function WeeklyHistory({ groups, span, setSpan }: { groups: ViewGroup[]; span: S
         return (
           <section key={g.key} className="block" aria-label={g.title}>
             {groups.length > 1 && <GroupHead g={g} count={g.rows.length} />}
-            <div className="table-wrap">
+            <div className={'table-wrap hwrap' + (whole ? ' hwrap-year' : '')} style={{ '--weeks': weeks.length } as React.CSSProperties} ref={watchEdges} onScroll={(e) => scrollEdges(e.currentTarget)}>
               <table className={'hgrid' + (whole ? ' hgrid-year' : '')} role="grid" aria-label={`Weekly status, ${g.title}`}>
                 <thead>
                   <tr>
                     <th scope="col" className="hg-goal">Goal</th>
-                    {weeks.map((wk) => <th key={wk} scope="col" className={(wk === app.week ? 'now' : '') + (year && qs.some((x) => x.from === wk) ? ' q-start' : '') + (wk === selWeek ? ' sel' : '')} title={weekDates(app.cycle, wk)}><span className="sr">Week </span>{whole ? (qs.find((x) => x.from === wk)?.label ?? '') : wk}</th>)}
+                    {weeks.map((wk) => {
+                      const qStart = qs.find((x) => x.from === wk);
+                      return (
+                        <th key={wk} scope="col" className={(wk === app.week ? 'now' : '') + (year && qStart ? ' q-start' : '') + (wk === selWeek ? ' sel' : '')} title={weekDates(app.cycle, wk)}>
+                          {whole
+                            ? <><span className="sr">Week {wk}</span><span className="hq" aria-hidden="true">{year ? qStart?.label ?? '' : ''}</span><span className="hn" aria-hidden="true">{numbered(wk) ? wk : ''}</span></>
+                            : <><span className="sr">Week </span>{wk}</>}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
@@ -399,7 +449,7 @@ function WeeklyHistory({ groups, span, setSpan }: { groups: ViewGroup[]; span: S
                     const calls = weeklyCalls(s.checkIns);
                     return (
                       <tr key={goal.id} className={goal.id === selGoal ? 'sel-row' : undefined}>
-                        <th scope="row" className="hg-goal" style={depth ? { paddingLeft: 8 + depth * 12 } : undefined}><Link to={'/goals/' + goal.id}>{goal.title}</Link></th>
+                        <th scope="row" className={'hg-goal' + (depth ? ' child' : '')} style={depth ? ({ '--depth': depth } as React.CSSProperties) : undefined}><Link to={'/goals/' + goal.id} title={goal.title}>{goal.title}</Link></th>
                         {weeks.map((wk) => {
                           const ci = calls.get(wk);
                           const text = cellText(s, wk, calls);
@@ -425,7 +475,7 @@ function WeeklyHistory({ groups, span, setSpan }: { groups: ViewGroup[]; span: S
   );
 }
 
-/** The selected square, in words: which week and when, the owner's call, the number and the plan that week. */
+/** The selected square, in words, on two lines: which week and when; then the goal, the owner's call, the number and the plan that week. */
 function WeekInspector({ s, week, text }: { s: GoalSummary; week: number; text: string }) {
   const app = useApp();
   const ci = weeklyCalls(s.checkIns).get(week);
@@ -433,10 +483,11 @@ function WeekInspector({ s, week, text }: { s: GoalSummary; week: number; text: 
   const planThen = g.kind === 'metric' && week <= app.cycle.weeks ? fmt(planAt(goalAsOf(g, week).plan, week, app.cycle.weeks), g) : null;
   return (
     <div className="week-inspector" role="status" aria-live="polite" aria-label="Selected week">
-      <span className="strong">Week {week} <span className="hint">· {weekDates(app.cycle, week)}{week === app.week ? ' · this week' : ''}</span></span>
-      <span className="wi-goal ellipsis"><Link to={'/goals/' + g.id}>{g.title}</Link></span>
-      <span className="row" style={{ gap: 6 }}>{ci && <StatusShape k={ci.status} />}<span>{text}</span>{planThen && <span className="hint">· plan {planThen}</span>}</span>
-      <span className="hint">Arrow keys move between weeks and goals.</span>
+      <span className="wi-week">Week {week} <span className="hint">· {weekDates(app.cycle, week)}{week === app.week ? ' · this week' : ''}</span></span>
+      <span className="wi-line">
+        <span className="wi-goal"><Link to={'/goals/' + g.id} title={g.title}>{g.title}</Link></span>
+        <span className="wi-call">{ci && <StatusShape k={ci.status} />}<span>{text}</span>{planThen && <span className="hint">· plan {planThen}</span>}</span>
+      </span>
     </div>
   );
 }
