@@ -1,5 +1,5 @@
 /* The app's own icons: 16px line drawings in the nav's style (design rule 3: no glyph characters as icons). */
-export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch';
+export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch' | 'check-circle' | 'alert';
 
 const PATHS: Record<IconName, string> = {
   close: 'M4 4l8 8M12 4l-8 8',
@@ -12,6 +12,8 @@ const PATHS: Record<IconName, string> = {
   plus: 'M8 3.5v9M3.5 8h9',
   back: 'M6 4L2.5 7.5 6 11M3 7.5h7a3.5 3.5 0 0 1 0 7H8',
   switch: 'M3 5.5h9l-2.5-2.5M13 10.5H4l2.5 2.5',
+  'check-circle': 'M8 1.75a6.25 6.25 0 1 0 0 12.5 6.25 6.25 0 0 0 0-12.5zM5.4 8.2l1.8 1.8 3.4-3.8',
+  alert: 'M8 1.75a6.25 6.25 0 1 0 0 12.5 6.25 6.25 0 0 0 0-12.5zM8 4.9v3.6M8 10.9v.2',
 };
 
 /** A decorative icon (hidden from screen readers): the button or text beside it says what it does. */

@@ -196,7 +196,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   h.set('logged', posts.length === 2 && posts.every((c) => c.diffs.some((d) => d.field === 'Value')), `expected two logged week-${NOW} posts by Sam, saw ${posts.length}`);
   await p.goto(url('/'));
   await p.reload();
-  await see(p, 'Your check-ins are in', 'posted check-ins survive a reload, and home moves on to the review Sam is in');
+  await see(p, /All \d+ check-ins posted for week|Your check-in is posted for week/, 'posted check-ins survive a reload, and home moves on to the review Sam is in');
   // An ad hoc check-in, any time, from the goal page: kept alongside the first, and the latest is the week's status.
   await p.goto(url('/goals/review'));
   await h.click(p.getByRole('link', { name: 'Check in now' }));
@@ -611,7 +611,7 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES'], 'Fo
   // And a whole level from Watching.
   await navTo(h, p, 'Watching');
   await h.click(p.getByRole('button', { name: 'Change', exact: true }));
-  await h.click(p.getByRole('button', { name: /\+ SVP/ }));
+  await h.click(p.getByRole('button', { name: /^Watch SVP/ }));
   await see(p, 'Every SVP goal');
   h.set('progress', true);
   h.set('finish', true);
@@ -760,7 +760,7 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   await p.goto(url('/'));
   // Needs your response: a decision Aisha named Elena for, with why, what and a specific action.
   await see(p, 'Needs your response');
-  const card = p.locator('.need', { hasText: 'A decision or help is needed from you' }).first();
+  const card = p.locator('.need-group', { hasText: 'Decisions or help needed' }).locator('.need').first();
   await h.inView(card, 'entry', 'the decision that needs Elena');
   h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('button', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
   await see(p, 'Important changes');
@@ -1393,7 +1393,9 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   h.set('finish', /kind=checkins/.test(p.url()) && /who=priya/.test(p.url()), 'the activity filters are not in the link');
   await see(p, /\d+ of \d+ changes/, 'the filtered activity does not say how many it shows');
   const download = p.waitForEvent('download', { timeout: 5000 }).catch(() => null);
-  await h.click(p.getByRole('button', { name: 'Save .csv' }));
+  // On a phone, Save .csv is in the Filters sheet's footer rather than a row of the filter bar.
+  if (device === 'phone') { await h.click(p.getByRole('button', { name: /^Filters/ })); await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByRole('button', { name: 'Save .csv' })); }
+  else await h.click(p.getByRole('button', { name: 'Save .csv' }));
   h.set('progress', !!(await download), 'Save .csv did not download the filtered log');
   await p.context().close();
 }, ['entry', 'one-action']);

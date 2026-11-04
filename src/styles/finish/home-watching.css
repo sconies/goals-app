@@ -1,1 +1,210 @@
-/* Fit and finish, per-area reports (4 Nov): home-watching. Loaded after styles.css. */
+/* Fit and finish, per-area reports (4 Nov): home-watching. Loaded after styles.css.
+   [Home] and [WA] numbers are the findings of the Home report and the Watching and Activity report. */
+
+/* ---------- Goal rows (.trow): Home, Watching and a goal's page share them ----------
+   A row lays itself out by the width of its own list, not the window: three columns when the list has room for a
+   320px title column, the status above the title when it has less, and stacked on a phone ([Home] 1, [WA] 2, 11). */
+.tree { container: tree / inline-size; border-radius: 12px; }
+.trow {
+  grid-template-columns: 136px minmax(0, 1fr) fit-content(184px); grid-template-areas: "icon main now";
+  column-gap: 12px; row-gap: 4px; align-items: first baseline; padding: 12px 16px;
+}
+.trow > .trow-icon { grid-area: icon; }
+.trow > .trow-main { grid-area: main; }
+.trow > .trow-now { grid-area: now; }
+/* The status: shape and word on one line, aligned on the title's baseline rather than nudged ([WA] 11, [Home] 9, 15). */
+.trow-icon { display: block; padding-top: 0; white-space: nowrap; font-size: var(--t-sm); line-height: 1.25rem; font-weight: 600; }
+.trow-icon svg { display: inline-block; width: 14px; height: 14px; margin: 0 6px 0 0; vertical-align: -2px; }
+.trow-main { gap: 2px; }
+/* The level tag sits 8px after the title, and starts at the left edge when it wraps ([Home] 8). */
+.trow-title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; font-size: var(--t-md); line-height: 1.375rem; font-weight: 600; }
+.trow-title .level { margin-left: 0; vertical-align: baseline; line-height: 1.25rem; }
+/* Reasons: three lines when the row is wide, the rest in the title attribute ([WA] 2, [Home] 1). */
+.trow-why { -webkit-line-clamp: 3; }
+/* The value column: the number, how it stands against the plan, then a missed result in words, all right-aligned
+   and allowed to wrap within 184px, wide enough that "week-43 plan" stays whole ([WA] 28). */
+.trow-now { white-space: normal; text-align: right; align-items: flex-end; }
+.trow-asof { color: var(--muted); }
+.trow-now > span { text-wrap: balance; }
+/* Results are words in the status colour in small capitals, with no capsule (design rules), under the value. */
+.trow-now .result-tag { margin: 0; align-self: auto; font-size: var(--t-sm); line-height: 1.25rem; font-weight: 650; text-transform: none; letter-spacing: .03em; font-variant-caps: all-small-caps; }
+@media (hover: hover) {
+  .trow:hover { background: var(--surface-3); }
+  .trow:hover .trow-name { text-decoration: underline; text-underline-offset: 2px; }
+}
+/* Less room: the status takes its own line above the title, the value stays on the right. */
+@container tree (max-width: 699px) {
+  .trow { grid-template-columns: minmax(0, 1fr) fit-content(184px); grid-template-areas: "icon icon" "main now"; }
+}
+/* A phone: one stacked row. Status, then the title full width, the whole reason, then the value and the plan gap. */
+@container tree (max-width: 519px) {
+  .trow { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 16px; }
+  .trow-why { display: block; -webkit-line-clamp: unset; overflow: visible; }
+  .trow-now { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; align-items: baseline; column-gap: 12px; text-align: left; }
+}
+@container app (max-width: 600px) {
+  .trow { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 16px; }
+  .trow-why { display: block; -webkit-line-clamp: unset; overflow: visible; }
+  .trow-now { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; align-items: baseline; column-gap: 12px; text-align: left; }
+}
+/* "Why you're seeing it" sits on the row it explains. */
+.change-reason { padding-top: 12px; }
+.change-reason + .trow { padding-top: 4px; }
+
+/* ---------- Attention rows (AttentionCard) ---------- */
+.arow-why { -webkit-line-clamp: 3; }
+@media (hover: hover) { .arow:hover { background: var(--surface-3); } }
+/* A phone: the shape beside the title, the whole reason under it, the action under that on the text's left edge. */
+@container app (max-width: 600px) {
+  .arow { display: grid; grid-template-columns: 14px minmax(0, 1fr); column-gap: 12px; row-gap: 12px; padding: 16px; }
+  .arow-icon { grid-column: 1; grid-row: 1; }
+  .arow-main { grid-column: 2; grid-row: 1; }
+  .arow-action { grid-column: 2; margin-left: 0; align-self: start; }
+  .arow-why { display: block; -webkit-line-clamp: unset; overflow: visible; }
+}
+
+/* ---------- Home ---------- */
+/* One width for the heading and the grid: 1200px with the side column, 1040px without; pinned left like every page
+   (one left edge), so no centring ([Home] 5). */
+.page.home > .page-head, .page.home > .home-grid { width: 100%; max-width: 1200px; }
+.page.home:has(.split-side:empty) > .page-head, .page.home:has(.split-side:empty) > .home-grid { max-width: 1040px; }
+.page.home .split { max-width: none; }
+@container page (min-width: 960px) {
+  .page.home .split { grid-template-columns: minmax(0, 1fr) 400px; column-gap: 32px; }
+}
+/* Stacked, the order is the hero, what needs your response, your goals and what changed, then the "Try it" card last
+   ([Home] 18). The side column's own pieces join the page's order. */
+@container page (max-width: 959px) {
+  .page.home .split > .home-side { display: contents; }
+  .page.home .split > .split-a { order: 0; }
+  .page.home .home-side > .needs-you { order: 1; }
+  .page.home .split > .split-b { order: 2; }
+  .page.home .home-side > .note-card { order: 3; }
+}
+.page.home .note-card { border-radius: 12px; }
+
+/* The hero: an "all set" line before the review takes over ([Home] 14); the hero link 12px under its button ([Home] 11). */
+.hero-allset { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: var(--t-sm); line-height: 1.25rem; font-weight: 600; color: var(--fg); }
+.hero-allset svg { flex: none; color: var(--on-fg); }
+.home-hero .hero-body > .linkish { margin-top: 8px; align-self: flex-start; }
+.home-hero .btn.primary.big-btn { font-size: var(--t-md); }
+/* A phone: a 40px ring beside the eyebrow and title, everything else full width, every button full width ([Home] 2, 7). */
+@container app (max-width: 600px) {
+  .page.home .home-hero { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 12px; row-gap: 4px; align-items: start; }
+  .page.home .home-hero:has(> .ring) { grid-template-columns: 40px minmax(0, 1fr); }
+  .home-hero > .hero-body { display: contents; }
+  .home-hero > .hero-body > * { grid-column: 1 / -1; }
+  .home-hero:has(> .ring) > .hero-body > :is(.eyebrow, .hero-title) { grid-column: 2; }
+  .home-hero > .ring { grid-column: 1; grid-row: 1 / span 2; width: 40px !important; height: 40px !important; align-self: start; }
+  .home-hero:has(.hero-allset) > .ring { grid-row: 2 / span 2; }
+  .home-hero .hero-allset { grid-row: 1; }
+  .home-hero > .ring svg { width: 100%; height: 100%; }
+  .home-hero > .ring circle { stroke-width: 8; }
+  .home-hero > .ring .ring-text { font-size: 0.6875rem; letter-spacing: -0.02em; }
+  .home-hero > .ring .ring-text svg { width: 14px; height: 14px; }
+  .home-hero .hero-body > .row { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; }
+  .home-hero .hero-body > .row > .btn { width: 100%; min-height: 44px; justify-content: center; }
+  .home-hero .hero-body > .linkish { justify-self: start; }
+}
+
+/* Needs your response: the kind of ask in its group's heading; each item leads with the goal (14/600), then the ask
+   in curly quotes (14/400), then who asked and when (13/400), then the action under the text ([Home] 3). */
+.needs-you { gap: 12px; }
+.need-group { display: flex; flex-direction: column; gap: 8px; }
+.need-group-title { margin: 0; display: flex; align-items: baseline; gap: 4px; font-size: var(--t-sm); line-height: 1.25rem; font-weight: 600; color: var(--fg-2); }
+.need-group-title .count-pill { font-weight: 500; }
+.need { padding: 12px 16px; }
+.need > .avatar { margin-top: -2px; }
+.need-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.need-what { font-size: var(--t-sm); line-height: 1.25rem; font-weight: 600; color: var(--fg); }
+.need-quote { font-size: var(--t-sm); line-height: 1.25rem; font-weight: 400; color: var(--fg); }
+.need-meta { font-size: 0.8125rem; line-height: 1.125rem; font-weight: 400; color: var(--muted); }
+.need-action { display: flex; margin-top: 10px; }
+.need .need-action .btn { align-self: flex-start; }
+
+/* Respond: a line is kept for the message so the footer doesn't jump; the error has its icon ([Home] 17). */
+.field-msg { display: flex; align-items: center; gap: 6px; min-height: 1.25rem; font-size: var(--t-sm); line-height: 1.25rem; color: var(--off-fg); }
+
+.field-msg svg { flex: none; }
+.respond-form > .sheet-foot { bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+
+/* Page bottoms: 48px on tablets and small laptops ([Home] 15). */
+@container app (min-width: 761px) and (max-width: 1279px) {
+  .page.home, .page.watching, .activity-page { padding-bottom: 48px; }
+}
+
+/* ---------- Watching ---------- */
+/* Nothing needs attention: the "On track" group starts 24px under the tabs, and sits at the top beside the side
+   column ([WA] 10). */
+.page.watching .split:not(:has(> .split-a)) { grid-template-areas: "b side"; }
+.page.watching .split:not(:has(> .split-a)):has(> .split-side:empty) { grid-template-areas: "b"; }
+/* "What you watch": the same chip as Activity's filters, with a plus and a count ([WA] 16). */
+.level-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.level-chips .filter-chip { gap: 6px; }
+.filter-chip .tabcount { min-width: 18px; height: 18px; padding: 0 6px; line-height: 18px; text-align: center; }
+/* Nothing watched yet: a real card at reading width, one primary choice, the rest beside it ([WA] 19). */
+.watch-empty { display: flex; flex-direction: column; gap: 8px; max-width: 640px; padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.watch-empty .h3 { margin: 0; }
+.watch-empty p { margin: 0; max-width: 64ch; }
+.watch-empty-actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; margin-top: 8px; }
+.watch-empty-actions .btn { flex: none; }
+
+/* ---------- Activity and the changes lists ---------- */
+/* Running titles in a summary wrap like words ([WA] 7). */
+.change .small > .linkish { display: inline; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+/* The avatar's centre on the first line's centre ([WA] 22). */
+.change > .avatar.sm { margin-top: -2px; }
+/* A status call is shape plus word ([WA] 17). */
+.diff ins.diff-status { display: inline-flex; align-items: center; gap: 6px; }
+.diff ins.diff-status .status-shape { width: 12px; height: 12px; flex: none; }
+.diff ins.tone-on { color: var(--on-fg); } .diff ins.tone-risk { color: var(--risk-fg); } .diff ins.tone-off { color: var(--off-fg); }
+.diff ins.tone-stale, .diff ins.tone-none, .diff ins.tone-planned { color: var(--stale-fg); } .diff ins.tone-done { color: var(--done-fg, var(--on-fg)); }
+/* Touch: the 16px "Show the change" links get a 44px target without moving anything ([WA] 4). */
+@media (pointer: coarse) {
+  .change .linkish.tiny { padding-block: 14px; margin-block: -14px; }
+  .change-run summary { padding-block: 12px; margin-block: -12px; }
+}
+.activity-page .page-head > span { text-wrap: pretty; }
+/* Filters with a count: the count is a pill and the button doesn't change width ([WA] 13). */
+.activity-page .filterbar-row > .btn[aria-haspopup] { min-width: 104px; gap: 6px; justify-content: center; }
+.activity-page .filterbar-row > .btn .tabcount { min-width: 18px; height: 18px; padding: 0 6px; line-height: 18px; text-align: center; }
+/* No results: said in the text colour with the way out ([WA] 18). */
+.activity-none { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 32px 0; }
+.activity-none p { margin: 0; }
+.activity-none-title { font-size: var(--t-md); line-height: 1.375rem; font-weight: 600; color: var(--fg); }
+.activity-none-hint { font-size: var(--t-sm); line-height: 1.25rem; color: var(--muted); }
+.activity-none .btn { margin-top: 8px; }
+/* The filter sheet's Save .csv is for phones; on wider screens it's in the bar. */
+.activity-foot .activity-foot-save { display: none; }
+@media (max-width: 600px) {
+  .activity-foot .activity-foot-save { display: inline-flex; }
+  .activity-foot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .activity-foot > .linkish { grid-column: 1 / -1; justify-self: start; }
+  .activity-foot > .btn { width: 100%; justify-content: center; }
+}
+/* A phone: search on its own line, When and Filters half and half, the kinds one scrolling row ([WA] 14). */
+@container app (max-width: 600px) {
+  .activity-page .filterbar-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .activity-page .filterbar-row > .filter-search { grid-column: 1 / -1; }
+  .activity-page .filterbar-row > .filter-sort { min-width: 0; }
+  .activity-page .filterbar-row > .filter-sort .input { width: 100%; }
+  .activity-page .filterbar-row > .btn { min-width: 0; width: 100%; }
+  .activity-page .filterbar-row > .activity-save { display: none; }
+  .activity-page .kind-chips { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; scrollbar-width: none; }
+  .activity-page .kind-chips::-webkit-scrollbar { display: none; }
+  .activity-page .kind-chips::after { content: ""; flex: 0 0 1px; }
+  .activity-page .kind-chips > .filter-chip { flex: none; }
+}
+/* The filter sheet: every field 8px under its legend, check rows 40px (44 on touch), From and To as small labels, and a
+   footer that stays on the screen ([WA] 3, 8, 21). */
+.activity-filter-sheet .filter-group > legend { margin-bottom: 8px; padding: 0; }
+.activity-filter-sheet .check { min-height: 40px; }
+@media (pointer: coarse) { .activity-filter-sheet .check { min-height: 44px; } }
+.activity-filter-sheet .filter-dates { gap: 16px; }
+.activity-filter-sheet .filter-dates .field { gap: 4px; }
+.date-label { font-size: 0.75rem; line-height: 1rem; font-weight: 600; color: var(--muted); }
+.activity-filter-sheet ~ .sheet-foot { bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+
+/* ---------- Avatars in the dark: the grey one keeps 3:1 on the page ([WA] 23) ---------- */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .avatar[data-hue="5"] { background: #667085; color: #fff; } }
+:root[data-theme="dark"] .avatar[data-hue="5"] { background: #667085; color: #fff; }

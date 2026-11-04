@@ -63,7 +63,11 @@ export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
                 {diffs.map((d) => (
                   <div key={d.field} className="diff">
                     <dt>{d.field}</dt>
-                    <dd>{d.from !== '—' && <del>{d.from}</del>}{d.from !== '—' && <span aria-hidden="true"> → </span>}<ins>{d.to}</ins></dd>
+                    <dd>{d.from !== '—' && <del>{d.from}</del>}{d.from !== '—' && <span aria-hidden="true"> → </span>}{(() => {
+                      // A status call is a status: its shape and word, in its own colour (design rules).
+                      const k = d.field === 'Status call' ? (Object.keys(LABEL) as (keyof typeof LABEL)[]).find((x) => LABEL[x] === d.to) : undefined;
+                      return k ? <ins className={'diff-status tone-' + k}><StatusShape k={k} />{d.to}</ins> : <ins>{d.to}</ins>;
+                    })()}</dd>
                   </div>
                 ))}
               </dl>

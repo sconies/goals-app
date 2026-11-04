@@ -1,9 +1,221 @@
-/* F1: fit and finish, home-watching (per-area reports, 4 Nov). run({ open, url, browser }) returns a list of failures. */
+/* F1: fit and finish, home-watching (per-area reports, 4 Nov). run({ open, url, browser }) returns a list of failures.
+   [Home] n and [WA] n are the findings of the Home report and the Watching and Activity report. */
+const box = (p, sel, i = 0) => p.evaluate(([s, i]) => { const e = document.querySelectorAll(s)[i]; if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, b: r.bottom, r: r.right }; }, [sel, i]);
+const css = (p, sel, prop, i = 0) => p.evaluate(([s, prop, i]) => { const e = document.querySelectorAll(s)[i]; return e ? getComputedStyle(e).getPropertyValue(prop) : null; }, [sel, prop, i]);
+const noSideways = (p) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
+
 module.exports = {
   id: 'F1',
   area: 'home-watching',
-  async run({ open }) {
+  async run({ open, url }) {
     const fails = [];
+    const check = (ok, msg) => { if (!ok) fails.push(msg); };
+
+    // [Home] 1, 2, 7, 18: Elena's Home on a phone.
+    {
+      const [c, p] = await open(390, 844, 'elena', '/', true);
+      check(await css(p, '.tree .trow', 'display') === 'flex', '[Home] 1: a phone row is not stacked');
+      const t = await box(p, '.tree .trow-title'), row = await box(p, '.tree .trow');
+      check(t && row && t.w >= row.w - 34, `[Home] 1: phone title is ${t && Math.round(t.w)}px of a ${row && Math.round(row.w)}px row`);
+      check(await css(p, '.tree .trow-why', '-webkit-line-clamp') === 'none', '[Home] 1: phone reason is still clamped');
+      const ring = await box(p, '.home-hero > .ring'), eb = await box(p, '.home-hero .eyebrow');
+      check(ring && Math.round(ring.w) === 40 && Math.round(ring.h) === 40, `[Home] 2: phone ring is ${ring && Math.round(ring.w)}px, not 40`);
+      check(ring && eb && eb.x > ring.r && Math.abs(eb.y - ring.y) <= 4, '[Home] 2: the ring is not inline left of the eyebrow');
+      const hero = await box(p, '.home-hero'), btn = await box(p, '.home-hero .btn.primary');
+      check(hero && btn && Math.abs(btn.w - hero.w) <= 1 && btn.h >= 44, `[Home] 7: phone hero button is ${btn && Math.round(btn.w)}×${btn && Math.round(btn.h)} in a ${hero && Math.round(hero.w)}px hero`);
+      const needs = await box(p, '.needs-you'), changes = await box(p, '.split-b'), note = await box(p, '.note-card');
+      check(needs && changes && note && needs.y < changes.y && changes.y < note.y, '[Home] 18: stacked order is not hero, needs your response, important changes, then the Try it card');
+      check(await css(p, '.trow-title .level', 'margin-left') === '0px', '[Home] 8: the level tag still has a left margin');
+      check(Math.round((await box(p, '.trow-title .level')).h) === 20, '[Home] 8: the level tag is not 20px tall');
+      check(await noSideways(p), '[Home] sideways scroll at 390');
+      await c.close();
+    }
+    // [Home] 1, 7: Maya and Tom at 360.
+    {
+      const [c, p] = await open(360, 740, 'maya', '/', true);
+      const m = await box(p, '.arow-main'), a = await box(p, '.arow');
+      check(m && a && m.w >= a.w - 32 - 26 - 1, `[Home] 1: attention row text is ${m && Math.round(m.w)}px of ${a && Math.round(a.w)}`);
+      check(await css(p, '.arow-why', '-webkit-line-clamp') === 'none', '[Home] 1: attention reason is clamped on a phone');
+      check(await noSideways(p), '[Home] sideways scroll at 360');
+      await c.close();
+      const [c2, q] = await open(360, 740, 'tom', '/', true);
+      const b1 = await box(q, '.home-hero .btn', 0), b2 = await box(q, '.home-hero .btn', 1), h = await box(q, '.home-hero');
+      check(b1 && b2 && h && Math.abs(b1.w - h.w) <= 1 && Math.abs(b2.w - h.w) <= 1 && b2.y >= b1.b + 7, '[Home] 7: Tom’s hero buttons are not full width, one under the other');
+      await c2.close();
+    }
+    // [Home] 1, 3, 5: Elena at 1280 and 1440.
+    for (const w of [1280, 1440]) {
+      const [c, p] = await open(w, 900, 'elena', '/');
+      const why = await p.$eval('.tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
+      check(why.clamp === '3' && why.title.length > 20, `[Home] 1: at ${w} the reason is clamped to ${why.clamp} with no title`);
+      const head = await box(p, '.page.home > .page-head'), grid = await box(p, '.page.home > .home-grid');
+      check(head && grid && Math.abs(head.w - grid.w) <= 1 && grid.w <= 1200, `[Home] 5: at ${w} heading ${head && Math.round(head.w)} vs grid ${grid && Math.round(grid.w)}`);
+      const side = await box(p, '.home-side');
+      check(side && Math.round(side.w) === 400, `[Home] 3: side column is ${side && Math.round(side.w)}px, not 400`);
+      const n = await p.$$eval('.need', (els) => els.map((e) => e.getBoundingClientRect().height));
+      check(n.length && n.every((x) => x <= 152), `[Home] 3: response items are ${n.map(Math.round).join(', ')}px tall`);
+      check(await css(p, '.need-what', 'font-weight') === '600', '[Home] 3: the goal name is not the bold line');
+      const what = await box(p, '.need-what'), act = await box(p, '.need .btn');
+      check(what && act && Math.abs(act.x - what.x) <= 1 && act.y >= what.b, '[Home] 3: Respond is not under the text on its left edge');
+      check(await noSideways(p), `[Home] sideways scroll at ${w}`);
+      await c.close();
+    }
+    {
+      const [c, p] = await open(1440, 900, 'tom', '/');
+      const head = await box(p, '.page.home > .page-head'), grid = await box(p, '.page.home > .home-grid');
+      check(head && grid && Math.abs(head.w - grid.w) <= 1 && grid.w <= 1040, `[Home] 5: one-column heading ${head && Math.round(head.w)} vs grid ${grid && Math.round(grid.w)}`);
+      await c.close();
+    }
+    // [Home] 9, [WA] 11, 27, 28: Maya's Watching, the row gone quiet and the missed result.
+    for (const w of [768, 1440]) {
+      const [c, p] = await open(w, 900, 'maya', '/watching');
+      const stale = p.locator('.trow[data-tone="stale"]').first();
+      const icon = await stale.locator('.trow-icon').boundingBox();
+      check(icon && icon.height <= 21, `[WA] 11: at ${w} "No recent update" wraps (${icon && Math.round(icon.height)}px)`);
+      const now = (await stale.locator('.trow-now').innerText()).toLowerCase();
+      check(!now.includes('no recent update'), '[WA] 27: the value line repeats "No recent update"');
+      const miss = p.locator('.trow-now .result-missed').first();
+      check(await miss.count() === 1, '[WA] 28: "Did not meet" is not in the value column');
+      if (await miss.count()) check(await miss.evaluate((e) => getComputedStyle(e).textTransform) === 'none', '[WA] 28: the result is still uppercase');
+      if (w === 768) {
+        const why = await p.$eval('.tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
+        check(why.clamp === '3' && why.title.length > 20, `[WA] 2: at 768 the reason is clamped to ${why.clamp} with no title`);
+      } else {
+        check(Math.round(icon.width) === 136, `[WA] 11: status column is ${icon && Math.round(icon.width)}px, not 136`);
+        const main = await box(p, '.tree .trow-main');
+        check(main && main.w >= 320, `[Home] 1: title column is ${main && Math.round(main.w)}px at ${w}`);
+      }
+      check(await noSideways(p), `[WA] sideways scroll at ${w}`);
+      await c.close();
+    }
+    // [WA] 10, 16: Tom's Watching has nothing that needs attention; his level chips match Activity's.
+    {
+      const [c, p] = await open(1280, 900, 'tom', '/watching');
+      check(await p.locator('.page.watching .split-a').count() === 0, '[WA] 10: an empty attention column is still rendered');
+      const lede = (await box(p, '.page.watching .seg.tabs')) || (await box(p, '.page.watching .lede')), first = await box(p, '.page.watching .split .block');
+      check(lede && first && first.y - lede.b <= 25, `[WA] 10: ${first && lede && Math.round(first.y - lede.b)}px from the tabs to the first section`);
+      await p.getByRole('button', { name: 'Change', exact: true }).click();
+      const chip = p.locator('.level-chips .filter-chip').first();
+      check(await chip.count() === 1, '[WA] 16: level choices are not filter chips');
+      if (await chip.count()) {
+        const r = await chip.evaluate((e) => ({ rad: getComputedStyle(e).borderRadius, h: e.getBoundingClientRect().height, svg: !!e.querySelector('svg'), n: !!e.querySelector('.tabcount') }));
+        check(r.rad === '6px' && Math.round(r.h) === 32 && r.svg && r.n, `[WA] 16: level chip is radius ${r.rad}, ${Math.round(r.h)}px tall`);
+      }
+      await c.close();
+    }
+    // [WA] 19: nobody watched yet.
+    {
+      const [c, p] = await open(1440, 900, 'kofi', '/watching');
+      const card = p.locator('.watch-empty');
+      if (await card.count()) {
+        const r = await card.evaluate((e) => ({ w: e.getBoundingClientRect().width, bg: getComputedStyle(e).backgroundColor, bc: getComputedStyle(e).borderTopColor, prim: e.querySelectorAll('.btn.primary').length }));
+        check(r.w <= 640 && r.bg === 'rgb(255, 255, 255)' && r.bc === 'rgb(228, 231, 236)' && r.prim === 1, `[WA] 19: empty card ${Math.round(r.w)}px, ${r.bg}, border ${r.bc}, ${r.prim} primary`);
+      }
+      await c.close();
+    }
+    // [WA] 4, 5, 7, 14, 22: Activity on a phone.
+    for (const w of [360, 390]) {
+      const [c, p] = await open(w, 800, 'elena', '/activity', true);
+      check(await p.getAttribute('.filter-search input', 'placeholder') === 'Search changes', '[WA] 5: the search placeholder is still long');
+      const fb = await box(p, '.filterbar');
+      check(fb && fb.h <= 160, `[WA] 14: the filter bar is ${fb && Math.round(fb.h)}px tall at ${w}`);
+      const kc = await box(p, '.kind-chips');
+      check(kc && kc.h <= 48, `[WA] 14: kind chips wrap (${kc && Math.round(kc.h)}px)`);
+      const small = await p.$$eval('.change .linkish.tiny', (els) => els.filter((e) => e.getBoundingClientRect().height < 44).length);
+      check(small === 0, `[WA] 4: ${small} "Show the change" targets under 44px at ${w}`);
+      check(await css(p, '.change .small > .linkish', 'display') === 'inline', '[WA] 7: goal links in summaries cannot wrap');
+      const av = await p.$eval('.change', (li) => { const a = li.querySelector('.avatar').getBoundingClientRect(); const t = li.querySelector('.small').getBoundingClientRect(); return (a.top + a.height / 2) - (t.top + 10); });
+      check(Math.abs(av) <= 1, `[WA] 22: the avatar sits ${av.toFixed(1)}px off the first line`);
+      check(await noSideways(p), `[WA] sideways scroll on Activity at ${w}`);
+      // [WA] 3: the Filters sheet footer stays on the screen.
+      if (w === 390) {
+        await p.getByRole('button', { name: /^Filters/ }).click();
+        const dlg = p.getByRole('dialog', { name: 'Filter activity' });
+        await dlg.waitFor(); await p.waitForTimeout(400);
+        for (const end of [false, true]) {
+          await p.evaluate((end) => { const s = document.querySelector('.sheet'); s.scrollTop = end ? s.scrollHeight : 0; }, end);
+          await p.waitForTimeout(50);
+          const b = await box(p, '.sheet .btn.primary');
+          check(b && b.b <= 800 - 12 + 0.5, `[WA] 3: "Show the changes" bottom at ${b && Math.round(b.b)} (${end ? 'end' : 'top'})`);
+        }
+        check(await dlg.getByRole('button', { name: 'Save .csv' }).isVisible(), '[WA] 14: Save .csv is not in the phone Filters sheet');
+      }
+      await c.close();
+    }
+    // [WA] 8, 13, 21: Filters with a count, and the sheet's columns.
+    {
+      const [c, p] = await open(1024, 800, 'elena', '/activity?who=elena,maya&team=pm');
+      const f = await box(p, '.filterbar-row > .btn[aria-haspopup]');
+      check(f && f.w >= 104 && await p.locator('.filterbar-row > .btn[aria-haspopup] .tabcount').count() === 1, '[WA] 13: Filters count is not a pill on a 104px button');
+      await p.getByRole('button', { name: /^Filters/ }).click();
+      await p.locator('.activity-filter-sheet').waitFor();
+      const tops = await p.$$eval('.activity-filter-sheet .filter-group', (gs) => gs.slice(0, 3).map((g) => { const l = g.querySelector('legend').getBoundingClientRect(); const f = [...g.children].find((x) => x.tagName !== 'LEGEND').getBoundingClientRect(); return Math.round(f.top - l.bottom); }));
+      check(tops.every((x) => x === 8), `[WA] 8: fields sit ${tops.join(', ')}px under their legends`);
+      const rows = await p.$$eval('.activity-filter-sheet .check', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
+      check(rows.every((h) => h >= 40), `[WA] 8: check rows ${[...new Set(rows)].join(', ')}px`);
+      const lab = await p.$eval('.filter-dates .date-label', (e) => ({ s: getComputedStyle(e).fontSize, w: getComputedStyle(e).fontWeight }));
+      check(lab.s === '12px' && lab.w === '600', `[WA] 21: From/To are ${lab.s}/${lab.w}`);
+      await c.close();
+    }
+    // [WA] 18, 17: no results; a status call has its shape.
+    {
+      const [c, p] = await open(1280, 800, 'elena', '/activity?q=zzqqxxnothing');
+      const t = p.locator('.activity-none-title');
+      check(await t.count() === 1 && await t.evaluate((e) => getComputedStyle(e).color) === 'rgb(16, 24, 40)' && await p.locator('.activity-none .btn').count() === 1, '[WA] 18: no results is not a plain message with Clear filters');
+      await p.goto(p.url().replace(/\?q=[^&]*&?/, '?'));
+      await p.locator('.change-check-in .linkish.tiny').first().click();
+      check(await p.locator('.diff-status .status-shape').count() > 0, '[WA] 17: "Status call" has no status shape');
+      await c.close();
+    }
+    // [WA] 23: dark avatars.
+    {
+      const [c, p] = await open(1440, 900, 'elena', '/activity');
+      await p.emulateMedia({ colorScheme: 'dark' });
+      const bg = await p.$$eval('.avatar[data-hue="5"]', (els) => els.map((e) => getComputedStyle(e).backgroundColor));
+      check(bg.every((x) => x === 'rgb(102, 112, 133)'), `[WA] 23: dark grey avatar is ${bg[0]}`);
+      await c.close();
+    }
+    // [Home] 17: the Respond sheet's footer doesn't jump when the error shows.
+    {
+      const [c, p] = await open(390, 844, 'elena', '/', true);
+      await p.locator('.need .btn').first().click();
+      const dlg = p.getByRole('dialog', { name: 'Respond to the request' });
+      await dlg.waitFor(); await p.waitForTimeout(400);
+      const before = await box(p, '.respond-form .sheet-foot');
+      await dlg.getByRole('button', { name: 'Record the answer' }).click();
+      await p.waitForTimeout(100);
+      const after = await box(p, '.respond-form .sheet-foot');
+      check(before && after && Math.abs(after.y - before.y) <= 1, `[Home] 17: the footer moved ${before && after && Math.round(after.y - before.y)}px`);
+      check(await dlg.getByRole('alert').locator('svg').count() === 1, '[Home] 17: the error has no icon');
+      await c.close();
+    }
+    // [Home] 14: Maya after posting her check-ins.
+    {
+      // Maya posts her one due number in the table, then comes back to Home.
+      const [c, p] = await open(390, 844, 'maya', '/quick-check-in', true);
+      await p.locator('.qrow').first().waitFor();
+      for (const row of await p.locator('.qrow').all()) {
+        if (/already posted/.test(await row.innerText())) continue;
+        const plan = (await row.innerText()).match(/Plan ([\d.]+)/)?.[1] || '20';
+        await row.getByRole('textbox').fill(plan);
+      }
+      await p.getByRole('button', { name: /^Post/ }).click();
+      await p.getByText('Saved').first().waitFor({ timeout: 4000 }).catch(() => {});
+      await p.goto(url('/'));
+      await p.waitForTimeout(400);
+      const s = await box(p, '.hero-allset'), e = await box(p, '.home-hero .eyebrow');
+      check(s && e && s.b <= e.y && e.y - s.b <= 9, `[Home] 14: no "all set" line 8px above the eyebrow (${s && e && Math.round(e.y - s.b)})`);
+      check(await p.locator('.home-hero .btn.primary').count() === 1, '[Home] 14: the review is not the one primary action');
+      await c.close();
+    }
+    // No sideways scroll anywhere on these pages, from a small phone to a big monitor.
+    for (const w of [360, 768, 1024, 2560]) {
+      for (const [who, route] of [['elena', '/'], ['maya', '/watching'], ['elena', '/activity']]) {
+        const [c, p] = await open(w, 900, who, route, w < 800);
+        check(await noSideways(p), `sideways scroll on ${route} at ${w}`);
+        await c.close();
+      }
+    }
     return fails;
   },
 };

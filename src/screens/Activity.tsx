@@ -70,7 +70,7 @@ export function Activity() {
     <div className="page narrow activity-page">
       <div className="page-head">
         <h1 className="title-xl">Activity</h1>
-        <span className="small muted">Every saved change, who made it and when. Drafts aren’t logged; anything posted or saved is, and the log can’t be edited.</span>
+        <span className="small muted">Every saved change, who made it and when. Drafts aren’t logged.</span>
       </div>
       {a.watching != null && (
         <p className="row" style={{ gap: 'var(--s2)' }}>
@@ -80,8 +80,8 @@ export function Activity() {
       )}
       <div className="filterbar">
         <div className="filterbar-row">
-          <label className="filter-search"><span className="sr">Search changes</span>
-            <input className="input" type="search" placeholder="Search changes: names, reasons, numbers" value={a.q} onChange={(e) => { const v = e.target.value; setA((cur) => ({ ...cur, q: v })); setLimit(40); }} />
+          <label className="filter-search"><span className="sr">Search changes</span><span className="sr" id="activity-search-hint">Finds names, reasons and numbers</span>
+            <input className="input" type="search" placeholder="Search changes" aria-describedby="activity-search-hint" value={a.q} onChange={(e) => { const v = e.target.value; setA((cur) => ({ ...cur, q: v })); setLimit(40); }} />
           </label>
           <label className="filter-sort"><span className="sr">When</span>
             <select className="input" value={a.when ?? ''} onChange={(e) => { const v = (e.target.value || null) as When | null; setA((cur) => ({ ...cur, when: v })); if (v === 'custom') setOpen(true); setLimit(40); }}>
@@ -89,8 +89,8 @@ export function Activity() {
               {WHEN_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             </select>
           </label>
-          <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{filterCount ? ` · ${filterCount}` : ''}</button>
-          <button type="button" className="btn" onClick={saveCsv} disabled={!list.length}>Save .csv</button>
+          <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{filterCount ? <span className="tabcount">{filterCount}</span> : null}</button>
+          <button type="button" className="btn activity-save" onClick={saveCsv} disabled={!list.length}>Save .csv</button>
         </div>
         <div className="kind-chips" role="group" aria-label="Kind of change">
           {ACTIVITY_KINDS.filter(([k]) => counts.get(k) || a.kind.includes(k)).map(([k, l]) => (
@@ -112,15 +112,22 @@ export function Activity() {
             ? <ReviewedRun key={r[0]!.id} run={r} />
             : r.map((c) => <ChangeItem key={c.id} c={c} showGoal />)))}</ol>
         </section>
-      )) : <div className="calm">{narrowed ? 'No changes match. Remove a filter to see more.' : 'Nothing here yet.'}</div>}
+      )) : narrowed ? (
+        <div className="activity-none">
+          <p className="activity-none-title">No changes match</p>
+          <p className="activity-none-hint">Remove a filter to see more.</p>
+          {/* Narrowed only by Watching's scope, the way out is "Show all activity" above. */}
+          {chips.length > 0 && <button type="button" className="btn" onClick={() => setA((cur) => ({ ...EMPTY_ACTIVITY, watching: cur.watching, since: cur.since }))}>Clear filters</button>}
+        </div>
+      ) : <div className="activity-none"><p className="activity-none-title">Nothing here yet</p></div>}
       {list.length > shown.length && <button className="btn" onClick={() => setLimit((n) => n + 40)}>Show more ({list.length - shown.length} older)</button>}
-      {open && <ActivityFilters onClose={() => setOpen(false)} />}
+      {open && <ActivityFilters onClose={() => setOpen(false)} onSave={list.length ? saveCsv : null} />}
     </div>
   );
 }
 
 /** Who, which goal or tree, team, level and dates. */
-function ActivityFilters({ onClose }: { onClose: () => void }) {
+function ActivityFilters({ onClose, onSave }: { onClose: () => void; onSave: (() => void) | null }) {
   const app = useApp();
   const [a, setA] = useActivityQuery();
   const [who, setWho] = useState('');
@@ -128,9 +135,9 @@ function ActivityFilters({ onClose }: { onClose: () => void }) {
   const people = app.snapshot.people.filter((p) => !a.who.includes(p.id) && who.trim() && p.name.toLowerCase().includes(who.trim().toLowerCase())).slice(0, 6);
   return (
     <Sheet open onClose={onClose} title="Filter activity" wide>
-      <div className="filter-sheet">
+      <div className="filter-sheet activity-filter-sheet">
         <fieldset className="filter-group"><legend className="field-label">Who made the change</legend>
-          <span className="filter-options">{a.who.map((id) => <button key={id} type="button" className="filter-chip" aria-label={`Remove ${app.person(id)?.name}`} onClick={() => setA((cur) => ({ ...cur, who: cur.who.filter((x) => x !== id) }))}>{app.person(id)?.name}<Icon name="close" size={12} className="chip-x" /></button>)}</span>
+          {a.who.length > 0 && <span className="filter-options">{a.who.map((id) => <button key={id} type="button" className="filter-chip" aria-label={`Remove ${app.person(id)?.name}`} onClick={() => setA((cur) => ({ ...cur, who: cur.who.filter((x) => x !== id) }))}>{app.person(id)?.name}<Icon name="close" size={12} className="chip-x" /></button>)}</span>}
           <input className="input" type="search" placeholder="Find a person" aria-label="Find a person" value={who} onChange={(e) => setWho(e.target.value)} />
           {people.length > 0 && <span className="filter-options">{people.map((p) => <button key={p.id} type="button" className="btn sm" onClick={() => { setA((cur) => ({ ...cur, who: [...cur.who, p.id] })); setWho(''); }}>{p.name}</button>)}</span>}
           <label className="check"><input type="checkbox" checked={a.who.length === 1 && a.who[0] === app.viewer.id} onChange={(e) => setA((cur) => ({ ...cur, who: e.target.checked ? [app.viewer.id] : [] }))} /> Only my changes</label>
@@ -148,13 +155,15 @@ function ActivityFilters({ onClose }: { onClose: () => void }) {
         <fieldset className="filter-group"><legend className="field-label">Level</legend>
           <span className="filter-options">{(['north-star', 'svp', 'team'] as Level[]).map((l) => <label key={l} className="check"><input type="checkbox" checked={a.level.includes(l)} onChange={() => setA((cur) => ({ ...cur, level: toggle(cur.level, l) }))} /> {LEVEL_LABEL[l]}</label>)}</span>
         </fieldset>
-        <fieldset className="filter-group"><legend className="field-label">Between two dates</legend>
-          <label className="field"><span className="small">From</span><input className="input" type="date" value={a.from ?? ''} onChange={(e) => setA((cur) => ({ ...cur, when: 'custom', from: e.target.value || null }))} /></label>
-          <label className="field"><span className="small">To</span><input className="input" type="date" value={a.to ?? ''} onChange={(e) => setA((cur) => ({ ...cur, when: 'custom', to: e.target.value || null }))} /></label>
+        <fieldset className="filter-group filter-dates"><legend className="field-label">Between two dates</legend>
+          <label className="field"><span className="date-label">From</span><input className="input" type="date" value={a.from ?? ''} onChange={(e) => setA((cur) => ({ ...cur, when: 'custom', from: e.target.value || null }))} /></label>
+          <label className="field"><span className="date-label">To</span><input className="input" type="date" value={a.to ?? ''} onChange={(e) => setA((cur) => ({ ...cur, when: 'custom', to: e.target.value || null }))} /></label>
         </fieldset>
       </div>
-      <div className="sheet-foot">
+      {/* On a phone, Save .csv lives here rather than taking a row of the filter bar. */}
+      <div className="sheet-foot activity-foot">
         <button type="button" className="linkish small" onClick={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, kind: cur.kind, watching: cur.watching, since: cur.since }))}>Clear filters</button>
+        <button type="button" className="btn activity-foot-save" onClick={() => onSave?.()} disabled={!onSave}>Save .csv</button>
         <button type="button" className="btn primary" onClick={onClose}>Show the changes</button>
       </div>
     </Sheet>
