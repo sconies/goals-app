@@ -1771,7 +1771,30 @@ journey('U29', ['WALKTHROUGHS'], 'Every walkthrough starts as the right person a
 }, ['errors', 'budget', 'one-action', 'a11y']);
 
 /* ---------------- platform checks ---------------- */
+  // F1–F8: the per-area fit-and-finish reports (4 Nov). Each area keeps its own checks in evals/finish/*.cjs.
+async function finishChecks(add) {
+  {
+    const open = async (w, h, who, route, touch) => {
+      const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch, isMobile: !!touch && w < 800 });
+      const r = await c.newPage();
+      await r.goto(url('/')); if (who) await r.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), who);
+      await r.goto(url(route)); await r.waitForTimeout(400);
+      return [c, r];
+    };
+    const dir = path.join(__dirname, 'finish');
+    const pick = (process.env.FINISH || '').split(',').filter(Boolean);
+    for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.cjs')).sort()) {
+      const m = require(path.join(dir, f));
+      if (pick.length && !pick.includes(m.id)) continue;
+      let fails;
+      try { fails = await m.run({ open, url, browser }); } catch (e) { fails = [`check crashed: ${String(e.message || e).split('\n')[0]}`]; }
+      add(m.id, ['FIT-AND-FINISH-AREAS'], `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
+    }
+  }
+}
+
 async function platformChecks() {
+  if (process.env.FINISH) { const out = []; await finishChecks((id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error })); return out; }
   const out = [];
   const add = (id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error });
   // Reduced motion switches animation off.
@@ -1993,6 +2016,7 @@ async function platformChecks() {
     await c.close();
   }
   add('P10', ['FIT-AND-FINISH'], 'Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge', !finish.length, finish.join(' | '));
+  await finishChecks(add);
   add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
   return out;
