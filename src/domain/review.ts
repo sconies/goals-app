@@ -69,17 +69,22 @@ export function sessionDate(r: Review, cycle: Cycle, week: number): string {
  */
 export const isHealthy = (a: GoalAttention) => (a.status.status === 'on' || a.status.status === 'done') && a.flags.every((f) => f.kind === 'due');
 
-/** What a session still has to do: goals to discuss one at a time, and goals on track to cover together. */
-export function agendaOf(s: ReviewSession): { discuss: GoalAttention[]; healthy: GoalAttention[] } {
+/**
+ * What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
+ * every goal that isn't healthy, the ones with new information first; `handled` names the ones in it that are already
+ * being handled (someone looked since the latest check-in), so an agenda can group them under "Being handled".
+ */
+export function agendaOf(s: ReviewSession): { discuss: GoalAttention[]; healthy: GoalAttention[]; handled: GoalAttention[] } {
   const left = s.items.filter((a) => !s.covered.has(a.goal.id));
-  return { discuss: left.filter((a) => !isHealthy(a)), healthy: left.filter(isHealthy) };
+  const discuss = left.filter((a) => !isHealthy(a));
+  return { discuss, healthy: left.filter(isHealthy), handled: discuss.filter((a) => !!a.handled) };
 }
 
 export interface ReviewSession {
   review: Review;
   week: number;
   date: string;
-  /** Worst first, then the longest since a check-in. */
+  /** New information, then what's being handled, then the healthy goals; each worst first, then the longest since a check-in. */
   items: GoalAttention[];
   covered: Set<string>;
   done: number;
@@ -88,12 +93,15 @@ export interface ReviewSession {
   said: Decision[];
 }
 
+/** Agenda order: new information, then what's being handled, then the healthy goals. */
+const tier = (a: GoalAttention) => (a.handled ? 1 : isHealthy(a) ? 2 : 0);
+
 export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date, week: number): ReviewSession {
   const w = sessionWeek(r, week);
   const lastCheckIn = (g: Goal) => { const own = checkInsFor(g, s.checkIns); const last = own[own.length - 1]; return last ? daysSince(last.postedAt, today) : 999; };
   const items = goalsIn(r.scope, s.goals)
     .map((g) => attentionFor(g, s, cycle, today))
-    .sort((a, b) => b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
+    .sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
   const said = s.decisions.filter((d) => d.reviewId === r.id && d.week === w);
   // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
   const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));

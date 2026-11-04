@@ -5,8 +5,10 @@
 import type { Commit } from '../data/store';
 import * as A from '../domain/actions';
 import { activityFilter, parseActivity } from '../domain/activity';
-import { attentionList } from '../domain/attention';
+import { attentionList, splitAttention } from '../domain/attention';
 import { wrapUpOpen } from '../domain/cycle';
+import { dashboard } from '../domain/home';
+import { LABEL } from '../domain/status';
 import { askText, openForPerson, requestsOf } from '../domain/requests';
 import { agendaOf, answerOf, openQuestions, reviewSession, watchedGoals } from '../domain/review';
 import { checkInsFor } from '../domain/status';
@@ -81,14 +83,17 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'get_my_work',
     title: 'What needs me',
-    description: 'What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention, requests for a decision or help waiting on them, questions from reviews on their goals, asks for an update, actions they agreed to, and the reviews they’re in.',
+    description: 'What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention (new since anyone looked), those behind but already being handled, requests for a decision or help waiting on them, questions from reviews on their goals, asks for an update, actions they agreed to, and the reviews they’re in.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
     async run(_a, ctx) {
       const s = ctx.snapshot, me = ctx.actor.id;
       const mine = s.goals.filter((g) => g.ownerId === me);
       const due = mine.filter((g) => !checkInsFor(g, s.checkIns).some((c) => c.week === ctx.week)).map((g) => ({ id: g.id, title: g.title }));
-      const attention = attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length).map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, why: a.flags.map((f) => f.detail) }));
+      // Needs attention is new information; a goal someone has looked at since its latest check-in is being handled.
+      const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length));
+      const attention = split.needs.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, why: a.flags.map((f) => f.detail) }));
+      const handled = split.handled.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, inHand: a.handled!.text, said: a.handled!.said || null, why: a.flags.map((f) => f.detail) }));
       const requests = openForPerson(me, s).map((r) => requestData(ctx, r));
       const questions = openQuestions(me, s).map((d) => ({ id: d.id, goalId: d.goalId, goal: s.goals.find((g) => g.id === d.goalId)?.title, question: d.note, by: name(ctx, d.byId) }));
       const asks = liveNotes(s.changes).filter((c) => isUpdateAsk(c) && mine.some((g) => g.id === c.goalId))
@@ -96,14 +101,24 @@ export const WORK_TOOLS: ToolDef[] = [
         .map((c) => ({ goalId: c.goalId, by: name(ctx, c.actorId), at: c.at }));
       const actions = s.decisions.filter((d) => d.kind === 'action' && d.assigneeId === me).map((d) => ({ id: d.id, goalId: d.goalId, action: d.note, dueWeek: d.dueWeek ?? null }));
       const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
-      const data = { week: ctx.week, checkInsDue: due, needsAttention: attention, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, yourReviews: reviews, wrapUpOpen: wrapUpOpen(ctx.cycle, ctx.week) };
+      // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
+      const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
+      const glance = {
+        goals: { whose: d.scope, total: d.total, byStatus: d.counts.map((c) => ({ status: LABEL[c.status], n: c.n })) },
+        onTimeStreakWeeks: d.streak,
+        watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
+        nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null,
+      };
+      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, yourReviews: reviews, wrapUpOpen: wrapUpOpen(ctx.cycle, ctx.week) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
+        `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} being handled.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
         `Requests waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join('; ') : 'none'}.`,
         `Questions on your goals: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}`).join('; ') : 'none'}.`,
         `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}`).join('; ') : 'none'}.`,
         `Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.join(' ')}`).join('; ') : 'none'}.`,
+        `Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === 'off' ? 'off track' : 'at risk'}): ${g.inHand}`).join('; ') : 'none'}.`,
       ].join('\n');
       return { data, text };
     },
@@ -145,17 +160,17 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'get_review',
     title: 'A review’s agenda',
-    description: 'One review’s current session: the goals to discuss (worst first, with why), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.',
+    description: 'One review’s current session: the goals to discuss (new information first, worst first, with why; those already being handled say what’s in hand), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['review_id'], properties: { review_id: str('The review’s ID, from list_reviews.') } },
     annotations: READ,
     async run(a, ctx) {
       const r = reviewOf(ctx, a.review_id);
       const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
       const ag = agendaOf(x);
-      const item = (g: (typeof ag.discuss)[number]) => ({ id: g.goal.id, title: g.goal.title, owner: name(ctx, g.goal.ownerId), status: g.status.status, why: g.flags.map((f) => f.detail) });
+      const item = (g: (typeof ag.discuss)[number]) => ({ id: g.goal.id, title: g.goal.title, owner: name(ctx, g.goal.ownerId), status: g.status.status, why: g.flags.map((f) => f.detail), beingHandled: g.handled?.text ?? null });
       const said = x.said.map((d) => ({ id: d.id, goalId: d.goalId, kind: d.kind, note: d.note, by: name(ctx, d.byId), ...(d.kind === 'action' ? { who: name(ctx, d.assigneeId ?? null), dueWeek: d.dueWeek ?? null } : {}), ...(d.kind === 'ask' ? { answer: answerOf(d, ctx.snapshot)?.text ?? null } : {}) }));
       const data = { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total, toDiscuss: ag.discuss.map(item), healthy: ag.healthy.map(item), said };
-      return { data, text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}. ${g.why.join(' ')}`), '- nothing')}\nHealthy: ${data.healthy.map((g) => g.title).join(', ') || 'none'}.` };
+      return { data, text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}.${g.beingHandled ? ` Being handled: ${g.beingHandled}.` : ''} ${g.why.join(' ')}`), '- nothing')}\nHealthy: ${data.healthy.map((g) => g.title).join(', ') || 'none'}.` };
     },
   },
   {

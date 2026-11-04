@@ -3,7 +3,7 @@ import { Icon } from '../ui/Icon';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodLabel } from '../domain/year';
-import { attentionList } from '../domain/attention';
+import { attentionList, splitAttention } from '../domain/attention';
 import { LEVEL_LABEL } from '../domain/format';
 import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
@@ -11,7 +11,7 @@ import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
 import { AttentionCard, Chip, Empty, EmptyResult, StatusShape } from '../ui/bits';
 import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
-import { WatchingBody } from './Watching';
+import { HandledGroup, WatchingBody } from './Watching';
 import { useNavMode } from '../app/navMode';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
@@ -36,7 +36,8 @@ const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 export function GoalsScreen() {
   const app = useApp();
   const [params, setParams] = useSearchParams();
-  const att = useMemo(() => attentionList(app.snapshot, app.cycle, app.today), [app.snapshot, app.cycle, app.today]);
+  // Needs attention is new information; what someone has looked at since its latest check-in is being handled.
+  const { needs: att, handled } = useMemo(() => splitAttention(attentionList(app.snapshot, app.cycle, app.today)), [app.snapshot, app.cycle, app.today]);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   const navMode = useNavMode();
   const show: Show = (params.get('show') as Show) || 'outcomes';
@@ -47,13 +48,13 @@ export function GoalsScreen() {
   // Built once per change to the goals, so the views' summaries aren't recomputed on every render.
   const grouped: ViewGroup[] = useMemo(() => show === 'outcomes'
     ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
-    : show === 'attention' ? [one('attention', 'Needs attention', att.map((a) => a.goal))]
+    : show === 'attention' ? [one('attention', 'Needs attention', att.map((a) => a.goal)), ...(handled.length ? [{ ...one('handled', 'Being handled', handled.map((a) => a.goal)), hint: 'Behind, but someone has looked since the latest check-in.' }] : [])]
     : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'teams' ? app.snapshot.teams.map((t) => one(t.id, t.name, app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'mine' ? [one('mine', 'Mine', [...mine].sort(worstFirst(app)))]
     : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [show, app.snapshot, app.viewer.id, att]);
+    [show, app.snapshot, app.viewer.id, att, handled]);
   // Search, filters and sort apply on top of the grouping, in every layout and in exports.
   const [query, setQuery] = useGoalQuery();
   const narrowed = filters(query);
@@ -197,7 +198,8 @@ export function GoalsScreen() {
 
       {!alt && !refined && show === 'attention' && (att.length
         ? <div className="alist">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
-        : <div className="calm"><StatusShape k="done" /> Nothing is off track, stale or slipping.</div>)}
+        : <div className="calm"><StatusShape k="done" /> Nothing new is off track, stale or slipping.</div>)}
+      {!alt && !refined && show === 'attention' && <HandledGroup list={handled} />}
 
       {!alt && !refined && show === 'levels' && LEVELS.map((l) => {
         const list = app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app));
