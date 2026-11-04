@@ -79,7 +79,7 @@
   .page.home .split > .split-a { order: 0; }
   .page.home .home-side > .needs-you { order: 1; }
   .page.home .split > .split-b { order: 2; }
-  .page.home .home-side > .note-card { order: 3; }
+  .page.home:has(.needs-you) .home-side > .note-card { order: 3; }
 }
 .page.home .note-card { border-radius: 12px; }
 

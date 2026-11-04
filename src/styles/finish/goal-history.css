@@ -43,14 +43,14 @@
 
 /* Goal rows (threats and contributing goals) on the goal page only. Wide: the title gets most of the row, nothing is
    cut off [Goal 2]. */
-.goal-page .tree .trow { grid-template-columns: 104px minmax(60%, 1fr) minmax(0, max-content); }
+.goal-page .tree .trow { grid-template-columns: 104px minmax(60%, 1fr) minmax(0, max-content); grid-template-areas: "icon main now"; }
 .goal-page .tree .trow-why { display: block; -webkit-line-clamp: unset; overflow: visible; }
 .goal-page .tree .trow-now { white-space: normal; text-align: right; }
 /* Why a threat is listed: one line [Goal 15]. */
 .goal-page .threat-why { display: block; font-size: 0.875rem; line-height: 1.25rem; padding: 0 var(--s4) var(--s3) calc(104px + var(--s4) + var(--s3)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Narrow column (under 600px): status, then the title full width, then the number and gap on one line, then the reason in full. */
 @container gcol (max-width: 599px) {
-  .goal-page .tree .trow { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
+  .goal-page .tree .trow { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; row-gap: 4px; }
   .goal-page .tree .trow > * { grid-column: 1 / -1; }
   .goal-page .tree .trow-main { display: contents; }
   .goal-page .tree .trow-icon { order: 1; padding-top: 0; }

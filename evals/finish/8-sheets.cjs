@@ -100,7 +100,10 @@ module.exports = {
     for (const [w, h] of [[1440, 700], [390, 844]]) {
       await step(`toast in sheet ${w}`, async () => {
         const [c, p] = await open(w, h, 'elena', '/goals', w < 800);
-        await p.getByRole('button', { name: 'Export' }).first().click();
+        // On the smallest phones Export sits in the Import or export menu.
+        const direct = p.locator('button:visible', { hasText: /^Export/ }).first();
+        if (await direct.isVisible().catch(() => false)) await direct.click();
+        else { await p.locator('summary[aria-label="Import or export"]').click(); await p.locator('.view-menu-list').getByRole('button', { name: 'Export', exact: true }).click(); }
         const sheet = p.getByRole('dialog', { name: 'Export goals' });
         await sheet.waitFor();
         await Promise.all([p.waitForEvent('download').catch(() => null), sheet.getByRole('button', { name: 'Save .json' }).click()]);

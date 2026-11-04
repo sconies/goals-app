@@ -75,8 +75,6 @@
 @media (pointer: coarse) { .map-frame button, .map-tools .check { min-height: 44px; } }
 
 /* The walkthrough card: its first quiet button starts on the card's text edge (Map 27). */
-.coach .row > .btn.ghost:first-child { padding-left: 0; }
-.coach .row > .btn.ghost:first-child:hover { background: transparent; text-decoration: underline; }
 
 /* ---------- reviews ---------- */
 /* The list: rows on the 16px scale, like the goal rows (RV 23). */

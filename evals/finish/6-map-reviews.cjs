@@ -48,7 +48,11 @@ module.exports = {
       await p.waitForTimeout(900);
       const coach = await rect(p, '.coach'), ring = await rect(p, '.coach-ring'), star = await rect(p, '.map-node.critical[data-coach-avoid]');
       fail(!hit(coach, ring) && !hit(coach, star), `Map 4: the step 2 card covers the goal or its north star (card ${n(coach?.l)},${n(coach?.t)}; ring ${n(ring?.l)},${n(ring?.t)})`);
-      fail(!!coach && !!ring && (coach.r <= ring.l - 15 || coach.t >= ring.b + 15), `Map 4: the step 2 card is not left of or below the goal with 16px clearance`);
+      // Left of the goal (or below) when that fits inside the main area; the sidebar is never covered, so at 1280 the card
+      // takes the clear corner instead. Either way it is 16px clear of the goal.
+      fail(!!coach && !!ring && (coach.r <= ring.l - 15 || coach.t >= ring.b + 15 || coach.l >= ring.r + 15 || coach.b <= ring.t - 15), `Map 4: the step 2 card is not 16px clear of the goal`);
+      const mainL = await p.evaluate(() => document.querySelector('main.work')?.getBoundingClientRect().left ?? 0);
+      fail(!!coach && coach.l >= mainL + 15, `Map 4: the step 2 card covers the sidebar (card left ${n(coach?.l)}, main starts ${n(mainL)})`);
       // Step 3: over the map, left of the panel, bottom 16px above the canvas's.
       await p.locator('.map-node.critical').first().click();
       await p.waitForTimeout(900);
