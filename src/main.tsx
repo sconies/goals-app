@@ -11,6 +11,12 @@ import './styles/finish/list-board.css';
 import './styles/finish/map-reviews.css';
 import './styles/finish/data-workspace.css';
 import './styles/finish/sheets.css';
+import './styles/notes/reviews.css';
+import './styles/notes/goal-page.css';
+import './styles/notes/attention-home.css';
+import './styles/notes/shell-settings.css';
+import './styles/notes/data-ids.css';
+import './styles/notes/print-motion.css';
 
 /** Everything under /demo is the demo: the example data in this browser, with a role switcher and a reset. */
 const mode: Mode = location.pathname === '/demo' || location.pathname.startsWith('/demo/') ? 'demo' : 'live';

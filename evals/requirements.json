@@ -380,6 +380,66 @@
       "id": "DATA-TABLES",
       "area": "Data",
       "text": "Every person, goal, check-in and plan is in a table anyone can read, search, sort and filter by any column: a value from its list, a number condition, words, or empty; the filters and sort are in the link. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged. Every record shows its own ID, which never changes."
+    },
+    {
+      "id": "REVIEW-LIST-STATE",
+      "area": "Reviews",
+      "text": "The Reviews page says, for every review, where this session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held and how many of its actions are open."
+    },
+    {
+      "id": "REVIEW-AGENDA",
+      "area": "Reviews",
+      "text": "A review's agenda reads at a glance: one line per goal (status, name, number, gap) with nothing cut off at any width; the end of a review shows what was said and leads back to the review."
+    },
+    {
+      "id": "GOAL-SUMMARY",
+      "area": "Goals",
+      "text": "A goal's page leads with four facts (against plan, trend over the last check-ins, change since the last update, projection to the target), then the path to green in the main column; the header stays on screen while scrolling; what the goal feeds and how its number is measured are shown under the title. In a review, the chart and recent check-ins are open, each past check-in opens to the full check-in, and the side column is grouped under labelled headings."
+    },
+    {
+      "id": "ATTENTION-HANDLED",
+      "area": "Attention",
+      "text": "Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI)."
+    },
+    {
+      "id": "HOME-DASHBOARD",
+      "area": "Home",
+      "text": "Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch."
+    },
+    {
+      "id": "SETTINGS",
+      "area": "Interface",
+      "text": "A Settings page holds personal choices that are remembered: light, dark or system, an accent colour, a collapsed or full side navigation, and your AI assistant tokens. Detail pages have a Back link to where you came from."
+    },
+    {
+      "id": "NAV-GOALS",
+      "area": "Interface",
+      "text": "Goals is one section of the navigation with Mine, Watching and All, and your saved views under it; a person in one workspace never sees a workspace switcher."
+    },
+    {
+      "id": "WORKSPACE-ADMIN",
+      "area": "Workspace",
+      "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it."
+    },
+    {
+      "id": "TABLE-LAYOUTS",
+      "area": "Data",
+      "text": "In the data tables, columns can be reordered and resized, the layout saved and reopened, and the table exported as shown."
+    },
+    {
+      "id": "READABLE-IDS",
+      "area": "Data",
+      "text": "Every goal has a short, readable key (G-1, G-2 … per workspace) that never changes, shown on the goal, in tables, exports and links, and accepted by the AI assistant and imports."
+    },
+    {
+      "id": "PRINT-EXPORT",
+      "area": "Export",
+      "text": "A goal and a review each have a print-ready one-page view (save as PDF) with everything critical: status, numbers against plan, chart, path to green, latest check-in, requests and actions."
+    },
+    {
+      "id": "MOTION-ALIVE",
+      "area": "Interface",
+      "text": "The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every animation is under 250ms and off when the person asks for reduced motion."
     }
   ],
   "notYetBuilt": [

@@ -1790,14 +1790,14 @@ async function finishChecks(add) {
       await r.goto(url(route)); await r.waitForTimeout(400);
       return [c, r];
     };
-    const dir = path.join(__dirname, 'finish');
     const pick = (process.env.FINISH || '').split(',').filter(Boolean);
-    for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.cjs')).sort()) {
-      const m = require(path.join(dir, f));
+    // finish/: the fit-and-finish areas; notes/: Lane's review notes (5 Nov). Each module names its requirements.
+    for (const f of ['finish', 'notes'].flatMap((d) => fs.readdirSync(path.join(__dirname, d)).filter((x) => x.endsWith('.cjs')).sort().map((x) => path.join(__dirname, d, x)))) {
+      const m = require(f);
       if (pick.length && !pick.includes(m.id)) continue;
       let fails;
       try { fails = await m.run({ open, url, browser }); } catch (e) { fails = [`check crashed: ${String(e.message || e).split('\n')[0]}`]; }
-      add(m.id, ['FIT-AND-FINISH-AREAS'], `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
+      add(m.id, m.reqs ?? ['FIT-AND-FINISH-AREAS'], m.title ?? `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
     }
   }
 }
