@@ -1114,8 +1114,8 @@ journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust,
   // Coverage can't pass 100%: refused in place, and the summary names the real problem.
   await h.fill(row.getByRole('textbox'), '150');
   await see(row, 'can’t be over 100%', 'a coverage of 150% is not refused');
-  // The button says what's wrong rather than offering to post (product review, 3 Nov).
-  await h.click(p.getByRole('button', { name: /^Fix 1 value/ }));
+  // Post keeps its label; what's wrong is said in the summary above it (fit and finish, 4 Nov: Numbers 7).
+  await h.click(p.getByRole('button', { name: /^Post 1 check-in/ }));
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'needs a possible number' }).isVisible(), 'the summary blames a reason, not the number');
   const s = await h.snapshot();
   h.set('logged', !s.checkIns.some((c) => c.goalId === 'review' && c.value === 150), 'an impossible coverage was saved');

@@ -57,10 +57,10 @@ function Flow({ goalId }: { goalId?: string }) {
   return (
     <>
     {noData && <NoDataSheet goal={goal} onClose={() => setNoData(false)} onDone={() => { setNoData(false); next(); }} />}
-    <div className="focus">
+    <div className="focus ci">
       <div className="focus-top">
+        {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
         <span className="small strong">Check-in{queue.length > 1 ? ` ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
-        {queue.length > 1 && <div className="dots" aria-hidden="true">{queue.map((id, i) => <i key={id} className={i < index ? 'done' : i === index ? 'now' : ''} />)}</div>}
         <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
       </div>
       {justPosted ? (
@@ -106,13 +106,13 @@ function AllDone({ first }: { first?: boolean }) {
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(() => ref.current?.focus(), []);
   return (
-    <div className="focus">
+    <div className="focus ci">
       <div className="celebrate" role="status">
         <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} />
         <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : p.due.length ? `${p.done.length} of ${p.goals.length} checked in` : `Week ${app.week} is done`}</h1>
         <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : p.due.length ? `Still to do: ${p.due.map((g) => g.title).join(', ')}.` : p.goals.length === 1 ? 'Your goal is checked in for the review.' : p.goals.length === 2 ? 'Both your goals are checked in for the review.' : `All ${p.goals.length} of your goals are checked in for the review.`}</p>
         {streak >= 2 && !p.due.length && <p className="streak big">{streak} weeks in a row on time</p>}
-        <div className="row" style={{ justifyContent: 'center' }}>
+        <div className="row done-actions">
           {p.due.length > 0 && <Link className="btn primary big-btn" to={`/check-in/${p.due[0]!.id}`}>Check in on {p.due[0]!.title}</Link>}
           <Link ref={ref} className={'btn big-btn' + (p.due.length ? '' : ' primary')} to="/">Back to home</Link>
         </div>
@@ -138,10 +138,10 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
     <div className="celebrate" role="status">
       <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
       <h1 className="title-xl">Check-in saved</h1>{updated && <p className="muted">Kept alongside your earlier check-in this week; this one is now the week’s status.</p>}
-      <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status is <Chip k={c.status} /></p>
+      <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status <span className="nobr">is <Chip k={c.status} /></span></p>
       {c.pathToGreen?.needs && <p className="small">Asked for: {c.pathToGreen.needs}. It shows on the goal and on their Home.</p>}
       {!left && <p className="muted">{p.due.length ? `Still due this week: ${p.due.map((g) => g.title).join(', ')}.` : `All ${p.goals.length === 1 ? 'your goal is' : `${p.goals.length} of your goals are`} checked in for week ${app.week}${late ? ', after the review day' : ''}.`}</p>}
-      <div className="row" style={{ justifyContent: 'center' }}>
+      <div className="row done-actions">
         {left
           ? <button ref={btn} className="btn primary big-btn" onClick={onNext}>Next: {nextTitle}</button>
           : <Link ref={btn} className="btn primary big-btn" to="/">Back to home</Link>}
@@ -283,10 +283,14 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   if (canCarry) carryOffered.current = true;
   const full: Step[] = ['measure', ...(carryOffered.current ? ['carry' as const] : []), ...(needsAccount ? ['account' as const] : [])];
   const stepNo = Math.max(1, full.indexOf(step) + 1);
+  // Every first step shows its dots. Before the number is typed the count is the most it could take (last week's
+  // note offered back, then an account), so it can only shrink once the number shows it's on plan.
+  const mayCarry = !!previous && ((!!previous.why && previous.why !== 'On plan.') || !!previous.pathToGreen);
+  const stepsOf = goal.kind === 'milestone' || valueOk ? full.length : 2 + (mayCarry || carryOffered.current ? 1 : 0);
 
   return (
     <form className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
-      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={full.length > 1 ? { at: stepNo, of: full.length } : undefined} />
+      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
       {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
@@ -297,28 +301,31 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
             {goal.kind !== 'milestone' && goal.definition && <span className="small">{goal.definition}{goal.unit ? ` (${goal.unit}, ${goal.kind === 'metric' ? (goal.plan.target < goal.plan.start ? 'lower is better' : 'higher is better') : goal.range.bound === 'atMost' ? 'stay at or under the limit' : 'stay at or above the limit'})` : ''}</span>}
             {goal.source && <span className="hint">Where to get it: {goal.source}. Typed in by hand.</span>}
           </div>
-          {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (
+          {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (() => {
+            // A problem with the number goes 8px under the field; last week's number and "Measured again" stay put.
+            const pr = valueProblem(draft.value, previous?.value ?? null, goal.unit, goal);
+            const shown = pr && (tried || (!pr.block && draft.value.trim()) || (pr.block && draft.value.trim() && parseNumber(draft.value) != null)) ? pr : null;
+            const empty = !shown && tried && !valueOk;
+            const invalid = !!shown?.block || (tried && !valueOk);
+            return (
             <div className="stack">
-              <label className="bignum">
+              <label className={'bignum' + (invalid ? ' invalid' : '')}>
                 <span className="sr">This week’s value</span>
                 <input inputMode="decimal" enterKeyHint="next" autoComplete="off" autoFocus value={draft.value} onChange={(ev) => set({ value: ev.target.value })}
-                  placeholder="Type it here" aria-describedby="value-hint" aria-label="This week’s value" aria-invalid={tried && !valueOk} />
+                  placeholder="Type it here" aria-describedby={(shown || empty ? 'value-msg ' : '') + 'value-hint'} aria-label="This week’s value" aria-invalid={invalid} />
                 {goal.unit && <span className="bignum-unit">{goal.unit}</span>}
               </label>
-              {(() => {
-                const pr = valueProblem(draft.value, previous?.value ?? null, goal.unit, goal);
-                if (pr && (tried || (!pr.block && draft.value.trim()) || (pr.block && draft.value.trim() && parseNumber(draft.value) != null))) return <span className={'hint ' + (pr.block ? 'tone-off' : 'tone-risk')} role={pr.block ? 'alert' : 'status'}>{pr.text}</span>;
-                return null;
-              })() ?? (tried && !valueOk
-                ? <span className="hint tone-off" role="alert">Type this week’s number.</span>
-                : <span id="value-hint" className="valuehint hint">
-                    <span>{previous?.value != null ? `Week ${previous.week}: ${fmt(previous.value, goal)}` : 'First check-in'}</span>
-                    {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Measured again: unchanged</button>}
-                  </span>)}
+              {shown && <span id="value-msg" className={'hint ' + (shown.block ? 'tone-off' : 'tone-risk')} role={shown.block ? 'alert' : 'status'}>{shown.text}</span>}
+              {empty && <span id="value-msg" className="hint tone-off" role="alert">Type this week’s number.</span>}
+              <span id="value-hint" className="valuehint hint">
+                <span>{previous?.value != null ? `Week ${previous.week}: ${fmt(previous.value, goal)}` : 'First check-in'}</span>
+                {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Measured again: unchanged</button>}
+              </span>
               {previous?.value != null && draft.value.trim() !== '' && parseNumber(draft.value) === previous.value && <span className="hint">Same as week {previous.week}. Post it only if you measured it again this week.</span>}
               {!draft.value.trim() && onSkip && <button type="button" className="linkish tap small" style={{ alignSelf: 'flex-start' }} onClick={onSkip}>No new number this week</button>}
             </div>
-          )}
+            );
+          })()}
           {valueOk && (goal.kind !== 'milestone' || draft.stages.length > 0) && (
             <>
               {goal.kind !== 'milestone' && <Verdict goal={goal} e={e} />}
@@ -354,10 +361,6 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
               <label className="check small"><input type="checkbox" checked={keepAsk} onChange={(e) => setKeepAsk(e.target.checked)} /> Keep this request open on their Home</label>
             </div>
           )}
-          <div className="choice">
-            <button type="button" className="btn primary big-btn" disabled={saving} onClick={stillTrue}>{saving ? 'Posting…' : 'Still true: post check-in'}</button>
-            <button type="button" className="btn big-btn" onClick={somethingChanged}>Something changed</button>
-          </div>
           {priorWay && previous.pathToGreen!.byWeek != null && previous.pathToGreen!.byWeek <= week && <span className="hint">The week you gave has passed, so you’ll pick a new one.</span>}
         </section>
       )}
@@ -384,7 +387,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
           {needsWay && (
             <div className="stack account-part">
           <h3 className="qtitle sm">{needsWhy ? 'What happens next?' : 'Where are you with getting it back on plan?'}</h3>
-          <div className="optlist" role="radiogroup" aria-label="Where you are">
+          <div className="optlist ci-opts" role="radiogroup" aria-label="Where you are">
             {(Object.keys(RECOVERY) as RecoveryState[]).map((k) => (
               <button key={k} type="button" role="radio" className="opt" aria-checked={(draft.ptgState ?? 'plan') === k} onClick={() => set({ ptgState: k, ...(k !== 'plan' && k !== 'help' ? { ptgBy: null } : {}) })}>
                 <span>{RECOVERY[k].label}</span><span className="hint">{RECOVERY[k].hint}</span>
@@ -414,7 +417,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
           {draft.ptgState === 'help' ? (
             // A decision and a date can go together: the date it's back on plan once the decision or help arrives.
             <div className="field"><span className="field-label" id="ptg-by-if">If it comes, back on plan by <span className="muted" style={{ fontWeight: 400 }}>optional</span></span>
-              <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} onPick={(w) => set({ ptgBy: draft.ptgBy === w ? null : w })} />
+              <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} labelledBy="ptg-by-if" onPick={(w) => set({ ptgBy: draft.ptgBy === w ? null : w })} />
             </div>
           ) : showNeeds
             ? <label className="field"><span className="field-label">Also need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional; shown at the top of the goal and in reviews</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Elena: approve an interim scope" /></label>
@@ -426,14 +429,22 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
       )}
 
       {step !== 'carry' ? (
-        <div className="focus-foot">
+        <div className="focus-foot" key="foot">
           <div className="foot-row">
             {trail.length > 0 && <button type="button" className="btn ghost" onClick={back}>Back</button>}
             <button className="btn primary big-btn" type="submit" disabled={saving}>{label}</button>
           </div>
         </div>
       ) : (
-        <div className="focus-foot"><div className="foot-row"><button type="button" className="btn ghost" onClick={back}>Back</button></div></div>
+        // Both answers live in the footer, so neither can load out of sight under it: the primary on the right. Its own
+        // key, so React never turns "Something changed" into the next step's submit button mid-click.
+        <div className="focus-foot" key="carry-foot">
+          <div className="foot-row carry-foot">
+            <button type="button" className="btn ghost" onClick={back}>Back</button>
+            <button type="button" className="btn big-btn" onClick={somethingChanged}>Something changed</button>
+            <button type="button" className="btn primary big-btn" disabled={saving} onClick={stillTrue}>{saving ? 'Posting…' : 'Still true: post check-in'}</button>
+          </div>
+        </div>
       )}
     </form>
   );
@@ -461,10 +472,10 @@ function StatusSheet({ open, onClose, e, draft, set, milestoneDone }: { open: bo
   return (
     <Sheet open={open} onClose={onClose} title="Status">
       <div className="stack" style={{ gap: 'var(--s3)' }}>
-        <div className="optlist" role="radiogroup" aria-label="Status">
+        <div className="optlist ci-opts" role="radiogroup" aria-label="Status">
           {opts.map((k) => (
             <button key={k} type="button" role="radio" aria-checked={e.status === k} className="opt" onClick={() => set({ status: k === e.calc ? null : k })}>
-              <Chip k={k} /><span className="hint">{k === e.calc ? 'From the numbers' : ''}</span>
+              <Chip k={k} /><span className="hint">{k === e.calc ? 'from the numbers' : ''}</span>
             </button>
           ))}
         </div>
@@ -481,11 +492,13 @@ function StatusSheet({ open, onClose, e, draft, set, milestoneDone }: { open: bo
   );
 }
 
-function WeekPicks({ week, weeks, value, onPick }: { week: number; weeks: number; value: number | null; onPick: (w: number) => void }) {
+/** The weeks to pick from, one pill each: the next four, the quarter's end and the year's (or cycle's) end. Used for
+    "back on plan by" and for a late stage, so both look and read the same. */
+function WeekPicks({ week, weeks, value, onPick, from = week + 1, labelledBy = 'ptg-by' }: { week: number; weeks: number; value: number | null; onPick: (w: number) => void; from?: number; labelledBy?: string }) {
   const { cycle } = useApp();
   return (
-    <div className="row" role="group" aria-labelledby="ptg-by">
-      {Array.from({ length: Math.max(0, weeks - week) }, (_, i) => week + 1 + i).filter((w, i, arr) => i < 4 || w === arr[arr.length - 1] || (isYear(cycle) && w === quarterOf(cycle, week).to)).map((w) => {
+    <div className="row weekpicks" role="group" aria-labelledby={labelledBy}>
+      {Array.from({ length: Math.max(0, weeks - from + 1) }, (_, i) => from + i).filter((w, i, arr) => i < 4 || w === arr[arr.length - 1] || (isYear(cycle) && w === quarterOf(cycle, week).to)).map((w) => {
         const name = w === weeks ? (isYear(cycle) ? 'Year end' : 'Cycle end') : isYear(cycle) && w === quarterOf(cycle, week).to && w > week + 4 ? `End of ${quarterOf(cycle, week).label}` : 'Week ' + w;
         // The name read out is the words on the button, so what you see is what a screen reader says.
         return <button key={w} type="button" className="pill" aria-pressed={value === w} onClick={() => onPick(w)}>{name}<span className="sr">{name.startsWith('Week') ? '' : `, week ${w}`}, </span><span className="pill-sub">{weekDates(cycle, w)}</span></button>;
@@ -522,7 +535,7 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
   if (a.kind === 'metric' && goal.kind === 'metric' && a.ratio != null && a.actual != null) {
     // Two different questions, kept apart: where it is against this week's plan, and where the recent trend ends up.
     title = `This week: ${gap.short}`;
-    line = `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${app.week}.`;
+    line = `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${app.week}.`;
     const fc = forecastText(goal, a, app.cycle.weeks);
     if (fc) forecast = { text: (fc.warn ? 'By the due date: ' : '') + fc.text + (fc.warn && a.ratio >= 1 ? ' The plan expects a faster pace later, so the two can disagree.' : ''), warn: fc.warn };
   } else if (a.kind === 'range' && goal.kind === 'range') line = `${gap.long}. The limit is ${targetText(goal)}.`;
@@ -574,7 +587,7 @@ function StageEditor({ goal, draft, set }: { goal: MilestoneGoal; draft: Draft; 
             <li key={s.id}>
               <button type="button" className="stagepick-row" onClick={() => setEditing(s.id)}>
                 <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">{s.name}</span><span className="hint">Due {weekLabel(s.dueWeek, cycle.weeks)}</span></span>
-                <span className={'stagepick-state tone-' + st.tone}>{st.text}</span>
+                <Chip k={st.tone} label={st.text} className="stagepick-state" />
                 <Icon name="chevron-right" className="chev" /><span className="sr">Change</span>
               </button>
             </li>
@@ -585,17 +598,16 @@ function StageEditor({ goal, draft, set }: { goal: MilestoneGoal; draft: Draft; 
         {current && (
           <div className="stack" style={{ gap: 'var(--s4)' }}>
             <span className="hint">Due {weekLabel(current.dueWeek, cycle.weeks)}</span>
-            <div className="optlist" role="radiogroup" aria-label={current.name}>
-              <button type="button" role="radio" className="opt" aria-checked={upd(current.id)?.doneWeek != null} onClick={() => { update(current.id, week, null); setEditing(null); }}>Done</button>
-              {current.dueWeek >= week && <button type="button" role="radio" className="opt" aria-checked={state(current).tone === 'on'} onClick={() => { update(current.id, null, null); setEditing(null); }}>On schedule</button>}
+            {/* One pill for every answer, the same as "back on plan by": done, on schedule, or the week it's now expected. */}
+            <div className="field"><span className="field-label" id="stage-now">Where it stands</span>
+              <div className="row weekpicks" role="group" aria-labelledby="stage-now">
+                <button type="button" className="pill" aria-pressed={upd(current.id)?.doneWeek != null} onClick={() => { update(current.id, week, null); setEditing(null); }}>Done</button>
+                {current.dueWeek >= week && <button type="button" className="pill" aria-pressed={state(current).tone === 'on'} onClick={() => { update(current.id, null, null); setEditing(null); }}>On schedule</button>}
+              </div>
             </div>
             {current.dueWeek < cycle.weeks && (
               <div className="field"><span className="field-label" id="late-l">Late: now expected in</span>
-                <div className="row" role="group" aria-labelledby="late-l">
-                  {Array.from({ length: cycle.weeks - lateFrom + 1 }, (_, k) => lateFrom + k).filter((w, k, arr) => k < 4 || w === arr[arr.length - 1]).map((w) => (
-                    <button key={w} type="button" className="pill" aria-pressed={upd(current.id)?.doneWeek == null && upd(current.id)?.forecastWeek === w} onClick={() => { update(current.id, null, w); setEditing(null); }}>{w === cycle.weeks ? 'Cycle end' : 'Week ' + w}</button>
-                  ))}
-                </div>
+                <WeekPicks week={week} weeks={cycle.weeks} from={lateFrom} labelledBy="late-l" value={upd(current.id)?.doneWeek == null ? upd(current.id)?.forecastWeek ?? null : null} onPick={(w) => { update(current.id, null, w); setEditing(null); }} />
               </div>
             )}
           </div>
