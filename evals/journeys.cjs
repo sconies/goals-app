@@ -826,16 +826,17 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  await h.inView(p.getByRole('button', { name: 'Year end' }), 'entry', 'the choice of when the target is due');
-  h.set('attention', (await p.getByRole('button', { name: 'Year end' }).getAttribute('aria-pressed')) === 'true', 'a new goal is not due at the year end by default');
-  await h.click(p.getByRole('button', { name: 'Year end' }));
+  // With one possible date (the year end) it is said, not offered as a one-button choice (fit and finish F3, 8).
+  const due = p.getByText(/^Year end · due week \d+/);
+  await h.inView(due, 'entry', 'when the target is due');
+  h.set('attention', await due.isVisible(), 'a new goal is not due at the year end by default');
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Today \(week/), '20');
   await h.fill(p.getByLabel(/^Target \(week/), '90');
   // The plan is a table of numbers, with the shape's defaults; type over one.
   const row = p.getByLabel(/^Plan for week \d+/).first();
   await row.waitFor();
-  h.set('attention', (await p.getByLabel(/^Plan for week \d+/).count()) >= 3 && /\d/.test((await row.getAttribute('placeholder')) || ''), 'the plan table has no default numbers');
+  h.set('attention', (await p.getByLabel(/^Plan for week \d+/).count()) >= 3 && /\d/.test(await row.inputValue()), 'the plan table has no default numbers');
   await h.fill(row, '30');
   await h.checkpoint('plan table');
   await h.click(p.getByRole('button', { name: /Continue/ }));
