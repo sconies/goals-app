@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-04 18:24 UTC.
+Run 2026-11-04 18:45 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -12,7 +12,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 2 | What needs me? Home shows what’s due, off track, stale or slipping | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 3 | Weekly review: walk the goals worst first and record what was said | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 14) |
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 12 · 11 (budget 13) |
-| 5 | Load your own data and switch between it and the example | **8.9** | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 10 · 10 (budget 15) |
+| 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 10 · 10 (budget 15) |
 | 11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 14) |
 | 12 | Demo: switch person, look around, start over | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 4) |
 | 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 3) |
@@ -60,13 +60,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - **a11y**: No serious accessibility issues; primary buttons are at least 44px tall on a phone
 - **logged**: The change it makes is in the change log with who, when and before → after
 
-### What cost points
-
-- **U5** Load your own data and switch between it and the example: phone entry: Set one up is below the fold
-
 ## Requirements
 
-**74 of 75 pass**, 1 fail. Spec scenarios 71/71.
+**75 of 75 pass**. Spec scenarios 71/71.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -132,7 +128,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **OTHER-CAUSE** When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause. | Check-ins | 0 | U40 |
 | ✅ | **DEMO-FEEDBACK** Feedback sent from the demo reaches the people building the app: it is kept with the research notes, with the screen, the person being played and how they felt, and one id per visitor. The thanks says where it went. | Research | 0 | U40 |
 | ✅ | **FIT-AND-FINISH** The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge. | Platform | 0 | P10 |
-| ❌ | **FIT-AND-FINISH-AREAS** The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area. | Platform | 0 | F1, F2, F3, F4, F5, F6, F7, F8 |
+| ✅ | **FIT-AND-FINISH-AREAS** The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area. | Platform | 0 | F1, F2, F3, F4, F5, F6, F7, F8 |
 | ✅ | **CALENDAR-WEEKS** A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's. | Cycles | 6 | — |
 | ✅ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | U24 |
 | ✅ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | U25 |
@@ -158,11 +154,11 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **F1** Fit and finish, home-watching
 - ✅ **F2** Fit and finish, forms-checkin
 - ✅ **F3** Fit and finish, wizard
-- ❌ **F4** Fit and finish, goal-history: head 1280: 12 goal rows give the title under 60%
+- ✅ **F4** Fit and finish, goal-history
 - ✅ **F5** Fit and finish, list-board
-- ❌ **F6** Fit and finish, map-reviews: Map 4: the step 2 card is not left of or below the goal with 16px clearance
+- ✅ **F6** Fit and finish, map-reviews
 - ✅ **F7** Fit and finish, data-workspace
-- ❌ **F8** Fit and finish, sheets: Activity Filters 390×844: footer is sticky, bottom 0px, margin-bottom -16px (want sticky, 0, 0) | Filter goals 390×844: footer is sticky, bottom 0px, margin-bottom -16px (want sticky, 0, 0) | Filter goals 360×740: footer is sticky, bottom 0px, margin-bottom -16px (want sticky, 0, 0) | Filter goals 1280×800: sheet ends 1px above the window (want 24) | toast in sheet 390: crashed (locator.click: Timeout 30000ms exceeded.) | coach: "Skip this step" text starts -11px in from the coach text
+- ✅ **F8** Fit and finish, sheets
 - ✅ **P8** The goals start in the first screen: the Goals header stays short on a phone and a desktop
 - ✅ **P7** Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold
 - ✅ **P5** No console or page errors across every journey
