@@ -1,7 +1,7 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import {
@@ -42,6 +42,34 @@ export function useViews(): SavedView[] {
   return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === app.viewer.id)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
 }
 
+/** One item in a small menu: a button, or a link. */
+export interface MenuItem { label: string; onClick?: () => void; to?: string; current?: boolean }
+
+/**
+ * A small menu behind one button, for actions that would otherwise crowd a row on a phone (saved views, the bulk
+ * actions, Import and Export). Each item closes the menu.
+ */
+export function MenuButton({ label, items, className, summary, icon }: { label: string; items: MenuItem[]; className?: string; summary?: string; icon?: React.ReactNode }) {
+  const menu = useRef<HTMLDetailsElement>(null);
+  const close = () => { if (menu.current) menu.current.open = false; };
+  // A press anywhere else closes it, as a menu should.
+  useEffect(() => {
+    const away = (e: PointerEvent) => { if (menu.current?.open && !menu.current.contains(e.target as Node)) menu.current.open = false; };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, []);
+  return (
+    <details className={'view-menu' + (className ? ' ' + className : '')} ref={menu}>
+      <summary className={'btn sm ' + (summary ?? 'ghost')} aria-label={icon ? label : undefined} title={icon ? label : undefined}>{icon ?? label}{!icon && <Icon name="chevron-down" size={12} className="menu-chev" />}</summary>
+      <div className="view-menu-list" role="group" aria-label={label}>
+        {items.map((it) => it.to
+          ? <Link key={it.label} className="menuitem" to={it.to} onClick={close}>{it.label}</Link>
+          : <button key={it.label} type="button" className="menuitem" aria-current={it.current || undefined} onClick={() => { close(); it.onClick?.(); }}>{it.label}</button>)}
+      </div>
+    </details>
+  );
+}
+
 /** Search, filters and sort, with the active filters as words you can remove one by one. */
 export function FilterBar({ count, total }: { count: number; total: number }) {
   const app = useApp();
@@ -64,11 +92,15 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
     try { await navigator.clipboard.writeText(url); app.toast('Link copied. Anyone in the workspace who opens it sees these goals the same way.'); }
     catch { app.toast('Couldn’t copy the link. Copy it from the address bar.', 'error'); }
   };
+  const viewMenu = useViewMenu(active);
+  // The decision filter shows as the pressed toggle beside Filters; a chip for it as well would say it twice. Where the
+  // toggle is hidden (a phone) the chip stays.
+  const decisionOnly = q.needs.length === 1 && q.needs[0] === 'decision';
   return (
     <div className="filterbar">
       <div className="filterbar-row">
         <label className="filter-search"><span className="sr">Search goals</span>
-          <input className="input" type="search" placeholder="Search goals, owners, teams, reasons" value={q.q} onChange={(e) => setQ((cur) => ({ ...cur, q: e.target.value }))} />
+          <input className="input" type="search" placeholder="Search goals" title="Search goals by name, owner, team or reason" value={q.q} onChange={(e) => setQ((cur) => ({ ...cur, q: e.target.value }))} />
         </label>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{chips.some((c) => c.key !== 'q') ? ` · ${chips.filter((c) => c.key !== 'q').length}` : ''}</button>
         {/* The most common question in a weekly scan, one press away. */}
@@ -81,21 +113,26 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
           </select>
         </label>
       </div>
-      {/* Saving and sharing only appear once there's something to save or share. */}
+      {/* Saving and sharing only appear once there's something to save or share. On a phone this is one row: the
+          count, the filters scrolling sideways, and one View menu for saving and sharing. */}
       {(narrowed || q.sort || active) && (
         <div className="filter-chips" aria-label="Active filters">
-          {active && <span className="small strong">{active.name}{active.pinned ? ' · pinned for everyone' : ''}</span>}
-          {narrowed && <span className="small" role="status">{count} of {total} {total === 1 ? 'goal' : 'goals'}</span>}
-          {chips.map((c) => <button key={c.key} type="button" className="filter-chip" aria-label={`Remove filter: ${c.text}`} onClick={() => setQ((cur) => without(cur, c.key))}>{c.text}<Icon name="close" size={12} className="chip-x" /></button>)}
-          {!narrowed && q.sort && !active && <span className="small">{SORT_OPTIONS.find(([k]) => k === q.sort)?.[1]}{q.dir === -1 ? ', reversed' : ''}</span>}
-          {narrowed && <button type="button" className="linkish small" onClick={() => setQ((cur) => ({ ...EMPTY_QUERY, sort: cur.sort, dir: cur.dir }))}>Clear filters</button>}
+          {active && <span className="small strong filter-view-name">{active.name}{active.pinned ? ' · pinned for everyone' : ''}</span>}
+          {narrowed && <span className="small filter-count" role="status">{count} of {total} {total === 1 ? 'goal' : 'goals'}</span>}
+          <span className="filter-chip-scroll">
+            {chips.map((c) => <button key={c.key} type="button" className={'filter-chip' + (c.key === 'needs' && decisionOnly ? ' chip-decision' : '')} aria-label={`Remove filter: ${c.text}`} onClick={() => setQ((cur) => without(cur, c.key))}>{c.text}<Icon name="close" size={12} className="chip-x" /></button>)}
+            {!narrowed && q.sort && !active && <span className="small filter-sorted">{SORT_OPTIONS.find(([k]) => k === q.sort)?.[1]}{q.dir === -1 ? ', reversed' : ''}</span>}
+            {narrowed && <button type="button" className="linkish small filter-clear" onClick={() => setQ((cur) => ({ ...EMPTY_QUERY, sort: cur.sort, dir: cur.dir }))}>Clear filters</button>}
+          </span>
           <span className="filter-chip-actions">
             {!active && <button type="button" className="btn sm" onClick={() => setSaving(true)}>Save view</button>}
             <button type="button" className="btn ghost sm" onClick={() => void copyLink()}>Copy link</button>
-            {active && <ViewActions view={active} />}
+            {active && viewMenu.items.length > 0 && <MenuButton label="Manage view" items={viewMenu.items} />}
           </span>
+          <MenuButton className="filter-view-menu" label="View" items={[...(!active ? [{ label: 'Save view', onClick: () => setSaving(true) }] : []), { label: 'Copy link', onClick: () => void copyLink() }, ...viewMenu.items]} />
         </div>
       )}
+      {viewMenu.sheet}
       {open && <FilterSheet onClose={() => setOpen(false)} />}
       {saving && <SaveViewSheet params={current} onClose={() => setSaving(false)} />}
     </div>
@@ -103,29 +140,20 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
 }
 
 /** On a saved view: rename, pin (admins), delete, kept in one small menu so they don't sit beside the filters. */
-function ViewActions({ view }: { view: SavedView }) {
+function useViewMenu(view: SavedView | undefined): { items: MenuItem[]; sheet: React.ReactNode } {
   const app = useApp();
   const [, setParams] = useSearchParams();
   const [renaming, setRenaming] = useState(false);
-  const menu = useRef<HTMLDetailsElement>(null);
+  if (!view) return { items: [], sheet: null };
   const mine = view.personId === app.viewer.id;
   const canRename = mine || app.viewer.admin;
   const canDelete = mine || (app.viewer.admin && view.pinned);
-  if (!canRename && !app.viewer.admin && !canDelete) return null;
-  const close = () => { if (menu.current) menu.current.open = false; };
-  return (
-    <>
-      <details className="view-menu" ref={menu}>
-        <summary className="btn ghost sm">Manage view</summary>
-        <div className="view-menu-list" role="group" aria-label={`Manage ${view.name}`}>
-          {canRename && <button type="button" className="menuitem" onClick={() => { close(); setRenaming(true); }}>Rename</button>}
-          {app.viewer.admin && <button type="button" className="menuitem" onClick={() => { close(); void app.pinView(view.id, !view.pinned).then(() => app.toast(view.pinned ? 'Unpinned' : 'Pinned for everyone')); }}>{view.pinned ? 'Unpin' : 'Pin for everyone'}</button>}
-          {canDelete && <button type="button" className="menuitem" onClick={() => { close(); void app.deleteView(view.id).then(() => { setParams({}, { replace: true }); app.toast('View deleted'); }); }}>Delete</button>}
-        </div>
-      </details>
-      {renaming && <SaveViewSheet params={view.params} view={view} onClose={() => setRenaming(false)} />}
-    </>
-  );
+  const items: MenuItem[] = [
+    ...(canRename ? [{ label: 'Rename', onClick: () => setRenaming(true) }] : []),
+    ...(app.viewer.admin ? [{ label: view.pinned ? 'Unpin' : 'Pin for everyone', onClick: () => void app.pinView(view.id, !view.pinned).then(() => app.toast(view.pinned ? 'Unpinned' : 'Pinned for everyone')) }] : []),
+    ...(canDelete ? [{ label: 'Delete', onClick: () => void app.deleteView(view.id).then(() => { setParams({}, { replace: true }); app.toast('View deleted'); }) }] : []),
+  ];
+  return { items, sheet: renaming ? <SaveViewSheet params={view.params} view={view} onClose={() => setRenaming(false)} /> : null };
 }
 
 function SaveViewSheet({ params, view, onClose }: { params: string; view?: SavedView; onClose: () => void }) {

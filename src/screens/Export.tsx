@@ -20,7 +20,7 @@ export function ExportButton({ goals, viewName }: { goals: Goal[]; viewName: str
   );
 }
 
-function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewName: string; onClose: () => void }) {
+export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewName: string; onClose: () => void }) {
   const app = useApp();
   const all = app.snapshot.goals;
   const partial = goals.length < all.length;

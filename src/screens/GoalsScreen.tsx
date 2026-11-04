@@ -1,4 +1,5 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from '../ui/Icon';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodLabel } from '../domain/year';
@@ -9,7 +10,6 @@ import type { Level } from '../domain/types';
 import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
 import { AttentionCard, Chip, Empty, EmptyResult, StatusShape } from '../ui/bits';
-import { GoalLine } from './Home';
 import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
 import { WatchingBody } from './Watching';
 import { useNavMode } from '../app/navMode';
@@ -17,8 +17,8 @@ import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
 import { GoalBoard, GoalCards, GoalTable, HistoryGrid, LayoutSwitch, StatusLegend, useLayout, type ViewGroup } from './GoalViews';
-import { ExportButton } from './Export';
-import { FilterBar, useGoalQuery, useViews, viewParams } from './GoalFilters';
+import { ExportButton, ExportSheet } from './Export';
+import { FilterBar, MenuButton, useGoalQuery, useViews, viewParams } from './GoalFilters';
 import { applyQuery, filters } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
@@ -70,8 +70,18 @@ export function GoalsScreen() {
     const pos = new Map(ranked.map((id, i) => [id, i]));
     return grouped.map((g) => {
       const rows = g.rows.filter((r) => pos.has(r.goal.id));
-      // Sorted, a group is a flat list in that order; filtered only, it keeps its tree shape.
-      return { ...g, rows: query.sort ? rows.map((r) => ({ ...r, depth: 0 })).sort((a, b) => pos.get(a.goal.id)! - pos.get(b.goal.id)!) : rows };
+      if (query.sort) return { ...g, rows: rows.map((r) => ({ ...r, depth: 0 })).sort((a, b) => pos.get(a.goal.id)! - pos.get(b.goal.id)!) };
+      // Sorted, a group is a flat list in that order; filtered only, it keeps its tree shape. A goal whose parent is
+      // filtered out isn't indented under a goal that isn't there: it sits one step in from the nearest shown ancestor.
+      const depthOf = new Map<string, number>();
+      const byId = new Map(g.rows.map((r) => [r.goal.id, r.goal]));
+      return { ...g, rows: rows.map((r) => {
+        let up = r.goal.parentId ? byId.get(r.goal.parentId) : undefined;
+        while (up && !depthOf.has(up.id)) up = up.parentId ? byId.get(up.parentId) : undefined;
+        const depth = up && r.depth > 0 ? depthOf.get(up.id)! + 1 : 0;
+        depthOf.set(r.goal.id, depth);
+        return { ...r, depth };
+      }) };
     }).filter((g) => g.rows.length);
   }, [grouped, ranked, query.sort]);
   const shown = [...new Map(groups.flatMap((g) => g.rows.map((r) => [r.goal.id, r.goal] as const))).values()];
@@ -89,39 +99,59 @@ export function GoalsScreen() {
   ];
 
   // Each kind of view gets the room it needs: a list reads best narrow, a table or board wants width, the map wants everything.
-  const frame = !alt ? 'page' : layout === 'map' ? 'page full' : 'page wide';
+  const frame = (!alt ? 'page' : layout === 'map' ? 'page full' : 'page wide') + ' goals-page';
+  const openView = (v: { params: string }) => { const p = new URLSearchParams(v.params); for (const k of ['today', 'store']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); };
+  const viewName = tabs.find(([k]) => k === show)?.[1] ?? 'Goals';
+  const [exporting, setExporting] = useState(false);
+  // The selected tab is always in view, even when it's past the edge of a row that scrolls sideways.
+  const tabRow = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = tabRow.current;
+    const tab = row?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!row || !tab || row.scrollWidth <= row.clientWidth) return;
+    const left = tab.offsetLeft - row.offsetLeft, right = left + tab.offsetWidth;
+    if (left < row.scrollLeft) row.scrollLeft = Math.max(0, left - 4);
+    else if (right > row.scrollLeft + row.clientWidth - 24) row.scrollLeft = right - row.clientWidth + 24;
+  }, [show, activeView?.id]);
   return (
     <div className={frame}>
       {/* A short header, so the goals start near the top: the title and the one creating action, then one toolbar. */}
       <div className="page-head row between goals-head">
         <span className="goals-title">
           <h1 className="title-xl">Goals</h1>
-          <span className="hint goals-period">{periodLabel(app.cycle, app.week)}</span>
+          {/* The week line breaks only between its parts, never inside one. */}
+          <span className="hint goals-period">{periodLabel(app.cycle, app.week).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
         </span>
         <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>
       {/* One toolbar: which goals on the left, how to see them on the right. It wraps on a narrow screen. */}
       <div className="goals-toolbar">
-        <div className="seg tabs one-row" role="tablist" aria-label="Show">
-          {tabs.map(([k, l, n]) => (
-            <button key={k} role="tab" aria-selected={show === k && !activeView} onClick={() => { const p = new URLSearchParams(params); if (k === 'outcomes') p.delete('show'); else p.set('show', k); setParams(p, { replace: true }); }}>
-              {l}{n != null && <span className="tabcount">{n}</span>}
-            </button>
-          ))}
-          {views.map((v) => (
-            <button key={v.id} role="tab" className="view-tab" aria-selected={activeView?.id === v.id} title={v.pinned ? 'Pinned for everyone' : 'Your saved view'}
-              onClick={() => { const p = new URLSearchParams(v.params); for (const k of ['today', 'store']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>
-              {v.name}{v.pinned && <span className="tabcount">pinned</span>}
-            </button>
-          ))}
+        <div className="goals-tabs">
+          <div className="seg tabs one-row" role="tablist" aria-label="Show" ref={tabRow}>
+            {tabs.map(([k, l, n]) => (
+              <button key={k} role="tab" aria-selected={show === k && !activeView} onClick={() => { const p = new URLSearchParams(params); if (k === 'outcomes') p.delete('show'); else p.set('show', k); setParams(p, { replace: true }); }}>
+                {l}{n != null && <span className="tabcount">{n}</span>}
+              </button>
+            ))}
+            {/* A saved view is a tab only while it's open; the rest wait in the Views menu. */}
+            {activeView && (
+              <button role="tab" className="view-tab" aria-selected title={activeView.pinned ? 'Pinned for everyone' : 'Your saved view'} onClick={() => openView(activeView)}>
+                {activeView.name}
+              </button>
+            )}
+          </div>
+          {views.length > 0 && <MenuButton className="views-menu" label="Views" items={views.map((v) => ({ label: v.name + (v.pinned ? ' (pinned)' : ''), current: activeView?.id === v.id, onClick: () => openView(v) }))} />}
         </div>
         {app.snapshot.goals.length > 0 && (
           <div className="row view-bar">
             <LayoutSwitch layout={layout} onChange={setLayout} />
-            <span className="row" style={{ gap: 'var(--s2)' }}>
+            <span className="row io-buttons" style={{ gap: 'var(--s2)' }}>
               <Link className="btn sm import-btn" to="/import"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 10V2m0 0 3 3M8 2 5 5M3 12.5h10" /></svg><span className="btn-label">Import</span></Link>
-              <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
+              <ExportButton goals={shown} viewName={viewName} />
             </span>
+            {/* The smallest phones: Import and Export share one button, so the layouts and tools stay one row. */}
+            <MenuButton className="io-menu" label="Import or export" icon={<Icon name="more" size={16} />} summary="" items={[{ label: 'Import', to: '/import' }, { label: 'Export', onClick: () => setExporting(true) }]} />
+            {exporting && <ExportSheet goals={shown} viewName={viewName} onClose={() => setExporting(false)} />}
           </div>
         )}
       </div>
@@ -192,18 +222,19 @@ export function GoalsScreen() {
             <div className="row between nowrap">
               <span className="stack" style={{ gap: 0, minWidth: 0 }}>
                 <h2 className="block-title">{t.name}</h2>
-                {t.objective && <span className="hint ellipsis">{t.objective}</span>}
+                {t.objective && <span className="hint team-objective">{t.objective}</span>}
               </span>
               <Chip k={st} />
             </div>
-            <div className="glist">{list.map((g) => <GoalLine key={g.id} g={g} />)}</div>
+            {/* The same row as every other tab: shape and word, the title and reason, the number over its gap. */}
+            <ul className="tree">{list.map((g) => <li key={g.id}><TreeRow g={g} /></li>)}</ul>
           </section>
         );
       })}
 
       {!alt && !refined && show === 'watching' && <WatchingBody />}
 
-      {!alt && !refined && show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
+      {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><TreeRow g={g} showOwner={false} /></li>)}</ul>}
       {/* The key sits after the goals: every row already shows its status in words. */}
       {app.snapshot.goals.length > 0 && shown.length > 0 && layout !== 'map' && <StatusLegend />}
     </div>
