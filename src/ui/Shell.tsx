@@ -177,6 +177,8 @@ export function Shell({ children }: { children: ReactNode }) {
     if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
   }, [pathname, title, app.ws.name]);
 
+  // Walking a review (a goal page with ?review=) is in Reviews, so Reviews is the current place in the nav.
+  const navAt = /[?&]review=/.test(search) ? '/reviews/walk' : pathname;
   const focusMode = /^\/check-in(\/|$)|^\/quick-check-in$|^\/import$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   return (
     <div className={'app' + (focusMode ? ' focus-mode' : '')}>
@@ -208,7 +210,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <Icon name="chevron-down" className="muted" />
           </button>
           {order.map((id) => (
-            <Link key={id} to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, pathname) ? 'page' : undefined}>
+            <Link key={id} to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, navAt) ? 'page' : undefined}>
               {NAV[id].icon}<span>{NAV[id].label}</span>
               {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
             </Link>
@@ -231,12 +233,12 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
       <nav className="tabbar" aria-label="Main">
         {tabs.map((id) => (
-          <Link key={id} to={NAV[id].to} aria-current={isActive(id, pathname) ? 'page' : undefined}>
+          <Link key={id} to={NAV[id].to} aria-current={isActive(id, navAt) ? 'page' : undefined}>
             <span className="tabicon">{NAV[id].icon}{count(id) > 0 && <span className="badge">{count(id)}</span>}</span>
             <span>{NAV[id].label}</span>
           </Link>
         ))}
-        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, pathname)) ? 'page' : undefined}>
+        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, navAt)) ? 'page' : undefined}>
           <span className="tabicon"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg></span>
           <span>More</span>
         </button>

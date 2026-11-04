@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { readTour, TOURS, writeTour, type TourState } from '../app/tours';
-import { placeCoach, ringBox, type Box } from './coachPlace';
+import { placeCoach, ringBox, type Box, type PlaceOptions, type Side } from './coachPlace';
 
 function find(target: { selector: string; text?: string } | undefined): HTMLElement | null {
   if (!target) return null;
@@ -23,6 +23,7 @@ export function Coach() {
   const [missing, setMissing] = useState(false);
   // The card's real size, measured after each render, so it's placed from what it shows now (not the last step's text).
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const [hint, setHint] = useState<Hint | null>(null);
   const box = useRef<HTMLElement>(null);
   // A step that's done on reaching a page only counts once you've been somewhere else since it began, so starting a
   // walkthrough while already on that page doesn't skip the step.
@@ -62,6 +63,7 @@ export function Coach() {
       }
       const next = r ? ringBox(r, { width: window.innerWidth, height: window.innerHeight }) : null;
       setRing((cur) => (cur && next && cur.left === next.left && cur.top === next.top && cur.width === next.width && cur.height === next.height ? cur : next));
+      setHint(readHint(el));
       const d = step.doneWhen;
       if (!d) return;
       const route = pathname + search;
@@ -93,7 +95,7 @@ export function Coach() {
   return (
     <>
       {ring && <div className="coach-ring" aria-hidden="true" style={{ top: ring.top, left: ring.left, width: ring.width, height: ring.height }} />}
-      <aside ref={box} className="coach" style={coachAt(ring, size)} role="dialog" aria-modal="false" aria-label={`Walkthrough: ${tour.title}`}>
+      <aside ref={box} className="coach" style={coachAt(ring, size, hint)} role="dialog" aria-modal="false" aria-label={`Walkthrough: ${tour.title}`}>
         <span className="coach-head"><span className="label">{tour.role} · step {state.step + 1} of {tour.steps.length}</span><button type="button" className="linkish small" onClick={() => writeTour(null)}>End</button></span>
         <span className="coach-title">{tour.title}</span>
         <p className="coach-say" aria-live="polite">{missing && step.ifMissing ? step.ifMissing.say : step.say}</p>
@@ -108,11 +110,34 @@ export function Coach() {
   );
 }
 
-/** The coach beside its target (see coachPlace): on a phone, clear of the top bar and the tab bar; on a desktop, clear of the sidebar. */
-function coachAt(ring: Box | null, size: { width: number; height: number } | null): { left: number; top: number } {
+/**
+ * A screen can say where the coach goes (the map does): on the target, `data-coach-place="left below end"` (the sides to
+ * try, and 'end' to line up with its far edge) and `data-coach-gap`; when a step points at nothing, an element marked
+ * `data-coach-anchor` is placed beside instead, without a ring; anything marked `data-coach-avoid` is kept clear.
+ */
+type Hint = { anchor: DOMRect | null; gap?: number; opts: PlaceOptions };
+const SIDES: Side[] = ['below', 'above', 'right', 'left'];
+function readHint(target: HTMLElement | null): Hint | null {
+  const el = target ?? document.querySelector<HTMLElement>('[data-coach-anchor]');
+  const avoid = [...document.querySelectorAll<Element>('[data-coach-avoid]')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0)
+    .map((r) => ({ left: r.left, top: r.top, width: r.width, height: r.height }));
+  if (!el?.dataset.coachPlace && !el?.dataset.coachGap && !avoid.length && !(el && !target)) return null;
+  const words = (el?.dataset.coachPlace ?? '').split(/\s+/);
+  return {
+    anchor: el && !target ? el.getBoundingClientRect() : null,
+    gap: el?.dataset.coachGap ? Number(el.dataset.coachGap) : undefined,
+    opts: { sides: SIDES.filter((s) => words.includes(s)).sort((a, b) => words.indexOf(a) - words.indexOf(b)), align: words.includes('end') ? 'end' : 'start', avoid },
+  };
+}
+
+/** The coach beside its target (see coachPlace): on a phone, clear of the top bar and the tab bar; on a desktop, clear of
+    the sidebar. A step that points at nothing is placed beside the screen's anchor, if it marks one. */
+function coachAt(ring: Box | null, size: { width: number; height: number } | null, hint?: Hint | null): { left: number; top: number } {
   const w = window.innerWidth, h = window.innerHeight;
   const res = reserved();
   const main = document.querySelector('main.work')?.getBoundingClientRect();
   const s = size ?? { width: Math.min(360, w - 32), height: 210 };
-  return placeCoach(ring, s, { width: w, height: h, reservedTop: res.top, reservedBottom: res.bottom, reservedLeft: Math.max(0, Math.round(main?.left ?? 0)) });
+  const a = hint?.anchor;
+  const target = ring ?? (a ? { left: a.left, top: a.top, width: a.width, height: a.height } : null);
+  return placeCoach(target, s, { width: w, height: h, reservedTop: res.top, reservedBottom: res.bottom, reservedLeft: Math.max(0, Math.round(main?.left ?? 0)) }, hint?.gap ?? 12, hint?.opts);
 }

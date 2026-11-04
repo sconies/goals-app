@@ -54,7 +54,7 @@ export function ReviewBar({ goalId }: { goalId: string }) {
         <span className="small strong ellipsis">{rv.review.name}</span>
         <span className="hint">Goal {rv.index + 1} of {rv.total} · {rv.done} reviewed</span>
       </span>
-      <div className="bar ok" aria-hidden="true"><i style={{ width: `${rv.total ? (rv.done / rv.total) * 100 : 100}%` }} /></div>
+      <div className="bar ok reviewbar-track" aria-hidden="true"><i style={{ width: `${rv.total ? (rv.done / rv.total) * 100 : 100}%` }} /></div>
       <button className="iconbtn" aria-label="Previous goal" disabled={rv.index <= 0} onClick={rv.prev}><Icon name="chevron-left" /></button>
       <button className="iconbtn" aria-label="Next goal, without reviewing this one" onClick={rv.next}><Icon name="chevron-right" /></button>
       <button className="iconbtn" aria-label="Close the review" onClick={() => nav(`/reviews/${rv.review!.id}`)}><Icon name="close" /></button>
@@ -105,7 +105,8 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
       <div className="quiet-links">
         {!own && <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner} a question</button>}
         <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>
-        {!reviewed && <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>}
+        {/* On a phone the review bar's next arrow does this; the row keeps to what the review says. */}
+        {!reviewed && <button type="button" className="linkish skip-now" onClick={rv.next}>Skip for now</button>}
       </div>
       {mode && <SayComposer goal={goal} mode={mode} existing={editing} onClose={() => { setMode(null); setEditing(null); }} onSaved={() => { setMode(null); setEditing(null); app.toast(`${label[mode][0]!.toUpperCase() + label[mode].slice(1)} saved on ${goal.title}`); }} />}
     </div>
