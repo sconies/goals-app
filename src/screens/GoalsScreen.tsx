@@ -8,7 +8,7 @@ import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
 import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
-import { AttentionCard, Chip, Empty, StatusShape } from '../ui/bits';
+import { AttentionCard, Chip, Empty, EmptyResult, StatusShape } from '../ui/bits';
 import { GoalLine } from './Home';
 import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
 import { WatchingBody } from './Watching';
@@ -128,7 +128,7 @@ export function GoalsScreen() {
 
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
       <FirstReports />
-      {refined && shown.length === 0 && <div className="empty-result"><span>No goals match. Remove a filter above, or clear them.</span><button type="button" className="btn" onClick={() => { const p = new URLSearchParams(); for (const k of ['today', 'store', 'view']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>Clear search and filters</button></div>}
+      {refined && shown.length === 0 && <EmptyResult title="No goals match" action={<button type="button" className="btn" onClick={() => { const p = new URLSearchParams(); for (const k of ['today', 'store', 'view']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>Clear search and filters</button>}>Remove a filter above, or clear them all.</EmptyResult>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
       {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
