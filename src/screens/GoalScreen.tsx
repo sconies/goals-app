@@ -9,14 +9,14 @@ import { answeredSince, askText, canAnswer, openFor } from '../domain/requests';
 import type { Change, Goal, HelpRequest, MetricGoal } from '../domain/types';
 import { planHistoryOf } from '../domain/goal';
 import { Avatar, Chip, Empty, FlagPill, LevelTag, Sheet, timeAgo, StatusShape } from '../ui/bits';
-import { MetricChart, MetricLegend, RangeChart, StageList } from '../ui/charts';
+import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { openUpdateAsk } from '../domain/updateAsks';
 import { weekDates } from '../domain/plan';
 import { ReviewBar, ReviewCallBar, TreeRow, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
 import { RespondSheet } from './Respond';
-import { criticalPath, threatReason } from '../domain/map';
+import { criticalPath } from '../domain/map';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 import { Icon } from '../ui/Icon';
 
@@ -99,6 +99,13 @@ function GoalView({ goal }: { goal: Goal }) {
   const needy = children.filter((c) => ['off', 'risk', 'stale'].includes(app.statusOf(c).status));
   const onPath = needy.length ? criticalPath(app.snapshot.goals, (g) => app.statusOf(g).status) : new Set<string>();
   const threats = [...needy].sort((a, b) => Number(onPath.has(b.id)) - Number(onPath.has(a.id)) || worstFirst(app)(a, b)).slice(0, 3);
+  const threatIds = new Set(threats.map((g) => g.id));
+  /** Why a goal is on the threats list, without repeating the reason its row already gives. */
+  const threatWhy = (g: Goal) => {
+    const at = app.attentionOf(g);
+    const f = at.flags.find((x) => x.kind !== 'due');
+    return [onPath.has(g.id) ? 'On the critical path' : '', at.status.status === 'stale' ? 'Last result unknown' : f ? f.label : LABEL[at.status.status]].filter(Boolean).join('. ') + '.';
+  };
   const rv = useReview(goal.id);
   const fc = forecastText(goal, a, cycle.weeks);
   const series = valueSeries(own);
@@ -110,6 +117,7 @@ function GoalView({ goal }: { goal: Goal }) {
   const published = params.get("published") === "1";
   const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>(params.get('tab') === 'comments' ? 'activity' : 'check-ins');
   const [allCheckIns, setAllCheckIns] = useState(false);
+  const [allChanges, setAllChanges] = useState(false);
   const flags = att.flags.filter((f) => f.kind !== 'due');
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
   const notes = flags.filter((f) => !['off', 'risk', 'stale'].includes(f.kind));
@@ -146,7 +154,7 @@ function GoalView({ goal }: { goal: Goal }) {
       <ReviewBar goalId={goal.id} />
       {!compact && <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/goals">Goals</Link>
-        {path.map((p) => <span key={p.id} className="row" style={{ gap: 'var(--s1)' }}><Icon name="chevron-right" className="muted" /><Link to={'/goals/' + p.id}>{p.title}</Link></span>)}
+        {path.map((p) => <span key={p.id} className="row"><Icon name="chevron-right" className="muted" /><Link to={'/goals/' + p.id}>{p.title}</Link></span>)}
       </nav>}
       <div className="row between" style={{ alignItems: 'flex-start' }}>
         <span className="stack" style={{ gap: 6, minWidth: 0 }}>
@@ -196,14 +204,8 @@ function GoalView({ goal }: { goal: Goal }) {
         {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <Icon name="trend-down" />}{fc.warn && (st.status === 'on' || st.status === 'done') ? 'On track means on plan this week. ' : ''}{fc.text}</span>}
         {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
       </section>
-      {threats.length > 0 && (
-        <section className="block threats" aria-label="Most likely to make it miss">
-          <div className="row between"><h2 className="block-title">Most likely to make it miss</h2><span className="hint">{needy.length} of {children.length} contributing {children.length === 1 ? 'goal needs' : 'goals need'} attention</span></div>
-          <ul className="tree">{threats.map((g) => <li key={g.id} className="threat"><TreeRow g={g} /><span className="hint threat-why">Why it’s here: {threatReason(app.attentionOf(g), onPath.has(g.id))}</span></li>)}</ul>
-          {children.length > threats.length && <Link className="linkish small" to={`/goals?feeds=${goal.id}`}>See all {children.length} contributing goals</Link>}
-        </section>
-      )}
       </div>
+      {/* The side column comes before the threats in the page's order, so a request is reached (and, on a phone, seen) first. */}
       <div className="goal-rail split-side">
 
       {/* Requests for a decision or help: open until answered or withdrawn, answered once for every goal waiting on it. */}
@@ -246,16 +248,23 @@ function GoalView({ goal }: { goal: Goal }) {
       )}
       </div>
       <div className="goal-evidence split-b">
+      {threats.length > 0 && (
+        <section className="block threats" aria-label="Most likely to make it miss">
+          <div className="row between"><h2 className="block-title">Most likely to make it miss</h2><span className="hint">{needy.length} of {children.length} contributing {children.length === 1 ? 'goal needs' : 'goals need'} attention</span></div>
+          {/* The row already says what's wrong; the line under it says only why it's on this list. */}
+          <ul className="tree">{threats.map((g) => <li key={g.id} className="threat"><TreeRow g={g} /><span className="hint threat-why">Why it’s here: {threatWhy(g)}</span></li>)}</ul>
+          {children.length > threats.length && <Link className="linkish small" to={`/goals?feeds=${goal.id}`}>See all {children.length} contributing goals</Link>}
+        </section>
+      )}
 
       {(() => { const chart = (<section className="block">
         {goal.kind === 'metric' && a.kind === 'metric' && (
-          <figure className="card" style={{ margin: 0 }}>
+          <figure className="card goal-chart" style={{ margin: 0 }}>
             <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} ptgBy={stale ? null : ptg?.byWeek ?? null} />
-            <MetricLegend goal={goal} forecast={!stale && a.forecast != null} ptg={!!ptg && ptg.byWeek != null && ptg.byWeek > (series[series.length - 1]?.week ?? 0)} />
             {goal.originalPlan && <PlanChanges goal={goal} />}
           </figure>
         )}
-        {goal.kind === 'range' && <figure className="card" style={{ margin: 0 }}><RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} /></figure>}
+        {goal.kind === 'range' && <figure className="card goal-chart" style={{ margin: 0 }}><RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} /></figure>}
         {a.kind === 'milestone' && <div className="card"><StageList a={a} /></div>}
       </section>);
         return compact ? <details className="disclose"><summary>Chart and check-ins</summary>{chart}<CheckInList goal={goal} /></details> : chart; })()}
@@ -267,11 +276,18 @@ function GoalView({ goal }: { goal: Goal }) {
       )}
       {children.length > 0 && !compact && (
         <section className="block">
-          <div className="row between"><h2 className="block-title">Contributing goals</h2><span className="hint">Worst first</span></div>
-          <div className="mix" role="img" aria-label={(['off', 'risk', 'stale', 'on', 'done'] as const).map((k) => `${children.filter((c) => app.statusOf(c).status === k).length} ${LABEL[k].toLowerCase()}`).join(', ')}>
-            {(['off', 'risk', 'stale', 'on', 'done'] as const).map((k) => { const n = children.filter((c) => app.statusOf(c).status === k).length; return n ? <i key={k} className={'mix-' + k} style={{ flexGrow: n }} /> : null; })}
+          <h2 className="block-title">Contributing goals</h2>
+          {/* How they stand, in words with their shapes, not a bar of colour. */}
+          <div className="row between contrib-counts">
+            <span className="status-counts">
+              {(['off', 'risk', 'stale', 'on', 'done', 'planned'] as const).map((k) => { const n = children.filter((c) => app.statusOf(c).status === k).length; return n ? <span key={k} className={'status-count tone-' + k}><StatusShape k={k} />{n} {LABEL[k]}</span> : null; })}
+            </span>
+            <span className="hint">Worst first</span>
           </div>
-          <TreeRows nodes={subtree.children} />
+          {/* The ones already listed as most likely to make it miss are marked, not described twice. */}
+          <ul className="tree">
+            {subtree.children.map((n) => <li key={n.goal.id} className={threatIds.has(n.goal.id) ? 'listed-above' : undefined}><TreeRow g={n.goal} />{n.children.length > 0 && <TreeRows nodes={n.children} depth={1} />}</li>)}
+          </ul>
         </section>
       )}
 
@@ -282,19 +298,22 @@ function GoalView({ goal }: { goal: Goal }) {
           ))}
         </div>
         {tab === 'activity' && <NoteComposer goal={goal} />}
-        {tab === 'activity' && (changes.length ? <ol className="changes">{changes.map((c) => <ChangeItem key={c.id} c={c} />)}</ol> : <p className="small muted">No changes yet.</p>)}
+        {tab === 'activity' && (changes.length ? <>
+          <ol className="changes">{changes.slice(0, allChanges ? undefined : 8).map((c) => <ChangeItem key={c.id} c={c} />)}</ol>
+          {changes.length > 8 && !allChanges && <button type="button" className="linkish small show-all" onClick={() => setAllChanges(true)}>Show all {changes.length}</button>}
+        </> : <p className="small muted">No changes yet.</p>)}
         {tab === 'check-ins' && (own.length ? (<>
           <ol className="cilist">
             {[...own].reverse().slice(0, allCheckIns ? undefined : 8).map((c) => (
               <li key={c.id}>
-                <span className="strong">Week {c.week}{own.filter((x) => x.week === c.week).length > 1 ? <span className="hint"> · {new Date(c.postedAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span> : null}</span>
-                <span>{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
+                <span className="strong ci-week"><span className="nowrap">Week {c.week}</span>{own.filter((x) => x.week === c.week).length > 1 ? <span className="hint ci-date">{new Date(c.postedAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span> : null}</span>
+                <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
                 <Chip k={c.status} />
                 {c.why && c.why !== 'On plan.' && <span className="small cilist-why">{c.why}</span>}
               </li>
             ))}
           </ol>
-          {own.length > 8 && !allCheckIns && <button type="button" className="linkish small" onClick={() => setAllCheckIns(true)}>Show all {own.length} check-ins</button>}
+          {own.length > 8 && !allCheckIns && <button type="button" className="linkish small show-all" onClick={() => setAllCheckIns(true)}>Show all {own.length} check-ins</button>}
         </>) : <p className="small muted">No check-ins yet.</p>)}
         {tab === 'details' && goal.kind === 'metric' && <PlanTable plan={goal.plan} unit={goal} actuals={own} label="Plan and actual by week" />}
         {tab === 'details' && (
@@ -353,8 +372,8 @@ function CheckInList({ goal }: { goal: Goal }) {
     <ol className="cilist">
       {[...own].reverse().map((c) => (
         <li key={c.id}>
-          <span className="strong">Week {c.week}</span>
-          <span>{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
+          <span className="strong ci-week"><span className="nowrap">Week {c.week}</span></span>
+          <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
           <Chip k={c.status} />
           {c.why && c.why !== 'On plan.' && <span className="small cilist-why">{c.why}</span>}
         </li>
@@ -375,9 +394,9 @@ function QuarterStrip({ goal }: { goal: Goal }) {
       <ol className="quarters">
         {rs.map((r) => (
           <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
-            <span className="row between nowrap"><span className="strong">{r.quarter.label} <span className="hint">{r.quarter.months}</span></span>
-              <span className="q-result">{r.kind === 'met' ? <><StatusShape k="on" />Met</> : r.kind === 'missed' ? <><StatusShape k="off" />Missed</> : r.kind === 'open' ? (r.quarter.n === now ? 'Now' : 'To come') : '—'}</span></span>
-            <span className="small">{r.text.replace(/^Q\d: /, '')}</span>
+            <span className="q-head"><span className="strong">{r.quarter.label} <span className="hint nowrap">{r.quarter.months}</span></span>
+              <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === now ? (app.week - r.quarter.from + 1) / (r.quarter.to - r.quarter.from + 1) : 0} />{r.kind === 'met' ? 'Met' : r.kind === 'missed' ? 'Missed' : r.kind === 'open' ? (r.quarter.n === now ? 'Now' : 'To come') : 'None due'}</span></span>
+            {r.kind !== 'none' && <span className="small">{quarterWords(r.text)}</span>}
           </li>
         ))}
       </ol>
@@ -420,9 +439,9 @@ function Requests({ goal, compact, behind, since }: { goal: Goal; compact: boole
             <p className="strong">{r.ask}</p>
             <span className="hint">{linked ? <>The same request as <Link className="linkish" to={'/goals/' + r.goalIds[0]}>{app.goal(r.goalIds[0]!)?.title}</Link>, asked by {first(r.askedBy)} </> : <>Asked by {first(r.askedBy)} </>}{timeAgo(r.createdAt, app.today)}. Open until it’s answered{r.goalIds.length > 1 ? `; ${r.goalIds.length} goals are waiting on it` : ''}.</span>
             {(canAnswer(r, app.viewer) || (!compact && (isOwner || app.viewer.admin))) && (
-              <div className="row" style={{ gap: 'var(--s3)' }}>
+              <div className="row request-actions">
                 {canAnswer(r, app.viewer) && <button type="button" className="btn sm" onClick={() => setResponding(r)}>Respond</button>}
-                {!compact && (isOwner || app.viewer.admin) && <button type="button" className="linkish small" onClick={() => void app.withdrawRequest(r, goal).then(() => app.toast(linked ? 'No longer waiting on that request' : 'Request withdrawn'))}>{linked ? 'Not waiting on it any more' : 'Withdraw'}</button>}
+                {!compact && (isOwner || app.viewer.admin) && <button type="button" className="btn sm" onClick={() => void app.withdrawRequest(r, goal).then(() => app.toast(linked ? 'No longer waiting on that request' : 'Request withdrawn'))}>{linked ? 'Not waiting on it any more' : 'Withdraw'}</button>}
               </div>
             )}
           </section>
