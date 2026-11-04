@@ -29,7 +29,7 @@ export function Reviews() {
   const mine = sessions.filter((s) => s.review.people.includes(app.viewer.id));
   const others = sessions.filter((s) => !s.review.people.includes(app.viewer.id));
   return (
-    <div className="page narrow">
+    <div className="page narrow reviews-list">
       <div className="page-head row between">
         <span className="stack" style={{ gap: 2 }}>
           <h1 className="title-xl">Reviews</h1>
@@ -149,7 +149,7 @@ export function ReviewHome() {
   );
 
   return (
-    <div className="page narrow">
+    <div className="page narrow review-home">
       <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link></nav>
       <section className="hero">
         <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals reviewed`} />
@@ -238,10 +238,9 @@ export function ReviewEdit() {
   };
   const problem = !r.name.trim() ? 'Give the review a name.' : !covered.length ? 'Pick at least one goal, tree or level.' : 'Add at least one person.';
   return (
-    <div className="focus">
+    <div className="focus review-edit">
       <div className="focus-top">
-        <span className="small strong">{existing ? 'Change review' : 'Set up a review'}</span>
-        <span />
+        <h1 className="focus-title">{existing ? 'Change review' : 'Set up a review'}</h1>
         <button className="iconbtn" onClick={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} aria-label="Close without saving"><Icon name="close" /></button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
@@ -266,25 +265,25 @@ export function ReviewEdit() {
             <span className="hint">{goalsN(covered.length)} so far. Mix levels, whole trees and single goals.</span>
           </div>
           <div className="field"><span className="field-label" id="lv-l">Every goal at a level</span>
-            <div className="row" role="group" aria-labelledby="lv-l">{LEVELS.map((l) => <button key={l} type="button" className="pill" aria-pressed={r.scope.levels.includes(l)} onClick={() => set({ scope: { ...r.scope, levels: toggle(r.scope.levels, l) } })}>{LEVEL_LABEL[l]}</button>)}</div>
+            <div className="row" role="group" aria-labelledby="lv-l">{LEVELS.map((l) => <button key={l} type="button" className="pill" aria-pressed={r.scope.levels.includes(l)} onClick={() => set({ scope: { ...r.scope, levels: toggle(r.scope.levels, l) } })}>{r.scope.levels.includes(l) && <Icon name="check" />}{LEVEL_LABEL[l]}</button>)}</div>
           </div>
           {tops.length > 0 && (
             <div className="field"><span className="field-label" id="tr-l">A goal and everything feeding it</span>
               <div className="optlist" role="group" aria-labelledby="tr-l">
-                {tops.map((g) => <button key={g.id} type="button" role="checkbox" className="opt" aria-checked={r.scope.trees.includes(g.id)} onClick={() => set({ scope: { ...r.scope, trees: toggle(r.scope.trees, g.id) } })}><span>{g.title}</span><span className="hint">{goalsN(goalsIn({ goals: [], trees: [g.id], levels: [] }, app.snapshot.goals).length)}</span></button>)}
+                {tops.map((g) => <button key={g.id} type="button" role="checkbox" className="opt" aria-checked={r.scope.trees.includes(g.id)} onClick={() => set({ scope: { ...r.scope, trees: toggle(r.scope.trees, g.id) } })}><Picked on={r.scope.trees.includes(g.id)}>{g.title}</Picked><span className="hint">{goalsN(goalsIn({ goals: [], trees: [g.id], levels: [] }, app.snapshot.goals).length)}</span></button>)}
               </div>
             </div>
           )}
           <div className="field"><span className="field-label">Single goals</span>
             <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a goal by name" aria-label="Find a goal by name" />
-            {found.length > 0 && <div className="optlist">{found.map((g) => <button key={g.id} type="button" role="checkbox" className="opt" aria-checked={r.scope.goals.includes(g.id)} onClick={() => set({ scope: { ...r.scope, goals: toggle(r.scope.goals, g.id) } })}><span>{g.title}</span><Chip k={app.statusOf(g).status} /></button>)}</div>}
+            {found.length > 0 && <div className="optlist">{found.map((g) => <button key={g.id} type="button" role="checkbox" className="opt" aria-checked={r.scope.goals.includes(g.id)} onClick={() => set({ scope: { ...r.scope, goals: toggle(r.scope.goals, g.id) } })}><Picked on={r.scope.goals.includes(g.id)}>{g.title}</Picked><Chip k={app.statusOf(g).status} /></button>)}</div>}
             {r.scope.goals.length > 0 && <span className="hint">Picked: {r.scope.goals.map((id) => app.goal(id)?.title).filter(Boolean).join(', ')}</span>}
           </div>
         </section>
         <section className="stack" style={{ gap: 'var(--s3)' }} aria-labelledby="ppl-h">
           <h2 className="block-title" id="ppl-h">Who takes part</h2>
           <div className="optlist" role="group" aria-labelledby="ppl-h">
-            {app.snapshot.people.map((p) => <button key={p.id} type="button" role="checkbox" className="opt" aria-checked={r.people.includes(p.id)} disabled={!!existing && p.id === existing.createdBy && r.people.includes(p.id) && app.viewer.id !== existing.createdBy && !app.viewer.admin} onClick={() => set({ people: toggle(r.people, p.id) })}><span className="row" style={{ gap: 'var(--s2)' }}><Avatar p={p} size="sm" />{p.name}</span><span className="hint">{app.team(p.teamId ?? '')?.name ?? ''}</span></button>)}
+            {app.snapshot.people.map((p) => <button key={p.id} type="button" role="checkbox" className="opt" aria-checked={r.people.includes(p.id)} disabled={!!existing && p.id === existing.createdBy && r.people.includes(p.id) && app.viewer.id !== existing.createdBy && !app.viewer.admin} onClick={() => set({ people: toggle(r.people, p.id) })}><Picked on={r.people.includes(p.id)}><Avatar p={p} size="sm" />{p.name}</Picked><span className="hint">{app.team(p.teamId ?? '')?.name ?? ''}</span></button>)}
           </div>
         </section>
         <div className="focus-foot">
@@ -294,4 +293,9 @@ export function ReviewEdit() {
       </form>
     </div>
   );
+}
+
+/** A choice in the set-up: a tick in a slot of its own when it's in, so the selection is a mark and a word, not a tint. */
+function Picked({ on, children }: { on: boolean; children: React.ReactNode }) {
+  return <span className="picked"><span className="picked-mark">{on && <Icon name="check" />}</span>{children}</span>;
 }

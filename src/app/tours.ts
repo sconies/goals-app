@@ -55,7 +55,7 @@ export const TOURS: Tour[] = [
     steps: [
       { say: 'Goals can be seen several ways. Open the map.', target: { selector: '[aria-label="Map"]' }, doneWhen: { selector: '.goalmap' } },
       { say: 'The bold red line is the critical path: the inputs most likely to make the north star miss. Open the goal it leads to.', target: { selector: '.map-node.critical' }, doneWhen: { selector: '.map-panel' } },
-      { say: 'Its story is beside the map: why it’s off, the recovery plan, by when, and what decision is needed. Drag to move around; fold branches to focus.' },
+      { say: 'Its story opens with the map still in view: why it’s off, the recovery plan, by when, and what decision is needed. Drag to move around; fold branches to focus.' },
     ],
   },
   {

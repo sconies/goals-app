@@ -1,7 +1,8 @@
 /* The app's own icons: 16px line drawings in the nav's style (design rule 3: no glyph characters as icons). */
-export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch';
+export type IconName = 'check' | 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch';
 
 const PATHS: Record<IconName, string> = {
+  check: 'M3.5 8.5l3 3 6-7',
   close: 'M4 4l8 8M12 4l-8 8',
   'chevron-left': 'M10 3.5L5.5 8 10 12.5',
   'chevron-right': 'M6 3.5L10.5 8 6 12.5',
