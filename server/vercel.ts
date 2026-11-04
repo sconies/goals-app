@@ -27,6 +27,7 @@ function deps(): Deps {
     load: (ws) => store.load(ws),
     commit: (ws, c) => store.commit(ws, c),
     async touch(id, at) { await db.from('okr_api_tokens').update({ last_used_at: at }).eq('id', id); },
+    deleteWorkspace: (ws) => store.deleteWorkspace(ws),
   };
 }
 

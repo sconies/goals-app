@@ -1,15 +1,17 @@
 /* The MCP tools: what an AI assistant can read and change, acting as one person through their personal token.
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
+import { addNote } from '../domain/actions';
 import { applyQuery, parseQuery } from '../domain/query';
 import type { Commit } from '../data/store';
 import { describe, planChanges, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { aiBrief, toCsv, toJson, workbook } from '../domain/export';
 import { summariseAll } from '../domain/summary';
+import { WORK_TOOLS } from './workTools';
 import type { Cycle, DisplayStatus, Level, Person, Snapshot } from '../domain/types';
 
 export interface McpContext {
-  ws: { id: string; name: string };
+  ws: { id: string; name: string; kind?: 'own' | 'example' };
   /** The current cycle only. */
   snapshot: Snapshot;
   cycle: Cycle;
@@ -19,6 +21,8 @@ export interface McpContext {
   now: string;
   newId: (prefix: string) => string;
   save(c: Commit): Promise<void>;
+  /** Deletes the whole workspace (admins, confirmed by name); not every server can. */
+  deleteWorkspace?: () => Promise<void>;
 }
 
 export interface ToolResult { text: string; data?: unknown; isError?: boolean }
@@ -112,7 +116,7 @@ const GOAL_FIELDS = {
 };
 const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
 
-export const TOOLS: ToolDef[] = [
+const CORE_TOOLS: ToolDef[] = [
   {
     name: 'get_overview',
     title: 'Overview of the goals',
@@ -170,7 +174,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'post_check_in',
     title: 'Post a check-in',
-    description: 'Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Check in as often as you like: every check-in is kept, and the latest in a week is that week’s status.',
+    description: 'Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: {
       goal_id: str('The goal’s ID.'),
       week: int('The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later.'),
@@ -240,9 +244,8 @@ export const TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      const t = String(a.text ?? '').trim();
-      if (t.length < 2) return { isError: true, text: 'Write the comment in "text".' };
-      await ctx.save({ changes: [{ id: ctx.newId('chg'), at: ctx.now, actorId: ctx.actor.id, goalId: g.id, entity: 'note', entityId: ctx.newId('note'), action: 'noted', summary: 'Commented', diffs: [{ field: 'Comment', from: '—', to: t }, { field: 'Via', from: '—', to: 'AI assistant (MCP)' }] }] });
+      const c = addNote({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId }, g, String(a.text ?? ''));
+      await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, { field: 'Via', from: '—', to: 'AI assistant (MCP)' }] })) });
       return { text: `Comment added to ${g.title} as ${ctx.actor.name}.` };
     },
   },
@@ -279,6 +282,10 @@ export const TOOLS: ToolDef[] = [
     },
   },
 ];
+
+/** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
+    requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts. */
+export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
 export async function callTool(name: string, args: Record<string, unknown>, ctx: McpContext): Promise<ToolResult> {

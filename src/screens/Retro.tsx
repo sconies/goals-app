@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodLabel, periodWord } from '../domain/year';
 import { RESULT_LABEL, suggestedResult, wrapUpOpen } from '../domain/cycle';
+import { MIN_LEARNED } from '../domain/actions';
 import { fmt, gapText } from '../domain/format';
 import { assessPosted } from '../domain/status';
 import type { Goal, Retro } from '../domain/types';
@@ -13,7 +14,6 @@ import { Chip, Empty, LevelTag, ProgressRing, Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 
 const RESULTS: Retro['result'][] = ['hit', 'partly', 'missed'];
-const MIN_LEARNED = 10;
 
 function nowText(g: Goal, app: ReturnType<typeof useApp>) {
   const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);

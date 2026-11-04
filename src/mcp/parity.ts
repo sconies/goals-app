@@ -1,0 +1,65 @@
+/* Parity between the app and its AI assistants: for every action a person can take (each write in AppState) and every
+   screen they can read, the MCP tools that do the same, or why an assistant has no need of it. A test reads AppState and
+   the screens folder, so a new action or screen without an entry here fails the build. */
+
+type Entry = string[] | { notForAssistants: string };
+
+/** Each action in AppState (src/app/state.tsx) that changes something. */
+export const ACTIONS: Record<string, Entry> = {
+  postCheckIn: ['post_check_in', 'bulk_change'],
+  answerRequest: ['answer_request'],
+  linkRequest: ['link_request'],
+  withdrawRequest: ['withdraw_request'],
+  saveGoal: ['create_goal', 'update_goal', 'set_plan_numbers', 'bulk_change'],
+  addNote: ['add_comment'],
+  askForUpdate: ['ask_for_update'],
+  undoUpdateAsk: ['undo_update_ask'],
+  reviewCall: ['review_call'],
+  editCall: ['edit_call'],
+  watch: ['watch'],
+  unwatch: ['unwatch'],
+  saveReview: ['save_review'],
+  savePerson: ['save_person'],
+  saveRetro: ['wrap_up_goal'],
+  sendFeedback: ['send_feedback'],
+  startNextCycle: ['start_next_cycle'],
+  previewChanges: ['bulk_change'],
+  applyChanges: ['bulk_change'],
+  createToken: ['create_token'],
+  revokeToken: ['revoke_token'],
+  saveView: ['save_view'],
+  deleteView: ['delete_view'],
+  pinView: ['pin_view'],
+  deleteWorkspace: ['delete_workspace'],
+  createWorkspace: { notForAssistants: 'A token belongs to one workspace; a new workspace is set up in the app.' },
+  switchWorkspace: { notForAssistants: 'A token belongs to one workspace: switching is choosing another token.' },
+  resetExample: { notForAssistants: 'Only the demo has an example to reset, and tokens are for real workspaces.' },
+  setViewer: { notForAssistants: 'Saying who you are: a token already acts as one person.' },
+};
+
+/** Each screen (src/screens), and the tools that read or do what it shows. */
+export const SCREENS: Record<string, Entry> = {
+  Home: ['get_my_work', 'get_overview'],
+  GoalsScreen: ['find_goals', 'get_overview'],
+  GoalFilters: ['find_goals', 'list_views', 'save_view', 'delete_view', 'pin_view'],
+  GoalViews: ['find_goals', 'get_goal', 'bulk_change'],
+  GoalMap: ['find_goals', 'get_overview'],
+  GoalScreen: ['get_goal', 'add_comment', 'ask_for_update', 'undo_update_ask', 'withdraw_request', 'watch', 'unwatch'],
+  GoalWizard: ['create_goal'],
+  GoalEdit: ['update_goal', 'set_plan_numbers'],
+  CheckInFlow: ['post_check_in', 'link_request'],
+  QuickCheckIn: ['bulk_change', 'post_check_in'],
+  Respond: ['answer_request', 'list_requests'],
+  Inspect: ['get_review', 'review_call', 'edit_call'],
+  Review: ['list_reviews', 'get_review', 'save_review'],
+  Watching: ['list_watching', 'watch', 'unwatch'],
+  Activity: ['get_activity'],
+  DataTables: ['export', 'list_people', 'bulk_change', 'list_requests'],
+  Import: ['bulk_change'],
+  Export: ['export'],
+  Retro: ['get_wrap_up', 'wrap_up_goal', 'start_next_cycle'],
+  Workspace: ['list_people', 'save_person', 'list_tokens', 'create_token', 'revoke_token', 'list_feedback', 'delete_workspace'],
+  Onboarding: { notForAssistants: 'Setting up a new workspace happens before there is a token for it.' },
+  Start: { notForAssistants: 'The first screen, before a workspace exists.' },
+  Research: { notForAssistants: 'Research sessions in the demo, for the people building the app.' },
+};

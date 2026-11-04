@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
 import { checkInChange, goalChange, type Lookup } from '../domain/changes';
 import { toCheckIn, type Draft } from '../domain/checkin';
@@ -6,10 +7,8 @@ import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, HelpRequest, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
-import { currentCycle, nextCycle, RESULT_LABEL, scopeToCycle } from '../domain/cycle';
-import { personChange } from '../domain/people';
-import { answerRequest, linkRequest, requestsAfterCheckIn } from '../domain/requests';
-import { askChange, openUpdateAsk, undoAskChange, updateAskText } from '../domain/updateAsks';
+import { currentCycle, scopeToCycle } from '../domain/cycle';
+import { requestsAfterCheckIn } from '../domain/requests';
 import { sendDemoFeedback } from './research';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
@@ -285,6 +284,16 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     const skewDays = Math.round((now.getTime() - Date.now()) / 86_400_000);
     const stamp = () => new Date(Date.now() + skewDays * 86_400_000).toISOString();
 
+    // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
+    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId });
+    async function act<T extends Commit | { commit: Commit } | null>(run: () => T): Promise<T> {
+      let out: T;
+      try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+      const c = out && 'commit' in out ? out.commit : (out as Commit | null);
+      if (c) await commit(c);
+      return out;
+    }
+
     return {
       mode, viewerChosen: mode === 'demo' || chosen,
       ws, workspaces, snapshot: sc, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind,
@@ -338,20 +347,9 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         void run.catch(() => undefined).finally(() => posting.current.delete(goal.id));
         return run;
       },
-      answerRequest: async (r, answer) => {
-        const { request, changes } = answerRequest(r, answer, viewer.id, stamp(), newId);
-        await commit({ requests: [request], changes });
-      },
-      linkRequest: async (r, goal) => {
-        const { requests, changes } = linkRequest(r, goal, sc, viewer.id, stamp(), newId);
-        await commit({ requests, changes });
-      },
-      withdrawRequest: async (r, goal) => {
-        const at = stamp();
-        const own = r.goalIds[0] === goal.id;
-        const next = own ? { ...r, status: 'withdrawn' as const, updatedAt: at } : { ...r, goalIds: r.goalIds.filter((g) => g !== goal.id), updatedAt: at };
-        await commit({ requests: [next], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: goal.id, entity: 'request', entityId: r.id, action: 'withdrawn', summary: own ? 'Withdrew the request' : 'No longer waiting on this request', diffs: [{ field: 'Request', from: r.ask, to: 'Withdrawn' }] }] });
-      },
+      answerRequest: async (r, answer) => { await act(() => A.answerRequest(ax(), r, answer)); },
+      linkRequest: async (r, goal) => { await act(() => A.linkRequest(ax(), r, goal)); },
+      withdrawRequest: async (r, goal) => { await act(() => A.withdrawRequest(ax(), r, goal)); },
       saveGoal: async (after, before, why) => {
         if (makesLoop(after.id, after.parentId, sc.goals)) {
           toast('That would make a loop: the goal it feeds already feeds into it. Pick another.', 'error');
@@ -361,71 +359,18 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
         await commit({ goals: [after], changes: change ? [change] : [] });
       },
-      addNote: async (goal, text) => {
-        const t = text.trim();
-        await commit({ changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'note', entityId: newId('note'), action: 'noted', summary: 'Commented', diffs: [{ field: 'Comment', from: '—', to: t }] }] });
-      },
-      askForUpdate: async (goal) => {
-        const latest = checkInsFor(goal, sc.checkIns).at(-1) ?? null;
-        // Already asked since the last check-in: once is enough (a second tap doesn't ask twice).
-        if (openUpdateAsk(goal.id, sc, latest?.postedAt ?? null)) return;
-        const owner = sc.people.find((p) => p.id === goal.ownerId);
-        await commit({ changes: [askChange(goal.id, updateAskText(owner?.name.split(' ')[0], latest?.week ?? null), viewer.id, stamp(), { change: newId('chg'), note: newId('note') })] });
-      },
-      undoUpdateAsk: async (goal) => {
-        const latest = checkInsFor(goal, sc.checkIns).at(-1) ?? null;
-        const ask = openUpdateAsk(goal.id, sc, latest?.postedAt ?? null);
-        if (!ask) return;
-        await commit({ changes: [undoAskChange(ask, viewer.id, stamp(), newId('chg'))] });
-      },
-      reviewCall: async (goal, review, sessionWeek, kind, note, extra) => {
-        const d: Decision = { id: newId('dec'), goalId: goal.id, checkInId: null, reviewId: review.id, week: sessionWeek, kind, byId: viewer.id, at: stamp(), note: note.trim(), ...(kind === 'action' ? { assigneeId: extra?.assigneeId ?? goal.ownerId, dueWeek: extra?.dueWeek ?? null } : {}) };
-        const action = ({ acknowledge: 'acknowledged', note: 'noted', ask: 'asked', action: 'actioned' } as const)[kind];
-        const what = ({ acknowledge: 'Looked at it', note: 'Added a note', ask: 'Asked the owner a question', action: 'Agreed an action' } as const)[kind];
-        await commit({
-          decisions: [d],
-          changes: [{ id: newId('chg'), at: d.at, actorId: viewer.id, goalId: goal.id, entity: 'decision', entityId: d.id, action, summary: `${what} in ${review.name}`, diffs: note.trim() ? [{ field: kind === 'ask' ? 'Question' : kind === 'action' ? 'Action' : 'Note', from: '—', to: note.trim() }, ...(kind === 'action' ? [{ field: 'Who', from: '—', to: lookup.person(d.assigneeId ?? '')?.name ?? '—' }, ...(d.dueWeek ? [{ field: 'Due', from: '—', to: `week ${d.dueWeek}` }] : [])] : [])] : [] }],
-        });
-      },
-      editCall: async (d, note, extra) => {
-        const after: Decision = { ...d, note: note.trim(), ...(d.kind === 'action' && extra ? { assigneeId: extra.assigneeId ?? d.assigneeId ?? null, dueWeek: extra.dueWeek ?? null } : {}) };
-        const diffs = [
-          ...(after.note !== d.note ? [{ field: d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note', from: d.note, to: after.note }] : []),
-          ...(after.assigneeId !== d.assigneeId ? [{ field: 'Who', from: lookup.person(d.assigneeId ?? '')?.name ?? '—', to: lookup.person(after.assigneeId ?? '')?.name ?? '—' }] : []),
-          ...(after.dueWeek !== d.dueWeek ? [{ field: 'Due', from: d.dueWeek ? `week ${d.dueWeek}` : '—', to: after.dueWeek ? `week ${after.dueWeek}` : '—' }] : []),
-        ];
-        if (!diffs.length) return;
-        await commit({ decisions: [after], changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: d.goalId, entity: 'decision', entityId: d.id, action: 'edited', summary: `Corrected ${d.kind === 'ask' ? 'a question' : d.kind === 'action' ? 'an action' : 'a note'}`, diffs }] });
-      },
-      watch: async (kind, ref) => {
-        if (sc.watches.some((w) => w.personId === viewer.id && w.kind === kind && w.ref === ref)) return;
-        await commit({ watches: [{ id: newId('w'), personId: viewer.id, kind, ref }], changes: [] });
-      },
-      unwatch: async (watchId) => { await commit({ unwatch: [watchId], changes: [] }); },
-      savePerson: async (p, before) => {
-        const ch = personChange(before, p, lookup.teamName, viewer.id, stamp(), newId('chg'));
-        await commit({ people: [p], changes: ch ? [ch] : [] });
-      },
-      saveReview: async (review, before) => {
-        const at = stamp();
-        const diffs = before ? [
-          ...(before.name !== review.name ? [{ field: 'Name', from: before.name, to: review.name }] : []),
-          ...(before.everyWeeks !== review.everyWeeks || before.weekday !== review.weekday ? [{ field: 'When', from: `every ${before.everyWeeks} wk`, to: `every ${review.everyWeeks} wk` }] : []),
-          ...(JSON.stringify(before.scope) !== JSON.stringify(review.scope) ? [{ field: 'Goals', from: 'changed', to: 'changed' }] : []),
-          ...(JSON.stringify(before.people) !== JSON.stringify(review.people) ? [{ field: 'People', from: String(before.people.length), to: String(review.people.length) }] : []),
-        ] : [{ field: 'Review', from: '—', to: review.name }];
-        await commit({ reviews: [review], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'review', entityId: review.id, action: before ? 'edited' : 'created', summary: before ? `Changed the review “${review.name}”` : `Set up a review: “${review.name}”`, diffs }] });
-      },
-      saveRetro: async (goal, retro, before) => {
-        const diffs = [
-          ...(!before || before.result !== retro.result ? [{ field: 'Result', from: before ? RESULT_LABEL[before.result] : '—', to: RESULT_LABEL[retro.result] }] : []),
-          ...(!before || before.learned !== retro.learned ? [{ field: 'Learned', from: before?.learned ?? '—', to: retro.learned }] : []),
-          ...(!before || before.next !== retro.next ? [{ field: 'Next cycle', from: before ? (before.next === 'carry' ? 'Carry on' : 'Stop') : '—', to: retro.next === 'carry' ? 'Carry on' : 'Stop' }] : []),
-        ];
-        await commit({ retros: [retro], changes: [{ id: newId('chg'), at: stamp(), actorId: viewer.id, goalId: goal.id, entity: 'retro', entityId: retro.id, action: before ? 'edited' : 'posted', summary: `Wrapped up ${goal.title}: ${RESULT_LABEL[retro.result].toLowerCase()}`, diffs }] });
-      },
+      addNote: async (goal, text) => { await act(() => A.addNote(ax(), goal, text)); },
+      askForUpdate: async (goal) => { await act(() => A.askForUpdate(ax(), goal)); },
+      undoUpdateAsk: async (goal) => { await act(() => A.undoUpdateAsk(ax(), goal)); },
+      reviewCall: async (goal, review, sessionWeek, kind, note, extra) => { await act(() => A.reviewCall(ax(), goal, review, kind, note, { week: sessionWeek, ...extra })); },
+      editCall: async (d, note, extra) => { await act(() => A.editCall(ax(), d, note, extra)); },
+      watch: async (kind, ref) => { await act(() => A.watch(ax(), kind, ref)); },
+      unwatch: async (watchId) => { await act(() => A.unwatch(ax(), watchId)); },
+      savePerson: async (p, before) => { await act(() => A.savePerson(ax(), p, before)); },
+      saveReview: async (review, before) => { await act(() => A.saveReview(ax(), review, before)); },
+      saveRetro: async (goal, retro) => { await act(() => A.saveRetro(ax(), goal, retro)); },
       sendFeedback: async (mood, text, path) => {
-        await commit({ feedback: [{ id: newId('fb'), personId: viewer.id, path, mood, text: text.trim(), at: stamp() }], changes: [] });
+        await act(() => A.sendFeedback(ax(), mood, text, path));
         // The demo's data lives in this browser only, so its feedback is also sent where the people building the app read it.
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
@@ -435,56 +380,16 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         await commit(cs.commit);
       },
       createToken: async (personId, name) => {
-        if (!viewer.admin) throw new Error('Only admins can make tokens.');
         const token = newToken();
-        const at = stamp();
-        const t = { id: newId('tok'), personId, name: name.trim(), tokenHash: await hashToken(token), createdBy: viewer.id, createdAt: at, lastUsedAt: null, revokedAt: null };
-        const who = lookup.person(personId)?.name ?? 'someone';
-        await commit({ tokens: [t], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'person', entityId: personId, action: 'created', summary: `Gave ${who} an AI assistant token: “${t.name}”`, diffs: [{ field: 'AI assistant token', from: '—', to: t.name }] }] });
+        const hash = await hashToken(token);
+        await act(() => A.createToken(ax(), personId, name, hash));
         return token;
       },
-      saveView: async ({ id, name, params }) => {
-        const clean = name.trim().slice(0, 80);
-        if (!clean) throw new Error('Give the view a name.');
-        const old = id ? (snapshot.views ?? []).find((x) => x.id === id && !x.deletedAt) : undefined;
-        if (old && old.personId !== viewer.id && !viewer.admin) throw new Error('Only its owner or an admin can change this view.');
-        const at = stamp();
-        const v = old ? { ...old, name: clean, params, updatedAt: at } : { id: newId('view'), personId: viewer.id, name: clean, params, pinned: false, createdAt: at, updatedAt: at, deletedAt: null };
-        // A personal view changes no goal, so it isn't logged; a pinned one changes what everyone sees, so it is.
-        await commit({ views: [v], changes: old?.pinned ? [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'workspace', entityId: v.id, action: 'edited', summary: `Changed the pinned view “${clean}”`, diffs: [{ field: 'Pinned view', from: old.name, to: clean }] }] : [] });
-        return v.id;
-      },
-      deleteView: async (id) => {
-        const v = (snapshot.views ?? []).find((x) => x.id === id && !x.deletedAt);
-        if (!v) return;
-        if (v.personId !== viewer.id && !(viewer.admin && v.pinned)) throw new Error('Only its owner, or an admin for a pinned view, can delete this view.');
-        const at = stamp();
-        await commit({ views: [{ ...v, deletedAt: at, updatedAt: at }], changes: v.pinned ? [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'workspace', entityId: v.id, action: 'edited', summary: `Removed the pinned view “${v.name}”`, diffs: [{ field: 'Pinned view', from: v.name, to: '—' }] }] : [] });
-      },
-      pinView: async (id, pinned) => {
-        if (!viewer.admin) throw new Error('Only admins can pin a view for everyone.');
-        const v = (snapshot.views ?? []).find((x) => x.id === id && !x.deletedAt);
-        if (!v || v.pinned === pinned) return;
-        const at = stamp();
-        await commit({ views: [{ ...v, pinned, updatedAt: at }], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'workspace', entityId: v.id, action: 'edited', summary: pinned ? `Pinned the view “${v.name}” for everyone` : `Unpinned the view “${v.name}”`, diffs: [{ field: 'Pinned view', from: pinned ? '—' : v.name, to: pinned ? v.name : '—' }] }] });
-      },
-      revokeToken: async (id) => {
-        const t = (snapshot.tokens ?? []).find((x) => x.id === id);
-        if (!t || t.revokedAt) return;
-        if (!viewer.admin && t.personId !== viewer.id) throw new Error('Only an admin or the token’s person can revoke it.');
-        const at = stamp();
-        await commit({ tokens: [{ ...t, revokedAt: at }], changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'person', entityId: t.personId, action: 'edited', summary: `Revoked the AI assistant token “${t.name}”`, diffs: [{ field: 'AI assistant token', from: t.name, to: 'Revoked' }] }] });
-      },
-      startNextCycle: async () => {
-        const at = stamp();
-        const next = nextCycle(cycle, sc.goals, sc.checkIns, sc.retros, { cycle: newId('cycle'), goal: () => newId('goal') }, at);
-        const stopped = sc.goals.length - next.goals.length;
-        await commit({
-          cycles: [next.cycle], goals: next.goals,
-          changes: [{ id: newId('chg'), at, actorId: viewer.id, goalId: null, entity: 'cycle', entityId: next.cycle.id, action: 'created', summary: `Started ${next.cycle.name}: ${next.goals.length} ${next.goals.length === 1 ? 'goal carries' : 'goals carry'} on${stopped ? `, ${stopped} stopped` : ''}`, diffs: [{ field: 'Cycle', from: cycle.name, to: next.cycle.name }] }],
-        });
-        return next.cycle.name;
-      },
+      saveView: async (v) => { const out = await act(() => A.saveView(ax(), v)); return out.id; },
+      deleteView: async (id) => { await act(() => A.deleteView(ax(), id)); },
+      pinView: async (id, pinned) => { await act(() => A.pinView(ax(), id, pinned)); },
+      revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },
+      startNextCycle: async () => { const out = await act(() => A.startNextCycle(ax())); return out.name; },
     };
   }, [loaded, viewerId, store, today, workspaces, commit, toast, createWorkspace, mode]);
 

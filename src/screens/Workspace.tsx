@@ -269,7 +269,7 @@ function TokenSheet({ onClose }: { onClose: () => void }) {
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void make(); }}>
         <label className="field"><span className="field-label">Who it acts as</span>
           <select className="input" value={personId} onChange={(e) => setPersonId(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-          <span className="hint">The assistant can do what this person can: change their own goals{app.person(personId)?.admin ? ', and any goal, as they’re an admin' : ''}, and comment on any.</span>
+          <span className="hint">The assistant can do anything this person can in the app, with the same rights: check in, change their own goals{app.person(personId)?.admin ? ' (and any goal, as they’re an admin)' : ''}, answer requests, take part in reviews and more.</span>
         </label>
         <label className="field"><span className="field-label">What it’s for</span>
           <input className="input" value={name} placeholder="e.g. Claude on my laptop" onChange={(e) => setName(e.target.value)} />

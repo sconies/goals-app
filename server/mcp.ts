@@ -1,7 +1,7 @@
 /* The MCP endpoint: checks the personal token, loads that person's workspace and runs the tools as them.
    Data access is passed in, so the same code runs on Vercel (Supabase) and in tests (in memory). */
 import type { Commit } from '../src/data/store';
-import { applyCommit, newId, withExpectations } from '../src/data/store';
+import { applyCommit, EXAMPLE, newId, withExpectations } from '../src/data/store';
 import { currentCycle, scopeToCycle } from '../src/domain/cycle';
 import { currentWeek } from '../src/domain/plan';
 import type { ApiToken, Snapshot } from '../src/domain/types';
@@ -15,6 +15,8 @@ export interface Deps {
   load(workspaceId: string): Promise<Snapshot>;
   commit(workspaceId: string, c: Commit): Promise<void>;
   touch(tokenId: string, at: string): Promise<void>;
+  /** Deletes a workspace and everything in it (an admin's delete_workspace). */
+  deleteWorkspace?(workspaceId: string): Promise<void>;
   now?: () => Date;
 }
 
@@ -53,7 +55,7 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
     const actor = all.people.find((p) => p.id === found.token.personId);
     if (!actor) throw new Error('The person this token belongs to is no longer in the workspace.');
     ctx = {
-      ws: { id: found.workspaceId, name }, snapshot: scopeToCycle(all, cycle), cycle, week: currentWeek(cycle, now), today: now, actor,
+      ws: { id: found.workspaceId, name, kind: found.workspaceId === EXAMPLE.id ? 'example' : 'own' }, snapshot: scopeToCycle(all, cycle), cycle, week: currentWeek(cycle, now), today: now, actor,
       now: now.toISOString(), newId,
       // Each save says what it was based on, and the context moves on with it, so later calls see it.
       save: async (c) => {
@@ -61,6 +63,7 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
         all = applyCommit(all, c);
         ctx!.snapshot = scopeToCycle(all, cycle);
       },
+      ...(deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace!(found.workspaceId) } : {}),
     };
     return ctx;
   };
