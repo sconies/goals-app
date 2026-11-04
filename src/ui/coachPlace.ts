@@ -2,15 +2,28 @@
    to the selected context without covering it"). Below it if there's room, else above, right or left; when the target
    fills the screen (the map), whichever corner covers least of it. */
 export interface Box { left: number; top: number; width: number; height: number }
-export interface View { width: number; height: number; reservedTop: number; reservedBottom: number }
+/** The window, and what the coach must stay clear of: the phone's top and tab bars, the desktop sidebar on the left. */
+export interface View { width: number; height: number; reservedTop: number; reservedBottom: number; reservedLeft?: number }
 
 const M = 16;
 const overlap = (a: Box, b: Box) => Math.max(0, Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top));
 
+/**
+ * The ring round a target: 6px outside it, but never past the window. A target that runs to the window's edge (a
+ * full-width bar) gets the ring 4px inside that edge instead, so all four sides show.
+ */
+export function ringBox(r: { left: number; top: number; right: number; bottom: number }, v: { width: number; height: number }, pad = 6, inset = 4): Box {
+  const left = Math.max(inset, r.left - pad), top = Math.max(inset, r.top - pad);
+  const right = Math.min(v.width - inset, r.right + pad), bottom = Math.min(v.height - inset, r.bottom + pad);
+  return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+}
+
 export function placeCoach(target: Box | null, size: { width: number; height: number }, v: View, gap = 12): { left: number; top: number } {
   const { width: w, height: h } = size;
-  const minTop = v.reservedTop + M, maxTop = v.height - v.reservedBottom - M - h;
-  const minLeft = M, maxLeft = v.width - M - w;
+  const minTop = v.reservedTop + M, maxTop = Math.max(minTop, v.height - v.reservedBottom - M - h);
+  const maxLeft = v.width - M - w;
+  // Clear of the sidebar when there's room for that; otherwise as far left as still fits.
+  const minLeft = Math.max(M, Math.min((v.reservedLeft ?? 0) + M, maxLeft));
   const clampL = (x: number) => Math.max(minLeft, Math.min(maxLeft, x));
   const clampT = (y: number) => Math.max(minTop, Math.min(maxTop, y));
   const corners = [

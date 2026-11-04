@@ -509,7 +509,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   } else if (!value) {
     body = (
       <div className="boot" aria-busy="true">
-        <div className="skeleton" />
+        <div className="skeleton" aria-hidden="true"><i /><i /><i /><i /></div>
         <span className="muted small">Loading goals…</span>
       </div>
     );

@@ -120,15 +120,17 @@ function GoalView({ goal }: { goal: Goal }) {
   // Whoever asked can undo it (Senior UX review, finding 9); it's logged, and drops off the owner's Home.
   const asked = openUpdateAsk(goal.id, app.snapshot, latest?.postedAt ?? null);
   const [asking, setAsking] = useState(false);
+  // Asking and undoing confirm the same way: in place, where the button was (not one inline and one as a toast).
+  const [undone, setUndone] = useState(false);
   const askForUpdate = async () => {
     if (asking) return;
-    setAsking(true);
+    setAsking(true); setUndone(false);
     try { await app.askForUpdate(goal); } catch { /* the save already said what went wrong */ } finally { setAsking(false); }
   };
   const undoAsk = async () => {
     if (asking) return;
     setAsking(true);
-    try { await app.undoUpdateAsk(goal); app.toast('Undone. It’s off their Home.'); } catch { /* the save already said what went wrong */ } finally { setAsking(false); }
+    try { await app.undoUpdateAsk(goal); setUndone(true); } catch { /* the save already said what went wrong */ } finally { setAsking(false); }
   };
   const ownerFirst = owner?.name.split(' ')[0] ?? 'the owner';
   // In a review, the page is compact: result, what changed, what's needed; the rest folds away.
@@ -186,7 +188,7 @@ function GoalView({ goal }: { goal: Goal }) {
           : a.kind === 'metric' && goal.kind === 'metric' && latest ? <span className="hint">{gap.long}.</span> : null}
         {stale && !isOwner && (asked
           ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(asked.at, app.today)}{asked.actorId !== app.viewer.id ? ` (${app.person(asked.actorId)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s on their Home until they check in.{asked.actorId === app.viewer.id && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
-          : <div><button type="button" className="btn sm" disabled={asking} onClick={() => void askForUpdate()}>Ask {ownerFirst} for an update</button></div>)}
+          : <div className="row" style={{ gap: 'var(--s3)' }}><button type="button" className="btn sm" disabled={asking} onClick={() => void askForUpdate()}>Ask {ownerFirst} for an update</button><span className="small" role="status">{undone ? 'Undone. It’s off their Home.' : ''}</span></div>)}
         {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <Icon name="trend-down" />}{fc.warn && (st.status === 'on' || st.status === 'done') ? 'On track means on plan this week. ' : ''}{fc.text}</span>}
         {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
       </section>

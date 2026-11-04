@@ -1,9 +1,9 @@
 /* The walkthrough coach: a small card saying what to do next, and a ring round the thing to use. You do the steps
    yourself; it notices and moves on. */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { readTour, TOURS, writeTour, type TourState } from '../app/tours';
-import { placeCoach } from './coachPlace';
+import { placeCoach, ringBox, type Box } from './coachPlace';
 
 function find(target: { selector: string; text?: string } | undefined): HTMLElement | null {
   if (!target) return null;
@@ -11,14 +11,24 @@ function find(target: { selector: string; text?: string } | undefined): HTMLElem
   return (target.text ? all.find((e) => e.textContent?.toLowerCase().includes(target.text!.toLowerCase())) : all[0]) ?? null;
 }
 
+/** The bars a phone keeps on screen: the top bar and the tab bar (none in a focused flow, where they're hidden). */
+const reserved = () => {
+  const phone = window.innerWidth <= 760;
+  return { top: phone ? 60 : 0, bottom: phone ? 80 : 0 };
+};
+
 export function Coach() {
   const [state, setState] = useState<TourState | null>(readTour);
-  const [ring, setRing] = useState<DOMRect | null>(null);
+  const [ring, setRing] = useState<Box | null>(null);
   const [missing, setMissing] = useState(false);
+  // The card's real size, measured after each render, so it's placed from what it shows now (not the last step's text).
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const box = useRef<HTMLElement>(null);
   // A step that's done on reaching a page only counts once you've been somewhere else since it began, so starting a
   // walkthrough while already on that page doesn't skip the step.
   const away = useRef(false);
+  // Each step's target is scrolled into view once, when it's first found; after that the page is yours to scroll.
+  const shown = useRef<string | null>(null);
   useEffect(() => { away.current = false; }, [state?.id, state?.step]);
   const { pathname, search } = useLocation();
   useEffect(() => {
@@ -32,49 +42,77 @@ export function Coach() {
   // Watch for the step being done, and keep the ring on its target as the page moves.
   useEffect(() => {
     if (!tour || !step || !state) { setRing(null); return; }
+    const key = `${tour.id}:${state.step}`;
     const tick = () => {
       // When the step's target isn't there (the demo has moved on), point at its alternative and say why.
       const main = find(step.target);
       const alt = !main && step.ifMissing ? find(step.ifMissing.target) : null;
       setMissing(!main && !!step.ifMissing);
       const el = main ?? alt;
-      setRing(el ? el.getBoundingClientRect() : null);
+      const r = el?.getBoundingClientRect();
+      // Below the fold (or under a bar): bring it to the middle of the screen first. The map pans itself, so not there.
+      if (el && r && shown.current !== key) {
+        shown.current = key;
+        const res = reserved();
+        const out = r.top < res.top + 16 || r.bottom > window.innerHeight - res.bottom - 16;
+        if (out && !el.closest('.react-flow, .goalmap')) {
+          const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+          el.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' });
+        }
+      }
+      const next = r ? ringBox(r, { width: window.innerWidth, height: window.innerHeight }) : null;
+      setRing((cur) => (cur && next && cur.left === next.left && cur.top === next.top && cur.width === next.width && cur.height === next.height ? cur : next));
       const d = step.doneWhen;
       if (!d) return;
       const route = pathname + search;
       if (d.route && !d.route.test(route)) away.current = true;
-      const done = (d.route && away.current && d.route.test(route)) || (d.selector && !!document.querySelector(d.selector)) || (d.text && document.body.innerText.includes(d.text));
+      const text = d.text;
+      const said = !!text && (typeof text === 'string' ? document.body.innerText.includes(text) : text.test(document.body.innerText));
+      const done = (d.route && away.current && d.route.test(route)) || (d.selector && !!document.querySelector(d.selector)) || said;
       if (done) writeTour({ id: tour.id, step: state.step + 1 });
     };
     tick();
     const t = setInterval(tick, 350);
-    return () => clearInterval(t);
+    // Scrolling moves the target: follow it at once rather than at the next tick.
+    const onScroll = () => { const el = find(step.target) ?? (step.ifMissing ? find(step.ifMissing.target) : null); const r = el?.getBoundingClientRect(); setRing(r ? ringBox(r, { width: window.innerWidth, height: window.innerHeight }) : null); };
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => { clearInterval(t); window.removeEventListener('scroll', onScroll, { capture: true }); window.removeEventListener('resize', onScroll); };
   }, [tour, step, state, pathname, search]);
+
+  // Measure the card as it is now, before it's painted, so a longer or shorter step never ends off the screen.
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const s = { width: el.offsetWidth, height: el.offsetHeight };
+    if (!size || size.width !== s.width || size.height !== s.height) setSize(s);
+  });
 
   if (!tour || !step || !state) return null;
   const last = state.step >= tour.steps.length - 1;
   return (
     <>
-      {ring && <div className="coach-ring" aria-hidden="true" style={{ top: ring.top - 6, left: ring.left - 6, width: ring.width + 12, height: ring.height + 12 }} />}
-      <aside ref={box} className="coach" style={coachAt(ring, box.current)} role="dialog" aria-modal="false" aria-label={`Walkthrough: ${tour.title}`}>
+      {ring && <div className="coach-ring" aria-hidden="true" style={{ top: ring.top, left: ring.left, width: ring.width, height: ring.height }} />}
+      <aside ref={box} className="coach" style={coachAt(ring, size)} role="dialog" aria-modal="false" aria-label={`Walkthrough: ${tour.title}`}>
         <span className="coach-head"><span className="label">{tour.role} · step {state.step + 1} of {tour.steps.length}</span><button type="button" className="linkish small" onClick={() => writeTour(null)}>End</button></span>
         <span className="coach-title">{tour.title}</span>
         <p className="coach-say" aria-live="polite">{missing && step.ifMissing ? step.ifMissing.say : step.say}</p>
-        <span className="row" style={{ gap: 'var(--s2)' }}>
+        <span className="row coach-actions" style={{ gap: 'var(--s2)' }}>
           {state.step > 0 && <button type="button" className="btn sm" onClick={() => writeTour({ id: tour.id, step: state.step - 1 })}>Back</button>}
           {last
             ? <button type="button" className="btn sm" onClick={() => writeTour(null)}>Finish</button>
-            : <button type="button" className="btn ghost sm" onClick={() => writeTour({ id: tour.id, step: state.step + 1 })}>Skip this step</button>}
+            : <button type="button" className="btn ghost sm coach-skip" onClick={() => writeTour({ id: tour.id, step: state.step + 1 })}>Skip this step</button>}
         </span>
       </aside>
     </>
   );
 }
 
-/** The coach beside its target (see coachPlace): on a phone, clear of the top bar and the tab bar. */
-function coachAt(ring: DOMRect | null, el: HTMLElement | null): { left: number; top: number } {
+/** The coach beside its target (see coachPlace): on a phone, clear of the top bar and the tab bar; on a desktop, clear of the sidebar. */
+function coachAt(ring: Box | null, size: { width: number; height: number } | null): { left: number; top: number } {
   const w = window.innerWidth, h = window.innerHeight;
-  const phone = w <= 760;
-  const size = { width: el?.offsetWidth || Math.min(360, w - 32), height: el?.offsetHeight || 210 };
-  return placeCoach(ring && { left: ring.left - 6, top: ring.top - 6, width: ring.width + 12, height: ring.height + 12 }, size, { width: w, height: h, reservedTop: phone ? 60 : 0, reservedBottom: phone ? 80 : 0 });
+  const res = reserved();
+  const main = document.querySelector('main.work')?.getBoundingClientRect();
+  const s = size ?? { width: Math.min(360, w - 32), height: 210 };
+  return placeCoach(ring, s, { width: w, height: h, reservedTop: res.top, reservedBottom: res.bottom, reservedLeft: Math.max(0, Math.round(main?.left ?? 0)) });
 }

@@ -7,7 +7,7 @@ export interface TourStep {
   /** What to point at: a CSS selector, optionally narrowed to an element containing some text. */
   target?: { selector: string; text?: string };
   /** The step is done when the route matches, an element shows, or some text shows. None: a closing step with a Finish button. */
-  doneWhen?: { route?: RegExp; selector?: string; text?: string };
+  doneWhen?: { route?: RegExp; selector?: string; text?: string | RegExp };
   /** What to say and point at instead when the target isn't on screen (the demo has moved on: say, the check-ins are already in). */
   ifMissing?: { say: string; target?: { selector: string; text?: string } };
 }
@@ -62,7 +62,8 @@ export const TOURS: Tour[] = [
     id: 'brief', title: 'Get the leader’s brief', role: 'Leader', personId: 'elena', start: '/goals',
     steps: [
       { say: 'Export the goals: for Excel, for other tools, or as a brief to read or paste into an AI chat.', target: { selector: 'button', text: 'Export' }, doneWhen: { text: 'Export goals' } },
-      { say: 'Copy the brief, or save it. It leads with the decisions waiting on people, then each goal that’s off and its story.', target: { selector: 'button', text: 'Save .md' }, doneWhen: { text: 'Brief' } },
+      // Done on doing it (the brief copied or saved), not on the word "Brief", which the sheet already shows.
+      { say: 'Copy the brief, or save it. It leads with the decisions waiting on people, then each goal that’s off and its story.', target: { selector: '.export-list .opt', text: 'Brief for an AI chat' }, doneWhen: { text: /Brief (copied|saved)/ } },
       { say: 'The same brief is what an AI assistant reads through the app’s MCP server.' },
     ],
   },
