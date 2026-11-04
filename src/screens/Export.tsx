@@ -1,5 +1,5 @@
 /* Export: the goals as a workbook, CSV, JSON or a brief for an AI chat. Everything in the cycle, or just what's shown. */
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useApp } from '../app/state';
 import { downloadText, downloadWorkbook } from '../app/spreadsheet';
 import { aiBrief, toCsv, toJson, workbook, type ExportInput } from '../domain/export';
@@ -35,6 +35,17 @@ function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewName: st
     setBusy(null);
   };
   const n = scope === 'view' ? goals.length : all.length;
+  // The footnote stays at the foot of the sheet; when the sheet scrolls, a line sets it apart from what passes under it.
+  const note = useRef<HTMLParagraphElement>(null);
+  const [scrolls, setScrolls] = useState(false);
+  useLayoutEffect(() => {
+    const box = note.current?.closest<HTMLElement>('.sheet');
+    if (!box) return;
+    const check = () => setScrolls(box.scrollHeight > box.clientHeight + 1);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [partial]);
   return (
     <Sheet open onClose={onClose} title="Export goals">
       <div className="stack" style={{ gap: 'var(--s4)' }}>
@@ -76,7 +87,7 @@ function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewName: st
             </span>
           </div>
         </div>
-        <p className="hint">{n} {n === 1 ? 'goal' : 'goals'}, as of week {app.week}. Exports include names and the owners’ reasons, so share them as you would the app.</p>
+        <p ref={note} className={'hint export-note' + (scrolls ? ' scrolls' : '')}>{n} {n === 1 ? 'goal' : 'goals'}, as of week {app.week}. Exports include names and the owners’ reasons, so share them as you would the app.</p>
       </div>
     </Sheet>
   );

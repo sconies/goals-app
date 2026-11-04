@@ -35,7 +35,7 @@ export function WorkspaceHome() {
         <div className="glist">
           {app.workspaces.map((w) => (
             <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => app.switchWorkspace(w.id)}>
-              <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.slice(0, 1).toUpperCase()}</span>
+              <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
               <span className="gline-title">{w.name}</span>
               <span className="gline-now">{w.id === app.ws.id ? 'Open now' : w.kind === 'example' ? 'Demo data' : 'Your data'}</span>
             </button>
@@ -44,10 +44,17 @@ export function WorkspaceHome() {
         <div className="row" style={{ marginTop: 'var(--s3)' }}>
           <Link className="btn" to="/workspace/new">{app.mode === 'demo' ? 'Try setting up your own' : 'New workspace'}</Link>
           {app.mode === 'live' && <a className="btn" href="/demo">Try the demo</a>}
-          {app.mode === 'demo' && app.ws.kind === 'example' && (confirming
-            ? <><span className="small">Undo every change in the example?</span><button className="btn" onClick={async () => { await app.resetExample(); setConfirming(false); }}>Yes, reset it</button><button className="btn ghost" onClick={() => setConfirming(false)}>Cancel</button></>
-            : <button className="btn" onClick={() => setConfirming(true)}>Reset the example</button>)}
+          {app.mode === 'demo' && app.ws.kind === 'example' && <button className="btn" aria-expanded={confirming} onClick={() => setConfirming(true)}>Reset the example</button>}
         </div>
+        {app.mode === 'demo' && app.ws.kind === 'example' && confirming && (
+          <div className="reset-confirm" role="group" aria-label="Reset the example">
+            <span className="small">Undo every change in the example?</span>
+            <span className="row" style={{ gap: 'var(--s2)' }}>
+              <button className="btn" onClick={async () => { await app.resetExample(); setConfirming(false); }}>Yes, reset it</button>
+              <button className="btn ghost" onClick={() => setConfirming(false)}>Cancel</button>
+            </span>
+          </div>
+        )}
       </section>
       <aside className="split-side" aria-label="Settings">
         <AiAssistants />
@@ -55,8 +62,8 @@ export function WorkspaceHome() {
         {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
       </aside>
       <section className="block split-b">
-        <div className="row between">
-          <h2 className="block-title">People in {app.ws.name} <span className="hint">· {app.snapshot.people.length}</span></h2>
+        <div className="row between people-head">
+          <h2 className="block-title">People in {app.ws.name}<span className="hint count-after">· {app.snapshot.people.length}</span></h2>
           {admin && <button className="btn" onClick={() => setEditing('new')}>Add a person</button>}
         </div>
         <p className="hint">{admin ? 'You’re an admin: you can add people, change their details and make others admins.' : `Admins can add people: ${admins.map((p) => p.name).join(', ') || 'no one yet'}.`}</p>
@@ -76,10 +83,10 @@ export function WorkspaceHome() {
             <span className="label">{team} · {list.length}</span>
             <div className="optlist">
               {list.map((x) => {
-                const body = <><span className="row" style={{ gap: 'var(--s3)' }}><Avatar p={x} size="sm" /><span className="stack" style={{ gap: 0 }}><span>{x.name}</span>{x.role && <span className="hint">{x.role}</span>}</span></span>{x.admin && <span className="chip tag">Admin</span>}</>;
+                const body = <><Avatar p={x} size="sm" /><span className="person-text"><span className="person-name">{x.name}</span>{x.role && <span className="hint">{x.role}</span>}</span>{x.admin && <span className="chip tag">Admin</span>}</>;
                 return admin
-                  ? <button key={x.id} className="opt" onClick={() => setEditing(x)}>{body}</button>
-                  : <div key={x.id} className="opt static">{body}</div>;
+                  ? <button key={x.id} className="opt person-opt" onClick={() => setEditing(x)}>{body}</button>
+                  : <div key={x.id} className="opt static person-opt">{body}</div>;
               })}
             </div>
           </div>
@@ -109,9 +116,13 @@ function PersonSheet({ person, onClose }: { person: Person | null; onClose: () =
   return (
     <Sheet open onClose={onClose} title={person ? `Change ${person.name}` : 'Add a person'}>
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
-        <label className="field"><span className="field-label">Name</span>
-          <input className={'input' + (tried && !p.name.trim() ? ' invalid' : '')} autoFocus={!person} value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} />
-        </label>
+        <div className="field">
+          <label className="field"><span className="field-label">Name</span>
+            <input className={'input' + (tried && (!p.name.trim() || dup) ? ' invalid' : '')} aria-invalid={tried && (!p.name.trim() || !!dup) ? true : undefined} autoFocus={!person} value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} />
+          </label>
+          {tried && !p.name.trim() && <span className="hint tone-off" role="alert">Add a name.</span>}
+          {tried && dup && <span className="hint tone-off" role="alert">{dup.name} is already here. Add a middle initial so people can tell you apart.</span>}
+        </div>
         <label className="field"><span className="field-label">Job title <span className="hint">optional</span></span>
           <input className="input" value={p.role} onChange={(e) => setP({ ...p, role: e.target.value })} />
         </label>
@@ -121,12 +132,10 @@ function PersonSheet({ person, onClose }: { person: Person | null; onClose: () =
             <option value="">No team</option>
           </select>
         </label>
-        <label className="check">
+        <label className="check admin-check">
           <input type="checkbox" checked={p.admin} disabled={lastAdmin} onChange={(e) => setP({ ...p, admin: e.target.checked })} />
-          <span className="stack" style={{ gap: 0 }}><span>Admin</span><span className="hint">{lastAdmin ? (self ? 'You’re the only admin, so you stay one.' : 'The only admin stays one.') : 'Can add people, change settings and make others admins.'}</span></span>
+          <span className="stack" style={{ gap: 0 }}><span className="admin-word">Admin</span><span className="hint">{lastAdmin ? (self ? 'You’re the only admin, so you stay one.' : 'The only admin stays one.') : 'Can add people, change settings and make others admins.'}</span></span>
         </label>
-        {tried && !p.name.trim() && <span className="hint tone-off" role="alert">Add a name.</span>}
-        {tried && dup && <span className="hint tone-off" role="alert">{dup.name} is already here. Add a middle initial so people can tell you apart.</span>}
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></div>
       </form>
     </Sheet>

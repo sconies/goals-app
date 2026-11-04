@@ -1,1 +1,243 @@
-/* Fit and finish, per-area reports (4 Nov): data-workspace. Loaded after styles.css. */
+/* Fit and finish, per-area reports (4 Nov): data-workspace. Loaded after styles.css. Numbers in brackets are the
+   findings: [Dn] the Data tables report, [Wn] the Workspace and set-up report. */
+
+/* ===================================================================================================================
+   Data tables
+   =================================================================================================================== */
+.data-page {
+  --dcell-h: 40px;
+  --edit-fill: #EEF1FD; --edit-line: #C7D0F5;
+  --ro-fill: var(--surface-2);
+  --data-foot-h: 0px; --data-tabbar-h: 0px;
+}
+@media (pointer: coarse) { .data-page { --dcell-h: 45px; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .data-page { --edit-fill: #1E2547; --edit-line: #3A4A8C; --ro-fill: #2C3442; } }
+:root[data-theme="dark"] .data-page { --edit-fill: #1E2547; --edit-line: #3A4A8C; --ro-fill: #2C3442; }
+
+/* [D21] The data uses the whole width, with the page's own gutters. The left edge stays where every page starts. */
+.page.data-page { max-width: none; }
+
+/* [D6] The table box ends just above the window's bottom edge, the changes bar and the phone's tab bar; it never shrinks
+   below 320px. --data-top is where the box starts on the page (DataTables measures it). */
+.data-page.has-edits { --data-foot-h: 72px; padding-bottom: 72px; }
+@container app (max-width: 760px) { .data-page { --data-tabbar-h: 69px; } }
+.data-page .data-wrap { max-height: max(320px, calc(100dvh - var(--data-top, 260px) - 24px - var(--data-foot-h) - var(--data-tabbar-h))); }
+
+/* [D14] One radius for the box, the search and the buttons; headers padded like the cells. */
+.data-page .data-wrap, .data-page .filter-search .input, .data-page .filterbar-row .btn { border-radius: 8px; }
+.dtable th { padding: 8px 12px; }
+
+/* [D11] Every cell is one height; text sits in the middle; inputs and selects fill the cell, so the focus ring and the
+   edited fill reach its edges. [D9] Cells are padded 12px, figures line up on the right. */
+.dtable td { height: var(--dcell-h); vertical-align: middle; }
+.dtable .dcell.ro { padding: 0 12px; line-height: 1.25rem; background: var(--ro-fill); }
+.dtable .dcell input, .dtable .dcell select { display: block; height: calc(var(--dcell-h) - 1px); min-height: 0; padding: 0 12px; text-overflow: ellipsis; }
+.dtable .dcell.did { vertical-align: middle; }
+
+/* [D3, D10] The column that names each row comes first on every table and stays in view: 240px, 160px on small
+   screens, cut with an ellipsis (the full name on hover, and in the field when it has the focus). */
+.dtable th.dname, .dtable td.dname { width: 240px; min-width: 240px; max-width: 240px; }
+@media (max-width: 767px) { .dtable th.dname, .dtable td.dname { width: 160px; min-width: 160px; max-width: 160px; } }
+.dtable td.dcell.dname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dtable td.dname input, .dtable td.dname select { min-width: 0; width: 100%; }
+.dtable td.dname .linkish { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dtable td.dcell.ro.dname { background: var(--ro-fill); }
+
+/* [D9] Plan weeks are figures: 72px columns. */
+.dtable th.wk, .dtable td.wk { width: 72px; min-width: 72px; max-width: 72px; }
+.dtable td.wk input { min-width: 0; }
+
+/* [D17] Times read as dates, in the body face, in a 160px column. */
+.dtable th.dtime, .dtable td.dtime { width: 160px; min-width: 160px; max-width: 160px; font-family: var(--font); }
+
+/* [D16] A goal's status: the app's shape before the word, in the status colour. */
+.dtable .dstatus { font-size: inherit; font-weight: 550; gap: 8px; }
+.dtable .dstatus svg { width: 8px; height: 8px; }
+/* The column sizes to the word, so the cell needn't clip it (the table box scrolls instead). */
+.dtable td.dcell.ro:has(> .dstatus) { overflow: visible; }
+
+/* [D4, D23] A changed cell: a light accent fill, a thin outline on every side and a small dot in its corner. The
+   weight doesn't change, so nothing reflows. */
+.dtable td.dcell.edited { position: relative; background: var(--edit-fill); box-shadow: inset 0 0 0 1px var(--edit-line); }
+.dtable td.dcell.dname.edited { position: sticky; box-shadow: inset 0 0 0 1px var(--edit-line), 1px 0 0 var(--line); }
+.dtable td.dcell.edited::after { content: ""; position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; }
+.dtable .dcell.edited input, .dtable .dcell.edited select { font-weight: 400; }
+
+/* [D27] On a desktop, a cell you can type into answers the pointer. Read-only cells don't. */
+@media (hover: hover) and (min-width: 1024px) {
+  .dtable td.dcell:not(.ro):not(.edited):hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .dtable td.dcell.dname:not(.ro):not(.edited):hover { box-shadow: inset 0 0 0 1px var(--line-strong), 1px 0 0 var(--line); }
+}
+
+/* [D26] The sort direction is a 12px icon in a slot that's always there, so sorting never widens a column. */
+.dtable .sortbtn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.dtable .sort-slot { display: inline-flex; flex: none; width: 12px; height: 12px; }
+.dtable .sort-slot svg { display: block; }
+
+/* [D18] Nothing matches: said quietly inside the table box, with the way back. */
+.data-empty { display: flex; flex-direction: column; align-items: center; gap: var(--s2); padding: 32px; text-align: center; color: var(--muted); font-size: 0.9375rem; line-height: 1.375rem; font-weight: 400; }
+
+/* [D19] A filter chip is one line, from the left; long value lists end in "+n" (the whole filter is in its editor). */
+.data-page .prop-chip { max-width: 100%; min-width: 0; }
+.data-page .prop-chip-edit { flex: 0 1 auto; min-width: 0; justify-content: flex-start; text-align: left; }
+.data-page .prop-chip-x { flex: none; }
+.prop-chip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* [D23] A table with unsaved changes gets a small dot on its tab; the count is in the changes bar. */
+.data-page .seg.tabs button { position: relative; }
+.tab-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+/* [D1] The changes bar: one row, the count on the left (short on a phone), the two buttons on the right. On a phone it
+   sits above the tab bar, never under it. */
+.data-foot { flex-wrap: nowrap; gap: var(--s3); min-height: 56px; padding: 8px 12px; border-radius: 8px; }
+.data-foot-count { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; line-height: 1.125rem; font-weight: 600; }
+.data-foot-actions { display: flex; flex: none; align-items: center; gap: var(--s2); }
+@container app (max-width: 760px) {
+  .data-foot { bottom: calc(77px + env(safe-area-inset-bottom, 0px)); }
+  .data-foot-more { display: none; }
+  .data-foot .btn { min-height: 44px; height: 44px; padding: 0 14px; }
+}
+
+/* [D24] Choosing columns: grouped, two columns from 600px, in a 640px sheet. */
+.sheet:has(.col-chooser) { width: min(640px, 100%); }
+.col-groups { display: flex; flex-direction: column; gap: var(--s3); }
+.col-group { min-width: 0; margin: 0; padding: 0; border: 0; }
+.col-group > legend.label { margin-bottom: var(--s1); }
+.col-checks { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--s4); }
+.col-checks .check { min-height: 36px; }
+@media (pointer: coarse) { .col-checks .check { min-height: 44px; } }
+@media (min-width: 600px) { .col-checks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ===================================================================================================================
+   Reviewing changes (the data tables' Review dialog and Import's preview share it)
+   =================================================================================================================== */
+/* [D5] One column with room between its parts; the reason's hint sits above the buttons. */
+.change-review { display: flex; flex-direction: column; gap: var(--s5); }
+.change-review > .import-foot { margin-top: calc(var(--s4) - var(--s5)); }
+.change-review > .preview-hint + .import-foot { margin-top: calc(var(--s2) - var(--s5)); }
+/* [D5, W15] The way back is a bordered secondary button, so its text lines up with everything else. */
+.foot-row .preview-again { margin-right: auto; }
+/* [W16] Save can't be pressed yet: a flat grey, fully readable, on one line. */
+.import-foot .btn.primary { white-space: nowrap; }
+.import-foot .btn.primary:disabled, .import-foot .btn.primary[aria-disabled="true"] { opacity: 1; background: var(--line-strong); color: var(--muted); border-color: transparent; }
+.import-foot .btn.primary[aria-disabled="true"]:hover { background: var(--line-strong); }
+/* [D7] In a sheet: the title and the buttons stay put, the middle scrolls; a short window starts the sheet near the top. */
+.sheet:has(.change-review) { display: flex; flex-direction: column; overflow: hidden; }
+.sheet:has(.change-review) > .sheet-head { flex: none; }
+.sheet:has(.change-review) > .sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 0; }
+.sheet .change-review > .import-foot { position: sticky; bottom: 0; z-index: 1; min-height: 72px; margin-left: calc(-1 * var(--s4)); margin-right: calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--surface); border-top: 1px solid var(--line); }
+@media (max-width: 600px) { .sheet .change-review > .import-foot .btn { flex: 1 1 0; min-width: 0; padding: 0 12px; white-space: nowrap; } }
+@media (max-height: 600px) {
+  .sheet-wrap:has(.change-review) { padding-top: 16px; }
+  .sheet:has(.change-review) { max-height: calc(100dvh - 32px - var(--kb, 0px)); }
+}
+
+/* [W3] Each goal's changes open from a chevron that turns in place, beside the title. */
+.change-goal > summary { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; column-gap: var(--s3); align-items: start; }
+.change-goal > summary::before { content: none; }
+.change-chev { align-self: start; margin-top: 3px; color: var(--muted); transform-origin: 50% 50%; transition: transform .15s; }
+.change-goal[open] > summary .change-chev { transform: rotate(90deg); }
+@media (max-width: 600px) { .change-goal > summary { grid-template-columns: 16px minmax(0, 1fr); } .change-goal > summary > .hint { grid-column: 2; } }
+/* [W9] The details line up under the goal's title. */
+.change-goal .changes { padding-left: calc(var(--s4) + 16px + var(--s3)); }
+/* [W9] A plan change: the weeks that change, what they were and what they'll be. */
+.plan-diff { display: flex; flex-direction: column; gap: var(--s1); }
+.plan-diff-scroll { align-self: flex-start; max-width: 100%; max-height: 240px; overflow: auto; border: 1px solid var(--line-2); border-radius: 8px; }
+.plan-diff-table { border-collapse: collapse; font-size: 0.875rem; line-height: 1.25rem; font-variant-numeric: tabular-nums; }
+.plan-diff-table th, .plan-diff-table td { padding: 8px 12px; text-align: right; }
+.plan-diff-table th { position: sticky; top: 0; background: var(--surface); font-size: 0.75rem; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); }
+.plan-diff-table tbody tr + tr td { border-top: 1px solid var(--line-2); }
+
+/* [W15] Import: the steps start at the page's edge; the quiet Cancel's text lines up with it too. */
+.import-steps { padding-left: 0; }
+.edge-ghost { margin-left: -16px; }
+
+/* ===================================================================================================================
+   Workspace
+   =================================================================================================================== */
+/* [W24] A settings page: 1120px at most, from the same left edge as every page (not centred: one left edge). */
+.page.workspace { --page-max: 1120px; }
+
+/* [W19] The count follows the last word of the heading; on a phone, Add a person gets its own line. */
+.people-head .block-title { display: block; }
+.block-title .count-after { margin-left: var(--s2); white-space: nowrap; font-weight: 400; }
+@container app (max-width: 600px) { .people-head { flex-direction: column; align-items: flex-start; } }
+
+/* [W1, W14] A person: the avatar, then the name (wrapping under itself) and job title, then Admin, all from the top. */
+.optlist .opt.person-opt { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; column-gap: var(--s3); align-items: start; justify-content: stretch; padding-top: 14px; padding-bottom: 14px; text-align: left; }
+.person-opt > .avatar { margin-top: -1px; }
+.person-text { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.person-name { font-size: 0.9375rem; line-height: 1.375rem; font-weight: 550; color: var(--fg); }
+.person-text .hint { font-size: 0.875rem; line-height: 1.25rem; font-weight: 400; color: var(--muted); }
+.person-opt > .chip { align-self: start; margin-top: 2px; }
+
+/* [W13] Resetting the example asks on its own line, under the buttons. */
+/* The section's own 12px gap sets it below the buttons. */
+.reset-confirm { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); margin-top: 0; }
+.reset-confirm > .small { font-size: 0.875rem; }
+
+/* [W12] Add or change a person: the checkbox keeps its size beside a two-line label; the name's problem sits under it. */
+.check.admin-check { align-items: flex-start; }
+.check.admin-check > input { flex: 0 0 auto; align-self: flex-start; margin-top: 2px; }
+.admin-word { font-size: 0.875rem; line-height: 1.25rem; font-weight: 600; color: var(--fg); }
+
+/* [W22] Export: a 520px sheet; each format's words take the room, its buttons a column of their own; the footnote
+   stays at the foot, with a line above it while the sheet scrolls. */
+.sheet:has(.export-list) { width: min(520px, 100%); }
+.export-list .opt.static { grid-template-columns: minmax(0, 1fr) minmax(112px, auto); gap: var(--s4); }
+@media (max-width: 640px) { .export-list .opt.static { grid-template-columns: minmax(0, 1fr); gap: var(--s3); } }
+.export-note { position: sticky; bottom: 0; margin: 0 calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4) var(--s4); background: var(--surface); border-top: 1px solid transparent; }
+.export-note.scrolls { border-top-color: var(--line); }
+
+/* ===================================================================================================================
+   Setting up a workspace
+   =================================================================================================================== */
+/* [W4, W24] The people (step 3) and the goals (step 6) get up to 800px on a large screen. */
+@media (min-width: 1280px) { .focus.focus-roomy { max-width: 800px; } }
+
+/* [W5] Progress: steps not reached are visible; done and current share the accent, the current one taller. */
+.focus-onboard .steps-bar { align-items: center; }
+.focus-onboard .steps-bar i { height: 4px; background: var(--line-strong); }
+.focus-onboard .steps-bar i.done, .focus-onboard .steps-bar i.now { background: var(--accent); }
+.focus-onboard .steps-bar i.now { height: 6px; }
+
+/* [W6, W7] A problem is said under the field it's about, in the error colour; the footer holds only the buttons. */
+.focus-onboard .field-error { font-size: 0.875rem; line-height: 1.25rem; color: var(--off-fg); }
+.focus-onboard .qsection > .field-error { margin-top: calc(var(--s2) - var(--s3)); }
+
+/* [W23] "Change" never sits alone on a line. */
+.focus-onboard .nowrap { white-space: nowrap; }
+
+/* [W4, W11] Who else is on it: Name and Team share the room 3:2; Admin and Remove are 44px targets. */
+.focus-onboard .pg-head, .focus-onboard .pg-row { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 44px 44px; }
+.focus-onboard .pg-head { display: grid; }
+.focus-onboard .pg-head > :nth-child(3) { text-align: center; }
+.focus-onboard .pg-row > .input:first-child, .focus-onboard .pg-row > .iconbtn { grid-column: auto; grid-row: auto; }
+.focus-onboard .pg-check { width: 44px; height: 44px; min-width: 44px; min-height: 44px; justify-content: center; }
+.focus-onboard .pg-row > .iconbtn { width: 44px; height: 44px; }
+/* [W6] A row's problem: under Name and Team, 4px below the row. */
+.focus-onboard .pg-issue { grid-column: 1 / 3; margin-top: -4px; }
+/* Phones: Name, then Team, full width; Admin and Remove on a third line. */
+@media (max-width: 640px) {
+  .focus-onboard .pg-head { display: none; }
+  .focus-onboard .pg-row { grid-template-columns: minmax(0, 1fr) 44px; row-gap: var(--s2); }
+  .focus-onboard .pg-row > .input:first-child { grid-column: 1 / -1; grid-row: 1; }
+  .focus-onboard .pg-row > .input:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .focus-onboard .pg-row > .pg-check { grid-column: 1; grid-row: 3; width: auto; justify-content: flex-start; }
+  .focus-onboard .pg-row > .iconbtn { grid-column: 2; grid-row: 3; }
+  .focus-onboard .pg-issue { grid-column: 1 / -1; grid-row: 4; }
+}
+
+/* [W18] Choosing one option: a radio circle on the left, and the chosen row ringed inside the list's own corners. */
+.focus-onboard .optlist .opt[role="radio"] { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; column-gap: var(--s3); align-items: center; justify-content: stretch; }
+.focus-onboard .optlist .opt[role="radio"]::before { content: ""; box-sizing: border-box; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--track); background: var(--surface); }
+.focus-onboard .optlist .opt[role="radio"] > .hint { text-align: right; }
+.focus-onboard .optlist .opt[role="radio"][aria-checked="true"] { outline: none; background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.focus-onboard .optlist .opt[role="radio"][aria-checked="true"]::before { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--surface); }
+.focus-onboard .optlist .opt:first-child { border-top-left-radius: 9px; border-top-right-radius: 9px; }
+.focus-onboard .optlist .opt:last-child { border-bottom-left-radius: 9px; border-bottom-right-radius: 9px; }
+@container app (max-width: 480px) {
+  .focus-onboard .optlist .opt[role="radio"] { grid-template-columns: 16px minmax(0, 1fr); row-gap: 2px; }
+  .focus-onboard .optlist .opt[role="radio"]::before { grid-row: 1 / span 2; }
+  .focus-onboard .optlist .opt[role="radio"] > .hint { grid-column: 2; text-align: left; }
+}
