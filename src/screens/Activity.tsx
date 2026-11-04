@@ -12,6 +12,7 @@ import { watchedGoals } from '../domain/review';
 import type { Change, Level } from '../domain/types';
 import { Avatar, Sheet } from '../ui/bits';
 import { ChangeItem } from './GoalScreen';
+import { Icon } from '../ui/Icon';
 
 function dayLabel(iso: string, today: Date) {
   const d = new Date(iso);
@@ -99,7 +100,7 @@ export function Activity() {
         {narrowed && (
           <div className="filter-chips" aria-label="Active filters">
             <span className="small" role="status">{list.length} of {all.length} changes</span>
-            {chips.map((c) => <button key={c.key} type="button" className="filter-chip" aria-label={`Remove filter: ${c.text}`} onClick={() => setA((cur) => withoutActivity(cur, c.key))}>{c.text}<span aria-hidden="true"> ✕</span></button>)}
+            {chips.map((c) => <button key={c.key} type="button" className="filter-chip" aria-label={`Remove filter: ${c.text}`} onClick={() => setA((cur) => withoutActivity(cur, c.key))}>{c.text}<Icon name="close" size={12} className="chip-x" /></button>)}
             {chips.length > 0 && <button type="button" className="linkish small" onClick={() => setA((cur) => ({ ...EMPTY_ACTIVITY, watching: cur.watching, since: cur.since }))}>Clear filters</button>}
           </div>
         )}
@@ -129,7 +130,7 @@ function ActivityFilters({ onClose }: { onClose: () => void }) {
     <Sheet open onClose={onClose} title="Filter activity" wide>
       <div className="filter-sheet">
         <fieldset className="filter-group"><legend className="field-label">Who made the change</legend>
-          <span className="filter-options">{a.who.map((id) => <button key={id} type="button" className="filter-chip" aria-label={`Remove ${app.person(id)?.name}`} onClick={() => setA((cur) => ({ ...cur, who: cur.who.filter((x) => x !== id) }))}>{app.person(id)?.name}<span aria-hidden="true"> ✕</span></button>)}</span>
+          <span className="filter-options">{a.who.map((id) => <button key={id} type="button" className="filter-chip" aria-label={`Remove ${app.person(id)?.name}`} onClick={() => setA((cur) => ({ ...cur, who: cur.who.filter((x) => x !== id) }))}>{app.person(id)?.name}<Icon name="close" size={12} className="chip-x" /></button>)}</span>
           <input className="input" type="search" placeholder="Find a person" aria-label="Find a person" value={who} onChange={(e) => setWho(e.target.value)} />
           {people.length > 0 && <span className="filter-options">{people.map((p) => <button key={p.id} type="button" className="btn sm" onClick={() => { setA((cur) => ({ ...cur, who: [...cur.who, p.id] })); setWho(''); }}>{p.name}</button>)}</span>}
           <label className="check"><input type="checkbox" checked={a.who.length === 1 && a.who[0] === app.viewer.id} onChange={(e) => setA((cur) => ({ ...cur, who: e.target.checked ? [app.viewer.id] : [] }))} /> Only my changes</label>

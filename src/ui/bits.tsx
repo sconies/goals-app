@@ -5,6 +5,7 @@ import type { Flag, GoalAttention } from '../domain/attention';
 import { LABEL } from '../domain/status';
 import type { DisplayStatus, Level, Person } from '../domain/types';
 import { LEVEL_LABEL } from '../domain/format';
+import { Icon } from './Icon';
 
 /** Status is shape plus word, never colour alone. */
 export function StatusShape({ k }: { k: DisplayStatus }) {
@@ -128,7 +129,7 @@ export function AttentionCard({ a, action, to }: { a: GoalAttention; action?: Re
       <span className="arow-icon" data-tone={top.tone}><StatusShape k={flagStatus(top)} /></span>
       <Link to={to} className="arow-main">
         <span className="arow-title">{a.goal.title}</span>
-        <span className="arow-why"><span className="arow-flags">{flags.slice(0, 2).map((f) => f.label).join(' · ')}</span>{flags.length ? ' — ' : ''}{top.detail}</span>
+        <span className="arow-why" title={top.detail}><span className="arow-flags">{flags.slice(0, 2).map((f) => f.label).join(' · ')}</span>{flags.length ? ' — ' : ''}{top.detail}</span>
       </Link>
       {action && <div className="arow-action">{action}</div>}
     </div>
@@ -177,7 +178,7 @@ export function Sheet({ open, onClose, title, children, wide }: { open: boolean;
   return createPortal(
     <div className="sheet-wrap" onClick={onClose}>
       <div className={'sheet' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-label={title} ref={ref} onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-head"><span className="h3">{title}</span><button className="iconbtn" onClick={onClose} aria-label="Close">✕</button></div>
+        <div className="sheet-head"><span className="h3">{title}</span><button className="iconbtn" onClick={onClose} aria-label="Close"><Icon name="close" /></button></div>
         <div className="sheet-body">{children}</div>
       </div>
     </div>,

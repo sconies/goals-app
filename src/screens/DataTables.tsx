@@ -12,6 +12,7 @@ import {
   applyTable, columnKind, describeFilter, filterEntries, NO_VALUE, OP_LABEL, OPS, parseFilters, parseSort, SEP,
   type ColumnKind, type Op, type PropFilter, type TableSort,
 } from '../domain/tableFilter';
+import { Icon } from '../ui/Icon';
 
 type Tab = 'people' | 'goals' | 'checkIns' | 'plan' | 'requests';
 const TABS: [Tab, string][] = [['goals', 'Goals'], ['checkIns', 'Check-ins'], ['plan', 'Plans'], ['requests', 'Requests'], ['people', 'People']];
@@ -162,7 +163,7 @@ export function DataTables() {
         <label className="filter-search"><span className="sr">Search this table</span>
           <input className="input" type="search" placeholder={`Search ${TABS.find(([k]) => k === tab)![1].toLowerCase()}`} value={q} onChange={(e) => { setView({ q: e.target.value }); setLimit(PAGE); }} />
         </label>
-        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setEditing({ index: null })}>+ Filter</button>
+        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setEditing({ index: null })}><Icon name="plus" />Filter</button>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setChoosing(true)}>Columns · {cols.length} of {head.length - HIDDEN[tab].length}</button>
         <span className="small muted" role="status">{shown.length === rows.length ? `${rows.length} rows` : `${shown.length} of ${rows.length} rows`}</span>
       </div>
@@ -171,13 +172,13 @@ export function DataTables() {
           {filters.map((f, k) => (
             <span key={k} className="prop-chip">
               <button type="button" className="prop-chip-edit" aria-label={`Change filter: ${describeFilter(f)}`} onClick={() => setEditing({ index: k })}>{describeFilter(f)}</button>
-              <button type="button" className="prop-chip-x" aria-label={`Remove filter: ${describeFilter(f)}`} onClick={() => setView({ filters: filters.filter((_, j) => j !== k) })}>✕</button>
+              <button type="button" className="prop-chip-x" aria-label={`Remove filter: ${describeFilter(f)}`} onClick={() => setView({ filters: filters.filter((_, j) => j !== k) })}><Icon name="close" /></button>
             </span>
           ))}
           {sort && (
             <span className="prop-chip">
               <span className="prop-chip-edit">Sorted by {sort.col}, {kinds[sort.col] === 'number' ? (sort.dir === 1 ? 'lowest first' : 'highest first') : sort.dir === 1 ? 'A to Z' : 'Z to A'}</span>
-              <button type="button" className="prop-chip-x" aria-label="Remove the sort" onClick={() => setView({ sort: null })}>✕</button>
+              <button type="button" className="prop-chip-x" aria-label="Remove the sort" onClick={() => setView({ sort: null })}><Icon name="close" /></button>
             </span>
           )}
           <button type="button" className="linkish small" onClick={() => setView({ q: '', filters: [], sort: null })}>Clear all</button>
@@ -212,7 +213,7 @@ export function DataTables() {
         <table className="dtable">
           <thead>
             <tr>{cols.map(({ c }) => (
-              <th key={c} scope="col" className={c === 'ID' ? 'did' : c === NAME[tab] ? 'dname' : undefined} title={c === 'ID' ? 'Each record’s own ID. It never changes.' : undefined} aria-sort={sort?.col === c ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
+              <th key={c} scope="col" className={c === 'ID' ? 'did' : c === NAME[tab] ? 'dname' : kinds[c] === 'number' ? 'num' : undefined} title={c === 'ID' ? 'Each record’s own ID. It never changes.' : undefined} aria-sort={sort?.col === c ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
                 <button type="button" className="sortbtn" onClick={() => setView({ sort: sort?.col === c ? (sort.dir === 1 ? { col: c, dir: -1 } : null) : { col: c, dir: 1 } })}>{c}{sort?.col === c ? <span aria-hidden="true">{sort.dir === 1 ? ' ↑' : ' ↓'}</span> : null}</button>
               </th>
             ))}</tr>
@@ -225,7 +226,7 @@ export function DataTables() {
                   const changed = edits[tab][r.key]?.[c];
                   const value = changed ?? original;
                   const label = `${c}, ${r.cells[head.indexOf(NAME[tab])] || r.key}${tab === 'checkIns' ? `, week ${r.cells[head.indexOf('Week')]}` : ''}`;
-                  const kind = c === 'ID' ? ' did' : c === NAME[tab] ? ' dname' : '';
+                  const kind = c === 'ID' ? ' did' : c === NAME[tab] ? ' dname' : kinds[c] === 'number' ? ' num' : '';
                   if (!canEdit || r.locked || !EDITABLE[tab](c)) return <td key={c} className={'dcell ro' + kind + (c === NAME[tab] ? ' strong' : '')} title={c === 'ID' ? 'IDs never change' : value.length > 30 ? value : undefined}>{c === 'Goal' ? <Link className="linkish" to={'/goals/' + (tab === 'goals' || tab === 'plan' ? r.key : r.cells[head.indexOf('Goal ID')])}>{value}</Link> : value}</td>;
                   const opts = options[c];
                   return (

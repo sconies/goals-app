@@ -11,6 +11,7 @@ import { descendants, forecastText, statusChange, type TreeNode } from '../domai
 import { goalResult, RESULT_TEXT } from '../domain/story';
 import type { Decision, Goal, Level, Watch } from '../domain/types';
 import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
+import { Icon } from '../ui/Icon';
 
 /* ---------- review order: fixed when a session starts, so moving between goals doesn't reshuffle it ---------- */
 const orderKey = (ws: string, review: string, week: number) => `goals-app-review:${ws}:${review}:${week}`;
@@ -54,9 +55,9 @@ export function ReviewBar({ goalId }: { goalId: string }) {
         <span className="hint">Goal {rv.index + 1} of {rv.total} · {rv.done} reviewed</span>
       </span>
       <div className="bar ok" aria-hidden="true"><i style={{ width: `${rv.total ? (rv.done / rv.total) * 100 : 100}%` }} /></div>
-      <button className="iconbtn" aria-label="Previous goal" disabled={rv.index <= 0} onClick={rv.prev}>‹</button>
-      <button className="iconbtn" aria-label="Next goal, without reviewing this one" onClick={rv.next}>›</button>
-      <button className="iconbtn" aria-label="Close the review" onClick={() => nav(`/reviews/${rv.review!.id}`)}>✕</button>
+      <button className="iconbtn" aria-label="Previous goal" disabled={rv.index <= 0} onClick={rv.prev}><Icon name="chevron-left" /></button>
+      <button className="iconbtn" aria-label="Next goal, without reviewing this one" onClick={rv.next}><Icon name="chevron-right" /></button>
+      <button className="iconbtn" aria-label="Close the review" onClick={() => nav(`/reviews/${rv.review!.id}`)}><Icon name="close" /></button>
     </div>
   );
 }
@@ -231,7 +232,7 @@ export function TreeCard({ node }: { node: TreeNode }) {
         {g.kind === 'metric' && <span className="hint">target {fmt(g.plan.target, g)}</span>}
         {st.status !== 'stale' && <span className={'small strong tone-' + gap.tone}>{gap.short}</span>}
       </span>
-      {fc && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.text}</span>}
+      {fc && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <Icon name="trend-down" />}{fc.text}</span>}
       {feed.length > 0 && (
         <span className="stack" style={{ gap: 'var(--s2)' }}>
           <span className="mix" role="img" aria-label={counts.map(([k, n]) => `${n} ${LABEL[k].toLowerCase()}`).join(', ')}>

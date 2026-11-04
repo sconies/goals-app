@@ -12,6 +12,7 @@ import { daysToReview, onTimeStreak, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { MetricChart, RangeChart } from '../ui/charts';
+import { Icon } from '../ui/Icon';
 
 /** The focused weekly check-in: every due goal, one at a time, then done. */
 export function CheckInFlow() {
@@ -60,7 +61,7 @@ function Flow({ goalId }: { goalId?: string }) {
       <div className="focus-top">
         <span className="small strong">Check-in{queue.length > 1 ? ` ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         {queue.length > 1 && <div className="dots" aria-hidden="true">{queue.map((id, i) => <i key={id} className={i < index ? 'done' : i === index ? 'now' : ''} />)}</div>}
-        <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft">✕</button>
+        <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
       </div>
       {justPosted ? (
         <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
@@ -533,7 +534,7 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
         {hasChart && <button type="button" className="linkish tap small" aria-expanded={chart} onClick={() => setChart(!chart)}>{chart ? 'Hide chart' : 'Show chart'}</button>}
       </div>
       <span>{line}</span>
-      {forecast && (forecast.warn ? <span className="forecast"><span aria-hidden="true">↘</span>{forecast.text}</span> : <span className="muted">{forecast.text}</span>)}
+      {forecast && (forecast.warn ? <span className="forecast"><Icon name="trend-down" />{forecast.text}</span> : <span className="muted">{forecast.text}</span>)}
       {chart && <div className="chartwrap">
         {a.kind === 'metric' && goal.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={a.forecast} height={150} />}
         {a.kind === 'range' && goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={140} />}
@@ -574,7 +575,7 @@ function StageEditor({ goal, draft, set }: { goal: MilestoneGoal; draft: Draft; 
               <button type="button" className="stagepick-row" onClick={() => setEditing(s.id)}>
                 <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">{s.name}</span><span className="hint">Due {weekLabel(s.dueWeek, cycle.weeks)}</span></span>
                 <span className={'stagepick-state tone-' + st.tone}>{st.text}</span>
-                <span className="chev" aria-hidden="true">›</span><span className="sr">Change</span>
+                <Icon name="chevron-right" className="chev" /><span className="sr">Change</span>
               </button>
             </li>
           );

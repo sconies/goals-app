@@ -10,6 +10,7 @@ import { DemoEntry, DemoPanel } from './Demo';
 import { Coach } from './Coach';
 import { ResearchBar } from './ResearchBar';
 import { useNavMode, type NavMode } from '../app/navMode';
+import { Icon } from './Icon';
 
 type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'data' | 'new' | 'workspace';
 const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
@@ -84,7 +85,7 @@ function WorkspaceSheet({ open, onClose }: { open: boolean; onClose: () => void 
         ))}
         <Link className="menuitem" to="/workspace/new" onClick={onClose}><span className="wsmark add" aria-hidden="true">+</span><span className="strong">{app.mode === 'demo' ? 'Try setting up your own' : 'New workspace'}</span></Link>
         {app.mode === 'demo'
-          ? <a className="menuitem" href="/"><span className="wsmark add" aria-hidden="true">↩</span><span className="strong">Leave the demo</span></a>
+          ? <a className="menuitem" href="/"><span className="wsmark add"><Icon name="back" /></span><span className="strong">Leave the demo</span></a>
           : <a className="menuitem" href="/demo"><span className="wsmark example" aria-hidden="true">D</span><span className="stack" style={{ gap: 0 }}><span className="strong">Try the demo</span><span className="tiny muted">Example data, in your browser only</span></span></a>}
       </div>
     </Sheet>
@@ -147,7 +148,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const tabs = order.slice(0, navMode === 'four' ? 3 : 4);
   const more = order.slice(navMode === 'four' ? 3 : 4);
   const work = useRef<HTMLElement>(null);
-  const title = order.filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : 'Goals');
+  const title = order.filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : pathname.startsWith('/research') ? 'Research' : pathname.startsWith('/import') ? 'Import' : pathname.startsWith('/quick-check-in') ? 'Check-in' : 'Goals');
   // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
   useEffect(() => {
     const vv = window.visualViewport;
@@ -191,23 +192,23 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
       <div className="shell">
         <nav className="side" aria-label="Main">
-          <button className="wsbtn wide" onClick={() => setSheet('workspace')}>
+          <button className="wsbtn wide" title={app.ws.name} onClick={() => setSheet('workspace')}>
             <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{app.ws.name.slice(0, 1).toUpperCase()}</span>
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
               {/* "Example: Developer Platform" was cut to "Example: Devel…": the name, with "Example" as the quieter line. */}
               <b className="ws-name" title={app.ws.name}>{app.ws.name.replace(/^Example:\s*/, '')}</b>
-              <span className="tiny muted">{app.ws.kind === 'example' ? 'Example · ' : ''}{shortPeriod(app.cycle, app.week)}</span>
+              <span className="tiny muted ws-meta">{shortPeriod(app.cycle, app.week)}</span>
             </span>
-            <span aria-hidden="true" className="muted">⌄</span>
+            <Icon name="chevron-down" className="muted" />
           </button>
           {order.map((id) => (
-            <Link key={id} to={NAV[id].to} className="nav" aria-current={isActive(id, pathname) ? 'page' : undefined}>
+            <Link key={id} to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, pathname) ? 'page' : undefined}>
               {NAV[id].icon}<span>{NAV[id].label}</span>
               {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
             </Link>
           ))}
           {app.mode === 'demo' && !present && <DemoEntry onOpen={() => setSheet('demo')} />}
-          <button className="nav feedback-nav" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span>Send feedback</span></button>
+          <button className="nav feedback-nav" title="Send feedback" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span>Send feedback</span></button>
           <button className="me" onClick={openPeople}>
             <Avatar p={app.viewer} />
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
@@ -238,8 +239,9 @@ export function Shell({ children }: { children: ReactNode }) {
           {more.map((id) => (
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
-          <button className="menuitem" onClick={() => setSheet('workspace')}>{NAV.workspace.icon}<span className="stack" style={{ gap: 0 }}><span className="strong">Switch workspace</span><span className="tiny muted">{app.ws.name}</span></span></button>
-          {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><span className="strong">Demo controls</span><span className="tiny muted">See it as someone else, walkthroughs, research, reset</span></button>}
+          <Link className="menuitem" to="/import" onClick={() => setSheet(null)}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 10V2m0 0 3 3M8 2 5 5M3 12.5h10" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Import</span><span className="tiny muted">Goals, plans and past numbers from a spreadsheet</span></span></Link>
+          <button className="menuitem" onClick={() => setSheet('workspace')}><Icon name="switch" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Switch workspace</span><span className="tiny muted">{app.ws.name}</span></span></button>
+          {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.5 2" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Demo controls</span><span className="tiny muted">See it as someone else, walkthroughs, research, reset</span></span></button>}
           <button className="menuitem" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span className="strong">Send feedback</span></button>
           <button className="menuitem" onClick={openPeople}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}</span></span></button>
         </div>

@@ -10,6 +10,7 @@ import { assessPosted } from '../domain/status';
 import type { Goal, Retro } from '../domain/types';
 import { newId } from '../data/store';
 import { Chip, Empty, LevelTag, ProgressRing, Sheet } from '../ui/bits';
+import { Icon } from '../ui/Icon';
 
 const RESULTS: Retro['result'][] = ['hit', 'partly', 'missed'];
 const MIN_LEARNED = 10;
@@ -60,7 +61,7 @@ export function WrapUp() {
           <div className="hero-body">
             <h2 className="hero-title">{myLeft.length ? (myLeft.length === 1 ? '1 goal to wrap up' : `${myLeft.length} goals to wrap up`) : 'Your goals are wrapped up'}</h2>
             <span className="muted">{myLeft.length ? 'About a minute each: how it landed, one thing you learned, carry on or stop.' : `You can still change what you wrote until next ${w} starts.`}</span>
-            {myLeft.length > 0 && <div className="row" style={{ marginTop: 'var(--s2)' }}><Link className="btn primary big-btn" to={`/retro/${myLeft[0]!.id}`}>Wrap up {myLeft[0]!.title} →</Link></div>}
+            {myLeft.length > 0 && <div className="row" style={{ marginTop: 'var(--s2)' }}><Link className="btn primary big-btn" to={`/retro/${myLeft[0]!.id}`}>Wrap up {myLeft[0]!.title}</Link></div>}
           </div>
         </section>
       )}
@@ -156,7 +157,7 @@ function RetroForm({ goal }: { goal: Goal }) {
       <div className="focus-top">
         <span className="small strong">Wrap up</span>
         <span className="hint">{mineLeft.length && !before ? `${mineLeft.length} more after this` : ''}</span>
-        <button className="iconbtn" onClick={() => nav('/retro')} aria-label="Close without saving">✕</button>
+        <button className="iconbtn" onClick={() => nav('/retro')} aria-label="Close without saving"><Icon name="close" /></button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="stack" style={{ gap: 'var(--s2)' }}>

@@ -12,6 +12,7 @@ import type { Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
 import { Avatar, Chip, Empty, ProgressRing } from '../ui/bits';
 import { saveReviewOrder, TreeRow, worstFirst } from './Inspect';
+import { Icon } from '../ui/Icon';
 
 const dateText = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
@@ -154,7 +155,7 @@ export function ReviewHome() {
         <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals reviewed`} />
         <div className="hero-body">
           <span className="eyebrow">{cadence(review)}</span>
-          <h1 className="hero-title">{done ? `Review complete: ${goalsN(s.done)} reviewed` : review.name}</h1>
+          <h1 className="title-xl">{done ? `Review complete: ${goalsN(s.done)} reviewed` : review.name}</h1>
           <span className="muted">{done ? `${review.name}, ${dateText(s.date)}.` : `${thisWeek ? 'This week' : 'Next'}: ${dateText(s.date)}. Worst and stalest first.${thisWeek ? '' : ' You can start early; it counts for that session.'}`}</span>
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
             {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(walk.length)}`}</button>}
@@ -241,7 +242,7 @@ export function ReviewEdit() {
       <div className="focus-top">
         <span className="small strong">{existing ? 'Change review' : 'Set up a review'}</span>
         <span />
-        <button className="iconbtn" onClick={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} aria-label="Close without saving">✕</button>
+        <button className="iconbtn" onClick={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} aria-label="Close without saving"><Icon name="close" /></button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         {restored && <p className="hint">Picked up where you left off. Close to throw these changes away.</p>}
