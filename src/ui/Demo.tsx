@@ -33,7 +33,7 @@ export function DemoEntry({ onOpen, compact }: { onOpen: () => void; compact?: b
   const app = useApp();
   const { role } = personaOf(app.viewer, app);
   return (
-    <button type="button" className={compact ? 'demo-entry compact' : 'demo-entry'} onClick={onOpen}>
+    <button type="button" className={compact ? 'demo-entry compact' : 'demo-entry'} title={`Demo: viewing as ${role}, ${app.viewer.name}`} onClick={onOpen}>
       <span className="demo-word">Demo</span>
       {!compact && <span className="demo-as">{role} · {app.viewer.name.split(' ')[0]}</span>}
       <span className="sr">{compact ? `, viewing as ${role}, ${app.viewer.name}` : ''}: open the demo controls</span>

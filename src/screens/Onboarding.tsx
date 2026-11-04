@@ -14,6 +14,7 @@ import { currentWeek } from '../domain/plan';
 import { Steps } from '../ui/bits';
 import { overHundredHint } from '../domain/goal';
 import { targetText } from '../domain/format';
+import { Icon } from '../ui/Icon';
 
 interface PersonRow { name: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string }
@@ -195,7 +196,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
       <div className="focus-top">
         <span className="small strong">Set up</span>
         <Steps at={shownStep} of={7} label={STEP_LABELS[d.step]} />
-        <button className="iconbtn" onClick={close} aria-label="Close and keep what you’ve typed">✕</button>
+        <button className="iconbtn" onClick={close} aria-label="Close and keep what you’ve typed"><Icon name="close" /></button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
         {restored && <p className="hint">Picked up where you left off. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></p>}
@@ -256,7 +257,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                     }} />
                   <input className="input" aria-label={`Person ${i + 1}: team`} value={r.team} placeholder={d.me.team || 'Team'} list="teams" onChange={(e) => updatePerson(i, { team: e.target.value })} />
                   <label className="pg-check"><input type="checkbox" aria-label={`Person ${i + 1}: admin`} checked={r.admin} onChange={(e) => updatePerson(i, { admin: e.target.checked })} /></label>
-                  <button type="button" className="iconbtn" aria-label={`Remove person ${i + 1}`} onClick={() => set({ people: d.people.length > 1 ? d.people.filter((_, k) => k !== i) : [blankPerson()] })}>✕</button>
+                  <button type="button" className="iconbtn" aria-label={`Remove person ${i + 1}`} onClick={() => set({ people: d.people.length > 1 ? d.people.filter((_, k) => k !== i) : [blankPerson()] })}><Icon name="close" /></button>
                   {personIssue(i) && <span className="pg-issue hint tone-off" role="alert">{personIssue(i)}</span>}
                 </div>
               ))}
@@ -409,7 +410,7 @@ function StageRows({ value, onChange, goalName }: { value: string; onChange: (v:
           <div key={i} className="row nowrap" style={{ alignItems: 'center' }}>
             <input className="input" style={{ flex: '3 1 160px' }} value={r.name} placeholder={`Stage ${i + 1}`} aria-label={`${goalName}: stage ${i + 1} name`} onChange={(e) => save(list.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))} />
             <input className="input" style={{ flex: '0 0 84px' }} inputMode="numeric" value={r.week} placeholder="Week" aria-label={`${goalName}: stage ${i + 1} due week`} onChange={(e) => save(list.map((x, k) => (k === i ? { ...x, week: e.target.value.replace(/\D/g, '') } : x)))} />
-            {list.length > 1 && <button type="button" className="iconbtn" aria-label={`Remove stage ${i + 1}`} onClick={() => save(list.filter((_, k) => k !== i))}>✕</button>}
+            {list.length > 1 && <button type="button" className="iconbtn" aria-label={`Remove stage ${i + 1}`} onClick={() => save(list.filter((_, k) => k !== i))}><Icon name="close" /></button>}
           </div>
         ))}
         <div><button type="button" className="btn sm" onClick={() => save([...list, { name: '', week: '' }])}>Add a stage</button></div>

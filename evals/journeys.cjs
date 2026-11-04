@@ -1343,12 +1343,12 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await h.fill(title, 'Staff engineer, DevEx');
   await h.click(p.getByRole('tab', { name: /Check-ins/ }));
   // Property filters: a goal from its list of values, and a number condition; then sort by a column.
-  await h.click(p.getByRole('button', { name: '+ Filter' }));
+  await h.click(p.getByRole('button', { name: 'Filter', exact: true }));
   let sheet = p.getByRole('dialog', { name: 'Add a filter' });
   await sheet.getByLabel('Property').selectOption('Goal');
   await h.click(sheet.getByLabel('PRs with AI code review'));
   await h.click(sheet.getByRole('button', { name: 'Add filter' }));
-  await h.click(p.getByRole('button', { name: '+ Filter' }));
+  await h.click(p.getByRole('button', { name: 'Filter', exact: true }));
   sheet = p.getByRole('dialog', { name: 'Add a filter' });
   await sheet.getByLabel('Property').selectOption('Week');
   await sheet.getByLabel('Condition').selectOption('gte');
@@ -1848,9 +1848,9 @@ async function platformChecks() {
           if (/(^|, )[^,]*?([2-9]|\d{2})(\.\d+)?px 0px 0px 0px inset|0px ([2-9]|\d{2})px 0px 0px inset/.test(cs.boxShadow)) out.push(name(el) + ': an inset accent bar');
           if (/gradient/.test(cs.backgroundImage) && !el.closest('.skeleton')) out.push(name(el) + ': a gradient');
           if (parseFloat(cs.borderTopLeftRadius) >= 999 && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && /result|status|state|badge/.test(String(el.className)) && !/^\s*\d+\s*$/.test(el.textContent || '')) out.push(name(el) + ': a capsule badge for a state');
-          for (const pseudo of ['::before', '::after']) { const c = getComputedStyle(el, pseudo).content; if (/[⚠✓✗✔❌⭐🔥★]/.test(c)) out.push(name(el) + pseudo + ': a glyph used as an icon'); }
+          for (const pseudo of ['::before', '::after']) { const c = getComputedStyle(el, pseudo).content; if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(c)) out.push(name(el) + pseudo + ': a glyph used as an icon'); }
         }
-        if (/[⚠✓✗✔❌⭐🔥★]/.test(document.body.innerText)) out.push('text: a glyph used as an icon');
+        if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(document.body.innerText)) out.push('text: a glyph used as an icon');
         return [...new Set(out)];
       });
       found.forEach((x) => design.push(`${device} ${route}: ${x}`));
@@ -1953,6 +1953,46 @@ async function platformChecks() {
     await c8.close();
   }
   add('P9', ['EVERY-WIDTH'], 'Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width', !widths.length, widths.slice(0, 8).join(' | '));
+  // P10: fit and finish (review of 4 Nov), re-measured: text follows the browser's size, one control height, phone
+  // rows and toolbars that stack, a usable rail, no sideways scroll in a review, and one left edge for every layout.
+  const finish = [];
+  {
+    const at = async (w, h, who, path, touch) => {
+      const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch });
+      const r = await c.newPage();
+      await r.goto(url('/')); await r.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), who);
+      await r.goto(url(path)); await r.waitForTimeout(400);
+      return [c, r];
+    };
+    let [c, r] = await at(1280, 800, 'elena', '/activity');
+    const sizes = await r.evaluate(() => { const b = parseFloat(getComputedStyle(document.body).fontSize); document.documentElement.style.fontSize = '24px'; return [b, parseFloat(getComputedStyle(document.body).fontSize)]; });
+    if (!(sizes[1] > sizes[0] * 1.4)) finish.push(`text does not follow the browser's size: ${sizes.join(' → ')}px`);
+    await r.evaluate(() => { document.documentElement.style.fontSize = ''; });
+    const hs = await r.evaluate(() => [...new Set([...document.querySelectorAll('.page .btn:not(.sm):not(.big-btn), .page .input:not(textarea)')].filter((e) => e.getClientRects().length).map((e) => Math.round(e.getBoundingClientRect().height)))]);
+    if (hs.length > 1) finish.push(`Activity controls come in ${hs.join(', ')}px`);
+    await c.close();
+    [c, r] = await at(360, 740, 'elena', '/goals?view=table', true);
+    const gw = await r.evaluate(() => Math.min(...[...document.querySelectorAll('.gtable td.gt-goal')].map((t) => t.getBoundingClientRect().width)));
+    if (gw < 200) finish.push(`360px Goals table: a goal name gets ${Math.round(gw)}px`);
+    await r.goto(url('/data')); await r.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'priya')); await r.reload(); await r.waitForTimeout(400);
+    const sw = await r.evaluate(() => document.querySelector('.filter-search .input')?.getBoundingClientRect().width ?? 0);
+    if (sw < 280) finish.push(`360px Data search is ${Math.round(sw)}px wide`);
+    await c.close();
+    [c, r] = await at(1024, 768, 'elena', '/reviews/weekly', true);
+    const go = r.getByRole('link', { name: /Start|Continue|Open/ }).first(); if (await go.count()) { await go.click(); await r.waitForTimeout(500); }
+    const rv = await r.evaluate(() => { const d = document.querySelector('.side .demo-entry')?.getBoundingClientRect(); return { side: document.documentElement.scrollWidth - innerWidth, demo: d ? [Math.round(d.width), Math.round(d.height)] : null, titles: [...document.querySelectorAll('.side .nav')].filter((n) => !n.getAttribute('title')).length }; });
+    if (rv.side > 1) finish.push(`1024px review scrolls sideways by ${rv.side}px`);
+    if (!rv.demo || rv.demo[0] > 48 || rv.demo[1] < 44) finish.push(`1024px rail Demo box is ${rv.demo}`);
+    if (rv.titles) finish.push(`${rv.titles} rail icons have no name on hover`);
+    await c.close();
+    [c, r] = await at(1440, 700, 'elena', '/goals');
+    const lx = await r.evaluate(() => Math.round(document.querySelector('.goals-head h1').getBoundingClientRect().left));
+    await r.goto(url('/goals?view=table')); await r.waitForTimeout(400);
+    const tx = await r.evaluate(() => Math.round(document.querySelector('.goals-head h1').getBoundingClientRect().left));
+    if (lx !== tx) finish.push(`Goals moves ${Math.abs(lx - tx)}px between List and Table`);
+    await c.close();
+  }
+  add('P10', ['FIT-AND-FINISH'], 'Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge', !finish.length, finish.join(' | '));
   add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
   return out;

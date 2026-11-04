@@ -12,6 +12,7 @@ import { Empty } from '../ui/bits';
 import { PlanTable } from '../ui/PlanTable';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { parseNumber } from '../domain/checkin';
+import { Icon } from '../ui/Icon';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
 const LEVELS: [Level, string][] = [['team', 'Most goals'], ['svp', 'Reported at SVP reviews'], ['north-star', 'Reported at the top']];
@@ -80,7 +81,7 @@ function EditSheet({ goal }: { goal: Goal }) {
       <div className="focus-top">
         <span className="field-label">Edit goal</span>
         <span />
-        <button className="iconbtn" onClick={back} aria-label="Close and keep the draft">✕</button>
+        <button className="iconbtn" onClick={back} aria-label="Close and keep the draft"><Icon name="close" /></button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}
@@ -140,10 +141,10 @@ function EditSheet({ goal }: { goal: Goal }) {
                 <div key={s.id} className="row nowrap" style={{ alignItems: 'flex-end' }}>
                   <label className="field" style={{ flex: '3 1 180px' }}><span className="sr">Stage {i + 1}</span><input className="input" value={s.name} aria-label={'Stage ' + (i + 1)} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x)) })} placeholder="Stage name" /></label>
                   <label className="field" style={{ flex: '0 0 84px' }}><span className="sr">Due week</span><input className="input" inputMode="numeric" aria-label={'Stage ' + (i + 1) + ' due week'} value={s.dueWeek} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, dueWeek: e.target.value } : x)) })} placeholder="Week" /></label>
-                  {d.stages.length > 1 && <button type="button" className="iconbtn" onClick={() => set({ stages: d.stages.filter((x) => x.id !== s.id) })} aria-label={'Remove stage ' + (i + 1)}>✕</button>}
+                  {d.stages.length > 1 && <button type="button" className="iconbtn" onClick={() => set({ stages: d.stages.filter((x) => x.id !== s.id) })} aria-label={'Remove stage ' + (i + 1)}><Icon name="close" /></button>}
                 </div>
               ))}
-              <div><button type="button" className="btn sm" onClick={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })}>+ Add a stage</button></div>
+              <div><button type="button" className="btn sm" onClick={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })}><Icon name="plus" />Add a stage</button></div>
               {err('stages')}
             </div>
           )}
@@ -182,7 +183,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           <div className="field"><span className="field-label">Also helps <span className="hint">optional · a dotted line on the map</span></span>
             {(d.alsoHelps ?? []).length > 0 && (
               <span className="row" style={{ gap: 'var(--s2)' }}>{(d.alsoHelps ?? []).map((id) => (
-                <span key={id} className="chip tag">{app.goal(id)?.title ?? id} <button type="button" className="linkish small" aria-label={`Remove ${app.goal(id)?.title ?? id}`} onClick={() => set({ alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })}>✕</button></span>
+                <span key={id} className="chip tag">{app.goal(id)?.title ?? id} <button type="button" className="linkish small" aria-label={`Remove ${app.goal(id)?.title ?? id}`} onClick={() => set({ alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })}><Icon name="close" /></button></span>
               ))}</span>
             )}
             <select className="input" value="" aria-label="Add a goal it also helps" onChange={(e) => e.target.value && set({ alsoHelps: [...(d.alsoHelps ?? []), e.target.value] })}>

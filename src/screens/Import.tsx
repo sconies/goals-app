@@ -134,7 +134,7 @@ export function Preview({ cs, name, reason, setReason, busy, onApply, onAgain, a
         </section>
       )}
 
-      <div className="foot-row">
+      <div className="foot-row import-foot">
         <button type="button" className="btn ghost big-btn" onClick={onAgain}>{againLabel}</button>
         <button type="button" className="btn primary big-btn" disabled={!cs.commit || busy} onClick={onApply}>{busy ? 'Saving…' : total ? `Save ${total} ${total === 1 ? 'change' : 'changes'}` : 'Nothing to save'}</button>
       </div>

@@ -15,6 +15,7 @@ import { Empty, Steps } from '../ui/bits';
 import { MetricChart } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { weekDates, yearEndWeek } from '../domain/plan';
+import { Icon } from '../ui/Icon';
 
 const KINDS: [GoalKind, string, string, string][] = [
   ['metric', 'Move a number', 'From where it is to where it should be', 'e.g. Lead time from 4.2 to 2 days'],
@@ -47,7 +48,7 @@ export function GoalWizard() {
         <div className="focus-top">
           <span className="small strong">New goal</span>
           <span />
-          <button className="iconbtn" onClick={() => nav('/goals')} aria-label="Close">✕</button>
+          <button className="iconbtn" onClick={() => nav('/goals')} aria-label="Close"><Icon name="close" /></button>
         </div>
         <div className="focus-body">
           <h1 className="qtitle big">You have a goal you didn’t publish</h1>
@@ -134,7 +135,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
       <div className="focus-top">
         <span className="small strong">{existing ? 'Edit goal' : 'New goal'}</span>
         <Steps at={step + 1} of={4} label={STEP_LABELS[step]} />
-        <button className="iconbtn" onClick={() => nav(existing ? '/goals/' + existing.id : '/goals')} aria-label="Close and keep the draft">✕</button>
+        <button className="iconbtn" onClick={() => nav(existing ? '/goals/' + existing.id : '/goals')} aria-label="Close and keep the draft"><Icon name="close" /></button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromSummary ? 3 : step + 1); else void publish(); }} noValidate>
         {restored && <div className="restored small">Restored your unsaved draft. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></div>}
@@ -181,7 +182,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 </div>
                 <div className="row" style={{ alignItems: 'flex-start' }}>
                   <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Today (week {existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>
-                  <span className="arrow" aria-hidden="true">→</span>
+                  <span className="arrow"><Icon name="arrow-right" /></span>
                   <label className="field" style={{ flex: '1 1 140px' }}><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}{overHundredHint(d.unit, d.start, d.target) && <span className="hint tone-risk" role="status">{overHundredHint(d.unit, d.start, d.target)}</span>}</label>
                 </div>
                 <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
@@ -221,10 +222,10 @@ function Wizard({ existing }: { existing: Goal | null }) {
                   <div key={s.id} className="row nowrap" style={{ alignItems: 'flex-end' }}>
                     <label className="field" style={{ flex: '3 1 200px' }}><span className="small strong">Stage {i + 1}</span><input className="input" value={s.name} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x)) })} placeholder="e.g. Threat model" /></label>
                     <label className="field" style={{ flex: '0 0 96px' }}><span className="small strong" aria-hidden="true">Week</span><input className="input" inputMode="numeric" aria-label={`Stage ${i + 1}: due week`} value={s.dueWeek} onChange={(e) => set({ stages: d.stages.map((x) => (x.id === s.id ? { ...x, dueWeek: e.target.value } : x)) })} /></label>
-                    {d.stages.length > 1 && <button type="button" className="iconbtn" onClick={() => set({ stages: d.stages.filter((x) => x.id !== s.id) })} aria-label={'Remove stage ' + (i + 1)}>✕</button>}
+                    {d.stages.length > 1 && <button type="button" className="iconbtn" onClick={() => set({ stages: d.stages.filter((x) => x.id !== s.id) })} aria-label={'Remove stage ' + (i + 1)}><Icon name="close" /></button>}
                   </div>
                 ))}
-                <div><button type="button" className="btn sm" onClick={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })}>+ Add a stage</button></div>
+                <div><button type="button" className="btn sm" onClick={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })}><Icon name="plus" />Add a stage</button></div>
                 {showErr('stages')}
               </div>
             )}
@@ -295,7 +296,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
           {step > 0 && <button type="button" className="btn" onClick={() => set({ step: step - 1 })}>Back</button>}
           <span style={{ flex: 1 }} />
           {existing && step < 3 && <button type="button" className="btn" onClick={() => void publish()} disabled={saving}>Save now</button>}
-          <button className="btn primary big-btn" type="submit" disabled={saving}>{saving ? 'Saving…' : step < 3 ? 'Continue →' : existing ? 'Save changes' : 'Publish goal'}</button>
+          <button className="btn primary big-btn" type="submit" disabled={saving}>{saving ? 'Saving…' : step < 3 ? 'Continue' : existing ? 'Save changes' : 'Publish goal'}</button>
         </div>
       </form>
     </div>

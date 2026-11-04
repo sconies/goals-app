@@ -10,6 +10,7 @@ import {
 } from '../domain/query';
 import type { Level, SavedView } from '../domain/types';
 import { Sheet } from '../ui/bits';
+import { Icon } from '../ui/Icon';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
 const VIEW_KEYS = ['show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
@@ -85,7 +86,7 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
         <div className="filter-chips" aria-label="Active filters">
           {active && <span className="small strong">{active.name}{active.pinned ? ' · pinned for everyone' : ''}</span>}
           {narrowed && <span className="small" role="status">{count} of {total} {total === 1 ? 'goal' : 'goals'}</span>}
-          {chips.map((c) => <button key={c.key} type="button" className="filter-chip" aria-label={`Remove filter: ${c.text}`} onClick={() => setQ((cur) => without(cur, c.key))}>{c.text}<span aria-hidden="true"> ✕</span></button>)}
+          {chips.map((c) => <button key={c.key} type="button" className="filter-chip" aria-label={`Remove filter: ${c.text}`} onClick={() => setQ((cur) => without(cur, c.key))}>{c.text}<Icon name="close" size={12} className="chip-x" /></button>)}
           {!narrowed && q.sort && !active && <span className="small">{SORT_OPTIONS.find(([k]) => k === q.sort)?.[1]}{q.dir === -1 ? ', reversed' : ''}</span>}
           {narrowed && <button type="button" className="linkish small" onClick={() => setQ((cur) => ({ ...EMPTY_QUERY, sort: cur.sort, dir: cur.dir }))}>Clear filters</button>}
           <span className="filter-chip-actions">
@@ -190,7 +191,7 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
         {checks('Level', levels, 'level')}
         {checks('Team', app.snapshot.teams.map((t) => [t.id, t.name] as [string, string]), 'team')}
         <fieldset className="filter-group"><legend className="field-label">Owner</legend>
-          <span className="filter-options">{q.owner.map((id) => <button key={id} type="button" className="filter-chip" aria-label={`Remove owner ${app.person(id)?.name}`} onClick={() => setQ((cur) => ({ ...cur, owner: cur.owner.filter((x) => x !== id) }))}>{app.person(id)?.name}<span aria-hidden="true"> ✕</span></button>)}</span>
+          <span className="filter-options">{q.owner.map((id) => <button key={id} type="button" className="filter-chip" aria-label={`Remove owner ${app.person(id)?.name}`} onClick={() => setQ((cur) => ({ ...cur, owner: cur.owner.filter((x) => x !== id) }))}>{app.person(id)?.name}<Icon name="close" size={12} className="chip-x" /></button>)}</span>
           <input className="input" type="search" placeholder="Find an owner" value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Find an owner" />
           {match.length > 0 && <span className="filter-options">{match.map((p) => <button key={p.id} type="button" className="btn sm" onClick={() => { setQ((cur) => ({ ...cur, owner: [...cur.owner, p.id] })); setOwner(''); }}>{p.name}</button>)}</span>}
         </fieldset>

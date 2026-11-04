@@ -85,7 +85,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
               <h2 className="hero-title">{p.due.length === 1 ? '1 check-in to do' : `${p.due.length} check-ins to do`}</h2>
               <span className="muted">About {minutes} min · {p.due.map((g) => g.title).join(', ')}</span>
               <div className="row" style={{ marginTop: 8 }}>
-                <Link className="btn primary big-btn" to="/check-in">{resuming ? 'Pick up where you left off' : 'Start check-in'} →</Link>
+                <Link className="btn primary big-btn" to="/check-in">{resuming ? 'Pick up where you left off' : 'Start check-in'}</Link>
               </div>
               {p.due.filter((g) => g.kind !== 'milestone').length >= 2 && <Link className="linkish small" to="/quick-check-in">Or type all your numbers in one table</Link>}
             </>
@@ -94,7 +94,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
               <span className="eyebrow">{app.week >= app.cycle.weeks ? `The ${periodWord(app.cycle)} has ended` : `The ${periodWord(app.cycle)} ends next week`}</span>
               <h2 className="hero-title">Wrap up {wrapLeft.length === 1 ? 'your goal' : `your ${wrapLeft.length} goals`}</h2>
               <span className="muted">How each one landed, one thing you learned, and whether it carries on. About a minute each.</span>
-              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/retro/${wrapLeft[0]!.id}`}>Start the wrap-up →</Link></div>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/retro/${wrapLeft[0]!.id}`}>Start the wrap-up</Link></div>
             </>
           ) : myReview ? (
             <>
@@ -110,8 +110,8 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
                     <span className="muted">{mine.length ? 'Your check-ins are in. ' : ''}{discuss.length && healthy.length ? `${healthy.length} more ${healthy.length === 1 ? 'is' : 'are'} on track with nothing flagged: mark them together at the end.` : 'Worst and stalest first, one at a time.'}</span>
                     <div className="row" style={{ marginTop: 8 }}>
                       {resume && next
-                        ? <Link className="btn primary big-btn" to={`/goals/${next.goal.id}?review=${myReview.review.id}`} onClick={() => saveReviewOrder(app.ws.id, myReview.review.id, myReview.week, discuss.map((a) => a.goal.id))}>Continue: {next.goal.title} →</Link>
-                        : <Link className="btn primary big-btn" to={`/reviews/${myReview.review.id}`}>{myReview.done ? 'Continue the review' : 'Open the review'} →</Link>}
+                        ? <Link className="btn primary big-btn" to={`/goals/${next.goal.id}?review=${myReview.review.id}`} onClick={() => saveReviewOrder(app.ws.id, myReview.review.id, myReview.week, discuss.map((a) => a.goal.id))}>Continue: {next.goal.title}</Link>
+                        : <Link className="btn primary big-btn" to={`/reviews/${myReview.review.id}`}>{myReview.done ? 'Continue the review' : 'Open the review'}</Link>}
                     </div>
                   </>
                 );

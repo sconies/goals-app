@@ -14,6 +14,7 @@ import { summarise } from '../domain/summary';
 import type { DisplayStatus, Goal } from '../domain/types';
 import { Chip, StatusShape } from '../ui/bits';
 import { StoryLines } from './GoalViews';
+import { Icon } from '../ui/Icon';
 
 type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: string | null; children: number; collapsed: boolean; critical: boolean; context: boolean; onToggle: (id: string) => void };
 
@@ -27,7 +28,7 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
       <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${owner}${goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}`}</span>
       {children > 0 && (
         <button type="button" className="map-toggle nodrag" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Show' : 'Hide'} the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>
-          {collapsed ? `+ ${children}` : '−'}
+          {collapsed ? <><Icon name="plus" size={12} />{children}</> : <Icon name="minus" size={12} />}
         </button>
       )}
       <Handle type="source" id="top" position={Position.Top} isConnectable={false} />
@@ -176,7 +177,7 @@ function MapPanel({ goal, onClose, critical, focus }: { goal: Goal; onClose: () 
   const feeds = app.snapshot.goals.filter((g) => g.parentId === goal.id);
   return (
     <aside className="map-panel" aria-label={goal.title} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
-      <div className="row between nowrap"><Chip k={s.status} /><button type="button" className="iconbtn" aria-label="Close" onClick={onClose}>✕</button></div>
+      <div className="row between nowrap"><Chip k={s.status} /><button type="button" className="iconbtn" aria-label="Close" onClick={onClose}><Icon name="close" /></button></div>
       <h2 className="block-title" ref={title} tabIndex={-1}>{goal.title}</h2>
       <Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link>
       <span className="hint">{s.owner} · {s.team}{s.story.feeds ? ` · ${s.story.feeds}` : ''}</span>

@@ -119,7 +119,7 @@ export function GoalsScreen() {
           <div className="row view-bar">
             <LayoutSwitch layout={layout} onChange={setLayout} />
             <span className="row" style={{ gap: 'var(--s2)' }}>
-              <Link className="btn sm" to="/import"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 10V2m0 0 3 3M8 2 5 5M3 12.5h10" /></svg><span className="btn-label">Import</span></Link>
+              <Link className="btn sm import-btn" to="/import"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 10V2m0 0 3 3M8 2 5 5M3 12.5h10" /></svg><span className="btn-label">Import</span></Link>
               <ExportButton goals={shown} viewName={tabs.find(([k]) => k === show)?.[1] ?? 'Goals'} />
             </span>
           </div>
@@ -128,7 +128,7 @@ export function GoalsScreen() {
 
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
       <FirstReports />
-      {refined && shown.length === 0 && <div className="calm">No goals match. Remove a filter above, or clear them.</div>}
+      {refined && shown.length === 0 && <div className="empty-result"><span>No goals match. Remove a filter above, or clear them.</span><button type="button" className="btn" onClick={() => { const p = new URLSearchParams(); for (const k of ['today', 'store', 'view']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>Clear search and filters</button></div>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
       {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
@@ -205,7 +205,7 @@ export function GoalsScreen() {
 
       {!alt && !refined && show === 'mine' && <div className="glist">{mine.map((g) => <GoalLine key={g.id} g={g} />)}</div>}
       {/* The key sits after the goals: every row already shows its status in words. */}
-      {app.snapshot.goals.length > 0 && layout !== 'map' && <StatusLegend />}
+      {app.snapshot.goals.length > 0 && shown.length > 0 && layout !== 'map' && <StatusLegend />}
     </div>
   );
 }

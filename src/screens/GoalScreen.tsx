@@ -18,6 +18,7 @@ import { ReviewBar, ReviewCallBar, TreeRow, TreeRows, useReview, WatchButton, wo
 import { RespondSheet } from './Respond';
 import { criticalPath, threatReason } from '../domain/map';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
+import { Icon } from '../ui/Icon';
 
 export function GoalScreen() {
   const app = useApp();
@@ -139,7 +140,7 @@ function GoalView({ goal }: { goal: Goal }) {
       <ReviewBar goalId={goal.id} />
       {!compact && <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/goals">Goals</Link>
-        {path.map((p) => <span key={p.id} className="row" style={{ gap: 'var(--s1)' }}><span aria-hidden="true">›</span><Link to={'/goals/' + p.id}>{p.title}</Link></span>)}
+        {path.map((p) => <span key={p.id} className="row" style={{ gap: 'var(--s1)' }}><Icon name="chevron-right" className="muted" /><Link to={'/goals/' + p.id}>{p.title}</Link></span>)}
       </nav>}
       <div className="row between" style={{ alignItems: 'flex-start' }}>
         <span className="stack" style={{ gap: 6, minWidth: 0 }}>
@@ -186,7 +187,7 @@ function GoalView({ goal }: { goal: Goal }) {
         {stale && !isOwner && (asked
           ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(asked.at, app.today)}{asked.actorId !== app.viewer.id ? ` (${app.person(asked.actorId)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s on their Home until they check in.{asked.actorId === app.viewer.id && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
           : <div><button type="button" className="btn sm" disabled={asking} onClick={() => void askForUpdate()}>Ask {ownerFirst} for an update</button></div>)}
-        {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <span aria-hidden="true">↘ </span>}{fc.warn && (st.status === 'on' || st.status === 'done') ? 'On track means on plan this week. ' : ''}{fc.text}</span>}
+        {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <Icon name="trend-down" />}{fc.warn && (st.status === 'on' || st.status === 'done') ? 'On track means on plan this week. ' : ''}{fc.text}</span>}
         {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
       </section>
       {threats.length > 0 && (
