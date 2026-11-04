@@ -280,18 +280,29 @@ export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean 
   const owner = app.person(g.ownerId);
   const fresh = freshness(g, app);
   const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? '—' : fmt(a.actual, g);
+  const result = goalResult(g, app.cycle, app.snapshot.checkIns, app.week);
+  const why = `${moved?.worse ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}. ` : ''}${flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}`;
   return (
     <Link to={'/goals/' + g.id} className="trow" data-tone={st.status}>
       {/* Status is always a shape and a word, in a slot of its own so they line up down a list. */}
       <span className={'trow-icon tone-' + st.status}><StatusShape k={st.status} /><span className="trow-status">{LABEL[st.status]}</span></span>
       <span className="trow-main">
-        <span className="trow-title">{g.title}<LevelTag level={g.level} />{(() => { const r = goalResult(g, app.cycle, app.snapshot.checkIns, app.week); return r ? <span className={'result-tag result-' + r.kind}>{RESULT_TEXT[r.kind]}</span> : null; })()}</span>
-        <span className="trow-why">
+        <span className="trow-title"><span className="trow-name">{g.title}</span><LevelTag level={g.level} /></span>
+        {/* The whole reason is in the title when a wide row clamps it to three lines. */}
+        <span className="trow-why" title={why}>
           {moved?.worse && <span className="tone-risk">Was {LABEL[moved.from].toLowerCase()} in week {moved.week}. </span>}
           {flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}
         </span>
       </span>
-      <span className="trow-now"><span>{now}</span><span className={'tone-' + (st.status === 'stale' ? 'stale' : gap.tone)}>{st.status === 'stale' ? 'no recent update' : gap.short}</span></span>
+      {/* The value, how it stands against the plan, and a missed result in words under them. A goal gone quiet says when
+          its number is from, rather than repeating "no recent update". */}
+      <span className="trow-now">
+        <span>{now}</span>
+        {st.status === 'stale'
+          ? (st.latest ? <span className="trow-asof">as of week {st.latest.week}</span> : null)
+          : <span className={'tone-' + gap.tone}>{gap.short}</span>}
+        {result && <span className={'result-tag result-' + result.kind}>{RESULT_TEXT[result.kind]}</span>}
+      </span>
       {g.level !== 'team' && <span className="sr">{LEVEL_LABEL[g.level]} level</span>}
     </Link>
   );
