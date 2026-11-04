@@ -959,6 +959,8 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await h.click(p.getByLabel('Select Alerts auto-triaged by AIOps').first());
   await h.click(p.getByLabel('Select Build cache hit rate').first());
   await see(p, '2 selected');
+  // On a phone the bulk actions share one Actions menu, so the bar stays one row (fit and finish, L&T 6).
+  if (device === 'phone') await h.click(p.locator('.selbar-menu > summary'));
   await h.click(p.getByRole('button', { name: 'Change level' }));
   await p.getByRole('dialog').getByLabel('Level').selectOption('svp');
   await h.checkpoint('bulk level');
@@ -1221,7 +1223,8 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
   h.set('progress', rows === 2 && (await p.getByRole('button', { name: /Remove filter: Recovery date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
-  // Save it: a name is needed; then it's a tab of its own.
+  // Save it: a name is needed; then it's a tab of its own. On a phone, saving and sharing are in one View menu (L&T 23).
+  if (device === 'phone') await h.click(p.locator('.filter-view-menu > summary'));
   await h.click(p.getByRole('button', { name: 'Save view' }));
   const save = p.getByRole('dialog', { name: 'Save this view' });
   await h.click(save.getByRole('button', { name: 'Save view' }));
@@ -1233,9 +1236,11 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   h.set('finish', (await tab.getAttribute('aria-selected')) === 'true', 'the saved view is not shown as the current one');
   const s = await h.snapshot();
   h.set('logged', (s.views ?? []).some((v) => v.name === 'Slipped dates' && v.params.includes('needs=slipped') && v.params.includes('view=table') && !v.deletedAt), 'the view was not saved with its filters and layout');
-  // Back later: plain Goals, then the view's tab brings it all back.
+  // Back later: plain Goals, then the view, from the Views menu, brings it all back (saved views wait in one menu
+  // rather than adding tabs that run off a phone's screen, L&T 2).
   await p.goto(url('/goals?view=list'));
-  await h.click(p.getByRole('tab', { name: /Slipped dates/ }));
+  await h.click(p.locator('.views-menu > summary'));
+  await h.click(p.getByRole('button', { name: /Slipped dates/ }));
   await see(p, '2 of 13 goals', 'opening the saved view did not bring its filters back');
   // A shared link opens the same goals for anyone.
   const other = await newPage(device, 'maya');
@@ -1244,7 +1249,8 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await other.context().close();
   // Delete it: the tab goes.
   // Rename, pin and delete live in one menu, not beside the filters.
-  await p.getByText('Manage view', { exact: true }).click();
+  if (device === 'phone') await p.locator('.filter-view-menu > summary').click();
+  else await p.getByText('Manage view', { exact: true }).click();
   await p.getByRole('button', { name: 'Delete' }).click();
   await tab.waitFor({ state: 'detached' });
   await p.context().close();
