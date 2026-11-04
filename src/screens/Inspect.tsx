@@ -54,7 +54,7 @@ export function ReviewBar({ goalId }: { goalId: string }) {
         <span className="small strong ellipsis">{rv.review.name}</span>
         <span className="hint">Goal {rv.index + 1} of {rv.total} · {rv.done} reviewed</span>
       </span>
-      <div className="bar ok" aria-hidden="true"><i style={{ width: `${rv.total ? (rv.done / rv.total) * 100 : 100}%` }} /></div>
+      <div className="bar ok reviewbar-track" aria-hidden="true"><i style={{ width: `${rv.total ? (rv.done / rv.total) * 100 : 100}%` }} /></div>
       <button className="iconbtn" aria-label="Previous goal" disabled={rv.index <= 0} onClick={rv.prev}><Icon name="chevron-left" /></button>
       <button className="iconbtn" aria-label="Next goal, without reviewing this one" onClick={rv.next}><Icon name="chevron-right" /></button>
       <button className="iconbtn" aria-label="Close the review" onClick={() => nav(`/reviews/${rv.review!.id}`)}><Icon name="close" /></button>
@@ -105,7 +105,8 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
       <div className="quiet-links">
         {!own && <button type="button" className="linkish" onClick={() => setMode('ask')}>Ask {owner} a question</button>}
         <button type="button" className="linkish" onClick={() => setMode('action')}>Add an action</button>
-        {!reviewed && <button type="button" className="linkish" onClick={rv.next}>Skip for now</button>}
+        {/* On a phone the review bar's next arrow does this; the row keeps to what the review says. */}
+        {!reviewed && <button type="button" className="linkish skip-now" onClick={rv.next}>Skip for now</button>}
       </div>
       {mode && <SayComposer goal={goal} mode={mode} existing={editing} onClose={() => { setMode(null); setEditing(null); }} onSaved={() => { setMode(null); setEditing(null); app.toast(`${label[mode][0]!.toUpperCase() + label[mode].slice(1)} saved on ${goal.title}`); }} />}
     </div>
@@ -137,9 +138,9 @@ function SayComposer({ goal, mode, existing, onClose, onSaved }: { goal: Goal; m
     <Sheet open onClose={onClose} title={`${title}: ${goal.title}`}>
       <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
         <span className="hint">In {rv.review?.name}. {mode === 'ask' ? `${owner} sees it on Home and on the goal.` : 'It stays on this goal and in the review’s record.'}</span>
-        <label className="field"><span className="sr">{title}</span>
+        <label className="field"><span className="field-label composer-label">{mode === 'ask' ? `Your question for ${owner}` : mode === 'action' ? 'The action' : 'Your note'}</span>
           <textarea className={'input' + (tried && text.trim().length < 3 ? ' invalid' : '')} rows={3} value={text} onChange={(e) => setText(e.target.value)} enterKeyHint="send"
-            placeholder={mode === 'ask' ? 'e.g. What would it take to land the interim scope by week 8?' : mode === 'action' ? 'What needs doing' : 'What the review said'} aria-label={title} />
+            placeholder={mode === 'ask' ? 'e.g. What would it take to land the interim scope by week 8?' : mode === 'action' ? 'What needs doing' : 'What the review said'} />
           {tried && text.trim().length < 3 && <span className="hint tone-off" role="alert">Write a few words first.</span>}
         </label>
         {mode === 'action' && (
@@ -280,18 +281,29 @@ export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean 
   const owner = app.person(g.ownerId);
   const fresh = freshness(g, app);
   const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? '—' : fmt(a.actual, g);
+  const result = goalResult(g, app.cycle, app.snapshot.checkIns, app.week);
+  const why = `${moved?.worse ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}. ` : ''}${flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}`;
   return (
     <Link to={'/goals/' + g.id} className="trow" data-tone={st.status}>
       {/* Status is always a shape and a word, in a slot of its own so they line up down a list. */}
       <span className={'trow-icon tone-' + st.status}><StatusShape k={st.status} /><span className="trow-status">{LABEL[st.status]}</span></span>
       <span className="trow-main">
-        <span className="trow-title">{g.title}<LevelTag level={g.level} />{(() => { const r = goalResult(g, app.cycle, app.snapshot.checkIns, app.week); return r ? <span className={'result-tag result-' + r.kind}>{RESULT_TEXT[r.kind]}</span> : null; })()}</span>
-        <span className="trow-why">
+        <span className="trow-title"><span className="trow-name">{g.title}</span><LevelTag level={g.level} /></span>
+        {/* The whole reason is in the title when a wide row clamps it to three lines. */}
+        <span className="trow-why" title={why}>
           {moved?.worse && <span className="tone-risk">Was {LABEL[moved.from].toLowerCase()} in week {moved.week}. </span>}
           {flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}
         </span>
       </span>
-      <span className="trow-now"><span>{now}</span><span className={'tone-' + (st.status === 'stale' ? 'stale' : gap.tone)}>{st.status === 'stale' ? 'no recent update' : gap.short}</span></span>
+      {/* The value, how it stands against the plan, and a missed result in words under them. A goal gone quiet says when
+          its number is from, rather than repeating "no recent update". */}
+      <span className="trow-now">
+        <span>{now}</span>
+        {st.status === 'stale'
+          ? (st.latest ? <span className="trow-asof">as of week {st.latest.week}</span> : null)
+          : <span className={'tone-' + gap.tone}>{gap.short}</span>}
+        {result && <span className={'result-tag result-' + result.kind}>{RESULT_TEXT[result.kind]}</span>}
+      </span>
       {g.level !== 'team' && <span className="sr">{LEVEL_LABEL[g.level]} level</span>}
     </Link>
   );

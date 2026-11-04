@@ -101,22 +101,28 @@ function FeedbackSheet({ onClose, path }: { onClose: () => void; path: string })
   const [mood, setMood] = useState<'good' | 'meh' | 'bad' | null>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  // Send stays enabled (and reachable by Tab): pressing it with no answer says what's missing rather than greying out.
+  const [tried, setTried] = useState(false);
   const send = async () => {
-    if (!mood || busy) return;
+    if (!mood) { setTried(true); document.querySelector<HTMLElement>('.feedback-moods button')?.focus(); return; }
+    if (busy) return;
     setBusy(true);
     try { await app.sendFeedback(mood, text, path); app.toast(app.mode === 'demo' ? 'Thanks. It goes to the people building this app.' : 'Thanks. Your admins can read it on Workspace.'); onClose(); } catch { setBusy(false); }
   };
   return (
     <Sheet open onClose={onClose} title="How is the app working for you?">
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void send(); }}>
-        <div className="seg full" role="group" aria-label="How it's working">
-          {MOODS.map(([k, l]) => <button key={k} type="button" aria-pressed={mood === k} onClick={() => setMood(k)}>{l}</button>)}
+        <div className="stack" style={{ gap: 'var(--s2)' }}>
+          <div className="seg full feedback-moods" role="group" aria-label="How it's working" aria-describedby={tried && !mood ? 'feedback-choose' : undefined}>
+            {MOODS.map(([k, l]) => <button key={k} type="button" aria-pressed={mood === k} onClick={() => setMood(k)}>{l}</button>)}
+          </div>
+          {tried && !mood && <span id="feedback-choose" className="hint tone-off" role="alert">Choose one first.</span>}
         </div>
         <label className="field"><span className="field-label">Anything to add? <span className="hint">optional</span></span>
           <textarea className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="What were you trying to do?" />
         </label>
         <span className="hint">Sent with your name and this screen ({path}).</span>
-        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit" disabled={!mood || busy}>Send</button></div>
+        <div className="sheet-foot"><button className="btn ghost" type="button" onClick={onClose}>Cancel</button><button className="btn primary" type="submit" aria-disabled={busy || undefined}>{busy ? 'Sending…' : 'Send'}</button></div>
       </form>
     </Sheet>
   );
@@ -126,9 +132,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const app = useApp();
   const toasts = useToasts();
   const { pathname, search } = useLocation();
-  const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | 'feedback' | 'demo' | null>(null);
-  // In the demo, choosing who you are is part of the demo panel, roles first.
-  const openPeople = () => setSheet(app.mode === 'demo' ? 'demo' : 'profile');
+  const [sheet, setSheet] = useState<'profile' | 'workspace' | 'more' | 'feedback' | 'demo' | 'people' | null>(null);
+  // In the demo, choosing who you are is part of the demo panel, roles first; opened from a person, it says so.
+  const openPeople = () => setSheet(app.mode === 'demo' ? 'people' : 'profile');
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
   const navMode = useNavMode();
   const order = navFor(ownsGoals, navMode);
@@ -171,6 +177,8 @@ export function Shell({ children }: { children: ReactNode }) {
     if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
   }, [pathname, title, app.ws.name]);
 
+  // Walking a review (a goal page with ?review=) is in Reviews, so Reviews is the current place in the nav.
+  const navAt = /[?&]review=/.test(search) ? '/reviews/walk' : pathname;
   const focusMode = /^\/check-in(\/|$)|^\/quick-check-in$|^\/import$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   return (
     <div className={'app' + (focusMode ? ' focus-mode' : '')}>
@@ -202,14 +210,15 @@ export function Shell({ children }: { children: ReactNode }) {
             <Icon name="chevron-down" className="muted" />
           </button>
           {order.map((id) => (
-            <Link key={id} to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, pathname) ? 'page' : undefined}>
+            <Link key={id} to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, navAt) ? 'page' : undefined}>
               {NAV[id].icon}<span>{NAV[id].label}</span>
               {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
             </Link>
           ))}
           {app.mode === 'demo' && !present && <DemoEntry onOpen={() => setSheet('demo')} />}
           <button className="nav feedback-nav" title="Send feedback" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span>Send feedback</span></button>
-          <button className="me" onClick={openPeople}>
+          {/* Named by its own words (kept for screen readers on the rail, where they're hidden); the tooltip says the same. */}
+          <button className="me" onClick={openPeople} title={`${app.mode === 'demo' ? 'Switch person' : 'Not you?'} (${app.viewer.name})`}>
             <Avatar p={app.viewer} />
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
               <b className="ellipsis">{app.viewer.name}</b>
@@ -224,12 +233,12 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
       <nav className="tabbar" aria-label="Main">
         {tabs.map((id) => (
-          <Link key={id} to={NAV[id].to} aria-current={isActive(id, pathname) ? 'page' : undefined}>
+          <Link key={id} to={NAV[id].to} aria-current={isActive(id, navAt) ? 'page' : undefined}>
             <span className="tabicon">{NAV[id].icon}{count(id) > 0 && <span className="badge">{count(id)}</span>}</span>
             <span>{NAV[id].label}</span>
           </Link>
         ))}
-        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, pathname)) ? 'page' : undefined}>
+        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, navAt)) ? 'page' : undefined}>
           <span className="tabicon"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg></span>
           <span>More</span>
         </button>
@@ -247,7 +256,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </Sheet>
       <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)} />
-      {sheet === 'demo' && <DemoPanel onClose={() => setSheet(null)} onPresent={() => setPresent(true)} />}
+      {(sheet === 'demo' || sheet === 'people') && <DemoPanel onClose={() => setSheet(null)} onPresent={() => setPresent(true)} title={sheet === 'people' ? 'Switch person' : 'Demo'} />}
       {app.mode === 'demo' && <Coach />}
       <ResearchBar />
       <WorkspaceSheet open={sheet === 'workspace'} onClose={() => setSheet(null)} />

@@ -1,0 +1,274 @@
+/* F3: fit and finish, wizard (per-area reports, 4 Nov). run({ open, url, browser }) returns a list of failures.
+   New goal (GoalWizard), Edit goal (GoalEdit) and the plan table. Numbers in brackets are the report's findings. */
+const near = (a, b, d = 1.5) => Math.abs(a - b) <= d;
+const box = (loc) => loc.first().evaluate((e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height, r: r.right, b: r.bottom }; });
+const css = (loc, prop) => loc.first().evaluate((e, p) => getComputedStyle(e)[p], prop);
+const col = (p) => box(p.locator('.focus-body'));
+const name = async (p, t = 'Runbooks with an owner') => p.getByLabel(/Name it the way/).fill(t);
+const cont = async (p) => { await p.getByRole('button', { name: /Continue/ }).click(); await p.waitForTimeout(150); };
+const toNumbers = async (p) => {
+  await name(p); await cont(p);
+  await p.getByLabel('Unit').fill('%');
+  await p.getByLabel(/^Today \(week/).fill('20');
+  await p.getByLabel(/^Target \(week/).fill('90');
+  await p.waitForTimeout(250);
+};
+const noSideScroll = async (p, where, fail) => {
+  const [sw, iw] = await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+  if (sw > iw) fail(`${where}: scrolls sideways (${sw} > ${iw})`);
+};
+
+module.exports = {
+  id: 'F3',
+  area: 'wizard',
+  async run({ open }) {
+    const fails = [];
+    const f = (m) => fails.push(m);
+
+    // Step 2 at 1280: header (9), chart (2), number grid (22), single due date (8), plan table (15, 16), legend (6), figures (11).
+    {
+      const [c, p] = await open(1280, 900, 'kofi', '/goals/new');
+      const k = p.locator('.kindcard');
+      const [sel, other] = [await box(k.nth(0)), await box(k.nth(1))];
+      if (!near(sel.h, other.h, 0.5) || (await css(k.nth(0), 'paddingTop')) !== (await css(k.nth(1), 'paddingTop'))) f(`(7) the chosen type card is a different size (${sel.h} vs ${other.h})`);
+      if (!/inset/.test(await css(k.nth(0), 'boxShadow'))) f('(7) the chosen type card has no 2px ring');
+      const lg = await box(p.locator('fieldset > legend')); const cl = await col(p);
+      if (!near(lg.x, cl.x, 0.5)) f(`(6) the legend starts at ${lg.x}, not the column's ${cl.x}`);
+      if ((await p.evaluate(() => getComputedStyle(document.body).fontVariantNumeric)) !== 'normal') f('(11) the body still has tabular figures');
+      await toNumbers(p);
+      // (9) progress bar
+      const bar = await box(p.locator('.steps-bar')); const close = await box(p.locator('.focus-top .iconbtn')); const c1 = await col(p);
+      if (!near(bar.x, c1.x)) f(`(9) the step bar starts at ${bar.x}, not the column's ${c1.x}`);
+      if (!near(close.x - bar.r, 16, 2)) f(`(9) the step bar ends ${close.x - bar.r}px from Close, not 16`);
+      const segs = await p.locator('.steps-bar i').evaluateAll((es) => es.map((e) => [e.getBoundingClientRect().width, getComputedStyle(e).backgroundColor]));
+      if (Math.max(...segs.map((s) => s[0])) - Math.min(...segs.map((s) => s[0])) > 1) f('(9) the step bar segments are uneven');
+      if (segs[0][1] !== segs[1][1]) f('(9) done and current steps are different colours');
+      if (segs[3][1] !== 'rgb(208, 213, 221)') f(`(9) steps to come are ${segs[3][1]}`);
+      // (22) unit and decimals line up with today and target
+      const [u, dd, t, g] = [await box(p.getByLabel('Unit')), await box(p.getByLabel('Decimals')), await box(p.getByLabel(/^Today \(week/)), await box(p.getByLabel(/^Target \(week/))];
+      if (!near(u.x, t.x) || !near(dd.x, g.x) || !near(dd.r, g.r)) f(`(22) Unit/Decimals (${u.x}, ${dd.x}) don't line up with Today/Target (${t.x}, ${g.x})`);
+      // (8) a single due date is words
+      if (await p.getByRole('button', { name: 'Year end' }).count()) f('(8) a single due date is still a one-button choice');
+      const due = p.locator('.due-only');
+      if (!/^Year end · due week \d+/.test((await due.textContent()) || '') || (await css(due, 'fontSize')) !== '15px') f('(8) the due date is not said plainly at 15px');
+      // (5) segments 36px in a 44px track
+      const seg = await box(p.locator('.seg').first()); const sb = await box(p.locator('.seg button').first());
+      if (!near(seg.h, 44, 0.5) || !near(sb.h, 36, 0.5)) f(`(5) segmented track ${seg.h}px, segment ${sb.h}px`);
+      // (2) chart from now to the target week, a tick per week
+      const ticks = await p.locator('.chart .c-axis[y]').evaluateAll((es) => es.filter((e) => e.getAttribute('text-anchor') !== 'end').map((e) => [Number(e.getAttribute('x')), e.textContent]));
+      const xt = ticks.filter((t2) => /^(Now|Wk)/.test(t2[1]));
+      if (xt[0]?.[1] !== 'Now' || xt[xt.length - 1]?.[1] !== 'Wk 53') f(`(2) the x-axis runs ${xt[0]?.[1]}–${xt[xt.length - 1]?.[1]}, not Now–Wk 53`);
+      if (xt.length < 9) f(`(2) only ${xt.length} week ticks at 1280`);
+      const gaps = xt.slice(1).map((t2, i) => t2[0] - xt[i][0]);
+      if (Math.min(...gaps) < 44) f(`(2) week ticks ${Math.min(...gaps).toFixed(0)}px apart at 1280`);
+      const plan = await p.locator('.chart .c-plan').getAttribute('points');
+      const pts = plan.split(' ').map((s) => s.split(',').map(Number));
+      if (pts[0][1] === pts[1][1]) f('(2) the plan line starts flat');
+      if (!(await p.locator('.chart .c-target').count()) || !(await p.locator('.chart .c-today').count())) f('(2) the target line or the Now marker is gone');
+      // (15) real numbers in the text colour, not placeholders
+      const pi = p.getByLabel(/^Plan for week \d+/).first();
+      if (!(await pi.inputValue()) || (await pi.getAttribute('placeholder')) || (await css(pi, 'color')) !== 'rgb(16, 24, 40)') f('(15) plan numbers are placeholders, not real values');
+      await pi.fill('30'); await p.waitForTimeout(100);
+      if (!(await p.getByText('· set by you').count())) f('(15) a hand-set week is not marked "set by you"');
+      const endRow = p.locator('.plantable tbody tr').last();
+      if (!/^Target /.test(((await endRow.locator('td.num').textContent()) || '').trim())) f('(16) the last row\'s plan cell does not say Target');
+      // (20) the footer's rule at the column's width
+      const foot = await box(p.locator('.focus-foot')); const c2 = await col(p);
+      if (!near(foot.x, c2.x) || !near(foot.w, c2.w)) f(`(20) the footer is ${foot.w}px wide from ${foot.x}, the column ${c2.w}px from ${c2.x}`);
+      // (31) a hover on the segments not chosen
+      const off = p.locator('.seg button[aria-pressed="false"]').first();
+      const before = await css(off, 'backgroundColor'); await off.hover(); await p.waitForTimeout(250);
+      if ((await css(off, 'backgroundColor')) === before) f('(31) an unchosen segment does not change on hover');
+      await c.close();
+    }
+
+    // Step 2 at 390 and 360: chart every other week, number grid, plan table on one line, no sideways scroll.
+    for (const w of [390, 360]) {
+      const [c, p] = await open(w, 800, 'kofi', '/goals/new');
+      await toNumbers(p);
+      const xt = await p.locator('.chart .c-axis').evaluateAll((es) => es.map((e) => [Number(e.getAttribute('x')), e.textContent]).filter((t) => /^(Now|Wk)/.test(t[1])));
+      if (xt[0]?.[1] !== 'Now' || xt[xt.length - 1]?.[1] !== 'Wk 53' || xt.length < 4) f(`(2) at ${w} the x-axis is ${xt.map((t) => t[1]).join(', ')}`);
+      const gaps = xt.slice(1).map((t, i) => t[0] - xt[i][0]);
+      if (Math.min(...gaps) < 36) f(`(2) at ${w} week labels are ${Math.min(...gaps).toFixed(0)}px apart`);
+      const [u, t] = [await box(p.getByLabel('Unit')), await box(p.getByLabel(/^Today \(week/))];
+      const [dd, g] = [await box(p.getByLabel('Decimals')), await box(p.getByLabel(/^Target \(week/))];
+      if (!near(u.x, t.x) || !near(dd.x, g.x) || !near(t.y, g.y)) f(`(22) at ${w} Unit/Decimals and Today/Target aren't one grid`);
+      // Each date on one line: its text has one line box.
+      const lines = await p.locator('.plantable td.pt-date, .plantable .pt-week, .plantable tbody tr:last-child td.num').evaluateAll((es) => Math.max(...es.map((e) => {
+        const r = document.createRange(); r.selectNodeContents(e);
+        return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size;
+      })));
+      if (lines > 1) f(`(16) at ${w} a week or date wraps`);
+      const rowsH = await p.locator('.plantable tbody tr:has(.plan-input)').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
+      if (Math.max(...rowsH) - Math.min(...rowsH) > 1) f(`(16) at ${w} plan rows differ in height (${Math.min(...rowsH)}–${Math.max(...rowsH)})`);
+      const tbl = await box(p.locator('.plantable table'));
+      if (tbl.r > (await col(p)).r + 0.5) f(`(16) at ${w} the plan table runs past the column`);
+      await noSideScroll(p, `step 2 at ${w}`, f);
+      await c.close();
+    }
+
+    // Touch at 390 (3): plan inputs 44 in 52px rows; the review's Change rows 44px; disclosures 44px.
+    {
+      const [c, p] = await open(390, 844, 'kofi', '/goals/new', true);
+      await toNumbers(p);
+      const pi = await box(p.getByLabel(/^Plan for week \d+/));
+      const row = await box(p.locator('.plantable tbody tr').nth(1));
+      if (pi.h < 44 || row.h < 52) f(`(3) on touch plan inputs are ${pi.h}px in ${row.h}px rows`);
+      await cont(p);
+      const sum = await box(p.locator('.disclose > summary'));
+      if (sum.h < 44) f(`(3) the data source disclosure is ${sum.h}px tall`);
+      // (21) Team and Owner stacked 24px apart
+      const [team, owner] = [await box(p.locator('.fit-pair select').nth(0)), await box(p.locator('.fit-pair select').nth(1))];
+      const teamField = await box(p.locator('.fit-pair > .field').first()); const ownerField = await box(p.locator('.fit-pair > .field').nth(1));
+      if (owner.y > team.y + 1 && ownerField.y - teamField.b < 23.5) f(`(21) stacked Team and Owner are ${ownerField.y - teamField.b}px apart`);
+      // (27) the guardrail box on the column's edge, level with the first line
+      const cb = await box(p.locator('.check input')); const lab = await box(p.locator('.check span')); const c1 = await col(p);
+      if (!near(cb.x, c1.x, 0.5)) f(`(27) the guardrail box is at ${cb.x}, the column at ${c1.x}`);
+      if (!near(lab.x - cb.r, 12, 1)) f(`(27) the guardrail box is ${lab.x - cb.r}px from its words`);
+      if (Math.abs((cb.y + cb.h / 2) - (lab.y + 11)) > 2) f('(27) the guardrail box is not level with the first line');
+      await cont(p);
+      const rr = await p.locator('.review-rows li').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
+      const ch = await p.locator('.review-rows .linkish').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
+      if (rr.length !== 3 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the review's Change rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
+      const date = await box(p.locator('.summary-card .nobreak'));
+      if (date.h > 24) f('(23) the due date breaks inside itself');
+      await c.close();
+    }
+
+    // Limits (5) at 1280 and 390.
+    for (const w of [1280, 390]) {
+      const [c, p] = await open(w, 900, 'kofi', '/goals/new');
+      await name(p); await p.getByRole('button', { name: /Keep a number in range/ }).click(); await cont(p);
+      const [seg, lim, warn] = [await box(p.locator('.limits .seg')), await box(p.getByLabel('Limit')), await box(p.getByLabel('Warn this close'))];
+      if (w > 600 && (!near(seg.b, lim.b) || !near(lim.b, warn.b))) f(`(5) at ${w} limit row bottoms ${seg.b}/${lim.b}/${warn.b}`);
+      if (w > 600 && !near(seg.h, 44, 0.5)) f(`(5) at ${w} the Must stay track is ${seg.h}px`);
+      if (w <= 600) {
+        const c1 = await col(p);
+        if (!near(seg.w, c1.w)) f(`(5) at ${w} Must stay is ${seg.w}px, not full width`);
+        if (!near(lim.y, warn.y) || !(lim.r < warn.x)) f(`(5) at ${w} Limit and Warn are not side by side`);
+      }
+      await c.close();
+    }
+
+    // Stages (12, 13, 14) at 1280 and 390.
+    for (const w of [1280, 390]) {
+      const [c, p] = await open(w, 900, 'kofi', '/goals/new');
+      await name(p); await p.getByRole('button', { name: /Hit dated stages/ }).click(); await cont(p); await cont(p);
+      const err = p.locator('.stage .field-error');
+      if (!(await err.count())) f(`(13) at ${w} the stage error is not under Stage 1`);
+      else {
+        const [e, i] = [await box(err), await box(p.getByLabel('Stage 1', { exact: true }))];
+        const rowB = (await box(p.locator('.stage-row').first())).b;
+        if (!(e.y - rowB >= 2 && e.y - rowB <= 6) || e.y < i.b) f(`(13) at ${w} the stage error is ${e.y - rowB}px under its row`);
+        if ((await css(p.getByLabel('Stage 1', { exact: true }), 'borderTopColor')) !== 'rgb(180, 35, 24)') f(`(13) at ${w} the empty stage has no red border`);
+        if ((await css(err, 'fontSize')) !== '14px' || (await css(err, 'lineHeight')) !== '20px') f('(14) errors are not 14/20');
+      }
+      await p.getByLabel('Stage 1', { exact: true }).fill('Threat model');
+      await p.getByRole('button', { name: 'Add a stage' }).click();
+      if ((await p.locator('.stage-head').count()) !== 1) f('(12) the Stage / Due week labels repeat');
+      const rows = await p.locator('.stage').evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return [r.top, r.bottom]; }));
+      if (w > 600 && !near(rows[1][0] - rows[0][1], 12, 1)) f(`(12) stage rows are ${rows[1][0] - rows[0][1]}px apart`);
+      const [rm, inp] = [await box(p.getByRole('button', { name: 'Remove stage 1' })), await box(p.getByLabel('Stage 1', { exact: true }))];
+      if (rm.w < 44 || rm.h < 44) f(`(12) Remove is ${rm.w}×${rm.h}`);
+      if (w > 600 && !near(rm.y + rm.h / 2, inp.y + inp.h / 2, 1)) f('(12) Remove is not centred on its row');
+      if (w <= 600 && !near(inp.w, (await col(p)).w)) f(`(12) at ${w} the stage name is ${inp.w}px, not full width`);
+      await c.close();
+    }
+
+    // Resume prompt (24) at 360.
+    {
+      const [c, p] = await open(360, 780, 'kofi', '/goals/new');
+      await name(p, 'Half-written');
+      await p.goto(p.url().replace('/goals/new', '/goals')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
+      const b = await p.locator('.resume-actions .btn').evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.top, r.bottom]; }));
+      const c1 = await col(p);
+      if (b.length !== 2 || !near(b[0][0], c1.w) || !near(b[1][0], c1.w) || !near(b[1][1] - b[0][2], 12, 1)) f(`(24) resume buttons ${b.map((x) => x[0]).join('/')}px wide, column ${c1.w}`);
+      if (((await p.locator('.resume-actions .btn.primary').textContent()) || '').trim() !== 'Resume') f('(24) the resume button repeats the goal name');
+      await c.close();
+    }
+
+    // Edit goal at 1280: heading (18), level (17), reason under the numbers (19), focus never under the footer (1).
+    {
+      const [c, p] = await open(1280, 900, 'sam', '/goals/lead/edit');
+      const h1 = p.locator('h1');
+      if (((await h1.textContent()) || '') !== 'Edit Lead time for changes' || (await css(h1, 'fontSize')) !== '22px') f('(18) Edit goal has no 22px h1 with the goal name');
+      const lv = p.locator('.seg[aria-labelledby="level-l"] button[aria-pressed]');
+      if ((await lv.count()) !== 3 || (await p.locator('.optlist').count())) f('(17) Level is not the wizard\'s segmented control');
+      await p.getByLabel(/^Target/).fill('1.5'); await p.waitForTimeout(150);
+      const [pair, reason] = [await box(p.locator('.pair').first()), await box(p.locator('.reason-field'))];
+      if (!near(reason.y - pair.b, 16, 1)) f(`(19) "Why change it?" is ${reason.y - pair.b}px under the numbers`);
+      const help = p.locator('.reason-field > .hint'); const ta = await box(p.getByLabel('Why change it?'));
+      if (!near((await box(help)).y - ta.b, 4, 1)) f('(19) the reason helper is not 4px under the box');
+      await p.locator('summary', { hasText: 'Plan by week' }).click();
+      const vals = await p.getByLabel(/^Plan for week \d+/).evaluateAll((es) => es.map((e) => e.value));
+      if (!vals.length || vals.some((v) => !/^\d+\.\d$/.test(v))) f(`(15) Edit plan numbers are not to the goal's decimals (${vals.slice(0, 3).join(', ')})`);
+      await p.locator('summary', { hasText: 'More details' }).click();
+      for (const lab of ['Data source', 'Definition']) {
+        const el = p.getByLabel(lab, { exact: true });
+        await p.evaluate(() => window.scrollTo(0, 0));
+        await el.focus(); await p.waitForTimeout(150);
+        const [e, ft] = [await box(el), await box(p.locator('.focus-foot'))];
+        if (e.b > ft.y - 12) f(`(1) focused ${lab} ends at ${e.b}, the footer starts at ${ft.y}`);
+      }
+      await c.close();
+    }
+
+    // Wizard step 3 at 390 with the data source open (1).
+    {
+      const [c, p] = await open(390, 700, 'kofi', '/goals/new');
+      await toNumbers(p); await cont(p);
+      await p.getByText('Data source and definition').click();
+      for (const lab of ['Data source', 'Definition']) {
+        const el = p.getByLabel(lab, { exact: true });
+        await p.evaluate(() => window.scrollTo(0, 0));
+        await el.focus(); await p.waitForTimeout(150);
+        const [e, ft] = [await box(el), await box(p.locator('.focus-foot'))];
+        if (e.b > ft.y - 12) f(`(1) at 390 focused ${lab} ends at ${e.b}, the footer starts at ${ft.y}`);
+      }
+      await c.close();
+    }
+
+    // Dark segmented (25).
+    {
+      const [c, p] = await open(1280, 900, 'kofi', '/goals/new');
+      await p.emulateMedia({ colorScheme: 'dark' });
+      await toNumbers(p);
+      const bg = await css(p.locator('.seg button[aria-pressed="true"]'), 'backgroundColor');
+      if (bg !== 'rgb(52, 60, 75)') f(`(25) the chosen segment in dark is ${bg}`);
+      await c.close();
+    }
+
+    // Wide (28) and short (30) screens.
+    {
+      const [c, p] = await open(2560, 1300, 'kofi', '/goals/new');
+      if ((await col(p)).w < 639) f(`(28) at 2560 the wizard column is ${(await col(p)).w}px`);
+      await c.close();
+      const [c2, p2] = await open(853, 533, 'kofi', '/goals/new');
+      if ((await css(p2.locator('.focus-foot'), 'position')) !== 'static') f('(30) the footer still sticks on a short screen');
+      await c2.close();
+    }
+
+    // Edit's plan table at 360 (16): "Target 2.0 days" and the dates on one line, nothing past the screen.
+    {
+      const [c, p] = await open(360, 780, 'sam', '/goals/lead/edit');
+      await p.locator('summary', { hasText: 'Plan by week' }).click();
+      const lines = await p.locator('.plantable td.pt-date, .plantable .pt-week, .plantable tbody tr:last-child td.num').evaluateAll((es) => Math.max(...es.map((e) => {
+        const r = document.createRange(); r.selectNodeContents(e);
+        return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size;
+      })));
+      if (lines > 1) f('(16) Edit at 360: a week, date or the target wraps');
+      await noSideScroll(p, 'Edit with the plan open at 360', f);
+      await c.close();
+    }
+
+    // The plan table on the goal page at 360 stays inside the screen.
+    {
+      const [c, p] = await open(360, 780, 'maya', '/goals/lead');
+      const tab = p.getByRole('tab', { name: 'Details' });
+      if (await tab.count()) { await tab.click(); await p.waitForTimeout(200); }
+      await noSideScroll(p, 'goal page details at 360', f);
+      await c.close();
+    }
+    return fails;
+  },
+};

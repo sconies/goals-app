@@ -7,6 +7,7 @@ import { useApp } from '../app/state';
 import { canAnswer } from '../domain/requests';
 import type { HelpRequest } from '../domain/types';
 import { Sheet, timeAgo } from '../ui/bits';
+import { Icon } from '../ui/Icon';
 
 export function RespondSheet({ request: r, onClose }: { request: HelpRequest; onClose: () => void }) {
   const app = useApp();
@@ -36,7 +37,7 @@ export function RespondSheet({ request: r, onClose }: { request: HelpRequest; on
   };
   return (
     <Sheet open onClose={onClose} title="Respond to the request">
-      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+      <form className="stack respond-form" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="stack request-card" style={{ gap: 4 }}>
           <span className="field-label">{asker?.name ?? 'The owner'} asked{r.recipientId ? ` ${r.recipientId === app.viewer.id ? 'you' : app.person(r.recipientId)?.name ?? ''}` : ''} {timeAgo(r.createdAt, app.today)}</span>
           <p className="strong" style={{ margin: 0 }}>{r.ask}</p>
@@ -51,7 +52,8 @@ export function RespondSheet({ request: r, onClose }: { request: HelpRequest; on
             <label className="field"><span className="field-label">{mode === 'answer' ? 'Your answer or decision' : 'Your question'}</span>
               <textarea className={'input' + (tried && text.trim().length < 3 ? ' invalid' : '')} rows={3} autoFocus value={text} onChange={(e) => setText(e.target.value)}
                 placeholder={mode === 'answer' ? 'e.g. Approved: interim read-only scope until the vendor fix lands' : 'e.g. What would read-only scope leave out?'} />
-              {tried && text.trim().length < 3 && <span className="hint tone-off" role="alert">Write a few words.</span>}
+              {/* A line kept for the message, so the footer doesn't jump when it appears. */}
+              <span className="field-msg" role="alert">{tried && text.trim().length < 3 && <><Icon name="alert" size={16} />Write a few words.</>}</span>
               <span className="hint">{mode === 'answer' ? `This closes the request${goals.length > 1 ? ` for all ${goals.length} goals` : ''}. It’s logged, and the next review sees it was answered.` : 'The request stays open; your question goes on the goal for its owner.'}</span>
             </label>
             <div className="sheet-foot">

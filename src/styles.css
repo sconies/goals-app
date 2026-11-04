@@ -55,7 +55,7 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 0.9375rem/1.375rem var(--font); -webkit-font-smoothing: antialiased; font-feature-settings: 'cv11' 1, 'ss01' 1; font-variant-numeric: tabular-nums; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 0.9375rem/1.375rem var(--font); -webkit-font-smoothing: antialiased; font-feature-settings: 'cv11' 1; }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -1372,3 +1372,28 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @container app (max-width: 600px) { .goals-toolbar { row-gap: 6px; } }
 /* The smallest phones: the layout buttons and Import/Export wrap rather than run off the edge. */
 @container app (max-width: 380px) { .goals-toolbar .view-bar { flex-wrap: wrap; justify-content: flex-start; } .goals-toolbar .view-bar > .row { margin-left: auto; } }
+
+/* ---------- Fit and finish, per-area reports (4 Nov): shared rules ----------
+   Figures line up only where they are figures: the body keeps proportional digits, so hyphens and dashes in words stay
+   their natural width; numbers, counts, inputs and chart labels use tabular figures. */
+.num, .tnum, td.num, th.num, .ring-text, .tabcount, input[type="number"], input[inputmode="decimal"], input[inputmode="numeric"], .c-label, .c-axis, time { font-variant-numeric: tabular-nums; }
+/* Focused fields never stop under a sticky header or footer. */
+html { scroll-padding-top: 72px; scroll-padding-bottom: 92px; }
+fieldset > legend { padding: 0; }
+/* Rings and progress tracks are visible before anything is done (at least 3:1 on the page). */
+:root { --track: #98A2B3; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --track: #667085; } }
+:root[data-theme="dark"] { --track: #667085; }
+.ring-track { stroke: var(--track); }
+/* Buttons: one radius and one weight. */
+.btn { border-radius: 8px; font-weight: 600; }
+.btn.primary:hover { filter: none; background: var(--accent-text); }
+/* Text links and link-like buttons get a 44px target on touch without moving anything. */
+@media (pointer: coarse) {
+  .linkish, a.textlink, .page p a, .sheet p a { padding-block: 12px; margin-block: -12px; }
+}
+/* Short screens (a laptop at 150% zoom): sticky footers and decision bars stop sticking so the form has room. */
+@media (max-height: 600px) {
+  .focus-foot, .decide, .sheet-foot { position: static; }
+  .focus-top, .reviewbar { position: static; }
+}

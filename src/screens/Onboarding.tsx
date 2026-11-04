@@ -1,6 +1,6 @@
 /* Setting up a workspace: from nothing to an outcome, the goals feeding it and the people who own them,
    one question per screen, in about three minutes. A template fills it in so it's never blank. */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
@@ -141,6 +141,14 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     result.issues[0]?.message ?? '',
   ];
   const go = (step: number) => { setTried(false); set({ step }); };
+  // A problem is said under the field it's about, and that field takes the focus.
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (!tried) return;
+    const el = form.current?.querySelector<HTMLElement>('.qsection .invalid, .qsection [aria-invalid="true"]') ?? form.current?.querySelector<HTMLElement>('.qsection [role="radio"]');
+    el?.focus();
+  }, [tried, d.step]);
+  const err = (show = true) => (tried && !ok[d.step] && show ? <span className="hint tone-off field-error" role="alert">{problem[d.step]}</span> : null);
   const next = () => {
     if (!ok[d.step]) { setTried(true); return; }
     if (d.step === 3 && skipGoalSteps) return go(6);
@@ -192,21 +200,24 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const label = busy ? 'Creating…' : d.step === 6 ? 'Create workspace' : 'Next';
 
   return (
-    <div className="focus">
+    <div className={'focus focus-onboard' + (d.step === 2 || d.step === 5 ? ' focus-roomy' : '')}>
       <div className="focus-top">
         <span className="small strong">Set up</span>
         <Steps at={shownStep} of={7} label={STEP_LABELS[d.step]} />
         <button className="iconbtn" onClick={close} aria-label="Close and keep what you’ve typed"><Icon name="close" /></button>
       </div>
-      <form className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
+      <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
         {restored && <p className="hint">Picked up where you left off. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></p>}
 
         {d.step === 0 && (
           <section className="qsection">
             <h1 className="qtitle big">What’s this workspace for?</h1>
-            <label className="field"><span className="field-label">Name</span>
-              <input className={'input big-input' + (tried && !d.name.trim() ? ' invalid' : '')} autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
-            </label>
+            <div className="field">
+              <label className="field"><span className="field-label">Name</span>
+                <input className={'input big-input' + (tried && !d.name.trim() ? ' invalid' : '')} autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
+              </label>
+              {err(!d.name.trim())}
+            </div>
             {cycleOpen ? (
               <>
               <div className="pair">
@@ -220,8 +231,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">Weeks follow the calendar: week 1 is the week with the first Thursday of {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}{startMonth({ startDate: d.startDate } as Cycle) === 0 ? ', so week numbers match ISO weeks' : ''}. This year has {yearWeeks(d.startDate)} weeks.</span>
               </>
             ) : (
-              <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review on {DAYS[d.reviewDay]}s. <button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span>
+              <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review <span className="nowrap">on {DAYS[d.reviewDay]}s. <button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span></span>
             )}
+            {err(!!d.name.trim())}
           </section>
         )}
 
@@ -229,8 +241,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
           <section className="qsection">
             <h1 className="qtitle big">Who are you?</h1>
             <div className="pair">
-              <label className="field"><span className="field-label">Your name</span><input className={'input' + (tried && !d.me.name.trim() ? ' invalid' : '')} autoFocus value={d.me.name} onChange={(e) => set({ me: { ...d.me, name: e.target.value } })} placeholder="e.g. Ana Silva" /></label>
-              <label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && !d.me.team.trim() ? ' invalid' : '')} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>
+              <div className="field"><label className="field"><span className="field-label">Your name</span><input className={'input' + (tried && !d.me.name.trim() ? ' invalid' : '')} autoFocus value={d.me.name} onChange={(e) => set({ me: { ...d.me, name: e.target.value } })} placeholder="e.g. Ana Silva" /></label>{err(!d.me.name.trim())}</div>
+              <div className="field"><label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && !d.me.team.trim() ? ' invalid' : '')} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>{err(!!d.me.name.trim() && !d.me.team.trim())}</div>
             </div>
             <p className="hint">You’ll be this workspace’s admin: you can add people, change settings and make others admins. Anyone can own goals, watch them and run reviews.</p>
           </section>
@@ -244,9 +256,12 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </div>
             <div className="people-grid" role="table" aria-label="People">
               <div className="pg-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Team</span><span role="columnheader">Admin</span><span /></div>
-              {d.people.map((r, i) => (
+              {d.people.map((r, i) => {
+                const issue = personIssue(i);
+                const teamIssue = !!issue && /has no team/.test(issue);
+                return (
                 <div key={i} className="pg-row" role="row">
-                  <input className="input" aria-label={`Person ${i + 1}: name`} value={r.name} placeholder="Name"
+                  <input className={'input' + (issue && !teamIssue ? ' invalid' : '')} aria-invalid={issue && !teamIssue ? true : undefined} aria-label={`Person ${i + 1}: name`} value={r.name} placeholder="Name"
                     onChange={(e) => updatePerson(i, { name: e.target.value })}
                     onPaste={(e) => {
                       const t = e.clipboardData.getData('text');
@@ -255,14 +270,16 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                       const got = peopleFromTable(t);
                       set({ people: [...d.people.slice(0, i), ...got.rows, ...d.people.slice(i + got.rows.length)].filter((x, k, arr) => x.name || x.team || k >= arr.length - 1), objectives: { ...d.objectives, ...got.objectives } });
                     }} />
-                  <input className="input" aria-label={`Person ${i + 1}: team`} value={r.team} placeholder={d.me.team || 'Team'} list="teams" onChange={(e) => updatePerson(i, { team: e.target.value })} />
+                  <input className={'input' + (teamIssue ? ' invalid' : '')} aria-invalid={teamIssue || undefined} aria-label={`Person ${i + 1}: team`} value={r.team} placeholder="Team" list="teams" onChange={(e) => updatePerson(i, { team: e.target.value })} />
                   <label className="pg-check"><input type="checkbox" aria-label={`Person ${i + 1}: admin`} checked={r.admin} onChange={(e) => updatePerson(i, { admin: e.target.checked })} /></label>
                   <button type="button" className="iconbtn" aria-label={`Remove person ${i + 1}`} onClick={() => set({ people: d.people.length > 1 ? d.people.filter((_, k) => k !== i) : [blankPerson()] })}><Icon name="close" /></button>
-                  {personIssue(i) && <span className="pg-issue hint tone-off" role="alert">{personIssue(i)}</span>}
+                  {issue && <span className="pg-issue hint tone-off" role="alert">{issue}</span>}
                 </div>
-              ))}
+                );
+              })}
               <datalist id="teams">{[...new Set([d.me.team, ...d.people.map((r) => r.team)].filter(Boolean))].map((t) => <option key={t} value={t} />)}</datalist>
             </div>
+            {err()}
             <div className="actions">
               <button type="button" className="btn sm" onClick={() => set({ people: [...d.people, blankPerson()] })}>Add a person</button>
               <UploadButton onFile={upload} />
@@ -288,6 +305,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <button type="button" role="radio" className="opt" aria-checked={d.template === 'blank'} onClick={() => pickTemplate('blank')}><span>Start blank</span><span className="hint">Type your own outcome and goals</span></button>
               <button type="button" role="radio" className="opt" aria-checked={d.template === 'later'} onClick={() => pickTemplate('later')}><span>Set goals up later</span><span className="hint">Each owner adds theirs in the app</span></button>
             </div>
+            {err()}
           </section>
         )}
 
@@ -297,7 +315,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <h1 className="qtitle big">What outcome are you after?</h1>
               <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
             </div>
-            <GoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} headline />
+            <GoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} titleIssue={tried && !d.outcome.title.trim() ? problem[4] : undefined} headline />
           </section>
         )}
 
@@ -313,6 +331,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                 <button type="button" className="linkish tap" onClick={() => set({ goals: d.goals.filter((_, k) => k !== i) })}>Remove this goal</button>
               </div>
             ))}
+            {err()}
             <div><button type="button" className="btn sm" onClick={() => set({ goals: [...d.goals, blankGoal(d.me.name.trim())] })}>Add a goal</button></div>
           </section>
         )}
@@ -320,6 +339,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
         {d.step === 6 && (
           <section className="qsection">
             <h1 className="qtitle big">Ready to create {d.name.trim() || 'your workspace'}?</h1>
+            {err()}
             <dl className="details">
               <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
               <dt>Goals</dt><dd>{result.snapshot.goals.length ? `${result.snapshot.goals.length}, listed below` : 'Set up later'}</dd>
@@ -348,7 +368,6 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
         )}
 
         <div className="focus-foot">
-          {tried && !ok[d.step] && <span className="hint tone-off" role="alert">{problem[d.step]}</span>}
           <div className="foot-row">
             {d.step > 0 && <button type="button" className="btn ghost" onClick={back}>Back</button>}
             <button className="btn primary big-btn" type="submit" disabled={busy}>{label}</button>
@@ -359,12 +378,15 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function GoalFields({ g, owners, onChange, issue, headline, week = 0, weeks = 52 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; headline?: boolean; week?: number; weeks?: number }) {
+function GoalFields({ g, owners, onChange, issue, titleIssue, headline, week = 0, weeks = 52 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; titleIssue?: string; headline?: boolean; week?: number; weeks?: number }) {
   return (
     <div className="stack" style={{ gap: 'var(--s3)' }}>
+      <div className="field">
       <label className="field"><span className={headline ? 'sr' : 'field-label'}>{headline ? 'Outcome' : 'Goal'}</span>
-        <input className={'input' + (headline ? ' big-input' : '') + (issue && !g.title.trim() ? ' invalid' : '')} aria-label={headline ? 'Outcome' : 'Goal'} value={g.title} onChange={(e) => onChange({ title: e.target.value })} placeholder={headline ? 'e.g. Weekly active users' : 'e.g. Activation rate'} />
+        <input className={'input' + (headline ? ' big-input' : '') + ((issue || titleIssue) && !g.title.trim() ? ' invalid' : '')} aria-label={headline ? 'Outcome' : 'Goal'} value={g.title} onChange={(e) => onChange({ title: e.target.value })} placeholder={headline ? 'e.g. Weekly active users' : 'e.g. Activation rate'} />
       </label>
+      {titleIssue && <span className="hint tone-off field-error" role="alert">{titleIssue}</span>}
+      </div>
       {!headline && (
         <div className="optlist compact-opts" role="radiogroup" aria-label="Kind of goal">
           <button type="button" role="radio" className="opt" aria-checked={g.kind === 'metric'} onClick={() => onChange({ kind: 'metric' })}><span>Move a number</span></button>
@@ -393,7 +415,7 @@ function GoalFields({ g, owners, onChange, issue, headline, week = 0, weeks = 52
       <label className="field"><span className="field-label">Owner</span>
         <select className="input" value={g.owner} onChange={(e) => onChange({ owner: e.target.value })}>{owners.map((o) => <option key={o} value={o}>{o}</option>)}</select>
       </label>
-      {issue && <span className="hint tone-off" role="alert">{issue}</span>}
+      {issue && !titleIssue && <span className="hint tone-off field-error" role="alert">{issue}</span>}
     </div>
   );
 }

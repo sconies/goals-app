@@ -1,0 +1,139 @@
+/* Fit and finish, per-area reports (4 Nov): wizard. Loaded after styles.css.
+   New goal (GoalWizard), Edit goal (GoalEdit) and the plan table. Everything is scoped to .goal-form, the class both
+   screens carry, except the plan table, which is the same table on the goal page. Numbers in brackets are findings. */
+
+/* The step header (9): the bar runs from the column's left edge to 16px short of Close, in even segments with 4px gaps;
+   "New goal" and "Step 2 of 4 · Measure" sit under it. Done and current are both the accent; what's to come is a
+   visible grey. */
+.goal-form .wiz-top { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 8px; row-gap: 6px; align-items: center; }
+.goal-form .wiz-top > .small.strong { grid-row: 2; grid-column: 1; }
+.goal-form .wiz-top > span:empty { display: none; }
+.goal-form .wiz-top > .steps { grid-row: 1 / 3; grid-column: 1 / 3; display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; column-gap: 8px; row-gap: 6px; max-width: none; align-items: center; }
+.goal-form .wiz-top > .steps > .steps-bar { grid-row: 1; grid-column: 1 / -1; gap: 4px; }
+.goal-form .wiz-top > .steps > span { grid-row: 2; grid-column: 2; }
+.goal-form .wiz-top > .iconbtn { grid-row: 1 / 3; grid-column: 3; margin-left: 8px; }
+.goal-form .steps-bar i { background: var(--line-strong); }
+.goal-form .steps-bar i.done, .goal-form .steps-bar i.now { background: var(--accent); }
+
+/* Errors (14): 14/20, 4px under the field, red words and a red border. */
+.goal-form .field-error { font-size: var(--t-sm); line-height: 1.25rem; }
+.goal-form .field > .field-error { margin-top: -4px; }
+.goal-form .input[aria-invalid="true"], .goal-form .input.invalid { border-color: var(--off-fg); }
+/* The reason for a plan change: its helper 4px under the box (19). */
+.goal-form .reason-field > .hint { margin-top: -4px; }
+
+/* Segmented choices (5, 25, 31): 36px segments in a 44px track; a hover on the ones not chosen; in dark, the chosen one
+   raised above the track rather than sunk into it. Touch keeps its 44px segments. */
+.goal-form .seg button { min-height: 36px; }
+@media (pointer: coarse) { .goal-form .seg button { min-height: 44px; } }
+@media (hover: hover) {
+  .goal-form .seg button:not([aria-pressed="true"]):hover { background: rgba(255, 255, 255, .6); color: var(--fg); }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .goal-form .seg button[aria-pressed="true"] { background: rgb(52, 60, 75); box-shadow: inset 0 0 0 1px rgb(72, 82, 100); }
+}
+@media (prefers-color-scheme: dark) and (hover: hover) {
+  :root:not([data-theme="light"]) .goal-form .seg button:not([aria-pressed="true"]):hover { background: rgba(255, 255, 255, .06); }
+}
+:root[data-theme="dark"] .goal-form .seg button[aria-pressed="true"] { background: rgb(52, 60, 75); box-shadow: inset 0 0 0 1px rgb(72, 82, 100); }
+@media (hover: hover) { :root[data-theme="dark"] .goal-form .seg button:not([aria-pressed="true"]):hover { background: rgba(255, 255, 255, .06); } }
+
+/* Type cards (7): one padding and one border whether chosen or not, so nothing jumps; the chosen one has a 2px ring. */
+.goal-form .kindcard { padding: 16px; border: 1px solid var(--line-strong); }
+.goal-form .kindcard[aria-pressed="true"] { padding: 16px; border: 1px solid var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--surface); }
+
+/* Unit and Decimals share Today and Target's grid (22): two equal columns, 36px apart (the arrow's room) on a desktop,
+   12px on a phone. */
+.goal-form .num-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 36px; align-items: start; }
+.goal-form .num-pair.with-arrow { grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); column-gap: 6px; }
+.goal-form .num-pair .arrow { align-self: start; display: flex; align-items: center; justify-content: center; height: 50px; margin-top: 28px; padding: 0; }
+@container app (max-width: 760px) {
+  .goal-form .num-pair, .goal-form .num-pair.with-arrow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px; }
+  .goal-form .num-pair .arrow { display: none; }
+}
+
+/* Limits (5): Must stay, Limit and Warn this close in one row with one height, so their bottoms line up; on a phone,
+   Must stay takes the row and Limit and Warn sit side by side under it. */
+.goal-form .limits { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px; row-gap: 24px; align-items: start; }
+.goal-form .limits .seg button { min-height: 36px; height: 36px; }
+.goal-form .limits .input { min-height: 44px; height: 44px; }
+@media (pointer: coarse) {
+  .goal-form .limits .seg button { min-height: 44px; height: 44px; }
+  .goal-form .limits .input { min-height: 52px; height: 52px; }
+}
+@container app (max-width: 520px) {
+  .goal-form .limits { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .goal-form .limits-bound { grid-column: 1 / -1; }
+}
+
+/* A single due date is said, not offered as a one-button choice (8). */
+.goal-form .due-only { font-size: var(--t-md); line-height: 1.375rem; color: var(--fg); }
+/* Dates never break inside themselves (23). */
+.goal-form .nobreak { white-space: nowrap; }
+
+/* Stages (12, 13): "Stage" and "Due week" once above the rows; 12px between rows; Remove is 44px and centred on its
+   row; an error sits 4px under the row it's about. On a small phone the name takes the row, the week and Remove go
+   under it. */
+.goal-form .stages { display: flex; flex-direction: column; gap: 12px; }
+.goal-form .stage-head, .goal-form .stage-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 44px; column-gap: 12px; align-items: center; }
+.goal-form .stage-head { margin-bottom: -4px; }
+.goal-form .stage-head > span:last-child { grid-column: 2 / 4; }
+.goal-form .stage { display: flex; flex-direction: column; gap: 4px; }
+.goal-form .stage-remove { width: 44px; height: 44px; min-width: 44px; }
+.goal-form .stage > .field-error { margin: 0; }
+@container app (max-width: 420px) {
+  .goal-form .stages { gap: 24px; }
+  .goal-form .stage-head { margin-bottom: -16px; }
+  .goal-form .stage-row { grid-template-columns: 96px 44px minmax(0, 1fr); row-gap: 8px; }
+  .goal-form .stage-row > .stage-name { grid-column: 1 / -1; }
+  .goal-form .stage-head { grid-template-columns: minmax(0, 1fr); }
+  .goal-form .stage-head > span:last-child { display: none; }
+}
+
+/* Team and Owner (21): side by side, or stacked 24px apart. */
+.goal-form .fit-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); column-gap: 12px; row-gap: 24px; align-items: start; }
+
+/* The guardrail box (27): on the column's edge, 12px from its words, level with the first line. */
+.goal-form .check { align-items: flex-start; gap: 12px; padding-block: 9px; min-height: 40px; }
+.goal-form .check input { flex: none; margin: 2px 0 0; }
+@media (pointer: coarse) { .goal-form .check input { margin-top: 1px; } }
+
+/* Disclosures are 44px to hit (3). */
+.goal-form .disclose > summary { display: list-item; min-height: 44px; padding: 11px 0; }
+
+/* Check and publish (3, 23): each step a 44px row with Change on the right. */
+.goal-form .review-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.goal-form .review-rows li { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 44px; padding: 0 16px; border-top: 1px solid var(--line-2); }
+.goal-form .review-rows li:first-child { border-top: 0; }
+.goal-form .review-rows .rr-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-form .review-rows .linkish { min-height: 44px; }
+
+/* The sticky footer's rule runs at the column's width on a tablet or desktop, not 24px past it each side (20). */
+@container app (min-width: 761px) {
+  .goal-form .focus-foot { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; padding-bottom: var(--s4); }
+}
+
+/* The resume prompt on a phone (24): both buttons full width, 12px apart. */
+@container app (max-width: 600px) {
+  .goal-form .resume-actions { flex-direction: column; align-items: stretch; gap: 12px; }
+  .goal-form .resume-actions .btn { width: 100%; }
+}
+
+/* Very wide screens (28): a 640px column, so the plan chart has room; running text stays a readable width. Still pinned
+   to the page's left edge, not centred. */
+.goal-form p { max-width: 64ch; }
+@container app (min-width: 1920px) { .goal-form.focus { max-width: calc(640px + 2 * var(--page-pad)); } }
+
+/* The plan table (3, 15, 16): real numbers in the text colour, each with its unit; the dates never wrap; on touch,
+   44px inputs in 52px rows. */
+.plantable .input.plan-input { color: var(--fg); width: 84px; min-height: 32px; height: 32px; }
+.plantable .plan-cell { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.plantable .plan-unit { color: var(--fg); }
+/* Editing (the wizard and Edit goal), weeks, dates and plan numbers stay on one line. The goal page's read-only table has
+   a fourth column (Actual), so there the dates may still wrap on a small phone rather than push the page sideways. */
+.plantable.editing .pt-date, .plantable .pt-week, .plantable.editing td.num { white-space: nowrap; }
+@container app (max-width: 420px) { .plantable .input.plan-input { width: 64px; } .plantable.editing td { padding-left: 6px; padding-right: 6px; } }
+@media (pointer: coarse) {
+  .plantable .input.plan-input { min-height: 44px; height: 44px; }
+  .plantable td { height: 52px; }
+}

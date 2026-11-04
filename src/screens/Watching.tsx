@@ -6,7 +6,7 @@ import { LEVEL_LABEL } from '../domain/format';
 import { weekDate, weekDates } from '../domain/plan';
 import { watchedGoals } from '../domain/review';
 import type { Goal, Level, Watch } from '../domain/types';
-import { Empty } from '../ui/bits';
+import { Icon } from '../ui/Icon';
 import { ChangeItem } from './GoalScreen';
 import { TreeRow, worstFirst } from './Inspect';
 
@@ -49,10 +49,13 @@ export function WatchingBody() {
         </div>
       )}
       <div className="split">
-      <div className="split-a">
-        <Group title="Needs attention" goals={bad} />
-        <Group title="No recent update" hint="No check-in for two weeks or more, so the status can’t be trusted." goals={quiet} />
-      </div>
+      {/* Nothing needs attention: no empty column taking a gap of its own. */}
+      {bad.length + quiet.length > 0 && (
+        <div className="split-a">
+          <Group title="Needs attention" goals={bad} />
+          <Group title="No recent update" hint="No check-in for two weeks or more, so the status can’t be trusted." goals={quiet} />
+        </div>
+      )}
       <aside className="split-side" aria-label="What changed">
       {recent.length > 0 && (
         <section className="block">
@@ -137,24 +140,32 @@ function LevelPills() {
   if (!avail.length) return null;
   return (
     <div className="field" style={{ marginTop: 'var(--s3)' }}><span className="field-label">Watch a whole level</span>
-      <div className="row">{avail.map((l) => <button key={l} className="pill" onClick={async () => { await app.watch('level', l); app.toast(`Watching every ${LEVEL_LABEL[l]} goal`); }}>+ {LEVEL_LABEL[l]} <span className="hint">{app.snapshot.goals.filter((g) => g.level === l).length}</span></button>)}</div>
+      {/* The same chip as Activity's filters: a plus, the level and how many goals it holds. */}
+      <div className="level-chips">{avail.map((l) => (
+        <button key={l} type="button" className="filter-chip" onClick={async () => { await app.watch('level', l); app.toast(`Watching every ${LEVEL_LABEL[l]} goal`); }}>
+          <Icon name="plus" size={12} />Watch {LEVEL_LABEL[l]}<span className="tabcount">{app.snapshot.goals.filter((g) => g.level === l).length}</span>
+        </button>
+      ))}</div>
     </div>
   );
 }
 
-/** Nothing watched yet: the quickest ways in. */
+/** Nothing watched yet: the quickest ways in. One primary choice (the SVP goals, where there are any), the rest beside it. */
 function StartWatching() {
   const app = useApp();
   const counts = LEVELS.map((l) => [l, app.snapshot.goals.filter((g) => g.level === l).length] as const).filter(([l, n]) => n && l !== 'team');
+  const main = counts.find(([l]) => l === 'svp')?.[0] ?? counts[0]?.[0];
+  const watchLevel = async (l: Level) => { await app.watch('level', l); app.toast(`Watching every ${LEVEL_LABEL[l]} goal`); };
   return (
-    <Empty title="You’re not watching anything yet">
-      <span className="muted">Watching puts the goals you care about in one place: what’s slipping, what has had no recent update, what changed.</span>
-      <div className="stack" style={{ gap: 'var(--s2)', width: '100%', maxWidth: 360 }}>
+    <section className="card watch-empty">
+      <h2 className="h3">You’re not watching anything yet</h2>
+      <p className="muted">Watching puts the goals you care about in one place: what’s slipping, what has had no recent update, what changed.</p>
+      <div className="watch-empty-actions">
         {counts.map(([l, n]) => (
-          <button key={l} className="btn" onClick={async () => { await app.watch('level', l); app.toast(`Watching every ${LEVEL_LABEL[l]} goal`); }}>Watch every {LEVEL_LABEL[l]} goal ({n})</button>
+          <button key={l} type="button" className={'btn' + (l === main ? ' primary' : '')} onClick={() => watchLevel(l)}>Watch every {LEVEL_LABEL[l]} goal ({n})</button>
         ))}
-        <Link className="btn ghost" to="/goals">Pick goals from the list</Link>
+        <Link className={'btn' + (main ? '' : ' primary')} to="/goals">Pick goals from the list</Link>
       </div>
-    </Empty>
+    </section>
   );
 }

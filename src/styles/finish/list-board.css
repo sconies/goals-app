@@ -1,0 +1,257 @@
+/* Fit and finish, per-area reports (4 Nov): list-board. Loaded after styles.css.
+   Goals List and Table (L&T) and Board and Cards (B&C). Numbers in comments are the reports' finding numbers. */
+
+/* Words that must stay together ("week 43", "week-44", one part of the week line). */
+.nb { white-space: nowrap; }
+
+/* ---------- Goals header (L&T 4, 2, 16) ---------- */
+/* Small phones: the title and New goal on one line, the week line on its own full-width line beneath, so it breaks
+   only between its parts, never leaving "2026" alone. */
+@container app (max-width: 480px) {
+  .goals-page .page-head.goals-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 var(--s3); }
+  .goals-page .goals-title { display: contents; }
+  .goals-page .goals-head .actions { grid-column: 2; grid-row: 1; }
+  .goals-page .goals-period { grid-column: 1 / -1; grid-row: 2; line-height: 1rem; }
+}
+/* Small phones: the header stays short so the first goal starts in the top 300px of a 360×740 screen. The 44px targets
+   stay; the space between them and the grey tracks' padding give way. */
+@container app (max-width: 400px) {
+  .page.goals-page { gap: var(--s2); padding-top: var(--s2); }
+  .goals-page .goals-toolbar { row-gap: var(--s1); }
+  .goals-page .goals-tabs > .seg.tabs { padding-block: 0; padding-left: 0; }
+  .goals-page .layout-switch { padding: 0; }
+}
+/* The tabs and the Views menu share one line; the grey track is only as wide as the tabs (16). */
+.goals-tabs { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.goals-toolbar > .goals-tabs { flex: 0 1 auto; }
+.goals-tabs > .seg.tabs { flex: 0 1 auto; width: fit-content; max-width: 100%; min-width: 0; flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; align-self: center; }
+.goals-tabs > .seg.tabs::-webkit-scrollbar { display: none; }
+.goals-tabs > .views-menu { flex: none; }
+.goals-tabs .view-tab { max-width: 200px; }
+@container page (max-width: 960px) { .goals-toolbar > .goals-tabs { flex: 1 1 100%; } }
+/* Phones: one row that scrolls, the fade at its edge, and 16px after the last tab so it can scroll clear of the fade (2). */
+@container app (max-width: 600px) {
+  .goals-tabs > .seg.tabs { overflow-x: auto !important; scroll-snap-type: x proximity; scroll-padding-inline: 4px 16px; padding-inline-end: var(--s4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+  .goals-tabs > .seg.tabs > button { scroll-snap-align: start; }
+}
+/* Menus: a small chevron after the word. */
+.view-menu > summary .menu-chev { margin-left: 2px; flex: none; }
+.view-menu > summary.btn { display: inline-flex; align-items: center; gap: 6px; }
+.views-menu > summary.btn { min-height: 32px; height: auto; }
+.view-menu-list .menuitem[aria-current="true"] { font-weight: 650; }
+/* Import and Export: two buttons, or one menu where they wouldn't fit beside the layouts (a touch phone up to 400px,
+   with 44px-wide layout buttons, or any screen up to 380px), so the layouts and tools stay one 44px row (4). */
+.io-menu { display: none; }
+@container app (max-width: 400px) {
+  .goals-page .goals-toolbar .view-bar { flex-wrap: nowrap !important; justify-content: space-between; }
+  .goals-page .layout-switch { gap: 0; }
+}
+@container app (max-width: 380px) {
+  .goals-page .goals-toolbar .view-bar > .io-buttons { display: none !important; }
+  .goals-page .goals-toolbar .io-menu { display: block; flex: none; margin-left: 0; }
+}
+@media (pointer: coarse) {
+  @container app (max-width: 400px) {
+    .goals-page .goals-toolbar .view-bar > .io-buttons { display: none !important; }
+    .goals-page .goals-toolbar .io-menu { display: block; flex: none; margin-left: 0; }
+  }
+}
+.io-menu > summary.btn { padding: 0; min-width: 44px; justify-content: center; }
+/* A short screen with a mouse (a laptop zoomed to 150%, 853×533): the tabs and the tools share one row, the tabs
+   scrolling if they must, Import and Export in one menu, and less space between the rows (8). */
+@media (max-height: 600px) and (pointer: fine) {
+  .page.goals-page { gap: var(--s4); padding-top: var(--s4); }
+  .goals-page .block { gap: var(--s2); }
+  @container page (max-width: 960px) {
+    .goals-page .goals-toolbar { flex-wrap: nowrap; }
+    .goals-page .goals-toolbar > .goals-tabs { flex: 1 1 auto; min-width: 0; }
+    .goals-page .goals-tabs > .seg.tabs { padding-inline-end: var(--s4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+    .goals-page .goals-toolbar .view-bar { flex: none; width: auto; }
+    .goals-page .goals-toolbar .view-bar > .io-buttons { display: none !important; }
+    .goals-page .goals-toolbar .io-menu { display: block; flex: none; }
+  }
+}
+
+/* ---------- Search, filters and the decision toggle (L&T 8, 23, 25, 31) ---------- */
+/* Below 900px Sort lives in Filters, so search, Filters and the decision toggle fit one row (8). */
+@container app (max-width: 900px) {
+  .goals-page .inline-sort { display: none; }
+  .goals-page .filterbar-row { flex-wrap: nowrap; }
+  .goals-page .filter-search { flex: 1 1 200px; min-width: 0; }
+}
+/* Phones: the search and Filters share a line (4, 31). */
+@container app (max-width: 600px) {
+  .goals-page .filterbar-row { flex-wrap: nowrap; }
+  .goals-page .filterbar-row .filter-search { flex: 1 1 auto; min-width: 0; }
+  .goals-page .filterbar-row > .btn { flex: none; }
+}
+/* The decision toggle, pressed: a light fill and a full 2px outline in the text colour, never a dark block that reads
+   as the main action (25). Its chip is left out while the toggle shows it. */
+.quick-filter[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); border: 2px solid var(--fg); padding-inline: 15px; }
+.quick-filter[aria-pressed="true"]:hover { background: var(--surface-3); }
+@container app (min-width: 521px) { .goals-page .filter-chip.chip-decision { display: none; } }
+/* The active filters. Wide: they wrap, with Save view and Copy link at the end. Phones: one row, the filters scrolling
+   sideways, and one View menu for saving and sharing (23). */
+.filter-chip-scroll { display: contents; }
+.filter-view-menu { display: none; }
+@container app (max-width: 600px) {
+  .goals-page .filter-chips { flex-wrap: nowrap; min-width: 0; }
+  .goals-page .filter-count, .goals-page .filter-view-name { flex: none; white-space: nowrap; }
+  .goals-page .filter-view-name { max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+  .goals-page .filter-chip-scroll { display: flex; align-items: center; gap: var(--s2); flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; padding-inline-end: var(--s4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent); }
+  .goals-page .filter-chip-scroll::-webkit-scrollbar { display: none; }
+  .goals-page .filter-chip-scroll > * { flex: none; white-space: nowrap; }
+  .goals-page .filter-chip-actions { display: none; }
+  .goals-page .filter-view-menu { display: block; flex: none; margin-left: auto; }
+}
+
+/* ---------- The filter sheet (L&T 3, 26) ---------- */
+/* As tall as the screen allows under the top bar; the body scrolls and the footer stays inside the sheet, its button
+   12px above the screen's edge (or the home indicator). */
+/* On a phone the filter sheet stops 72px from the top; its footer is the shared sheet footer (sheets.css). */
+@media (max-width: 760px) { .sheet:has(.filter-sheet) { max-height: calc(100dvh - 72px - var(--kb, 0px)); padding-bottom: 0; } }
+/* A checkbox stays its size and sits on the first line of a label that wraps (26). */
+.filter-options .check { align-items: flex-start; padding-block: 8px; }
+.filter-options .check input { flex: none; align-self: flex-start; margin: 1px 0 0; }
+@media (pointer: coarse) { .filter-options .check { padding-block: 12px; } }
+.filter-group > legend { padding: 0; }
+
+/* ---------- The table (L&T 5, 7, 9, 10, 11, 13, 14, 24, 29, 30) ---------- */
+/* Column widths: Goal gets at least 360px (GoalViews.tsx leaves out the columns that would squeeze it); Now 136;
+   Gap 232 on one line (5). */
+.gtable col.c-now { width: 136px; }
+.gtable col.c-gap { width: 232px; }
+.gtable td.gt-gap { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The level tag stays on the name's first line, beside it rather than dropping under it (5). */
+.gt-name { display: flex; align-items: baseline; gap: 2px var(--s2); min-width: 0; }
+.gt-name > a { min-width: 0; }
+.gt-name > .level { flex: none; margin-left: 0; }
+/* The result tag starts where the status word does (5). */
+.gtable .result-tag { display: flex; margin-left: 0; margin-top: 2px; }
+/* Every cell starts at the top, so first lines line up across the row (13). */
+.gtable tbody td { vertical-align: top; padding: var(--s3); }
+.gtable tbody td.selcol { padding-right: 0; }
+.gtable tr.story-row > td { padding: 0 var(--s3) var(--s3); }
+.gtable thead th { padding-inline: var(--s3); }
+/* The sorted column says so with a small chevron 4px after its name; the order is set by Sort (11). */
+.gtable thead th.sorted { color: var(--fg); }
+.gtable thead th .sort-chev { margin-left: 4px; vertical-align: -1px; }
+/* Selecting: a 16px box inside a 44px target that doesn't move the row (14). */
+.gtable .selhit { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -12px -14px; cursor: pointer; vertical-align: top; }
+.gtable .selhit input { width: 16px; height: 16px; margin: 0; flex: none; }
+.gtable thead .selhit { margin-block: -14px; vertical-align: middle; }
+/* An off-track goal keeps its quiet wash across both its rows (design rule: a full-surface wash, never an edge).
+   Selected, the goal and its story row share one fill, whatever the status (10). */
+.gtable tbody tr.selected, .gtable tbody tr.selected > td, .gtable tbody tr.selected[data-tone="off"] > td { background: var(--surface-3); }
+/* Hover: the goal and its story row light up together (29). */
+@media (hover: hover) {
+  .gtable tbody tr:not(.selected):hover > td,
+  .gtable tbody tr:not(.selected):hover + tr.story-row:not(.selected) > td,
+  .gtable tbody tr:not(.selected):has(+ tr.story-row:hover) > td { background: var(--surface-2); }
+  .seg button:not([aria-pressed="true"]):not([aria-selected="true"]):hover { color: var(--fg); }
+}
+/* The story line: up to two lines a readable width, Details on its first line (9); opened, no divider and no empty
+   space under it, and Less looks like Details (30). */
+.table-story { align-items: baseline; }
+.table-story-line { white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 72ch; flex: 0 1 auto; }
+.table-story-toggle { margin-left: auto; text-decoration: none; }
+.table-story-toggle:hover { text-decoration: underline; }
+.table-story > .story { border-bottom: 0; padding-bottom: 0; }
+/* Phones: the sticky header sits under the top bar, not behind it (7). */
+.goals-page { --sticky-top-phone: var(--topbar-h, 71px); }
+@container app (max-width: 600px) {
+  .gtable tbody tr.selected > td, .gtable tbody tr.selected[data-tone="off"] > td { background: transparent; }
+  .gtable tr.story-row > td { padding: 0 !important; }
+  /* The stacked header names the two columns a row starts with; a goal and its story read as one block. */
+  .gtable thead th:not(.num):not(.col-opt):not(.selcol) { display: block; }
+  .gtable tbody tr:has(+ tr.story-row) { border-bottom: 0; }
+}
+/* Under 1024px or on touch: tabs and layout buttons 44px tall (44 wide on touch); sort headers and text links get a
+   44px target without moving (14). A short screen with a mouse (a laptop zoomed to 150%) keeps the 32px desktop size
+   so its goals start in view (8). */
+.sortbtn { display: inline-flex; align-items: center; }
+@media (pointer: coarse) { .goals-page .layout-switch button { min-width: 44px; } }
+@media (max-width: 1023px) and (min-height: 601px), (pointer: coarse) {
+  .goals-page .goals-tabs [role="tab"], .goals-page .layout-switch button { min-height: 44px; }
+  .goals-page .views-menu > summary.btn { min-height: 44px; }
+  .goals-page .linkish, .goals-page .sortbtn { padding-block: 12px; margin-block: -12px; }
+}
+
+/* ---------- The bulk bar (L&T 6) ---------- */
+.selbar-actions { display: contents; }
+.selbar-menu { display: none; }
+/* It sits at the bottom of the screen, so its menu opens upwards. */
+.selbar-menu .view-menu-list { top: auto; bottom: calc(100% + 4px); }
+@container app (max-width: 600px) {
+  .selbar { flex-wrap: nowrap; min-height: 56px; padding: 5px var(--s3); gap: var(--s2); }
+  .selbar .selbar-count { font-size: 0.9375rem; font-weight: 600; margin-right: auto; white-space: nowrap; }
+  .selbar-actions { display: none; }
+  .selbar-menu { display: block; flex: none; }
+}
+
+/* ---------- The List (L&T 19, 20, 21, 22) ---------- */
+/* One row in every tab (TreeRow); the status slot fits "No recent update" on one line (20). */
+@container app (min-width: 761px) { .goals-page .trow { grid-template-columns: 136px minmax(0, 1fr) auto; } }
+.goals-page .trow-icon { white-space: nowrap; }
+/* A team's objective wraps to two lines rather than being cut off (22). */
+.team-objective { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Phones: the status, then the title full width, then the number and its gap on one line, left-aligned (22). */
+@container app (max-width: 600px) {
+  .goals-page .trow { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .goals-page .trow > * { grid-column: 1 !important; }
+  .goals-page .trow-now { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; font-size: var(--t-sm); white-space: normal; margin-top: 2px; }
+  .goals-page .trow-now > span { white-space: nowrap; }
+  .goals-page .trow-now > span + span::before { content: "\00b7"; margin: 0 6px; color: var(--muted); }
+}
+/* "No recent update" is in the stale grey wherever a goal row says it, never the colour of its last gap (19). */
+.gline:has(> .gline-status.tone-stale) .gline-now > [class^="tone-"] { color: var(--stale-fg); }
+
+/* ---------- Board (B&C 1, 2, 5, 6, 8, 9, 10, 11, 17, 18) ---------- */
+/* From 768px the lanes sit side by side and scroll sideways rather than wrapping into rows whose height follows the
+   tallest lane; each is 280–320px and never stretched, so a filtered board doesn't spread two lanes across the screen.
+   Below 768px they stack (1, 2). Every lane is as tall as the tallest (9). */
+.board { gap: var(--s3); align-items: stretch; }
+@media (min-width: 768px) {
+  .board { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(280px, 320px); justify-content: start; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--s4); padding-bottom: var(--s1); }
+  .board-col { scroll-snap-align: start; }
+}
+@media (max-width: 767px) { .board { grid-template-columns: minmax(0, 1fr); } }
+.board-col { padding: var(--s3); border-radius: 8px; }
+/* The count: plain figures after the heading, no pill (18). */
+.board-count { margin-left: 0; font-size: 0.8125rem; font-weight: 600; color: var(--muted); }
+/* Cards: radius 8 everywhere; 12px padding on the Board, 16px on Cards; one title style (8). */
+.board-card { padding: var(--s3); border-radius: 8px; }
+.board-title, .gcard-title { font-size: 0.9375rem; line-height: 1.25rem; font-weight: 600; }
+/* The level on a 20px row of its own, right-aligned, as on Cards (6); a result tag starts at the card's edge (5). */
+.board-level { display: flex; justify-content: flex-end; min-height: 20px; align-items: center; }
+.board-level .level, .gcard .level { font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; }
+.board-card .result-tag, .gcard .result-tag { margin-left: 0; }
+/* Show all: a full-size target below desktop, a hover you can see, and Show fewer once open (10). */
+.board-more { min-height: 44px; }
+@media (min-width: 1280px) and (pointer: fine) { .board-more { min-height: 36px; } }
+.board-more:hover { background: var(--line); }
+/* Card hover: a darker border and a hairline lift (11). */
+@media (hover: hover) {
+  .board-card:hover, .gcard:hover { border-color: var(--faint); box-shadow: 0 1px 2px rgba(16, 24, 40, .08); }
+}
+/* Dark: the lane recedes and the cards sit on it (17). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .board-col { background: var(--surface); }
+  :root:not([data-theme="light"]) .board-card { background: #1D232C; border-color: var(--line); }
+}
+:root[data-theme="dark"] .board-col { background: var(--surface); }
+:root[data-theme="dark"] .board-card { background: #1D232C; border-color: var(--line); }
+/* The reason: three lines on the Board, two on Cards; the whole of it is the tooltip (3). */
+.board-card .story.brief dd { -webkit-line-clamp: 3; }
+.gcard .story.brief dd { -webkit-line-clamp: 2; }
+/* The last part of a card has no rule or padding under it (4). */
+.board-card .story:last-child, .gcard .story:last-child { border-bottom: 0; padding-bottom: 0; }
+
+/* ---------- Cards (B&C 7, 8, 13, 14) ---------- */
+/* Each row of cards is one height (7). */
+.gcards { align-items: stretch; }
+.gcard { padding: var(--s4); border-radius: 8px; }
+/* The status row is 20px with or without a level, so titles line up (13). */
+.gcard > .row:first-child { min-height: 20px; align-items: center; }
+/* The number, then its target line under it, on every card (14). */
+.gcard-figure { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }

@@ -1,0 +1,146 @@
+/* Fit and finish, per-area reports (4 Nov): forms-checkin. Loaded after styles.css. */
+/* The check-in (.ci) and the one-table check-in (.quick). Sheets are portalled out of .ci, so the check-in's own
+   option lists (.ci-opts) and week pills (.weekpicks) carry their own class names. Numbers are the reports' findings. */
+
+/* ---------- The check-in ---------- */
+
+/* Headings: a weight the font actually has (Check-in 15). */
+.ci .title-xl, .ci .qtitle, .quick .title-xl { font-weight: 700; }
+
+/* Step dots: the dots still to do are visible (at least 3:1 on the page) (Check-in 4). */
+:root { --ci-todo: #858FA0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ci-todo: #667085; } }
+:root[data-theme="dark"] { --ci-todo: #667085; }
+.ci .dots i { background: var(--ci-todo); }
+.ci .dots i.done { background: var(--on-mark); }
+.ci .dots i.now { background: var(--accent); }
+
+/* The footer: its rule is as wide as the column above it (Check-in 20); Back's text lines up with the column (Check-in 8). */
+.ci .focus-foot .foot-row > .btn.ghost:first-child { margin-left: -16px; }
+@container app (min-width: 761px) {
+  .ci .focus-foot { border-top: 0; }
+  .ci .focus-foot::before { content: ""; position: absolute; top: 0; left: var(--s5); right: var(--s5); border-top: 1px solid var(--line); }
+}
+/* Short screens make the footer static (shared rule); relative keeps the rule in place without sticking. */
+@media (max-height: 600px) { .ci .focus-foot { position: relative; } }
+
+/* The note step: both answers in the footer, the primary on the right (Check-in 2). */
+.ci .carry-foot .btn.primary { min-width: 0; }
+@container app (max-width: 560px) {
+  .ci .carry-foot { flex-wrap: wrap; row-gap: var(--s2); }
+  .ci .focus-foot .carry-foot .btn.primary { order: 3; flex: 1 1 100%; width: 100%; }
+}
+
+/* The number: a problem turns the field's border red, and the message sits 8px under it, above last week's line (Check-in 14). */
+.ci .bignum.invalid { border-color: var(--off-fg); }
+.ci .account-part > .field + .hint[role="alert"] { margin-top: -4px; }
+
+/* The verdict on a phone: "Show chart" on its own line under the sentence, a full-size target (Check-in 11). */
+@container app (max-width: 480px) {
+  .ci .verdict-head { display: contents; }
+  .ci .verdict-head > .linkish { order: 1; align-self: flex-start; min-height: 44px; }
+  .ci .verdict > .forecast, .ci .verdict > .muted, .ci .verdict > .chartwrap { order: 2; }
+}
+
+/* The status line: "Change" sits at the end of the line with no extra margin (Check-in 19). */
+.ci .callline .linkish.tap { margin: 0 0 0 auto; padding-inline: 0; }
+
+/* Option rows (What happens next?, the status sheet) (Check-in 5, 6, 7). */
+.ci-opts .opt { min-height: 56px; padding: 12px 16px; gap: 4px 12px; }
+.ci-opts .opt > span:first-child:not(.chip) { font-size: 0.9375rem; line-height: 1.375rem; font-weight: 600; }
+.ci-opts .opt .hint { font-size: 0.875rem; line-height: 1.25rem; font-weight: 400; }
+@container app (max-width: 480px) { .ci-opts .opt { gap: 4px; padding-top: 12px; padding-bottom: 12px; } }
+/* The focus ring sits inside the row, so the list's rounded clip can't cut it; on the chosen row it's a second ring inside. */
+.ci-opts .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ci-opts .opt[aria-checked="true"]:focus-visible { outline: 1.5px solid var(--accent); outline-offset: -1.5px; box-shadow: inset 0 0 0 3px var(--surface), inset 0 0 0 5px var(--accent); }
+.ci .stagepick-row:focus-visible { outline-offset: -2px; }
+@media (hover: hover) {
+  .ci-opts .opt:hover { background: var(--surface-2); }
+  .ci-opts .opt[aria-checked="true"]:hover { background: var(--accent-soft); }
+}
+
+/* Week pills: one component wherever a week is picked (back on plan by, a late stage), two lines and 48px tall,
+   so the next four weeks and the year's end fit one line of the column (Check-in 9). */
+.weekpicks .pill { min-height: 48px; padding: 4px 12px; line-height: 1.125rem; text-align: center; }
+.weekpicks .pill-sub { display: block; font-size: 0.75rem; line-height: 1rem; font-weight: 500; color: var(--muted); }
+.weekpicks .pill-sub::before { content: none; }
+.weekpicks .pill[aria-pressed="true"] .pill-sub { color: inherit; }
+
+/* A stage's state is a shape and a word, not a coloured word (Check-in 13). */
+.ci .stagepick-state { font-size: 0.875rem; line-height: 1.25rem; font-weight: 600; }
+.ci .stagepick-state svg { width: 12px; height: 12px; }
+
+/* The account's text grows with what's in it, so carried-over words aren't cut off (Check-in 18). */
+.ci .account textarea.input { field-sizing: content; min-height: 88px; max-height: 200px; }
+
+/* Saved: on a phone both buttons are full width; the status phrase doesn't split (Check-in 16). */
+.ci .nobr, .quick .nobr { white-space: nowrap; }
+.ci .done-actions { justify-content: center; }
+@container app (max-width: 480px) {
+  .ci .celebrate { padding-left: 0; padding-right: 0; }
+  .ci .done-actions { flex-direction: column; align-items: stretch; gap: var(--s2); width: 100%; }
+  .ci .done-actions .btn { width: 100%; }
+}
+
+/* ---------- The one-table check-in ---------- */
+.quick { --qpad: 32px; }
+@container app (max-width: 1100px) { .quick { --qpad: 24px; } }
+@container app (max-width: 760px) { .quick { --qpad: 16px; } }
+
+/* Post stays on screen: a sticky bar with what's still wrong just above the buttons (Numbers 1, 6). */
+.quick .qfoot { position: sticky; bottom: 0; z-index: 3; display: flex; flex-direction: column; gap: var(--s3); margin: 0 calc(-1 * var(--qpad)); padding: 16px var(--qpad); background: var(--bg); border-top: 1px solid var(--line-2); }
+@container app (max-width: 760px) { .quick .qfoot { padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } }
+.quick .qsummary { margin: 0; max-width: none; font-size: 0.875rem; line-height: 1.25rem; color: var(--off-fg); }
+/* Cancel's text lines up with the column; Post keeps one label on one line (Numbers 7, 22). */
+.quick .qfoot .btn.ghost { padding-left: 16px; padding-right: 16px; margin-left: -16px; }
+.quick .qfoot .btn.primary { white-space: nowrap; }
+
+/* The goal name: a link the size of its words, with a 44px target on touch (Numbers 4, 15, 17, 18). */
+.quick .qname { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.quick .qlink { border-radius: 4px; text-wrap: balance; }
+.quick .qlink:hover { text-decoration: underline; text-underline-offset: 2px; }
+.quick .qlink:focus-visible { outline-offset: 2px; }
+@media (pointer: coarse) { .quick .qlink { padding-block: 11px; margin-block: -11px; } }
+
+/* The number field: right-aligned figures ending 8px before a unit that stays put (Numbers 13, 14). */
+.quick .qvalue { display: flex; align-items: center; gap: 8px; padding: 0 11px 0 12px; cursor: text; }
+.quick .qvalue input { flex: 1; min-width: 0; width: 100%; align-self: stretch; padding: 0; border: 0; background: transparent; text-align: right; font-variant-numeric: tabular-nums; }
+.quick .qvalue input:focus, .quick .qvalue input:focus-visible { outline: none; }
+.quick .qvalue:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
+.quick .qunit { flex: none; font-size: 0.9375rem; line-height: 1.375rem; color: var(--muted); }
+
+/* A problem with a number sits 8px under its field, ending where the field ends (Numbers 5). */
+.quick .qproblem { grid-column: 1 / -1; justify-self: end; text-align: right; margin-top: -4px; }
+@media (min-width: 641px) {
+  .quick .qrow-main > .qname { grid-row: 1; grid-column: 1; }
+  .quick .qrow-main > .qvalue { grid-row: 1; grid-column: 2; }
+  .quick .qrow-main > .qstatus { grid-row: 1; grid-column: 3; }
+  .quick .qrow-main > .qproblem { grid-row: 2; grid-column: 1 / 3; }
+  .quick .qrow-main:has(> .qproblem) > .qvalue { align-self: end; }
+}
+/* No status yet: no placeholder line on a phone (Numbers 8). */
+@media (max-width: 640px) { .quick .qstatus.empty { display: none; } }
+
+/* Errors: the fields and the message, no row fill (Numbers 9). */
+.quick .qrow.invalid { background: transparent; }
+
+/* Reasons: paired labels line up at the top; one column on a phone, so a label never wraps beside its partner;
+   the value under the name on the smallest (Numbers 2, 3). */
+.quick .qrow-more .pair { align-items: start; }
+@container app (max-width: 600px) { .quick .qrow-more .pair { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
+@container app (max-width: 480px) {
+  .quick .qrow-main { grid-template-columns: minmax(0, 1fr); }
+  .quick .qproblem { justify-self: stretch; text-align: left; }
+}
+
+/* A reason is a sentence: room for it (Numbers 11). */
+.quick .qtext { min-height: 64px; max-height: 120px; padding: 10px 12px; resize: vertical; field-sizing: content; }
+
+/* Selects: their text where an input's is, and the app's own chevron (Numbers 16). */
+.quick .qselect { position: relative; display: block; }
+.quick .qselect select.input { appearance: none; -webkit-appearance: none; padding: 0 32px 0 12px; }
+.quick .qselect-chev { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+/* The draft banner: plain words, one blue link, the same left edge as the rows (Numbers 19). */
+.quick .restored { padding: 8px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg-2); }
+.quick .restored .linkish { color: var(--accent-text); font-weight: 550; }

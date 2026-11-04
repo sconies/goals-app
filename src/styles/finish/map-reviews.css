@@ -1,0 +1,150 @@
+/* Fit and finish, per-area reports (4 Nov): map-reviews. Loaded after styles.css. */
+
+/* ---------- the map ---------- */
+/* The map is the page: it ends 24px above the window's bottom, so nothing scrolls (Map 16). */
+.page:has(> .goalmap) { padding-bottom: 24px; }
+.goalmap { gap: 12px; }
+
+/* The key and the controls: one 26px line box for the key, the tools in one row (Map 19, 21, 22). */
+.map-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.map-legend { align-items: center; gap: 4px 16px; }
+.map-legend > span, .map-key-more > summary { min-height: 26px; line-height: 26px; }
+.map-key-more { display: inline-flex; }
+.map-key-more > summary { display: inline-flex; align-items: center; gap: 6px; border-radius: 4px; }
+.map-key-more > summary .icon { transition: transform .15s; }
+.map-key-more[open] > summary .icon { transform: rotate(180deg); }
+.map-key-more[open] > .hint { top: calc(100% + 8px); color: var(--fg-2); }
+.map-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.map-tools .check { min-height: 32px; }
+.map-fold { min-width: 96px; }
+.map-frame { flex: none; }
+.map-frame button { min-height: 32px; }
+
+/* Lines: "feeds into" at least 3:1 on the canvas; the critical path solid, 3px, drawn last on the shared trunk (Map 9, 26). */
+.key-line { border-top-color: var(--track); }
+.key-line.critical { border-top: 3px solid var(--off-mark); }
+.goalmap .react-flow__edge-path { stroke: var(--track); stroke-width: 1.5; }
+.goalmap .react-flow__edge.helps .react-flow__edge-path { stroke: var(--accent); stroke-width: 1.5; }
+.goalmap .react-flow__edge.critical .react-flow__edge-path { stroke: var(--off-mark); stroke-width: 3; }
+
+/* Zoom: top right, 12px in, clear of the goals and the tab bar (Map 7, 11). */
+.goalmap .react-flow__controls { margin: 12px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; box-shadow: none; }
+.goalmap .react-flow__controls button { border-bottom: 1px solid var(--line); }
+.goalmap .react-flow__controls button:last-child { border-bottom: 0; }
+
+/* Goals: 12px all round; the critical path a 2px red border; selection one 2px blue outline, 2px off (Map 24, 25). */
+.map-node { padding: 12px; }
+.map-node.critical { border: 2px solid var(--off-mark); padding: 11px; box-shadow: 0 1px 2px rgba(16, 24, 40, .08); }
+.map-node.critical[data-tone="stale"] { border-style: dashed; }
+.map-node.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Words keep their own figures; only numbers are tabular (Map 23). */
+.map-title, .map-panel, .map-panel .block-title { font-variant-numeric: normal; }
+
+/* The story beside the map: as tall as the map and scrolling inside it (Map 12). */
+.map-body { position: relative; display: block; }
+.map-panel { max-height: none; padding: 16px; gap: 8px; overflow: auto; overscroll-behavior: contain; }
+.map-panel .block-title { text-wrap: pretty; }
+.map-panel-head { min-height: 44px; }
+.map-panel .map-close { width: 44px; height: 44px; flex: none; margin-right: -8px; }
+/* One fact under another, not two cramped columns (Map 14). */
+.map-panel .story dl { display: flex; flex-direction: column; gap: 0; }
+.map-panel .story dt { font-size: 0.8125rem; font-weight: 600; color: var(--fg-2); margin-top: 12px; }
+.map-panel .story dt:first-child { margin-top: 0; }
+.map-panel .story dd { margin: 4px 0 0; }
+@media (min-width: 1024px) {
+  .map-body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: stretch; gap: 12px; }
+  .map-body > .map-canvas:only-child { grid-column: 1 / -1; }
+}
+/* Narrower than 1024px the story is a sheet over a full-width map (Map 13); on a phone it comes up from the bottom (Map 3). */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .map-panel { position: absolute; top: 0; right: 0; z-index: 6; width: 320px; max-width: calc(100% - 48px); box-shadow: var(--shadow); }
+}
+@media (max-width: 640px) {
+  .map-panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; width: auto; height: auto; max-height: 70dvh; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); border-radius: 12px 12px 0 0; box-shadow: var(--shadow); animation: sheet-up .18s ease-out both; }
+  /* During the walkthrough the sheet stays low, so the coach fits above it. */
+  .map-panel.coached { max-height: 40dvh; }
+  /* Room to scroll the map up under the top bar while the sheet is open. */
+  .goalmap:has(.map-panel) { padding-bottom: 70dvh; }
+  /* The key on one line; the filter and Fold all on the next; the framing full width under them, on the 16px gutter (Map 22). */
+  .map-legend { flex-wrap: nowrap; gap: 12px; font-size: 0.75rem; white-space: nowrap; }
+  .map-legend .key-line { width: 18px; }
+  .map-tools { width: 100%; justify-content: space-between; }
+  .map-frame { display: flex; flex: 1 1 100%; }
+  .map-frame button { flex: 1; justify-content: center; min-height: 36px; }
+}
+@media (pointer: coarse) { .map-frame button, .map-tools .check { min-height: 44px; } }
+
+/* The walkthrough card: its first quiet button starts on the card's text edge (Map 27). */
+
+/* ---------- reviews ---------- */
+/* The list: rows on the 16px scale, like the goal rows (RV 23). */
+.reviews-list a.arow { padding: 12px 16px; }
+
+/* A review's page. Ending: both actions full width on a phone (RV 10). */
+@container app (max-width: 760px) {
+  .review-home .hero-body { align-self: stretch; }
+  .review-home .hero .actions { flex-direction: column; align-items: stretch; gap: 8px; width: 100%; }
+  .review-home .hero .actions .btn { width: 100%; }
+}
+/* Still to review: one set of columns, so the titles line up (RV 11). */
+@media (min-width: 1024px) {
+  .review-home .tree .trow { grid-template-columns: 104px minmax(0, 1fr) 176px; column-gap: 12px; }
+  .review-home .tree .trow-now { white-space: normal; text-align: right; }
+}
+/* A phone: the status and its word, then the title full width, then the number and how far off it is on one line. */
+@container app (max-width: 480px) {
+  .review-home .tree .trow { grid-template-columns: minmax(0, 1fr); }
+  .review-home .tree .trow > * { grid-column: 1; }
+  .review-home .tree .trow-now { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0 8px; white-space: normal; }
+}
+/* The finished ring: the tick centred inside the ring, clear of its stroke (RV 20). */
+.ring.complete .ring-text { display: inline-flex; align-items: center; justify-content: center; }
+.ring.complete .ring-text svg { position: static; display: block; width: 24px; height: 24px; }
+
+/* Walking a review (a goal page with the review bar). */
+/* The head takes its own height and the evidence starts under it, not halfway down a tall side column (RV 2). */
+.page.goal-page:has(> .reviewbar) .split { grid-template-rows: auto 1fr; align-content: start; }
+.page.goal-page:has(> .reviewbar) .goal-evidence { align-self: start; }
+/* A short goal: the decision bar still sits at the bottom of the window (RV 17). */
+.page.goal-page:has(> .reviewbar) { min-height: 100dvh; padding-bottom: 0; }
+.page.goal-page:has(> .reviewbar) > .decide { margin-top: auto; }
+/* The progress track is visible before anything is reviewed (RV 5). */
+.reviewbar-track { background: var(--track); }
+/* The decision bar: 12px above and below; its rule runs the content's width, like the review bar's (RV 22). */
+@container app (min-width: 761px) {
+  .goal-page .decide { border-top: 0; padding-top: 12px; padding-bottom: 12px; }
+  .goal-page .decide::before { content: ""; position: absolute; top: 0; left: 32px; right: 32px; height: 1px; background: var(--line); }
+}
+@container app (max-width: 1100px) and (min-width: 761px) { .goal-page .decide::before { left: 24px; right: 24px; } }
+@media (max-height: 600px) { .goal-page .decide { position: relative; } }
+/* A phone: the two buttons side by side, half each; the quiet links one row of 44px targets; Skip is the bar's next arrow (RV 4). */
+@container app (max-width: 760px) {
+  .goal-page .decide { gap: 8px; padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .decide-buttons { flex-wrap: nowrap; gap: 8px; }
+  .decide-buttons .btn { flex: 1 1 0; min-width: 0; padding: 0 16px; white-space: normal; line-height: 1.25; text-align: center; }
+  .decide .quiet-links { flex-wrap: wrap; gap: 0 16px; }
+  .decide .quiet-links .linkish.skip-now { display: none; }
+}
+/* Under 1024px every text link in the review is a 44px target (RV 7). */
+@media (max-width: 1023px) {
+  .decide .quiet-links .linkish, .healthy-group .linkish, .sheet .request-card .linkish, .sheet-foot > .linkish { display: inline-flex; align-items: center; min-height: 44px; }
+  .sheet .seg.full button { min-height: 44px; }
+}
+/* The narrowest phones: the progress on its own thin line under the name, so the name has room (RV 19). */
+@container app (max-width: 400px) {
+  .reviewbar { flex-wrap: wrap; row-gap: 6px; }
+  .reviewbar > .stack { flex: 1 1 0; }
+  .reviewbar .reviewbar-track { order: 10; flex: 1 1 100%; max-width: none; height: 4px; }
+  .goal-page:has(> .reviewbar) .statusline > .chip { flex-basis: 100%; }
+}
+
+/* Setting up a review: a real heading in the top bar (RV 14); a choice that's in shows a tick, not a tint (RV 16). */
+.review-edit .focus-top { min-height: 60px; }
+.review-edit .focus-title { margin: 0; font-size: 1.375rem; line-height: 1.75rem; font-weight: 650; letter-spacing: -0.01em; }
+.review-edit .pill { display: inline-flex; align-items: center; gap: 6px; }
+.review-edit .pill[aria-pressed="true"] { background: var(--surface); color: var(--fg); border-color: var(--accent); }
+.review-edit .pill .icon { color: var(--accent-text); }
+.review-edit .opt[aria-checked="true"] { background: transparent; }
+.picked { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.picked-mark { display: inline-flex; flex: none; width: 16px; height: 16px; color: var(--accent-text); }
+.picked-mark:empty { display: none; }

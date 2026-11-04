@@ -6,9 +6,16 @@
     <title>Goals</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <!-- Shown until the app's own code has loaded, so a slow connection never sees a blank page. -->
+    <style>
+      body { margin: 0; background: #F5F6F8; }
+      .preboot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px; font: 600 15px/22px Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color: #101828; }
+      .preboot span { font-size: 14px; font-weight: 400; line-height: 20px; color: #475467; }
+      @media (prefers-color-scheme: dark) { body { background: #0E1116; } .preboot { color: #E8EBF0; } .preboot span { color: #9AA3B2; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="preboot" aria-busy="true">Goals<span>Loading…</span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

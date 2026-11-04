@@ -3,6 +3,14 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { BrowserStore, LIVE_KEY, type Mode, type Store } from './data/store';
 import './styles.css';
+import './styles/finish/home-watching.css';
+import './styles/finish/forms-checkin.css';
+import './styles/finish/wizard.css';
+import './styles/finish/goal-history.css';
+import './styles/finish/list-board.css';
+import './styles/finish/map-reviews.css';
+import './styles/finish/data-workspace.css';
+import './styles/finish/sheets.css';
 
 /** Everything under /demo is the demo: the example data in this browser, with a role switcher and a reset. */
 const mode: Mode = location.pathname === '/demo' || location.pathname.startsWith('/demo/') ? 'demo' : 'live';

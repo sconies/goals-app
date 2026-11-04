@@ -196,7 +196,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   h.set('logged', posts.length === 2 && posts.every((c) => c.diffs.some((d) => d.field === 'Value')), `expected two logged week-${NOW} posts by Sam, saw ${posts.length}`);
   await p.goto(url('/'));
   await p.reload();
-  await see(p, 'Your check-ins are in', 'posted check-ins survive a reload, and home moves on to the review Sam is in');
+  await see(p, /All \d+ check-ins posted for week|Your check-in is posted for week/, 'posted check-ins survive a reload, and home moves on to the review Sam is in');
   // An ad hoc check-in, any time, from the goal page: kept alongside the first, and the latest is the week's status.
   await p.goto(url('/goals/review'));
   await h.click(p.getByRole('link', { name: 'Check in now' }));
@@ -611,7 +611,7 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES'], 'Fo
   // And a whole level from Watching.
   await navTo(h, p, 'Watching');
   await h.click(p.getByRole('button', { name: 'Change', exact: true }));
-  await h.click(p.getByRole('button', { name: /\+ SVP/ }));
+  await h.click(p.getByRole('button', { name: /^Watch SVP/ }));
   await see(p, 'Every SVP goal');
   h.set('progress', true);
   h.set('finish', true);
@@ -760,7 +760,7 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   await p.goto(url('/'));
   // Needs your response: a decision Aisha named Elena for, with why, what and a specific action.
   await see(p, 'Needs your response');
-  const card = p.locator('.need', { hasText: 'A decision or help is needed from you' }).first();
+  const card = p.locator('.need-group', { hasText: 'Decisions or help needed' }).locator('.need').first();
   await h.inView(card, 'entry', 'the decision that needs Elena');
   h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('button', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
   await see(p, 'Important changes');
@@ -826,16 +826,17 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  await h.inView(p.getByRole('button', { name: 'Year end' }), 'entry', 'the choice of when the target is due');
-  h.set('attention', (await p.getByRole('button', { name: 'Year end' }).getAttribute('aria-pressed')) === 'true', 'a new goal is not due at the year end by default');
-  await h.click(p.getByRole('button', { name: 'Year end' }));
+  // With one possible date (the year end) it is said, not offered as a one-button choice (fit and finish F3, 8).
+  const due = p.getByText(/^Year end · due week \d+/);
+  await h.inView(due, 'entry', 'when the target is due');
+  h.set('attention', await due.isVisible(), 'a new goal is not due at the year end by default');
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Today \(week/), '20');
   await h.fill(p.getByLabel(/^Target \(week/), '90');
   // The plan is a table of numbers, with the shape's defaults; type over one.
   const row = p.getByLabel(/^Plan for week \d+/).first();
   await row.waitFor();
-  h.set('attention', (await p.getByLabel(/^Plan for week \d+/).count()) >= 3 && /\d/.test((await row.getAttribute('placeholder')) || ''), 'the plan table has no default numbers');
+  h.set('attention', (await p.getByLabel(/^Plan for week \d+/).count()) >= 3 && /\d/.test(await row.inputValue()), 'the plan table has no default numbers');
   await h.fill(row, '30');
   await h.checkpoint('plan table');
   await h.click(p.getByRole('button', { name: /Continue/ }));
@@ -959,6 +960,8 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await h.click(p.getByLabel('Select Alerts auto-triaged by AIOps').first());
   await h.click(p.getByLabel('Select Build cache hit rate').first());
   await see(p, '2 selected');
+  // On a phone the bulk actions share one Actions menu, so the bar stays one row (fit and finish, L&T 6).
+  if (device === 'phone') await h.click(p.locator('.selbar-menu > summary'));
   await h.click(p.getByRole('button', { name: 'Change level' }));
   await p.getByRole('dialog').getByLabel('Level').selectOption('svp');
   await h.checkpoint('bulk level');
@@ -1111,8 +1114,8 @@ journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust,
   // Coverage can't pass 100%: refused in place, and the summary names the real problem.
   await h.fill(row.getByRole('textbox'), '150');
   await see(row, 'can’t be over 100%', 'a coverage of 150% is not refused');
-  // The button says what's wrong rather than offering to post (product review, 3 Nov).
-  await h.click(p.getByRole('button', { name: /^Fix 1 value/ }));
+  // Post keeps its label; what's wrong is said in the summary above it (fit and finish, 4 Nov: Numbers 7).
+  await h.click(p.getByRole('button', { name: /^Post 1 check-in/ }));
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'needs a possible number' }).isVisible(), 'the summary blames a reason, not the number');
   const s = await h.snapshot();
   h.set('logged', !s.checkIns.some((c) => c.goalId === 'review' && c.value === 150), 'an impossible coverage was saved');
@@ -1221,7 +1224,8 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
   h.set('progress', rows === 2 && (await p.getByRole('button', { name: /Remove filter: Recovery date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
-  // Save it: a name is needed; then it's a tab of its own.
+  // Save it: a name is needed; then it's a tab of its own. On a phone, saving and sharing are in one View menu (L&T 23).
+  if (device === 'phone') await h.click(p.locator('.filter-view-menu > summary'));
   await h.click(p.getByRole('button', { name: 'Save view' }));
   const save = p.getByRole('dialog', { name: 'Save this view' });
   await h.click(save.getByRole('button', { name: 'Save view' }));
@@ -1233,9 +1237,11 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   h.set('finish', (await tab.getAttribute('aria-selected')) === 'true', 'the saved view is not shown as the current one');
   const s = await h.snapshot();
   h.set('logged', (s.views ?? []).some((v) => v.name === 'Slipped dates' && v.params.includes('needs=slipped') && v.params.includes('view=table') && !v.deletedAt), 'the view was not saved with its filters and layout');
-  // Back later: plain Goals, then the view's tab brings it all back.
+  // Back later: plain Goals, then the view, from the Views menu, brings it all back (saved views wait in one menu
+  // rather than adding tabs that run off a phone's screen, L&T 2).
   await p.goto(url('/goals?view=list'));
-  await h.click(p.getByRole('tab', { name: /Slipped dates/ }));
+  await h.click(p.locator('.views-menu > summary'));
+  await h.click(p.getByRole('button', { name: /Slipped dates/ }));
   await see(p, '2 of 13 goals', 'opening the saved view did not bring its filters back');
   // A shared link opens the same goals for anyone.
   const other = await newPage(device, 'maya');
@@ -1244,7 +1250,8 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await other.context().close();
   // Delete it: the tab goes.
   // Rename, pin and delete live in one menu, not beside the filters.
-  await p.getByText('Manage view', { exact: true }).click();
+  if (device === 'phone') await p.locator('.filter-view-menu > summary').click();
+  else await p.getByText('Manage view', { exact: true }).click();
   await p.getByRole('button', { name: 'Delete' }).click();
   await tab.waitFor({ state: 'detached' });
   await p.context().close();
@@ -1393,7 +1400,9 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   h.set('finish', /kind=checkins/.test(p.url()) && /who=priya/.test(p.url()), 'the activity filters are not in the link');
   await see(p, /\d+ of \d+ changes/, 'the filtered activity does not say how many it shows');
   const download = p.waitForEvent('download', { timeout: 5000 }).catch(() => null);
-  await h.click(p.getByRole('button', { name: 'Save .csv' }));
+  // On a phone, Save .csv is in the Filters sheet's footer rather than a row of the filter bar.
+  if (device === 'phone') { await h.click(p.getByRole('button', { name: /^Filters/ })); await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByRole('button', { name: 'Save .csv' })); }
+  else await h.click(p.getByRole('button', { name: 'Save .csv' }));
   h.set('progress', !!(await download), 'Save .csv did not download the filtered log');
   await p.context().close();
 }, ['entry', 'one-action']);
@@ -1771,7 +1780,30 @@ journey('U29', ['WALKTHROUGHS'], 'Every walkthrough starts as the right person a
 }, ['errors', 'budget', 'one-action', 'a11y']);
 
 /* ---------------- platform checks ---------------- */
+  // F1–F8: the per-area fit-and-finish reports (4 Nov). Each area keeps its own checks in evals/finish/*.cjs.
+async function finishChecks(add) {
+  {
+    const open = async (w, h, who, route, touch) => {
+      const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch, isMobile: !!touch && w < 800 });
+      const r = await c.newPage();
+      await r.goto(url('/')); if (who) await r.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), who);
+      await r.goto(url(route)); await r.waitForTimeout(400);
+      return [c, r];
+    };
+    const dir = path.join(__dirname, 'finish');
+    const pick = (process.env.FINISH || '').split(',').filter(Boolean);
+    for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.cjs')).sort()) {
+      const m = require(path.join(dir, f));
+      if (pick.length && !pick.includes(m.id)) continue;
+      let fails;
+      try { fails = await m.run({ open, url, browser }); } catch (e) { fails = [`check crashed: ${String(e.message || e).split('\n')[0]}`]; }
+      add(m.id, ['FIT-AND-FINISH-AREAS'], `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
+    }
+  }
+}
+
 async function platformChecks() {
+  if (process.env.FINISH) { const out = []; await finishChecks((id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error })); return out; }
   const out = [];
   const add = (id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error });
   // Reduced motion switches animation off.
@@ -1993,6 +2025,7 @@ async function platformChecks() {
     await c.close();
   }
   add('P10', ['FIT-AND-FINISH'], 'Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge', !finish.length, finish.join(' | '));
+  await finishChecks(add);
   add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
   add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
   return out;

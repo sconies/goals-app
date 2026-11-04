@@ -41,7 +41,7 @@ export function DemoEntry({ onOpen, compact }: { onOpen: () => void; compact?: b
   );
 }
 
-export function DemoPanel({ onClose, onPresent }: { onClose: () => void; onPresent: () => void }) {
+export function DemoPanel({ onClose, onPresent, title = 'Demo' }: { onClose: () => void; onPresent: () => void; title?: string }) {
   const app = useApp();
   const nav = useNavigate();
   const navMode = useNavMode();
@@ -72,7 +72,7 @@ export function DemoPanel({ onClose, onPresent }: { onClose: () => void; onPrese
   };
   const tours = TOURS.filter((t) => app.ws.kind !== 'example' || app.person(t.personId));
   return (
-    <Sheet open onClose={onClose} title="Demo" wide>
+    <Sheet open onClose={onClose} title={title} wide>
       {/* People and walkthroughs side by side on a desktop; everything else below, in one row of short sections. */}
       <div className="demo-grid">
         <section className="stack demo-people" style={{ gap: 4 }} aria-label="See it as">
@@ -99,8 +99,8 @@ export function DemoPanel({ onClose, onPresent }: { onClose: () => void; onPrese
         <section className="stack" style={{ gap: 4 }} aria-label="Example data">
           <span className="field-label">Example data</span>
           {app.ws.kind === 'example' && (resetting
-            ? <span className="row"><span className="small">Undo every change in this example?</span><button type="button" className="btn sm" onClick={async () => { await app.resetExample(); setResetting(false); onClose(); nav('/'); }}>Yes, start over</button><button type="button" className="btn ghost sm" onClick={() => setResetting(false)}>Cancel</button></span>
-            : <button type="button" className="menuitem" onClick={() => setResetting(true)}><span className="strong">Start over</span><span className="tiny muted">Undo every change in {app.ws.name.replace(/^Example: /, '')}</span></button>)}
+            ? <span className="stack demo-confirm" style={{ gap: 'var(--s2)' }}><span className="small">Undo every change in this example?</span><span className="row" style={{ gap: 'var(--s2)' }}><button type="button" className="btn sm" onClick={async () => { await app.resetExample(); setResetting(false); onClose(); nav('/'); }}>Yes, start over</button><button type="button" className="btn ghost sm" onClick={() => setResetting(false)}>Cancel</button></span></span>
+            : <button type="button" className="menuitem" onClick={() => setResetting(true)}><span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Start over</span><span className="tiny muted">Undo every change in {app.ws.name.replace(/^Example: /, '')}</span></span></button>)}
           <Link className="menuitem" to="/workspace" onClick={onClose}><span className="strong">Other example companies</span></Link>
         </section>
         <section className="stack" style={{ gap: 4 }} aria-label="Options">

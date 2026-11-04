@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type EdgeProps, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
+import { readTour, type TourState } from '../app/tours';
 import { LEVEL_LABEL } from '../domain/format';
 import { criticalPath, edges as mapEdges, layout, layoutIndented, NODE_H, NODE_W } from '../domain/map';
 import { LABEL, RANK } from '../domain/status';
@@ -16,12 +17,14 @@ import { Chip, StatusShape } from '../ui/bits';
 import { StoryLines } from './GoalViews';
 import { Icon } from '../ui/Icon';
 
-type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: string | null; children: number; collapsed: boolean; critical: boolean; context: boolean; onToggle: (id: string) => void };
+type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: string | null; children: number; collapsed: boolean; critical: boolean; root: boolean; context: boolean; onToggle: (id: string) => void };
 
 function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
-  const { goal, status, owner, result, children, collapsed, critical, context, onToggle } = data;
+  const { goal, status, owner, result, children, collapsed, critical, root, context, onToggle } = data;
+  // The walkthrough's card goes left of a critical goal (else below), 16px off, and never covers the north star it threatens.
+  const coach = critical ? (root ? { 'data-coach-avoid': '' } : { 'data-coach-place': 'left below', 'data-coach-gap': '16' }) : {};
   return (
-    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '')} data-tone={status}>
+    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '')} data-tone={status} {...coach}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
       <span className={'map-status tone-' + status}><StatusShape k={status} />{LABEL[status]}{result && <span className={'result-tag result-' + (result === 'Completed' ? 'completed' : result === 'Completed late' ? 'late' : 'missed')}>{result}</span>}</span>
       <span className="map-title">{goal.title}</span>
@@ -38,13 +41,23 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
 }
 const nodeTypes = { goal: GoalNode };
 
-/** A stacked input's line: left out of the goal to its column's line, up that line, then across into the goal it feeds. */
-function BusEdge({ sourceX, sourceY, targetX, targetY, data, markerEnd, style }: EdgeProps<Edge<{ bus: number }>>) {
-  const bus = data?.bus ?? sourceX - 16;
+/**
+ * Every "feeds into" line under a goal shares one trunk: 24px under the goal it feeds, then one drop into it. A stacked
+ * input leaves by its left side to its column's line first; the rest go straight up. So the critical path, drawn last,
+ * lies on the same line as its grey siblings rather than beside them (fit and finish, 4 Nov).
+ */
+function BusEdge({ sourceX, sourceY, targetX, targetY, data, markerEnd, style }: EdgeProps<Edge<{ bus?: number }>>) {
   const turn = targetY + 24;
-  return <BaseEdge path={`M ${sourceX},${sourceY} H ${bus} V ${turn} H ${targetX} V ${targetY}`} markerEnd={markerEnd} style={style} />;
+  const path = data?.bus != null ? `M ${sourceX},${sourceY} H ${data.bus} V ${turn} H ${targetX} V ${targetY}` : `M ${sourceX},${sourceY} V ${turn} H ${targetX} V ${targetY}`;
+  return <BaseEdge path={path} markerEnd={markerEnd} style={style} />;
 }
-const edgeTypes = { bus: BusEdge };
+/** On a phone, one goal per row: each input leaves by its left side to a spine under the left of the goal it feeds. */
+function SpineEdge({ sourceX, sourceY, targetX, targetY, markerEnd, style }: EdgeProps) {
+  const spine = targetX - NODE_W / 2 + 18;
+  return <BaseEdge path={`M ${sourceX},${sourceY} H ${spine} V ${targetY}`} markerEnd={markerEnd} style={style} />;
+}
+const edgeTypes = { bus: BusEdge, spine: SpineEdge };
+type Frame = 'readable' | 'all';
 
 const posKey = (ws: string) => `goals-map:${ws}`;
 const readPos = (ws: string): Record<string, { x: number; y: number }> => { try { return JSON.parse(localStorage.getItem(posKey(ws)) || '{}'); } catch { return {}; } };
@@ -71,18 +84,23 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
   // On a desktop, a goal with many inputs stacks them in columns of three, so the map is a block rather than one long row.
   const placed = useMemo(() => (phone ? layoutIndented(goals, { collapsed, order }) : layout(goals, { collapsed, order, stack: 3 })), [goals, collapsed, order, phone]);
   const nodes: Node<GoalNodeData>[] = useMemo(() => placed.map((n) => ({
-    id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected, domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
+    id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected,
+    domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
     ariaLabel: `${n.goal.title}: ${LABEL[statusOf(n.goal)]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
-    data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? RESULT_TEXT[r.kind] : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), context: !!matches && !matches.has(n.id), onToggle: toggle },
+    data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? RESULT_TEXT[r.kind] : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), root: n.depth === 0, context: !!matches && !matches.has(n.id), onToggle: toggle },
   })), [placed, moved, selected, statusOf, critical, app, toggle, matches]);
   const busOf = useMemo(() => new Map(placed.filter((n) => n.bus != null).map((n) => [n.id, n.bus!])), [placed]);
-  const links: Edge[] = useMemo(() => mapEdges(placed, critical).map((e) => ({
+  // The critical path is drawn last, so no grey line paints over it.
+  const links: Edge[] = useMemo(() => mapEdges(placed, critical).sort((a, b) => Number(a.critical) - Number(b.critical)).map((e) => ({
     id: e.id, source: e.from, target: e.to, selectable: false,
-    ...(e.kind === 'feeds' && busOf.has(e.from) ? { type: 'bus', sourceHandle: 'left', data: { bus: busOf.get(e.from)! } } : { type: e.kind === 'helps' ? 'default' : 'smoothstep', sourceHandle: 'top' }),
+    ...(e.kind === 'helps' ? { type: 'default', sourceHandle: 'top' }
+      : phone ? { type: 'spine', sourceHandle: 'left' }
+        : busOf.has(e.from) ? { type: 'bus', sourceHandle: 'left', data: { bus: busOf.get(e.from)! } } : { type: 'bus', sourceHandle: 'top' }),
     className: 'map-edge ' + e.kind + (e.critical ? ' critical' : ''),
+    ...(e.critical ? { domAttributes: { 'data-coach-avoid': '' } as Record<string, string> } : {}),
     markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
     ...(e.kind === 'helps' ? { style: { strokeDasharray: '6 5' } } : {}),
-  })), [placed, critical, busOf]);
+  })), [placed, critical, busOf, phone]);
 
   useEffect(() => { try { localStorage.setItem(posKey(app.ws.id), JSON.stringify(moved)); } catch { /* storage blocked */ } }, [moved, app.ws.id]);
   const sel = selected ? goals.find((g) => g.id === selected) : undefined;
@@ -95,46 +113,110 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
     const inTree = (n: (typeof placed)[number]) => { let g: Goal | undefined = n.goal; const seen = new Set<string>(); while (g && !seen.has(g.id)) { if (g.id === root.id) return true; seen.add(g.id); g = goals.find((x) => x.id === g!.parentId); } return false; };
     return placed.filter((n) => n.id === root.id || (critical.has(n.id) && inTree(n))).map((n) => ({ id: n.id }));
   }, [placed, critical, statusOf, goals]);
-  // On a desktop the canvas fills the window below the page's header: the map is the page.
-  // Measured from where the canvas starts, so the whole map and its controls fit in the window (Senior UX review, 2 Nov).
-  const [top, setTop] = useState<number | null>(null);
+  // The map fills the window below its controls: on a desktop down to 24px above the window's bottom, so the page doesn't
+  // scroll; on a phone, what's left once the controls sit under the top bar, above the tab bar (fit and finish, 4 Nov).
+  const bar = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState<{ top: number; phone: number; tabs: number } | null>(null);
   useLayoutEffect(() => {
-    const measure = () => { const r = canvas.current?.getBoundingClientRect(); if (r) setTop(r.top + window.scrollY); };
+    const measure = () => {
+      const r = canvas.current?.getBoundingClientRect(), b = bar.current?.getBoundingClientRect();
+      if (!r || !b) return;
+      const head = document.querySelector('.mtop')?.getBoundingClientRect().height ?? 0;
+      const tabs = document.querySelector('.tabbar')?.getBoundingClientRect().height ?? 0;
+      const next = { top: Math.round(r.top + window.scrollY), phone: Math.round(window.innerHeight - head - tabs - (r.top - b.top) - 16), tabs: Math.round(tabs) };
+      setRoom((o) => (o && o.top === next.top && o.phone === next.phone && o.tabs === next.tabs ? o : next));
+    };
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, []);
-  const height = phone ? '70vh' : `max(420px, calc(100vh - ${Math.round((top ?? 250) + 16)}px))`;
-  const flow = useRef<Pick<ReactFlowInstance<Node<GoalNodeData>, Edge>, 'setViewport' | 'fitView'> | null>(null);
-  // Frame the critical path (or the top goals) ourselves, from the layout: no waiting for nodes to measure.
-  const frame = (rf: Pick<ReactFlowInstance, 'setViewport'>) => {
+  });
+  const height = phone ? `${Math.max(360, room?.phone ?? 520)}px` : `max(360px, calc(100dvh - ${(room?.top ?? 250) + 24 + (room?.tabs ?? 0)}px))`;
+  const flow = useRef<Pick<ReactFlowInstance<Node<GoalNodeData>, Edge>, 'setViewport' | 'getViewport'> | null>(null);
+  const [view, setView] = useState<Frame>('readable');
+  /**
+   * Frame the map ourselves, from the layout: no waiting for nodes to measure. Readable: the north stars and the critical
+   * path; everything: every goal. Never smaller than 75% (titles stay at least 10.5px) nor larger than 100%; what doesn't
+   * fit is a pan away, and the readable frame then keeps the critical path in view.
+   */
+  const frame = (rf: Pick<ReactFlowInstance, 'setViewport'>, mode: Frame = view) => {
     const box = canvas.current?.getBoundingClientRect();
-    const pts = placed.filter((n) => focus.some((f) => f.id === n.id)).map((n) => moved[n.id] ?? { x: n.x, y: n.y });
-    if (!box || !pts.length) return;
-    const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x)) + NODE_W;
-    const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y)) + NODE_H;
-    const zoom = phone ? Math.min(1, (box.width - 24) / (Math.max(...placed.map((n) => n.x)) + NODE_W)) : Math.max(0.7, Math.min(1, (box.width - 48) / (maxX - minX), (box.height - 64) / (maxY - minY)));
-    void rf.setViewport(phone ? { zoom, x: 12, y: 16 - minY * zoom } : { zoom, x: box.width / 2 - ((minX + maxX) / 2) * zoom, y: 32 - minY * zoom });
+    const pos = (n: (typeof placed)[number]) => moved[n.id] ?? { x: n.x, y: n.y };
+    const bounds = (ns: typeof placed) => {
+      const ps = ns.map(pos);
+      return { minX: Math.min(...ps.map((p) => p.x)), maxX: Math.max(...ps.map((p) => p.x)) + NODE_W, minY: Math.min(...ps.map((p) => p.y)), maxY: Math.max(...ps.map((p) => p.y)) + NODE_H };
+    };
+    const onPath = placed.filter((n) => focus.some((f) => f.id === n.id));
+    const pick = mode === 'all' ? placed : placed.filter((n) => n.depth === 0 || onPath.includes(n));
+    if (!box || !pick.length) return;
+    const pad = phone ? 12 : 32;
+    const fit = (k: ReturnType<typeof bounds>) => Math.max(0.75, Math.min(1, (box.width - 2 * pad) / (k.maxX - k.minX), phone ? 1 : (box.height - 2 * pad) / (k.maxY - k.minY)));
+    const fitsX = (k: ReturnType<typeof bounds>, z: number) => (k.maxX - k.minX) * z <= box.width - 2 * pad + 1;
+    let b = bounds(pick), zoom = fit(b);
+    // The north stars don't all fit at a readable size: nearly (within 15% of the width), start at the critical path's
+    // side and leave the last few pixels a pan away; otherwise the readable frame is the critical path alone, centred.
+    if (mode === 'readable' && !phone && onPath.length && (b.maxX - b.minX) * zoom > (box.width - 2 * pad) * 1.15) { b = bounds(onPath); zoom = fit(b); }
+    // Still too wide (everything, or a phone): start at the left; the rest is a pan to the right.
+    const f = onPath.length ? bounds(onPath) : b;
+    const x = fitsX(b, zoom) ? box.width / 2 - ((b.minX + b.maxX) / 2) * zoom : Math.max(pad - f.minX * zoom, Math.min(box.width - pad - f.maxX * zoom, pad - b.minX * zoom));
+    void rf.setViewport({ zoom, x, y: (phone ? 16 : pad) - b.minY * zoom });
   };
   const allIds = goals.filter((g) => goals.some((c) => c.parentId === g.id)).map((g) => g.id);
 
+  // The walkthrough: on its critical-path step, bring the map into view on a short screen; on its last, the panel is
+  // where the story is, so on a phone the sheet leaves room above it for the coach.
+  const [tour, setTour] = useState<TourState | null>(readTour);
+  useEffect(() => { const on = () => setTour(readTour()); window.addEventListener('goals-tour', on); return () => window.removeEventListener('goals-tour', on); }, []);
+  const touring = tour?.id === 'map' ? tour.step : -1;
+  useEffect(() => {
+    if (touring !== 1) return;
+    const t = setTimeout(() => {
+      const node = document.querySelector('.goalmap .map-node.critical')?.getBoundingClientRect(), b = bar.current?.getBoundingClientRect();
+      if (!node || !b) return;
+      const top = underHead();
+      if (node.bottom > window.innerHeight - 16 || node.top < top) window.scrollBy({ top: b.top - top - 8 });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [touring]);
+  // On a phone the story opens as a sheet: the map scrolls up under the top bar and the goal moves above the sheet.
+  useEffect(() => {
+    if (!phone || !selected) return;
+    const t = setTimeout(() => {
+      const c = canvas.current?.getBoundingClientRect(), sheet = document.querySelector('.map-panel')?.getBoundingClientRect();
+      if (!c || !sheet) return;
+      const top = underHead();
+      if (Math.abs(c.top - top) > 2) window.scrollBy({ top: c.top - top });
+      const node = document.querySelector(`.react-flow__node[data-id="${CSS.escape(selected)}"]`)?.getBoundingClientRect();
+      const rf = flow.current;
+      if (!node || !rf) return;
+      const want = top + 16, low = sheet.top - 16;
+      if (node.top >= want && node.bottom <= low) return;
+      const v = rf.getViewport();
+      void rf.setViewport({ ...v, y: v.y + (want - node.top) }, { duration: 200 });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [phone, selected]);
+
+  const fold = () => setCollapsed(collapsed.size ? new Set() : new Set(allIds));
   return (
     <div className="goalmap">
-      <div className="row between map-bar">
+      <div className="map-bar" ref={bar} data-coach-avoid="">
         {/* The key is one line; what the critical path means is a click away (visual review 2). */}
         <div className="map-legend" aria-label="Map key">
           <span><i className="key-line" /> Feeds into</span>
           <span><i className="key-line dotted" /> Also helps</span>
-          <details className="map-key-more"><summary><i className="key-line critical" /> Critical path</summary><span className="hint">Most likely to make it miss, from status (off track, at risk, no recent update) and how much each goal feeds the one above.</span></details>
+          <KeyMore />
         </div>
-        <span className="row" style={{ gap: 'var(--s2)' }}>
+        <div className="map-tools">
           <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> Only what needs attention</label>
-          <button type="button" className="btn sm" onClick={() => setCollapsed(collapsed.size ? new Set() : new Set(allIds))}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
+          <button type="button" className="btn sm map-fold" onClick={fold}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
-          {/* Two views, named: everything at once (small), or the critical path at a readable size (product review, 3 Nov). */}
-          <button type="button" className="btn ghost sm" onClick={() => { void flow.current?.fitView({ padding: 0.06, minZoom: 0.2, maxZoom: 1 }); }}>See everything</button>
-          <button type="button" className="btn ghost sm" onClick={() => { if (flow.current) frame(flow.current); }}>Readable view</button>
-        </span>
+          {/* Two framings, one at a time: every goal, or the north stars and the critical path at a readable size. */}
+          <div className="seg map-frame" role="group" aria-label="Frame the map">
+            {([['all', 'Fit all'], ['readable', 'Readable']] as const).map(([k, l]) => (
+              <button key={k} type="button" aria-pressed={view === k} onClick={() => { setView(k); if (flow.current) frame(flow.current, k); }}>{l}</button>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="map-body">
         <div className="map-canvas" ref={canvas} style={{ height }} role="region" aria-label="Goal map. Drag to move around, scroll or pinch to zoom, Tab to move between goals, Enter to open one."
@@ -147,18 +229,18 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           }}>
           <ReactFlow
             key={(attention ? 'a' : 'all') + goals.length + '-' + collapsed.size}
-            nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={0.2} maxZoom={1.6}
+            nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={0.3} maxZoom={1.6}
             onInit={(rf) => { flow.current = rf; frame(rf); }}
             nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
             onNodeClick={(_, n) => { fromKeys.current = null; setSelected(n.id); }} onPaneClick={() => setSelected(null)}
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
           >
             <Background gap={24} size={1} />
-            {/* Fit view never shrinks the words below a readable size; scroll for the rest (visual review 2). */}
-            <Controls showInteractive={false} showFitView={false} position="bottom-left" />
+            {/* Top right, clear of the goals on the left and of the tab bar on a phone. */}
+            <Controls showInteractive={false} showFitView={false} position="top-right" />
           </ReactFlow>
         </div>
-        {sel && <MapPanel goal={sel} focus={!!fromKeys.current} critical={critical.has(sel.id)} onClose={() => {
+        {sel && <MapPanel goal={sel} focus={!!fromKeys.current} critical={critical.has(sel.id)} height={height} coached={touring === 2} sheet={phone} onClose={() => {
           const back = fromKeys.current;
           setSelected(null);
           fromKeys.current = null;
@@ -169,15 +251,42 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
   );
 }
 
-function MapPanel({ goal, onClose, critical, focus }: { goal: Goal; onClose: () => void; critical: boolean; focus: boolean }) {
+/** The bottom of the phone's top bar, when it stays put as the page scrolls; 0 on a desktop. */
+function underHead() {
+  const head = document.querySelector('.mtop');
+  return head && getComputedStyle(head).position !== 'static' && getComputedStyle(head).display !== 'none' ? head.getBoundingClientRect().bottom : 0;
+}
+
+/** What the critical path means: a click away, below the key, closed by a click anywhere else or Escape. */
+function KeyMore() {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const away = (e: Event) => { const d = ref.current; if (d?.open && !d.contains(e.target as globalThis.Node)) d.open = false; };
+    const esc = (e: KeyboardEvent) => { const d = ref.current; if (e.key === 'Escape' && d?.open) { d.open = false; d.querySelector('summary')?.focus(); } };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
+  }, []);
+  return (
+    <details className="map-key-more" ref={ref}>
+      <summary><i className="key-line critical" /> Critical path<Icon name="chevron-down" size={12} /></summary>
+      <span className="hint">Most likely to make it miss, from status (off track, at risk, no recent update) and how much each goal feeds the one above.</span>
+    </details>
+  );
+}
+
+function MapPanel({ goal, onClose, critical, focus, height, coached, sheet }: { goal: Goal; onClose: () => void; critical: boolean; focus: boolean; height: string; coached: boolean; sheet: boolean }) {
   const app = useApp();
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (focus) title.current?.focus(); }, [focus, goal.id]);
   const s = summarise(goal, app.snapshot, app.cycle, app.today, app.week);
   const feeds = app.snapshot.goals.filter((g) => g.parentId === goal.id);
+  // Beside the map it's as tall as the map and scrolls inside; on a phone it's a sheet. The walkthrough's last step sits
+  // beside it: left of it, lined up with its bottom, on a desktop; above it on a phone.
   return (
-    <aside className="map-panel" aria-label={goal.title} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
-      <div className="row between nowrap"><Chip k={s.status} /><button type="button" className="iconbtn" aria-label="Close" onClick={onClose}><Icon name="close" /></button></div>
+    <aside className={'map-panel' + (coached ? ' coached' : '')} aria-label={goal.title} style={sheet ? undefined : { height }} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+      data-coach-anchor="" data-coach-place={sheet ? 'above' : 'left end'} data-coach-gap="16">
+      <div className="row between nowrap map-panel-head"><Chip k={s.status} /><button type="button" className="iconbtn map-close" aria-label="Close" onClick={onClose}><Icon name="close" size={16} /></button></div>
       <h2 className="block-title" ref={title} tabIndex={-1}>{goal.title}</h2>
       <Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link>
       <span className="hint">{s.owner} · {s.team}{s.story.feeds ? ` · ${s.story.feeds}` : ''}</span>

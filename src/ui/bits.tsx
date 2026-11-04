@@ -6,6 +6,7 @@ import { LABEL } from '../domain/status';
 import type { DisplayStatus, Level, Person } from '../domain/types';
 import { LEVEL_LABEL } from '../domain/format';
 import { Icon } from './Icon';
+import { useToasts } from '../app/state';
 
 /** Status is shape plus word, never colour alone. */
 export function StatusShape({ k }: { k: DisplayStatus }) {
@@ -149,9 +150,25 @@ export function timeAgo(iso: string, now: Date): string {
   return new Date(iso).toLocaleDateString('en-GB', DATE_FMT);
 }
 
-/** A panel that slides up on a phone and drops down as a popover on a desktop. */
+/** Nothing to show yet: a heading, one line on why, and the way out (a search or filter that matched nothing). */
+export function EmptyResult({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="empty-state" role="status">
+      <span className="empty-state-title">{title}</span>
+      {children && <span className="empty-state-line">{children}</span>}
+      {action && <div className="empty-state-action">{action}</div>}
+    </div>
+  );
+}
+
+/**
+ * A panel that slides up on a phone and drops down as a popover on a desktop. Its body scrolls; a `.sheet-foot` inside
+ * it stays at the bottom of the sheet at every scroll position. Messages raised while it's open show inside it, below
+ * everything, so they never cover what you're doing.
+ */
 export function Sheet({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const toasts = useToasts();
   // The latest onClose, so a parent passing a new function each render doesn't re-run the focus effect.
   const close = useRef(onClose);
   close.current = onClose;
@@ -159,7 +176,13 @@ export function Sheet({ open, onClose, title, children, wide }: { open: boolean;
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     const focusables = () => [...(ref.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select, textarea') ?? [])];
-    (focusables().find((el) => !el.matches('.sheet-head .iconbtn')) ?? focusables()[0])?.focus();
+    // A field that asked for focus (autoFocus) keeps it. Otherwise the first control, never the close button or a link
+    // inside a sentence (Enter on it would leave the sheet).
+    if (!ref.current?.contains(document.activeElement)) {
+      const inline = (el: HTMLElement) => el.matches('a') && !!el.closest('p, .hint, .small, .tiny');
+      const all = focusables();
+      (all.find((el) => !el.matches('.sheet-head .iconbtn') && !inline(el)) ?? all[0])?.focus();
+    }
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { close.current(); return; }
       if (e.key !== 'Tab') return;
@@ -180,6 +203,8 @@ export function Sheet({ open, onClose, title, children, wide }: { open: boolean;
       <div className={'sheet' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-label={title} ref={ref} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head"><span className="h3">{title}</span><button className="iconbtn" onClick={onClose} aria-label="Close"><Icon name="close" /></button></div>
         <div className="sheet-body">{children}</div>
+        {/* The page's own message region (role=status) still announces these; this is the copy you can see. */}
+        {toasts.length > 0 && <div className="sheet-toasts" aria-hidden="true">{toasts.map((t) => <div key={t.id} className={'sheet-toast ' + t.kind}>{t.text}</div>)}</div>}
       </div>
     </div>,
     document.body,
