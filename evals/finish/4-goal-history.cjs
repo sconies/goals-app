@@ -76,7 +76,8 @@ module.exports = {
         reqBg: req && getComputedStyle(req).backgroundColor,
         statusAlign: getComputedStyle(document.querySelector('.statusline')).alignItems,
         showAll: sa ? Math.round(r(sa).width) : null,
-        fc: (() => { const f = document.querySelector('.story .forecast'); return f ? getComputedStyle(f).color : null; })(),
+        // The projection is one of the status block's four facts (N2, Lane's notes 5 Nov): its explanation in the muted colour.
+        fc: (() => { const f = document.querySelector('.story .forecast, .story .fact[data-key=projection] .fact-detail'); return f ? getComputedStyle(f).color : null; })(),
       };
     });
     if (head.narrowTitle) fails.push(`head 1280: ${head.narrowTitle} goal rows give the title under 60%`);
@@ -103,7 +104,9 @@ module.exports = {
       const stacked = rows.every((t) => r(t.querySelector('.trow-title')).width > r(t).width * 0.8);
       const weeks = [...document.querySelectorAll('.cilist .ci-week')].map((e) => Math.round(r(e).height));
       const req = document.querySelector('.request-block'), story = document.querySelector('.story');
-      return { stacked, weeks, gap: req && story ? Math.round(r(req).top - r(story).bottom) : null, sideways: document.documentElement.scrollWidth - innerWidth };
+      // The request sits under its group's heading ("Asked of you", N2): measured from the top of that group.
+      const grp = req && (req.closest('.rail-group') || req);
+      return { stacked, weeks, gap: grp && story ? Math.round(r(grp).top - r(story).bottom) : null, sideways: document.documentElement.scrollWidth - innerWidth };
     });
     if (!ph.stacked) fails.push('head 390: threat rows not stacked (title not full width)');
     if (ph.weeks.some((h) => h > 24)) fails.push(`head 390: “Week n” wraps (${Math.max(...ph.weeks)}px)`);

@@ -507,7 +507,7 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   await p.goto(url('/goals?show=attention'));
   await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
   await h.click(p.locator('.arow-main', { hasText: 'Repo-access controls' }));
-  await see(p, 'checked in by');
+  await see(p, 'check-in · '); // "Week 43 check-in · Aisha Rahman · 9 days ago" (N2)
   h.set('attention', await p.locator('.story[data-tone=off] .chip.off').isVisible() && await p.locator('.why .note-line').count() > 0, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
   await h.click(p.getByRole('tab', { name: /Comments and changes/ }));
