@@ -241,7 +241,9 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
 journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows what’s due, off track, stale or slipping', 1, async (h, device) => {
   const p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/'));
-  await see(p, 'Your goals that need you');
+  // Lane's notes (5 Nov): Home shows "Your goals" (what needs attention, what's being handled) and "Goals you watch".
+  await see(p, 'Your goals');
+  await see(p, 'Need attention');
   await see(p, 'Watching', 'home also shows the goals Maya watches');
   await h.checkpoint('home');
   h.set('progress', await p.locator('.hero .ring').isVisible(), 'no weekly progress ring');
@@ -251,7 +253,9 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon').count() > 0, 'attention rows lack a reason or a status icon');
   await h.inView(cards.first(), 'entry', 'the first attention card');
   await see(p, 'late', 'an overdue check-in is called late');
-  await h.click(cards.first().getByRole('link', { name: 'Check in' }));
+  // The north star is being handled (Elena noted it in last week's review), so the first card is a goal already
+  // checked in; the week's check-in is the hero's one action.
+  await h.click(p.locator('.home-hero').getByRole('link', { name: /Start check-in|Pick up where you left off/ }));
   await see(p, 'What’s the number this week?');
   h.set('finish', true);
   await p.context().close();
@@ -763,7 +767,7 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   const card = p.locator('.need-group', { hasText: 'Decisions or help needed' }).locator('.need').first();
   await h.inView(card, 'entry', 'the decision that needs Elena');
   h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('button', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
-  await see(p, 'Important changes');
+  await see(p, 'Goals you watch');
   await h.checkpoint('home');
   // Respond opens the request itself, ready to answer (product review, 3 Nov).
   await h.click(card.getByRole('button', { name: 'Respond' }));

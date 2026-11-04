@@ -1,11 +1,16 @@
-/* Watching: a curated read of the goals you follow. What needs attention, what changed, what's fine. */
+/* Watching: a curated read of the goals you follow. What needs attention (new since anyone looked), what's being
+   handled, what has gone quiet, what changed, what's fine. */
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
-import { LEVEL_LABEL } from '../domain/format';
+import type { GoalAttention } from '../domain/attention';
+import { fmt, gapText, LEVEL_LABEL } from '../domain/format';
+import { groupWatched } from '../domain/home';
 import { weekDate, weekDates } from '../domain/plan';
 import { watchedGoals } from '../domain/review';
+import { assessPosted, LABEL } from '../domain/status';
 import type { Goal, Level, Watch } from '../domain/types';
+import { LevelTag, StatusShape } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { ChangeItem } from './GoalScreen';
 import { TreeRow, worstFirst } from './Inspect';
@@ -27,9 +32,11 @@ export function WatchingBody() {
   const levels = LEVELS.filter((l) => all.some((g) => g.level === l));
   const goals = filter === 'all' ? all : all.filter((g) => g.level === filter);
   const ids = new Set(goals.map((g) => g.id));
-  const bad = goals.filter((g) => ['off', 'risk'].includes(app.statusOf(g).status));
-  const quiet = goals.filter((g) => app.statusOf(g).status === 'stale');
-  const fine = goals.filter((g) => !bad.includes(g) && !quiet.includes(g));
+  // Needs attention is new information; what someone has looked at since its latest check-in is being handled.
+  const groups = groupWatched(goals.map((g) => app.attentionOf(g)));
+  const bad = groups.needs.map((a) => a.goal);
+  const quiet = groups.quiet.map((a) => a.goal);
+  const fine = groups.fine.map((a) => a.goal);
   // "This week" is the app's week (the same one check-ins and reviews use), not the last seven days.
   const since = weekDate(app.cycle, Math.max(0, app.week));
   const recent = app.snapshot.changes.filter((c) => c.goalId && ids.has(c.goalId) && c.at.slice(0, 10) >= since && c.actorId !== app.viewer.id).slice().reverse();
@@ -38,7 +45,7 @@ export function WatchingBody() {
 
   return (
     <>
-      <p className="lede">{summary(goals.length, bad.length, quiet.length, recent.length)}</p>
+      <p className="lede">{summary(goals.length, bad.length, groups.handled.length, quiet.length, recent.length)}</p>
       {levels.length > 1 && (
         <div className="seg tabs" role="tablist" aria-label="Level">
           {(['all', ...levels] as Filter[]).map((f) => (
@@ -50,9 +57,10 @@ export function WatchingBody() {
       )}
       <div className="split">
       {/* Nothing needs attention: no empty column taking a gap of its own. */}
-      {bad.length + quiet.length > 0 && (
+      {bad.length + quiet.length + groups.handled.length > 0 && (
         <div className="split-a">
-          <Group title="Needs attention" goals={bad} />
+          <Group title="Needs attention" hint={groups.handled.length ? 'Behind, with something new since anyone last looked.' : undefined} goals={bad} />
+          <HandledGroup list={groups.handled} />
           <Group title="No recent update" hint="No check-in for two weeks or more, so the status can’t be trusted." goals={quiet} />
         </div>
       )}
@@ -66,7 +74,7 @@ export function WatchingBody() {
       )}
       </aside>
       <div className="split-b">
-      <Group title={bad.length || quiet.length ? 'On track or done' : 'All on track or done'} goals={fine} collapsed={fine.length > 6} />
+      <Group title={bad.length || quiet.length || groups.handled.length ? 'On track or done' : 'All on track or done'} goals={fine} collapsed={fine.length > 6} />
       <section className="block">
         <div className="row between">
           <h2 className="block-title">What you watch</h2>
@@ -90,13 +98,63 @@ function WatchHead() {
   );
 }
 
-function summary(n: number, bad: number, quiet: number, changed: number) {
+function summary(n: number, bad: number, handled: number, quiet: number, changed: number) {
   const parts = [`${n} ${n === 1 ? 'goal' : 'goals'}`];
   if (bad) parts.push(`${bad} need${bad === 1 ? 's' : ''} attention`);
+  if (handled) parts.push(`${handled} being handled`);
   if (quiet) parts.push(`${quiet} with no recent update`);
   if (changed) parts.push(`${changed} ${changed === 1 ? 'change' : 'changes'} this week`);
   if (!bad && !quiet) parts.push('nothing needs you');
   return parts.join(' · ') + '.';
+}
+
+/**
+ * Behind, but someone has looked since the latest check-in and nothing new has come up: the status (shape and word)
+ * and what's in hand, e.g. "Action: Maya, due week 47". On Home it starts folded away.
+ */
+export function HandledGroup({ list, folded }: { list: GoalAttention[]; folded?: boolean }) {
+  const [open, setOpen] = useState(false);
+  if (!list.length) return null;
+  const rows = <ul className="tree handled-list">{list.map((a) => <li key={a.goal.id}><HandledRow a={a} /></li>)}</ul>;
+  if (folded) {
+    // The rows are drawn only once it's opened, so nothing hidden sits in the page.
+    return (
+      <details className="disclose handled-fold" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary><Icon name="chevron-down" size={14} />Being handled · {list.length}<span className="handled-fold-hint">· behind, but someone has looked since the latest check-in</span></summary>
+        {open && rows}
+      </details>
+    );
+  }
+  return (
+    <section className="block handled-block">
+      <div className="stack" style={{ gap: 'var(--s1)' }}>
+        <h2 className="block-title">Being handled <span className="hint">· {list.length}</span></h2>
+        <span className="hint">Behind, but someone has looked since the latest check-in. Back under Needs attention when there’s a new check-in or a new warning.</span>
+      </div>
+      {rows}
+    </section>
+  );
+}
+
+export function HandledRow({ a }: { a: GoalAttention }) {
+  const app = useApp();
+  const g = a.goal, st = a.status.status, h = a.handled!;
+  const p = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
+  const gap = gapText(g, p);
+  const now = p.kind === 'milestone' ? `${p.doneCount} of ${p.stages.length} stages` : p.actual == null || g.kind === 'milestone' ? '—' : fmt(p.actual, g);
+  const flag = a.flags.find((f) => f.kind !== 'due');
+  const said = h.said || flag?.detail || '';
+  return (
+    <Link to={'/goals/' + g.id} className="trow handled-row" data-tone={st}>
+      <span className={'trow-icon tone-' + st}><StatusShape k={st} /><span className="trow-status">{LABEL[st]}</span></span>
+      <span className="trow-main">
+        <span className="trow-title"><span className="trow-name">{g.title}</span><LevelTag level={g.level} /></span>
+        <span className="trow-why" title={`${h.text}${said ? '. ' + said : ''}`}><span className="handled-what">{h.text}</span>{said ? ` · ${said}` : ''}</span>
+      </span>
+      <span className="trow-now"><span>{now}</span><span className={'tone-' + gap.tone}>{gap.short}</span></span>
+      {g.level !== 'team' && <span className="sr">{LEVEL_LABEL[g.level]} level</span>}
+    </Link>
+  );
 }
 
 function Group({ title, hint, goals, collapsed }: { title: string; hint?: string; goals: Goal[]; collapsed?: boolean }) {

@@ -1,4 +1,4 @@
-// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// ../../../node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -6,7 +6,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// node_modules/tslib/tslib.es6.mjs
+// ../../../node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -42,12 +42,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// node_modules/@supabase/functions-js/dist/module/helper.js
+// ../../../node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// node_modules/@supabase/functions-js/dist/module/types.js
+// ../../../node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -137,7 +137,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// ../../../node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -390,7 +390,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// node_modules/@supabase/postgrest-js/dist/index.mjs
+// ../../../node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -4364,7 +4364,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -4457,7 +4457,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -4491,7 +4491,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -4633,7 +4633,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -4819,7 +4819,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// ../../../node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -6514,7 +6514,7 @@ var Socket = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -6601,7 +6601,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -6634,7 +6634,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -6656,7 +6656,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -6758,7 +6758,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -6893,7 +6893,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -7584,7 +7584,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -7695,7 +7695,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -8307,7 +8307,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// node_modules/iceberg-js/dist/index.mjs
+// ../../../node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -8803,7 +8803,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// node_modules/@supabase/storage-js/dist/index.mjs
+// ../../../node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -11990,9 +11990,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/version.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -12021,7 +12021,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -12307,7 +12307,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -12510,7 +12510,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -12908,7 +12908,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -13067,13 +13067,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/types.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// ../../../node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -14219,7 +14219,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -14251,7 +14251,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -14270,7 +14270,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -14310,7 +14310,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -14500,7 +14500,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -15106,7 +15106,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// ../../../node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -20607,9 +20607,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// ../../../node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// node_modules/@supabase/supabase-js/dist/index.mjs
+// ../../../node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
@@ -24781,7 +24781,7 @@ function worseningTrend(goal, cycle, checkIns) {
 	const slipped = assessMilestone(goal, last.week, last.stages).stages.find((s, i) => s.kind !== "done" && s.expectedWeek > (before.stages[i]?.expectedWeek ?? s.expectedWeek));
 	return slipped ? `${slipped.name} slipped to ${weekLabel(slipped.expectedWeek, cycle.weeks)} at the last check-in.` : null;
 }
-function attentionFor(goal, s, cycle, today) {
+function flagsFor(goal, s, cycle, today) {
 	const status = goalStatus(goal, cycle, s.checkIns, today);
 	const { latest, week } = status;
 	const flags = [];
@@ -24804,16 +24804,101 @@ function attentionFor(goal, s, cycle, today) {
 	if (week >= 1 && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", "Check-in due", `Due before the review in week ${week}.`, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
+		status,
+		flags
+	};
+}
+function attentionFor(goal, s, cycle, today) {
+	const { status, flags } = flagsFor(goal, s, cycle, today);
+	return {
 		goal,
 		status,
 		flags,
-		weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0)
+		weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0),
+		handled: handledFor(goal, s, cycle, today, status, flags)
 	};
 }
-/** Everything that needs attention, worst first. Goals with only a due check-in are left out unless asked. */
-function attentionList(s, cycle, today, opts = {}) {
-	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort((a, b) => b.weight - a.weight || a.goal.title.localeCompare(b.goal.title));
+/** The kinds of look that put a behind goal in hand, strongest first. */
+var HANDLED_ORDER = [
+	"action",
+	"answered",
+	"noted",
+	"reviewed"
+];
+var LOOKS = {
+	action: "action",
+	note: "noted",
+	acknowledge: "reviewed"
+};
+/**
+* Whether a goal that is off track or at risk is being handled, and by what. It is when, since its latest check-in,
+* someone other than the owner marked it reviewed or added a note, an action was agreed (and isn't overdue), or a
+* request it's waiting on was answered; and no flag has appeared since that look (a missed recovery date, say). A new
+* check-in always makes it news again, so it needs attention until someone looks at that.
+*/
+function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today), flags) {
+	if (status.status !== "off" && status.status !== "risk") return null;
+	const latest = status.latest;
+	if (!latest) return null;
+	const since = latest.postedAt;
+	const week = currentWeek(cycle, today);
+	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
+	const day = today.toISOString().slice(0, 10);
+	const looks = [];
+	for (const d of s.decisions) {
+		const kind = LOOKS[d.kind];
+		if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
+		if (kind !== "action" && d.byId === goal.ownerId) continue;
+		if (kind === "action" && d.dueWeek != null && d.dueWeek < week) continue;
+		const review = d.reviewId ? s.reviews.find((r) => r.id === d.reviewId)?.name : null;
+		const where = review ? `in ${review}` : `by ${first(d.byId)}`;
+		const text = kind === "action" ? `Action: ${first(d.assigneeId ?? goal.ownerId)}${d.dueWeek != null ? `, due week ${d.dueWeek}` : ""}` : `${kind === "noted" ? "Noted" : "Reviewed"} ${where}, week ${d.week}`;
+		looks.push({
+			kind,
+			text,
+			said: kind === "reviewed" ? "" : d.note,
+			byId: d.byId,
+			at: d.at,
+			week: d.week,
+			reviewId: d.reviewId
+		});
+	}
+	const answer = answeredSince(goal.id, since, s);
+	if (answer?.answeredAt && answer.answeredAt.slice(0, 10) <= day) {
+		const w = currentWeek(cycle, new Date(answer.answeredAt));
+		looks.push({
+			kind: "answered",
+			text: `Request answered by ${first(answer.answeredBy)}, week ${w}`,
+			said: answer.answer ?? "",
+			byId: answer.answeredBy ?? "",
+			at: answer.answeredAt,
+			week: w,
+			reviewId: null
+		});
+	}
+	if (!looks.length) return null;
+	const firstLook = looks.reduce((a, b) => a.at < b.at ? a : b);
+	const now = (flags ?? flagsFor(goal, s, cycle, today).flags).filter((f) => f.kind !== "due").map((f) => f.kind);
+	const then = new Set(flagsFor(goal, s, cycle, new Date(firstLook.at)).flags.map((f) => f.kind));
+	if (now.some((k) => !then.has(k))) return null;
+	return looks.sort((a, b) => HANDLED_ORDER.indexOf(a.kind) - HANDLED_ORDER.indexOf(b.kind) || b.at.localeCompare(a.at))[0];
 }
+/** A list of goals' attention split into what needs attention (new information) and what is being handled. */
+function splitAttention(list) {
+	return {
+		needs: list.filter((a) => !a.handled),
+		handled: list.filter((a) => !!a.handled)
+	};
+}
+/**
+* Everything flagged, worst first, with the goals being handled after the ones that need attention (split them with
+* splitAttention). Goals with only a due check-in are left out unless asked.
+*/
+function attentionList(s, cycle, today, opts = {}) {
+	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort(attentionOrder);
+}
+/** Needs attention before being handled; then worst first, then by name. */
+var attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
 // src/domain/review.ts
 /** A goal and every goal feeding it, at any depth. */
 function treeOf$2(rootId, goals) {
@@ -24864,14 +24949,22 @@ function sessionDate(r, cycle, week) {
 * Reviews walk the rest one at a time and acknowledge these together (Senior UX review, 2 Nov).
 */
 var isHealthy = (a) => (a.status.status === "on" || a.status.status === "done") && a.flags.every((f) => f.kind === "due");
-/** What a session still has to do: goals to discuss one at a time, and goals on track to cover together. */
+/**
+* What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
+* every goal that isn't healthy, the ones with new information first; `handled` names the ones in it that are already
+* being handled (someone looked since the latest check-in), so an agenda can group them under "Being handled".
+*/
 function agendaOf(s) {
 	const left = s.items.filter((a) => !s.covered.has(a.goal.id));
+	const discuss = left.filter((a) => !isHealthy(a));
 	return {
-		discuss: left.filter((a) => !isHealthy(a)),
-		healthy: left.filter(isHealthy)
+		discuss,
+		healthy: left.filter(isHealthy),
+		handled: discuss.filter((a) => !!a.handled)
 	};
 }
+/** Agenda order: new information, then what's being handled, then the healthy goals. */
+var tier = (a) => a.handled ? 1 : isHealthy(a) ? 2 : 0;
 function reviewSession(r, s, cycle, today, week) {
 	const w = sessionWeek(r, week);
 	const lastCheckIn = (g) => {
@@ -24879,7 +24972,7 @@ function reviewSession(r, s, cycle, today, week) {
 		const last = own[own.length - 1];
 		return last ? daysSince(last.postedAt, today) : 999;
 	};
-	const items = goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
+	const items = goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
 	const said = s.decisions.filter((d) => d.reviewId === r.id && d.week === w);
 	const covered = new Set(said.filter((d) => d.kind === "acknowledge").map((d) => d.goalId));
 	const done = items.filter((a) => covered.has(a.goal.id)).length;
@@ -26623,6 +26716,15 @@ function summarise(goal, s, cycle, today, week) {
 function summariseAll(goals, s, cycle, today, week) {
 	return goals.map((g) => summarise(g, s, cycle, today, week));
 }
+var STATUS_ORDER = [
+	"off",
+	"risk",
+	"stale",
+	"none",
+	"on",
+	"planned",
+	"done"
+];
 // src/domain/export.ts
 var EXPORT_FORMAT = "goals-app.export";
 var levelWord = {
@@ -27260,7 +27362,7 @@ function toJson(x) {
 	};
 }
 /** One goal's story, given room: why it's off, the recovery plan, by when, what's needed. */
-function storyBlock(sm, cycleWeeks) {
+function storyBlock(sm, cycleWeeks, handled) {
 	const st = sm.story;
 	const g = sm.goal;
 	const out = [];
@@ -27268,6 +27370,7 @@ function storyBlock(sm, cycleWeeks) {
 	out.push(`### ${g.title}`);
 	out.push(`**${LABEL[sm.status]}**${tags ? ` · ${tags}` : ""} · ${sm.owner}, ${sm.team}${st.feeds ? ` · ${st.feeds}` : ""}`);
 	out.push("");
+	if (handled) out.push(`- **Being handled:** ${handled.text}${handled.said ? `: ${handled.said}` : "."}`);
 	out.push(`- **Where it is:** ${st.where}`);
 	if (st.outlook) out.push(`- **Where it’s heading:** ${st.outlook}`);
 	if (sm.status === "stale") {
@@ -27288,7 +27391,13 @@ function aiBrief(x) {
 	const by = new Map(sums.map((s) => [s.goal.id, s]));
 	const count = (k) => sums.filter((s) => s.status === k).length;
 	const out = [];
-	const off = sums.filter((s) => s.status === "off"), risk = sums.filter((s) => s.status === "risk"), quiet = sums.filter((s) => s.status === "stale");
+	const handled = /* @__PURE__ */ new Map();
+	for (const s of sums) {
+		const h = ["off", "risk"].includes(s.status) ? handledFor(s.goal, x.snapshot, x.cycle, x.today) : null;
+		if (h) handled.set(s.goal.id, h);
+	}
+	const off = sums.filter((s) => s.status === "off" && !handled.has(s.goal.id)), risk = sums.filter((s) => s.status === "risk" && !handled.has(s.goal.id)), quiet = sums.filter((s) => s.status === "stale");
+	const inHand = sums.filter((s) => handled.has(s.goal.id));
 	const results = sums.filter((s) => s.story.result);
 	const asks = sums.filter((s) => s.story.needs && ["off", "risk"].includes(s.status));
 	const flagged = sums.filter((s) => s.story.warnings.length && s.status !== "stale");
@@ -27300,6 +27409,7 @@ function aiBrief(x) {
 		`${sums.length} goals`,
 		off.length ? `${off.length} off track` : "",
 		risk.length ? `${risk.length} at risk` : "",
+		inHand.length ? `${inHand.length} behind and being handled` : "",
 		quiet.length ? `${quiet.length} with no recent update` : "",
 		count("on") ? `${count("on")} on track` : "",
 		count("done") ? `${count("done")} done` : ""
@@ -27334,6 +27444,12 @@ function aiBrief(x) {
 		out.push("## At risk: could miss without a change");
 		out.push("");
 		for (const s of risk) out.push(...storyBlock(s, x.cycle.weeks));
+	}
+	if (inHand.length) {
+		out.push("## Being handled: behind, but someone has looked since the latest check-in");
+		out.push("Nothing new since: no new check-in and no new warning. They need attention again when either comes.");
+		out.push("");
+		for (const s of inHand) out.push(...storyBlock(s, x.cycle.weeks, handled.get(s.goal.id)));
 	}
 	if (quiet.length) {
 		out.push("## No recent update: no check-in for two weeks or more");
@@ -27564,6 +27680,85 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
+// src/domain/progress.ts
+/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
+function reviewDate(cycle, week) {
+	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
+	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
+	return d.toISOString().slice(0, 10);
+}
+/**
+* Consecutive weeks, counting back from the latest finished one, in which every goal the
+* person owns was checked in by the owner on or before the review day.
+*/
+function onTimeStreak(personId, s, cycle, week) {
+	const goals = s.goals.filter((g) => g.ownerId === personId);
+	if (!goals.length) return 0;
+	const onTime = (w) => goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
+	let streak = 0;
+	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
+	return streak;
+}
+var WEEKDAY = [
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday"
+];
+// src/domain/home.ts
+/** Splits goals' attention into the Watching groups. The order of the list is kept within each group. */
+function groupWatched(all) {
+	const behind = (a) => a.status.status === "off" || a.status.status === "risk";
+	return {
+		all,
+		needs: all.filter((a) => behind(a) && !a.handled),
+		handled: all.filter((a) => behind(a) && !!a.handled),
+		quiet: all.filter((a) => a.status.status === "stale"),
+		fine: all.filter((a) => !behind(a) && a.status.status !== "stale")
+	};
+}
+/** The next session of a review the person takes part in, today's included. */
+function nextReview(personId, s, cycle, week, today) {
+	const day = today.toISOString().slice(0, 10);
+	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
+		let w = sessionWeek(r, week);
+		if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1);
+		const date = sessionDate(r, cycle, w);
+		return {
+			id: r.id,
+			name: r.name,
+			week: w,
+			date,
+			weekday: WEEKDAY[r.weekday] ?? "",
+			days: 0 - daysSince(date, today) + 0
+		};
+	}).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))[0] ?? null;
+}
+function dashboard(personId, s, cycle, week, today) {
+	const mine = s.goals.filter((g) => g.ownerId === personId);
+	const goals = mine.length ? mine : s.goals;
+	const by = /* @__PURE__ */ new Map();
+	for (const g of goals) {
+		const k = goalStatus(g, cycle, s.checkIns, today).status;
+		by.set(k, (by.get(k) ?? 0) + 1);
+	}
+	const watched = watchedGoals(personId, s);
+	return {
+		scope: mine.length ? "mine" : "all",
+		counts: STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({
+			status: k,
+			n: by.get(k)
+		})),
+		total: goals.length,
+		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
+		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
+		next: nextReview(personId, s, cycle, week, today)
+	};
+}
 // src/mcp/workTools.ts
 var str$1 = (description, extra = {}) => ({
 	type: "string",
@@ -27679,7 +27874,7 @@ var WORK_TOOLS = [
 	{
 		name: "get_my_work",
 		title: "What needs me",
-		description: "What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention, requests for a decision or help waiting on them, questions from reviews on their goals, asks for an update, actions they agreed to, and the reviews they’re in.",
+		description: "What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention (new since anyone looked), those behind but already being handled, requests for a decision or help waiting on them, questions from reviews on their goals, asks for an update, actions they agreed to, and the reviews they’re in.",
 		inputSchema: {
 			type: "object",
 			properties: {},
@@ -27693,10 +27888,19 @@ var WORK_TOOLS = [
 				id: g.id,
 				title: g.title
 			}));
-			const attention = attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length).map((a) => ({
+			const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length));
+			const attention = split.needs.map((a) => ({
 				id: a.goal.id,
 				title: a.goal.title,
 				status: a.status.status,
+				why: a.flags.map((f) => f.detail)
+			}));
+			const handled = split.handled.map((a) => ({
+				id: a.goal.id,
+				title: a.goal.title,
+				status: a.status.status,
+				inHand: a.handled.text,
+				said: a.handled.said || null,
 				why: a.flags.map((f) => f.detail)
 			}));
 			const requests = openForPerson(me, s).map((r) => requestData(ctx, r));
@@ -27732,11 +27936,40 @@ var WORK_TOOLS = [
 					of: x.total
 				};
 			});
+			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
+			const glance = {
+				goals: {
+					whose: d.scope,
+					total: d.total,
+					byStatus: d.counts.map((c) => ({
+						status: LABEL[c.status],
+						n: c.n
+					}))
+				},
+				onTimeStreakWeeks: d.streak,
+				watching: d.watching ? {
+					goals: d.watching.all.length,
+					needAttention: d.watching.needs.map((a) => a.goal.title),
+					beingHandled: d.watching.handled.map((a) => ({
+						title: a.goal.title,
+						inHand: a.handled.text
+					})),
+					noRecentUpdate: d.watching.quiet.length
+				} : null,
+				nextReview: d.next ? {
+					id: d.next.id,
+					name: d.next.name,
+					date: d.next.date,
+					day: d.next.weekday
+				} : null
+			};
 			return {
 				data: {
 					week: ctx.week,
+					atAGlance: glance,
 					checkInsDue: due,
 					needsAttention: attention,
+					beingHandled: handled,
 					requestsForYou: requests,
 					questionsOnYourGoals: questions,
 					asksForAnUpdate: asks,
@@ -27746,11 +27979,13 @@ var WORK_TOOLS = [
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
+					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} being handled.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Requests waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join("; ") : "none"}.`,
 					`Questions on your goals: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}`).join("; ") : "none"}.`,
 					`Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}`).join("; ") : "none"}.`,
-					`Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.join(" ")}`).join("; ") : "none"}.`
+					`Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.join(" ")}`).join("; ") : "none"}.`,
+					`Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === "off" ? "off track" : "at risk"}): ${g.inHand}`).join("; ") : "none"}.`
 				].join("\n")
 			};
 		}
@@ -27819,7 +28054,7 @@ var WORK_TOOLS = [
 	{
 		name: "get_review",
 		title: "A review’s agenda",
-		description: "One review’s current session: the goals to discuss (worst first, with why), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.",
+		description: "One review’s current session: the goals to discuss (new information first, worst first, with why; those already being handled say what’s in hand), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -27836,7 +28071,8 @@ var WORK_TOOLS = [
 				title: g.goal.title,
 				owner: name(ctx, g.goal.ownerId),
 				status: g.status.status,
-				why: g.flags.map((f) => f.detail)
+				why: g.flags.map((f) => f.detail),
+				beingHandled: g.handled?.text ?? null
 			});
 			const said = x.said.map((d) => ({
 				id: d.id,
@@ -27863,7 +28099,7 @@ var WORK_TOOLS = [
 			};
 			return {
 				data,
-				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}. ${g.why.join(" ")}`), "- nothing")}\nHealthy: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
+				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}.${g.beingHandled ? ` Being handled: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nHealthy: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
 			};
 		}
 	},

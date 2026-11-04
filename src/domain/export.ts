@@ -9,6 +9,7 @@ import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from 
 import { MEANING, RESULT_MEANING, RESULT_TEXT } from './story';
 import { isYear, periodLabel, quarterOf, quarters } from './year';
 import { answerOf } from './review';
+import { handledFor, type Handled } from './attention';
 import { assessMilestone, LABEL } from './status';
 import { summariseAll, type GoalSummary } from './summary';
 import type { CheckIn, Cycle, Goal, Snapshot, Workspace } from './types';
@@ -217,7 +218,7 @@ export function toJson(x: ExportInput) {
 /* ---------- the brief ---------- */
 
 /** One goal's story, given room: why it's off, the recovery plan, by when, what's needed. */
-function storyBlock(sm: GoalSummary, cycleWeeks: number): string[] {
+function storyBlock(sm: GoalSummary, cycleWeeks: number, handled?: Handled): string[] {
   const st = sm.story;
   const g = sm.goal;
   const out: string[] = [];
@@ -225,6 +226,7 @@ function storyBlock(sm: GoalSummary, cycleWeeks: number): string[] {
   out.push(`### ${g.title}`);
   out.push(`**${LABEL[sm.status]}**${tags ? ` · ${tags}` : ''} · ${sm.owner}, ${sm.team}${st.feeds ? ` · ${st.feeds}` : ''}`);
   out.push('');
+  if (handled) out.push(`- **Being handled:** ${handled.text}${handled.said ? `: ${handled.said}` : '.'}`);
   out.push(`- **Where it is:** ${st.where}`);
   if (st.outlook) out.push(`- **Where it’s heading:** ${st.outlook}`);
   if (sm.status === 'stale') {
@@ -247,7 +249,12 @@ export function aiBrief(x: ExportInput): string {
   const by = new Map(sums.map((s) => [s.goal.id, s]));
   const count = (k: string) => sums.filter((s) => s.status === k).length;
   const out: string[] = [];
-  const off = sums.filter((s) => s.status === 'off'), risk = sums.filter((s) => s.status === 'risk'), quiet = sums.filter((s) => s.status === 'stale');
+  // Behind but already in hand (someone looked since the latest check-in, and nothing new since): listed apart, so
+  // "off track" and "at risk" below are the news.
+  const handled = new Map<string, Handled>();
+  for (const s of sums) { const h = ['off', 'risk'].includes(s.status) ? handledFor(s.goal, x.snapshot, x.cycle, x.today) : null; if (h) handled.set(s.goal.id, h); }
+  const off = sums.filter((s) => s.status === 'off' && !handled.has(s.goal.id)), risk = sums.filter((s) => s.status === 'risk' && !handled.has(s.goal.id)), quiet = sums.filter((s) => s.status === 'stale');
+  const inHand = sums.filter((s) => handled.has(s.goal.id));
   const results = sums.filter((s) => s.story.result);
   const asks = sums.filter((s) => s.story.needs && ['off', 'risk'].includes(s.status));
   const flagged = sums.filter((s) => s.story.warnings.length && s.status !== 'stale');
@@ -258,7 +265,7 @@ export function aiBrief(x: ExportInput): string {
   out.push('');
   const lead = [
     `${sums.length} goals`,
-    off.length ? `${off.length} off track` : '', risk.length ? `${risk.length} at risk` : '', quiet.length ? `${quiet.length} with no recent update` : '',
+    off.length ? `${off.length} off track` : '', risk.length ? `${risk.length} at risk` : '', inHand.length ? `${inHand.length} behind and being handled` : '', quiet.length ? `${quiet.length} with no recent update` : '',
     count('on') ? `${count('on')} on track` : '', count('done') ? `${count('done')} done` : '',
   ].filter(Boolean);
   out.push(`**${lead.join(', ')}.**${asks.length ? ` ${asks.length} ${asks.length === 1 ? 'owner needs' : 'owners need'} a decision or help.` : ''}${flagged.length ? ` ${flagged.length} ${flagged.length === 1 ? 'goal has' : 'goals have'} a warning below.` : ''}`);
@@ -284,6 +291,12 @@ export function aiBrief(x: ExportInput): string {
     out.push('## At risk: could miss without a change');
     out.push('');
     for (const s of risk) out.push(...storyBlock(s, x.cycle.weeks));
+  }
+  if (inHand.length) {
+    out.push('## Being handled: behind, but someone has looked since the latest check-in');
+    out.push('Nothing new since: no new check-in and no new warning. They need attention again when either comes.');
+    out.push('');
+    for (const s of inHand) out.push(...storyBlock(s, x.cycle.weeks, handled.get(s.goal.id)));
   }
   if (quiet.length) {
     out.push('## No recent update: no check-in for two weeks or more');
