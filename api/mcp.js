@@ -25000,6 +25000,51 @@ function reviewSession(r, s, cycle, today, week) {
 		said
 	};
 }
+/** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
+var dayText = (iso) => (/* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z")).toLocaleDateString("en-GB", {
+	weekday: "short",
+	day: "numeric",
+	month: "short",
+	timeZone: "UTC"
+});
+function sessionState(s) {
+	if (s.total > 0 && s.done >= s.total) return {
+		kind: "held",
+		on: (s.said.filter((d) => d.kind === "acknowledge").map((d) => d.at).sort().at(-1) ?? s.date).slice(0, 10)
+	};
+	if (s.done > 0 || s.said.length > 0) return {
+		kind: "in-progress",
+		done: s.done,
+		total: s.total
+	};
+	return { kind: "not-started" };
+}
+/** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
+function sessionStateText(st) {
+	if (st.kind === "held") return `Held ${dayText(st.on)}`;
+	if (st.kind === "in-progress") return `In progress · ${st.done} of ${st.total} reviewed`;
+	return "Not started";
+}
+/**
+* When a review was last held before its current session: the latest earlier session in which anything was said
+* (a goal reviewed, a note, a question or an action), dated by the last thing said in it. Null if it never has been.
+*/
+function lastHeld(r, s, sessionWk) {
+	const past = s.decisions.filter((d) => d.reviewId === r.id && d.week < sessionWk);
+	if (!past.length) return null;
+	const week = Math.max(...past.map((d) => d.week));
+	return {
+		week,
+		on: past.filter((d) => d.week === week).map((d) => d.at).sort().at(-1).slice(0, 10)
+	};
+}
+/**
+* A review's open actions: every action agreed in it, in any session, that isn't yet past the week it's due by.
+* An action with no date stays open. Actions carry no "done" mark, so the due week is what closes them.
+*/
+function openActions(r, s, week) {
+	return s.decisions.filter((d) => d.reviewId === r.id && d.kind === "action" && (d.dueWeek == null || d.dueWeek >= week));
+}
 /**
 * The owner's answer to a question from a review: their first comment or check-in on the goal after it
 * was asked. A question with no answer is still open.
@@ -28192,6 +28237,7 @@ var WORK_TOOLS = [
 		async run(_a, ctx) {
 			const list = ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+				const held = lastHeld(r, ctx.snapshot, x.week);
 				return {
 					id: r.id,
 					name: r.name,
@@ -28203,12 +28249,15 @@ var WORK_TOOLS = [
 					sessionDate: x.date,
 					reviewed: x.done,
 					of: x.total,
+					state: sessionStateText(sessionState(x)),
+					lastHeld: held?.on ?? null,
+					openActions: openActions(r, ctx.snapshot, ctx.week).length,
 					youreIn: r.people.includes(ctx.actor.id)
 				};
 			});
 			return {
 				data: { reviews: list },
-				text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.of} goals, ${r.reviewed} reviewed this session (week ${r.sessionWeek})`), "No reviews yet.")
+				text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.state} (session ${r.sessionDate}) · last held ${r.lastHeld ?? "never"} · ${r.openActions} open actions`), "No reviews yet.")
 			};
 		}
 	},
