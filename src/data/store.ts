@@ -6,6 +6,21 @@ import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
 export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
 const exampleBuild = (id: string) => EXAMPLES.find((e) => e.workspace.id === id)?.build;
 
+/** The demo remembers the example it last opened under this key (app/state.tsx reads it). */
+const DEMO_WORKSPACE = 'goals-app-workspace';
+/** The hidden examples this browser has opened by their link: from then on they're offered like the others. */
+const OPENED = 'goals-app-v2:opened-examples';
+const opened = (): string[] => { try { return JSON.parse(localStorage.getItem(OPENED) ?? '[]') as string[]; } catch { return []; } };
+/** `/demo?example=<id>` opens that example, as if it had been picked in the app (for testing with a larger example). */
+export function pickExampleFromUrl(search: string) {
+  const id = new URLSearchParams(search).get('example');
+  if (!id || !exampleBuild(id)) return;
+  try {
+    if (!opened().includes(id)) localStorage.setItem(OPENED, JSON.stringify([...opened(), id]));
+    localStorage.setItem(DEMO_WORKSPACE, id);
+  } catch { /* storage blocked */ }
+}
+
 /** One save: the records that leave draft, and the change-log entries that describe them. */
 export interface Commit {
   people?: Person[];
@@ -162,7 +177,8 @@ export class BrowserStore implements Store {
     // …and its recording switch, the same way.
     const off = this.notRecording();
     const withSwitch = (w: Workspace): Workspace => (off.includes(w.id) ? { ...w, recording: false } : w);
-    return (this.hasExample ? [...EXAMPLES.map((e) => (names[e.workspace.id] ? { ...e.workspace, name: names[e.workspace.id]! } : e.workspace)), ...own] : own).map(withSwitch);
+    const shown = EXAMPLES.filter((e) => !e.hidden || opened().includes(e.workspace.id));
+    return (this.hasExample ? [...shown.map((e) => (names[e.workspace.id] ? { ...e.workspace, name: names[e.workspace.id]! } : e.workspace)), ...own] : own).map(withSwitch);
   }
 
   /** Workspaces that have turned recording off: kept in this browser, and in memory when storage is blocked. */
