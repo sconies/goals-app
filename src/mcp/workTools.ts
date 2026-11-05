@@ -11,7 +11,7 @@ import { dashboard } from '../domain/home';
 import { LABEL } from '../domain/status';
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, watchedGoals } from '../domain/review';
-import { checkInsFor } from '../domain/status';
+import { weekProgress } from '../domain/progress';
 import { toCsv, workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, shownTable, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -115,7 +115,8 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(_a, ctx) {
       const s = ctx.snapshot, me = ctx.actor.id;
       const mine = s.goals.filter((g) => g.ownerId === me);
-      const due = mine.filter((g) => !checkInsFor(g, s.checkIns).some((c) => c.week === ctx.week)).map((g) => ({ id: g.id, title: g.title }));
+      // Check-ins due as Home counts them (one rule): goals still to post this week, never a goal that is done.
+      const due = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today).due.map((g) => ({ id: g.id, title: g.title }));
       // Needs attention is new information; a goal someone has looked at since its latest check-in is being handled.
       const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length));
       const attention = split.needs.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, why: a.flags.map((f) => f.detail) }));

@@ -27785,6 +27785,17 @@ function activityFilter(a, x) {
 }
 // src/domain/progress.ts
 init_plan();
+init_status();
+/** The person's goals this week: which are checked in and which are still due. */
+function weekProgress(personId, s, cycle, week, today) {
+	const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== "done");
+	const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	return {
+		goals,
+		done,
+		due: week < 1 ? [] : goals.filter((g) => !done.includes(g))
+	};
+}
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
 function reviewDate(cycle, week) {
 	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
@@ -27915,7 +27926,7 @@ var ARTICLES = [
 				list: [
 					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it.",
 					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in.",
-					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here.",
+					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and the note about goals still waiting for their first check-in comes after your own goals.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Goals you watch follow.",
 					"After a release you haven’t seen, a quiet line says what’s new. Open it, or dismiss it with the cross."
 				]
@@ -29411,7 +29422,8 @@ var WHATS_NEW = [
 			"Every ask is answered in the same Respond panel, on the goal and from Home, where they’re grouped by kind. Actions can be marked done, and show as overdue after their week instead of dropping off. On Reviews, a session under way is listed first.",
 			"Under the comment box, Ask as a question asks the goal’s owner instead of just commenting.",
 			"Watching is part of Goals now, with its search, filters, sort, layouts and export, and what changed this week beside it. Home has one block for the goals you watch.",
-			"The demo is one organisation of about 100 people, Platform Engineering, with Amara as its VP. Your changes to it are kept in this browser, and if the browser won’t keep them, the page says so."
+			"The demo is one organisation of about 100 people, Platform Engineering, with Amara as its VP. Your changes to it are kept in this browser, and if the browser won’t keep them, the page says so.",
+			"On a phone, each thing that needs your response is one short row with its button beside it, so your own goals still start on the first screen."
 		],
 		articles: [
 			"requests",
@@ -30004,7 +30016,7 @@ var WORK_TOOLS = [
 		async run(_a, ctx) {
 			const s = ctx.snapshot, me = ctx.actor.id;
 			const mine = s.goals.filter((g) => g.ownerId === me);
-			const due = mine.filter((g) => !checkInsFor(g, s.checkIns).some((c) => c.week === ctx.week)).map((g) => ({
+			const due = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today).due.map((g) => ({
 				id: g.id,
 				title: g.title
 			}));

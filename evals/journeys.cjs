@@ -281,7 +281,14 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   if ((await cards.count()) < 1) fail('expected an attention card for Rhea’s own goals');
   const reasons = await cards.locator('.arow-why').allInnerTexts();
   h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon').count() > 0, 'attention rows lack a reason or a status icon');
-  await h.inView(cards.first(), 'entry', 'the first attention card');
+  // The first goal that needs attention starts on the first screen: its shape and title, with what needs your response
+  // above it (Lane, 5 Nov). Its reason is two lines on Home, and in full on the goal's page.
+  const top = await cards.first().evaluate((el) => {
+    const bar = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);
+    const t = el.querySelector('.arow-title')?.getBoundingClientRect();
+    return { y: el.getBoundingClientRect().top, title: t ? t.bottom : null, fold: bar ? bar.getBoundingClientRect().top : innerHeight };
+  });
+  h.set('entry', top.y >= 0 && top.title != null && top.title <= top.fold - 8, `the first attention card's title ends at ${Math.round(top.title ?? -1)}px, fold ${Math.round(top.fold)}px`);
   await see(p, 'late', 'an overdue check-in is called late');
   // The north star is being handled (Amara looked at it in last week's review), so the first card is a goal already
   // checked in; the week's check-in is the hero's one action.

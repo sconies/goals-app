@@ -131,7 +131,6 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
       </section>
       <aside className="home-side split-side" aria-label="For you">{side}</aside>
       <div className="home-main split-b">
-        <FirstReports />
         {mine.length > 0 && (
           <section className="block home-mine">
             <div className="row between">
@@ -153,6 +152,8 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
             )}
           </section>
         )}
+        {/* After your own goals, so what needs you comes first on a phone (U2); it qualifies an empty attention list. */}
+        <FirstReports />
         {after}
       </div>
     </>

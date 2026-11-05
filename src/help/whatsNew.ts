@@ -28,6 +28,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'Under the comment box, Ask as a question asks the goal’s owner instead of just commenting.',
       'Watching is part of Goals now, with its search, filters, sort, layouts and export, and what changed this week beside it. Home has one block for the goals you watch.',
       'The demo is one organisation of about 100 people, Platform Engineering, with Amara as its VP. Your changes to it are kept in this browser, and if the browser won’t keep them, the page says so.',
+      'On a phone, each thing that needs your response is one short row with its button beside it, so your own goals still start on the first screen.',
     ],
     articles: ['requests', 'watching', 'home', 'goal-page', 'demo', 'reviews'],
   },

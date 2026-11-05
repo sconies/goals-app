@@ -59,7 +59,7 @@ export const ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it.',
         'Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in.',
-        'Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here.',
+        'Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and the note about goals still waiting for their first check-in comes after your own goals.',
         'Your goals come next, with what needs attention first and what is being handled folded away. Goals you watch follow.',
         'After a release you haven’t seen, a quiet line says what’s new. Open it, or dismiss it with the cross.',
       ] },
