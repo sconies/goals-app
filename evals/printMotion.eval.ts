@@ -6,7 +6,8 @@ import { goalSheet, reviewSheet } from '../src/domain/onePager';
 import { currentWeek } from '../src/domain/plan';
 import { attentionFor } from '../src/domain/attention';
 import { summarise } from '../src/domain/summary';
-import { easeOut, flipDeltas, MOTION_MS, tween, type Pos } from '../src/ui/motion';
+import { easeOut, flipDeltas, MOTION_MS, STORY_MS, tween, type Pos } from '../src/ui/motion';
+import { IMPACTS, PACE_FACTOR, PACES } from '../src/app/appearance';
 
 const R = (id: string, text: string) => `[${id}] ${text}`;
 const today = new Date('2026-10-30T12:00:00Z');
@@ -58,7 +59,13 @@ describe('print views', () => {
 });
 
 describe('motion', () => {
-  it(R('MOTION-ALIVE', 'everything moves for 250ms at most'), () => expect(MOTION_MS).toBeLessThanOrEqual(250));
+  it(R('MOTION-ALIVE', 'interface motion takes 250ms at most'), () => expect(MOTION_MS).toBeLessThanOrEqual(250));
+  it(R('GOAL-PAGE-ALIVE', "the goal page's story moves slowly enough to see, and not too long"), () => { expect(STORY_MS).toBeGreaterThanOrEqual(600); expect(STORY_MS).toBeLessThanOrEqual(1200); });
+  it(R('GOAL-PAGE-ALIVE', 'pace and impact are settings: Steady (the default) is half the speed of Quick, Slow a third'), () => {
+    expect(PACES.map(([k]) => k)).toEqual(['quick', 'steady', 'slow']);
+    expect(IMPACTS.map(([k]) => k)).toEqual(['gentle', 'strong', 'big']);
+    expect(PACE_FACTOR).toEqual({ quick: 1, steady: 2, slow: 3 });
+  });
   it(R('MOTION-ALIVE', 'a count eases out and lands exactly on the value'), () => {
     expect(tween(12, 82, 1)).toBe(82);
     expect(tween(12, 82, 1.4)).toBe(82);

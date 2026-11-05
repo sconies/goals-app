@@ -10,7 +10,8 @@ export type FileContent =
   | { kind: 'csv'; text: string }
   | { kind: 'json'; text: string }
   | { kind: 'md'; text: string }
-  | { kind: 'xlsx'; sheets: SheetOut[] };
+  | { kind: 'xlsx'; sheets: SheetOut[] }
+  | { kind: 'png'; blob: Blob };
 
 export interface FileName {
   /** The workspace's name, or what it will be called. */
@@ -23,12 +24,13 @@ export interface FileName {
   date: Date;
 }
 
-const EXT: Record<FileContent['kind'], string> = { csv: 'csv', json: 'json', md: 'md', xlsx: 'xlsx' };
+const EXT: Record<FileContent['kind'], string> = { csv: 'csv', json: 'json', md: 'md', xlsx: 'xlsx', png: 'png' };
 const TYPE: Record<FileContent['kind'], string> = {
   csv: 'text/csv;charset=utf-8',
   json: 'application/json',
   md: 'text/markdown;charset=utf-8',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  png: 'image/png',
 };
 
 /** Lower case, words joined by hyphens, nothing a file system could trip on. */
@@ -41,6 +43,7 @@ export function fileName(n: FileName, kind: FileContent['kind']): string {
 }
 
 async function blobOf(content: FileContent): Promise<Blob> {
+  if (content.kind === 'png') return content.blob;
   if (content.kind !== 'xlsx') {
     // A byte-order mark, so Excel reads a CSV's accents and symbols as they are.
     return new Blob([content.kind === 'csv' ? '﻿' + content.text : content.text], { type: TYPE[content.kind] });

@@ -24,7 +24,20 @@ export function fmtDiff(v: number, g: Numeric): string {
   return g.unit ? n + ' ' + g.unit : n;
 }
 
-export const weekLabel = (w: number, weeks: number) => (w >= weeks ? (weeks >= 48 ? 'year end' : 'cycle end') : 'week ' + w);
+/**
+ * A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
+ * 0–100% (`share`); the range never says less than nothing or more than everything.
+ */
+export function rangeText(p: { low: number; high: number }, g: Numeric, share = false): string {
+  const clamp = (v: number) => (share ? Math.min(100, Math.max(0, v)) : v);
+  const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
+  if (lo === hi) return lo;
+  // "81–85%" and "12–15 days": the unit once, after the range.
+  const bare = (v: number) => clamp(v).toFixed(g.decimals);
+  return `${bare(p.low)}–${hi}`;
+}
+
+export const weekLabel =(w: number, weeks: number) => (w >= weeks ? (weeks >= 48 ? 'year end' : 'cycle end') : 'week ' + w);
 
 export function kindLabel(g: Goal): string {
   if (g.kind === 'milestone') return 'Hit dated stages';

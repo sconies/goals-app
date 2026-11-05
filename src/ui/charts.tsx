@@ -1,6 +1,6 @@
 import { isShare } from '../domain/checkin';
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { planAt, planEnd, type Point } from '../domain/plan';
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { planAt, planEnd, type Point, type Projection } from '../domain/plan';
 import type { MilestoneAssessment, StageState } from '../domain/status';
 import { fmt } from '../domain/format';
 import type { MetricGoal, RangeGoal } from '../domain/types';
@@ -94,6 +94,44 @@ const TargetLabel = ({ f, y, left, children }: { f: Frame; y: number; left?: boo
 );
 
 interface KeyItem { k: 'plan' | 'act' | 'fc' | 'orig' | 'ptg'; label: string }
+
+/**
+ * Reading any week off a chart (the flagship goal page, 5 Nov): drag or point along it, or use the arrow keys once it
+ * has focus. `read` says the week in words; the line and the words go when the pointer leaves or Escape is pressed.
+ */
+export interface Scrub { read: (week: number) => string | null; hint?: string }
+
+function useScrub(weeks: number, x0: number, toWeek: (x: number) => number, scrub: Scrub | undefined, now: number) {
+  const [at, setAt] = useState<number | null>(null);
+  const down = useRef(false);
+  const pick = (e: PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setAt(Math.max(x0, Math.min(weeks, Math.round(toWeek(e.clientX - r.left)))));
+  };
+  if (!scrub) return { at: null, svg: {}, wrap: {}, readout: null };
+  return {
+    at,
+    svg: {
+      onPointerDown: (e: PointerEvent<SVGSVGElement>) => { down.current = true; pick(e); },
+      onPointerMove: (e: PointerEvent<SVGSVGElement>) => { if (down.current || e.pointerType === 'mouse') pick(e); },
+      onPointerUp: () => { down.current = false; },
+      onPointerLeave: () => { down.current = false; setAt(null); },
+      onPointerCancel: () => { down.current = false; setAt(null); },
+    },
+    wrap: {
+      tabIndex: 0,
+      role: 'group',
+      'aria-label': 'Week by week: press the left and right arrow keys to read each week',
+      onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); setAt((w) => Math.max(x0, Math.min(weeks, (w ?? now) + (e.key === 'ArrowLeft' ? -1 : 1)))); }
+        else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); setAt(e.key === 'Home' ? x0 : weeks); }
+        else if (e.key === 'Escape') setAt(null);
+      },
+      onBlur: () => setAt(null),
+    },
+    readout: <p className={'chart-read' + (at == null ? ' hint' : '')} aria-live="polite">{at == null ? scrub.hint ?? 'Drag along the chart to read any week.' : scrub.read(at) ?? `Week ${at}: nothing reported.`}</p>,
+  };
+}
 /** One line of key under the plot, starting where the plot does: a sample of each line and its word. */
 const ChartKey = ({ items, padL }: { items: KeyItem[]; padL: number }) =>
   items.length < 2 ? null : (
@@ -105,13 +143,25 @@ const ChartKey = ({ items, padL }: { items: KeyItem[]; padL: number }) =>
 interface MetricProps { goal: MetricGoal; weeks: number; week: number; series: Point[]; forecast: number | null; ptgBy?: number | null; height?: number; showKey?: boolean;
   /** Draw only from this week to the plan's end, with a tick for each week (every other one when narrow): the plan preview. */
   fromWeek?: number;
+  /** The projection as a range (plan.ts): drawn as a widening band from the latest number, with its likeliest line. */
+  projection?: Projection | null;
+  /** Read any week by dragging along the chart or with the arrow keys. */
+  scrub?: Scrub;
+  /** Draw itself in turn: the plan, then the actual, then the projection and path to green; "now" pulses once. */
+  draw?: boolean;
+  /** The latest point has just been posted: it drops onto the line. */
+  landed?: boolean;
+  /** The target has been reached: its line lights. */
+  hit?: boolean;
 }
 
 export function MetricChart(p: MetricProps) {
   return <Sized height={p.height ?? 220}>{(w) => <MetricSvg {...p} W={w} H={p.height ?? 220} />}</Sized>;
 }
 
-function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast, ptgBy, showKey = true, fromWeek, W, H }: MetricProps & { W: number; H: number }) {
+function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast: fcValue, ptgBy, showKey = true, fromWeek, projection, scrub, draw, landed, hit, W, H }: MetricProps & { W: number; H: number }) {
+  // The projection's likeliest value is its line; without one, a plain forecast (the plan preview has neither).
+  const forecast = projection ? projection.value : fcValue;
   // A goal that runs past the cycle (to the end of the year) is drawn to its own end.
   const weeks = Math.max(cycleWeeks, planEnd(goal.plan, cycleWeeks));
   const x0 = fromWeek != null ? Math.max(0, Math.min(fromWeek, weeks - 1)) : 0;
@@ -122,6 +172,8 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast,
   const vals = [plan.start, plan.target, ...series.map((p) => p.value)];
   if (originalPlan) vals.push(originalPlan.target);
   if (forecast != null) vals.push(share ? Math.min(100, Math.max(0, forecast)) : forecast);
+  const clampV = (v: number) => (share ? Math.min(100, Math.max(0, v)) : v);
+  if (projection) vals.push(clampV(projection.low), clampV(projection.high));
   // Round ticks that take in the target: five on a desktop, three or four on a phone.
   let ticks = niceTicks(Math.min(...vals), Math.max(...vals), compact ? 3 : 4);
   if (share) ticks = ticks.filter((t) => t >= 0 && t <= 100);
@@ -139,6 +191,14 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast,
   const last = series[series.length - 1];
   const label = `${goal.title}: ${last ? 'latest ' + fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, plan for week ${week} ${fmt(planAt(plan, week, weeks), goal)}, target ${fmt(plan.target, goal)}`;
   // The trend if nothing changes. On a share it stops where it would reach 100% (or 0%); a stub too short to read is left out.
+  // The range: a band widening from the latest number to the low and high ends at the due week.
+  const band = (() => {
+    if (!last || !projection || Math.abs(projection.high - projection.low) < 1e-9) return null;
+    const end = projection.week;
+    return line([[X(last.week), Y(last.value)], [X(end), Y(clampV(projection.high))], [X(end), Y(clampV(projection.low))]]);
+  })();
+  const sc = useScrub(weeks, x0, (px) => x0 + ((px - f.padL) * (weeks - x0)) / (W - f.padL - f.padR), scrub, week);
+  const atPoint = sc.at != null ? allSeries.find((p) => p.week === sc.at) : undefined;
   const fc = (() => {
     if (!last || forecast == null) return null;
     const edge = share ? (forecast > 100 ? 100 : forecast < 0 ? 0 : null) : null;
@@ -150,12 +210,11 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast,
   const ptg = !!last && ptgBy != null && ptgBy > last.week;
   const items: KeyItem[] = [{ k: 'plan', label: 'Plan' }];
   if (series.length) items.push({ k: 'act', label: 'Actual' });
-  if (fc) items.push({ k: 'fc', label: 'Projection' });
+  if (fc) items.push({ k: 'fc', label: band ? 'Projection, with its range' : 'Projection' });
   if (originalPlan) items.push({ k: 'orig', label: 'Original plan' });
   if (ptg) items.push({ k: 'ptg', label: 'Path to green' });
-  return (
-    <>
-      <svg className="chart" width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
+  const svg = (
+      <svg className={'chart' + (draw ? ' draw' : '') + (scrub ? ' scrubbable' : '') + (hit ? ' hit' : '')} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} {...sc.svg}>
         {ticks.map((v, i) => (
           <g key={i}>
             <line className="c-grid" x1={f.padL} x2={W - f.padR} y1={Y(v)} y2={Y(v)} />
@@ -169,6 +228,7 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast,
         <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(plan.target)} y2={Y(plan.target)} />
         {originalPlan && <polyline className="c-orig" points={line(planPts(originalPlan))} />}
         <polyline className="c-plan" points={line(planPts(plan))} />
+        {band && <polygon className="c-band" points={band} />}
         {fc && <polyline className="c-fc" points={line(fc)} />}
         {last && ptg && (
           <>
@@ -177,21 +237,34 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast,
           </>
         )}
         {series.length > 0 && <polyline className="c-act" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
-        {last && <circle className="c-dot" cx={X(last.week)} cy={Y(last.value)} r={4.5} />}
+        {last && draw && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4.5} aria-hidden="true" />}
+        {last && <circle className={'c-dot c-last' + (landed ? ' landed' : '')} cx={X(last.week)} cy={Y(last.value)} r={4.5} />}
         <TargetLabel f={f} y={Y(plan.target)} left={plan.target < plan.start}>Target {fmt(plan.target, goal)}</TargetLabel>
+        {sc.at != null && (
+          <g className="c-scrub" aria-hidden="true">
+            <line x1={X(sc.at)} x2={X(sc.at)} y1={f.padT - 6} y2={H - f.padB} />
+            <circle className="c-scrub-plan" cx={X(sc.at)} cy={Y(planAt(plan, sc.at, weeks))} r={3.5} />
+            {atPoint && <circle className="c-scrub-dot" cx={X(atPoint.week)} cy={Y(atPoint.value)} r={5} />}
+          </g>
+        )}
       </svg>
+  );
+  return (
+    <>
+      {scrub ? <div className="chart-scrub" {...sc.wrap}>{svg}</div> : svg}
+      {sc.readout}
       {showKey && <ChartKey items={items} padL={f.padL} />}
     </>
   );
 }
 
-interface RangeProps { goal: RangeGoal; weeks: number; week: number; series: Point[]; height?: number }
+interface RangeProps { goal: RangeGoal; weeks: number; week: number; series: Point[]; height?: number; scrub?: Scrub; draw?: boolean; landed?: boolean }
 
 export function RangeChart(p: RangeProps) {
   return <Sized height={p.height ?? 200}>{(w) => <RangeSvg {...p} W={w} H={p.height ?? 200} />}</Sized>;
 }
 
-function RangeSvg({ goal, weeks, week, series, W, H }: RangeProps & { W: number; H: number }) {
+function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: RangeProps & { W: number; H: number }) {
   const compact = W < 420;
   const f: Frame = { W, H, padL: compact ? 34 : 44, padR: 12, padT: 24, padB: 20 };
   const { bound, limit, margin } = goal.range;
@@ -200,16 +273,26 @@ function RangeSvg({ goal, weeks, week, series, W, H }: RangeProps & { W: number;
   const { X, Y } = looseScales(f, weeks, [...series.map((p) => p.value), limit + (bound === 'atMost' ? 1.5 : -1.5) * m, limit - (bound === 'atMost' ? 3 : -3) * m]);
   const out = (v: number) => (bound === 'atMost' ? v > limit : v < limit);
   const last = series[series.length - 1];
-  return (
-    <svg className="chart" width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${goal.title}: ${last ? fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, limit ${fmt(limit, goal)}`}>
+  const sc = useScrub(weeks, 0, (px) => (px - f.padL) * weeks / (W - f.padL - f.padR), scrub, week);
+  const atPoint = sc.at != null ? series.find((p) => p.week === sc.at) : undefined;
+  const svg = (
+    <svg className={'chart' + (draw ? ' draw' : '') + (scrub ? ' scrubbable' : '')} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${goal.title}: ${last ? fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, limit ${fmt(limit, goal)}`} {...sc.svg}>
       <rect className="c-area" x={f.padL} y={Math.min(Y(limit), Y(inner))} width={W - f.padL - f.padR} height={Math.abs(Y(inner) - Y(limit))} />
       <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(limit)} y2={Y(limit)} />
       <WeekLabels f={f} weeks={weeks} week={week} X={X} wide={!compact} />
       {series.length > 0 && <polyline className="c-act" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
-      {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={out(p.value) ? 'c-breach' : 'c-dot'} />)}
+      {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={(out(p.value) ? 'c-breach' : 'c-dot') + (p === last ? ' c-last' : '') + (landed && p === last ? ' landed' : '')} />)}
+      {draw && last && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4} aria-hidden="true" />}
       <TargetLabel f={f} y={Y(limit)}>Limit {fmt(limit, goal)}{compact ? '' : ' · shaded: warning margin'}</TargetLabel>
+      {sc.at != null && (
+        <g className="c-scrub" aria-hidden="true">
+          <line x1={X(sc.at)} x2={X(sc.at)} y1={f.padT - 6} y2={H - f.padB} />
+          {atPoint && <circle className="c-scrub-dot" cx={X(atPoint.week)} cy={Y(atPoint.value)} r={5} />}
+        </g>
+      )}
     </svg>
   );
+  return scrub ? <><div className="chart-scrub" {...sc.wrap}>{svg}</div>{sc.readout}</> : svg;
 }
 
 /** A tiny trend line for lists: actuals against plan, no axes. */

@@ -1,12 +1,23 @@
 /* User-journey evals: drive the built app in Chromium as each profile would, on a phone and a desktop,
    and score every journey against the 10-point ease-of-use test in requirements.json.
-   Usage: BASE=http://localhost:4318 [DOWN=http://localhost:4319] node evals/journeys.cjs */
+   Usage: BASE=http://localhost:4318 [DOWN=http://localhost:4319] node evals/journeys.cjs
+   ONLY=U1,U2[,PLATFORM]  run just these journeys (PLATFORM: and the platform checks)
+   CHECKS=P6,F3           run just these platform checks (and no others)
+   FINISH=F1,N3           run just these per-area modules
+   SHARD=k/n              run shard k of n: journeys by position, platform checks as evals/shards.cjs places them; writes
+                          out/journeys-k.json (P5 is left to the merge, which has every shard's console errors) */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
 const BASE = process.env.BASE || 'http://localhost:4318';
 const DOWN = process.env.DOWN || '';
+const SHARD = (/^(\d+)\/(\d+)$/.exec(process.env.SHARD || '') || []).slice(1).map(Number);
+const secs = {}; // seconds each platform check took
+let shardPlan = null; // set once the journeys are registered
+const picked = (process.env.CHECKS || '').split(',').filter(Boolean);
+/** Does this platform check run here? Not in another shard, and not when CHECKS names others. */
+const want = (id) => (!picked.length || picked.includes(id)) && (!shardPlan || shardPlan.checks.includes(id));
 const TODAY = '2026-10-30'; // Friday of week 7 in the example
 const OUT = path.join(__dirname, 'out');
 const AXE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
@@ -89,6 +100,8 @@ function harness(device) {
         const small = primaries.filter((x) => x.h < 44);
         set('a11y', !small.length, `${label}: primary button under 44px (${small.map((x) => x.text + ' ' + Math.round(x.h)).join(', ')})`);
       }
+      // Let entrance motion finish first (the goal page's story runs up to 4s): an element caught mid-fade isn't its real contrast.
+      await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 5000))]));
       await p.addScriptTag({ content: AXE });
       const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
         .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => `${x.id} ${x.nodes[0].target.join(' ')}`));
@@ -146,6 +159,12 @@ const viewAs = async (p, first, h) => {
   if (h) await h.click(pick); else await pick.click();
 };
 
+/** The goal page's "…" menu (the flagship page, 5 Nov): Share image, Copy link, Print, Check in again, Change this goal. */
+const goalMenu = async (h, p, item) => {
+  await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
+  await h.click(p.getByRole('group', { name: 'More about this goal' }).getByRole(item === 'Print or save as PDF' || /^Check in/.test(item) ? 'link' : 'button', { name: item }));
+};
+
 const navTo = async (h, p, label) => {
   const side = p.locator('.side').getByRole('link', { name: label });
   if (await side.isVisible().catch(() => false)) return h.click(side);
@@ -199,7 +218,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await see(p, /All \d+ check-ins posted for week|Your check-in is posted for week/, 'posted check-ins survive a reload, and home moves on to the review Sam is in');
   // An ad hoc check-in, any time, from the goal page: kept alongside the first, and the latest is the week's status.
   await p.goto(url('/goals/review'));
-  await h.click(p.getByRole('link', { name: 'Check in now' }));
+  // Checked in already: the owner's check-in is no longer the page's main action; "Check in again" is in the "…" menu.
+  await goalMenu(h, p, 'Check in again');
   await see(p, `You checked in for week ${NOW} already`, 'a second check-in says it is kept alongside the first');
   const reviewV2 = String(Number(reviewV) - 1);
   await h.fill(p.getByLabel('This week’s value'), reviewV2);
@@ -285,7 +305,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   let items = 0;
   while (items < 14 && /review=weekly/.test(p.url())) {
     await p.locator('.decide').waitFor();
-    h.set('attention', await p.locator('.story .chip').isVisible(), 'a goal in the review has no status');
+    h.set('attention', await p.locator('.goal-bar .bar-status').isVisible(), 'a goal in the review has no status');
     if (items < 2) await h.checkpoint('item ' + (items + 1));
     const here = p.url();
     const reviewedNext = p.locator('.decide').getByRole('button', { name: /^Reviewed & / });
@@ -333,9 +353,15 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   const ask = calls.find((c) => c.action === 'asked');
   h.set('logged', calls.length === items + healthyN + 2 && !!ask && ask.diffs.some((d) => /golden path/.test(d.to)), `expected ${items + healthyN} reviews plus a question and a note, logged, saw ${calls.length}`);
   // The owner sees the question on the goal page.
+  // Since the flagship page (5 Nov) it's under "Asked of you" for the owner, with the box to answer it, and in the
+  // goal's action list (and Last time we talked) for everyone else.
   const asked = s.decisions.find((d) => d.kind === 'ask');
   await p.goto(url('/goals/' + asked.goalId));
-  await see(p, 'Question from Platform weekly review', 'the owner sees the question on the goal');
+  await see(p, 'Can the golden path ship', 'the question is not on the goal for everyone');
+  const owner = s.goals.find((g) => g.id === asked.goalId).ownerId;
+  await p.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), owner);
+  await p.goto(url('/goals/' + asked.goalId));
+  await see(p, 'Question from Elena in Platform weekly review', 'the owner sees the question on the goal');
   await p.context().close();
 });
 
@@ -512,17 +538,20 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   await p.goto(url('/goals?show=attention'));
   await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
   await h.click(p.locator('.arow-main', { hasText: 'Repo-access controls' }));
-  await see(p, 'check-in · '); // "Week 43 check-in · Aisha Rahman · 9 days ago" (N2)
-  h.set('attention', await p.locator('.story[data-tone=off] .chip.off').isVisible() && await p.locator('.why .note-line').count() > 0, 'off track and its reasons are not shown');
+  await p.locator('.goal-bar').waitFor();
+  // The summary bar says off track and why; the signals are tags under Why (the flagship page, 5 Nov).
+  h.set('attention', await p.locator('.goal-bar[data-tone=off] .bar-status.off').isVisible() && (await p.locator('.goal-bar .bar-why').innerText()).length > 10 && await p.locator('.why-block .signal-tag').count() > 0, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
-  await h.click(p.getByRole('tab', { name: /Comments and changes/ }));
-  await h.click(p.getByRole('button', { name: /Show .*change/ }).first());
+  // Check-ins, comments and changes are one stream; Changes shows only the changes.
+  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Changes', exact: true }));
+  await h.click(p.locator('#activity').getByRole('button', { name: /Show .*change/ }).first());
   h.set('logged', await p.locator('.diffs ins').first().isVisible(), 'a change does not show its before and after');
   h.set('finish', true);
   h.set('progress', await p.locator('.stagelist').isVisible(), 'the stages are not shown');
   // Anyone can comment; it goes straight into the goal's activity, logged like every other save.
   await h.fill(p.getByLabel('Add a comment'), 'Vendor confirmed the SEC-88 fix ships Tuesday.');
   await h.click(p.getByRole('button', { name: 'Post comment' }));
+  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Comments', exact: true }));
   await see(p, 'Vendor confirmed the SEC-88 fix ships Tuesday.', 'the comment shows in the activity');
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.actorId === 'maya' && c.goalId === 'access' && c.diffs.some((d) => /SEC-88 fix/.test(d.to))), 'the comment is not in the change log');
@@ -550,7 +579,8 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   await see(p, 'Check-in saved');
   // A plan change once check-ins have started saves directly, but needs a reason.
   await p.goto(url('/goals/lead'));
-  await h.click(p.getByRole('link', { name: 'Edit' }));
+  await goalMenu(h, p, 'Change this goal');
+  await h.click(p.getByRole('link', { name: 'Change the plan or target' }));
   await h.fill(p.getByLabel(/^Target/), '1.5');
   await p.locator('.focus-foot button[type=submit]').click({ force: true });
   h.set('errors', await p.locator('textarea.invalid[aria-label="Why change it?"]').isVisible() && await p.getByRole('alert').filter({ hasText: 'Say why' }).isVisible(), 'a plan change without a reason is not explained');
@@ -586,10 +616,9 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING'], 'Watching: see what has gone q
   await h.checkpoint('watching');
   h.set('attention', /No check-in for \d+ days/.test(await quiet.innerText()), 'a quiet goal does not say how long it has been');
   await h.click(quiet);
-  await p.locator('.story').waitFor();
-  h.set('attention', await p.locator('.story[data-tone=stale] .chip.stale').isVisible() && await p.getByText('can’t be trusted').isVisible(), 'stale is not flagged on the goal');
-  // Chase it with a comment the owner sees.
-  await h.click(p.getByRole('tab', { name: /Comments and changes/ }));
+  await p.locator('.goal-bar').waitFor();
+  h.set('attention', await p.locator('.goal-bar[data-tone=stale] .bar-status.stale').isVisible() && await p.getByText('can’t be trusted').isVisible(), 'stale is not flagged on the goal');
+  // Chase it with a comment the owner sees: the comment box leads the Activity stream.
   await p.getByLabel('Add a comment').fill('Jonas, can you post where this is before Thursday?');
   await p.getByRole('button', { name: 'Post comment' }).click();
   await see(p, 'before Thursday');
@@ -767,14 +796,14 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   await see(p, 'Needs your response');
   const card = p.locator('.need-group', { hasText: 'Decisions or help needed' }).locator('.need').first();
   await h.inView(card, 'entry', 'the decision that needs Elena');
-  h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('button', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
+  h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('link', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
   await see(p, 'Goals you watch');
   await h.checkpoint('home');
   // Respond opens the request itself, ready to answer (product review, 3 Nov).
-  await h.click(card.getByRole('button', { name: 'Respond' }));
-  const respond = p.getByRole('dialog', { name: 'Respond to the request' });
+  // Respond opens the goal with the request open under Asked of you, ready to answer (the flagship page, 5 Nov).
+  await h.click(card.getByRole('link', { name: 'Respond' }));
+  const respond = p.getByRole('region', { name: 'Respond to the request' });
   await see(respond, 'Your answer or decision', 'Respond does not open the request to answer');
-  await p.keyboard.press('Escape');
   // The 4-tab trial: Home, Goals, Reviews, More; Watching lives in Goals.
   await p.goto(url('/'));
   { const panel = await demoPanel(p, h); await h.click(panel.getByRole('button', { name: /Try 4 tabs/ })); await p.keyboard.press('Escape'); }
@@ -849,7 +878,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await see(p, 'with plan numbers set by hand', 'the summary says the plan was set by hand');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
-  await h.click(p.getByRole('tab', { name: 'Details' }));
+  // About this goal is open on a first visit, with the plan week by week (the flagship page, 5 Nov).
   await see(p, 'Plan and actual by week');
   const s = await h.snapshot();
   const g = s.goals.find((x) => x.title === 'Runbooks with an owner');
@@ -1266,19 +1295,19 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS'], 'A leader acts on w
   const p = h.use(await newPage(device, 'elena'));
   // The north star says which contributing goals are most likely to make it miss, near the top.
   await p.goto(url('/goals/head'));
-  const threats = p.getByRole('region', { name: 'Most likely to make it miss' });
+  // Pinned at the top of What feeds it, with why, instead of a second copy above (the flagship page, 5 Nov).
+  const threats = p.locator('#feeds .pinned');
   await threats.waitFor();
-  h.set('attention', (await threats.locator('.trow, .gline, li').count()) > 0, 'the north star does not name what threatens it');
+  h.set('attention', (await threats.locator('.trow, .gline').count()) > 0 && /Most likely to make it miss/.test(await threats.innerText()), 'the north star does not name what threatens it');
   await h.checkpoint('threats');
   // A goal waiting on Elena's decision: Respond is beside the request and opens it, ready to answer.
   await p.goto(url('/goals/access'));
   const request = p.getByRole('region', { name: 'Decision or help needed' });
   await request.waitFor();
   await h.click(request.getByRole('button', { name: 'Respond' }));
-  const respond = p.getByRole('dialog', { name: 'Respond to the request' });
+  const respond = p.getByRole('region', { name: 'Respond to the request' });
   await respond.waitFor({ timeout: 3000 }).catch(() => {});
   h.set('finish', await respond.getByLabel('Your answer or decision').isVisible().catch(() => false), 'Respond does not open a place to answer the request');
-  await p.keyboard.press('Escape');
   const repeats = await p.locator('main').evaluate((m) => (m.innerText.match(/Elena Ruiz: Elena/g) || []).length);
   h.set('attention', repeats === 0, 'the request names its recipient twice');
   // Chasing a quiet goal leaves a lasting "Asked" in place of the button.
@@ -1448,25 +1477,33 @@ journey('U36', ['PATH-TO-GREEN', 'ATTENTION', 'REVIEW-RUN'], 'An owner keeps las
 
 journey('U37', ['PATH-TO-GREEN', 'ATTENTION', 'CHANGE-LOG'], 'Two goals wait on one decision: an owner links them, the leader answers once, and both goals show the answer', 12, async (h, device) => {
   // Aisha's goal is waiting on the same interim-scope decision Maya asked Elena for: she links it.
+  // Linking is part of the check-in now, where the owner says what's needed (the flagship page, 5 Nov).
   const p = h.use(await newPage(device, 'aisha'));
-  await p.goto(url('/goals/access'));
+  await p.goto(url('/check-in/access'));
+  await h.click(p.getByRole('button', { name: /^(Continue|Post check-in)$/ }));
+  if (await p.getByRole('button', { name: 'Something changed', exact: true }).isVisible().catch(() => false)) await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
   await h.click(p.getByRole('button', { name: 'Waiting on a decision already asked for another goal?' }));
   const sheet = p.getByRole('dialog', { name: 'Waiting on the same decision' });
   await h.click(sheet.getByRole('button', { name: /Intake-to-delivery time/ }));
   await see(p, 'one answer will cover both goals', 'linking the request did not confirm');
   await h.checkpoint('linked');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved', 'the check-in with the linked request did not post');
   // Elena, in the same demo data: the request shows once, for both goals; she answers it from Home.
   await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'elena'));
   await p.goto(url('/'));
   const need = p.locator('.need').filter({ hasText: 'and 1 more goal waiting on it' });
   await need.waitFor();
   h.set('attention', (await p.locator('.need').filter({ hasText: 'interim' }).count()) === 1, 'the same decision is asked twice on Home');
-  await h.click(need.getByRole('button', { name: 'Respond' }));
-  const respond = p.getByRole('dialog', { name: 'Respond to the request' });
-  await see(respond, '2 goals are waiting on this', 'the answer sheet does not say which goals wait on it');
+  await h.click(need.getByRole('link', { name: 'Respond' }));
+  const respond = p.getByRole('region', { name: 'Respond to the request' });
+  await see(respond, '2 goals are waiting on this', 'the answer does not say which goals wait on it');
   await h.fill(respond.getByLabel('Your answer or decision'), 'Approved: interim read-only scope until the vendor fix lands.');
   await h.click(respond.getByRole('button', { name: 'Record the answer' }));
   await see(p, 'Answered for all 2 goals', 'answering did not confirm for both goals');
+  await p.goto(url('/'));
+  await p.locator('main').waitFor();
+  await p.waitForTimeout(300);
   h.set('progress', (await p.locator('.need').filter({ hasText: 'interim' }).count()) === 0, 'the answered request is still on Home');
   // Both goals show the answer; the request is answered once, logged on each goal.
   await p.goto(url('/goals/access'));
@@ -1785,6 +1822,7 @@ journey('U29', ['WALKTHROUGHS'], 'Every walkthrough starts as the right person a
 }, ['errors', 'budget', 'one-action', 'a11y']);
 
 /* ---------------- platform checks ---------------- */
+const P5 = (errors) => ({ id: 'P5', reqs: ['NO-ERRORS'], title: 'No console or page errors across every journey', pass: errors.length === 0, error: errors.slice(0, 4).join(' | ') || undefined });
   // F1–F8: the per-area fit-and-finish reports (4 Nov). Each area keeps its own checks in evals/finish/*.cjs.
 async function finishChecks(add) {
   {
@@ -1800,8 +1838,11 @@ async function finishChecks(add) {
     for (const f of ['finish', 'notes'].flatMap((d) => fs.readdirSync(path.join(__dirname, d)).filter((x) => x.endsWith('.cjs')).sort().map((x) => path.join(__dirname, d, x)))) {
       const m = require(f);
       if (pick.length && !pick.includes(m.id)) continue;
+      if (!want(m.id)) continue;
       let fails;
+      const t0 = Date.now();
       try { fails = await m.run({ open, url, browser, down: DOWN }); } catch (e) { fails = [`check crashed: ${String(e.message || e).split('\n')[0]}`]; }
+      secs[m.id] = Math.round((Date.now() - t0) / 100) / 10;
       add(m.id, m.reqs ?? ['FIT-AND-FINISH-AREAS'], m.title ?? `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
     }
   }
@@ -1810,17 +1851,23 @@ async function finishChecks(add) {
 async function platformChecks() {
   if (process.env.FINISH) { const out = []; await finishChecks((id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error })); return out; }
   const out = [];
-  const add = (id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error });
+  const add = (id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error, });
+  // How long each check took, to balance the shards (written to the results; the weights in shards.cjs come from here).
+  let mark = Date.now();
+  const lap = (id) => { if (want(id)) secs[id] = Math.round((Date.now() - mark) / 100) / 10; mark = Date.now(); };
   // Reduced motion switches animation off.
-  const ctx = await browser.newContext({ viewport: DEVICES.desktop, reducedMotion: 'reduce' });
-  const p = await ctx.newPage();
-  await p.goto(url('/'));
-  await p.locator('.hero').waitFor();
-  const anim = await p.$eval('.hero', (e) => getComputedStyle(e).animationName);
-  add('P1', ['MOTION'], 'Animation switches off under reduced motion', anim === 'none', `hero animation is ${anim}`);
-  await ctx.close();
+  if (want('P1')) {
+    const ctx = await browser.newContext({ viewport: DEVICES.desktop, reducedMotion: 'reduce' });
+    const p = await ctx.newPage();
+    await p.goto(url('/'));
+    await p.locator('.hero').waitFor();
+    const anim = await p.$eval('.hero', (e) => getComputedStyle(e).animationName);
+    add('P1', ['MOTION'], 'Animation switches off under reduced motion', anim === 'none', `hero animation is ${anim}`);
+    await ctx.close();
+  }
+  lap('P1');
   // A dead database: a skeleton while waiting, then a clear error with Try again.
-  if (DOWN) {
+  if (DOWN && want('P2')) {
     const c2 = await browser.newContext({ viewport: DEVICES.phone });
     const q = await c2.newPage();
     await q.goto(DOWN + '/?today=' + TODAY);
@@ -1831,8 +1878,10 @@ async function platformChecks() {
     add('P2', ['MOTION', 'NO-ERRORS'], 'Loading shows a skeleton, and an unreachable database becomes a clear error with Try again', skeleton && error, `skeleton ${skeleton}, error ${error}`);
     await c2.close();
   }
+  lap('P2');
   // Every screen fits a phone with no sideways scroll and no serious a11y issues.
   for (const [device, vp] of Object.entries(DEVICES)) {
+    if (!want(device === 'phone' ? 'P3' : 'P4')) continue;
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
@@ -1841,6 +1890,8 @@ async function platformChecks() {
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:example', w), who);
       await r.reload();
       await r.waitForTimeout(250);
+      // Let entrance motion finish (the goal page's story runs up to 4s): a tile caught mid-fade isn't its real contrast.
+      await r.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 5000))]));
       const sideways = await r.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       if (sideways > 1) problems.push(`${who} ${route}: ${sideways}px sideways`);
       await r.addScriptTag({ content: AXE });
@@ -1858,10 +1909,11 @@ async function platformChecks() {
     }
     add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y'] : ['A11Y'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
     await c3.close();
+    lap(device === 'phone' ? 'P3' : 'P4');
   }
   // P6: the design rules (docs/design-rules.md), on every screen and every Goals layout, at phone and desktop width.
   const design = [];
-  for (const [device, vp] of Object.entries(DEVICES)) {
+  for (const [device, vp] of want('P6') ? Object.entries(DEVICES) : []) {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['maya', '/'], ['elena', '/'], ['maya', '/goals'], ['maya', '/goals?view=table'], ['maya', '/goals?view=board'], ['maya', '/goals?view=history'], ['maya', '/goals?view=cards'], ['maya', '/goals?view=map'],
@@ -1894,12 +1946,13 @@ async function platformChecks() {
     }
     await c4.close();
   }
-  add('P6', ['DESIGN-RULES'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules', !design.length, design.slice(0, 6).join(' | '));
+  lap('P6');
+  if (want('P6')) add('P6', ['DESIGN-RULES'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules', !design.length, design.slice(0, 6).join(' | '));
   // P7: wide screens and a short laptop. Each kind of page uses the room it has: no clipped tables, portfolio views and
   // the map fill the work area, Home, a goal and Watching put their side column beside the main one, and on a 1440×700
   // laptop a goal's chart starts above the fold.
   const wide = [];
-  for (const [w, hgt] of [[1920, 1080], [2560, 1300]]) {
+  for (const [w, hgt] of want('P7') ? [[1920, 1080], [2560, 1300]] : []) {
     const c5 = await browser.newContext({ viewport: { width: w, height: hgt } });
     const r = await c5.newPage();
     for (const [who, route, kind] of [['elena', '/', 'split'], ['elena', '/goals?view=table', 'fill'], ['elena', '/goals?view=board', 'fill'], ['elena', '/goals?view=cards', 'fill'], ['elena', '/goals?view=map', 'map'], ['sam', '/goals/review', 'split'], ['tom', '/watching', 'split'], ['elena', '/activity', 'plain']]) {
@@ -1929,7 +1982,7 @@ async function platformChecks() {
     }
     await c5.close();
   }
-  {
+  if (want('P7')) {
     const c6 = await browser.newContext({ viewport: { width: 1440, height: 700 } });
     const r = await c6.newPage();
     await r.goto(url('/goals/review'));
@@ -1940,9 +1993,10 @@ async function platformChecks() {
     if (top > 640) wide.push(`1440×700 /goals/review: the chart starts at ${Math.round(top)}px, below the fold`);
     await c6.close();
   }
+  lap('P7');
   // P8: the goals start in the first screen. The Goals header (views, layout, search, filters) mustn't push them down.
   const fold = [];
-  for (const [device, vp] of Object.entries(DEVICES)) {
+  for (const [device, vp] of want('P8') ? Object.entries(DEVICES) : []) {
     const c7 = await browser.newContext({ viewport: vp });
     const r = await c7.newPage();
     for (const v of ['list', 'table', 'board']) {
@@ -1956,11 +2010,12 @@ async function platformChecks() {
     }
     await c7.close();
   }
+  lap('P8');
   // P9: every width in between (the reviewers couldn't resize their browsers). A small phone, a tablet both ways, a
   // laptop and an ultra-wide monitor: no sideways scroll, nothing cut off at the edge, navigation always there, and
   // prose never stretched across a wide screen.
   const widths = [];
-  for (const [w, hgt] of [[360, 740], [768, 1024], [1024, 768], [1280, 800], [3440, 1440]]) {
+  for (const [w, hgt] of want('P9') ? [[360, 740], [768, 1024], [1024, 768], [1280, 800], [3440, 1440]] : []) {
     const c8 = await browser.newContext({ viewport: { width: w, height: hgt }, hasTouch: w <= 1024 });
     const r = await c8.newPage();
     for (const [who, route] of [['maya', '/'], ['elena', '/'], ['elena', '/goals'], ['elena', '/goals?view=table'], ['elena', '/goals?view=history'], ['elena', '/goals?view=history&hist=weekly&weeks=year'], ['elena', '/goals?view=board'],
@@ -1989,11 +2044,12 @@ async function platformChecks() {
     }
     await c8.close();
   }
-  add('P9', ['EVERY-WIDTH'], 'Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width', !widths.length, widths.slice(0, 8).join(' | '));
+  lap('P9');
+  if (want('P9')) add('P9', ['EVERY-WIDTH'], 'Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width', !widths.length, widths.slice(0, 8).join(' | '));
   // P10: fit and finish (review of 4 Nov), re-measured: text follows the browser's size, one control height, phone
   // rows and toolbars that stack, a usable rail, no sideways scroll in a review, and one left edge for every layout.
   const finish = [];
-  {
+  if (want('P10')) {
     const at = async (w, h, who, path, touch) => {
       const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch });
       const r = await c.newPage();
@@ -2029,10 +2085,12 @@ async function platformChecks() {
     if (lx !== tx) finish.push(`Goals moves ${Math.abs(lx - tx)}px between List and Table`);
     await c.close();
   }
-  add('P10', ['FIT-AND-FINISH'], 'Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge', !finish.length, finish.join(' | '));
+  lap('P10');
+  if (want('P10')) add('P10', ['FIT-AND-FINISH'], 'Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge', !finish.length, finish.join(' | '));
   await finishChecks(add);
-  add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
-  add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
+  if (want('P8')) add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
+  if (want('P7')) add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
+  out.forEach((x) => { x.seconds = secs[x.id]; });
   return out;
 }
 
@@ -2041,7 +2099,14 @@ async function platformChecks() {
   browser = await chromium.launch();
   const journeys = [];
   const only = (process.env.ONLY || '').split(',').filter(Boolean);
-  for (const j of J.filter((x) => !only.length || only.includes(x.id))) {
+  const ids = J.map((x) => x.id);
+  if (SHARD.length) {
+    const [k, n] = SHARD;
+    if (!(n >= 1 && k >= 1 && k <= n)) throw new Error(`SHARD=${process.env.SHARD} is not k/n`);
+    shardPlan = require('./shards.cjs').plan(n, ids)[k - 1];
+    console.log(`Shard ${k}/${n}: journeys ${shardPlan.journeys.join(' ') || '–'} · checks ${shardPlan.checks.join(' ') || '–'}`);
+  }
+  for (const j of J.filter((x) => (!only.length || only.includes(x.id)) && (!shardPlan || shardPlan.journeys.includes(x.id)))) {
     const per = {};
     for (const device of Object.keys(DEVICES)) {
       const started = Date.now();
@@ -2075,12 +2140,17 @@ async function platformChecks() {
     const missed = CRITERIA.filter((k) => scores[k] === false);
     if (missed.length) console.log(`     missed: ${missed.join(', ')}`);
   }
-  const platform = only.length && !only.includes('PLATFORM') ? [] : await platformChecks();
+  // Platform checks run unless ONLY names journeys alone; a shard runs the ones it was given; CHECKS asks for them by name.
+  const platform = only.length && !only.includes('PLATFORM') && !picked.length ? [] : await platformChecks();
   platform.forEach((x) => console.log(`${x.pass ? 'PASS' : 'FAIL'} ${x.id} ${x.title}${x.pass ? '' : '\n     ' + x.error}`));
-  platform.push({ id: 'P5', reqs: ['NO-ERRORS'], title: 'No console or page errors across every journey', pass: consoleErrors.length === 0, error: consoleErrors.slice(0, 4).join(' | ') || undefined });
-  console.log(`${consoleErrors.length ? 'FAIL' : 'PASS'} P5 No console or page errors${consoleErrors.length ? '\n     ' + consoleErrors.slice(0, 4).join('\n     ') : ''}`);
+  // P5 reads the console errors of every journey, so a shard hands them over and the merge decides (see run.mjs).
+  if (!shardPlan) {
+    platform.push(P5(consoleErrors));
+    console.log(`${consoleErrors.length ? 'FAIL' : 'PASS'} P5 No console or page errors${consoleErrors.length ? '\n     ' + consoleErrors.slice(0, 4).join('\n     ') : ''}`);
+  }
   await browser.close();
-  fs.writeFileSync(path.join(OUT, 'journeys.json'), JSON.stringify({ journeys, platform }, null, 2));
+  const file = shardPlan ? `journeys-${SHARD[0]}.json` : 'journeys.json';
+  fs.writeFileSync(path.join(OUT, file), JSON.stringify({ shard: shardPlan ? { k: SHARD[0], n: SHARD[1], journeys: shardPlan.journeys, checks: shardPlan.checks } : undefined, journeys, platform, consoleErrors }, null, 2));
   process.exit(journeys.every((r) => r.pass) && platform.every((x) => x.pass) ? 0 : 1);
 })();
 

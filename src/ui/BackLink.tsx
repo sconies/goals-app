@@ -76,7 +76,8 @@ export function BackLink({ to, label, same }: { to: string; label: string; same?
   );
 }
 
-/** A goal's Back link: in a review walk, back past the walk's other goals (to the review if you came from outside). */
+/** A goal's Back link: in a review walk, back past the walk's other goals (to the review if you came from outside);
+ *  otherwise to the page you came from, by name, or the goal it feeds. */
 export function GoalBack() {
   const { goalId } = useParams();
   const [params] = useSearchParams();
@@ -86,5 +87,8 @@ export function GoalBack() {
     const r = app.snapshot.reviews.find((x) => x.id === review);
     return <BackLink to={`/reviews/${review}`} label={r?.name ?? 'the review'} same={(path) => path.startsWith('/goals/') && path.includes('review=' + review)} />;
   }
-  return <BackLink to="/goals" label="Goals" same={(path) => path.split('?')[0] === '/goals/' + goalId} />;
+  // From outside the app (a shared link), back goes up the tree: to the goal this one feeds, by name.
+  const goal = goalId ? app.goal(goalId) : undefined;
+  const parent = goal?.parentId ? app.goal(goal.parentId) : undefined;
+  return <BackLink to={parent ? '/goals/' + parent.id : '/goals'} label={parent ? parent.title : 'Goals'} same={(path) => path.split('?')[0] === '/goals/' + goalId} />;
 }

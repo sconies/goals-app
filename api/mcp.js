@@ -22115,16 +22115,44 @@ function valueSeries(checkIns) {
 	}));
 }
 /**
-* Where the metric lands at the end of the cycle if the last three weeks' trend holds.
-* Needs a value at least three weeks before the latest one.
+* Where the number lands by `toWeek` if the recent trend holds (approved by Lane, 5 Nov). A least-squares line through
+* the numbers of the last eight weeks, not a slope between two points, so one noisy week can't swing it; and a range,
+* not a single number: the spread of the numbers around the line, widening the further it reaches. A clean trend has
+* no spread, so its range is the line itself. Needs a number at least three weeks before the latest one (the window
+* reaches back to it when the recent weeks are sparse). The app, the import, the reviews and the AI assistant all ask here.
 */
-function forecast(series, weeks) {
+function projection(series, toWeek) {
 	const last = series[series.length - 1];
 	if (!last) return null;
-	const earlier = [...series].reverse().find((p) => p.week <= last.week - 3);
-	if (!earlier) return null;
-	const slope = (last.value - earlier.value) / (last.week - earlier.week);
-	return last.value + slope * (weeks - last.week);
+	let pts = series.filter((p) => p.week > last.week - 8);
+	if (last.week - pts[0].week < 3) {
+		const earlier = [...series].reverse().find((p) => p.week <= last.week - 3);
+		if (!earlier) return null;
+		pts = [earlier, ...pts.filter((p) => p.week > earlier.week)];
+	}
+	const n = pts.length;
+	const xm = pts.reduce((s, p) => s + p.week, 0) / n;
+	const ym = pts.reduce((s, p) => s + p.value, 0) / n;
+	const sxx = pts.reduce((s, p) => s + (p.week - xm) ** 2, 0);
+	const slope = pts.reduce((s, p) => s + (p.week - xm) * (p.value - ym), 0) / sxx;
+	const at = (w) => ym + slope * (w - xm);
+	const sse = pts.reduce((s, p) => s + (p.value - at(p.week)) ** 2, 0);
+	const spread = n > 2 ? Math.sqrt(sse / (n - 2)) : 0;
+	const se = spread / Math.sqrt(sxx);
+	const t = se > 1e-12 ? slope / se : Infinity;
+	const lean = Number.isFinite(t) ? t * t / (1 + t * t) : 1;
+	const value = ym + lean * slope * (toWeek - xm);
+	const half = spread * Math.sqrt(1 / n + (toWeek - xm) ** 2 / sxx);
+	const tidy = (v) => Math.round(v * 1e9) / 1e9;
+	return {
+		value: tidy(value),
+		low: tidy(value - half),
+		high: tidy(value + half),
+		week: toWeek,
+		from: pts[0].week,
+		to: last.week,
+		slope: tidy(lean * slope)
+	};
 }
 /** "2–8 Nov" (or "28 Oct–3 Nov"): the calendar days of a cycle week, Monday to Sunday. */
 function weekDates(cycle, week) {
@@ -22191,10 +22219,11 @@ var RULES = {
 function assessMetric(goal, weeks, week, actual, history) {
 	const { start, target } = goal.plan;
 	const plan = planAt(goal.plan, week, weeks);
-	const fc = forecast(actual == null ? history : [...history.filter((p) => p.week < week), {
+	const pr = projection(actual == null ? history : [...history.filter((p) => p.week < week), {
 		week,
 		value: actual
 	}], planEnd(goal.plan, weeks));
+	const fc = pr?.value ?? null;
 	const dir = Math.sign(target - start);
 	const base = {
 		kind: "metric",
@@ -22203,6 +22232,7 @@ function assessMetric(goal, weeks, week, actual, history) {
 		target,
 		actual,
 		forecast: fc,
+		projection: pr,
 		forecastMisses: fc != null && (fc - target) * dir < 0
 	};
 	if (week === 0) return {
@@ -22644,6 +22674,10 @@ function parseNumber(s) {
 	const n = Number(t);
 	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
 }
+/** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
+function isShare(goal) {
+	return !!goal && goal.kind !== "milestone" && goal.unit.trim() === "%" && withinHundred(goal);
+}
 function withinHundred(goal) {
 	if (!goal) return false;
 	if (goal.kind === "metric") return [
@@ -22782,6 +22816,17 @@ function fmtDiff(v, g) {
 	const n = Math.abs(v).toFixed(g.decimals);
 	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
 	return g.unit ? n + " " + g.unit : n;
+}
+/**
+* A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
+* 0–100% (`share`); the range never says less than nothing or more than everything.
+*/
+function rangeText(p, g, share = false) {
+	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
+	const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
+	if (lo === hi) return lo;
+	const bare = (v) => clamp(v).toFixed(g.decimals);
+	return `${bare(p.low)}–${hi}`;
 }
 var weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
 function kindLabel(g) {
@@ -24890,7 +24935,7 @@ function worseningTrend(goal, cycle, checkIns) {
 		if (a == null || b == null || c == null) return null;
 		if (c < b && b < a && c < 1) return `Progress against plan has fallen two check-ins running: ${Math.round(a * 100)}% → ${Math.round(b * 100)}% → ${Math.round(c * 100)}%.`;
 		const last = assessMetric(goal, cycle.weeks, pts[pts.length - 1].week, pts[pts.length - 1].value, pts.slice(0, -1));
-		if (last.forecastMisses && last.forecast != null && last.calc === "on") return `On track today, but the last three weeks’ trend lands at ${fmt(last.forecast, goal)} against a target of ${fmt(goal.plan.target, goal)}.`;
+		if (last.forecastMisses && last.projection && last.calc === "on") return `On track today, but the recent trend heads for ${rangeText(last.projection, goal, isShare(goal))} by week ${last.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.`;
 		return null;
 	}
 	if (goal.kind === "range") {
@@ -26503,15 +26548,20 @@ function makesLoop(goalId, parentId, goals) {
 	}
 	return false;
 }
-/** Where the trend lands by the end of the cycle, for a number goal with enough data. */
+/**
+* Where the recent trend takes a number goal by its due week, as a range (plan.ts works it out), against the target.
+* `warn` when the likeliest value falls short.
+*/
 function forecastText(goal, a, weeks) {
-	if (a.kind !== "metric" || goal.kind !== "metric" || a.forecast == null) return null;
-	const gap = a.forecast - goal.plan.target;
+	if (a.kind !== "metric" || goal.kind !== "metric" || a.forecast == null || !a.projection) return null;
+	const due = goal.plan.endWeek ?? weeks;
+	const range = rangeText(a.projection, goal, isShare(goal));
+	const above = a.forecast > goal.plan.target;
 	return a.forecastMisses ? {
-		text: `Projected by the app at week ${goal.plan.endWeek ?? weeks}: ${fmt(a.forecast, goal)}, ${fmtDiff(gap, goal)} ${gap > 0 ? "above" : "below"} the ${fmt(goal.plan.target, goal)} target. An estimate from the recent trend, not the owner’s date.`,
+		text: `Heading for ${range} by week ${due}, ${above ? "above" : "below"} the ${fmt(goal.plan.target, goal)} target. Projected by the app from the recent trend, not the owner’s date.`,
 		warn: true
 	} : {
-		text: `Projected by the app to reach the ${fmt(goal.plan.target, goal)} target by week ${goal.plan.endWeek ?? weeks}, on the recent trend.`,
+		text: `Projected by the app to reach the ${fmt(goal.plan.target, goal)} target by week ${due} on the recent trend (heading for ${range}).`,
 		warn: false
 	};
 }
@@ -27372,6 +27422,7 @@ function summarise(goal, s, cycle, today, week) {
 		lastWeek: last?.week ?? null,
 		lastPostedAt: last?.postedAt ?? null,
 		forecast: st.status === "stale" ? null : forecastText(goal, a, cycle.weeks)?.text ?? null,
+		projection: st.status === "stale" || a.kind !== "metric" ? null : a.projection,
 		feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
 		why: behind && last ? [last.cause ? causeLabel(last.cause) : "", last.why].filter((x) => x && x !== "On plan.").join(": ") : "",
 		pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : "") : "",
@@ -27981,7 +28032,14 @@ function toJson(x) {
 					planThisWeek: s.planNow,
 					gap: s.gap,
 					lastCheckInWeek: s.lastWeek,
-					forecast: s.forecast
+					forecast: s.forecast,
+					projection: s.projection && g.kind === "metric" ? {
+						likeliest: Number(s.projection.value.toFixed(g.decimals)),
+						low: Number(s.projection.low.toFixed(g.decimals)),
+						high: Number(s.projection.high.toFixed(g.decimals)),
+						byWeek: s.projection.week,
+						fittedWeeks: [s.projection.from, s.projection.to]
+					} : null
 				},
 				story: {
 					since: s.story.since,
@@ -28566,11 +28624,16 @@ var ARTICLES = [
 			{
 				heading: "Where to see it",
 				text: ["The key under the goals on the Goals page has the same words. Open “What these mean” there for the full meanings."]
+			},
+			{
+				heading: "Where the trend is heading",
+				text: ["The app projects a number goal to its due week from a straight line fitted through its numbers of the last eight weeks, not from two weeks alone, so one noisy week can’t swing it. A slope the numbers barely support counts for little.", "The projection is a range: about two chances in three that the number lands inside it if nothing changes. A clean trend has no spread, so its range is a single number. It is the app’s estimate, kept apart from the owner’s own date."]
 			}
 		],
 		routes: [],
 		screens: [],
 		reqs: [
+			"PROJECTION-RANGE",
 			"STATUS-BANDS",
 			"STATUS-DIRECTION",
 			"RANGE",
@@ -28823,9 +28886,10 @@ var ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Owners: in a check-in that is behind, add “Need a decision or help”, say what is needed and pick who it goes to.",
-					"The person asked sees it once on Home under Needs your response, however many goals wait on it. Respond opens the exact ask.",
+					"The person asked sees it once on Home under Needs your response, however many goals wait on it. Respond opens the goal with the request open under “Asked of you” and the answer box ready.",
 					"Answer it closes the request for every goal waiting on it. Ask the owner first leaves it open and puts your question on the goal.",
-					"On a goal’s page, open requests show with Respond and Withdraw. An owner whose goal waits on a request already raised for another goal can link to it instead of asking again.",
+					"On a goal’s page, open requests are in “What’s being done”, with who it’s for and where it has got to; the owner or an admin can withdraw one there.",
+					"Waiting on a decision already asked for another goal? Say so in the check-in, where you say what’s needed: link to that request instead of asking again, and one answer covers both goals.",
 					"Still true in the next check-in carries an open request forward; dropping the ask withdraws it."
 				]
 			},
@@ -29114,34 +29178,60 @@ var ARTICLES = [
 	{
 		id: "goal-page",
 		title: "A goal’s page",
-		summary: "Everything about one goal: where it stands, why, what’s being done, its chart and every check-in.",
+		summary: "Everything about one goal: how it’s doing, why, what’s being done, where it’s heading, and what has happened.",
 		group: "goals",
 		sections: [
 			{
 				heading: "What it’s for",
-				text: ["Understanding one goal fully, and acting on it: checking in, answering, commenting or watching."]
+				text: ["Understanding one goal in a couple of seconds, then acting on it: checking in, answering what’s asked of you, commenting or watching. Each fact is said once, in one place."]
 			},
 			{
-				heading: "How to use it",
+				heading: "The summary bar",
 				list: [
-					"Under the title: its key (G-12), what it feeds and its status, how many goals feed it, and how it’s measured.",
-					"The status block leads with four facts: against plan, the trend over the last check-ins, the change since the last update, and the projection to the target.",
-					"When the goal is behind, the path to green follows: the owner’s plan, their date, what they need and the next step. The owner’s date and the app’s projection are kept apart.",
-					"The side column groups what is asked of you, what the owner says, signals worth knowing, and what was said in reviews.",
-					"The chart shows the plan, the actual and the forecast; an earlier plan stays dotted. Below are the check-ins, contributing goals and what is most likely to make it miss.",
-					"Comments and changes keeps every comment and saved change. Anyone can comment or ask a question.",
-					"A slim header with the status and number stays in view as you scroll. Print or save as PDF makes a one-page copy."
+					"First line: the goal, its owner, its level and its key (G-12).",
+					"Second line: its status as a shape and a word, the number against this week’s plan and the target in the goal’s own units, and which way it’s heading (worsening, flat or recovering). Dated stages say how many are done and which are slipping; a range says whether it’s inside its limit.",
+					"Third line: why, in the owner’s words, and whether anyone is on it yet. A north star also says how the goals feeding it are doing.",
+					"One main button, for what you’d most likely do next: answer something asked of you, check in when it’s due, ask a quiet goal’s owner for an update, or watch it. The “…” menu has Share image, Copy link, Print or save as PDF, and Change this goal.",
+					"As you scroll, the bar shrinks to one line at the top: the goal, its status, the number and the main button. On a phone it takes the place of the app’s header."
 				]
 			},
 			{
+				heading: "Below the bar",
+				list: [
+					"Asked of you: requests, review questions and asks for an update waiting on you, each answered right there. Home’s Answer, Respond and Reply open the goal with the item open and the box ready.",
+					"One line for you: what happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”), what you just posted (“Posted: at risk → off track · 6 weeks on time”), or, the first time, what the number measures.",
+					"The chart: the plan, the actual, the app’s projection as a shaded range, and the owner’s path to green. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given.",
+					"Why: where the reason came from and since when, and anything the numbers would otherwise hide, as small tags.",
+					"What’s being done: the path to green, the owner’s date checked against the trend, and one list of actions, requests and review questions with who, by when, and whether each is open, done or overdue.",
+					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
+					"What feeds it: the goal most likely to make it miss first, with why, then the rest worst first. Back from one of them names the goal you came from.",
+					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks.",
+					"About this goal: how it’s measured, its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change. It’s open the first time you visit, and folded after."
+				]
+			},
+			{
+				heading: "Changing it",
+				list: ["Change this goal (in About, or the “…” menu) offers three: improve the definition, change the plan or target, change the owner or level. Each asks why, and the reason goes in the activity for everyone watching."]
+			},
+			{
+				heading: "Sharing it",
+				list: ["Share image copies a picture of the summary bar and a small chart, with the goal’s link. Where the browser can’t copy a picture, it saves one instead and copies the link.", "The picture has your company’s numbers in it, so share it where they belong. A pasted link shows the goal to people who can sign in."]
+			},
+			{
 				heading: "Who can",
-				list: ["The owner checks in and edits; admins can edit any goal.", "Anyone can watch, comment, or ask the owner for an update when it has gone quiet."]
+				list: ["The owner checks in and changes the goal; admins can change any goal.", "Anyone can watch, comment, share, or ask the owner for an update when it has gone quiet."]
 			}
 		],
 		routes: ["/goals/:goalId"],
 		screens: ["GoalScreen"],
 		reqs: [
 			"GOAL-PAGE",
+			"GOAL-PAGE-BAR",
+			"GOAL-PAGE-ONCE",
+			"GOAL-PAGE-INTENT",
+			"GOAL-PAGE-ALIVE",
+			"GOAL-SHARE",
+			"PROJECTION-RANGE",
 			"GOAL-SUMMARY",
 			"NOTES",
 			"FORECAST",
@@ -29151,14 +29241,21 @@ var ARTICLES = [
 		keywords: [
 			"goal",
 			"chart",
-			"facts",
+			"summary",
 			"projection",
 			"forecast",
+			"range",
 			"comments",
+			"activity",
 			"path to green",
-			"contributing",
+			"feeds",
 			"trend",
-			"owner"
+			"owner",
+			"share",
+			"image",
+			"since you looked",
+			"asked of you",
+			"about"
 		],
 		related: [
 			"check-in",
@@ -29631,13 +29728,14 @@ var ARTICLES = [
 	{
 		id: "settings",
 		title: "Settings",
-		summary: "Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens. It also says what the app records.",
+		summary: "Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your AI assistant tokens. It also says what the app records.",
 		group: "you",
 		sections: [{
 			heading: "How to use it",
 			list: [
 				"Light or dark: light, dark, or follow your device.",
 				"Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
+				"How a goal’s page moves: Quick, Steady or Slow (how slowly its chart draws in and its number counts up), and how hard it lands: Gentle, Strong or Big.",
 				"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
 				"You: your name, job title and team. An admin changes these.",
 				"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
@@ -29646,7 +29744,7 @@ var ARTICLES = [
 			]
 		}, {
 			heading: "Good to know",
-			text: ["How the app looks is kept in this browser only. On another device, choose again. Motion is subtle and switches off when your device asks for reduced motion."]
+			text: ["How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion."]
 		}],
 		routes: ["/settings"],
 		screens: ["Settings"],
@@ -29917,6 +30015,24 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "goal-page-flagship",
+		date: "2026-11-05",
+		title: "A goal’s page, rebuilt",
+		points: [
+			"A summary bar reads in two seconds: the status, the number against plan and target, which way it’s heading, why, and whether anyone is on it. It shrinks to one line as you scroll.",
+			"What’s asked of you is answered on the goal, and Home’s Answer, Respond and Reply open it ready to type.",
+			"The chart is near the top and draws itself in until its latest point lands, with the projection as a range from the last eight weeks. Choose how slowly it moves and how hard it lands in Settings.",
+			"One list of what’s being done, with who, when and whether each is open, done or overdue; and what was said the last time it was discussed.",
+			"Check-ins, comments and changes in one stream, a reason repeated week after week said once, and “Since you looked” when you come back.",
+			"Share image copies a picture of the goal with its link. Linking to a decision already asked for another goal is now in the check-in."
+		],
+		articles: [
+			"goal-page",
+			"status",
+			"requests"
+		]
+	},
 	{
 		id: "tidier-and-more-consistent",
 		date: "2026-11-05",

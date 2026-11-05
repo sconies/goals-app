@@ -5,6 +5,10 @@
 
 const A4_CONTENT = 695; // 210mm less 13mm margins each side, at 96dpi
 const LIMIT = 250;
+// The goal page's story (chart drawing in, the headline number counting and landing, quarters filling, a status turning)
+// is slower on purpose so it can be seen (Lane, 5 Nov): up to 4 seconds end to end at the default pace (Settings → How a goal's page moves). Everything else stays at 250ms.
+const STORY_LIMIT = 4000;
+const story = (a) => /^(gp-|pm-draw|pm-dot-in|pm-shape-swap|pm-pulse|rise on li)|countup/.test(a.name);
 
 /** Samples every animation and every counter on the page, every frame from the first paint. */
 const SAMPLER = () => {
@@ -24,7 +28,7 @@ const SAMPLER = () => {
       const total = (t.iterations === Infinity ? Infinity : (Number(t.duration) || 0) * (t.iterations || 1)) + (t.delay || 0);
       window.__pm.anims.set(a, { name: name(a), total });
     }
-    const c = document.querySelector('.statusline .countup-now');
+    const c = document.querySelector('.goal-bar .countup-now, .statusline .countup-now');
     if (c) { const v = c.textContent; if (window.__pm.counts[window.__pm.counts.length - 1] !== v) window.__pm.counts.push(v); }
     requestAnimationFrame(tick);
   };
@@ -145,6 +149,8 @@ module.exports = {
     // ---------- [Print] the entry points: small, secondary, and they lead to the page ----------
     for (const [route, to] of [['/goals/head', '/goals/head/print'], ['/reviews/weekly', '/reviews/weekly/print']]) {
       const [c, p] = await open(1280, 800, 'elena', route);
+      // On a goal it's in the summary bar's "…" menu since the flagship page (5 Nov): still small and secondary.
+      if (route.startsWith('/goals/')) { await p.locator('.goal-bar summary[aria-label="More about this goal"]').click(); await p.waitForTimeout(150); }
       const link = p.getByRole('link', { name: 'Print or save as PDF' });
       fail(await link.count() === 1 && !(await link.evaluate((e) => e.classList.contains('primary'))), `[Print] ${route}: no secondary “Print or save as PDF”`);
       if (await link.count() === 1) { await link.click(); await p.waitForTimeout(300); fail(p.url().includes(to), `[Print] ${route}: the link went to ${p.url()}`); }
@@ -154,8 +160,11 @@ module.exports = {
     // ---------- [Motion] durations: animations happen, each 250ms at most, at phone and desktop ----------
     for (const [w, h, who, route] of [[390, 844, 'maya', '/'], [1440, 900, 'elena', '/goals/head'], [1440, 900, 'elena', '/reviews/weekly'], [768, 1024, 'elena', '/goals?view=board']]) {
       const [c, p] = await at(w, h, who, route);
+      // The goal page's story runs up to 4 seconds at the default pace: watch it to the end.
+      if (/^\/goals\/[^/?]+$/.test(route)) await p.waitForTimeout(4200);
       const s = await sampled(p);
-      const long = s.anims.filter((a) => a.total > LIMIT);
+      const goalPage = /^\/goals\/[^/?]+$/.test(route);
+      const long = s.anims.filter((a) => a.total > (goalPage && story(a) ? STORY_LIMIT : LIMIT));
       fail(s.anims.length > 0, `[Motion] ${route} at ${w}: nothing moves`);
       fail(!long.length, `[Motion] ${route} at ${w}: longer than ${LIMIT}ms: ${[...new Set(long.map((a) => a.name + ' ' + a.total + 'ms'))].slice(0, 3).join(', ')}`);
       fail(s.shift < 0.02, `[Motion] ${route} at ${w}: layout shifted by ${s.shift.toFixed(3)} after load`);

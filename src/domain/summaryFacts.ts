@@ -1,14 +1,18 @@
-/* The four facts a goal's page leads with (Lane's notes, 5 Nov): where it stands against its plan, the trend over the
-   last check-ins, what changed since the last update, and where the app projects it lands by its due date.
-   For number goals, ranges and dated stages alike. Pure: the goal page and anything else asks here, never restates it. */
-import { fmt, fmtDiff, NO_VALUE } from './format';
-import { forecast, goalAsOf, planEnd } from './plan';
+/* The four facts behind a goal's summary bar (Lane's notes, 5 Nov; the flagship goal page, 5 Nov): where it stands
+   against its plan, which way it's heading over the last check-ins (in the goal's own units, never a share of plan), what
+   changed since the last update, and where the app projects it lands by its due date, as a range. For number goals,
+   ranges and dated stages alike. Pure: the goal page, its shared image and anything else asks here, never restates it. */
+import { isShare } from './checkin';
+import { fmt, fmtDiff, NO_VALUE, rangeText } from './format';
+import { goalAsOf, planAt, planEnd, projection, type Projection } from './plan';
 import { assessMetric, assessMilestone, assessPosted, checkInsFor, LABEL } from './status';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 
 export type FactKey = 'plan' | 'trend' | 'since' | 'projection';
 /** Good news, bad news, or neither. Shown as words and order, not colour. */
 export type FactTone = 'good' | 'bad' | 'flat';
+/** Which way it's heading against its plan (or limit, or dates): the summary bar's arrow. */
+export type Direction = 'worsening' | 'recovering' | 'flat';
 export interface SummaryFact {
   key: FactKey;
   label: string;
@@ -17,6 +21,10 @@ export interface SummaryFact {
   /** The numbers behind it, in one short line. */
   detail: string | null;
   tone: FactTone;
+  /** The trend's direction (the trend fact only). */
+  direction?: Direction;
+  /** The projection itself (number goals and ranges, when there is one). */
+  projection?: Projection;
 }
 
 /** Whose check-in the facts come from: "Week 44 check-in · Kofi Boateng · 8 days ago" in the page's words. */
@@ -27,6 +35,9 @@ export interface SummaryFacts { facts: SummaryFact[]; source: FactSource | null 
 /** How many check-ins the trend looks back over. */
 export const TREND_SPAN = 3;
 
+const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+/** "two", "three" … for small counts in a sentence; digits from 11. */
+export const countWord = (n: number) => COUNT_WORDS[n] ?? String(n);
 const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const pct = (r: number) => `${Math.round(r * 100)}%`;
 const round = (v: number, decimals: number) => Number(v.toFixed(decimals));
@@ -74,30 +85,55 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
     });
   }
 
-  // Trend: the share of plan at each of the last three check-ins.
-  const span = valued.map((c) => ({ c, r: ratioAt(goal, cycle.weeks, c) })).filter((x): x is { c: CheckIn; r: number } => x.r != null).slice(-TREND_SPAN);
-  if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins against a plan that has started', tone: 'flat' });
+  // Trend: the gap to plan at each of the last three check-ins, in the goal's own units ("1 → 2 → 3 pts behind plan").
+  // A share of planned progress made a flat number look like a collapse while the plan rose (Lane, 5 Nov).
+  const span = valued.slice(-TREND_SPAN).map((c) => {
+    const p = planAt(goalAsOf(goal, c.week).plan, c.week, cycle.weeks);
+    return { c, plan: p, gap: round((c.value! - p) * dir, goal.decimals) };
+  });
+  if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins', tone: 'flat', direction: 'flat' });
   else {
-    const move = Math.round(span[span.length - 1]!.r * 100) - Math.round(span[0]!.r * 100);
-    const word = move >= 3 ? 'Gaining ground on the plan' : move <= -3 ? 'Losing ground on the plan' : 'Holding steady against the plan';
-    out.push({ key: 'trend', label: 'Trend', value: `${span.map((x) => pct(x.r)).join(' → ')} of plan`, detail: `${word}, ${weekSpan(span.map((x) => x.c))}`, tone: move >= 3 ? 'good' : move <= -3 ? 'bad' : 'flat' });
+    const unit = 10 ** -goal.decimals;
+    const latest = span[span.length - 1]!;
+    const move = round(latest.gap - span[0]!.gap, goal.decimals);
+    const direction: Direction = move <= -unit ? 'worsening' : move >= unit ? 'recovering' : 'flat';
+    const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
+    const num = (v: number) => Math.abs(v).toFixed(goal.decimals);
+    // The unit as a difference is said ("pts", "days"), after the last number only.
+    const words = fmtDiff(2, goal).replace(/^[0-9.]+ ?/, '');
+    const tail = words ? ' ' + words : '';
+    const value = span.every((x) => x.gap === 0) ? 'On plan at each check-in'
+      : behind ? `${span.map((x) => num(x.gap)).join(' → ')}${tail} behind plan`
+      : ahead ? `${span.map((x) => num(x.gap)).join(' → ')}${tail} ahead of plan`
+      // Ahead some weeks and behind others: each says which, in words ("1 ahead → 1 behind → 4 pts behind plan").
+      : span.map((x, i) => (x.gap === 0 ? 'on plan' : `${num(x.gap)}${i === span.length - 1 ? tail : ''} ${x.gap > 0 ? 'ahead' : 'behind'}`)).join(' → ') + (latest.gap > 0 ? ' of plan' : latest.gap < 0 ? ' plan' : '');
+    // The same number check-in after check-in while the plan moves on: say exactly that, once.
+    let held = 1;
+    for (let k = valued.length - 2; k >= 0 && valued[k]!.value === latest.c.value; k--) held++;
+    const heldFrom = valued[valued.length - held]!;
+    const planMoved = (latest.plan - planAt(goalAsOf(goal, heldFrom.week).plan, heldFrom.week, cycle.weeks)) * dir > 0;
+    const detail = held >= 2 && planMoved
+      ? `Flat at ${fmt(latest.c.value!, goal)} for ${countWord(held)} weeks while the plan ${dir > 0 ? 'rises' : 'falls'}`
+      : `${direction === 'worsening' ? (behind ? 'Falling further behind' : 'Losing ground on the plan') : direction === 'recovering' ? (behind ? 'Closing the gap' : 'Gaining ground on the plan') : 'Holding steady against the plan'}, ${weekSpan(span.map((x) => x.c))}`;
+    out.push({ key: 'trend', label: 'Trend', value, detail, tone: direction === 'worsening' ? 'bad' : direction === 'recovering' ? 'good' : 'flat', direction });
   }
 
   out.push(sinceFact(goal, own, dir));
 
-  // Projection: where the recent trend lands at the due week, against the target.
+  // Projection: where the recent trend takes it by the due week, as a range, against the target.
   const due = planEnd(goal.plan, cycle.weeks);
   if (stale) out.push({ key: 'projection', label: 'Projection', value: 'Not projected', detail: 'The last check-in is too old to project from', tone: 'flat' });
-  else if (a.forecast == null) out.push({ key: 'projection', label: 'Projection', value: 'Not enough check-ins yet', detail: 'Projected by the app once there are three weeks of numbers', tone: 'flat' });
+  else if (a.forecast == null || !a.projection) out.push({ key: 'projection', label: 'Projection', value: 'Not enough check-ins yet', detail: 'Projected by the app once there are three weeks of numbers', tone: 'flat' });
   else {
     const gap = round(a.forecast - goal.plan.target, goal.decimals);
     const misses = a.forecastMisses && gap !== 0;
     // A projection past the target says it reaches the target: "164%" of something that stops at 100% helps nobody.
     out.push({
       key: 'projection', label: 'Projection',
-      value: misses ? `${fmt(a.forecast, goal)} by week ${due}` : `Reaches ${fmt(goal.plan.target, goal)} by week ${due}`,
-      detail: `${misses ? `Misses the ${fmt(goal.plan.target, goal)} target by ${fmtDiff(gap, goal)}. ` : ''}Projected by the app from the recent trend, not the owner’s date`,
+      value: misses ? `Heading for ${rangeText(a.projection, goal, isShare(goal))} by week ${due}` : `Reaches ${fmt(goal.plan.target, goal)} by week ${due}`,
+      detail: `${misses ? `Misses the ${fmt(goal.plan.target, goal)} target by about ${fmtDiff(gap, goal)}. ` : ''}Projected by the app from the last ${a.projection.to - a.projection.from + 1} weeks, not the owner’s date`,
       tone: misses ? 'bad' : 'good',
+      projection: a.projection,
     });
   }
   return out;
@@ -142,7 +178,7 @@ function rangeFacts(goal: RangeGoal, cycle: Cycle, own: CheckIn[], stale: boolea
   }
 
   const span = valued.slice(-TREND_SPAN);
-  if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins', tone: 'flat' });
+  if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins', tone: 'flat', direction: 'flat' });
   else {
     const move = round((span[span.length - 1]!.value! - span[0]!.value!) * safe, goal.decimals);
     out.push({
@@ -150,21 +186,23 @@ function rangeFacts(goal: RangeGoal, cycle: Cycle, own: CheckIn[], stale: boolea
       value: span.map((c) => fmt(c.value!, goal)).join(' → '),
       detail: `${move === 0 ? 'Holding steady' : move > 0 ? 'Moving away from the limit' : 'Moving towards the limit'}, ${weekSpan(span)}`,
       tone: move === 0 ? 'flat' : move > 0 ? 'good' : 'bad',
+      direction: move === 0 ? 'flat' : move > 0 ? 'recovering' : 'worsening',
     });
   }
 
   out.push(sinceFact(goal, own, safe));
 
   const due = cycle.weeks;
-  const fc = stale ? null : forecast(valued.map((c) => ({ week: c.week, value: c.value! })), due);
+  const pr = stale ? null : projection(valued.map((c) => ({ week: c.week, value: c.value! })), due);
   if (stale) out.push({ key: 'projection', label: 'Projection', value: 'Not projected', detail: 'The last check-in is too old to project from', tone: 'flat' });
-  else if (fc == null) out.push({ key: 'projection', label: 'Projection', value: 'Not enough check-ins yet', detail: 'Projected by the app once there are three weeks of numbers', tone: 'flat' });
+  else if (!pr) out.push({ key: 'projection', label: 'Projection', value: 'Not enough check-ins yet', detail: 'Projected by the app once there are three weeks of numbers', tone: 'flat' });
   else {
-    const outside = bound === 'atMost' ? fc > limit : fc < limit;
+    const outside = bound === 'atMost' ? pr.value > limit : pr.value < limit;
     out.push({
-      key: 'projection', label: 'Projection', value: `${fmt(fc, goal)} by week ${due}`,
-      detail: `${outside ? `Outside the ${fmt(limit, goal)} limit` : `Inside the ${fmt(limit, goal)} limit`}. Projected by the app from the recent trend`,
+      key: 'projection', label: 'Projection', value: `${rangeText(pr, goal, isShare(goal))} by week ${due}`,
+      detail: `${outside ? `Outside the ${fmt(limit, goal)} limit` : `Inside the ${fmt(limit, goal)} limit`}. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
       tone: outside ? 'bad' : 'good',
+      projection: pr,
     });
   }
   return out;
@@ -193,7 +231,7 @@ function milestoneFacts(goal: MilestoneGoal, own: CheckIn[], week: number, stale
 
   // Trend: how late the latest stage running late was, at each of the last three check-ins.
   const span = own.filter((c) => c.stages).slice(-TREND_SPAN);
-  if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins', tone: 'flat' });
+  if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins', tone: 'flat', direction: 'flat' });
   else {
     const late = span.map((c) => weeksLateAt(goal, c));
     const move = late[late.length - 1]! - late[0]!;
@@ -202,6 +240,7 @@ function milestoneFacts(goal: MilestoneGoal, own: CheckIn[], week: number, stale
       value: late.every((n) => n === 0) ? 'On time at every check-in' : `${late.join(' → ')} weeks late`,
       detail: `${move > 0 ? 'Slipping' : move < 0 ? 'Recovering' : 'Holding steady'}, ${weekSpan(span)}`,
       tone: move > 0 ? 'bad' : move < 0 ? 'good' : late[late.length - 1] ? 'bad' : 'flat',
+      direction: move > 0 ? 'worsening' : move < 0 ? 'recovering' : 'flat',
     });
   }
 

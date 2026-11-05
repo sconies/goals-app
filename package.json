@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "evals": "node evals/run.mjs",
+    "evals:smoke": "node evals/run.mjs --smoke",
     "migrate": "node scripts/migrate.mjs",
     "visual": "node evals/visual.mjs",
     "build:mcp": "vite build -c vite.mcp.config.ts --logLevel warn"

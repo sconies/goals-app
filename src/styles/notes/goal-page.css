@@ -1,35 +1,11 @@
-/* Lane's review notes (5 Nov): goal-page. Loaded after the fit-and-finish sheets. */
+/* Lane's review notes (5 Nov): goal-page. Loaded after the fit-and-finish sheets. The flagship page's own layout (5 Nov)
+   is in goal-flagship.css; what's left here is the columns, the path to green, check-in rows and the review walk. */
 
 /* ---------- the columns ---------- */
 /* Each column fills the page's width when they stack. In a review the evidence column is aligned to the top of the grid
    (map-reviews.css); in a single flex column that also made it shrink to fit, and a column that measures its own
    width (container: gcol) shrinks to nothing: the "Chart and check-ins" column 45px wide at 1024–1200. */
 .page.goal-page .split > div { width: 100%; }
-
-/* ---------- under the title: what it feeds, and how it's measured ---------- */
-.goal-page .goal-context { display: flex; flex-direction: column; gap: 4px; margin-top: calc(-1 * var(--s2)); }
-.goal-page .ctx-line { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; font-size: 0.875rem; line-height: 1.25rem; color: var(--fg-2); }
-.goal-page .ctx-label { color: var(--muted); font-weight: 600; }
-.goal-page .ctx-parent { color: var(--fg); font-weight: 600; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
-.goal-page .ctx-parent:hover { text-decoration-color: currentColor; }
-.goal-page .ctx-line .chip { font-size: 0.8125rem; gap: 6px; }
-.goal-page .ctx-line .chip svg { width: 12px; height: 12px; align-self: center; }
-.goal-page .ctx-sep { color: var(--muted); }
-.goal-page .goal-context .why-helps { font-size: 0.8125rem; line-height: 1.125rem; }
-
-/* ---------- the status block: four facts, then the check-in they come from ---------- */
-.goal-page .facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: var(--s2) 0 0; }
-.goal-page .fact { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: var(--s3); align-items: baseline; min-width: 0; }
-.goal-page .fact dt { font-size: 0.8125rem; line-height: 1.25rem; font-weight: 600; color: var(--muted); }
-.goal-page .fact dd { margin: 0; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.goal-page .fact-value { font-size: 0.9375rem; line-height: 1.375rem; font-weight: 650; color: var(--fg); font-variant-numeric: tabular-nums; }
-.goal-page .fact-detail { font-size: 0.8125rem; line-height: 1.125rem; color: var(--muted); }
-@container gcol (min-width: 540px) {
-  .goal-page .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s5); }
-  .goal-page .fact { display: flex; flex-direction: column; gap: 2px; }
-  .goal-page .fact dt { font-size: 0.75rem; line-height: 1rem; }
-}
-.goal-page .fact-source { margin-top: 2px; }
 
 /* ---------- the path to green, in the main column ---------- */
 .goal-page .ptg { display: flex; flex-direction: column; gap: 6px; margin-top: var(--s2); padding-top: var(--s4); border-top: 1px solid var(--line-2); }
@@ -38,27 +14,6 @@
 .goal-page .ptg-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px var(--s4); margin: 2px 0 0; font-size: 0.875rem; line-height: 1.25rem; }
 .goal-page .ptg-facts dt { color: var(--muted); font-weight: 600; }
 .goal-page .ptg-facts dd { margin: 0; color: var(--fg-2); }
-
-/* ---------- the side column, grouped under small headings ---------- */
-.goal-page .rail-group { display: flex; flex-direction: column; gap: var(--s3); }
-.goal-page .rail-head { margin: 0; font-size: 0.8125rem; line-height: 1.25rem; font-weight: 650; color: var(--muted); }
-.goal-page .goal-rail .rail-group + .rail-group { padding-top: var(--s4); border-top: 1px solid var(--line-2); }
-.goal-page .goal-rail { gap: var(--s4); }
-/* Words in the side column sit on the page, never on a fill of their own, in either theme. */
-.goal-page .goal-rail :is(p, span, strong, em, .quote-block, .note-line, .field-label, .rail-head) { background: transparent; }
-
-/* ---------- the slim header that stays on screen ---------- */
-.goal-page > .goal-sticky { position: sticky; z-index: 7; height: 0; margin-bottom: calc(-1 * var(--s5)); }
-.goal-page .goal-sticky-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s3); min-height: 52px; padding: var(--s2) 0; background: var(--bg); border-bottom: 1px solid var(--line); }
-.goal-page .goal-sticky-title { flex: 1 1 200px; min-width: 0; font-size: 1rem; line-height: 1.5rem; font-weight: 650; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.goal-page .goal-sticky-status { display: inline-flex; align-items: baseline; gap: var(--s2); white-space: nowrap; }
-.goal-page .goal-sticky-status .chip svg { align-self: center; }
-.goal-page .goal-sticky-number { font-variant-numeric: tabular-nums; }
-.goal-page .goal-sticky-actions { display: inline-flex; gap: var(--s2); margin-left: auto; }
-@container app (max-width: 760px) {
-  .goal-page .goal-sticky-title { flex-basis: 100%; }
-  .goal-page > .goal-sticky { margin-bottom: calc(-1 * var(--s5)); }
-}
 
 /* ---------- check-ins: each row opens to the whole check-in ---------- */
 .goal-page .cilist.ci-open li { padding: 0; row-gap: 0; align-items: stretch; }

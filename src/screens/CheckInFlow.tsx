@@ -9,7 +9,7 @@ import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
 import { daysToReview, onTimeStreak, weekProgress } from '../domain/progress';
-import type { CheckIn, Goal, MilestoneGoal, Status, RecoveryState } from '../domain/types';
+import type { CheckIn, Goal, HelpRequest, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
@@ -146,7 +146,8 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
         {left
           ? <button ref={btn} className="btn primary big-btn" onClick={onNext}>Next: {nextTitle}</button>
           : <Link ref={btn} className="btn primary big-btn" to="/">Back to home</Link>}
-        <Link className="btn big-btn" to={'/goals/' + goal.id}>View the goal</Link>
+        {/* The goal page shows it landing: the new point drops onto the chart, and the call and the streak with it. */}
+        <Link className="btn big-btn" to={`/goals/${goal.id}?posted=1`}>View the goal</Link>
       </div>
       {left > 0 && <p className="tiny muted">{left} to go</p>}
       {/* A mistake is cheap to fix: check in again and the newer one becomes the week's status; both are kept. */}
@@ -176,6 +177,10 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const [showNeedsOpen, setShowNeeds] = useState(!!draft.needs);
   const showNeeds = showNeedsOpen || !!draft.needs.trim();
   const [statusOpen, setStatusOpen] = useState(false);
+  // Waiting on a decision already asked for another goal: linked here, in the check-in, where the owner says what's
+  // needed (moved from the goal page, 5 Nov). One answer then covers both goals.
+  const [linking, setLinking] = useState(false);
+  const othersAsked = (app.snapshot.requests ?? []).filter((r) => r.status === 'open' && !r.goalIds.includes(goal.id));
   // Who a help request goes to, when the owner says they need a decision or help.
   const [helpFrom, setHelpFrom] = useState(() => app.snapshot.people.find((p) => draft.needs.startsWith(p.name + ':'))?.id ?? '');
   // The step is saved with the draft, so "pick up where you left off" returns to it.
@@ -274,6 +279,20 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     if (check.canPost) void post(d);
     else go('account');
   };
+  const linkTo = async (r: HelpRequest) => {
+    try {
+      await app.linkRequest(r, goal);
+      setLinking(false);
+      app.toast('Linked: one answer will cover both goals');
+      // The check-in carries the same ask, so posting keeps the link (requests.ts drops a link the check-in doesn't name).
+      set({ ptgState: 'help', ptgWhat: r.ask, needs: askText(r, app.snapshot.people) });
+      setHelpFrom(r.recipientId ?? '');
+      if (step !== 'account') { setTrail((t) => [...t, step]); setStep('account'); }
+    } catch { /* the save already said what went wrong */ }
+  };
+  const linkOffer = othersAsked.length > 0 && (
+    <button type="button" className="linkish tap small link-request" onClick={() => setLinking(true)}>Waiting on a decision already asked for another goal?</button>
+  );
   const somethingChanged = () => {
     // Start from last week's words so they can be edited, the open request included: removing it there withdraws it.
     const f = fromLast();
@@ -295,6 +314,18 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
 
   return (
     <form className="focus-body" onSubmit={(ev) => { ev.preventDefault(); primary(); }} noValidate>
+      {linking && (
+        <Sheet open onClose={() => setLinking(false)} title="Waiting on the same decision">
+          <div className="stack" style={{ gap: 'var(--s3)' }}>
+            <span className="hint">Link {goal.title} to a request already raised, so it’s asked and answered once. Any open request of yours to the same person is withdrawn.</span>
+            <div className="optlist">{othersAsked.map((r) => (
+              <button key={r.id} type="button" className="opt" onClick={() => void linkTo(r)}>
+                <span className="stack" style={{ gap: 2 }}><span className="strong">{askText(r, app.snapshot.people)}</span><span className="hint">For {r.goalIds.map((id) => app.goal(id)?.title).filter(Boolean).join(', ')} · asked by {app.person(r.askedBy)?.name.split(' ')[0] ?? 'someone'}</span></span>
+              </button>
+            ))}</div>
+          </div>
+        </Sheet>
+      )}
       <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
       {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
@@ -367,6 +398,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
             </div>
           )}
           {priorWay && previous.pathToGreen!.byWeek != null && previous.pathToGreen!.byWeek <= week && <span className="hint">The week you gave has passed, so you’ll pick a new one.</span>}
+          {needsWay && linkOffer}
         </section>
       )}
 
@@ -419,6 +451,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
               {tried && !helpFrom && <span className="hint tone-off" role="alert">Pick who it goes to.</span>}
             </label>
           ) : null}
+          {needsWay && linkOffer}
           {draft.ptgState === 'help' ? (
             // A decision and a date can go together: the date it's back on plan once the decision or help arrives.
             <div className="field"><span className="field-label" id="ptg-by-if">If it comes, back on plan by <span className="muted" style={{ fontWeight: 400 }}>optional</span></span>
@@ -554,7 +587,7 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
       <span>{line}</span>
       {forecast && (forecast.warn ? <span className="forecast"><Icon name="trend-down" />{forecast.text}</span> : <span className="muted">{forecast.text}</span>)}
       {chart && <div className="chartwrap">
-        {a.kind === 'metric' && goal.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={a.forecast} height={150} />}
+        {a.kind === 'metric' && goal.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={a.forecast} projection={a.projection} height={150} />}
         {a.kind === 'range' && goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={140} />}
       </div>}
     </div>
