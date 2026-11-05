@@ -156,7 +156,7 @@ main.work > .page, main.work > .focus { animation: pm-page-in .18s ease-out back
   .chart .c-area { fill: #eee !important; }
   .chart text { fill: #000 !important; }
   .l-act, .l-fc { border-color: #000 !important; }
-  .l-plan { border-color: #d6d6d6 !important; }
+  .chart-key i.l-plan { background: #d6d6d6 !important; }
   .l-ptg { border-color: #000 !important; border-top-style: dotted !important; }
   .l-orig { border-color: #aaa !important; }
   * { animation: none !important; transition: none !important; }

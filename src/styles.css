@@ -384,7 +384,7 @@ svg.chart { display: block; overflow: visible; }
 .spark { display: block; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 8px; font-size: 0.75rem; color: var(--fg-2); }
 .legend i { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid; vertical-align: middle; margin-right: 6px; }
-.l-act { border-color: var(--fg) !important; } .l-plan { border-color: color-mix(in srgb, var(--accent) 30%, transparent) !important; border-top-width: 8px !important; border-radius: 4px; } .l-orig { border-color: var(--faint) !important; border-top-style: dotted !important; }
+.l-act { border-color: var(--fg) !important; } .chart-key i.l-plan { border-top: 0; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 30%, transparent); } .l-orig { border-color: var(--faint) !important; border-top-style: dotted !important; }
 .l-fc { border-color: var(--off-mark) !important; border-top-style: dashed !important; } .l-ptg { border-color: var(--on-mark) !important; border-top-style: dashed !important; }
 
 /* ---------- sheet, menus, toasts ---------- */
