@@ -6,6 +6,7 @@ import { emptyDraft, evaluate, toCheckIn, type Draft } from '../domain/checkin';
 import { checkInChange, goalChange } from '../domain/changes';
 import { withKeys } from '../domain/goalKey';
 import type { Cause, Change, CheckIn, Cycle, Goal, Level, Person, Review, Snapshot, StageUpdate, Team, Watch, Workspace } from '../domain/types';
+import { platformOrg } from './platformOrg';
 import { seed } from './seed';
 import { demoYear, steadyDraft, storyOffset, storyValue, yearName, yearWeekOf } from './yearStory';
 
@@ -205,8 +206,10 @@ const GROWTH: ExampleSpec = {
 
 export const EXAMPLE_PLATFORM: Workspace = { id: 'example', name: 'Example: Developer Platform', kind: 'example', createdAt: '2026-01-01T00:00:00.000Z' };
 
-/** Every example workspace in the demo, and how to build its data. The first is the default. */
+/** Every example workspace in the demo, and how to build its data. The first is the default. The last, a
+    Platform Engineering division of about 100 people, is there to see the app at the size of a real organisation. */
 export const EXAMPLES: { workspace: Workspace; build: (today: Date) => Snapshot }[] = [
   { workspace: EXAMPLE_PLATFORM, build: seed },
   ...[SUPPORT, SALES, GROWTH].map((s) => ({ workspace: s.workspace, build: (today: Date) => buildExample(s, today) })),
+  platformOrg,
 ];

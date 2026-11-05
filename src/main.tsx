@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { BrowserStore, LIVE_KEY, type Mode, type Store } from './data/store';
+import { BrowserStore, LIVE_KEY, pickExampleFromUrl, type Mode, type Store } from './data/store';
 import { applyAppearance } from './app/appearance';
 import './styles.css';
 import './styles/finish/home-watching.css';
@@ -40,7 +40,7 @@ function clock(): (() => Date) | undefined {
     development, the evals) or with `?store=browser` it keeps real workspaces in this browser instead.
     The Supabase client loads only when it is used, so the demo stays small. */
 async function store(today?: () => Date): Promise<Store> {
-  if (mode === 'demo') return new BrowserStore(today);
+  if (mode === 'demo') { pickExampleFromUrl(location.search); return new BrowserStore(today); }
   const { VITE_SUPABASE_URL: url, VITE_SUPABASE_KEY: key } = import.meta.env;
   if (url && key && new URLSearchParams(location.search).get('store') !== 'browser') {
     const { SupabaseStore } = await import('./data/supabaseStore');

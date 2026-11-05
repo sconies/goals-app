@@ -6,6 +6,15 @@ import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
 export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
 const exampleBuild = (id: string) => EXAMPLES.find((e) => e.workspace.id === id)?.build;
 
+/** The demo remembers the example it last opened under this key (app/state.tsx reads it). */
+const DEMO_WORKSPACE = 'goals-app-workspace';
+/** `/demo?example=<id>` opens that example, as if it had been picked in the app (for testing with a larger example). */
+export function pickExampleFromUrl(search: string) {
+  const id = new URLSearchParams(search).get('example');
+  if (!id || !exampleBuild(id)) return;
+  try { localStorage.setItem(DEMO_WORKSPACE, id); } catch { /* storage blocked */ }
+}
+
 /** One save: the records that leave draft, and the change-log entries that describe them. */
 export interface Commit {
   people?: Person[];
