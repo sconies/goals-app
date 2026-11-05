@@ -18,6 +18,7 @@ import './styles/notes/attention-home.css';
 import './styles/notes/shell-settings.css';
 import './styles/notes/data-ids.css';
 import './styles/notes/print-motion.css';
+import './styles/notes/help.css';
 
 applyAppearance();
 

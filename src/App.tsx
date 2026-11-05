@@ -23,6 +23,7 @@ import { Research } from './screens/Research';
 import { Settings } from './screens/Settings';
 import { GoalPrint, ReviewPrint } from './screens/Print';
 import { MotionLayer } from './ui/Count';
+import { HelpArticle, HelpHome, WhatsNew } from './screens/Help';
 
 export function Routed() {
   const app = useApp();
@@ -57,6 +58,9 @@ export function Routed() {
         <Route path="/workspace" element={<WorkspaceHome />} />
         <Route path="/workspace/new" element={<Onboarding />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/help" element={<HelpHome />} />
+        <Route path="/help/:id" element={<HelpArticle />} />
+        <Route path="/whats-new" element={<WhatsNew />} />
         <Route path="/ready" element={<Ready />} />
         <Route path="*" element={<div className="page narrow"><Empty title="Page not found" /></div>} />
       </Routes>

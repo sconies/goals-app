@@ -51,6 +51,8 @@ Other assistants:
 | `list_feedback` | Admins: feedback about the app |
 | `get_wrap_up` | At the end of a cycle: which goals are wrapped up, and how |
 | `export` | JSON, the brief, or CSV |
+| `get_help` | The app's own guide, as its Help pages show it: an article by `id` (for example `check-in`), a `search`, or every article |
+| `whats_new` | The app's release notes, newest first; `since` a date (yyyy-mm-dd) |
 
 **Doing**
 

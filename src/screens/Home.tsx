@@ -23,6 +23,7 @@ import { saveReviewOrder, TreeRow } from './Inspect';
 import { HandledGroup } from './Watching';
 import { FirstReports } from './GoalsScreen';
 import { RespondSheet } from './Respond';
+import { HomeNews } from './Help';
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -385,11 +386,14 @@ export function Home() {
       <div className="page-head">
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
         <span className="muted small home-where">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
+        <HomeNews at="head" />
       </div>
       <DashStrip d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} />
       <div className="home-grid split">
         <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<WatchedGoals />} />
       </div>
+      {/* On a phone the first screen is the week's work, so the line waits at the foot of Home (the dot on More says it too). */}
+      <HomeNews at="foot" />
     </div>
   );
 }
