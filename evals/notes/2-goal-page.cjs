@@ -148,6 +148,24 @@ module.exports = {
     chk(row.exp === 'true' && /Cause/.test(row.text) && /Path to green/.test(row.text) && /Checked in Kofi Boateng/.test(row.text), `alerts tab: opened check-in ${JSON.stringify(row)}`);
     await c.close();
 
+    // The goals most likely to make it miss: no part of a row draws over another (status over the number, 5 Nov).
+    for (const w of [1280, 1440, 390]) {
+      [c, p] = await open(w, 900, 'maya', '/goals/head');
+      const clash = await p.evaluate(() => {
+        let n = 0;
+        for (const row of document.querySelectorAll('.goal-page .tree .trow')) {
+          const parts = [...row.querySelectorAll(':scope > .trow-icon, :scope .trow-title, :scope > .trow-now')].map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
+          for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) {
+            const a = parts[i], b = parts[j];
+            if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2) n++;
+          }
+        }
+        return n;
+      });
+      chk(clash === 0, `${w}: ${clash} overlapping parts in the goal rows on the north star`);
+      await c.close();
+    }
+
     return fails;
   },
 };
