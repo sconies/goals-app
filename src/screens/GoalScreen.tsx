@@ -21,6 +21,7 @@ import { RespondSheet } from './Respond';
 import { criticalPath } from '../domain/map';
 import { ancestors, outcomeTrees, type TreeNode } from '../domain/tree';
 import { Icon } from '../ui/Icon';
+import { GoalBack } from '../ui/BackLink';
 
 export function GoalScreen() {
   const app = useApp();
@@ -171,6 +172,7 @@ function GoalView({ goal }: { goal: Goal }) {
   return (
     <div className="page goal-page">
       <ReviewBar goalId={goal.id} />
+      <GoalBack />
       {/* Once the title scrolls away, a slim header keeps the goal, its status and its actions on screen. */}
       <StickyHead watch={titleRef} title={goal.title} status={st.status} number={stale ? 'Current performance unknown' : headlineNumber}
         actions={compact ? null : <>{canEdit && <Link className="btn sm" to={`/goals/${goal.id}/edit`}>Edit</Link>}{!isOwner && <WatchButton goal={goal} />}</>} />

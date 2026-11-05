@@ -1,5 +1,5 @@
 import { requestsOf } from '../domain/requests';
-import type { ApiToken, HelpRequest, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
+import type { ApiToken, HelpRequest, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
 
 export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
@@ -21,6 +21,12 @@ export interface Commit {
   tokens?: ApiToken[];
   views?: SavedView[];
   requests?: HelpRequest[];
+  /** Teams added or changed. */
+  teams?: Team[];
+  /** Ids of teams to remove: emptied first, by the same save (domain/actions removeTeam). */
+  removeTeams?: string[];
+  /** The workspace's new name. */
+  workspace?: { name: string };
   changes: Change[];
   /** What the save was based on; filled in by withExpectations. A save is refused if any of it has changed since. */
   expect?: Expectations;
@@ -95,6 +101,7 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
   const replaced = (x: CheckIn) => newIds.has(x.id);
   return {
     ...s,
+    teams: upsert(s.teams, c.teams).filter((t) => !(c.removeTeams ?? []).includes(t.id)),
     people: upsert(s.people, c.people),
     goals,
     checkIns: [...s.checkIns.filter((x) => !replaced(x)), ...(c.checkIns ?? [])],
@@ -146,7 +153,15 @@ export class BrowserStore implements Store {
 
   async workspaces(): Promise<Workspace[]> {
     const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
-    return this.hasExample ? [...EXAMPLES.map((e) => e.workspace), ...own] : own;
+    // An example keeps its new name (if an admin renamed it here) until it's reset.
+    const names = this.get<Record<string, string>>(this.key + ':names') ?? {};
+    return this.hasExample ? [...EXAMPLES.map((e) => (names[e.workspace.id] ? { ...e.workspace, name: names[e.workspace.id]! } : e.workspace)), ...own] : own;
+  }
+
+  private rename(id: string, name: string) {
+    const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
+    if (own.some((w) => w.id === id)) this.put(this.key + ':workspaces', own.map((w) => (w.id === id ? { ...w, name } : w)));
+    else this.put(this.key + ':names', { ...(this.get<Record<string, string>>(this.key + ':names') ?? {}), [id]: name });
   }
 
   private current(id: string): Snapshot {
@@ -174,6 +189,7 @@ export class BrowserStore implements Store {
     checkExpectations(stored, c.expect);
     const { expect: _e, ...rest } = c;
     this.write(id, applyCommit(stored, rest));
+    if (c.workspace) this.rename(id, c.workspace.name);
   }
 
   async createWorkspace(ws: Workspace, data: Snapshot) {
@@ -185,6 +201,8 @@ export class BrowserStore implements Store {
   async resetExample(id: string = EXAMPLE.id) {
     const build = this.hasExample ? exampleBuild(id) : undefined;
     if (!build) throw new Error('Only the demo has examples to reset.');
+    const names = this.get<Record<string, string>>(this.key + ':names');
+    if (names?.[id]) { delete names[id]; this.put(this.key + ':names', names); }
     return structuredClone(this.write(id, build(this.today())));
   }
 

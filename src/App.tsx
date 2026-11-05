@@ -20,6 +20,7 @@ import { Shell } from './ui/Shell';
 import { Import } from './screens/Import';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { Research } from './screens/Research';
+import { Settings } from './screens/Settings';
 
 export function Routed() {
   const app = useApp();
@@ -49,6 +50,7 @@ export function Routed() {
         <Route path="/data" element={<DataTables />} />
         <Route path="/workspace" element={<WorkspaceHome />} />
         <Route path="/workspace/new" element={<Onboarding />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/ready" element={<Ready />} />
         <Route path="*" element={<div className="page narrow"><Empty title="Page not found" /></div>} />
       </Routes>

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { BrowserStore, LIVE_KEY, type Mode, type Store } from './data/store';
+import { applyAppearance } from './app/appearance';
 import './styles.css';
 import './styles/finish/home-watching.css';
 import './styles/finish/forms-checkin.css';
@@ -17,6 +18,8 @@ import './styles/notes/attention-home.css';
 import './styles/notes/shell-settings.css';
 import './styles/notes/data-ids.css';
 import './styles/notes/print-motion.css';
+
+applyAppearance();
 
 /** Everything under /demo is the demo: the example data in this browser, with a role switcher and a reset. */
 const mode: Mode = location.pathname === '/demo' || location.pathname.startsWith('/demo/') ? 'demo' : 'live';

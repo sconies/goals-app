@@ -162,6 +162,10 @@ export function commitPayload(ws: string, c: import('./store').Commit) {
     tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
     views: (c.views ?? []).map((x) => viewToRow(ws, x)),
     requests: (c.requests ?? []).map((x) => requestToRow(ws, x)),
+    // Teams (migration 0020 adds removing them and renaming the workspace to the same transaction).
+    ...(c.teams?.length ? { teams: c.teams.map((x) => teamToRow(ws, x)) } : {}),
+    ...(c.removeTeams?.length ? { remove_teams: c.removeTeams } : {}),
+    ...(c.workspace ? { workspace_name: c.workspace.name } : {}),
     changes: c.changes.map((x) => changeToRow(ws, x)),
     expect: c.expect ? {
       goals: c.expect.goals, reviews: c.expect.reviews,

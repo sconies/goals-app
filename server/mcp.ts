@@ -56,12 +56,14 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
     if (!actor) throw new Error('The person this token belongs to is no longer in the workspace.');
     ctx = {
       ws: { id: found.workspaceId, name, kind: found.workspaceId === EXAMPLE.id ? 'example' : 'own' }, snapshot: scopeToCycle(all, cycle), cycle, week: currentWeek(cycle, now), today: now, actor,
-      now: now.toISOString(), newId,
+      now: now.toISOString(), newId, allGoals: all.goals,
       // Each save says what it was based on, and the context moves on with it, so later calls see it.
       save: async (c) => {
         await deps.commit(found.workspaceId, withExpectations(c, all));
         all = applyCommit(all, c);
         ctx!.snapshot = scopeToCycle(all, cycle);
+        ctx!.allGoals = all.goals;
+        if (c.workspace) ctx!.ws = { ...ctx!.ws, name: c.workspace.name };
       },
       ...(deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace!(found.workspaceId) } : {}),
     };
