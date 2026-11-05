@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { upgradeAsks } from '../domain/asks';
 import { withKeys } from '../domain/goalKey';
 import type { Snapshot, Workspace } from '../domain/types';
 import {
@@ -73,7 +74,8 @@ export class SupabaseStore implements Store {
       this.all<RequestRow>('okr_requests', ws).catch(() => null),
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
-    return {
+    // Questions, actions and asks for an update saved before one ask model (migration 0023 converts them) read as asks.
+    return upgradeAsks({
       teams: teams.map(teamFromRow),
       people: people.map(personFromRow),
       cycles: cycles.map(cycleFromRow),
@@ -89,7 +91,7 @@ export class SupabaseStore implements Store {
       tokens: tokens.map(tokenFromRow),
       views: views.map(viewFromRow),
       ...(requests ? { requests: requests.map(requestFromRow) } : {}),
-    };
+    });
   }
 
   /** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */

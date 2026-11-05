@@ -12,17 +12,17 @@ export interface ResearchNote {
 
 /** The tasks: goals to reach, not steps to follow, each as the person it's about. */
 export const TASKS: ResearchTask[] = [
-  { id: 'check-in', as: 'maya', start: '/', title: 'Get this week’s check-ins in', detail: 'You’re Maya, a goal owner. The weekly review is on Thursday. Get your goals checked in before it.' },
-  { id: 'behind', as: 'maya', start: '/', title: 'Say why a goal is behind, and when it’ll be back', detail: 'One of your goals is behind plan. Make sure your VP can see why, what you’ll do about it and by when.' },
-  { id: 'sink', as: 'elena', start: '/', title: 'Find what will sink the north star', detail: 'You’re Elena, VP. Before the review, find the goal most likely to make the north star miss, and what’s being done about it.' },
-  { id: 'review', as: 'elena', start: '/', title: 'Run the weekly review', detail: 'Walk this week’s review and leave an action for someone, with a date.' },
-  { id: 'year', as: 'elena', start: '/goals', title: 'See how the year is going, quarter by quarter', detail: 'Which goals missed last quarter’s plan? Which are done, late or not going to make it?' },
-  { id: 'follow', as: 'tom', start: '/', title: 'Follow goals you don’t own', detail: 'You’re Tom, an engineer. Keep an eye on the goals your work feeds into, without owning any.' },
-  { id: 'raise', as: 'sam', start: '/', title: 'Raise a target that’s too easy', detail: 'You’re Sam. One target turned out too easy. Raise it properly, so everyone can see what changed and why.' },
-  { id: 'brief', as: 'elena', start: '/goals', title: 'Get a summary for an AI chat', detail: 'Get a short write-up of every goal you could paste into an AI chat, or a file you could open in Excel.' },
-  { id: 'history', as: 'kofi', start: '/', title: 'Load past numbers from a spreadsheet', detail: 'You’re Kofi. Load a few weeks of past numbers for one of your goals from a spreadsheet.' },
-  { id: 'admin', as: 'priya', start: '/', title: 'Add a new joiner', detail: 'You’re Priya, an admin. Add a new joiner to the right team, and make them an owner of a goal.' },
-  { id: 'break', as: 'maya', start: '/', title: 'Try to break it', detail: 'Wrong or silly numbers, empty fields, the back button and a refresh halfway through something, a phone-sized window. Anything that loses work, misleads or confuses is worth a note.' },
+  { id: 'check-in', as: 'rhea', start: '/', title: 'Get this week’s check-ins in', detail: 'You’re Rhea, who runs CI/CD and owns eight goals. The weekly review is on Thursday. Get your goals checked in before it.' },
+  { id: 'behind', as: 'rhea', start: '/', title: 'Say why a goal is behind, and when it’ll be back', detail: 'Lead time, your north star, is behind plan. Make sure Amara, your VP, can see why, what you’ll do about it and by when.' },
+  { id: 'sink', as: 'amara', start: '/', title: 'Find what will sink the north star', detail: 'You’re Amara, VP Platform Engineering. Before the review, find the goal most likely to make the lead time north star miss, and what’s being done about it.' },
+  { id: 'review', as: 'amara', start: '/', title: 'Run the weekly review', detail: 'Walk this week’s review and leave an action for someone, with a date.' },
+  { id: 'year', as: 'amara', start: '/goals', title: 'See how the year is going, quarter by quarter', detail: 'Which goals missed last quarter’s plan? Which are done, late or not going to make it?' },
+  { id: 'follow', as: 'oskar', start: '/', title: 'Follow goals you don’t own', detail: 'You’re Oskar, an engineer in Developer Experience. Keep an eye on the goals your work feeds into, without owning any.' },
+  { id: 'raise', as: 'tariq', start: '/', title: 'Raise a target that’s too easy', detail: 'You’re Tariq, who runs Developer Experience. One of your targets turned out too easy. Raise it properly, so everyone can see what changed and why.' },
+  { id: 'brief', as: 'amara', start: '/goals', title: 'Get a summary for an AI chat', detail: 'Get a short write-up of every goal you could paste into an AI chat, or a file you could open in Excel.' },
+  { id: 'history', as: 'mateo', start: '/', title: 'Load past numbers from a spreadsheet', detail: 'You’re Mateo, the SRE manager. Load a few weeks of past numbers for one of your goals from a spreadsheet.' },
+  { id: 'admin', as: 'grace', start: '/', title: 'Add a new joiner', detail: 'You’re Grace, the engineering operations admin. Add a new joiner to the right team, and make them an owner of a goal.' },
+  { id: 'break', as: 'rhea', start: '/', title: 'Try to break it', detail: 'Wrong or silly numbers, empty fields, the back button and a refresh halfway through something, a phone-sized window. Anything that loses work, misleads or confuses is worth a note.' },
 ];
 
 /** Every screen worth a first glance, by route. */

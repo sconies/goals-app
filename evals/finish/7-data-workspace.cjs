@@ -15,7 +15,7 @@ module.exports = {
     const box = (r, sel) => r.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, top: b.top, bottom: b.bottom, left: b.left, right: b.right }; }, sel);
 
     /* ---------- Data, phone: the changes bar, the name column, cells ---------- */
-    let [c, r] = await open(360, 740, 'priya', '/data');
+    let [c, r] = await open(360, 740, 'grace', '/data');
     const tabW = await r.evaluate(() => document.querySelector('[role="tab"][aria-selected="true"]').getBoundingClientRect().width);
     await r.locator('.dtable tbody td.dname input').first().fill('A goal renamed with a much longer name than the column has room for');
     await r.locator('.dtable tbody td.num input').first().fill('7');
@@ -40,14 +40,14 @@ module.exports = {
     if (!near(ed.inputH, ed.tdH - 1)) fails.push(`[D11] an input is ${Math.round(ed.inputH)}px in a ${Math.round(ed.tdH)}px cell`);
     const tabW2 = await r.evaluate(() => document.querySelector('[role="tab"][aria-selected="true"]').getBoundingClientRect().width);
     if (!near(tabW, tabW2)) fails.push(`[D23] the tab grows ${Math.round(tabW)}→${Math.round(tabW2)}px when edited`);
-    // Requests: the request names the row, comes first and stays in view.
-    await r.getByRole('tab', { name: /Requests/ }).click(); await r.waitForTimeout(250);
+    // Asks (one ask model; the tab was Requests): the ask names the row, comes first and stays in view.
+    await r.getByRole('tab', { name: /Asks/ }).click(); await r.waitForTimeout(250);
     const req = await r.evaluate(() => { const th = document.querySelector('.dtable thead th'); return { text: th.innerText.trim(), pos: getComputedStyle(th).position, w: th.getBoundingClientRect().width }; });
-    if (req.text !== 'Request' || req.pos !== 'sticky' || req.w > 161) fails.push(`[D3] Requests: first column "${req.text}", ${req.pos}, ${Math.round(req.w)}px`);
+    if (req.text !== 'Ask' || req.pos !== 'sticky' || req.w > 161) fails.push(`[D3] Asks: first column "${req.text}", ${req.pos}, ${Math.round(req.w)}px`);
     const asked = await r.evaluate(() => { const i = [...document.querySelectorAll('.dtable thead th')].findIndex((t) => /Asked at/.test(t.innerText)); const td = document.querySelector('.dtable tbody tr').children[i]; return { t: td.innerText.trim(), f: getComputedStyle(td).fontFamily, w: td.getBoundingClientRect().width }; });
     if (!/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/.test(asked.t) || /mono/i.test(asked.f) || !near(asked.w, 160)) fails.push(`[D17] Asked at reads "${asked.t}" in ${asked.f.split(',')[0]}, ${Math.round(asked.w)}px`);
     // A filter with three values: one line, two values then +1.
-    await r.goto(url('/data?t=goals&f=' + encodeURIComponent('Owner~is~Maya Chen|Sam Patel|Kofi Boateng'))); await r.waitForTimeout(400);
+    await r.goto(url('/data?t=goals&f=' + encodeURIComponent('Owner~is~Rhea Kapoor|Tariq Haddad|Mateo Fernández'))); await r.waitForTimeout(400);
     const chip = await r.evaluate(() => { const e = document.querySelector('.prop-chip'); return e ? { h: e.getBoundingClientRect().height, w: e.getBoundingClientRect().width, t: e.innerText, pw: e.parentElement.getBoundingClientRect().width } : null; });
     if (!chip) fails.push('[D19] no filter chip from the link');
     else if (chip.h > 46 || chip.w > chip.pw + 1 || !/\+1/.test(chip.t)) fails.push(`[D19] 360 filter chip ${Math.round(chip.w)}x${Math.round(chip.h)} "${chip.t.trim()}"`);
@@ -56,7 +56,7 @@ module.exports = {
     await c.close();
 
     /* ---------- Data, desktop ---------- */
-    [c, r] = await open(1280, 800, 'maya', '/data');
+    [c, r] = await open(1280, 800, 'rhea', '/data');
     const d = await r.evaluate(() => {
       const th = document.querySelector('.dtable thead th'), wrap = document.querySelector('.data-wrap');
       const ths = [...document.querySelectorAll('.dtable thead th')];
@@ -86,7 +86,7 @@ module.exports = {
     await c.close();
 
     // Plans: week columns 72px. Columns: a grouped chooser in two columns.
-    [c, r] = await open(1280, 800, 'priya', '/data?t=plan');
+    [c, r] = await open(1280, 800, 'grace', '/data?t=plan');
     const wk = await r.evaluate(() => [...document.querySelectorAll('.dtable thead th')].find((t) => /^Week 1\b/.test(t.innerText.trim()))?.getBoundingClientRect().width ?? 0);
     if (!near(wk, 72)) fails.push(`[D9] Plans week columns are ${Math.round(wk)}px`);
     await r.goto(url('/data?t=goals')); await r.waitForTimeout(300);
@@ -114,7 +114,7 @@ module.exports = {
     await c.close();
 
     // Review at 150% zoom: the buttons and the title stay in the window.
-    [c, r] = await open(853, 533, 'priya', '/data?t=goals');
+    [c, r] = await open(853, 533, 'grace', '/data?t=goals');
     await r.locator('.dtable tbody td.num input').first().fill('7');
     await r.waitForTimeout(200);
     await r.getByRole('button', { name: 'Review changes' }).click(); await r.waitForTimeout(400);
@@ -123,11 +123,11 @@ module.exports = {
     await c.close();
 
     // Table height follows the window; on a wide screen the data uses the width.
-    [c, r] = await open(1440, 700, 'maya', '/data?t=checkIns');
+    [c, r] = await open(1440, 700, 'rhea', '/data?t=checkIns');
     const t1 = await box(r, '.data-wrap');
     if (t1.bottom > 700 - 23 || t1.bottom < 700 - 40) fails.push(`[D6] 1440x700 table box ends at ${Math.round(t1.bottom)}`);
     await c.close();
-    [c, r] = await open(2560, 1440, 'maya', '/data?t=checkIns');
+    [c, r] = await open(2560, 1440, 'rhea', '/data?t=checkIns');
     const t2 = await box(r, '.data-wrap');
     if (t2.bottom < 1440 - 40 || t2.bottom > 1440 - 23) fails.push(`[D6] 2560x1440 table box ends at ${Math.round(t2.bottom)}`);
     if (t2.right < 2560 - 34) fails.push(`[D21] 2560 Data stops at ${Math.round(t2.right)}`);
@@ -137,7 +137,7 @@ module.exports = {
     {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: 'dark' });
       const p = await ctx.newPage();
-      await p.goto(url('/')); await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'priya'));
+      await p.goto(url('/')); await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'grace'));
       await p.goto(url('/data')); await p.waitForTimeout(400);
       const dk = await p.evaluate(() => ({ ro: getComputedStyle(document.querySelector('.dtable td.dcell.ro:not(.dname)')).backgroundColor, rw: getComputedStyle(document.querySelector('.dtable td.dcell:not(.ro):not(.dname)')).backgroundColor, body: getComputedStyle(document.querySelector('.data-wrap')).backgroundColor }));
       const rw = /rgba\(0, 0, 0, 0\)/.test(dk.rw) ? dk.body : dk.rw;
@@ -146,7 +146,10 @@ module.exports = {
     }
 
     /* ---------- Workspace ---------- */
-    [c, r] = await open(360, 740, 'priya', '/workspace');
+    [c, r] = await open(360, 740, 'grace', '/workspace');
+    // There is one example now, so give the person a second workspace of their own to tell the marks apart.
+    await r.evaluate(() => localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_other', name: 'Support desk', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }])));
+    await r.reload(); await r.waitForTimeout(500);
     const ws = await r.evaluate(() => {
       const opt = document.querySelector('.person-opt'), cs = getComputedStyle(opt);
       const av = opt.querySelector('.avatar').getBoundingClientRect(), name = opt.querySelector('.person-name').getBoundingClientRect();
@@ -165,18 +168,18 @@ module.exports = {
     if (!near(ap.gap, 8, 2)) fails.push(`[W12] "Add a name." is ${Math.round(ap.gap)}px under Name`);
     if (ap.cb[0] < 17 || ap.cb[1] < 17 || ap.word !== '14px 600') fails.push(`[W12] Admin checkbox ${ap.cb.join('x')}, label ${ap.word}`);
     await c.close();
-    [c, r] = await open(1280, 800, 'priya', '/workspace');
+    [c, r] = await open(1280, 800, 'grace', '/workspace');
     await r.getByRole('button', { name: 'Reset the example' }).click(); await r.waitForTimeout(200);
     const rc = await r.evaluate(() => { const q = document.querySelector('.reset-confirm'), btns = [...document.querySelectorAll('.split-a > .row .btn')]; if (!q) return null; const b = q.getBoundingClientRect(); return { below: b.top - Math.max(...btns.map((x) => x.getBoundingClientRect().bottom)), row: new Set([...q.querySelectorAll('.btn')].map((x) => Math.round(x.getBoundingClientRect().top))).size }; });
     if (!rc || !near(rc.below, 12, 2) || rc.row !== 1) fails.push(`[W13] reset confirm: ${JSON.stringify(rc)}`);
     await c.close();
-    [c, r] = await open(2560, 1440, 'priya', '/workspace');
+    [c, r] = await open(2560, 1440, 'grace', '/workspace');
     const pw = await box(r, '.page.workspace');
     if (pw.w > 1121) fails.push(`[W24] 2560 Workspace page is ${Math.round(pw.w)}px`);
     await c.close();
 
     /* ---------- Setting up ---------- */
-    [c, r] = await open(1280, 800, 'priya', '/workspace/new');
+    [c, r] = await open(1280, 800, 'grace', '/workspace/new');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
     const e0 = await r.evaluate(() => { const al = [...document.querySelectorAll('[role="alert"]')].filter((x) => x.getClientRects().length); const inp = document.querySelector('.qsection input').getBoundingClientRect(); return { n: al.length, inFoot: al.some((a) => a.closest('.focus-foot')), gap: al[0] ? al[0].getBoundingClientRect().top - inp.bottom : -1, color: al[0] ? getComputedStyle(al[0]).color : '', focused: document.activeElement === document.querySelector('.qsection input') }; });
     if (e0.inFoot || !near(e0.gap, 8, 2) || e0.color !== 'rgb(180, 35, 24)' || !e0.focused) fails.push(`[W7] step 1 problem: in footer ${e0.inFoot}, ${Math.round(e0.gap)}px under the field, ${e0.color}, focused ${e0.focused}`);
@@ -199,7 +202,7 @@ module.exports = {
     const op = await r.evaluate(() => { const o = document.querySelector('.opt[role="radio"][aria-checked="true"]'); const b = getComputedStyle(o, '::before'); return { sh: getComputedStyle(o).boxShadow, ol: getComputedStyle(o).outlineStyle, circle: [b.width, b.height, b.borderTopLeftRadius].join(' ') }; });
     if (!/2px inset/.test(op.sh) || op.ol !== 'none' || op.circle !== '16px 16px 50%') fails.push(`[W18] a chosen option: ${op.sh}, outline ${op.ol}, circle ${op.circle}`);
     await c.close();
-    [c, r] = await open(360, 740, 'priya', '/workspace/new');
+    [c, r] = await open(360, 740, 'grace', '/workspace/new');
     await r.getByLabel('Name').first().fill('Test space');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(200);
     await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform');
@@ -209,10 +212,10 @@ module.exports = {
     await c.close();
 
     /* ---------- Import preview and Export ---------- */
-    [c, r] = await open(390, 844, 'kofi', '/import');
+    [c, r] = await open(390, 844, 'mateo', '/import');
     const steps = await r.evaluate(() => { const ol = document.querySelector('.import-steps'), h = document.querySelector('.page-head h1'); return Math.round(ol.querySelector('li').getBoundingClientRect().left - h.getBoundingClientRect().left); });
     if (steps > 1) fails.push(`[W15] import steps start ${steps}px in from the title`);
-    await r.getByLabel('Choose a spreadsheet').setInputFiles({ name: 'plan.csv', mimeType: 'text/csv', buffer: Buffer.from('ID,Goal,Week 45,Week 46,Week 47\nalerts,Alerts auto-triaged by AIOps,30,31,32\n') });
+    await r.getByLabel('Choose a spreadsheet').setInputFiles({ name: 'plan.csv', mimeType: 'text/csv', buffer: Buffer.from('ID,Goal,Week 45,Week 46,Week 47\nmttr-pir,Post-incident actions closed within 30 days,30,31,32\n') });
     await r.waitForTimeout(500);
     const ta = await r.evaluate(() => { const t = document.querySelector('textarea'); return t ? getComputedStyle(t).borderTopColor : null; });
     if (ta && ta !== 'rgb(208, 213, 221)') fails.push(`[W8] the plan reason opens with a ${ta} border`);
@@ -223,8 +226,8 @@ module.exports = {
     if (Math.abs(pv.off) > 1 || !pv.table) fails.push(`[W9] plan details ${Math.round(pv.off)}px off the title; week table ${pv.table}`);
     if (pv.save !== '1 rgb(208, 213, 221) nowrap') fails.push(`[W16] Save not ready: ${pv.save}`);
     await c.close();
-    [c, r] = await open(1280, 800, 'maya', '/goals');
-    await r.getByRole('button', { name: 'Export' }).first().click(); await r.waitForTimeout(400);
+    [c, r] = await open(1280, 800, 'rhea', '/goals');
+    await r.locator('button.btn:visible', { hasText: /^Export$/ }).first().click(); await r.waitForTimeout(400);
     const ex = await r.evaluate(() => { const dlg = document.querySelector('[role="dialog"]'); const row = dlg.querySelector('.export-list .opt.static'); const [a, b] = row.children; return { w: dlg.getBoundingClientRect().width, gap: b.getBoundingClientRect().left - a.getBoundingClientRect().right, bw: b.getBoundingClientRect().width }; });
     if (!near(ex.w, 520) || !near(ex.gap, 16) || ex.bw < 112) fails.push(`[W22] export sheet ${Math.round(ex.w)}px, ${Math.round(ex.gap)}px gap, buttons ${Math.round(ex.bw)}px`);
     await c.close();

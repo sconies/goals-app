@@ -6,7 +6,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
 import { applyCommit } from '../src/data/store';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import type { ApiToken, Snapshot } from '../src/domain/types';
 import { hashToken, newToken } from '../src/mcp/protocol';
 import { SCREENS } from '../src/mcp/parity';
@@ -18,15 +18,15 @@ import { decide } from '../scripts/check-whats-new.mjs';
 const G = (text: string) => `[HELP-GUIDE] ${text}`;
 const N = (text: string) => `[WHATS-NEW] ${text}`;
 const root = path.join(__dirname, '..');
-const OCT = new Date('2026-10-30T12:00:00Z');
+const OCT = new Date('2026-11-05T12:00:00Z');
 
-async function assistant(personId = 'maya') {
+async function assistant(personId = 'rhea') {
   let data: Snapshot = seed(OCT);
   const token = newToken();
-  const t: ApiToken = { id: 'tok-help', personId, name: 'Eval', tokenHash: await hashToken(token), createdBy: 'elena', createdAt: OCT.toISOString(), lastUsedAt: null, revokedAt: null };
+  const t: ApiToken = { id: 'tok-help', personId, name: 'Eval', tokenHash: await hashToken(token), createdBy: 'amara', createdAt: OCT.toISOString(), lastUsedAt: null, revokedAt: null };
   data = { ...data, tokens: [...(data.tokens ?? []), t] };
   const deps: Deps = {
-    findToken: async (h) => (h === t.tokenHash ? { token: t, workspaceId: 'example' } : null),
+    findToken: async (h) => (h === t.tokenHash ? { token: t, workspaceId: 'platform-org' } : null),
     workspaceName: async () => 'Developer Platform',
     load: async () => data,
     commit: async (_ws, c) => { data = applyCommit(data, c); },
@@ -55,7 +55,7 @@ describe('Help: what everything does', () => {
     expect(articleForPath('/goals', '?view=map')?.id).toBe('goal-map');
     expect(articleForPath('/goals/new')?.id).toBe('new-goal');
     expect(articleForPath('/goals/G-12')?.id).toBe('goal-page');
-    expect(articleForPath('/goals/head', '?review=weekly')?.id).toBe('reviews');
+    expect(articleForPath('/goals/ns-lead', '?review=weekly')?.id).toBe('reviews');
     expect(articleForPath('/quick-check-in')?.id).toBe('check-in-table');
   });
 

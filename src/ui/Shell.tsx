@@ -9,7 +9,6 @@ import { Avatar, Sheet } from './bits';
 import { DemoEntry, DemoPanel } from './Demo';
 import { Coach } from './Coach';
 import { ResearchBar } from './ResearchBar';
-import { useNavMode, type NavMode } from '../app/navMode';
 import { setAppearance, useAppearance } from '../app/appearance';
 import { useTrail } from './BackLink';
 import { useViews, viewParams } from '../screens/GoalFilters';
@@ -38,9 +37,7 @@ function sideFor(ownsGoals: boolean): NavId[] {
   return ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'reviews', 'activity', 'data', 'new', 'workspace'];
 }
 /** The phone's tabs. An owner gets Check-in; someone who owns nothing mostly follows goals, so gets Watching (part of Goals). */
-function tabsFor(ownsGoals: boolean, mode: NavMode = 'current'): NavId[] {
-  // The 4-tab trial: Home, Goals, Reviews on the bar; check-in is reached from Home and goal pages, Watching from Goals.
-  if (mode === 'four') return ['home', 'goals', 'reviews'];
+function tabsFor(ownsGoals: boolean): NavId[] {
   return ownsGoals ? ['home', 'checkin', 'goals', 'reviews'] : ['home', 'goals', 'watching', 'reviews'];
 }
 
@@ -162,9 +159,8 @@ export function Shell({ children }: { children: ReactNode }) {
   // In the demo, choosing who you are is part of the demo panel, roles first; opened from a person, it says so.
   const openPeople = () => setSheet(app.mode === 'demo' ? 'people' : 'profile');
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
-  const navMode = useNavMode();
   const side = sideFor(ownsGoals);
-  const tabs = tabsFor(ownsGoals, navMode);
+  const tabs = tabsFor(ownsGoals);
   const views = useViews();
   // A release this person hasn't seen: a quiet dot beside Help (and on More, on a phone) until they open What's new.
   const unread = useUnreadNews().length > 0;
@@ -211,7 +207,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [pathname, title, app.ws.name]);
 
   // Walking a review (a goal page with ?review=) is in Reviews, so Reviews is the current place in the nav.
-  const navAt = /[?&]review=/.test(search) ? '/reviews/walk' : pathname;
+  const navAt = /[?&]review=/.test(search) ? '/reviews/walk' : at === 'watching' ? '/watching' : pathname;
   const sideAt = /[?&]review=/.test(search) ? null : at;
   const focusMode = /^\/check-in(\/|$)|^\/quick-check-in$|^\/import$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   const icons = look.sidebar === 'icons';
@@ -244,7 +240,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="ws-head" title={app.ws.name}>
             <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{wsName.slice(0, 1).toUpperCase()}</span>
             <span className="stack ws-head-text" style={{ gap: 0, minWidth: 0, flex: 1 }}>
-              {/* "Example: Developer Platform" was cut to "Example: Devel…": the name, with "Example" as the quieter line. */}
+              {/* "Example: Platform Engineering" was cut to "Example: Platf…": the name, with "Example" as the quieter line. */}
               <b className="ws-name">{wsName}</b>
               <span className="tiny muted ws-meta">{shortPeriod(app.cycle, app.week)}</span>
             </span>
@@ -277,6 +273,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
         <main className="work" ref={work} id="main">
           {app.mode === 'live' && app.storeKind === 'browser' && <div className="local-banner" role="note">This is a copy kept in this browser only. Nobody else sees changes made here.</div>}
+          {app.saveNote && <div className="local-banner save-note" role="alert">{app.saveNote}</div>}
           <ShellTopContext.Provider value={goalTop ? topControls : null}>{children}</ShellTopContext.Provider>
           <PageHelp />
         </main>

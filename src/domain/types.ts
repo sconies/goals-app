@@ -200,13 +200,15 @@ export interface Change {
   goalId: Id | null;
   entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person' | 'retro' | 'cycle' | 'request';
   entityId: Id;
-  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed' | 'answered' | 'linked';
+  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed' | 'answered' | 'linked' | 'done';
   summary: string;
   diffs: Diff[];
 }
 
-/** What someone said about a goal in a review: seen, a note, a question for the owner, or an action.
-    (The approve and decline kinds belong to old data, from before approvals were dropped.) */
+/** What someone said about a goal in a review: seen, or a note. A question or an action said in a review is an ask
+    (Ask, kinds question and action); review.ts's saidIn shows them beside the notes as one record of the session.
+    The ask and action kinds here belong to data from before one ask model (asks.ts's upgradeAsks converts them), and
+    approve and decline to data from before approvals were dropped. */
 export interface Decision {
   id: Id;
   goalId: Id;
@@ -273,32 +275,51 @@ export interface Snapshot {
   tokens?: ApiToken[];
   /** Saved views of the goals: each person's own, and any an admin pinned for everyone. */
   views?: SavedView[];
-  /** Requests for a decision or help, raised in check-ins: open until answered or withdrawn. */
-  requests?: HelpRequest[];
+  /** Every ask (a decision or help, an update, a question, an action): open until answered, done or withdrawn. The
+      name is the stored table's, from before asks had kinds. */
+  requests?: Ask[];
   /** The highest goal key given in the workspace so far, across every cycle (set when a snapshot is scoped to one
       cycle), so a new goal's key is never one an earlier cycle used. */
   keysIssued?: number;
 }
 
-export type RequestStatus = 'open' | 'answered' | 'withdrawn';
+/** Where an ask stands: open until the person asked responds (answered; an action: done) or it's taken back. */
+export type AskStatus = 'open' | 'answered' | 'done' | 'withdrawn';
 
 /**
- * A request for a decision or help, raised by a goal's owner in a check-in and addressed to one person (or anyone).
- * It stays open from check-in to check-in until it's answered or withdrawn, so "was it answered?" has a clear answer.
- * One request can apply to several goals: an owner links their goal to a request already raised for another, and one
- * answer then applies to all of them. The first goal is the one it was raised on.
+ * What an ask is for: a decision or help the owner needs from someone (often raised in a check-in); an update (someone
+ * asks a goal's owner to check in); a question for the owner (in a review or on the goal page); or an action (something
+ * someone agreed to do, usually in a review, by a week).
  */
-export interface HelpRequest {
+export type AskKind = 'decision' | 'update' | 'question' | 'action';
+
+/**
+ * One way to ask (consolidation 4, 5 Nov): every ask that puts an obligation on someone. Who asked, who must respond, by
+ * when (optional), the goals it's about, and where it stands: open until it's answered (an action: done) or withdrawn,
+ * each said explicitly. Comments carry no obligation and aren't asks. Stored in okr_requests (extended by migration
+ * 0023; the table's name predates the other kinds). A decision ask can apply to several goals: an owner links their goal
+ * to one already raised for another, and one answer applies to all of them. The first goal is the one it was raised on.
+ */
+export interface Ask {
   id: Id;
+  kind: AskKind;
   goalIds: Id[];
   askedBy: Id;
+  /** Who must respond: the person asked, the goal's owner (an update or a question), or whoever does the action. Null: anyone. */
   recipientId: Id | null;
+  /** What was asked, in their words. */
   ask: string;
-  status: RequestStatus;
-  /** The check-in that raised it. */
+  status: AskStatus;
+  /** The week it's due by, if any. */
+  dueWeek: number | null;
+  /** The review it was raised in, and that session's week, if it was. */
+  reviewId: Id | null;
+  week: number | null;
+  /** The check-in that raised it (a decision or help). */
   checkInId: Id | null;
   createdAt: string;
   updatedAt: string;
+  /** The answer; for an action, the note it was marked done with (may be empty). */
   answer: string | null;
   answeredBy: Id | null;
   answeredAt: string | null;

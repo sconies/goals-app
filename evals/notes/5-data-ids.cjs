@@ -20,11 +20,12 @@ module.exports = {
     const fails = [];
 
     /* ---------- desktop 1280: drag, resize, keyboard, remember, save, reopen, export ---------- */
-    let [c, p] = await open(1280, 800, 'priya', '/data');
+    let [c, p] = await open(1280, 800, 'grace', '/data');
     let h = await heads(p);
     if (h[0] !== 'Goal' || h[1] !== 'Key') fails.push(`[TABLE-LAYOUTS] 1280 Goals table starts ${h.slice(0, 2).join(', ')} (want Goal, Key)`);
     const keys = await p.evaluate(() => { const i = [...document.querySelectorAll('.dtable thead th')].findIndex((t) => t.dataset.col === 'Key'); return [...document.querySelectorAll('.dtable tbody tr')].map((tr) => tr.children[i]?.innerText.trim()); });
-    if (keys.length !== 13 || new Set(keys).size !== 13 || !keys.every((k) => /^G-\d+$/.test(k))) fails.push(`[READABLE-IDS] data table keys: ${keys.join(' ')}`);
+    // (The table shows the first 100 of 126 goals, then “Show 100 more”.)
+    if (keys.length !== 100 || new Set(keys).size !== 100 || !keys.every((k) => /^G-\d+$/.test(k))) fails.push(`[READABLE-IDS] data table keys: ${keys.join(' ')}`);
 
     // Drag Owner's heading onto Level: it moves there, and the drop isn't taken as a sort.
     const ob = await p.locator('.dtable thead th[data-col="Owner"] .sortbtn').boundingBox();
@@ -82,14 +83,14 @@ module.exports = {
     const back = await heads(p);
     if (back.join() !== h.join() || !near(await thWidth(p, 'Owner'), w1, 1) || !near(await thWidth(p, 'Team'), 72, 1)) fails.push(`[TABLE-LAYOUTS] 1280 reopening “Owners first”: ${back.slice(0, 6).join(', ')}, Owner ${Math.round(await thWidth(p, 'Owner'))}px, Team ${Math.round(await thWidth(p, 'Team'))}px`);
     // It isn't one of the Goals screen's views.
-    await p.goto(p.url().replace(/\/data.*$/, '/goals?today=2026-10-30')); await p.waitForTimeout(400);
+    await p.goto(p.url().replace(/\/data.*$/, '/goals?today=2026-11-05')); await p.waitForTimeout(400);
     if (await p.locator('.views-menu').count()) {
       await p.locator('.views-menu > summary').click();
       if (await p.getByRole('button', { name: 'Owners first' }).count()) fails.push('[TABLE-LAYOUTS] the table view shows among the Goals screen’s views');
     }
 
-    // Export as shown: filtered to Kofi, sorted by Key descending; CSV then .xlsx.
-    await p.goto(p.url().replace(/\/goals.*$/, '/data?t=goals&f=' + encodeURIComponent('Owner~is~Kofi Boateng') + '&s=' + encodeURIComponent('Key~desc') + '&today=2026-10-30')); await p.waitForTimeout(400);
+    // Export as shown: filtered to Mateo, sorted by Key descending; CSV then .xlsx.
+    await p.goto(p.url().replace(/\/goals.*$/, '/data?t=goals&f=' + encodeURIComponent('Owner~is~Mateo Fernández') + '&s=' + encodeURIComponent('Key~desc') + '&today=2026-11-05')); await p.waitForTimeout(400);
     const shown = await heads(p);
     await p.locator('.data-export > summary').click();
     let [dl] = await Promise.all([p.waitForEvent('download', { timeout: 8000 }), p.getByRole('button', { name: 'CSV, as shown' }).click()]);
@@ -97,7 +98,7 @@ module.exports = {
     if (csv[0] !== shown.join(',')) fails.push(`[TABLE-LAYOUTS] CSV header "${csv[0].slice(0, 60)}" isn't the table's "${shown.join(',').slice(0, 60)}"`);
     const ki = shown.indexOf('Key');
     const csvKeys = csv.slice(1).map((l) => l.split(',')[ki]);
-    if (csvKeys.join(' ') !== 'G-13 G-6 G-5') fails.push(`[TABLE-LAYOUTS] CSV rows are ${csvKeys.join(' ')} (want Kofi's goals, G-13 G-6 G-5)`);
+    if (csvKeys.join(' ') !== 'G-49 G-41') fails.push(`[TABLE-LAYOUTS] CSV rows are ${csvKeys.join(' ')} (want Mateo's goals, G-49 G-41)`);
     if (!/\.csv$/.test(dl.suggestedFilename())) fails.push(`[TABLE-LAYOUTS] CSV saved as ${dl.suggestedFilename()}`);
     await p.locator('.data-export > summary').click();
     [dl] = await Promise.all([p.waitForEvent('download', { timeout: 8000 }), p.getByRole('button', { name: 'Excel (.xlsx), as shown' }).click()]);
@@ -107,7 +108,7 @@ module.exports = {
     await c.close();
 
     /* ---------- phone 390, touch: Columns moves them; the menus stay on screen ---------- */
-    [c, p] = await open(390, 844, 'maya', '/data', true);
+    [c, p] = await open(390, 844, 'rhea', '/data', true);
     if ((await heads(p))[1] !== 'Key') fails.push('[READABLE-IDS] 390 the key is not beside the goal in Data');
     await p.getByRole('button', { name: /^Columns/ }).click(); await p.waitForTimeout(300);
     const up = p.getByRole('button', { name: 'Move Owner up' });
@@ -129,20 +130,20 @@ module.exports = {
     if (tb.height < 44) fails.push(`[TABLE-LAYOUTS] 390 Export is ${Math.round(tb.height)}px tall`);
     if (await pageScroll(p) > 0) fails.push(`[TABLE-LAYOUTS] 390 Data scrolls sideways by ${await pageScroll(p)}px`);
     // The goal's key, and its link: /goals/G-1.
-    await p.goto(p.url().replace(/\/data.*$/, '/goals/G-1?today=2026-10-30')); await p.waitForTimeout(500);
+    await p.goto(p.url().replace(/\/data.*$/, '/goals/G-1?today=2026-11-05')); await p.waitForTimeout(500);
     const g1 = await p.evaluate(() => ({ t: document.querySelector('h1')?.innerText.trim(), k: document.querySelector('.gkey')?.innerText.trim() }));
-    if (g1.t !== 'Intake-to-delivery time' || g1.k !== 'G-1') fails.push(`[READABLE-IDS] 390 /goals/G-1 shows "${g1.t}" with key "${g1.k}"`);
+    if (g1.t !== 'Lead time for changes' || g1.k !== 'G-1') fails.push(`[READABLE-IDS] 390 /goals/G-1 shows "${g1.t}" with key "${g1.k}"`);
     await c.close();
 
     /* ---------- tablet 768 and 1024: the toolbar fits, keys in the Goals table, the key link in any case ---------- */
     for (const w of [768, 1024]) {
-      [c, p] = await open(w, 1000, 'kofi', '/goals?view=table');
+      [c, p] = await open(w, 1000, 'mateo', '/goals?view=table');
       const gk = await p.evaluate(() => [...document.querySelectorAll('.gtable .gt-name .gkey')].map((e) => e.innerText.trim()));
-      if (gk.length !== 13 || new Set(gk).size !== 13) fails.push(`[READABLE-IDS] ${w} Goals table shows ${gk.length} keys, ${new Set(gk).size} different`);
-      await p.goto(p.url().replace(/\/goals.*$/, '/goals/g-6?today=2026-10-30')); await p.waitForTimeout(400);
+      if (gk.length !== 126 || new Set(gk).size !== 126) fails.push(`[READABLE-IDS] ${w} Goals table shows ${gk.length} keys, ${new Set(gk).size} different`);
+      await p.goto(p.url().replace(/\/goals.*$/, '/goals/g-6?today=2026-11-05')); await p.waitForTimeout(400);
       const g6 = await p.evaluate(() => ({ t: document.querySelector('h1')?.innerText.trim(), k: document.querySelector('.gkey')?.innerText.trim() }));
-      if (g6.t !== 'Change failure rate' || g6.k !== 'G-6') fails.push(`[READABLE-IDS] ${w} /goals/g-6 shows "${g6.t}" (${g6.k})`);
-      await p.goto(p.url().replace(/\/goals.*$/, '/data?t=checkIns&today=2026-10-30')); await p.waitForTimeout(400);
+      if (g6.t !== 'Merge-to-deploy time (median)' || g6.k !== 'G-6') fails.push(`[READABLE-IDS] ${w} /goals/g-6 shows "${g6.t}" (${g6.k})`);
+      await p.goto(p.url().replace(/\/goals.*$/, '/data?t=checkIns&today=2026-11-05')); await p.waitForTimeout(400);
       const ch = await heads(p);
       if (!ch.includes('Goal key')) fails.push(`[READABLE-IDS] ${w} the check-ins table has no Goal key column`);
       const over = await p.evaluate(() => [...document.querySelectorAll('.data-tools > *')].filter((e) => e.getBoundingClientRect().right > document.querySelector('.data-tools').getBoundingClientRect().right + 1).length);
@@ -151,9 +152,9 @@ module.exports = {
     }
 
     /* ---------- desktop 1440: the key on the goal page header ---------- */
-    [c, p] = await open(1440, 900, 'elena', '/goals/G-13');
+    [c, p] = await open(1440, 900, 'amara', '/goals/G-17');
     const g13 = await p.evaluate(() => { const k = document.querySelector('.gkey'); const h1 = document.querySelector('h1'); return { t: h1?.innerText.trim(), k: k?.innerText.trim(), below: k ? k.getBoundingClientRect().top >= h1.getBoundingClientRect().bottom - 1 : false, size: k ? parseFloat(getComputedStyle(k).fontSize) : 0 }; });
-    if (g13.t !== 'Build cache hit rate' || g13.k !== 'G-13' || !g13.below || g13.size > 13) fails.push(`[READABLE-IDS] 1440 goal header: "${g13.t}", key "${g13.k}" ${g13.size}px, under the title: ${g13.below}`);
+    if (g13.t !== 'Remote build cache hit rate' || g13.k !== 'G-17' || !g13.below || g13.size > 13) fails.push(`[READABLE-IDS] 1440 goal header: "${g13.t}", key "${g13.k}" ${g13.size}px, under the title: ${g13.below}`);
     await c.close();
     return fails;
   },

@@ -2,14 +2,14 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { seed } from './seed';
+import { buildPlatformOrg } from './platformOrg';
 
 const dir = join(__dirname, '../../supabase/migrations');
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
 
 describe('database schema', () => {
   let db: PGlite;
-  const s = seed(new Date('2026-10-30T12:00:00Z'));
+  const s = buildPlatformOrg(new Date('2026-10-30T12:00:00Z'));
   beforeAll(async () => {
     db = new PGlite();
     // Supabase's API role, so the demo-access policies apply as they will in production.
@@ -39,10 +39,10 @@ describe('database schema', () => {
     }
     for (const c of s.checkIns) {
       await db.query(
-        `insert into okr_check_ins (id, goal_id, author_id, week, posted_at, value, stages, status, calculated, cause, why, greener_why, propose_target, ptg_what, ptg_by_week, ptg_needs, next, data_flagged)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+        `insert into okr_check_ins (id, goal_id, author_id, week, posted_at, value, stages, status, calculated, cause, why, greener_why, propose_target, ptg_what, ptg_by_week, ptg_needs, next, data_flagged, ptg_state, backfilled)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
         [c.id, c.goalId, c.authorId, c.week, c.postedAt, c.value, c.stages ? JSON.stringify(c.stages) : null, c.status, c.calculated, c.cause, c.why, c.greenerWhy,
-          c.proposeTarget, c.pathToGreen?.what ?? null, c.pathToGreen?.byWeek ?? null, c.pathToGreen?.needs ?? '', c.next, c.dataFlagged],
+          c.proposeTarget, c.pathToGreen?.what ?? null, c.pathToGreen?.byWeek ?? null, c.pathToGreen?.needs ?? '', c.next, c.dataFlagged, c.pathToGreen?.state ?? null, !!c.backfilled],
       );
     }
     const n = await db.query<{ n: number }>('select count(*)::int as n from okr_check_ins');
@@ -54,31 +54,31 @@ describe('database schema', () => {
 
   const reject = (q: string) => expect(db.query(q)).rejects.toThrow();
   it('keeps several check-ins in a week (ad hoc), each by its own id', async () => {
-    await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('again', 'triage', 'maya', 7, 'on', 'on')`);
-    await reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('again', 'triage', 'maya', 8, 'on', 'on')`);
+    await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('again', 'lead-flaky', 'rhea', 7, 'on', 'on')`);
+    await reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('again', 'lead-flaky', 'rhea', 8, 'on', 'on')`);
   });
   it('allows an at-risk check-in that is still investigating, with no date', async () => {
-    await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('inv', 'triage', 'maya', 49, 'risk', 'risk', 'Looking into why intake doubled', 'investigating')`);
+    await db.query(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('inv', 'lead-flaky', 'rhea', 49, 'risk', 'risk', 'Looking into why intake doubled', 'investigating')`);
   });
-  it('still needs a week when the owner says they have a plan', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('pl', 'triage', 'maya', 50, 'risk', 'risk', 'Pairing on the scope', 'plan')`));
-  it('refuses an at-risk check-in without a path to green', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x1', 'triage', 'maya', 51, 'risk', 'risk')`));
-  it('refuses a greener call without a reason', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x2', 'triage', 'maya', 51, 'on', 'off')`));
+  it('still needs a week when the owner says they have a plan', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated, ptg_what, ptg_state) values ('pl', 'lead-flaky', 'rhea', 50, 'risk', 'risk', 'Pairing on the scope', 'plan')`));
+  it('refuses an at-risk check-in without a path to green', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x1', 'lead-flaky', 'rhea', 51, 'risk', 'risk')`));
+  it('refuses a greener call without a reason', () => reject(`insert into okr_check_ins (id, goal_id, author_id, week, status, calculated) values ('x2', 'lead-flaky', 'rhea', 51, 'on', 'off')`));
   it('allows several north-star goals in a cycle', async () => {
     const n = await db.query<{ n: number }>("select count(*)::int as n from okr_goals where level = 'north-star'");
     expect(n.rows[0]!.n).toBeGreaterThan(1);
   });
-  it('refuses an unknown goal level', () => reject(`update okr_goals set level = 'vp' where id = 'triage'`));
+  it('refuses an unknown goal level', () => reject(`update okr_goals set level = 'vp' where id = 'lead-flaky'`));
   it('keeps one retro per goal and cycle, with a lesson', async () => {
-    await db.query(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r1', 'example', 'head', 'cycle', 'partly', 'Agree dependency dates in week 1.', 'carry', 'maya')`);
-    await reject(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r2', 'example', 'head', 'cycle', 'hit', 'Again for the same goal.', 'carry', 'maya')`);
-    await reject(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r3', 'example', 'triage', 'cycle', 'great', 'Not a result we know.', 'carry', 'maya')`);
+    await db.query(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r1', 'example', 'ns-lead', 'cycle', 'partly', 'Agree dependency dates in week 1.', 'carry', 'rhea')`);
+    await reject(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r2', 'example', 'ns-lead', 'cycle', 'hit', 'Again for the same goal.', 'carry', 'rhea')`);
+    await reject(`insert into okr_retros (id, workspace_id, goal_id, cycle_id, result, learned, next, by_id) values ('r3', 'example', 'lead-flaky', 'cycle', 'great', 'Not a result we know.', 'carry', 'rhea')`);
   });
   it('stores watches and reviews', async () => {
     const w = await db.query<{ n: number }>('select count(*)::int as n from okr_watches');
     const r = await db.query<{ n: number }>('select count(*)::int as n from okr_reviews');
     expect([w.rows[0]!.n, r.rows[0]!.n]).toEqual([s.watches.length, s.reviews.length]);
   });
-  it('refuses a metric goal without a plan', () => reject(`insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io) values ('m2', 'cycle', 'pm', 'maya', 'No plan', 'metric', 'input')`));
+  it('refuses a metric goal without a plan', () => reject(`insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io) values ('m2', 'cycle', 'cicd', 'rhea', 'No plan', 'metric', 'input')`));
 });
 
 describe('other causes and demo feedback (0019)', () => {
@@ -202,5 +202,61 @@ describe('readable goal keys (0021)', () => {
     await db.exec('alter table okr_goals disable trigger okr_goals_key');
     await expect(db.query(`update okr_goals set key = 'G-1' where id = 'd'`)).rejects.toThrow();
     await expect(db.query(`update okr_goals set key = 'X-1' where id = 'd'`)).rejects.toThrow();
+  });
+});
+
+describe('one way to ask (0023)', () => {
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  const before = files.filter((f) => f < '0023').map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
+  const asks = readFileSync(join(dir, files.find((f) => f.startsWith('0023'))!), 'utf8');
+  let db: PGlite;
+  const one = async (q: string) => (await db.query<Record<string, unknown>>(q)).rows[0]!;
+  beforeAll(async () => {
+    db = new PGlite();
+    await db.exec(`create role anon nologin;`);
+    await db.exec(before);
+    await db.exec(`insert into okr_workspaces (id, name, kind) values ('w', 'W', 'own');
+      insert into okr_teams (id, name, lead_id, objective, workspace_id) values ('t', 'Team', 'o', '', 'w');
+      insert into okr_people (id, name, role, initials, team_id, is_admin, workspace_id) values ('o', 'Olu Owner', '', 'OO', 't', false, 'w'), ('v', 'Vera VP', '', 'VV', 't', true, 'w');
+      insert into okr_cycles (id, name, start_date, weeks, workspace_id) values ('c', '2026', '2025-12-22', 53, 'w');
+      insert into okr_goals (id, workspace_id, cycle_id, team_id, owner_id, title, kind, io, unit, decimals, plan_start, plan_target, plan_shape, level)
+        values ('g', 'w', 'c', 't', 'o', 'Lead time', 'metric', 'output', 'h', 0, 50, 20, 'straight', 'team'), ('q', 'w', 'c', 't', 'o', 'Quiet', 'metric', 'output', '%', 0, 1, 2, 'straight', 'team');
+      insert into okr_reviews (id, workspace_id, name, every_weeks, weekday, scope, people, created_by) values ('r', 'w', 'Weekly', 1, 3, '{"goals":["g"],"trees":[],"levels":[]}', '["v"]', 'v');
+      insert into okr_decisions (id, workspace_id, goal_id, review_id, week, kind, by_id, at, note, assignee_id, due_week) values
+        ('d1', 'w', 'g', 'r', 40, 'ask', 'v', '2026-10-01T10:00:00Z', 'When does the queue land?', null, null),
+        ('d2', 'w', 'g', 'r', 40, 'ask', 'v', '2026-10-01T10:05:00Z', 'Anything blocking?', null, null),
+        ('d3', 'w', 'g', 'r', 40, 'action', 'v', '2026-10-01T10:10:00Z', 'Write the budget case', null, 43),
+        ('d4', 'w', 'g', 'r', 40, 'note', 'v', '2026-10-01T10:15:00Z', 'Fine for now', null, null);
+      insert into okr_changes (id, workspace_id, at, actor_id, goal_id, entity, entity_id, action, summary, diffs) values
+        ('c1', 'w', '2026-10-01T09:00:00Z', 'o', 'g', 'note', 'n0', 'noted', 'Commented', '[{"field":"Comment","from":"—","to":"Before the review"}]'),
+        ('c2', 'w', '2026-10-01T11:00:00Z', 'o', 'g', 'note', 'n1', 'noted', 'Commented', '[{"field":"Comment","from":"—","to":"Week 49, if MergeFlow ship"}]'),
+        ('c3', 'w', '2026-10-02T09:00:00Z', 'v', 'q', 'note', 'n2', 'noted', 'Asked for an update', '[{"field":"Comment","from":"—","to":"Olu, could you post an update?"}]'),
+        ('c4', 'w', '2026-10-02T09:30:00Z', 'v', 'q', 'note', 'n2', 'withdrawn', 'Withdrew the request for an update', '[]'),
+        ('c5', 'w', '2026-10-03T09:00:00Z', 'v', 'q', 'note', 'n3', 'noted', 'Asked for an update', '[{"field":"Comment","from":"—","to":"Olu, could you post an update? The last check-in was week 38."}]'),
+        ('c6', 'w', '2026-10-05T09:00:00Z', 'v', 'g', 'note', 'n4', 'noted', 'Commented', '[{"field":"Comment","from":"—","to":"Olu, could you post an update? There is no check-in yet."}]');
+      insert into okr_check_ins (id, workspace_id, goal_id, author_id, week, posted_at, status, calculated) values ('k1', 'w', 'q', 'o', 41, '2026-10-06T09:00:00Z', 'on', 'on');`);
+    await db.exec(asks);
+    await db.exec(asks);
+  }, 30_000);
+
+  it('turns a review’s questions into asks for the owner, answered by the first thing the owner said after them', async () => {
+    expect(await one(`select kind, recipient_id, status, answer, review_id, week from okr_requests where id = 'd1'`)).toEqual({ kind: 'question', recipient_id: 'o', status: 'answered', answer: 'Week 49, if MergeFlow ship', review_id: 'r', week: 40 });
+    expect(await one(`select status from okr_requests where id = 'd2'`)).toEqual({ status: 'answered' });
+  });
+  it('turns a review’s actions into open action asks, with who and when, and keeps notes as notes', async () => {
+    expect(await one(`select kind, recipient_id, status, due_week from okr_requests where id = 'd3'`)).toEqual({ kind: 'action', recipient_id: 'o', status: 'open', due_week: 43 });
+    expect((await db.query(`select id from okr_decisions order by id`)).rows).toEqual([{ id: 'd4' }]);
+  });
+  it('turns asks for an update into update asks: withdrawn, answered by a check-in since, or open', async () => {
+    expect(await one(`select kind, status from okr_requests where id = 'n2'`)).toEqual({ kind: 'update', status: 'withdrawn' });
+    expect(await one(`select status, answer, answered_by from okr_requests where id = 'n3'`)).toEqual({ status: 'answered', answer: 'Checked in for week 41', answered_by: 'o' });
+    expect(await one(`select status, recipient_id from okr_requests where id = 'n4'`)).toEqual({ status: 'open', recipient_id: 'o' });
+    expect(await one(`select entity, action from okr_changes where id = 'c5'`)).toEqual({ entity: 'request', action: 'asked' });
+    expect(await one(`select entity from okr_changes where id = 'c2'`)).toEqual({ entity: 'note' });
+  });
+  it('keeps the states and kinds to the ones the app knows, and lets an action be done', async () => {
+    await db.query(`update okr_requests set status = 'done', answer = '', answered_by = 'o', answered_at = now() where id = 'd3'`);
+    await expect(db.query(`update okr_requests set kind = 'chore' where id = 'd3'`)).rejects.toThrow();
+    await expect(db.query(`update okr_requests set status = 'closed' where id = 'd3'`)).rejects.toThrow();
   });
 });

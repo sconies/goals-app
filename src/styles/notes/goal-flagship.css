@@ -303,3 +303,10 @@
 .chart-facts .cf-range { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
 .chart-facts .cf-foot { margin: 0; font-size: 0.75rem; color: var(--muted); }
 @container gcol (max-width: 420px) { .chart-facts .cf-row { grid-template-columns: 88px minmax(0, 1fr); } }
+
+/* One way to ask (5 Nov): the comment box posts a comment, or asks the owner the same words as a question. */
+.note-compose { flex-wrap: wrap; }
+.note-compose-actions { flex-wrap: wrap; }
+.action-do { margin-top: 2px; }
+.save-note { font-weight: 500; }
+.demo-team { padding: var(--s2) 12px 0; }

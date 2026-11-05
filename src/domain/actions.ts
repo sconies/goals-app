@@ -6,12 +6,11 @@ import type { Commit } from '../data/store';
 import type { Lookup } from './changes';
 import { nextCycle, RESULT_LABEL, wrapUpOpen } from './cycle';
 import { personChange, personProblems } from './people';
-import { answerRequest as answered, canAnswer, linkRequest as linked } from './requests';
+import { answerAsk, asksOf, canAnswer, canMarkDone, canWithdraw, editAsk, linkRequest as linked, markDone, openUpdateAsk, raiseAsk, UPDATE_ASK, updateAskText, withdrawAsk } from './asks';
 import { sessionWeek } from './review';
 import { checkInsFor } from './status';
 import { clampWidth, isTableView, layoutParams, layoutProblems, parseLayout, type TableLayout } from './tableLayout';
-import type { ApiToken, Cycle, Decision, Goal, HelpRequest, Level, Person, Retro, Review, SavedView, Snapshot, Watch } from './types';
-import { askChange, openUpdateAsk, undoAskChange, updateAskText } from './updateAsks';
+import type { ApiToken, Ask, Cycle, Decision, Goal, Level, Person, Retro, Review, SavedView, Snapshot, Watch } from './types';
 
 export interface ActionContext {
   /** The open workspace, scoped to the current cycle (views, tokens and feedback are the workspace's). */
@@ -39,96 +38,151 @@ const lookupOf = (s: Snapshot): Lookup => ({
 const ownsOrAdmin = (x: ActionContext, g: Goal) => x.actor.admin || g.ownerId === x.actor.id;
 const latestOf = (x: ActionContext, g: Goal) => checkInsFor(g, x.snapshot.checkIns).at(-1) ?? null;
 
-/* ---------- Comments and asks for an update ---------- */
+/* ---------- Comments ---------- */
 
-/** A logged comment on a goal. Anyone can comment; it doesn't change the status. */
+/** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it isn't an ask: it asks nothing of anyone. */
 export function addNote(x: ActionContext, goal: Goal, text: string): Commit {
   const t = text.trim();
   if (t.length < 2) no('Write the comment.');
   return { changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: goal.id, entity: 'note', entityId: x.newId('note'), action: 'noted', summary: 'Commented', diffs: [{ field: 'Comment', from: '—', to: t }] }] };
 }
 
-/** Ask a goal's owner for an update: on their Home until they check in. Null when it's already asked. */
+/* ---------- Asks: one way to ask (asks.ts has the rules) ---------- */
+
+const askById = (x: ActionContext, id: string) => asksOf(x.snapshot).find((r) => r.id === id);
+const nameOf = (x: ActionContext, id: string | null | undefined) => x.snapshot.people.find((p) => p.id === id)?.name;
+
+/** Ask a goal's owner for an update: open on their Home until they check in (or answer it), or it's withdrawn. Null when it's already asked. */
 export function askForUpdate(x: ActionContext, goal: Goal): Commit | null {
   if (goal.ownerId === x.actor.id) no('It’s your own goal: post a check-in instead.');
+  if (openUpdateAsk(goal.id, x.snapshot)) return null;
   const latest = latestOf(x, goal);
-  if (openUpdateAsk(goal.id, x.snapshot, latest?.postedAt ?? null)) return null;
-  const owner = x.snapshot.people.find((p) => p.id === goal.ownerId);
-  return { changes: [askChange(goal.id, updateAskText(owner?.name.split(' ')[0], latest?.week ?? null), x.actor.id, x.now, { change: x.newId('chg'), note: x.newId('note') })] };
+  const { ask, change } = raiseAsk({ kind: 'update', goalIds: [goal.id], askedBy: x.actor.id, recipientId: goal.ownerId, ask: updateAskText(nameOf(x, goal.ownerId)?.split(' ')[0], latest?.week ?? null), summary: UPDATE_ASK }, x.now, x.newId);
+  return { requests: [ask], changes: [change] };
 }
 
-/** Undo an ask for an update: whoever asked, or an admin. Null when there's no open ask. */
+/** Take back an ask for an update: whoever asked, or an admin. Null when there's no open ask. */
 export function undoUpdateAsk(x: ActionContext, goal: Goal): Commit | null {
-  const ask = openUpdateAsk(goal.id, x.snapshot, latestOf(x, goal)?.postedAt ?? null);
+  const ask = openUpdateAsk(goal.id, x.snapshot);
   if (!ask) return null;
-  if (ask.actorId !== x.actor.id && !x.actor.admin) no('Only whoever asked, or an admin, can undo the ask.');
-  return { changes: [undoAskChange(ask, x.actor.id, x.now, x.newId('chg'))] };
+  if (ask.askedBy !== x.actor.id && !x.actor.admin) no('Only whoever asked, or an admin, can undo the ask.');
+  const w = withdrawAsk(ask, goal.id, x.actor.id, x.now, x.newId);
+  return { requests: [w.request], changes: w.changes };
 }
 
-/* ---------- Requests for a decision or help ---------- */
+/** Ask a goal's owner a question, outside a review (a review's questions come through reviewCall). Open until they answer it. */
+export function askQuestion(x: ActionContext, goal: Goal, text: string, opts: { reviewId?: string | null; week?: number | null } = {}): Commit {
+  const t = text.trim();
+  if (t.length < 2) no('Write the question.');
+  if (goal.ownerId === x.actor.id) no('It’s your own goal: there’s no one to ask. Comment instead.');
+  const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : undefined;
+  const { ask, change } = raiseAsk({ kind: 'question', goalIds: [goal.id], askedBy: x.actor.id, recipientId: goal.ownerId, ask: t, reviewId: review?.id ?? null, week: opts.week ?? null, summary: review ? `Asked the owner a question in ${review.name}` : `Asked ${nameOf(x, goal.ownerId) ?? 'the owner'} a question` }, x.now, x.newId);
+  return { requests: [ask], changes: [change] };
+}
 
-/** Answer a request: the person asked, or an admin (anyone, for a request to no one in particular). */
-export function answerRequest(x: ActionContext, r: HelpRequest, answer: string): Commit {
-  if (r.status !== 'open') no('That request isn’t open any more.');
-  if (!canAnswer(r, x.actor)) no(`Only ${x.snapshot.people.find((p) => p.id === r.recipientId)?.name ?? 'the person asked'} or an admin can answer it.`);
+/** Agree an action on a goal: someone (the owner, unless named) does it, by a week if one is given. */
+export function addAction(x: ActionContext, goal: Goal, text: string, opts: { assigneeId?: string | null; dueWeek?: number | null; reviewId?: string | null; week?: number | null } = {}): Commit {
+  const t = text.trim();
+  if (t.length < 2) no('Write the action.');
+  const who = opts.assigneeId ?? goal.ownerId;
+  if (!x.snapshot.people.some((p) => p.id === who)) no('The person for the action isn’t in this workspace.');
+  if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no(`The due week is between 1 and ${x.cycle.weeks}.`);
+  const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : undefined;
+  const { ask, change } = raiseAsk({ kind: 'action', goalIds: [goal.id], askedBy: x.actor.id, recipientId: who, ask: t, dueWeek: opts.dueWeek ?? null, reviewId: review?.id ?? null, week: opts.week ?? null, summary: review ? `Agreed an action in ${review.name}` : 'Agreed an action' }, x.now, x.newId);
+  change.diffs.splice(1, 0, { field: 'Who', from: '—', to: nameOf(x, who) ?? '—' });
+  return { requests: [ask], changes: [change] };
+}
+
+/** Answer a decision or help, an ask for an update or a question: the person asked, or an admin (anyone, for an ask to no one in particular). */
+export function answerRequest(x: ActionContext, r: Ask, answer: string): Commit {
+  if (r.status !== 'open') no('That ask isn’t open any more.');
+  if (r.kind === 'action') no('An action is marked done, not answered.');
+  if (!canAnswer(r, x.actor)) no(`Only ${nameOf(x, r.recipientId) ?? 'the person asked'} or an admin can answer it.`);
   if (answer.trim().length < 2) no('Write the answer.');
-  const { request, changes } = answered(r, answer, x.actor.id, x.now, x.newId);
+  const { request, changes } = answerAsk(r, answer, x.actor.id, x.now, x.newId);
   return { requests: [request], changes };
 }
 
-/** A goal's owner (or an admin) says the goal waits on a request raised for another goal. */
-export function linkRequest(x: ActionContext, r: HelpRequest, goal: Goal): Commit {
+/** Mark an action done, with an optional note: whoever does it, whoever asked for it, or an admin. */
+export function markActionDone(x: ActionContext, r: Ask, note = ''): Commit {
+  if (r.status !== 'open') no('That action isn’t open any more.');
+  if (r.kind !== 'action') no('Only an action is marked done; answer the others.');
+  if (!canMarkDone(r, x.actor)) no(`Only ${nameOf(x, r.recipientId) ?? 'whoever does it'}, whoever asked for it, or an admin can mark it done.`);
+  const { request, changes } = markDone(r, note, x.actor.id, x.now, x.newId);
+  return { requests: [request], changes };
+}
+
+/** A goal's owner (or an admin) says the goal waits on a decision or help raised for another goal. */
+export function linkRequest(x: ActionContext, r: Ask, goal: Goal): Commit {
   if (r.status !== 'open') no('That request isn’t open any more.');
+  if (r.kind !== 'decision') no('Only a decision or help can be shared by several goals.');
   if (!ownsOrAdmin(x, goal)) no('Only the goal’s owner or an admin can link it to a request.');
   if (r.goalIds.includes(goal.id)) no('That goal is already waiting on this request.');
   const { requests, changes } = linked(r, goal, x.snapshot, x.actor.id, x.now, x.newId);
   return { requests, changes };
 }
 
-/** The goal's owner (or an admin) withdraws its request, or stops waiting on one raised for another goal. */
-export function withdrawRequest(x: ActionContext, r: HelpRequest, goal: Goal): Commit {
-  if (r.status !== 'open') no('That request isn’t open any more.');
-  if (!r.goalIds.includes(goal.id)) no('That goal isn’t waiting on this request.');
-  if (!ownsOrAdmin(x, goal)) no('Only the goal’s owner or an admin can withdraw its request.');
-  const own = r.goalIds[0] === goal.id;
-  const next: HelpRequest = own ? { ...r, status: 'withdrawn', updatedAt: x.now } : { ...r, goalIds: r.goalIds.filter((g) => g !== goal.id), updatedAt: x.now };
-  return { requests: [next], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: goal.id, entity: 'request', entityId: r.id, action: 'withdrawn', summary: own ? 'Withdrew the request' : 'No longer waiting on this request', diffs: [{ field: 'Request', from: r.ask, to: 'Withdrawn' }] }] };
+/**
+ * Withdraw an ask: whoever asked, or an admin; for a decision or help, also the owner of the goal it was raised on. On a
+ * goal linked to someone else's decision or help, its owner stops waiting on it (the ask stays open for the others).
+ */
+export function withdrawRequest(x: ActionContext, r: Ask, goal?: Goal): Commit {
+  if (r.status !== 'open') no('That ask isn’t open any more.');
+  const g = goal ?? x.snapshot.goals.find((v) => v.id === r.goalIds[0]);
+  if (!g || !r.goalIds.includes(g.id)) no('That goal isn’t waiting on this ask.');
+  if (!canWithdraw(r, x.actor, g)) no(r.kind === 'decision' ? 'Only the goal’s owner, whoever asked, or an admin can withdraw it.' : 'Only whoever asked, or an admin, can withdraw it.');
+  const { request, changes } = withdrawAsk(r, g!.id, x.actor.id, x.now, x.newId);
+  return { requests: [request], changes };
 }
+
+/** The ask with this id, for the tools that take one. */
+export const findAsk = (x: ActionContext, id: string) => askById(x, id);
 
 /* ---------- Reviews ---------- */
 
 export type CallKind = 'acknowledge' | 'note' | 'ask' | 'action';
-const CALL_FIELD = { acknowledge: 'Note', note: 'Note', ask: 'Question', action: 'Action' } as const;
 
-/** What someone says about a goal in a review: seen, a note, a question for the owner, or an action. */
+/**
+ * What someone says about a goal in a review: seen, a note, a question for the owner, or an action. Seen and a note are
+ * the review's record (decisions); a question and an action are asks, raised in the review's session, so they're open
+ * until answered or done like any other ask.
+ */
 export function reviewCall(x: ActionContext, goal: Goal, review: Review, kind: CallKind, note: string, extra: { week?: number; assigneeId?: string | null; dueWeek?: number | null } = {}): Commit {
   const text = note.trim();
-  if (kind !== 'acknowledge' && text.length < 2) no(kind === 'ask' ? 'Write the question.' : kind === 'action' ? 'Write the action.' : 'Write the note.');
-  if (kind === 'action' && extra.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no('The person for the action isn’t in this workspace.');
-  const d: Decision = { id: x.newId('dec'), goalId: goal.id, checkInId: null, reviewId: review.id, week: extra.week ?? sessionWeek(review, x.week), kind, byId: x.actor.id, at: x.now, note: text, ...(kind === 'action' ? { assigneeId: extra.assigneeId ?? goal.ownerId, dueWeek: extra.dueWeek ?? null } : {}) };
-  const action = ({ acknowledge: 'acknowledged', note: 'noted', ask: 'asked', action: 'actioned' } as const)[kind];
-  const what = ({ acknowledge: 'Looked at it', note: 'Added a note', ask: 'Asked the owner a question', action: 'Agreed an action' } as const)[kind];
-  const name = (id: string | null | undefined) => x.snapshot.people.find((p) => p.id === id)?.name ?? '—';
+  const week = extra.week ?? sessionWeek(review, x.week);
+  if (kind === 'ask') {
+    if (goal.ownerId === x.actor.id) no('It’s your own goal: add a note instead.');
+    return askQuestion(x, goal, text, { reviewId: review.id, week });
+  }
+  if (kind === 'action') return addAction(x, goal, text, { assigneeId: extra.assigneeId, dueWeek: extra.dueWeek, reviewId: review.id, week });
+  if (kind === 'note' && text.length < 2) no('Write the note.');
+  const d: Decision = { id: x.newId('dec'), goalId: goal.id, checkInId: null, reviewId: review.id, week, kind, byId: x.actor.id, at: x.now, note: text };
   return {
     decisions: [d],
-    changes: [{ id: x.newId('chg'), at: d.at, actorId: x.actor.id, goalId: goal.id, entity: 'decision', entityId: d.id, action, summary: `${what} in ${review.name}`, diffs: text ? [{ field: CALL_FIELD[kind], from: '—', to: text }, ...(kind === 'action' ? [{ field: 'Who', from: '—', to: name(d.assigneeId) }, ...(d.dueWeek ? [{ field: 'Due', from: '—', to: `week ${d.dueWeek}` }] : [])] : [])] : [] }],
+    changes: [{ id: x.newId('chg'), at: d.at, actorId: x.actor.id, goalId: goal.id, entity: 'decision', entityId: d.id, action: kind === 'note' ? 'noted' : 'acknowledged', summary: `${kind === 'note' ? 'Added a note' : 'Looked at it'} in ${review.name}`, diffs: text ? [{ field: 'Note', from: '—', to: text }] : [] }],
   };
 }
 
-/** Correct a note, question or action: whoever said it, or an admin. Null when nothing changed. */
-export function editCall(x: ActionContext, d: Decision, note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Commit | null {
-  if (d.byId !== x.actor.id && !x.actor.admin) no('Only whoever said it, or an admin, can correct it.');
-  if (d.kind !== 'acknowledge' && note.trim().length < 2) no('Write the new wording.');
-  const after: Decision = { ...d, note: note.trim(), ...(d.kind === 'action' && extra ? { assigneeId: extra.assigneeId ?? d.assigneeId ?? null, dueWeek: extra.dueWeek ?? null } : {}) };
-  const name = (id: string | null | undefined) => x.snapshot.people.find((p) => p.id === id)?.name ?? '—';
-  const field = d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note';
-  const diffs = [
-    ...(after.note !== d.note ? [{ field, from: d.note, to: after.note }] : []),
-    ...(after.assigneeId !== d.assigneeId ? [{ field: 'Who', from: name(d.assigneeId), to: name(after.assigneeId) }] : []),
-    ...(after.dueWeek !== d.dueWeek ? [{ field: 'Due', from: d.dueWeek ? `week ${d.dueWeek}` : '—', to: after.dueWeek ? `week ${after.dueWeek}` : '—' }] : []),
-  ];
-  if (!diffs.length) return null;
-  return { decisions: [after], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: d.goalId, entity: 'decision', entityId: d.id, action: 'edited', summary: `Corrected ${d.kind === 'ask' ? 'a question' : d.kind === 'action' ? 'an action' : 'a note'}`, diffs }] };
+/**
+ * Correct a note, question or action said in a review (or any ask's words): whoever said it, or an admin. An answered or
+ * done ask stays as it was answered. Null when nothing changed.
+ */
+export function editCall(x: ActionContext, d: Decision | Ask, note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Commit | null {
+  const ask = 'goalIds' in d ? d : askById(x, d.id);
+  if (ask) {
+    if (ask.askedBy !== x.actor.id && !x.actor.admin) no('Only whoever asked, or an admin, can correct it.');
+    if (ask.status !== 'open') no('It’s been answered or closed: comment instead.');
+    if (note.trim().length < 2) no('Write the new wording.');
+    if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no('The person for the action isn’t in this workspace.');
+    const out = editAsk(ask, { ask: note, ...(ask.kind === 'action' && extra ? { recipientId: extra.assigneeId ?? ask.recipientId, dueWeek: extra.dueWeek ?? null } : {}) }, x.snapshot.people, x.actor.id, x.now, x.newId);
+    return out && { requests: [out.request], changes: out.changes };
+  }
+  const dec = d as Decision;
+  if (dec.byId !== x.actor.id && !x.actor.admin) no('Only whoever said it, or an admin, can correct it.');
+  if (dec.kind !== 'acknowledge' && note.trim().length < 2) no('Write the new wording.');
+  const after: Decision = { ...dec, note: note.trim() };
+  if (after.note === dec.note) return null;
+  return { decisions: [after], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: dec.goalId, entity: 'decision', entityId: dec.id, action: 'edited', summary: 'Corrected a note', diffs: [{ field: 'Note', from: dec.note, to: after.note }] }] };
 }
 
 /** Set up a review (anyone), or change one (someone in it, whoever set it up, or an admin). */

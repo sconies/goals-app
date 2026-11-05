@@ -5,7 +5,7 @@ import { assessMetric, assessMilestone, assessRange, checkInsFor, goalStatus, LA
 import { fmt, rangeText, weekLabel } from './format';
 import { isShare } from './checkin';
 import { currentWeek } from './plan';
-import { answeredSince } from './requests';
+import { answeredSince, isOverdue, openAsksFor } from './asks';
 import type { CheckIn, Cycle, Decision, Goal, Snapshot } from './types';
 
 export type FlagKind = 'off' | 'missed-path' | 'stale' | 'no-path' | 'risk' | 'trend' | 'greener' | 'due';
@@ -110,7 +110,7 @@ export function attentionFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date)
 
 /** The kinds of look that put a behind goal in hand, strongest first. */
 const HANDLED_ORDER: Handled['kind'][] = ['action', 'answered', 'noted', 'reviewed'];
-const LOOKS: Partial<Record<Decision['kind'], Handled['kind']>> = { action: 'action', note: 'noted', acknowledge: 'reviewed' };
+const LOOKS: Partial<Record<Decision['kind'], Handled['kind']>> = { note: 'noted', acknowledge: 'reviewed' };
 
 /**
  * Whether a goal that is off track or at risk is being handled, and by what. It is when, since its latest check-in,
@@ -131,15 +131,15 @@ export function handledFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, s
   for (const d of s.decisions) {
     const kind = LOOKS[d.kind];
     if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
-    if (kind !== 'action' && d.byId === goal.ownerId) continue;
-    // An action that's past its week is news, not something in hand.
-    if (kind === 'action' && d.dueWeek != null && d.dueWeek < week) continue;
+    if (d.byId === goal.ownerId) continue;
     const review = d.reviewId ? s.reviews.find((r) => r.id === d.reviewId)?.name : null;
     const where = review ? `in ${review}` : `by ${first(d.byId)}`;
-    const text = kind === 'action'
-      ? `Action: ${first(d.assigneeId ?? goal.ownerId)}${d.dueWeek != null ? `, due week ${d.dueWeek}` : ''}`
-      : `${kind === 'noted' ? 'Noted' : 'Reviewed'} ${where}, week ${d.week}`;
-    looks.push({ kind, text, said: kind === 'reviewed' ? '' : d.note, byId: d.byId, at: d.at, week: d.week, reviewId: d.reviewId });
+    looks.push({ kind, text: `${kind === 'noted' ? 'Noted' : 'Reviewed'} ${where}, week ${d.week}`, said: kind === 'reviewed' ? '' : d.note, byId: d.byId, at: d.at, week: d.week, reviewId: d.reviewId });
+  }
+  // An action agreed since, still open: in hand until it's done, or until its week passes (then it's news).
+  for (const a of openAsksFor(goal.id, s, ['action'])) {
+    if (a.createdAt <= since || a.createdAt.slice(0, 10) > day || isOverdue(a, week)) continue;
+    looks.push({ kind: 'action', text: `Action: ${first(a.recipientId ?? goal.ownerId)}${a.dueWeek != null ? `, due week ${a.dueWeek}` : ''}`, said: a.ask, byId: a.askedBy, at: a.createdAt, week: a.week ?? currentWeek(cycle, new Date(a.createdAt)), reviewId: a.reviewId });
   }
   const answer = answeredSince(goal.id, since, s);
   if (answer?.answeredAt && answer.answeredAt.slice(0, 10) <= day) {

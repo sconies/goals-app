@@ -23,35 +23,35 @@ export interface Tour {
 
 export const TOURS: Tour[] = [
   {
-    id: 'checkin', title: 'Post your weekly check-in', role: 'Goal owner', personId: 'maya', start: '/',
+    id: 'checkin', title: 'Post your weekly check-in', role: 'Goal owner', personId: 'rhea', start: '/',
     steps: [
-      { say: 'This is Maya’s Home. What she needs to do this week comes first. Start her check-in.', target: { selector: 'a.btn.primary', text: 'check-in' }, doneWhen: { route: /^\/check-in/ },
-        ifMissing: { say: 'Maya’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' } } },
+      { say: 'This is Rhea’s Home. She runs CI/CD and owns eight goals. What she needs to do this week comes first. Start her check-in.', target: { selector: 'a.btn.primary', text: 'check-in' }, doneWhen: { route: /^\/check-in/ },
+        ifMissing: { say: 'Rhea’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' } } },
       { say: 'Type this week’s number. The verdict says at once whether it’s on plan, and against which week.', target: { selector: 'input[aria-label="This week’s value"], #value' }, doneWhen: { selector: '.verdict' },
-        ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Maya’s goals to check in again.', target: { selector: '.again-links a' } } },
+        ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Rhea’s goals to check in again.', target: { selector: '.again-links a' } } },
       { say: 'Off plan, it asks why and how it gets back on track. Keep what you said last week if it still holds, or say what changed, then post.', target: { selector: '.focus-foot button[type=submit]' }, doneWhen: { text: 'Check-in saved' } },
       { say: 'Saved, and in the change log. Anyone watching the goal sees it, and the review picks it up. You can check in again any time; every check-in is kept.' },
     ],
   },
   {
-    id: 'review', title: 'Run the weekly review', role: 'Leader', personId: 'elena', start: '/',
+    id: 'review', title: 'Run the weekly review', role: 'Leader', personId: 'amara', start: '/',
     steps: [
-      { say: 'Elena leads the weekly review. Home tells her it’s on. Open it.', target: { selector: 'a.btn.primary', text: 'review' }, doneWhen: { route: /^\/reviews\/weekly/ } },
+      { say: 'Amara, the VP, leads the Platform leadership weekly. Home tells her it’s on. Open it.', target: { selector: 'a.btn.primary', text: 'review' }, doneWhen: { route: /^\/reviews\/weekly/ } },
       { say: 'The review walks the goals worst first. Start it.', target: { selector: 'button.btn.primary', text: 'review' }, doneWhen: { route: /review=weekly/ } },
       { say: 'Each goal shows its story: why it’s off, the recovery plan, by when. Say something, or press Reviewed & next.', target: { selector: '.decide' }, doneWhen: { text: 'Goal 2 of' } },
       { say: 'That’s the rhythm: a minute a goal, worst first, and what was said is kept on each goal. Close the review at any point; it remembers where you were.' },
     ],
   },
   {
-    id: 'quiet', title: 'Chase a goal with no recent update', role: 'Goal owner', personId: 'maya', start: '/watching',
+    id: 'quiet', title: 'Chase a goal with no recent update', role: 'Goal owner', personId: 'rhea', start: '/watching',
     steps: [
-      { say: 'Watching gathers the goals Maya follows. No recent update means no check-in for two weeks, so its status can’t be trusted. Open that goal.', target: { selector: '.trow[data-tone="stale"]' }, doneWhen: { route: /^\/goals\/env/ } },
+      { say: 'Watching gathers the goals Rhea follows, among them everything feeding the self-service environments north star. No recent update means no check-in for two weeks, so its status can’t be trusted. Open that goal.', target: { selector: '.trow[data-tone="stale"]' }, doneWhen: { route: /^\/goals\/env/ } },
       { say: 'It says when it was last heard of. Ask its owner for an update.', target: { selector: 'button', text: 'Ask' }, doneWhen: { text: 'Asked' } },
-      { say: 'Jonas sees the request on his Home. Nothing here goes quiet for long without someone noticing.' },
+      { say: 'The owner sees the ask on their Home, and it stays open until they check in. Nothing here goes quiet for long without someone noticing.' },
     ],
   },
   {
-    id: 'map', title: 'Find what will sink the north star', role: 'Leader', personId: 'elena', start: '/goals',
+    id: 'map', title: 'Find what will sink the north star', role: 'Leader', personId: 'amara', start: '/goals',
     steps: [
       { say: 'Goals can be seen several ways. Open the map.', target: { selector: '[aria-label="Map"]' }, doneWhen: { selector: '.goalmap' } },
       { say: 'The bold red line is the critical path: the inputs most likely to make the north star miss. Open the goal it leads to.', target: { selector: '.map-node.critical' }, doneWhen: { selector: '.map-panel' } },
@@ -59,7 +59,7 @@ export const TOURS: Tour[] = [
     ],
   },
   {
-    id: 'brief', title: 'Get the leader’s brief', role: 'Leader', personId: 'elena', start: '/goals',
+    id: 'brief', title: 'Get the leader’s brief', role: 'Leader', personId: 'amara', start: '/goals',
     steps: [
       { say: 'Export the goals: for Excel, for other tools, or as a brief to read or paste into an AI chat.', target: { selector: 'button', text: 'Export' }, doneWhen: { text: 'Export goals' } },
       // Done on doing it (the brief copied or saved), not on the word "Brief", which the sheet already shows.
@@ -68,7 +68,7 @@ export const TOURS: Tour[] = [
     ],
   },
   {
-    id: 'import', title: 'Import from a spreadsheet', role: 'Goal owner', personId: 'kofi', start: '/goals',
+    id: 'import', title: 'Import from a spreadsheet', role: 'Goal owner', personId: 'mateo', start: '/goals',
     steps: [
       { say: 'Goals, plan numbers and past weeks can come from a spreadsheet. Open Import.', target: { selector: 'a', text: 'Import' }, doneWhen: { route: /^\/import/ } },
       { say: 'Download the workbook, change it in Excel, then choose it here. Every change is shown before anything is saved, and checked with the app’s own rules.', target: { selector: '.steps-list' } },

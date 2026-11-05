@@ -19,6 +19,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'one-ask-one-watching',
+    date: '2026-11-05',
+    title: 'One way to ask, one Watching, and a bigger example',
+    points: [
+      'Anything that needs someone to respond is now an ask: a decision or help, an update, a question or an action. Each says who asked, who must respond and by when, and stays open until it’s answered, done or withdrawn. A comment no longer answers a question.',
+      'Every ask is answered in the same Respond panel, on the goal and from Home, where they’re grouped by kind. Actions can be marked done, and show as overdue after their week instead of dropping off. On Reviews, a session under way is listed first.',
+      'Under the comment box, Ask as a question asks the goal’s owner instead of just commenting.',
+      'Watching is part of Goals now, with its search, filters, sort, layouts and export, and what changed this week beside it. Home has one block for the goals you watch.',
+      'The demo is one organisation of about 100 people, Platform Engineering, with Amara as its VP. Your changes to it are kept in this browser, and if the browser won’t keep them, the page says so.',
+    ],
+    articles: ['requests', 'watching', 'home', 'goal-page', 'demo', 'reviews'],
+  },
+  {
     id: 'chart-plan-and-better',
     date: '2026-11-05',
     title: 'Charts that are easier to read',

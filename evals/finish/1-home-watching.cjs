@@ -13,7 +13,7 @@ module.exports = {
 
     // [Home] 1, 2, 7, 18: Elena's Home on a phone.
     {
-      const [c, p] = await open(390, 844, 'elena', '/', true);
+      const [c, p] = await open(390, 844, 'amara', '/', true);
       check(await css(p, '.tree .trow', 'display') === 'flex', '[Home] 1: a phone row is not stacked');
       const t = await box(p, '.tree .trow-title'), row = await box(p, '.tree .trow');
       check(t && row && t.w >= row.w - 34, `[Home] 1: phone title is ${t && Math.round(t.w)}px of a ${row && Math.round(row.w)}px row`);
@@ -32,20 +32,20 @@ module.exports = {
     }
     // [Home] 1, 7: Maya and Tom at 360.
     {
-      const [c, p] = await open(360, 740, 'maya', '/', true);
+      const [c, p] = await open(360, 740, 'rhea', '/', true);
       const m = await box(p, '.arow-main'), a = await box(p, '.arow');
       check(m && a && m.w >= a.w - 32 - 26 - 1, `[Home] 1: attention row text is ${m && Math.round(m.w)}px of ${a && Math.round(a.w)}`);
       check(await css(p, '.arow-why', '-webkit-line-clamp') === 'none', '[Home] 1: attention reason is clamped on a phone');
       check(await noSideways(p), '[Home] sideways scroll at 360');
       await c.close();
-      const [c2, q] = await open(360, 740, 'tom', '/', true);
+      const [c2, q] = await open(360, 740, 'oskar', '/', true);
       const b1 = await box(q, '.home-hero .btn', 0), b2 = await box(q, '.home-hero .btn', 1), h = await box(q, '.home-hero');
       check(b1 && b2 && h && Math.abs(b1.w - h.w) <= 1 && Math.abs(b2.w - h.w) <= 1 && b2.y >= b1.b + 7, '[Home] 7: Tom’s hero buttons are not full width, one under the other');
       await c2.close();
     }
     // [Home] 1, 3, 5: Elena at 1280 and 1440.
     for (const w of [1280, 1440]) {
-      const [c, p] = await open(w, 900, 'elena', '/');
+      const [c, p] = await open(w, 900, 'amara', '/');
       const why = await p.$eval('.tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));
       check(why.clamp === '3' && why.title.length > 20, `[Home] 1: at ${w} the reason is clamped to ${why.clamp} with no title`);
       const head = await box(p, '.page.home > .page-head'), grid = await box(p, '.page.home > .home-grid');
@@ -61,14 +61,14 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(1440, 900, 'tom', '/');
+      const [c, p] = await open(1440, 900, 'oskar', '/');
       const head = await box(p, '.page.home > .page-head'), grid = await box(p, '.page.home > .home-grid');
       check(head && grid && Math.abs(head.w - grid.w) <= 1 && grid.w <= 1040, `[Home] 5: one-column heading ${head && Math.round(head.w)} vs grid ${grid && Math.round(grid.w)}`);
       await c.close();
     }
     // [Home] 9, [WA] 11, 27, 28: Maya's Watching, the row gone quiet and the missed result.
     for (const w of [768, 1440]) {
-      const [c, p] = await open(w, 900, 'maya', '/watching');
+      const [c, p] = await open(w, 900, 'rhea', '/watching');
       const stale = p.locator('.trow[data-tone="stale"]').first();
       const icon = await stale.locator('.trow-icon').boundingBox();
       check(icon && icon.height <= 21, `[WA] 11: at ${w} "No recent update" wraps (${icon && Math.round(icon.height)}px)`);
@@ -90,9 +90,10 @@ module.exports = {
     }
     // [WA] 10, 16: Tom's Watching has nothing that needs attention; his level chips match Activity's.
     {
-      const [c, p] = await open(1280, 900, 'tom', '/watching');
+      const [c, p] = await open(1280, 900, 'oskar', '/watching');
       check(await p.locator('.page.watching .split-a').count() === 0, '[WA] 10: an empty attention column is still rendered');
-      const lede = (await box(p, '.page.watching .seg.tabs')) || (await box(p, '.page.watching .lede')), first = await box(p, '.page.watching .split .block');
+      // (Watching is a scope of Goals now: its toolbar sits under the tabs, so the gap is measured from the summary line.)
+      const lede = (await box(p, '.page.watching .lede')) || (await box(p, '.page.watching .seg.tabs')), first = await box(p, '.page.watching .split .block');
       check(lede && first && first.y - lede.b <= 25, `[WA] 10: ${first && lede && Math.round(first.y - lede.b)}px from the tabs to the first section`);
       await p.getByRole('button', { name: 'Change', exact: true }).click();
       const chip = p.locator('.level-chips .filter-chip').first();
@@ -105,7 +106,7 @@ module.exports = {
     }
     // [WA] 19: nobody watched yet.
     {
-      const [c, p] = await open(1440, 900, 'kofi', '/watching');
+      const [c, p] = await open(1440, 900, 'mateo', '/watching');
       const card = p.locator('.watch-empty');
       if (await card.count()) {
         const r = await card.evaluate((e) => ({ w: e.getBoundingClientRect().width, bg: getComputedStyle(e).backgroundColor, bc: getComputedStyle(e).borderTopColor, prim: e.querySelectorAll('.btn.primary').length }));
@@ -115,7 +116,7 @@ module.exports = {
     }
     // [WA] 4, 5, 7, 14, 22: Activity on a phone.
     for (const w of [360, 390]) {
-      const [c, p] = await open(w, 800, 'elena', '/activity', true);
+      const [c, p] = await open(w, 800, 'amara', '/activity', true);
       check(await p.getAttribute('.filter-search input', 'placeholder') === 'Search changes', '[WA] 5: the search placeholder is still long');
       const fb = await box(p, '.filterbar');
       check(fb && fb.h <= 160, `[WA] 14: the filter bar is ${fb && Math.round(fb.h)}px tall at ${w}`);
@@ -144,7 +145,7 @@ module.exports = {
     }
     // [WA] 8, 13, 21: Filters with a count, and the sheet's columns.
     {
-      const [c, p] = await open(1024, 800, 'elena', '/activity?who=elena,maya&team=pm');
+      const [c, p] = await open(1024, 800, 'amara', '/activity?who=elena,maya&team=pm');
       const f = await box(p, '.filterbar-row > .btn[aria-haspopup]');
       check(f && f.w >= 104 && await p.locator('.filterbar-row > .btn[aria-haspopup] .tabcount').count() === 1, '[WA] 13: Filters count is not a pill on a 104px button');
       await p.getByRole('button', { name: /^Filters/ }).click();
@@ -159,7 +160,7 @@ module.exports = {
     }
     // [WA] 18, 17: no results; a status call has its shape.
     {
-      const [c, p] = await open(1280, 800, 'elena', '/activity?q=zzqqxxnothing');
+      const [c, p] = await open(1280, 800, 'amara', '/activity?q=zzqqxxnothing');
       const t = p.locator('.activity-none-title');
       check(await t.count() === 1 && await t.evaluate((e) => getComputedStyle(e).color) === 'rgb(16, 24, 40)' && await p.locator('.activity-none .btn').count() === 1, '[WA] 18: no results is not a plain message with Clear filters');
       await p.goto(p.url().replace(/\?q=[^&]*&?/, '?'));
@@ -169,7 +170,7 @@ module.exports = {
     }
     // [WA] 23: dark avatars.
     {
-      const [c, p] = await open(1440, 900, 'elena', '/activity');
+      const [c, p] = await open(1440, 900, 'amara', '/activity');
       await p.emulateMedia({ colorScheme: 'dark' });
       const bg = await p.$$eval('.avatar[data-hue="5"]', (els) => els.map((e) => getComputedStyle(e).backgroundColor));
       check(bg.every((x) => x === 'rgb(102, 112, 133)'), `[WA] 23: dark grey avatar is ${bg[0]}`);
@@ -178,9 +179,9 @@ module.exports = {
     // [Home] 17: the Respond form's footer doesn't jump when the error shows.
     {
       // Respond opens the goal with the request open in place since the flagship page (5 Nov); the same footer promise.
-      const [c, p] = await open(390, 844, 'elena', '/', true);
+      const [c, p] = await open(390, 844, 'amara', '/', true);
       await p.locator('.need').getByRole('link', { name: 'Respond' }).first().click();
-      const dlg = p.getByRole('region', { name: 'Respond to the request' });
+      const dlg = p.getByRole('region', { name: 'Respond' });
       await dlg.waitFor(); await p.waitForTimeout(400);
       const before = await box(p, '.respond-form .sheet-foot');
       await dlg.getByRole('button', { name: 'Record the answer' }).click();
@@ -192,8 +193,9 @@ module.exports = {
     }
     // [Home] 14: Maya after posting her check-ins.
     {
-      // Maya posts her one due number in the table, then comes back to Home.
-      const [c, p] = await open(390, 844, 'maya', '/quick-check-in', true);
+      // Farah posts her one due number in the table, then comes back to Home.
+      // (Farah is in the leadership weekly, held today, so her Home moves on to the review once her number is in.)
+      const [c, p] = await open(390, 844, 'farah', '/quick-check-in', true);
       await p.locator('.qrow').first().waitFor();
       for (const row of await p.locator('.qrow').all()) {
         if (/already posted/.test(await row.innerText())) continue;
@@ -211,7 +213,7 @@ module.exports = {
     }
     // No sideways scroll anywhere on these pages, from a small phone to a big monitor.
     for (const w of [360, 768, 1024, 2560]) {
-      for (const [who, route] of [['elena', '/'], ['maya', '/watching'], ['elena', '/activity']]) {
+      for (const [who, route] of [['amara', '/'], ['rhea', '/watching'], ['amara', '/activity']]) {
         const [c, p] = await open(w, 900, who, route, w < 800);
         check(await noSideways(p), `sideways scroll on ${route} at ${w}`);
         await c.close();

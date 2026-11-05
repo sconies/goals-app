@@ -1,10 +1,19 @@
+import { asksOf, upgradeAsks } from '../domain/asks';
 import { settleKeys, withKeys } from '../domain/goalKey';
-import { requestsOf } from '../domain/requests';
-import type { ApiToken, HelpRequest, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
-import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
+import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import { buildExample, EXAMPLE, isExample } from './examples';
 
-export const EXAMPLE: Workspace = EXAMPLE_PLATFORM;
-const exampleBuild = (id: string) => EXAMPLES.find((e) => e.workspace.id === id)?.build;
+export { EXAMPLE };
+
+/** The demo remembers the workspace it last opened under this key (app/state.tsx reads it). */
+const DEMO_WORKSPACE = 'goals-app-workspace';
+/** `/demo?example=platform-org` opens the example, even when this browser last had a workspace of its own open. */
+export function pickExampleFromUrl(search: string) {
+  const id = new URLSearchParams(search).get('example');
+  if (!id || !isExample(id)) return;
+  try { localStorage.setItem(DEMO_WORKSPACE, id); } catch { /* storage blocked */ }
+}
+
 
 /** One save: the records that leave draft, and the change-log entries that describe them. */
 export interface Commit {
@@ -21,7 +30,7 @@ export interface Commit {
   unwatch?: string[];
   tokens?: ApiToken[];
   views?: SavedView[];
-  requests?: HelpRequest[];
+  requests?: Ask[];
   /** Teams added or changed. */
   teams?: Team[];
   /** Ids of teams to remove: emptied first, by the same save (domain/actions removeTeam). */
@@ -86,6 +95,13 @@ export interface Store {
   resetExample(id?: string): Promise<Snapshot>;
   /** Deletes a workspace someone set up, and everything in it. Examples can only be reset. */
   deleteWorkspace(id: string): Promise<void>;
+  /**
+   * Why saves aren't being kept, if they aren't: the browser refused to store them (full, or blocked in a private
+   * window). The changes still apply for this visit; the app says so instead of letting them vanish on reload.
+   */
+  saveProblem?(): string | null;
+  /** Called whenever saveProblem changes. Returns a function that stops listening. */
+  onSaveProblem?(listener: () => void): () => void;
 }
 
 /** Applies a commit to a snapshot. Shared by the browser store and the app's optimistic update. */
@@ -119,7 +135,7 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     tokens: upsert(s.tokens ?? [], c.tokens),
     views: upsert(s.views ?? [], c.views),
     // Data from before requests were stored: start from the requests read from check-ins, so a first save keeps them.
-    requests: c.requests?.length || s.requests ? upsert(s.requests ?? requestsOf(s), c.requests) : s.requests,
+    requests: c.requests?.length || s.requests ? upsert(s.requests ?? asksOf(s), c.requests) : s.requests,
   };
 }
 
@@ -127,42 +143,85 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
 export const DEMO_KEY = 'goals-app-v2';
 export const LIVE_KEY = 'goals-live-v1';
 
+/**
+ * What the demo keeps of the example: only the person's own saves, on top of the example as it was built. The example is
+ * rebuilt from its description (the same every time for the same moment), so a whole copy of it (millions of
+ * characters, more than a browser lets a page store) never has to be written.
+ */
+interface Saved { v: 1; builtAt: string; commits: Commit[] }
+
+export const SAVE_PROBLEM = {
+  full: 'This browser has no room left to keep your changes to the demo, so they last only until you reload. Start over (in the Demo panel) to free the space.',
+  blocked: 'This browser isn’t letting the demo keep anything (a private window, or site data turned off), so your changes last only until you reload.',
+} as const;
+
+/** The browser refused to store something: out of room, or storage turned off. */
+const isFull = (e: unknown) => e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22);
+
 export class BrowserStore implements Store {
   readonly kind = 'browser' as const;
   readonly hasExample: boolean;
+  /** Each workspace as it is now, for this visit (and the only copy when the browser won't store it). */
   private memory = new Map<string, Snapshot>();
+  /** The example's saves, for this visit: what's stored, or what couldn't be. */
+  private saved = new Map<string, Saved>();
+  /** The example as built, by the moment it was built for, so applying saves doesn't rebuild it. */
+  private built = new Map<string, Snapshot>();
   private readonly key: string;
+  private problem: keyof typeof SAVE_PROBLEM | null = null;
+  private listeners = new Set<() => void>();
 
-  constructor(private readonly today: () => Date = () => new Date(), opts: { key?: string; example?: boolean } = {}) {
+  constructor(private readonly today: () => Date = () => new Date(), opts: { key?: string; example?: boolean; storage?: Storage | null } = {}) {
     this.key = opts.key ?? DEMO_KEY;
     this.hasExample = opts.example ?? true;
+    this.storage = opts.storage === undefined ? (() => { try { return localStorage; } catch { return null; } })() : opts.storage;
+    // A browser that won't store anything at all says so from the start.
+    // Whole copies of examples kept by earlier versions of the demo (the old examples, and a 4.8-million-character
+    // Platform Engineering) are dropped first: they fill the browser's room, and the saves are what's kept now.
+    if (this.hasExample) for (const old of ['example', 'example-support', 'example-sales', 'example-growth', EXAMPLE.id, 'opened-examples']) this.remove(`${this.key}:${old}`);
+    try { if (!this.storage) throw new Error('none'); this.storage.setItem(this.key + ':probe', '1'); this.storage.removeItem(this.key + ':probe'); } catch (e) { this.setProblem(isFull(e) ? 'full' : 'blocked'); }
+  }
+  private readonly storage: Storage | null;
+
+  saveProblem() { return this.problem ? SAVE_PROBLEM[this.problem] : null; }
+  onSaveProblem(listener: () => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
+  private setProblem(p: keyof typeof SAVE_PROBLEM | null) {
+    if (p === this.problem) return;
+    this.problem = p;
+    this.listeners.forEach((l) => l());
   }
 
   private get<T>(key: string): T | null {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = this.storage?.getItem(key);
       return raw ? (JSON.parse(raw) as T) : null;
     } catch {
       return null;
     }
   }
 
-  private put(key: string, v: unknown) {
+  /** Stores a value; false (and the reason, for the app to show) when the browser refuses. */
+  private put(key: string, v: unknown): boolean {
     try {
-      localStorage.setItem(key, JSON.stringify(v));
-    } catch {
-      // Storage blocked (private window): the app still works for this visit.
+      if (!this.storage) throw new Error('none');
+      this.storage.setItem(key, JSON.stringify(v));
+      return true;
+    } catch (e) {
+      this.setProblem(isFull(e) ? 'full' : 'blocked');
+      return false;
     }
   }
 
+  private remove(key: string) { try { this.storage?.removeItem(key); } catch { /* storage blocked */ } }
+
   async workspaces(): Promise<Workspace[]> {
     const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
-    // An example keeps its new name (if an admin renamed it here) until it's reset.
+    // The example keeps its new name (if an admin renamed it here) until it's reset.
     const names = this.get<Record<string, string>>(this.key + ':names') ?? {};
     // …and its recording switch, the same way.
     const off = this.notRecording();
     const withSwitch = (w: Workspace): Workspace => (off.includes(w.id) ? { ...w, recording: false } : w);
-    return (this.hasExample ? [...EXAMPLES.map((e) => (names[e.workspace.id] ? { ...e.workspace, name: names[e.workspace.id]! } : e.workspace)), ...own] : own).map(withSwitch);
+    return (this.hasExample ? [names[EXAMPLE.id] ? { ...EXAMPLE, name: names[EXAMPLE.id]! } : EXAMPLE, ...own] : own).map(withSwitch);
   }
 
   /** Workspaces that have turned recording off: kept in this browser, and in memory when storage is blocked. */
@@ -180,32 +239,78 @@ export class BrowserStore implements Store {
     else this.put(this.key + ':names', { ...(this.get<Record<string, string>>(this.key + ':names') ?? {}), [id]: name });
   }
 
-  private current(id: string): Snapshot {
-    // What's stored first: another tab may have saved since this one last looked.
-    const s = this.get<Snapshot>(`${this.key}:${id}`) ?? this.memory.get(id);
-    // Data saved before goals had keys gets them once, oldest first, and keeps them.
-    if (s) return s.goals.every((g) => g.key) ? s : this.write(id, { ...s, goals: withKeys(s.goals) });
-    const build = this.hasExample ? exampleBuild(id) : undefined;
-    if (!build) throw new Error('This workspace no longer exists in this browser.');
-    return this.write(id, build(this.today()));
+  /* ---------- the example: rebuilt, with this browser's saves on top ---------- */
+
+  private savedKey = (id: string) => `${this.key}:${id}:saved`;
+
+  /** The example's saves: what's stored now (another tab may have saved since), or this visit's when the browser won't keep them. */
+  private savedOf(id: string): Saved | null {
+    const stored = this.get<Saved>(this.savedKey(id));
+    const mine = this.saved.get(id);
+    // While storage is refusing, this visit's saves are ahead of what's stored.
+    if (mine && (!stored || mine.commits.length > stored.commits.length)) return mine;
+    return stored && stored.v === 1 ? stored : null;
   }
 
-  private write(id: string, s: Snapshot): Snapshot {
+  private async example(id: string): Promise<Snapshot> {
+    const saved = this.savedOf(id);
+    const cached = this.memory.get(id);
+    // Nothing new since this tab last looked: the same snapshot.
+    if (cached && this.saved.get(id) === saved && saved) return cached;
+    // With no saves of its own, the example is today's; with saves, it's the example they were made on.
+    const builtAt = saved?.builtAt ?? this.today().toISOString();
+    let base = this.built.get(builtAt);
+    if (!base) { base = await buildExample(new Date(builtAt)); this.built.set(builtAt, base); }
+    const s = (saved?.commits ?? []).reduce((acc, c) => applyCommit(acc, c), base);
     this.memory.set(id, s);
-    this.put(`${this.key}:${id}`, s);
+    this.saved.set(id, saved ?? { v: 1, builtAt, commits: [] });
     return s;
   }
 
+  /* ---------- workspaces of the visitor's own: kept whole (they're small) ---------- */
+
+  private own(id: string): Snapshot {
+    // What's stored first: another tab may have saved since this one last looked.
+    const s = this.get<Snapshot>(`${this.key}:${id}`) ?? this.memory.get(id);
+    if (!s) throw new Error('This workspace no longer exists in this browser.');
+    // Data saved before goals had keys gets them once, oldest first, and keeps them; asks from before one ask model are converted.
+    const keyed = s.goals.every((g) => g.key) ? s : { ...s, goals: withKeys(s.goals) };
+    const upgraded = upgradeAsks(keyed);
+    if (upgraded !== s) this.writeOwn(id, upgraded);
+    else this.memory.set(id, s);
+    return upgraded;
+  }
+
+  private writeOwn(id: string, s: Snapshot) {
+    this.memory.set(id, s);
+    this.put(`${this.key}:${id}`, s);
+  }
+
+  private current(id: string): Promise<Snapshot> | Snapshot {
+    if (this.hasExample && isExample(id)) return this.example(id);
+    return this.own(id);
+  }
+
   async load(id: string) {
-    return structuredClone(this.current(id));
+    return structuredClone(await this.current(id));
   }
 
   async commit(id: string, c: Commit) {
     // Read what's stored now, not this tab's copy: another tab may have saved since.
-    const stored = this.current(id);
+    const stored = await this.current(id);
     checkExpectations(stored, c.expect);
     const { expect: _e, recording: _r, ...rest } = c;
-    this.write(id, applyCommit(stored, rest));
+    const next = applyCommit(stored, rest);
+    if (this.hasExample && isExample(id)) {
+      const saved = this.saved.get(id)!;
+      const after: Saved = { ...saved, commits: [...saved.commits, rest] };
+      this.saved.set(id, after);
+      this.memory.set(id, next);
+      // Kept for this visit whatever happens; stored when the browser lets it, and said plainly when it doesn't.
+      if (this.put(this.savedKey(id), after) && this.problem === 'full') this.setProblem(null);
+    } else {
+      this.writeOwn(id, next);
+    }
     if (c.workspace) this.rename(id, c.workspace.name);
     if (c.recording !== undefined) this.setRecording(id, c.recording);
   }
@@ -213,23 +318,29 @@ export class BrowserStore implements Store {
   async createWorkspace(ws: Workspace, data: Snapshot) {
     const own = (this.get<Workspace[]>(this.key + ':workspaces') ?? []).filter((w) => w.id !== ws.id);
     this.put(this.key + ':workspaces', [...own, ws]);
-    this.write(ws.id, data);
+    this.writeOwn(ws.id, data);
   }
 
   async resetExample(id: string = EXAMPLE.id) {
-    const build = this.hasExample ? exampleBuild(id) : undefined;
-    if (!build) throw new Error('Only the demo has examples to reset.');
+    if (!this.hasExample || !isExample(id)) throw new Error('Only the demo has an example to reset.');
     const names = this.get<Record<string, string>>(this.key + ':names');
     if (names?.[id]) { delete names[id]; this.put(this.key + ':names', names); }
-    return structuredClone(this.write(id, build(this.today())));
+    this.remove(this.savedKey(id));
+    // A whole copy kept by an earlier version of the demo, freed with the rest.
+    this.remove(`${this.key}:${id}`);
+    this.saved.delete(id);
+    this.memory.delete(id);
+    // Starting over frees the room the saves took; a browser that blocks storage still does.
+    if (this.problem === 'full') this.setProblem(null);
+    return structuredClone(await this.example(id));
   }
 
   async deleteWorkspace(id: string) {
-    if (exampleBuild(id)) throw new Error('Example workspaces can be reset, not deleted.');
+    if (isExample(id)) throw new Error('Example workspaces can be reset, not deleted.');
     const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
     this.put(this.key + ':workspaces', own.filter((w) => w.id !== id));
     this.memory.delete(id);
-    try { localStorage.removeItem(`${this.key}:${id}`); } catch { /* storage blocked */ }
+    this.remove(`${this.key}:${id}`);
   }
 }
 

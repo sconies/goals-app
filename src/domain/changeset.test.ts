@@ -5,11 +5,11 @@ import { toCsv, workbook } from './export';
 import { parseTable } from './importer';
 import { currentWeek, planAt } from './plan';
 import { goalStatus } from './status';
-import { seed } from '../data/seed';
+import { buildPlatformOrg } from '../data/platformOrg';
 import type { MetricGoal } from './types';
 
-const today = new Date('2026-10-30T12:00:00Z');
-const s = seed(today);
+const today = new Date('2026-11-05T12:00:00Z');
+const s = buildPlatformOrg(today);
 const cycle = s.cycles[0]!;
 const week = currentWeek(cycle, today);
 const person = (id: string) => s.people.find((p) => p.id === id)!;
@@ -23,29 +23,30 @@ const tsvOf = (rows: (string | number | null)[][]) => rows.map((r) => r.map((c) 
 describe('bulk changes', () => {
   it('loads an unedited export back as no changes', () => {
     const wb = workbook({ ws: { id: 'ws', name: 'P' }, snapshot: s, cycle, week, today });
-    const cs = planChanges(base('elena', { goals: records(tsvOf(wb[0]!.rows)), plan: records(tsvOf(wb[1]!.rows)), checkIns: records(tsvOf(wb[2]!.rows)) }));
+    const cs = planChanges(base('amara', { goals: records(tsvOf(wb[0]!.rows)), plan: records(tsvOf(wb[1]!.rows)), checkIns: records(tsvOf(wb[2]!.rows)) }));
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
     expect(cs.items).toEqual([]);
     expect(cs.commit).toBeNull();
   });
 
   it('lets an owner load the whole workbook back after changing only their own goal (research round 1)', () => {
-    // Kofi isn't an admin. Rows for other people's goals that he didn't touch must not block his own changes.
-    expect(person('kofi').admin).toBeFalsy();
+    // Mateo isn't an admin. Rows for other people's goals that he didn't touch must not block his own changes.
+    expect(person('mateo').admin).toBeFalsy();
     const wb = workbook({ ws: { id: 'ws', name: 'P' }, snapshot: s, cycle, week, today });
     const ci = records(tsvOf(wb[2]!.rows));
-    const own = ci.filter((r) => r['goal id'] === 'cache' && ['37', '38', '39'].includes(r['week']!));
+    const weeks = ci.filter((r) => r['goal id'] === 'mttr-pir').map((r) => r['week']!).slice(20, 23);
+    const own = ci.filter((r) => r['goal id'] === 'mttr-pir' && weeks.includes(r['week']!));
     expect(own.length).toBe(3);
     for (const r of own) r['value'] = String(Number(r['value']) + 1);
-    const cs = planChanges(base('kofi', { goals: records(tsvOf(wb[0]!.rows)), plan: records(tsvOf(wb[1]!.rows)), checkIns: ci }));
-    expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    const cs = planChanges(base('mateo', { goals: records(tsvOf(wb[0]!.rows)), plan: records(tsvOf(wb[1]!.rows)), checkIns: ci }));
+    expect(cs.issues.filter((i) => i.severity === 'error').map((i) => i.message)).toEqual([]);
     expect(cs.counts.checkIns).toBe(3);
     expect(cs.commit).not.toBeNull();
     // A change he did make to someone else's goal is still refused.
     const goals = records(tsvOf(wb[0]!.rows));
-    goals.find((r) => r['id'] === 'lead')!['target'] = '1.5';
-    const refused = planChanges(base('kofi', { goals }));
-    expect(refused.issues.map((i) => i.message)).toEqual([expect.stringMatching(/Only Sam Patel \(its owner\) or an admin/)]);
+    goals.find((r) => r['id'] === 'ns-ai')!['target'] = '90';
+    const refused = planChanges(base('mateo', { goals }));
+    expect(refused.issues.map((i) => i.message)).toEqual([expect.stringMatching(/Only Tariq Haddad \(its owner\) or an admin/)]);
   });
 
   it('tells which sheet is which from its name or header', () => {
@@ -55,36 +56,36 @@ describe('bulk changes', () => {
   });
 
   it('adds a new goal and changes an existing one, logging both', () => {
-    const cs = planChanges(base('elena', { goals: [
-      rec({ Goal: 'Runbooks with an owner', Owner: 'Kofi Boateng', Type: 'metric', Unit: '%', Start: '20', Target: '90', 'Feeds into': 'Change failure rate' }),
-      { ...rec({ ID: 'lead', Level: 'svp' }), __row: '3' },
+    const cs = planChanges(base('amara', { goals: [
+      rec({ Goal: 'Runbooks with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: '20', Target: '90', 'Feeds into': 'Change failure rate' }),
+      { ...rec({ ID: 'ns-ai', Level: 'svp' }), __row: '3' },
     ] }));
     expect(cs.issues).toEqual([]);
     expect(cs.counts).toEqual(expect.objectContaining({ newGoals: 1, goals: 1 }));
     const after = applyCommit(s, cs.commit!);
     const fresh = after.goals.find((g) => g.title === 'Runbooks with an owner')!;
-    expect(fresh.parentId).toBe('cfr');
-    expect(after.goals.find((g) => g.id === 'lead')!.level).toBe('svp');
+    expect(fresh.parentId).toBe('ns-cfr');
+    expect(after.goals.find((g) => g.id === 'ns-ai')!.level).toBe('svp');
     expect(cs.commit!.changes.every((c) => c.diffs.some((d) => d.field === 'Via' && d.to === 'Spreadsheet'))).toBe(true);
     expect(cs.commit!.changes.at(-1)!.entity).toBe('workspace');
   });
 
   it('only lets owners change their own goals; admins can change any', () => {
-    const row = [rec({ ID: 'lead', Target: '1.5' })];
-    const sam = planChanges(base('sam', { goals: row }, { reason: 'Faster than expected' }));
-    expect(sam.issues).toEqual([]);
-    const kofi = planChanges(base('kofi', { goals: row }));
-    expect(kofi.issues[0]!.message).toMatch(/Only Sam Patel \(its owner\) or an admin/);
-    expect(kofi.commit).toBeNull();
-    expect(planChanges(base('kofi', { goals: [rec({ Goal: 'Something new', Owner: 'Sam Patel', Start: '1', Target: '2' })] })).issues[0]!.message).toMatch(/goals you own/);
+    const row = [rec({ ID: 'ns-ai', Target: '90' })];
+    const tariq = planChanges(base('tariq', { goals: row }, { reason: 'Faster than expected' }));
+    expect(tariq.issues).toEqual([]);
+    const mateo = planChanges(base('mateo', { goals: row }));
+    expect(mateo.issues[0]!.message).toMatch(/Only Tariq Haddad \(its owner\) or an admin/);
+    expect(mateo.commit).toBeNull();
+    expect(planChanges(base('mateo', { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Start: '1', Target: '2' })] })).issues[0]!.message).toMatch(/goals you own/);
   });
 
   it('asks for a reason when a plan changes after check-ins started', () => {
-    const row = [rec({ ID: 'lead', Target: '1.5' })];
-    const without = planChanges(base('sam', { goals: row }));
+    const row = [rec({ ID: 'ns-ai', Target: '90' })];
+    const without = planChanges(base('tariq', { goals: row }));
     expect(without.needsReason).toBe(true);
     expect(without.commit).toBeNull();
-    const withReason = planChanges(base('sam', { goals: row }, { reason: 'Moved faster than planned' }));
+    const withReason = planChanges(base('tariq', { goals: row }, { reason: 'Moved faster than planned' }));
     expect(withReason.commit!.changes[0]!.diffs).toEqual(expect.arrayContaining([{ field: 'Why', from: '—', to: 'Moved faster than planned' }]));
     const g = withReason.commit!.goals![0] as MetricGoal;
     expect(g.originalPlan).not.toBeNull();
@@ -92,9 +93,9 @@ describe('bulk changes', () => {
   });
 
   it('sets plan numbers by hand from the Plan sheet', () => {
-    const g = s.goals.find((x) => x.id === 'alerts') as MetricGoal;
-    const r = rec({ ID: 'alerts', 'Week 5': '45' });
-    const cs = planChanges(base('kofi', { plan: [r] }, { reason: 'Rollout landed early' }));
+    const g = s.goals.find((x) => x.id === 'mttr-pir') as MetricGoal;
+    const r = rec({ ID: 'mttr-pir', 'Week 5': '45' });
+    const cs = planChanges(base('mateo', { plan: [r] }, { reason: 'Rollout landed early' }));
     expect(cs.issues).toEqual([]);
     const after = cs.commit!.goals![0] as MetricGoal;
     expect(planAt(after.plan, 5, cycle.weeks)).toBe(45);
@@ -102,43 +103,44 @@ describe('bulk changes', () => {
   });
 
   it('loads past weeks as backfilled check-ins, judged by the same rules', () => {
-    const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'lead') };
-    const rows = [1, 2, 3].map((w) => ({ ...rec({ 'Goal ID': 'lead', Week: String(w), Value: String(planAt((s.goals.find((g) => g.id === 'lead') as MetricGoal).plan, w, cycle.weeks).toFixed(3)) }), __row: String(w + 1) }));
-    const cs = planChanges(base('sam', { checkIns: rows }, { snapshot: fresh }));
+    const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'ns-ai') };
+    const rows = [1, 2, 3].map((w) => ({ ...rec({ 'Goal ID': 'ns-ai', Week: String(w), Value: String(planAt((s.goals.find((g) => g.id === 'ns-ai') as MetricGoal).planHistory?.[0]?.plan ?? (s.goals.find((g) => g.id === 'ns-ai') as MetricGoal).plan, w, cycle.weeks).toFixed(3)) }), __row: String(w + 1) }));
+    const cs = planChanges(base('tariq', { checkIns: rows }, { snapshot: fresh }));
     expect(cs.issues).toEqual([]);
     expect(cs.counts.backfilled).toBe(3);
     const cis = cs.commit!.checkIns!;
-    expect(cis.every((c) => c.backfilled && c.authorId === 'sam')).toBe(true);
+    expect(cis.every((c) => c.backfilled && c.authorId === 'tariq')).toBe(true);
     // Dated in their own week, so loading history doesn't make the goal look freshly checked in.
     expect(cis.every((c) => c.postedAt < today.toISOString())).toBe(true);
-    expect(goalStatus(s.goals.find((g) => g.id === 'lead')!, cycle, applyCommit(fresh, cs.commit!).checkIns, today).status).toBe('stale');
+    expect(goalStatus(s.goals.find((g) => g.id === 'ns-ai')!, cycle, applyCommit(fresh, cs.commit!).checkIns, today).status).toBe('stale');
     expect(cs.commit!.changes[0]!.summary).toMatch(/loaded later/);
   });
 
   it('refuses a week behind plan without a reason, or a week in the future', () => {
-    const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'alerts') };
-    const behind = planChanges(base('kofi', { checkIns: [rec({ 'Goal ID': 'alerts', Week: '4', Value: '21' })] }, { snapshot: fresh }));
+    const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'mttr-pir') };
+    const behind = planChanges(base('mateo', { checkIns: [rec({ 'Goal ID': 'mttr-pir', Week: '4', Value: '21' })] }, { snapshot: fresh }));
     expect(behind.issues[0]!.message).toMatch(/Week 4 needs a Cause and a Why/);
     expect(behind.issues[0]!.message).toMatch(/Path to green/);
-    const fixed = planChanges(base('kofi', { checkIns: [rec({ 'Goal ID': 'alerts', Week: '4', Value: '21', Cause: 'Delivery slower', Why: 'Pipeline rollout slipped two weeks', 'Path to green': 'Ship the classifier', 'Back on plan by week': '8' })] }, { snapshot: fresh }));
+    const fixed = planChanges(base('mateo', { checkIns: [rec({ 'Goal ID': 'mttr-pir', Week: '4', Value: '21', Cause: 'Delivery slower', Why: 'The incident tracker export slipped two weeks', 'Path to green': 'Close the actions by hand', 'Back on plan by week': '8' })] }, { snapshot: fresh }));
     expect(fixed.issues).toEqual([]);
     expect(fixed.commit!.checkIns![0]!.status).toBe('off');
-    const future = planChanges(base('kofi', { checkIns: [rec({ 'Goal ID': 'alerts', Week: String(week + 1), Value: '50' })] }));
+    const future = planChanges(base('mateo', { checkIns: [rec({ 'Goal ID': 'mttr-pir', Week: String(week + 1), Value: '50' })] }));
     expect(future.issues[0]!.message).toMatch(/hasn’t happened yet/);
   });
 
   it('replaces a week already posted, and says whose it was', () => {
-    const v = planAt((s.goals.find((g) => g.id === 'lead') as MetricGoal).plan, 6, cycle.weeks).toFixed(3);
-    const cs = planChanges(base('elena', { checkIns: [rec({ 'Goal ID': 'lead', Week: '6', Value: v, Call: 'On track' })] }));
+    const g = s.goals.find((x) => x.id === 'ns-ai') as MetricGoal;
+    const v = planAt(g.planHistory?.[0]?.plan ?? g.plan, 6, cycle.weeks).toFixed(3);
+    const cs = planChanges(base('amara', { checkIns: [rec({ 'Goal ID': 'ns-ai', Week: '6', Value: v, Call: 'On track' })] }));
     expect(cs.counts.replaced).toBe(1);
-    expect(cs.issues.find((i) => i.severity === 'warning')!.message).toMatch(/Replaces Sam Patel’s check-in for week 6/);
+    expect(cs.issues.find((i) => i.severity === 'warning')!.message).toMatch(/Replaces Tariq Haddad’s check-in for week 6/);
   });
 
   it('reads milestone stages in words', () => {
-    const cs = planChanges(base('leo', { checkIns: [rec({ 'Goal ID': 'brain', Week: String(week), Stages: 'Data model v1: done week 3; Private repo indexing: done week 7' })] }));
-    expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    const cs = planChanges(base('jun', { checkIns: [rec({ 'Goal ID': 'fresh-lakehouse', Week: String(week), Stages: 'Data model v1: done week 10; Private preview with three teams: done week 27', Cause: 'Delivery slower', Why: 'The top tables need more hand migration than planned.', 'Path to green': 'Migrate the rest in pairs', 'Back on plan by week': '50' })] }));
+    expect(cs.issues.filter((i) => i.severity === 'error').map((i) => i.message)).toEqual([]);
     const st = cs.commit!.checkIns![0]!.stages!;
-    expect(st.find((u) => u.stageId === 'pr')!.doneWeek).toBe(7);
+    expect(st.find((u) => u.stageId === 'fresh-lakehouse_s2')!.doneWeek).toBe(27);
   });
 
   it('round-trips through CSV', () => {
@@ -150,33 +152,33 @@ describe('bulk changes', () => {
 });
 
 describe('changing a goal’s owner', () => {
-  // Two people with the same name: a second Maya Chen in another team.
-  const maya = person('maya');
-  const twin = { ...maya, id: 'maya2', teamId: s.teams.find((t) => t.id !== maya.teamId)!.id };
+  // Two people with the same name: a second Rhea Kapoor in another team.
+  const rhea = person('rhea');
+  const twin = { ...rhea, id: 'rhea2', teamId: s.teams.find((t) => t.id !== rhea.teamId)!.id };
   const withTwin = { ...s, people: [...s.people, twin] };
-  const goal = s.goals.find((g) => g.ownerId !== 'maya')!;
+  const goal = s.goals.find((g) => g.ownerId !== 'rhea')!;
   const ownerAfter = (cs: ReturnType<typeof planChanges>) => cs.commit?.goals?.find((g) => g.id === goal.id)?.ownerId;
 
   it('goes by the person’s ID, so two people with the same name are never confused', () => {
-    const cs = planChanges(base('elena', { goals: [rec({ id: goal.id, 'owner id': 'maya2' })] }, { snapshot: withTwin, via: 'bulk' }));
+    const cs = planChanges(base('amara', { goals: [rec({ id: goal.id, 'owner id': 'rhea2' })] }, { snapshot: withTwin, via: 'bulk' }));
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
-    expect(ownerAfter(cs)).toBe('maya2');
-    expect(ownerAfter(planChanges(base('elena', { goals: [rec({ id: goal.id, 'owner id': 'maya' })] }, { snapshot: withTwin, via: 'bulk' })))).toBe('maya');
+    expect(ownerAfter(cs)).toBe('rhea2');
+    expect(ownerAfter(planChanges(base('amara', { goals: [rec({ id: goal.id, 'owner id': 'rhea' })] }, { snapshot: withTwin, via: 'bulk' })))).toBe('rhea');
   });
 
   it('refuses a name two people share, rather than guessing, and says to use the ID', () => {
-    const cs = planChanges(base('elena', { goals: [rec({ id: goal.id, owner: 'Maya Chen' })] }, { snapshot: withTwin }));
+    const cs = planChanges(base('amara', { goals: [rec({ id: goal.id, owner: 'Rhea Kapoor' })] }, { snapshot: withTwin }));
     expect(cs.commit).toBeNull();
-    expect(cs.issues[0]?.message).toMatch(/2 people are called “Maya Chen”.*Owner ID.*maya or maya2/);
+    expect(cs.issues[0]?.message).toMatch(/2 people are called “Rhea Kapoor”.*Owner ID.*rhea or rhea2/);
   });
 
   it('still takes a name only one person has, or an ID typed in Owner', () => {
-    expect(ownerAfter(planChanges(base('elena', { goals: [rec({ id: goal.id, owner: 'Maya Chen' })] })))).toBe('maya');
-    expect(ownerAfter(planChanges(base('elena', { goals: [rec({ id: goal.id, owner: 'maya2' })] }, { snapshot: withTwin })))).toBe('maya2');
+    expect(ownerAfter(planChanges(base('amara', { goals: [rec({ id: goal.id, owner: 'Rhea Kapoor' })] })))).toBe('rhea');
+    expect(ownerAfter(planChanges(base('amara', { goals: [rec({ id: goal.id, owner: 'rhea2' })] }, { snapshot: withTwin })))).toBe('rhea2');
   });
 
   it('says so when an Owner ID matches no one', () => {
-    const cs = planChanges(base('elena', { goals: [rec({ id: goal.id, 'owner id': 'nobody' })] }));
+    const cs = planChanges(base('amara', { goals: [rec({ id: goal.id, 'owner id': 'nobody' })] }));
     expect(cs.commit).toBeNull();
     expect(cs.issues[0]?.message).toBe('There’s no person with ID nobody.');
   });

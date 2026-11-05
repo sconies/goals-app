@@ -6,7 +6,7 @@ import { causeLabel } from './checkin';
 import { fmt, fmtDiff, LEVEL_LABEL, NO_VALUE } from './format';
 import { planAt, planEnd, weekDates } from './plan';
 import { assessPosted, checkInsFor, goalStatus, LABEL, RULES } from './status';
-import { answeredSince, askText, openFor } from './requests';
+import { answeredSince, askText, openFor } from './asks';
 import { forecastText } from './tree';
 import { isYear, quarterOf, quarterResults, targetAt, type QuarterResult } from './year';
 import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
@@ -189,7 +189,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
         : state === 'target' ? 'The owner says the target should change'
         : null;
     }
-    // What it's waiting on comes from the requests themselves: open until answered or withdrawn (domain/requests).
+    // What it's waiting on comes from the requests themselves: open until answered or withdrawn (domain/asks).
     const open = openFor(g.id, s);
     needs = open.map((r) => askText(r, s.people) + (r.goalIds[0] !== g.id ? ` (the same request as ${s.goals.find((x) => x.id === r.goalIds[0])?.title ?? 'another goal'})` : '')).join('; ') || null;
     if (ptg && (ptg.state ?? 'plan') === 'help' && !open.length && answeredSince(g.id, last?.postedAt ?? null, s)) byWhen = 'Answer given: the owner’s next check-in says what it changes';

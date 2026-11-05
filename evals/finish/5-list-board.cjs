@@ -1,5 +1,9 @@
 /* F5: fit and finish, list-board (per-area reports, 4 Nov). run({ open, url, browser }) returns a list of failures.
    Goals List and Table (L&T) and Board and Cards (B&C); the numbers are the reports' finding numbers. */
+/* The first-reports banner (two goals still waiting for a first check-in) sits above the goals all year in the example; the
+   distances below are measured without it, so they still mean what they did. */
+const bannerPx = () => { const b = document.querySelector('.first-reports'); if (!b) return 0; const n = b.nextElementSibling; return n ? n.getBoundingClientRect().top - b.getBoundingClientRect().top : b.getBoundingClientRect().height; };
+
 module.exports = {
   id: 'F5',
   area: 'list-board',
@@ -11,13 +15,14 @@ module.exports = {
     // L&T 4, 31, 23: a 360px phone. The week line is one line under the title, the layouts and tools one 44px row,
     // search and Filters one row with a short placeholder, and the first goal within 300px.
     {
-      const [c, p] = await open(360, 740, 'elena', '/goals', true);
-      const m = await p.evaluate(() => {
+      const [c, p] = await open(360, 740, 'amara', '/goals', true);
+      const m = await p.evaluate((src) => {
+        const ban = (0, eval)('(' + src + ')')();
         const rect = (s) => document.querySelector(s)?.getBoundingClientRect();
         const period = rect('.goals-period'), h1 = rect('.goals-head h1'), bar = rect('.goals-toolbar .view-bar'), row = rect('.filterbar-row');
-        return { period: period && [period.top, period.height, period.width], h1Bottom: h1?.bottom, bar: bar?.height, row: row?.height, first: rect('.outcome')?.top,
+        return { period: period && [period.top, period.height, period.width], h1Bottom: h1?.bottom, bar: bar?.height, row: row?.height, first: rect('.outcome')?.top - ban,
           placeholder: document.querySelector('.filter-search input')?.placeholder, side: document.documentElement.scrollWidth - innerWidth };
-      });
+      }, bannerPx.toString());
       chk(m.period && m.period[1] <= 22 && m.period[0] >= m.h1Bottom - 1, `L&T 4: 360px week line is ${m.period && r0(m.period[1])}px tall (one line under the title expected)`);
       chk(m.bar <= 52, `L&T 4: 360px layout and tools bar is ${r0(m.bar)}px tall (one 44px row expected)`);
       chk(m.row <= 48, `L&T 4: 360px search and Filters take ${r0(m.row)}px (one row expected)`);
@@ -30,7 +35,7 @@ module.exports = {
     // L&T 2, 19, 20, 21, 22: By team on a phone. The selected tab is scrolled into view; every row is the shared row;
     // "no recent update" is stale grey; the number and gap sit on a line of their own under a full-width title.
     {
-      const [c, p] = await open(390, 844, 'elena', '/goals?show=teams', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?show=teams', true);
       const m = await p.evaluate(() => {
         const tabs = document.querySelector('.goals-tabs > .seg.tabs').getBoundingClientRect();
         const sel = document.querySelector('.goals-tabs [aria-selected="true"]').getBoundingClientRect();
@@ -48,7 +53,7 @@ module.exports = {
     }
     // L&T 20: on a desktop the status slot fits "No recent update" on one line.
     {
-      const [c, p] = await open(1280, 800, 'elena', '/goals?show=teams');
+      const [c, p] = await open(1280, 800, 'amara', '/goals?show=teams');
       const h = await p.evaluate(() => { const s = [...document.querySelectorAll('.trow-icon.tone-stale')][0]; return s && [s.getBoundingClientRect().width, s.getBoundingClientRect().height]; });
       chk(h && h[1] <= 22, `L&T 20: “No recent update” wraps (${h && h.map(r0).join('×')})`);
       await c.close();
@@ -57,7 +62,7 @@ module.exports = {
     // L&T 3, 26: the filter sheet on a phone. Its footer is inside the screen with the button 12px above the edge;
     // legends have no padding and checkboxes don't shrink.
     {
-      const [c, p] = await open(390, 844, 'elena', '/goals', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals', true);
       await p.getByRole('button', { name: /^Filters/ }).click();
       await p.waitForTimeout(400);
       const m = await p.evaluate(() => {
@@ -75,16 +80,16 @@ module.exports = {
     // L&T 23, 7, 6: the table on a phone with four filters. The active filters are one row, the table starts within
     // 360px; the sticky header sits under the top bar; three selected goals keep the bulk bar to one 56px row.
     {
-      const [c, p] = await open(390, 844, 'elena', '/goals?view=table&status=risk,off,stale&level=north-star,svp,team&team=pm,sre,infra,sec&owner=maya,kofi,jonas,aisha', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?view=table&status=risk,off,stale&level=north-star,svp,team&team=cicd,sre,infra,sec&owner=rhea,mateo,bjorn,farah', true);
       await p.waitForTimeout(300);
-      const m = await p.evaluate(() => ({ chips: document.querySelector('.filter-chips')?.getBoundingClientRect().height, first: document.querySelector('.table-wrap')?.getBoundingClientRect().top, n: document.querySelectorAll('.filter-chip').length }));
+      const m = await p.evaluate((src) => ({ chips: document.querySelector('.filter-chips')?.getBoundingClientRect().height, first: document.querySelector('.table-wrap')?.getBoundingClientRect().top - (0, eval)('(' + src + ')')(), n: document.querySelectorAll('.filter-chip').length }), bannerPx.toString());
       chk(m.chips <= 48, `L&T 23: ${m.n} filter chips take ${r0(m.chips)}px (one row expected)`);
       // The report asks for 360; with 44px touch targets kept (L&T 14) the table starts at about 387 (it was 476).
       chk(m.first <= 390, `L&T 23: with filters the table starts at ${r0(m.first)}px (≤390 expected)`);
       await c.close();
     }
     {
-      const [c, p] = await open(390, 844, 'elena', '/goals?view=table', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?view=table', true);
       await p.evaluate(() => window.scrollTo(0, 900));
       await p.waitForTimeout(300);
       const m = await p.evaluate(() => {
@@ -96,7 +101,7 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(360, 740, 'elena', '/goals?view=table', true);
+      const [c, p] = await open(360, 740, 'amara', '/goals?view=table', true);
       const boxes = p.locator('.gtable tbody .selcol input');
       for (let i = 0; i < 3; i++) await boxes.nth(i).check();
       await p.waitForTimeout(200);
@@ -107,8 +112,8 @@ module.exports = {
 
     // L&T 8: a laptop at 150% zoom (853×533). Sort is in Filters, so search, Filters and Decision are one row.
     {
-      const [c, p] = await open(853, 533, 'elena', '/goals?view=table');
-      const m = await p.evaluate(() => ({ sort: getComputedStyle(document.querySelector('.inline-sort')).display, row: document.querySelector('.filterbar-row').getBoundingClientRect().height, first: document.querySelector('.gtable tbody tr').getBoundingClientRect().top }));
+      const [c, p] = await open(853, 533, 'amara', '/goals?view=table');
+      const m = await p.evaluate((src) => ({ sort: getComputedStyle(document.querySelector('.inline-sort')).display, row: document.querySelector('.filterbar-row').getBoundingClientRect().height, first: document.querySelector('.gtable tbody tr').getBoundingClientRect().top - (0, eval)('(' + src + ')')() }), bannerPx.toString());
       chk(m.sort === 'none' && m.row <= 44, `L&T 8: 853px filter row is ${r0(m.row)}px with Sort ${m.sort}`);
       chk(m.first <= 260, `L&T 8: at 853×533 the first goal row starts at ${r0(m.first)}px (≤260 expected)`);
       await c.close();
@@ -117,7 +122,7 @@ module.exports = {
     // L&T 5, 9, 11, 13: a wide table. Goal ≥360, Now 136, Gap 232 on one line, tags on the name's line, cells top-aligned,
     // the story two lines at most within 72ch, and the sorted column marked from the shared Sort.
     {
-      const [c, p] = await open(1920, 1000, 'elena', '/goals?view=table&sort=gap');
+      const [c, p] = await open(1920, 1000, 'amara', '/goals?view=table&sort=gap');
       const m = await p.evaluate(() => {
         const th = (t) => [...document.querySelectorAll('.gtable thead th')].find((x) => x.textContent.trim() === t);
         const w = (t) => th(t)?.getBoundingClientRect().width;
@@ -145,8 +150,8 @@ module.exports = {
     }
     // L&T 10, 29, 30, 24: selection fills both rows; opened stories have no divider; a child of a filtered-out parent isn't indented.
     {
-      const [c, p] = await open(1280, 800, 'elena', '/goals?view=table');
-      await p.getByLabel('Select Repo-access controls for the Brain').check();
+      const [c, p] = await open(1280, 800, 'amara', '/goals?view=table');
+      await p.getByLabel('Select Merge queue live for every monorepo').check();
       await p.waitForTimeout(200);
       const m = await p.evaluate(() => {
         const main = document.querySelector('.gtable tr.selected:not(.story-row) td.gt-goal');
@@ -157,17 +162,17 @@ module.exports = {
       await p.locator('.story-row').first().getByRole('button', { name: /^Details/ }).click();
       const st = await p.evaluate(() => { const s = document.querySelector('.story-row .story'); const cs = getComputedStyle(s); return [cs.borderBottomWidth, cs.paddingBottom]; });
       chk(st[0] === '0px' && st[1] === '0px', `L&T 30: an opened story keeps a ${st[0]} divider and ${st[1]} under it`);
-      await p.goto(p.url().replace('view=table', 'view=table&status=off'));
+      await p.goto(p.url().replace('view=table', 'view=table&status=stale'));
       await p.waitForTimeout(400);
       const pad = await p.evaluate(() => [...document.querySelectorAll('.gtable td.gt-goal')].map((t) => getComputedStyle(t).paddingLeft));
-      chk(pad.length > 0 && pad.every((x) => x === '12px'), `L&T 24: filtered children are indented ${pad.join(', ')}`);
+      chk(pad.length > 0 && pad.every((x) => x === '12px'), `L&T 24: filtered children (the two quiet goals, whose parents are on track and filtered out) are indented ${pad.join(', ')}`);
       await c.close();
     }
 
     // L&T 14, 16, 25: a tablet. Tabs and layout buttons 44px; a 44px target round each 16px checkbox; the tab track only
     // as wide as its tabs; the decision toggle pressed is a light fill with a 2px outline, and not also a chip.
     {
-      const [c, p] = await open(1024, 768, 'elena', '/goals?view=table&needs=decision', true);
+      const [c, p] = await open(1024, 768, 'amara', '/goals?view=table&needs=decision', true);
       const m = await p.evaluate(() => {
         const tab = document.querySelector('.goals-tabs [role="tab"]').getBoundingClientRect().height;
         const lay = Math.min(...[...document.querySelectorAll('.layout-switch button')].map((b) => b.getBoundingClientRect().height));
@@ -190,7 +195,7 @@ module.exports = {
     // one peeking; every lane the same height; a plain count; the level on its own right-aligned row; radius 8; hyphens
     // their natural width.
     {
-      const [c, p] = await open(1024, 768, 'elena', '/goals?view=board');
+      const [c, p] = await open(1024, 768, 'amara', '/goals?view=board');
       const m = await p.evaluate(() => {
         const board = document.querySelector('.board'), b = board.getBoundingClientRect();
         const lanes = [...document.querySelectorAll('.board-col')].map((l) => l.getBoundingClientRect());
@@ -222,13 +227,13 @@ module.exports = {
     }
     // B&C 1: stacked on a phone. B&C 2: filtered, lanes stay ≤320px. B&C 17: dark lanes recede.
     {
-      const [c, p] = await open(390, 844, 'elena', '/goals?view=board', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?view=board', true);
       const cols = await p.evaluate(() => new Set([...document.querySelectorAll('.board-col')].map((l) => Math.round(l.getBoundingClientRect().left))).size);
       chk(cols === 1, `B&C 1: phone board has ${cols} columns`);
       await c.close();
     }
     {
-      const [c, p] = await open(1440, 900, 'elena', '/goals?view=board&status=off,risk');
+      const [c, p] = await open(1440, 900, 'amara', '/goals?view=board&status=off,risk');
       await p.emulateMedia({ colorScheme: 'dark' });
       await p.waitForTimeout(200);
       const m = await p.evaluate(() => ({ w: [...document.querySelectorAll('.board-col')].map((l) => Math.round(l.getBoundingClientRect().width)), lane: getComputedStyle(document.querySelector('.board-col')).backgroundColor, card: getComputedStyle(document.querySelector('.board-card')).backgroundColor }));
@@ -240,7 +245,7 @@ module.exports = {
     // B&C 3, 4, 7, 13, 14, 16: cards. One height per row, a 20px status row, the figure stacked, no rule under the
     // last part, the reason clamped with its whole text as a tooltip, and "week 43" never split.
     {
-      const [c, p] = await open(1280, 800, 'elena', '/goals?view=cards');
+      const [c, p] = await open(1280, 800, 'amara', '/goals?view=cards');
       const m = await p.evaluate(() => {
         const cards = [...document.querySelectorAll('.gcard')].map((g) => g.getBoundingClientRect());
         const rows = new Map(); for (const r of cards) { const k = Math.round(r.top); rows.set(k, [...(rows.get(k) ?? []), Math.round(r.height)]); }

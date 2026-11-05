@@ -22,11 +22,11 @@ module.exports = {
     const fail = (ok, msg) => { if (!ok) fails.push(msg); };
     const step = async (name, f) => { try { await f(); } catch (e) { fails.push(`${name}: crashed (${String(e.message || e).split('\n')[0]})`); } };
     const base = url('/').replace(/\/demo\/.*$/, '');
-    const live = (p) => base + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=2026-10-30';
+    const live = (p) => base + p + (p.includes('?') ? '&' : '?') + 'store=browser&today=2026-11-05';
 
     /* ---------- [SETTINGS] the page, reached from the nav and the person menu ---------- */
     await step('settings reached', async () => {
-      const [c, p] = await open(1280, 800, 'maya', '/');
+      const [c, p] = await open(1280, 800, 'rhea', '/');
       await p.locator('.side').getByRole('link', { name: 'Settings' }).click();
       await p.getByRole('heading', { name: 'Settings', level: 1 }).waitFor({ timeout: 3000 });
       fail(/\/demo\/settings/.test(p.url()), `[SETTINGS] the sidebar's Settings goes to ${p.url()}`);
@@ -42,7 +42,7 @@ module.exports = {
       await c.close();
     });
     await step('settings phone', async () => {
-      const [c, p] = await open(390, 844, 'maya', '/', true);
+      const [c, p] = await open(390, 844, 'rhea', '/', true);
       await p.locator('.tabbar').getByRole('button', { name: 'More' }).tap();
       await p.getByRole('dialog', { name: 'More' }).getByRole('link', { name: /^Settings/ }).tap();
       await p.getByRole('heading', { name: 'Settings', level: 1 }).waitFor({ timeout: 3000 });
@@ -54,7 +54,7 @@ module.exports = {
 
     /* ---------- [SETTINGS] theme: computed colours change, survive a reload, and are there before the app's code ---------- */
     await step('theme', async () => {
-      const [c, p] = await open(1280, 800, 'maya', '/settings');
+      const [c, p] = await open(1280, 800, 'rhea', '/settings');
       const bg = () => p.evaluate(() => getComputedStyle(document.body).backgroundColor);
       const look = p.getByRole('group', { name: 'Light or dark' });
       await look.getByRole('button', { name: 'Dark' }).click();
@@ -87,7 +87,7 @@ module.exports = {
 
     /* ---------- [SETTINGS] accents: each passes 4.5:1 for text and under its own fill, light and dark, and persists ---------- */
     await step('accents', async () => {
-      const [c, p] = await open(1280, 800, 'maya', '/settings');
+      const [c, p] = await open(1280, 800, 'rhea', '/settings');
       const radios = p.getByRole('radiogroup', { name: 'Accent colour' }).getByRole('radio');
       const n = await radios.count();
       fail(n >= 3 && n <= 4, `[SETTINGS] ${n} accent colours (want 3 or 4)`);
@@ -118,7 +118,7 @@ module.exports = {
     /* ---------- [SETTINGS] the sidebar: collapse to the icon rail, named on hover, remembered; the tablet is always a rail ---------- */
     for (const [w, h] of [[1280, 800], [1440, 900]]) {
       await step(`collapse ${w}`, async () => {
-        const [c, p] = await open(w, h, 'maya', '/');
+        const [c, p] = await open(w, h, 'rhea', '/');
         const width = () => p.evaluate(() => Math.round(document.querySelector('.side').getBoundingClientRect().width));
         const full = await width();
         await p.locator('.side').getByRole('button', { name: /Collapse sidebar/ }).click();
@@ -139,7 +139,7 @@ module.exports = {
       });
     }
     await step('tablet rail', async () => {
-      const [c, p] = await open(1024, 768, 'maya', '/', true);
+      const [c, p] = await open(1024, 768, 'rhea', '/', true);
       const m = await p.evaluate(() => ({ w: Math.round(document.querySelector('.side').getBoundingClientRect().width), toggle: !!document.querySelector('.side .collapse-nav')?.getClientRects().length, untitled: [...document.querySelectorAll('.side .nav')].filter((n) => n.getClientRects().length && !n.getAttribute('title')).length, watching: !!document.querySelector('.side a.nav.sub[href$="/watching"]')?.getClientRects().length }));
       fail(m.w <= 72 && !m.toggle && !m.untitled && m.watching, `[SETTINGS, NAV-GOALS] 1024: rail ${m.w}px, toggle shown ${m.toggle}, ${m.untitled} unnamed, Watching in the rail ${m.watching}`);
       await c.close();
@@ -147,13 +147,12 @@ module.exports = {
 
     /* ---------- [NAV-GOALS] Goals is a section: Mine, Watching, All and saved views; one current place ---------- */
     await step('goals section', async () => {
-      const [c, p] = await open(1280, 800, 'maya', '/');
+      const [c, p] = await open(1280, 800, 'rhea', '/');
       // A saved view of Maya's and one pinned for everyone, in the example's data.
-      await p.evaluate(() => {
-        const k = 'goals-app-v2:example', s = JSON.parse(localStorage.getItem(k));
+      // Saved through the store: the demo keeps only its saves on top of the example (DEMO-STORAGE).
+      await p.evaluate(async () => {
         const at = '2026-10-29T10:00:00.000Z';
-        s.views = [...(s.views || []), { id: 'view_n4a', personId: 'maya', name: 'Off track', params: 'status=off', pinned: false, createdAt: at, updatedAt: at, deletedAt: null }, { id: 'view_n4b', personId: 'elena', name: 'North star', params: 'level=north-star', pinned: true, createdAt: at, updatedAt: at, deletedAt: null }];
-        localStorage.setItem(k, JSON.stringify(s));
+        await window.__goalsStore.commit('platform-org', { views: [{ id: 'view_n4a', personId: 'rhea', name: 'Off track', params: 'status=off', pinned: false, createdAt: at, updatedAt: at, deletedAt: null }, { id: 'view_n4b', personId: 'amara', name: 'North star', params: 'level=north-star', pinned: true, createdAt: at, updatedAt: at, deletedAt: null }], changes: [] });
       });
       await p.reload(); await p.waitForTimeout(300);
       const sub = p.locator('.side .subnav');
@@ -166,16 +165,16 @@ module.exports = {
       await sub.getByRole('link', { name: 'Off track' }).click(); await p.waitForTimeout(250);
       fail(/status=off/.test(p.url()) && (await current()).join() === 'Off track', `[NAV-GOALS] a saved view: ${p.url()}, current ${await current()}`);
       await sub.getByRole('link', { name: 'Watching' }).click(); await p.waitForTimeout(250);
-      fail(/\/demo\/watching/.test(p.url()) && (await current()).join() === 'Watching', `[NAV-GOALS] Watching: ${p.url()}, current ${await current()}`);
+      fail(/\/demo\/goals\?(.*&)?show=watching/.test(p.url()) && (await current()).join() === 'Watching', `[NAV-GOALS] Watching: ${p.url()}, current ${await current()}`);
       fail(!(await p.locator('.side > a.nav[href$="/watching"]').count()), '[NAV-GOALS] Watching is still a top-level item');
       await sub.getByRole('link', { name: 'All' }).click(); await p.waitForTimeout(250);
       fail((await current()).join() === 'All', `[NAV-GOALS] All: current ${await current()}`);
-      await p.goto(url('/goals/head')); await p.waitForTimeout(300);
+      await p.goto(url('/goals/ns-lead')); await p.waitForTimeout(300);
       fail((await current()).join() === 'Goals', `[NAV-GOALS] a goal's page: current ${await current()}`);
       await c.close();
     });
     await step('goals phone', async () => {
-      const [c, p] = await open(390, 844, 'maya', '/', true);
+      const [c, p] = await open(390, 844, 'rhea', '/', true);
       const tabs = (await p.locator('.tabbar').getByRole('link').allInnerTexts()).map((x) => x.replace(/\d+/g, '').trim());
       fail(tabs.join() === 'Home,Check-in,Goals,Reviews', `[NAV-GOALS] 390 owner's tabs: ${tabs.join(', ')}`);
       await p.locator('.tabbar').getByRole('button', { name: 'More' }).tap();
@@ -185,7 +184,7 @@ module.exports = {
       const cur = await p.evaluate(() => [...document.querySelectorAll('.tabbar [aria-current="page"]')].map((e) => e.textContent.replace(/\d+/g, '').trim()));
       fail(cur.join() === 'Goals', `[NAV-GOALS] 390 on Watching, the tab bar marks ${cur.join() || 'nothing'} (want Goals)`);
       await c.close();
-      const [c2, q] = await open(390, 844, 'tom', '/', true);
+      const [c2, q] = await open(390, 844, 'oskar', '/', true);
       const t2 = (await q.locator('.tabbar').getByRole('link').allInnerTexts()).map((x) => x.replace(/\d+/g, '').trim());
       fail(t2.join() === 'Home,Goals,Watching,Reviews', `[NAV-GOALS] 390 tabs for someone who owns no goal: ${t2.join(', ')}`);
       await c2.close();
@@ -196,12 +195,13 @@ module.exports = {
       const c = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const p = await c.newPage();
       await p.goto(url('/')); await p.locator('.page-head').first().waitFor();
-      await p.evaluate(() => {
-        const ex = JSON.parse(localStorage.getItem('goals-app-v2:example'));
+      await p.evaluate(async () => {
+        const full = await window.__goalsStore.load('platform-org');
+        const ex = { ...full, changes: [], checkIns: full.checkIns.filter((c) => c.week >= 42) };
         localStorage.setItem('goals-live-v1:workspaces', JSON.stringify([{ id: 'ws_one', name: 'Acme', kind: 'own', createdAt: '2026-09-01T00:00:00Z' }]));
         localStorage.setItem('goals-live-v1:ws_one', JSON.stringify(ex));
         localStorage.setItem('goals-live-workspace', 'ws_one');
-        localStorage.setItem('goals-live-me:ws_one', 'elena');
+        localStorage.setItem('goals-live-me:ws_one', 'amara');
       });
       for (const [w, h] of [[1280, 800], [390, 844]]) {
         await p.setViewportSize({ width: w, height: h });
@@ -217,19 +217,25 @@ module.exports = {
       await p.goto(live('/workspace')); await p.locator('.page-head').first().waitFor();
       fail(!(await p.locator('.ws-line').count()) && await p.locator('.ws-title').innerText() === 'Acme', '[NAV-GOALS] one workspace: the Workspace page still lists workspaces to switch between');
       await c.close();
-      // The demo has four: the person menu lists them, and switching works.
-      const [c2, q] = await open(1280, 800, 'maya', '/');
+      // The demo has one example now (Platform Engineering), so its person menu offers no other example companies; with a
+      // workspace of the person's own beside it, the menu lists both and switching works.
+      const [c2, q] = await open(1280, 800, 'rhea', '/');
       await q.locator('.side .me').click();
-      const ws = q.getByRole('dialog', { name: 'Switch person' }).getByRole('group', { name: 'Workspaces' }).getByRole('button');
-      fail(await ws.count() === 4, `[NAV-GOALS] the demo's person menu lists ${await ws.count()} workspaces (want 4)`);
-      await ws.filter({ hasText: 'Customer Support' }).click(); await q.waitForTimeout(500);
-      fail(/Customer Support/.test(await q.locator('.side .ws-name').innerText()), '[NAV-GOALS] switching from the person menu did not open Customer Support');
+      const dlg = q.getByRole('dialog', { name: 'Switch person' });
+      fail(await dlg.getByRole('group', { name: 'Workspaces' }).count() === 0, '[NAV-GOALS] the demo’s person menu offers to switch workspace when there is only the one example');
       await c2.close();
+      const [c3, q3] = await open(1280, 800, 'rhea', '/');
+      await q3.evaluate(() => localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_mine', name: 'Support desk', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }])));
+      await q3.reload(); await q3.waitForTimeout(500);
+      await q3.locator('.side .me').click();
+      const ws = q3.getByRole('dialog', { name: 'Switch person' }).getByRole('group', { name: 'Workspaces' }).getByRole('button');
+      fail(await ws.count() === 2, `[NAV-GOALS] the demo's person menu lists ${await ws.count()} workspaces (want the example and the person's own, 2)`);
+      await c3.close();
     });
 
     /* ---------- [SETTINGS] Back: to the page you came from in the app, else the parent; never back into a form ---------- */
     await step('back', async () => {
-      const [c, p] = await open(1280, 800, 'maya', '/');
+      const [c, p] = await open(1280, 800, 'rhea', '/');
       const back = () => p.locator('.backlink').first();
       await p.locator('.side').getByRole('link', { name: 'Activity' }).click(); await p.waitForTimeout(250);
       await p.locator('.side').getByRole('link', { name: 'Settings' }).click(); await p.waitForTimeout(250);
@@ -238,7 +244,7 @@ module.exports = {
       fail(/\/demo\/activity/.test(p.url()), `[SETTINGS] Back from Settings went to ${p.url()}`);
       // Home → a goal → Change this goal → saved: Back on the goal skips the form and returns Home.
       await p.locator('.side').getByRole('link', { name: 'Home' }).click(); await p.waitForTimeout(250);
-      await p.goto(url('/goals/head')); await p.waitForTimeout(300);
+      await p.goto(url('/goals/ns-lead')); await p.waitForTimeout(300);
       fail(/Back to Goals/.test(await back().innerText()), `[SETTINGS] a goal opened from outside: "${await back().innerText()}" (want its parent, Goals)`);
       await p.locator('.side').getByRole('link', { name: 'Home' }).click(); await p.waitForTimeout(250);
       // Any of Maya's own goals on Home (the north star may be folded away under Being handled).
@@ -257,16 +263,16 @@ module.exports = {
       await c.close();
     });
     await step('back review walk', async () => {
-      const [c, p] = await open(1280, 800, 'elena', '/reviews/weekly');
+      const [c, p] = await open(1280, 800, 'amara', '/reviews/weekly');
       await p.getByRole('button', { name: /^(Start|Continue) review/ }).click(); await p.waitForTimeout(400);
       fail(/review=weekly/.test(p.url()), `[SETTINGS] starting the review opened ${p.url()}`);
       await p.getByRole('button', { name: /^Next goal/ }).first().click(); await p.waitForTimeout(400);
       const t = await p.locator('.backlink').first().innerText();
-      fail(/Back to Platform weekly review/.test(t), `[SETTINGS] walking a review, Back says "${t}"`);
+      fail(/Back to Platform leadership weekly/.test(t), `[SETTINGS] walking a review, Back says "${t}"`);
       await p.locator('.backlink').first().click(); await p.waitForTimeout(300);
       fail(/\/demo\/reviews\/weekly(\?|$)/.test(p.url()), `[SETTINGS] Back from the walk's second goal went to ${p.url()} (want the review, past the walk)`);
       await c.close();
-      const [c2, q] = await open(390, 844, 'maya', '/goals/head', true);
+      const [c2, q] = await open(390, 844, 'rhea', '/goals/ns-lead', true);
       const box = await q.locator('.backlink').first().boundingBox();
       fail(!!box && box.height >= 44, `[SETTINGS] 390 Back is ${box && round(box.height)}px tall`);
       await c2.close();
@@ -275,7 +281,7 @@ module.exports = {
     /* ---------- [WORKSPACE-ADMIN] rename the workspace; add, rename and remove teams; not for everyone ---------- */
     await step('workspace admin', async () => {
       for (const [w, h, touch] of [[1280, 800, false], [768, 1024, true], [390, 844, true]]) {
-        const [c, p] = await open(w, h, 'elena', '/workspace', touch);
+        const [c, p] = await open(w, h, 'amara', '/workspace', touch);
         const click = (l) => (touch ? l.tap() : l.click());
         await click(p.getByRole('button', { name: /^Rename Example/ }));
         await p.getByLabel('Workspace name').fill('Acme Platform');
@@ -284,33 +290,33 @@ module.exports = {
         const shown = await p.evaluate(() => [...document.querySelectorAll('.ws-title, .ws-name, .mtop .tiny, .ws-line[aria-current] .gline-title')].filter((e) => e.getClientRects().length).map((e) => e.textContent).join(' | '));
         fail(/Acme Platform/.test(shown), `[WORKSPACE-ADMIN] ${w}: after renaming, the app says "${shown}"`);
         await click(p.getByRole('button', { name: 'Add a team' }));
-        await p.getByRole('dialog').getByLabel('Team name').fill('Data');
+        await p.getByRole('dialog').getByLabel('Team name').fill('Insights');
         await click(p.getByRole('dialog').getByRole('button', { name: 'Add the team' }));
         await p.waitForTimeout(300);
-        await click(p.getByRole('button', { name: 'Rename Data' }));
-        await p.getByRole('dialog').getByLabel('Team name').fill('Data Platform');
+        await click(p.getByRole('button', { name: 'Rename Insights' }));
+        await p.getByRole('dialog').getByLabel('Team name').fill('Insights Platform');
         await click(p.getByRole('dialog').getByRole('button', { name: 'Save' }));
         await p.waitForTimeout(300);
-        await click(p.getByRole('button', { name: 'Remove Security' }));
-        const dlg = p.getByRole('dialog', { name: 'Remove Security' });
+        await click(p.getByRole('button', { name: 'Remove Security Engineering' }));
+        const dlg = p.getByRole('dialog', { name: 'Remove Security Engineering' });
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
         fail(await dlg.getByRole('alert').filter({ hasText: 'Choose where they go' }).isVisible(), `[WORKSPACE-ADMIN] ${w}: removing a team with people, without saying where they go, is not explained`);
-        await dlg.getByLabel('Move them to').selectOption({ label: 'Data Platform' });
+        await dlg.getByLabel('Move them to').selectOption({ label: 'Insights Platform' });
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
         await p.waitForTimeout(400);
-        const s = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-app-v2:example')));
+        const s = await p.evaluate(() => window.__goalsStore.load('platform-org'));
         const names = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-app-v2:names') || '{}'));
-        const data = s.teams.find((t) => t.name === 'Data Platform');
-        fail(names.example === 'Acme Platform', `[WORKSPACE-ADMIN] ${w}: the new name is not saved`);
-        fail(!!data && !s.teams.some((t) => t.id === 'sec') && s.people.find((x) => x.id === 'aisha').teamId === data.id && s.goals.filter((g) => g.teamId === 'sec').length === 0, `[WORKSPACE-ADMIN] ${w}: teams after the changes: ${s.teams.map((t) => t.name).join(', ')}`);
-        fail(['Renamed the workspace to “Acme Platform”', 'Added the team “Data”', 'Renamed the team “Data” to “Data Platform”'].every((x) => s.changes.some((ch) => ch.summary === x && ch.actorId === 'elena')) && s.changes.some((ch) => /^Removed the team “Security”, moving/.test(ch.summary)), `[WORKSPACE-ADMIN] ${w}: the changes are not all logged`);
+        const data = s.teams.find((t) => t.name === 'Insights Platform');
+        fail(names['platform-org'] === 'Acme Platform', `[WORKSPACE-ADMIN] ${w}: the new name is not saved`);
+        fail(!!data && !s.teams.some((t) => t.id === 'sec') && s.people.find((x) => x.id === 'farah').teamId === data.id && s.goals.filter((g) => g.teamId === 'sec').length === 0, `[WORKSPACE-ADMIN] ${w}: teams after the changes: ${s.teams.map((t) => t.name).join(', ')}`);
+        fail(['Renamed the workspace to “Acme Platform”', 'Added the team “Insights”', 'Renamed the team “Insights” to “Insights Platform”'].every((x) => s.changes.some((ch) => ch.summary === x && ch.actorId === 'amara')) && s.changes.some((ch) => /^Removed the team “Security Engineering”, moving/.test(ch.summary)), `[WORKSPACE-ADMIN] ${w}: the changes are not all logged`);
         const visible = await p.locator('.team-opt').allInnerTexts();
-        fail(visible.some((x) => /Data Platform/.test(x)) && !visible.some((x) => /^Security/.test(x)), `[WORKSPACE-ADMIN] ${w}: the team list shows ${visible.map((x) => x.split('\n')[0]).join(', ')}`);
+        fail(visible.some((x) => /Insights Platform/.test(x)) && !visible.some((x) => /^Security/.test(x)), `[WORKSPACE-ADMIN] ${w}: the team list shows ${visible.map((x) => x.split('\n')[0]).join(', ')}`);
         const m = await p.evaluate(() => ({ side: document.documentElement.scrollWidth - innerWidth, small: [...document.querySelectorAll('.team-opt .btn, .ws-title-row .btn')].filter((b) => b.getBoundingClientRect().height < 40).length }));
         fail(m.side <= 1 && (!touch || !m.small), `[WORKSPACE-ADMIN] ${w}: scrolls sideways ${m.side}px; ${m.small} team buttons under 40px`);
         await c.close();
       }
-      const [c, p] = await open(1280, 800, 'maya', '/workspace');
+      const [c, p] = await open(1280, 800, 'rhea', '/workspace');
       fail(!(await p.getByRole('button', { name: /^Rename|Add a team|^Remove/ }).count()) && await p.locator('.team-opt').count() >= 6, '[WORKSPACE-ADMIN] someone who isn’t an admin is offered rename, add or remove, or can’t see the teams');
       fail(await p.getByRole('link', { name: 'Settings' }).first().isVisible(), '[SETTINGS] a non-admin on Workspace is not pointed to Settings for their tokens');
       await c.close();

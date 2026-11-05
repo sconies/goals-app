@@ -61,7 +61,7 @@ module.exports = {
     // [Goal 2, 15, 17, 21, 22, 26, 29, 30; 6, 8, 10] Maya's north star on a laptop. Rebuilt as the flagship page (5 Nov):
     // the threats block is the pinned first row of What feeds it, the status line is the summary bar's second line, the
     // contributing counts are the bar's "Fed by" line, and the comments tab is the one Activity stream.
-    [c, p] = await open(1280, 800, 'maya', '/goals/head');
+    [c, p] = await open(1280, 800, 'rhea', '/goals/ns-lead');
     await p.locator('svg.chart').waitFor();
     const head = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
@@ -85,7 +85,8 @@ module.exports = {
     if (head.narrowTitle) fails.push(`head 1280: ${head.narrowTitle} goal rows give the title under 60%`);
     if (head.clamped) fails.push(`head 1280: ${head.clamped} reasons clamped`);
     if (!head.why.length || head.why.some((h) => h > 22)) fails.push(`head 1280: the pinned goal's “most likely to make it miss” line is ${head.why.length ? Math.round(Math.max(...head.why)) + 'px tall' : 'missing'}`);
-    if (head.mix || head.counts < 3 || !head.countShapes) fails.push(`head: the goals feeding it shown as a colour bar (${head.mix}) not counts with shapes (${head.counts})`);
+    // (Lead time for changes is fed by four goals in two behind states, so two counts to show; the old head had six inputs and three.)
+    if (head.mix || head.counts < 2 || !head.countShapes) fails.push(`head: the goals feeding it shown as a colour bar (${head.mix}) not counts with shapes (${head.counts})`);
     if (head.statusAlign !== 'baseline') fails.push('the bar’s status line is not on one baseline');
     if (!(head.showAll > 0 && head.showAll < 260)) fails.push(`Activity’s “Show all” is ${head.showAll}px wide`);
     if (head.fc !== 'rgb(71, 84, 103)') fails.push(`projection words in ${head.fc}`);
@@ -96,7 +97,7 @@ module.exports = {
     await c.close();
 
     // [Goal 2, 4, 7, 31] The same on a phone.
-    [c, p] = await open(390, 844, 'maya', '/goals/head', true);
+    [c, p] = await open(390, 844, 'rhea', '/goals/ns-lead', true);
     await p.locator('svg.chart').waitFor();
     const ph = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
@@ -112,8 +113,8 @@ module.exports = {
     checkChart(await chartFacts(p), 'head 390 chart', fails, { ticks: [3, 4] });
     await c.close();
 
-    // [Goal 1, 19, 20, 23] Elena on a goal with milestones, on a small phone: what's asked of her sits right under the bar.
-    [c, p] = await open(360, 740, 'elena', '/goals/access', true);
+    // [Goal 1, 19, 20, 23] Daniel on a goal with milestones, on a small phone: what's asked of him sits right under the bar.
+    [c, p] = await open(360, 740, 'daniel', '/goals/lead-mq', true);
     await p.locator('.stagelist').waitFor();
     const acc = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
@@ -133,11 +134,11 @@ module.exports = {
     await c.close();
 
     // [Goal 13, 18, 24] Every goal gets the same columns; quarter cards are white; this quarter is outlined.
-    [c, p] = await open(1440, 900, 'elena', '/goals/env');
+    [c, p] = await open(1440, 900, 'amara', '/goals/env-search');
     const envA = await p.evaluate(() => Math.round(document.querySelector('.goal-main').getBoundingClientRect().width));
-    await p.goto(p.url().replace('/goals/env', '/goals/head')); await p.waitForTimeout(400);
+    await p.goto(p.url().replace('/goals/env-search', '/goals/ns-lead')); await p.waitForTimeout(400);
     const headA = await p.evaluate(() => Math.round(document.querySelector('.goal-main').getBoundingClientRect().width));
-    if (envA !== headA) fails.push(`main column ${envA}px on env, ${headA}px on head`);
+    if (envA !== headA) fails.push(`main column ${envA}px on env-search, ${headA}px on ns-lead`);
     const q = await p.evaluate(() => [...document.querySelectorAll('.quarters li')].map((li) => ({ bg: getComputedStyle(li).backgroundColor, now: li.classList.contains('q-now'), bc: getComputedStyle(li).borderTopColor, dash: /—/.test(li.innerText) })));
     if (q.some((x) => x.bg !== 'rgb(255, 255, 255)')) fails.push('a quarter card is tinted');
     if (!q.some((x) => x.now && x.bc === 'rgb(52, 81, 209)')) fails.push('this quarter has no accent border');
@@ -145,7 +146,7 @@ module.exports = {
     await c.close();
 
     // [Goal 9] A forecast that leaves the plot is not keyed as a stub.
-    [c, p] = await open(1280, 800, 'sam', '/goals/review');
+    [c, p] = await open(1280, 800, 'tariq', '/goals/lead-review');
     await p.locator('svg.chart').waitFor();
     const rv = await p.evaluate(() => { const l = document.querySelector('.c-fc'); const b = l?.getBoundingClientRect(); return { drawn: !!l, len: b ? Math.hypot(b.width, b.height) : 0, keyed: /Projection/.test(document.querySelector('.chart-key')?.innerText || '') }; });
     if (rv.keyed !== rv.drawn || (rv.drawn && rv.len < 16)) fails.push(`review: projection drawn ${Math.round(rv.len)}px, keyed ${rv.keyed}`);
@@ -156,7 +157,7 @@ module.exports = {
 
     // [Check-in 3] The chart on the number step: round ticks, target above its line, labels inside, a one-line key.
     for (const [w, h, touch] of [[390, 844, true], [1280, 800, false]]) {
-      [c, p] = await open(w, h, 'kofi', '/check-in/alerts', touch);
+      [c, p] = await open(w, h, 'mateo', '/check-in/mttr-pir', touch);
       await p.getByLabel('This week’s value').fill('50');
       await p.getByRole('button', { name: 'Show chart' }).click();
       await p.locator('svg.chart').waitFor();
@@ -168,7 +169,7 @@ module.exports = {
 
     // ---------- History ----------
     // [Hist 5, 6, 7, 8, 9] Quarter results on a laptop.
-    [c, p] = await open(1280, 800, 'elena', '/goals?view=history');
+    [c, p] = await open(1280, 800, 'amara', '/goals?view=history');
     await p.locator('.qtable').first().waitFor();
     const qr = await p.evaluate(() => ({
       noShape: [...document.querySelectorAll('.qcell .q-result')].filter((x) => !x.querySelector('svg')).length,
@@ -185,7 +186,7 @@ module.exports = {
     await c.close();
 
     // [Hist 1, 20] Quarter results at 768: nothing clipped, phone cards.
-    [c, p] = await open(768, 1024, 'elena', '/goals?view=history', true);
+    [c, p] = await open(768, 1024, 'amara', '/goals?view=history', true);
     await p.locator('.qtable').first().waitFor();
     const q768 = await p.evaluate(() => ({
       clipped: [...document.querySelectorAll('.table-wrap')].filter((t) => t.scrollWidth > t.clientWidth + 1).length,
@@ -198,7 +199,7 @@ module.exports = {
     await c.close();
 
     // [Hist 3, 4, 9, 10, 13, 14, 17, 18, 24] Weekly, this quarter, on a laptop.
-    [c, p] = await open(1440, 700, 'elena', '/goals?view=history&hist=weekly');
+    [c, p] = await open(1440, 700, 'amara', '/goals?view=history&hist=weekly');
     await p.locator('.hgrid').first().waitFor();
     const wk = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
@@ -240,7 +241,7 @@ module.exports = {
     await c.close();
 
     // [Hist 15, 16] The whole year fits at 1280, with week numbers.
-    [c, p] = await open(1280, 800, 'elena', '/goals?view=history&hist=weekly&weeks=year');
+    [c, p] = await open(1280, 800, 'amara', '/goals?view=history&hist=weekly&weeks=year');
     await p.locator('.hgrid-year').first().waitFor();
     const yr = await p.evaluate(() => {
       const w = document.querySelector('.hwrap');
@@ -248,12 +249,12 @@ module.exports = {
       return { over: w.scrollWidth - w.clientWidth, nums: [...document.querySelectorAll('.hgrid-year thead .hn')].filter((x) => x.textContent).length, now: now ? [now.textContent, getComputedStyle(now).color] : null, qpad: getComputedStyle(document.querySelector('.hgrid-year .hq')).paddingLeft };
     });
     if (yr.over > 1) fails.push(`1280 whole year scrolls ${yr.over}px`);
-    if (yr.nums < 8 || !yr.now || yr.now[0] !== '44' || yr.now[1] !== 'rgb(42, 68, 184)') fails.push(`whole-year header: ${yr.nums} week numbers, this week ${yr.now}`);
+    if (yr.nums < 8 || !yr.now || yr.now[0] !== '45' || yr.now[1] !== 'rgb(42, 68, 184)') fails.push(`whole-year header: ${yr.nums} week numbers, this week ${yr.now}`);
     if (yr.qpad !== '8px') fails.push(`quarter labels padded ${yr.qpad}`);
     await c.close();
 
     // [Hist 2, 3, 16, 21, 22] Touch: 44px squares, two-line names, a key hint only for keyboards, an edge cue.
-    [c, p] = await open(390, 844, 'elena', '/goals?view=history&hist=weekly', true);
+    [c, p] = await open(390, 844, 'amara', '/goals?view=history&hist=weekly', true);
     await p.locator('.hgrid').first().waitFor();
     const tc = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
@@ -284,7 +285,7 @@ module.exports = {
     if (yc[0] < 24 || yc[1] < 12) fails.push(`390 touch whole year: ${yc[0]}px columns, ${yc[1]}px marks`);
     await c.close();
     // The smallest phone: the range buttons fit, nothing sideways.
-    [c, p] = await open(360, 740, 'elena', '/goals?view=history&hist=weekly&weeks=year', true);
+    [c, p] = await open(360, 740, 'amara', '/goals?view=history&hist=weekly&weeks=year', true);
     await p.locator('.hgrid').first().waitFor();
     const s360 = await p.evaluate(() => { const g = document.querySelector('[aria-label="Weeks shown"]').getBoundingClientRect(); return [document.documentElement.scrollWidth - innerWidth, Math.round(g.right - innerWidth)]; });
     if (s360[0] > 0 || s360[1] > -16) fails.push(`360 whole year: ${s360[0]}px sideways, range buttons end ${s360[1]}px from the edge`);

@@ -1,35 +1,34 @@
-/* Watching: a curated read of the goals you follow. What needs attention (new since anyone looked), what's being
-   handled, what has gone quiet, what changed, what's fine. */
+/* Watching (one Watching, 5 Nov): a scope of Goals, /goals?show=watching, with the full toolbar (filters, sort,
+   layouts, export, saved views). In the list it reads the goals you follow: what needs attention (new since anyone
+   looked), what's being handled, what has gone quiet, what's fine, with what changed this week beside them. The Level
+   filter narrows it as it does any scope. /watching stays as the way in, and its nav label. */
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { groupWatched } from '../domain/home';
 import { weekDate, weekDates } from '../domain/plan';
-import { watchedGoals } from '../domain/review';
 import type { Goal, Level, Watch } from '../domain/types';
 import { Icon } from '../ui/Icon';
 import { ChangeItem } from '../ui/ChangeItem';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
-import { worstFirst } from '../domain/order';
 
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
-type Filter = 'all' | Level;
 
-/** The watching content, used on its own page and, in the 4-tab trial, as a tab in Goals. */
+/** /watching: the Watching scope of Goals, keeping anything else the link carried (a pinned day, say). */
 export function Watching() {
-  return <div className="page watching"><WatchHead /><WatchingBody /></div>;
+  const { search } = useLocation();
+  const p = new URLSearchParams(search);
+  p.set('show', 'watching');
+  return <Navigate to={'/goals?' + p.toString()} replace />;
 }
 
-export function WatchingBody() {
+/** The goals you watch (as Goals has them: filtered, worst first) in Watching's groups, with what changed this week. */
+export function WatchingBody({ goals }: { goals: Goal[] }) {
   const app = useApp();
-  const [filter, setFilter] = useState<Filter>('all');
   const [managing, setManaging] = useState(false);
   const mine = app.snapshot.watches.filter((w) => w.personId === app.viewer.id);
-  const all = watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app));
-  const levels = LEVELS.filter((l) => all.some((g) => g.level === l));
-  const goals = filter === 'all' ? all : all.filter((g) => g.level === filter);
   const ids = new Set(goals.map((g) => g.id));
   // Needs attention is new information; what someone has looked at since its latest check-in is being handled.
   const groups = groupWatched(goals.map((g) => app.attentionOf(g)));
@@ -45,15 +44,6 @@ export function WatchingBody() {
   return (
     <>
       <p className="lede">{summary(goals.length, bad.length, groups.handled.length, quiet.length, recent.length)}</p>
-      {levels.length > 1 && (
-        <div className="seg tabs" role="tablist" aria-label="Level">
-          {(['all', ...levels] as Filter[]).map((f) => (
-            <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}>
-              {f === 'all' ? 'All' : LEVEL_LABEL[f]}<span className="tabcount">{f === 'all' ? all.length : all.filter((g) => g.level === f).length}</span>
-            </button>
-          ))}
-        </div>
-      )}
       <div className="split">
       {/* Nothing needs attention: no empty column taking a gap of its own. */}
       {bad.length + quiet.length + groups.handled.length > 0 && (
@@ -68,7 +58,7 @@ export function WatchingBody() {
         <section className="block">
           <h2 className="block-title">What changed this week <span className="hint">· week {app.week}, {weekDates(app.cycle, Math.max(0, app.week))}</span></h2>
           <ol className="changes">{recent.slice(0, 6).map((c) => <ChangeItem key={c.id} c={c} showGoal />)}</ol>
-          {recent.length > 6 && <Link className="small linkish" to={`/activity?watching=${filter}&since=${since}`}>{recent.length - 6} more in Activity</Link>}
+          {recent.length > 6 && <Link className="small linkish" to={`/activity?watching=all&since=${since}`}>{recent.length - 6} more in Activity</Link>}
         </section>
       )}
       </aside>
@@ -85,15 +75,6 @@ export function WatchingBody() {
       </div>
       </div>
     </>
-  );
-}
-
-function WatchHead() {
-  return (
-    <div className="page-head">
-      <h1 className="title-xl">Watching</h1>
-      <span className="hint">The goals you follow. Watch one from its page, a whole tree, or a level.</span>
-    </div>
   );
 }
 
