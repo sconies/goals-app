@@ -6,7 +6,7 @@ import { serve, type Deps } from '../server/mcp';
 import * as A from '../src/domain/actions';
 import { applyCommit, BrowserStore } from '../src/data/store';
 import { goalFromRows, goalToRows } from '../src/data/rows';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { planChanges, type ChangeInput, type Rec } from '../src/domain/changeset';
 import { nextCycle, scopeToCycle } from '../src/domain/cycle';
 import { toCsv, toJson, workbook } from '../src/domain/export';

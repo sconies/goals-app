@@ -140,7 +140,7 @@ function SayComposer({ goal, mode, existing, onClose, onSaved }: { goal: Goal; m
   return (
     <Sheet open onClose={onClose} title={`${title}: ${goal.title}`}>
       <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
-        <span className="hint">In {rv.review?.name}. {mode === 'ask' ? `${owner} sees it on Home and on the goal.` : 'It stays on this goal and in the review’s record.'}</span>
+        <span className="hint">In {rv.review?.name}. {mode === 'ask' ? `${owner} sees it on Home and on the goal, open until they answer it.` : mode === 'action' ? 'Whoever does it sees it on Home and on the goal, open until it’s marked done.' : 'It stays on this goal and in the review’s record.'}</span>
         <label className="field"><span className="field-label composer-label">{mode === 'ask' ? `Your question for ${owner}` : mode === 'action' ? 'The action' : 'Your note'}</span>
           <textarea className={'input' + (tried && text.trim().length < 3 ? ' invalid' : '')} rows={3} value={text} onChange={(e) => setText(e.target.value)} enterKeyHint="send"
             placeholder={mode === 'ask' ? 'e.g. What would it take to land the interim scope by week 8?' : mode === 'action' ? 'What needs doing' : 'What the review said'} />

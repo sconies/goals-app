@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
 import { applyCommit, BrowserStore, newId } from '../src/data/store';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import * as A from '../src/domain/actions';
 import { currentCycle, scopeToCycle } from '../src/domain/cycle';
 import type { ApiToken, Snapshot } from '../src/domain/types';

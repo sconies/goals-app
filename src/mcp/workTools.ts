@@ -9,14 +9,13 @@ import { attentionList, splitAttention } from '../domain/attention';
 import { wrapUpOpen } from '../domain/cycle';
 import { dashboard } from '../domain/home';
 import { LABEL } from '../domain/status';
-import { askText, openForPerson, requestsOf } from '../domain/requests';
-import { agendaOf, answerOf, lastHeld, openActions, openQuestions, reviewSession, sessionState, sessionStateText, watchedGoals } from '../domain/review';
+import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
+import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, watchedGoals } from '../domain/review';
 import { checkInsFor } from '../domain/status';
 import { toCsv, workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, shownTable, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
-import type { Level, Retro, Review, Watch } from '../domain/types';
-import { isUpdateAsk, liveNotes } from '../domain/updateAsks';
+import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsDate, newsSince } from '../help/whatsNew';
 import { hashToken, newToken } from './protocol';
@@ -49,8 +48,8 @@ const goalOf = (ctx: McpContext, id: unknown) => {
 };
 const goalIds = (ctx: McpContext, v: unknown) => (v as string[] | undefined)?.map((id) => goalOf(ctx, id).id);
 const requestOf = (ctx: McpContext, id: unknown) => {
-  const r = requestsOf(ctx.snapshot).find((x) => x.id === id);
-  if (!r) throw new Error(`There’s no request with ID ${String(id)}. Use list_requests to get IDs.`);
+  const r = asksOf(ctx.snapshot).find((x) => x.id === id);
+  if (!r) throw new Error(`There’s no ask with ID ${String(id)}. Use list_requests to get IDs.`);
   return r;
 };
 const reviewOf = (ctx: McpContext, id: unknown) => {
@@ -79,9 +78,9 @@ const levelsOf = (v: unknown): Level[] => {
   return list as Level[];
 };
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
-  id: r.id, ask: askText(r, ctx.snapshot.people), status: r.status, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
+  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, dueWeek: r.dueWeek, overdue: isOverdue(r, ctx.week), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
   goals: r.goalIds.map((g) => { const x = ctx.snapshot.goals.find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
-  answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && (!r.recipientId || r.recipientId === ctx.actor.id || ctx.actor.admin),
+  answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && canAnswer(r, ctx.actor), youCanMarkDone: r.status === 'open' && canMarkDone(r, ctx.actor),
 });
 const lines = (l: string[], none: string) => (l.length ? l.join('\n') : none);
 
@@ -110,7 +109,7 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'get_my_work',
     title: 'What needs me',
-    description: 'What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention (new since anyone looked), those behind but already being handled, requests for a decision or help waiting on them, questions from reviews on their goals, asks for an update, actions they agreed to, and the reviews they’re in.',
+    description: 'What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention (new since anyone looked), those behind but already being handled, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, overdue ones marked), and the reviews they’re in.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
     async run(_a, ctx) {
@@ -121,12 +120,13 @@ export const WORK_TOOLS: ToolDef[] = [
       const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length));
       const attention = split.needs.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, why: a.flags.map((f) => f.detail) }));
       const handled = split.handled.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, inHand: a.handled!.text, said: a.handled!.said || null, why: a.flags.map((f) => f.detail) }));
-      const requests = openForPerson(me, s).map((r) => requestData(ctx, r));
-      const questions = openQuestions(me, s).map((d) => ({ id: d.id, goalId: d.goalId, goal: s.goals.find((g) => g.id === d.goalId)?.title, question: d.note, by: name(ctx, d.byId) }));
-      const asks = liveNotes(s.changes).filter((c) => isUpdateAsk(c) && mine.some((g) => g.id === c.goalId))
-        .filter((c) => { const last = checkInsFor(mine.find((g) => g.id === c.goalId)!, s.checkIns).at(-1); return !last || c.at > last.postedAt; })
-        .map((c) => ({ goalId: c.goalId, by: name(ctx, c.actorId), at: c.at }));
-      const actions = s.decisions.filter((d) => d.kind === 'action' && d.assigneeId === me).map((d) => ({ id: d.id, goalId: d.goalId, action: d.note, dueWeek: d.dueWeek ?? null }));
+      // Every open ask waiting on them: one way to ask, so each kind is the same record with its own state.
+      const waiting = openForPerson(me, s).filter((r) => r.goalIds.some((id) => s.goals.some((g) => g.id === id))).map((r) => requestData(ctx, r));
+      const ofKind = (k: AskKind) => waiting.filter((r) => r.kind === k);
+      const requests = ofKind('decision');
+      const questions = ofKind('question').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, goal: r.goals[0]?.title, question: r.ask, by: r.askedBy, review: r.review }));
+      const asks = ofKind('update').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, by: r.askedBy, at: r.raisedAt }));
+      const actions = ofKind('action').map((r) => ({ id: r.id, goalId: r.goals[0]?.id, action: r.ask, dueWeek: r.dueWeek, overdue: r.overdue, agreedBy: r.askedBy }));
       const reviews = s.reviews.filter((r) => r.people.includes(me)).map((r) => { const x = reviewSession(r, s, ctx.cycle, ctx.today, ctx.week); return { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total }; });
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
       const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
@@ -141,9 +141,10 @@ export const WORK_TOOLS: ToolDef[] = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} being handled.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
-        `Requests waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join('; ') : 'none'}.`,
-        `Questions on your goals: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}`).join('; ') : 'none'}.`,
-        `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}`).join('; ') : 'none'}.`,
+        `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join('; ') : 'none'}.`,
+        `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question} (${q.id})`).join('; ') : 'none'}.`,
+        `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by} (${x.id})`).join('; ') : 'none'}.`,
+        `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? ', overdue' : ''}` : ''} (${x.id})`).join('; ') : 'none'}.`,
         `Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.join(' ')}`).join('; ') : 'none'}.`,
         `Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === 'off' ? 'off track' : 'at risk'}): ${g.inHand}`).join('; ') : 'none'}.`,
       ].join('\n');
@@ -152,22 +153,24 @@ export const WORK_TOOLS: ToolDef[] = [
   },
   {
     name: 'list_requests',
-    title: 'Requests for a decision or help',
-    description: 'Requests raised in check-ins for a decision or help: open ones by default. Filter to those waiting on you, or one goal’s.',
+    title: 'Asks: decisions or help, updates, questions, actions',
+    description: 'Every ask (one way to ask): a decision or help an owner needs, an update asked of an owner, a question for an owner, an action someone agreed to do. Each is open until it’s answered (an action: done) or withdrawn. Open ones by default; filter by kind, to those waiting on you, or to one goal’s.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
-      status: str('Which requests.', { enum: ['open', 'answered', 'withdrawn', 'all'] }),
-      for_me: bool('Only requests asked of you (or of anyone).'),
-      goal_id: str('Only requests a goal is waiting on (its ID or key).'),
+      status: str('Which asks.', { enum: ['open', 'answered', 'done', 'withdrawn', 'all'] }),
+      kind: str('Only one kind.', { enum: ['decision', 'update', 'question', 'action'] }),
+      for_me: bool('Only asks waiting on you (or asked of anyone).'),
+      goal_id: str('Only asks on a goal (its ID or key).'),
     } },
     annotations: READ,
     async run(a, ctx) {
       const st = (a.status as string | undefined) ?? 'open';
-      const list = requestsOf(ctx.snapshot)
+      const list = asksOf(ctx.snapshot)
         .filter((r) => st === 'all' || r.status === st)
+        .filter((r) => !a.kind || r.kind === a.kind)
         .filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id)
         .filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id))
         .map((r) => requestData(ctx, r));
-      return { data: { requests: list }, text: lines(list.map((r) => `${r.id} · ${r.status} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(', ')}${r.answer ? ` · answer: ${r.answer}` : ''}`), 'No requests match.') };
+      return { data: { requests: list }, text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${r.status}${r.overdue ? ' (overdue)' : ''} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(', ')}${r.answer ? ` · answer: ${r.answer}` : ''}`), 'No asks match.') };
     },
   },
   {
@@ -180,7 +183,7 @@ export const WORK_TOOLS: ToolDef[] = [
       const list = ctx.snapshot.reviews.map((r) => {
         const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
         const held = lastHeld(r, ctx.snapshot, x.week);
-        return { id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people.map((p) => name(ctx, p)), sessionWeek: x.week, sessionDate: x.date, reviewed: x.done, of: x.total, state: sessionStateText(sessionState(x)), lastHeld: held?.on ?? null, openActions: openActions(r, ctx.snapshot, ctx.week).length, youreIn: r.people.includes(ctx.actor.id) };
+        return { id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people.map((p) => name(ctx, p)), sessionWeek: x.week, sessionDate: x.date, reviewed: x.done, of: x.total, state: sessionStateText(sessionState(x)), lastHeld: held?.on ?? null, openActions: openActions(r, ctx.snapshot).length, youreIn: r.people.includes(ctx.actor.id) };
       });
       return { data: { reviews: list }, text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.state} (session ${r.sessionDate}) · last held ${r.lastHeld ?? 'never'} · ${r.openActions} open actions`), 'No reviews yet.') };
     },
@@ -196,7 +199,7 @@ export const WORK_TOOLS: ToolDef[] = [
       const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
       const ag = agendaOf(x);
       const item = (g: (typeof ag.discuss)[number]) => ({ id: g.goal.id, title: g.goal.title, owner: name(ctx, g.goal.ownerId), status: g.status.status, why: g.flags.map((f) => f.detail), beingHandled: g.handled?.text ?? null });
-      const said = x.said.map((d) => ({ id: d.id, goalId: d.goalId, kind: d.kind, note: d.note, by: name(ctx, d.byId), ...(d.kind === 'action' ? { who: name(ctx, d.assigneeId ?? null), dueWeek: d.dueWeek ?? null } : {}), ...(d.kind === 'ask' ? { answer: answerOf(d, ctx.snapshot)?.text ?? null } : {}) }));
+      const said = x.said.map((d) => ({ id: d.id, goalId: d.goalId, kind: d.kind, note: d.note, by: name(ctx, d.byId), ...(d.kind === 'action' ? { who: name(ctx, d.assigneeId ?? null), dueWeek: d.dueWeek ?? null } : {}), ...(d.ask ? { status: d.ask.status, answer: answerOf(d)?.text ?? null } : {}) }));
       const data = { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total, toDiscuss: ag.discuss.map(item), healthy: ag.healthy.map(item), said };
       return { data, text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}.${g.beingHandled ? ` Being handled: ${g.beingHandled}.` : ''} ${g.why.join(' ')}`), '- nothing')}\nHealthy: ${data.healthy.map((g) => g.title).join(', ') || 'none'}.` };
     },
@@ -331,53 +334,69 @@ export const WORK_TOOLS: ToolDef[] = [
     },
   },
 
-  /* ---------- Requests and asks ---------- */
+  /* ---------- Asks (one way to ask) ---------- */
   {
     name: 'answer_request',
-    title: 'Answer a request',
-    description: 'Answer a request for a decision or help. One answer covers every goal waiting on it. Only the person asked, or an admin, can answer (anyone, for a request to no one in particular).',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id', 'answer'], properties: { request_id: str('The request’s ID, from list_requests or get_my_work.'), answer: str('The decision or the help offered.') } },
+    title: 'Answer an ask',
+    description: 'Answer an ask: a decision or help, a question, or an ask for an update (an action is marked done instead, with mark_action_done). One answer covers every goal it applies to and closes it. Only the person asked, or an admin, can answer (anyone, for an ask to no one in particular). A comment never answers an ask.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id', 'answer'], properties: { request_id: str('The ask’s ID, from list_requests or get_my_work.'), answer: str('The answer, decision or help offered.') } },
     annotations: WRITE,
-    async run(a, ctx) { return save(ctx, A.answerRequest(ax(ctx), requestOf(ctx, a.request_id), String(a.answer ?? '')), 'Answered the request', ''); },
+    async run(a, ctx) { const r = requestOf(ctx, a.request_id); return save(ctx, A.answerRequest(ax(ctx), r, String(a.answer ?? '')), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, ''); },
+  },
+  {
+    name: 'mark_action_done',
+    title: 'Mark an action done',
+    description: 'Mark an action done, with an optional note. Whoever does it, whoever agreed it, or an admin. It stays open (and shows as overdue past its week) until it’s marked done or withdrawn.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id'], properties: { request_id: str('The action’s ID, from list_requests (kind action) or get_my_work.'), note: str('Optional: what was done.') } },
+    annotations: WRITE,
+    async run(a, ctx) { return save(ctx, A.markActionDone(ax(ctx), requestOf(ctx, a.request_id), String(a.note ?? '')), 'Marked the action done', ''); },
+  },
+  {
+    name: 'ask_question',
+    title: 'Ask a goal’s owner a question',
+    description: 'Ask a goal’s owner a question. It’s open on their Home until they answer it (a comment doesn’t), or you withdraw it. In a review, use review_call with kind ask instead, so it’s part of the session.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'question'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), question: str('The question.') } },
+    annotations: WRITE,
+    async run(a, ctx) { const g = goalOf(ctx, a.goal_id); return save(ctx, A.askQuestion(ax(ctx), g, String(a.question ?? '')), `Asked ${name(ctx, g.ownerId)} a question on ${g.title}`, ''); },
   },
   {
     name: 'link_request',
     title: 'Wait on the same request',
-    description: 'Say a goal waits on a request already raised for another goal, so the person asked sees it once. Its own open request to the same person is withdrawn. The goal’s owner or an admin.',
+    description: 'Say a goal waits on a decision or help already raised for another goal, so the person asked sees it once. Its own open request to the same person is withdrawn. The goal’s owner or an admin.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['request_id', 'goal_id'], properties: { request_id: str('The request’s ID.'), goal_id: str('The goal that waits on it (its ID or key).') } },
     annotations: WRITE,
     async run(a, ctx) { return save(ctx, A.linkRequest(ax(ctx), requestOf(ctx, a.request_id), goalOf(ctx, a.goal_id)), 'Linked the goal to the request', ''); },
   },
   {
     name: 'withdraw_request',
-    title: 'Withdraw a request',
-    description: 'Withdraw a goal’s request between check-ins, or stop the goal waiting on a request raised for another goal. The goal’s owner or an admin.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id', 'goal_id'], properties: { request_id: str('The request’s ID.'), goal_id: str('The goal withdrawing it (its ID or key).') } },
+    title: 'Withdraw an ask',
+    description: 'Withdraw an ask of any kind: whoever asked, or an admin (for a decision or help, also the owner of the goal it was raised on). With goal_id for a goal linked to another goal’s request, that goal stops waiting on it and the request stays open for the rest.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id'], properties: { request_id: str('The ask’s ID.'), goal_id: str('Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.') } },
     annotations: WRITE,
-    async run(a, ctx) { return save(ctx, A.withdrawRequest(ax(ctx), requestOf(ctx, a.request_id), goalOf(ctx, a.goal_id)), 'Withdrew the request', ''); },
+    async run(a, ctx) { const r = requestOf(ctx, a.request_id); return save(ctx, A.withdrawRequest(ax(ctx), r, a.goal_id ? goalOf(ctx, a.goal_id) : undefined), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, ''); },
   },
   {
     name: 'ask_for_update',
     title: 'Ask the owner for an update',
-    description: 'Ask a goal’s owner to post an update: it shows on their Home until they check in. Asking twice before they do does nothing more.',
+    description: 'Ask a goal’s owner to post an update: an ask that’s open on their Home until they check in (or answer it), or it’s withdrawn. Asking twice while it’s open does nothing more.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.') } },
     annotations: { ...WRITE, idempotentHint: true },
-    async run(a, ctx) { const g = goalOf(ctx, a.goal_id); return save(ctx, A.askForUpdate(ax(ctx), g), `Asked ${name(ctx, g.ownerId)} for an update on ${g.title}`, 'Already asked: it’s on their Home until they check in.'); },
+    async run(a, ctx) { const g = goalOf(ctx, a.goal_id); return save(ctx, A.askForUpdate(ax(ctx), g), `Asked ${name(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? 'ask'}) until they check in.`); },
   },
   {
     name: 'undo_update_ask',
-    title: 'Undo an ask for an update',
-    description: 'Take back an ask for an update: whoever asked, or an admin. It drops off the owner’s Home; the log keeps both.',
+    title: 'Withdraw an ask for an update',
+    description: 'Withdraw the open ask for an update on a goal: whoever asked, or an admin. It drops off the owner’s Home; the log keeps both.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.') } },
     annotations: WRITE,
-    async run(a, ctx) { return save(ctx, A.undoUpdateAsk(ax(ctx), goalOf(ctx, a.goal_id)), 'Undid the ask for an update', 'There’s no open ask for an update on that goal.'); },
+    async run(a, ctx) { return save(ctx, A.undoUpdateAsk(ax(ctx), goalOf(ctx, a.goal_id)), 'Withdrew the ask for an update', 'There’s no open ask for an update on that goal.'); },
   },
 
   /* ---------- Reviews ---------- */
   {
     name: 'review_call',
     title: 'Say something in a review',
-    description: 'In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, or agree an action (who and by when). Logged in this session of the review.',
+    description: 'In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, or agree an action (who and by when). Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['review_id', 'goal_id', 'kind'], properties: {
       review_id: str('The review’s ID.'), goal_id: str('The goal’s ID or its key, e.g. G-12.'),
       kind: str('What it is.', { enum: ['acknowledge', 'note', 'ask', 'action'] }),
@@ -397,13 +416,15 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'edit_call',
     title: 'Correct something said in a review',
-    description: 'Correct a note, question or action said in a review: whoever said it, or an admin. The log keeps the before and after.',
+    description: 'Correct a note, question or action said in a review (or any open ask’s words): whoever said it, or an admin. An answered or done ask stays as it was. The log keeps the before and after.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['call_id', 'text'], properties: { call_id: str('Its ID, from get_review.'), text: str('The new wording.'), who: str('Actions: who does it.'), due_week: int('Actions: the week it’s due by (0 for none).') } },
     annotations: WRITE,
     async run(a, ctx) {
-      const d = ctx.snapshot.decisions.find((x) => x.id === a.call_id);
+      const d = ctx.snapshot.decisions.find((x) => x.id === a.call_id) ?? asksOf(ctx.snapshot).find((x) => x.id === a.call_id);
       if (!d) throw new Error(`There’s nothing said with ID ${String(a.call_id)}. Use get_review.`);
-      const extra = d.kind === 'action' ? { assigneeId: a.who ? personOf(ctx, a.who).id : d.assigneeId ?? null, dueWeek: a.due_week === undefined ? d.dueWeek ?? null : Number(a.due_week) || null } : undefined;
+      const action = 'goalIds' in d ? d.kind === 'action' : d.kind === 'action';
+      const was = 'goalIds' in d ? { who: d.recipientId, due: d.dueWeek } : { who: d.assigneeId ?? null, due: d.dueWeek ?? null };
+      const extra = action ? { assigneeId: a.who ? personOf(ctx, a.who).id : was.who, dueWeek: a.due_week === undefined ? was.due : Number(a.due_week) || null } : undefined;
       return save(ctx, A.editCall(ax(ctx), d, String(a.text ?? ''), extra), 'Corrected it', 'Nothing to change: it already says that.');
     },
   },

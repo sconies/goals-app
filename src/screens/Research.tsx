@@ -50,7 +50,7 @@ export function Research() {
       <section className="block">
         <h2 className="block-title">What it is</h2>
         <p>A goals tool for a company of about 15,000 people. Goals are set for the year; owners check in on each one every week (or whenever something changes): the number, whether it’s on track, and if not, why and how it gets back on plan. Leaders manage by exception: the app brings forward what’s off track, slipping or gone quiet, with the owner’s account of it, and doesn’t let a number hide. Reviews walk the goals worst first.</p>
-        <p>You’re in the demo: invented example companies, kept in your browser. Pick who you are from the Demo control; each task below picks for you.</p>
+        <p>You’re in the demo: an invented organisation, Platform Engineering, kept in your browser. Pick who you are from the Demo control; each task below picks for you.</p>
       </section>
 
       <section className="block note-box" aria-label="Not built yet, on purpose">

@@ -147,7 +147,7 @@ describe('traces', () => {
     const store = tracedStore(Object.assign(new BrowserStore(() => new Date('2026-10-30T12:00:00Z')), { kind: 'supabase' as const }), tel);
     tel.page('/check-in/alerts', '', 'push').end();
     tel.mark('checkIn.account');
-    await tel.action('postCheckIn', async () => { await store.commit('example', { changes: [] }); });
+    await tel.action('postCheckIn', async () => { await store.commit('platform-org', { changes: [] }); });
     paint();
     await exporter.flush();
     const all = spans();

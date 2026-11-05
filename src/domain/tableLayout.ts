@@ -31,8 +31,8 @@ export const TABLES: Record<DataTable, TableSpec> = {
   },
   plan: { sheet: 'Plan', label: 'Plans', name: 'Goal', always: ['Key'], hidden: [], defaults: null },
   requests: {
-    sheet: 'Requests', label: 'Requests', name: 'Request', always: ['ID'], hidden: [],
-    defaults: ['ID', 'Request', 'Goals', 'Goal keys', 'Asked by', 'Asked of', 'Status', 'Asked at', 'Answer', 'Answered by'],
+    sheet: 'Asks', label: 'Asks', name: 'Ask', always: ['ID'], hidden: [],
+    defaults: ['ID', 'Kind', 'Ask', 'Goals', 'Goal keys', 'Asked by', 'Asked of', 'Status', 'Due week', 'Asked at', 'Answer', 'Answered by'],
   },
   people: { sheet: 'People', label: 'People', name: 'Name', always: ['ID'], hidden: ['Team objective'], defaults: null },
 };

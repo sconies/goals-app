@@ -1,12 +1,12 @@
 # Connecting an AI assistant (MCP)
 
-The app has an MCP server at `/api/mcp`. An assistant such as Claude can use it to do anything the person can do in the app: read every screen, check in, change goals and plans, answer requests, take part in reviews, watch goals, manage people, wrap up the cycle, and more.
+The app has an MCP server at `/api/mcp`. An assistant such as Claude can use it to do anything the person can do in the app: read every screen, check in, change goals and plans, answer asks, take part in reviews, watch goals, manage people, wrap up the cycle, and more.
 
 ## How it works
 
 - **Who it acts as.** An admin makes a personal token for one person under Workspace → AI assistants (each person sees and revokes their own under Settings). The assistant then acts as that person, with exactly their rights. For example:
   - owners change their own goals; admins can change any goal; anyone can comment;
-  - only the person asked (or an admin) answers a request;
+  - only the person asked (or an admin) answers an ask, and only whoever does an action, whoever agreed it, or an admin marks it done;
   - only admins add people, change teams, pin views, make tokens, start the next cycle, or rename or delete the workspace.
 - **The same rules as the app.** The app and the server call the same code:
   - check-ins, goals and plans go through the bulk-change engine, the same as spreadsheet import;
@@ -38,10 +38,10 @@ Other assistants:
 | Tool | What it does |
 |---|---|
 | `get_overview` | A brief of the cycle: what needs attention and why, every goal by what it feeds, open questions, weekly numbers |
-| `get_my_work` | What needs the person this week, as their Home shows it: check-ins due, goals needing attention, requests waiting on them, questions and asks for an update on their goals, their actions, their reviews |
+| `get_my_work` | What needs the person this week, as their Home shows it: check-ins due, goals needing attention, and every open ask waiting on them by kind (decisions or help, questions, asks for an update, actions, overdue ones marked), their reviews |
 | `find_goals` | Goals with status, latest number, plan, target and gap. Filter by name, owner, status, level or your own. Or pass `query`, a Goals link's query string (for example `status=off,risk&needs=decision&sort=gap`), or `view`, the name of a saved view |
 | `get_goal` | One goal in full: plan by week, every check-in with reasons, notes and actions |
-| `list_requests` | Requests for a decision or help: open, answered or withdrawn; yours to answer; one goal's |
+| `list_requests` | Every ask (one way to ask): a decision or help, an update, a question or an action; open, answered, done or withdrawn; by kind; yours to answer; one goal's |
 | `list_reviews` / `get_review` | Every review, and one review's current agenda: goals to discuss with why, healthy ones, and what's been said |
 | `list_watching` | Your watches and the goals they cover |
 | `list_people` | People with job titles, teams and admins; the teams, with how many people and goals each has |
@@ -63,9 +63,12 @@ Other assistants:
 | `set_plan_numbers` | Set planned values for particular weeks |
 | `bulk_change` | Many goals, plan numbers and check-ins at once, using the export's columns. It checks first and saves only with `apply: true` |
 | `add_comment` | Comment on a goal |
-| `ask_for_update` / `undo_update_ask` | Ask a goal's owner for an update, or take the ask back |
-| `answer_request` / `link_request` / `withdraw_request` | Answer a request; say a goal waits on another goal's request; withdraw one |
-| `review_call` / `edit_call` | In a review: mark a goal reviewed, add a note, ask the owner, agree an action; correct what was said |
+| `ask_for_update` / `undo_update_ask` | Ask a goal's owner for an update (an ask, open until they check in or answer it), or withdraw it |
+| `ask_question` | Ask a goal's owner a question, outside a review: open until they answer it |
+| `answer_request` | Answer an ask: a decision or help, a question or an ask for an update. One answer covers every goal it applies to. A comment never answers an ask |
+| `mark_action_done` | Mark an action done, with an optional note. Until then it stays open, and overdue past its week |
+| `link_request` / `withdraw_request` | Say a goal waits on another goal's decision or help; withdraw any ask (or stop a goal waiting on another's) |
+| `review_call` / `edit_call` | In a review: mark a goal reviewed, add a note, ask the owner a question, agree an action (the last two are asks); correct what was said |
 | `save_review` | Set up a review, or change one |
 | `watch` / `unwatch` | Watch a goal, a goal and what feeds it, or a level; stop |
 | `save_person` | Admins: add someone, or change their name, job title, team or admin rights |

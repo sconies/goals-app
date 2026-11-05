@@ -16,13 +16,13 @@ import { summaryFacts } from '../domain/summaryFacts';
 import { forecastText } from '../domain/tree';
 import { criticalPath } from '../domain/map';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
-import { openUpdateAsk } from '../domain/updateAsks';
+import { ASK_KIND_LABEL, asksOf, canMarkDone, canWithdraw, openUpdateAsk } from '../domain/asks';
 import { goalsIn, watchOf, watchScope } from '../domain/review';
 import {
   actionList, activityStream, askedOf, barFigures, feedingOrder, feedsLine, firstLook, lastTalked, pathCheck, planFor, postedLine,
   primaryAction, sinceLooked, streamMatches, whyLine, type ActionItem, type AskedItem, type StreamFilter, type StreamItem,
 } from '../domain/goalPage';
-import type { CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
+import type { Ask, CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
 import { Avatar, Chip, Empty, LevelTag, StatusShape, timeAgo, WarnMark } from '../ui/bits';
 import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList, type Scrub } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
@@ -58,7 +58,6 @@ function GoalView({ goal }: { goal: Goal }) {
   const status = st.status;
   const stale = status === 'stale';
   const own = app.checkInsOf(goal);
-  const latest = st.latest;
   const owner = app.person(goal.ownerId);
   const ownerFirst = owner?.name.split(' ')[0] ?? 'the owner';
   const isOwner = app.viewer.id === goal.ownerId;
@@ -78,7 +77,7 @@ function GoalView({ goal }: { goal: Goal }) {
   const seen = useSeen(app.ws.id, app.viewer.id, goal.id, status, app.stamp);
   const firstVisit = !seen;
 
-  const asked = askedOf(goal, app.snapshot, app.viewer, latest?.postedAt ?? null, respondId);
+  const asked = askedOf(goal, app.snapshot, app.viewer, respondId);
   // ?tab=comments was Home's old Answer link: an owner's open question is what it meant; otherwise the comment box.
   const alias = tabComments && !respondId ? asked.find((x) => x.kind === 'question')?.id ?? null : null;
   const target = respondId && asked.some((x) => x.id === respondId) ? respondId : alias;
@@ -91,7 +90,7 @@ function GoalView({ goal }: { goal: Goal }) {
   };
 
   const children = app.snapshot.goals.filter((g) => g.parentId === goal.id);
-  const updateAsk = openUpdateAsk(goal.id, app.snapshot, latest?.postedAt ?? null);
+  const updateAsk = openUpdateAsk(goal.id, app.snapshot);
   const due = att.flags.some((f) => f.kind === 'due');
   const watching = !isOwner && watchOf(app.viewer.id, goal, app.snapshot) !== null;
   const primary = primaryAction({ goal, viewer: app.viewer, owner, status, due, week, asked, updateAsked: !!updateAsk, watching });
@@ -156,8 +155,8 @@ function GoalView({ goal }: { goal: Goal }) {
     </>
   );
   const askedLine = !isOwner && stale && !review && (updateAsk
-    ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(updateAsk.at, app.today)}{updateAsk.actorId !== app.viewer.id ? ` (${app.person(updateAsk.actorId)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s on their Home until they check in.{updateAsk.actorId === app.viewer.id && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
-    : undone ? <span className="small" role="status">Undone. It’s off their Home.</span> : null);
+    ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(updateAsk.createdAt, app.today)}{updateAsk.askedBy !== app.viewer.id ? ` (${app.person(updateAsk.askedBy)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s open on their Home until they check in or answer it.{canWithdraw(updateAsk, app.viewer, goal) && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
+    : undone ? <span className="small" role="status">Withdrawn. It’s off their Home.</span> : null);
 
   /* ---------- the parts of the page ---------- */
   const askedSection = asked.length > 0 && (
@@ -360,26 +359,29 @@ function useShare(goal: Goal, now: string, against: string[], why: string, statu
 
 function AskedOfYou({ goal, items, open, focus, onOpen, onDone, sectionRef }: { goal: Goal; items: AskedItem[]; open: string | null; focus: boolean; onOpen: (id: string) => void; onDone: (id: string) => void; sectionRef: RefObject<HTMLElement | null> }) {
   const app = useApp();
-  const req = (id: string) => (app.snapshot.requests ?? []).find((r) => r.id === id);
-  const what = (x: AskedItem) => x.kind === 'request' ? 'Decision or help needed' : x.kind === 'question' ? `Question from ${x.fromFirst}${x.where ? ` in ${x.where}` : ''}` : x.kind === 'update' ? `${x.fromFirst} asked for an update` : `${x.fromFirst} commented`;
+  const askOf = (id: string) => asksOf(app.snapshot).find((r) => r.id === id);
+  const what = (x: AskedItem) => x.kind === 'decision' ? `Decision or help, from ${x.fromFirst}`
+    : x.kind === 'question' ? `Question from ${x.fromFirst}${x.where ? ` in ${x.where}` : ''}`
+    : x.kind === 'update' ? `${x.fromFirst} asked for an update`
+    : x.kind === 'action' ? `Action${x.where ? ` from ${x.where}` : ` from ${x.fromFirst}`}${x.due ? `, due week ${x.due}` : ''}`
+    : `${x.fromFirst} commented`;
   return (
     <section className="block asked" aria-labelledby="g-asked" ref={sectionRef}>
       <h2 className="block-title" id="g-asked">Asked of you</h2>
       <ul className="asked-list">
         {items.map((x) => {
           const isOpen = open === x.id;
-          const r = x.kind === 'request' ? req(x.id) : undefined;
+          const r = x.kind !== 'comment' ? askOf(x.id) : undefined;
           return (
             <li key={x.id} className={'asked-item' + (isOpen ? ' is-open' : '')}>
-              <section aria-label={x.kind === 'request' ? 'Decision or help needed' : what(x)}>
+              <section aria-label={what(x)}>
                 <span className="field-label">{what(x)} <span className="hint">· {timeAgo(x.at, app.today)}</span></span>
                 <p className="asked-text">{cap(x.text)}</p>
-                {x.kind === 'update'
-                  ? <Link className="btn sm" to={'/check-in/' + goal.id}>Check in for week {app.week}</Link>
-                  : isOpen
-                    ? (r ? <section aria-label="Respond to the request"><RespondForm request={r} focus={focus} onClose={() => onDone(x.id)} /></section>
-                      : <ReplyBox goal={goal} item={x} focus={focus} onDone={() => onDone(x.id)} />)
-                    : <button type="button" className="btn sm" onClick={() => onOpen(x.id)}>{x.kind === 'request' ? 'Respond' : x.kind === 'question' ? 'Answer' : 'Reply'}</button>}
+                {/* One Respond panel for every kind of ask; a comment gets a reply box, since it asks nothing. */}
+                {isOpen
+                  ? (r ? <section aria-label="Respond"><RespondForm ask={r} focus={focus} onClose={() => onDone(x.id)} /></section>
+                    : <ReplyBox goal={goal} item={x} focus={focus} onDone={() => onDone(x.id)} />)
+                  : <button type="button" className="btn sm" onClick={() => onOpen(x.id)}>{RESPOND_LABEL[x.kind]}</button>}
               </section>
             </li>
           );
@@ -389,8 +391,9 @@ function AskedOfYou({ goal, items, open, focus, onOpen, onDone, sectionRef }: { 
   );
 }
 
-/** Answering a review's question, or replying to a comment, in place: it's posted as a comment on the goal, which is
- *  how review.ts knows the question was answered. */
+const RESPOND_LABEL: Record<AskedItem['kind'], string> = { decision: 'Respond', question: 'Answer', update: 'Respond', action: 'Respond', comment: 'Reply' };
+
+/** Replying to a comment, in place: a comment of your own. It answers nothing, because a comment asks nothing. */
 function ReplyBox({ goal, item, focus, onDone }: { goal: Goal; item: AskedItem; focus: boolean; onDone: () => void }) {
   const app = useApp();
   const [text, setText] = useState('');
@@ -405,26 +408,25 @@ function ReplyBox({ goal, item, focus, onDone }: { goal: Goal; item: AskedItem; 
     const t = setTimeout(() => form.current?.scrollIntoView?.({ block: 'nearest' }), 80);
     return () => clearTimeout(t);
   }, [focus]);
-  const label = item.kind === 'question' ? 'Your answer' : 'Your reply';
   const post = async () => {
     setTried(true);
     if (text.trim().length < 2 || busy) return;
     setBusy(true);
     try {
       await app.addNote(goal, text);
-      app.toast(item.kind === 'question' ? `Answered. ${item.fromFirst} sees it on the goal and in the review.` : 'Reply posted');
+      app.toast(`Reply posted for ${item.fromFirst}`);
       onDone();
     } catch { setBusy(false); }
   };
   return (
     <form ref={form} className="stack reply-form" style={{ gap: 'var(--s2)' }} onSubmit={(e) => { e.preventDefault(); void post(); }} noValidate>
-      <label className="field"><span className="field-label">{label}</span>
+      <label className="field"><span className="field-label">Your reply</span>
         <textarea ref={box} className={'input' + (tried && text.trim().length < 2 ? ' invalid' : '')} rows={3} value={text} onChange={(e) => setText(e.target.value)} />
         <span className="field-msg" role="alert">{tried && text.trim().length < 2 && <><Icon name="alert" size={16} />Write a few words.</>}</span>
       </label>
       <div className="sheet-foot respond-foot">
         <button type="button" className="linkish small" onClick={onDone}>Not now</button>
-        <button type="submit" className="btn primary" disabled={busy}>{busy ? 'Posting…' : item.kind === 'question' ? 'Post your answer' : 'Post your reply'}</button>
+        <button type="submit" className="btn primary" disabled={busy}>{busy ? 'Posting…' : 'Post your reply'}</button>
       </div>
     </form>
   );
@@ -537,7 +539,7 @@ function DoingSection({ goal, withActions, asked }: { goal: Goal; withActions: b
   const behind = status === 'off' || status === 'risk';
   const path = behind ? pathCheck(goal, app.snapshot, app.cycle, app.week, latest) : null;
   // What's asked of you is answered in "Asked of you"; it isn't listed twice.
-  const items = actionList(goal, app.snapshot, app.week, status, latest).filter((x) => x.kind !== 'path' && !asked.some((a) => a.id === x.id));
+  const items = actionList(goal, app.snapshot, app.week, status, latest, app.cycle).filter((x) => x.kind !== 'path' && !asked.some((a) => a.id === x.id));
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
   const isOwner = app.viewer.id === goal.ownerId;
   const state = latest?.pathToGreen?.state ?? 'plan';
@@ -564,7 +566,7 @@ function DoingSection({ goal, withActions, asked }: { goal: Goal; withActions: b
 function ActionsSection({ goal, asked }: { goal: Goal; asked: AskedItem[] }) {
   const app = useApp();
   const att = app.attentionOf(goal);
-  const items = actionList(goal, app.snapshot, app.week, att.status.status, att.status.latest).filter((x) => x.kind !== 'path' && !asked.some((a) => a.id === x.id));
+  const items = actionList(goal, app.snapshot, app.week, att.status.status, att.status.latest, app.cycle).filter((x) => x.kind !== 'path' && !asked.some((a) => a.id === x.id));
   if (!items.length) return null;
   return (
     <section className="block side-actions" aria-labelledby="g-actions">
@@ -582,26 +584,34 @@ const STATE_WORD = { open: 'Open', done: 'Done', overdue: 'Overdue' } as const;
 function ActionRows({ goal, items }: { goal: Goal; items: ActionItem[] }) {
   const app = useApp();
   const first = (id: string | null) => (id ? app.person(id)?.name.split(' ')[0] ?? 'someone' : 'anyone');
-  // The owner (or an admin) can withdraw an open request, or stop waiting on one raised for another goal.
-  const mayWithdraw = goal.ownerId === app.viewer.id || app.viewer.admin;
-  const withdraw = (id: string) => {
-    const r = (app.snapshot.requests ?? []).find((x) => x.id === id);
-    if (!r) return;
-    const linked = r.goalIds[0] !== goal.id;
-    void app.withdrawRequest(r, goal).then(() => app.toast(linked ? 'No longer waiting on that request' : 'Request withdrawn')).catch(() => { /* the save already said what went wrong */ });
+  const askOf = (id: string) => asksOf(app.snapshot).find((x) => x.id === id);
+  // Whoever asked (or an admin) can withdraw an open ask; the owner of a goal waiting on another goal's request can stop waiting.
+  const withdraw = (r: Ask) => {
+    const linked = r.kind === 'decision' && r.goalIds[0] !== goal.id;
+    void app.withdrawRequest(r, goal).then(() => app.toast(linked ? 'No longer waiting on that request' : `${ASK_KIND_LABEL[r.kind]} withdrawn`)).catch(() => { /* the save already said what went wrong */ });
   };
+  const done = (r: Ask) => { void app.markActionDone(r).then(() => app.toast('Marked done')).catch(() => { /* the save already said what went wrong */ }); };
   return (
     <ul className="action-list">
-      {items.map((x) => (
-        <li key={x.id} className={'action-row state-' + x.state}>
-          <span className={'action-state state-' + x.state}>{x.state === 'done' ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> : x.state === 'overdue' ? <WarnMark /> : <span className="open-mark" aria-hidden="true" />}{STATE_WORD[x.state]}</span>
-          <span className="action-body">
-            <span className="action-what">{cap(x.what)}</span>
-            <span className="hint">{first(x.who)}{x.due != null ? `, by week ${x.due}` : ''} · {x.note}</span>
-            {x.kind === 'request' && x.state === 'open' && mayWithdraw && <button type="button" className="linkish small action-withdraw" onClick={() => withdraw(x.id)}>{(app.snapshot.requests ?? []).find((r) => r.id === x.id)?.goalIds[0] !== goal.id ? 'Not waiting on it any more' : 'Withdraw'}</button>}
-          </span>
-        </li>
-      ))}
+      {items.map((x) => {
+        const r = x.kind !== 'path' ? askOf(x.id) : undefined;
+        const open = r?.status === 'open';
+        return (
+          <li key={x.id} className={'action-row state-' + x.state}>
+            <span className={'action-state state-' + x.state}>{x.state === 'done' ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> : x.state === 'overdue' ? <WarnMark /> : <span className="open-mark" aria-hidden="true" />}{STATE_WORD[x.state]}</span>
+            <span className="action-body">
+              <span className="action-what">{cap(x.what)}</span>
+              <span className="hint">{x.kind !== 'path' ? `${ASK_KIND_LABEL[x.kind]} · ` : ''}{first(x.who)}{x.due != null ? `, by week ${x.due}` : ''} · {x.note}</span>
+              {r && open && (canMarkDone(r, app.viewer) || canWithdraw(r, app.viewer, goal)) && (
+                <span className="row action-do" style={{ gap: 'var(--s3)' }}>
+                  {canMarkDone(r, app.viewer) && <button type="button" className="linkish small" onClick={() => done(r)}>Mark done</button>}
+                  {canWithdraw(r, app.viewer, goal) && <button type="button" className="linkish small action-withdraw" onClick={() => withdraw(r)}>{r.kind === 'decision' && r.goalIds[0] !== goal.id ? 'Not waiting on it any more' : 'Withdraw'}</button>}
+                </span>
+              )}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -612,7 +622,7 @@ const dayOf = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('
 
 function TalkedSection({ goal }: { goal: Goal }) {
   const app = useApp();
-  const t = lastTalked(goal, app.snapshot, app.cycle, app.week, app.today, app.statusOf(goal).status);
+  const t = lastTalked(goal, app.snapshot, app.cycle, app.week, app.today);
   const nextText = t.next ? `${t.next.review}, ${t.next.date === app.today.toISOString().slice(0, 10) ? 'today' : `${t.next.weekday} ${dayOf(t.next.date).replace(/^\w+ /, '')}`}` : null;
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
   return (
@@ -727,28 +737,39 @@ function StreamRow({ goal, x }: { goal: Goal; x: StreamItem }) {
   );
 }
 
-/** A comment: why something changed, a question, anything worth knowing that isn't a check-in. Anyone can comment; it's logged. */
+/**
+ * A comment: why something changed, anything worth knowing that isn't a check-in. Anyone can comment; it's logged and asks
+ * nothing of anyone. Someone who needs the owner to respond asks a question instead: the same words, as an ask that stays
+ * open on the owner's Home until they answer it (one way to ask).
+ */
 function NoteComposer({ goal }: { goal: Goal }) {
   const app = useApp();
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
-  const post = async () => {
+  const isOwner = app.viewer.id === goal.ownerId;
+  const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
+  const post = async (as: 'comment' | 'question') => {
     if (text.trim().length < 2 || saving) return;
     setSaving(true);
     try {
-      await app.addNote(goal, text);
+      if (as === 'question') { await app.askQuestion(goal, text); app.toast(`Asked ${ownerFirst}. It’s open on their Home until they answer.`); }
+      else { await app.addNote(goal, text); app.toast('Comment posted'); }
       setText('');
-      app.toast('Comment posted');
-    } finally {
+    } catch { /* the save already said what went wrong */ } finally {
       setSaving(false);
     }
   };
   return (
-    <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post(); }}>
+    <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post('comment'); }}>
       <label className="field"><span className="sr">Add a comment</span>
-        <textarea id={'note-' + goal.id} className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder={app.viewer.id === goal.ownerId ? 'Say why something changed' : 'Comment or ask a question'} aria-label="Add a comment" />
+        <textarea id={'note-' + goal.id} className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder={isOwner ? 'Say why something changed' : 'Add a comment'} aria-label="Add a comment" />
       </label>
-      {text.trim() && <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post comment'}</button>}
+      {text.trim() && (
+        <span className="row note-compose-actions" style={{ gap: 'var(--s2)' }}>
+          <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post comment'}</button>
+          {!isOwner && <button className="btn ghost" type="button" disabled={saving} onClick={() => void post('question')} title={`Ask ${ownerFirst}: it stays open on their Home until they answer`}>Ask as a question</button>}
+        </span>
+      )}
     </form>
   );
 }

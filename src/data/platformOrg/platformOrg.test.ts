@@ -5,7 +5,7 @@ import { goalAsOf } from '../../domain/plan';
 import { goalsIn } from '../../domain/review';
 import { checkInsFor, goalStatus } from '../../domain/status';
 import type { Snapshot } from '../../domain/types';
-import { EXAMPLES } from '../examples';
+import { EXAMPLE } from '../examples';
 import { BrowserStore, pickExampleFromUrl } from '../store';
 import { buildPlatformOrg, PERSONAS } from './index';
 
@@ -119,16 +119,18 @@ describe('the Platform Engineering example', () => {
     for (const p of Object.values(PERSONAS)) expect(people.has(p.id), p.id).toBe(true);
   });
 
-  it('has the conversation around the goals: requests, comments, asks, reviews, watches and views', () => {
+  it('has the conversation around the goals: asks of every kind, comments, reviews, watches and views', () => {
     const req = s.requests ?? [];
-    for (const k of ['open', 'answered', 'withdrawn'] as const) expect(req.some((r) => r.status === k), k).toBe(true);
+    for (const k of ['open', 'answered', 'done', 'withdrawn'] as const) expect(req.some((r) => r.status === k), k).toBe(true);
+    for (const k of ['decision', 'update', 'question', 'action'] as const) expect(req.some((r) => r.kind === k), k).toBe(true);
     expect(req.some((r) => r.goalIds.length >= 3)).toBe(true);
     expect(s.changes.filter((c) => c.entity === 'note' && c.summary === 'Commented').length).toBeGreaterThan(40);
-    expect(s.changes.some((c) => c.entity === 'note' && c.action === 'withdrawn')).toBe(true);
+    expect(s.changes.some((c) => c.entity === 'request' && c.action === 'withdrawn' && c.summary === 'Withdrew the ask for an update')).toBe(true);
     expect(s.changes.some((c) => c.entity === 'workspace' && c.action === 'imported')).toBe(true);
     expect(s.reviews.length).toBeGreaterThanOrEqual(5);
-    for (const k of ['acknowledge', 'note', 'ask', 'action'] as const) expect(s.decisions.some((d) => d.kind === k), k).toBe(true);
-    expect(s.decisions.some((d) => d.kind === 'action' && d.dueWeek != null && d.dueWeek < 45)).toBe(true);
+    for (const k of ['acknowledge', 'note'] as const) expect(s.decisions.some((d) => d.kind === k), k).toBe(true);
+    // An action past its week and still open: overdue, not dropped.
+    expect(req.some((r) => r.kind === 'action' && r.status === 'open' && r.dueWeek != null && r.dueWeek < 45)).toBe(true);
     expect(new Set(s.watches.map((w) => w.kind))).toEqual(new Set(['goal', 'tree', 'level']));
     expect(s.views!.some((v) => v.pinned)).toBe(true);
     expect(s.views!.some((v) => !v.pinned && !v.deletedAt)).toBe(true);
@@ -156,13 +158,13 @@ describe('the Platform Engineering example', () => {
     }
   });
 
-  it('is an extra example in the demo, not the default, offered once it has been opened by its link', async () => {
-    expect(EXAMPLES[0]!.workspace.id).toBe('example');
+  it('is the demo’s only example, and its link opens it', async () => {
+    expect(EXAMPLE.id).toBe('platform-org');
     const store = new BrowserStore(() => TODAY);
-    expect((await store.workspaces()).map((w) => w.id)).not.toContain('platform-org');
+    expect((await store.workspaces()).map((w) => w.id)).toEqual(['platform-org']);
+    localStorage.setItem('goals-app-workspace', 'ws_mine');
     pickExampleFromUrl('?example=platform-org&today=2026-11-05');
     expect(localStorage.getItem('goals-app-workspace')).toBe('platform-org');
-    expect((await store.workspaces()).map((w) => w.id)).toContain('platform-org');
     expect((await store.load('platform-org')).goals.length).toBe(s.goals.length);
     pickExampleFromUrl('?example=nothing-like-it');
     expect(localStorage.getItem('goals-app-workspace')).toBe('platform-org');

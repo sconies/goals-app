@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
 import { applyCommit } from '../src/data/store';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import type { ApiToken, Snapshot } from '../src/domain/types';
 import { hashToken, newToken } from '../src/mcp/protocol';
 import { ACTIONS } from '../src/mcp/parity';

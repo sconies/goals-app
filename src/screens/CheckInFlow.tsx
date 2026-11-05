@@ -4,12 +4,12 @@ import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, useDraft } from '../app/drafts';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, REASON_CODES, VALUE_CODES, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
-import { answeredSince, askText, openFor } from '../domain/requests';
+import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
 import { daysToReview, onTimeStreak, weekProgress } from '../domain/progress';
-import type { CheckIn, Goal, HelpRequest, MilestoneGoal, Status, RecoveryState } from '../domain/types';
+import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
@@ -180,7 +180,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   // Waiting on a decision already asked for another goal: linked here, in the check-in, where the owner says what's
   // needed (moved from the goal page, 5 Nov). One answer then covers both goals.
   const [linking, setLinking] = useState(false);
-  const othersAsked = (app.snapshot.requests ?? []).filter((r) => r.status === 'open' && !r.goalIds.includes(goal.id));
+  const othersAsked = (app.snapshot.requests ?? []).filter((r) => r.kind === 'decision' && r.status === 'open' && !r.goalIds.includes(goal.id));
   // Who a help request goes to, when the owner says they need a decision or help.
   const [helpFrom, setHelpFrom] = useState(() => app.snapshot.people.find((p) => draft.needs.startsWith(p.name + ':'))?.id ?? '');
   // The step is saved with the draft, so "pick up where you left off" returns to it.
@@ -279,12 +279,12 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
     if (check.canPost) void post(d);
     else go('account');
   };
-  const linkTo = async (r: HelpRequest) => {
+  const linkTo = async (r: Ask) => {
     try {
       await app.linkRequest(r, goal);
       setLinking(false);
-      app.toast('Linked: one answer will cover both goals');
-      // The check-in carries the same ask, so posting keeps the link (requests.ts drops a link the check-in doesn't name).
+      app.toast(r.goalIds.length > 1 ? `Linked: one answer will cover all ${r.goalIds.length + 1} goals` : 'Linked: one answer will cover both goals');
+      // The check-in carries the same ask, so posting keeps the link (asks.ts drops a link the check-in doesn't name).
       set({ ptgState: 'help', ptgWhat: r.ask, needs: askText(r, app.snapshot.people) });
       setHelpFrom(r.recipientId ?? '');
       if (step !== 'account') { setTrail((t) => [...t, step]); setStep('account'); }
@@ -458,7 +458,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
               <WeekPicks week={week} weeks={cycle.weeks} value={draft.ptgBy} labelledBy="ptg-by-if" onPick={(w) => set({ ptgBy: draft.ptgBy === w ? null : w })} />
             </div>
           ) : showNeeds
-            ? <label className="field"><span className="field-label">Also need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional; shown at the top of the goal and in reviews</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Elena: approve an interim scope" /></label>
+            ? <label className="field"><span className="field-label">Also need a decision or help? <span className="muted" style={{ fontWeight: 400 }}>Optional; shown at the top of the goal and in reviews</span></span><input className="input" value={draft.needs} onChange={(ev) => set({ needs: ev.target.value })} placeholder="e.g. Amara: approve the extra runner budget" /></label>
             : <div><button type="button" className="linkish tap" onClick={() => setShowNeeds(true)}>Also need a decision or help?</button></div>}
             </div>
           )}

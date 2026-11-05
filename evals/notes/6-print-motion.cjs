@@ -47,7 +47,7 @@ module.exports = {
       await c.addInitScript(SAMPLER);
       const p = await c.newPage();
       await p.goto(url('/'));
-      await p.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), who);
+      await p.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await p.goto(url(route));
       await p.waitForTimeout(opts.wait ?? 700);
       return [c, p];
@@ -88,7 +88,7 @@ module.exports = {
       const c = await browser.newContext({ viewport: { width: A4_CONTENT, height: 1000 }, colorScheme: scheme });
       const p = await c.newPage();
       await p.goto(url('/'));
-      await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'elena'));
+      await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'elena'));
       await p.goto(url(route));
       await p.locator('.print-sheet').waitFor();
       await p.emulateMedia({ media: 'print', colorScheme: scheme });

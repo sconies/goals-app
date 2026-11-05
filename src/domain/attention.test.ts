@@ -1,25 +1,35 @@
 // @vitest-environment node
 /* Being handled (Lane's notes, 5 Nov): a goal that is off track or at risk but that someone has looked at since its
-   latest check-in, with nothing new since, is "being handled", not "needs attention". */
-import { seed } from '../data/seed';
+   latest check-in, with nothing new since, is "being handled", not "needs attention". In the Platform Engineering
+   example on Thursday 5 November (week 45), before the leadership weekly. */
+import { buildPlatformOrg } from '../data/platformOrg';
+import { answerAsk, openFor } from './asks';
 import { attentionFor, attentionList, handledFor, needsAttention, splitAttention } from './attention';
 import { aiBrief } from './export';
 import { currentWeek } from './plan';
-import { answerRequest, openFor } from './requests';
 import { agendaOf, reviewSession } from './review';
-import type { CheckIn, Decision, Snapshot } from './types';
+import type { Ask, CheckIn, Decision, Snapshot } from './types';
 
-const today = new Date('2026-10-30T12:00:00Z'); // Friday of week 44
-const s0 = seed(today);
+const today = new Date('2026-11-05T12:00:00Z'); // Thursday of week 45
+const s0 = buildPlatformOrg(today);
 const cycle = s0.cycles[0]!;
 const week = currentWeek(cycle, today);
 const latest = (s: Snapshot, id: string) => s.checkIns.filter((c) => c.goalId === id).sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1)!;
 const goal = (s: Snapshot, id: string) => s.goals.find((g) => g.id === id)!;
 let n = 0;
-const said = (goalId: string, kind: Decision['kind'], extra: Partial<Decision> = {}): Decision => ({
-  id: `dec_t${++n}`, goalId, checkInId: null, reviewId: 'weekly', week, kind, byId: 'elena', at: '2026-10-29T15:00:00.000Z', note: kind === 'acknowledge' ? '' : 'Pair with Leo on the interim scope', ...extra,
+// Container rebuilds (vuln-containers, Yasmin's) is off track and nobody has looked since its check-in on Wednesday.
+const RED = 'vuln-containers';
+const AFTER = '2026-11-05T09:00:00.000Z';
+const said = (goalId: string, kind: 'note' | 'acknowledge', extra: Partial<Decision> = {}): Decision => ({
+  id: `dec_t${++n}`, goalId, checkInId: null, reviewId: 'weekly', week, kind, byId: 'amara', at: AFTER, note: kind === 'acknowledge' ? '' : 'Pair with CI/CD on the rebuild trigger', ...extra,
 });
-const withSaid = (s: Snapshot, ...d: Decision[]): Snapshot => ({ ...s, decisions: [...s.decisions, ...d] });
+const action = (goalId: string, extra: Partial<Ask> = {}): Ask => ({
+  id: `ask_t${++n}`, kind: 'action', goalIds: [goalId], askedBy: 'amara', recipientId: goal(s0, goalId).ownerId, ask: 'Agree the rebuild trigger with CI/CD', status: 'open', dueWeek: null,
+  reviewId: 'weekly', week, checkInId: null, createdAt: AFTER, updatedAt: AFTER, answer: null, answeredBy: null, answeredAt: null, ...extra,
+});
+const withSaid = (s: Snapshot, ...d: (Decision | Ask)[]): Snapshot => ({
+  ...s, decisions: [...s.decisions, ...d.filter((x): x is Decision => !('goalIds' in x))], requests: [...(s.requests ?? []), ...d.filter((x): x is Ask => 'goalIds' in x)],
+});
 const checkIn = (s: Snapshot, id: string, postedAt: string, extra: Partial<CheckIn> = {}): Snapshot => {
   const c = latest(s, id);
   return { ...s, checkIns: [...s.checkIns, { ...c, id: `ci_t${++n}`, week, postedAt, ...extra }] };
@@ -27,105 +37,108 @@ const checkIn = (s: Snapshot, id: string, postedAt: string, extra: Partial<Check
 const handled = (s: Snapshot, id: string, at = today) => attentionFor(goal(s, id), s, cycle, at).handled;
 
 describe('being handled', () => {
-  it('starts with the north star being handled: Elena noted it in last week’s review, after its latest check-in', () => {
-    const h = handled(s0, 'head');
-    expect(h).toMatchObject({ kind: 'noted', text: `Noted in Platform weekly review, week ${week - 1}` });
-    expect(h!.said).toMatch(/two blockers/);
-    // Repo-access controls is off track and nobody has looked since its check-in: it needs attention.
-    expect(handled(s0, 'access')).toBeNull();
-    expect(needsAttention(attentionFor(goal(s0, 'access'), s0, cycle, today))).toBe(true);
+  it('starts with the halt being handled (reviewed in Reliability weekly after its check-in), and lead time needing attention', () => {
+    expect(handled(s0, 'cfr-halt')).toMatchObject({ kind: 'reviewed', text: `Reviewed in Reliability weekly, week ${week}` });
+    expect(handled(s0, 'ns-lead')).toBeNull();
+    expect(needsAttention(attentionFor(goal(s0, 'ns-lead'), s0, cycle, today))).toBe(true);
+    expect(handled(s0, RED)).toBeNull();
   });
 
   it('an action agreed on a red goal puts it in hand, saying who and by when', () => {
-    const s = withSaid(s0, said('access', 'action', { assigneeId: 'aisha', dueWeek: 47 }));
-    expect(handled(s, 'access')).toMatchObject({ kind: 'action', text: 'Action: Aisha, due week 47' });
-    expect(needsAttention(attentionFor(goal(s, 'access'), s, cycle, today))).toBe(false);
+    const s = withSaid(s0, action(RED, { recipientId: 'rhea', dueWeek: 47 }));
+    expect(handled(s, RED)).toMatchObject({ kind: 'action', text: 'Action: Rhea, due week 47' });
+    expect(needsAttention(attentionFor(goal(s, RED), s, cycle, today))).toBe(false);
   });
 
-  it('an action with no assignee is the owner’s, and one with no week says no week', () => {
-    expect(handled(withSaid(s0, said('access', 'action')), 'access')!.text).toBe('Action: Aisha');
+  it('an action is the owner’s unless someone else was named, and one with no week says no week', () => {
+    expect(handled(withSaid(s0, action(RED)), RED)!.text).toBe('Action: Yasmin');
   });
 
   it('a new check-in makes it news again, even with the same call', () => {
-    const s = checkIn(withSaid(s0, said('access', 'action', { dueWeek: 47 })), 'access', '2026-10-30T09:00:00.000Z');
-    expect(attentionFor(goal(s, 'access'), s, cycle, today).status.status).toBe('off');
-    expect(handled(s, 'access')).toBeNull();
-    // And the north star's note no longer covers it once Maya checks in again.
-    expect(handled(checkIn(s0, 'head', '2026-10-30T09:00:00.000Z'), 'head')).toBeNull();
+    const s = checkIn(withSaid(s0, action(RED, { dueWeek: 47 })), RED, '2026-11-05T10:00:00.000Z');
+    expect(attentionFor(goal(s, RED), s, cycle, today).status.status).toBe('off');
+    expect(handled(s, RED)).toBeNull();
+    // And the halt's review no longer covers it once Olivia checks in again.
+    expect(handled(checkIn(s0, 'cfr-halt', '2026-11-05T10:00:00.000Z'), 'cfr-halt')).toBeNull();
   });
 
   it('a look from before the latest check-in does not count', () => {
-    expect(handled(withSaid(s0, said('access', 'acknowledge', { at: '2026-10-20T15:00:00.000Z' })), 'access')).toBeNull();
+    expect(handled(withSaid(s0, said(RED, 'acknowledge', { at: '2026-10-29T15:00:00.000Z' })), RED)).toBeNull();
   });
 
   it('marked reviewed in a review counts, and says where and when', () => {
-    expect(handled(withSaid(s0, said('access', 'acknowledge')), 'access')).toMatchObject({ kind: 'reviewed', text: `Reviewed in Platform weekly review, week ${week}`, said: '' });
+    expect(handled(withSaid(s0, said(RED, 'acknowledge')), RED)).toMatchObject({ kind: 'reviewed', text: `Reviewed in Platform leadership weekly, week ${week}`, said: '' });
   });
 
   it('a note outside a review names who looked', () => {
-    expect(handled(withSaid(s0, said('access', 'note', { reviewId: null })), 'access')!.text).toBe(`Noted by Elena, week ${week}`);
+    expect(handled(withSaid(s0, said(RED, 'note', { reviewId: null })), RED)!.text).toBe(`Noted by Amara, week ${week}`);
   });
 
-  it('the owner looking at their own goal is not someone else having looked; their agreed action is', () => {
-    expect(handled(withSaid(s0, said('access', 'acknowledge', { byId: 'aisha' })), 'access')).toBeNull();
-    expect(handled(withSaid(s0, said('access', 'note', { byId: 'aisha' })), 'access')).toBeNull();
-    expect(handled(withSaid(s0, said('access', 'action', { byId: 'aisha', dueWeek: 46 })), 'access')!.kind).toBe('action');
+  it('the owner looking at their own goal is not someone else having looked; an action they agreed is', () => {
+    expect(handled(withSaid(s0, said(RED, 'acknowledge', { byId: 'yasmin' })), RED)).toBeNull();
+    expect(handled(withSaid(s0, said(RED, 'note', { byId: 'yasmin' })), RED)).toBeNull();
+    expect(handled(withSaid(s0, action(RED, { askedBy: 'yasmin', dueWeek: 46 })), RED)!.kind).toBe('action');
   });
 
   it('a question for the owner is not in hand: it waits on them', () => {
-    expect(handled(withSaid(s0, said('access', 'ask', { note: 'When does the vendor ship?' })), 'access')).toBeNull();
+    expect(handled(withSaid(s0, action(RED, { kind: 'question', ask: 'When does the trigger ship?' })), RED)).toBeNull();
+  });
+
+  it('an action marked done or withdrawn is no longer in hand', () => {
+    expect(handled(withSaid(s0, action(RED, { status: 'done' })), RED)).toBeNull();
+    expect(handled(withSaid(s0, action(RED, { status: 'withdrawn' })), RED)).toBeNull();
   });
 
   it('an answered request puts it in hand', () => {
-    const r = openFor('access', s0)[0]!;
-    const { request } = answerRequest(r, 'Approved: read-only for the Brain until week 49.', 'elena', '2026-10-29T16:00:00.000Z', (p) => `${p}_t${++n}`);
+    const r = openFor('ns-lead', s0)[0]!;
+    const { request } = answerAsk(r, 'Approved: the runner budget for Q4.', 'amara', '2026-11-05T10:00:00.000Z', (p) => `${p}_t${++n}`);
     const s: Snapshot = { ...s0, requests: (s0.requests ?? []).map((x) => (x.id === r.id ? request : x)) };
-    expect(handled(s, 'access')).toMatchObject({ kind: 'answered', text: `Request answered by Elena, week ${week}`, said: 'Approved: read-only for the Brain until week 49.' });
+    expect(handled(s, 'ns-lead')).toMatchObject({ kind: 'answered', text: `Request answered by Amara, week ${week}`, said: 'Approved: the runner budget for Q4.' });
   });
 
   it('a new flag since the look makes it news again: the recovery date passes', () => {
-    // Access’s latest check-in says it is back on plan by week 44; Elena reviews it in week 44.
-    const s1: Snapshot = { ...s0, checkIns: s0.checkIns.map((c) => (c.id === latest(s0, 'access').id ? { ...c, pathToGreen: { ...c.pathToGreen!, byWeek: 44 } } : c)) };
-    const s = withSaid(s1, said('access', 'acknowledge'));
-    expect(handled(s, 'access')).not.toBeNull();
-    // Monday of week 45: still not stale, but the date it was due back on plan has passed.
-    const monday = new Date('2026-11-02T12:00:00Z');
-    expect(attentionFor(goal(s, 'access'), s, cycle, monday).flags.map((f) => f.kind)).toContain('missed-path');
-    expect(handled(s, 'access', monday)).toBeNull();
+    // The latest check-in says it's back on plan by week 45; Amara reviews it this morning.
+    const s1: Snapshot = { ...s0, checkIns: s0.checkIns.map((c) => (c.id === latest(s0, RED).id ? { ...c, pathToGreen: { ...c.pathToGreen!, byWeek: 45 } } : c)) };
+    const s = withSaid(s1, said(RED, 'acknowledge'));
+    expect(handled(s, RED)).not.toBeNull();
+    // Monday of week 46: still not stale, but the date it was due back on plan has passed.
+    const monday = new Date('2026-11-09T12:00:00Z');
+    expect(attentionFor(goal(s, RED), s, cycle, monday).flags.map((f) => f.kind)).toContain('missed-path');
+    expect(handled(s, RED, monday)).toBeNull();
   });
 
   it('a check-in coming due does not count as new: the owner has a week to post it', () => {
-    const monday = new Date('2026-11-02T12:00:00Z');
-    const s = withSaid(s0, said('access', 'acknowledge'));
-    expect(attentionFor(goal(s, 'access'), s, cycle, monday).flags.map((f) => f.kind)).toContain('due');
-    expect(handled(s, 'access', monday)).not.toBeNull();
+    const monday = new Date('2026-11-09T12:00:00Z');
+    const s = withSaid(s0, said(RED, 'acknowledge'));
+    expect(attentionFor(goal(s, RED), s, cycle, monday).flags.map((f) => f.kind)).toContain('due');
+    expect(handled(s, RED, monday)).not.toBeNull();
   });
 
   it('an action past its week is news, not in hand', () => {
-    expect(handled(withSaid(s0, said('access', 'action', { dueWeek: week - 1 })), 'access')).toBeNull();
-    expect(handled(withSaid(s0, said('access', 'action', { dueWeek: week })), 'access')).not.toBeNull();
+    expect(handled(withSaid(s0, action(RED, { dueWeek: week - 1 })), RED)).toBeNull();
+    expect(handled(withSaid(s0, action(RED, { dueWeek: week })), RED)).not.toBeNull();
   });
 
   it('a goal going quiet is never being handled', () => {
-    expect(handled(withSaid(s0, said('env', 'action', { at: '2026-10-29T15:00:00.000Z', dueWeek: 47 })), 'env')).toBeNull();
+    expect(handled(withSaid(s0, action('env-search', { dueWeek: 47 })), 'env-search')).toBeNull();
   });
 
   it('only behind goals are handled: an on-track goal with a note is just on track', () => {
-    expect(handled(withSaid(s0, said('lead', 'note')), 'lead')).toBeNull();
+    expect(handled(withSaid(s0, said('ns-ai', 'note')), 'ns-ai')).toBeNull();
   });
 
   it('a look dated after today does not count yet', () => {
-    expect(handled(withSaid(s0, said('access', 'acknowledge', { at: '2026-11-03T15:00:00.000Z' })), 'access')).toBeNull();
+    expect(handled(withSaid(s0, said(RED, 'acknowledge', { at: '2026-11-07T15:00:00.000Z' })), RED)).toBeNull();
   });
 
   it('an agreed action is shown before a note or a plain “reviewed”', () => {
-    const s = withSaid(s0, said('access', 'acknowledge', { at: '2026-10-29T17:00:00.000Z' }), said('access', 'action', { assigneeId: 'elena', dueWeek: 46 }), said('access', 'note'));
-    expect(handled(s, 'access')!.text).toBe('Action: Elena, due week 46');
+    const s = withSaid(s0, said(RED, 'acknowledge', { at: '2026-11-05T11:00:00.000Z' }), action(RED, { recipientId: 'amara', dueWeek: 46 }), said(RED, 'note'));
+    expect(handled(s, RED)!.text).toBe('Action: Amara, due week 46');
   });
 
   it('handledFor is the same rule on its own', () => {
-    const s = withSaid(s0, said('access', 'acknowledge'));
-    expect(handledFor(goal(s, 'access'), s, cycle, today)).toEqual(handled(s, 'access'));
+    const s = withSaid(s0, said(RED, 'acknowledge'));
+    expect(handledFor(goal(s, RED), s, cycle, today)).toEqual(handled(s, RED));
   });
 });
 
@@ -136,32 +149,32 @@ describe('lists that show attention', () => {
     expect(firstHandled).toBeGreaterThan(0);
     expect(list.slice(firstHandled).every((a) => a.handled)).toBe(true);
     const { needs, handled: inHand } = splitAttention(list);
-    expect(inHand.map((a) => a.goal.id)).toEqual(['head']);
-    expect(needs.map((a) => a.goal.id)).toContain('access');
+    expect(inHand.map((a) => a.goal.id).sort()).toEqual(['cfr-contract', 'cfr-halt', 'dep-jenkins', 'ns-vuln']);
+    expect(needs.map((a) => a.goal.id)).toContain('ns-lead');
     expect(needs.every(needsAttention)).toBe(true);
   });
 
   it('the review agenda carries it: new information first, then what is being handled, then the healthy goals', () => {
-    const s = withSaid(s0, said('access', 'action', { dueWeek: 47 }));
+    const s = withSaid(s0, action('ns-env', { dueWeek: 47 }));
     const x = reviewSession(s.reviews.find((r) => r.id === 'weekly')!, s, cycle, today, week);
     const ids = x.items.map((a) => a.goal.id);
     const tier = (id: string) => { const a = x.items.find((i) => i.goal.id === id)!; return a.handled ? 1 : a.status.status === 'on' && a.flags.every((f) => f.kind === 'due') ? 2 : 0; };
     expect(ids.map(tier)).toEqual([...ids.map(tier)].sort((a, b) => a - b));
     const ag = agendaOf(x);
-    expect(ag.handled.map((a) => a.goal.id).sort()).toEqual(['access', 'head']);
+    expect(ag.handled.map((a) => a.goal.id)).toContain('ns-env');
     // Being handled is a part of discuss, at its end, so the agenda's screen still walks them.
     expect(ag.handled.every((a) => ag.discuss.includes(a))).toBe(true);
-    expect(ag.discuss.slice(-2).map((a) => a.goal.id).sort()).toEqual(['access', 'head']);
+    expect(ag.discuss.slice(-ag.handled.length).every((a) => !!a.handled)).toBe(true);
   });
 
   it('the AI brief lists them apart, with what is in hand, and not under at risk', () => {
-    const md = aiBrief({ ws: { id: 'x', name: 'Platform' }, snapshot: s0, cycle, week, today });
+    const md = aiBrief({ ws: { id: 'x', name: 'Platform Engineering' }, snapshot: s0, cycle, week, today });
     const risk = md.slice(md.indexOf('## At risk'), md.indexOf('## Being handled'));
     expect(md).toContain('## Being handled');
-    expect(risk).not.toContain('### Intake-to-delivery time');
+    expect(risk).not.toContain('### Critical and high vulnerabilities fixed within SLA');
     const inHand = md.slice(md.indexOf('## Being handled'), md.indexOf('## No recent update'));
-    expect(inHand).toContain('### Intake-to-delivery time');
-    expect(inHand).toContain(`**Being handled:** Noted in Platform weekly review, week ${week - 1}`);
-    expect(md).toMatch(/1 behind and being handled/);
+    expect(inHand).toContain('### Critical and high vulnerabilities fixed within SLA');
+    expect(inHand).toContain('**Being handled:** Action: Farah, due week 48');
+    expect(md).toMatch(/4 behind and being handled/);
   });
 });

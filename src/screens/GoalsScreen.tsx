@@ -14,7 +14,6 @@ import { GoalRow, TreeCard, TreeRows } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { HandledGroup } from '../ui/HandledGroup';
 import { WatchingBody } from './Watching';
-import { useNavMode } from '../app/navMode';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
@@ -47,8 +46,8 @@ export function GoalsScreen() {
   // Needs attention is new information; what someone has looked at since its latest check-in is being handled.
   const { needs: att, handled } = useMemo(() => splitAttention(attentionList(app.snapshot, app.cycle, app.today)), [app.snapshot, app.cycle, app.today]);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
-  const navMode = useNavMode();
   const show: Show = (params.get('show') as Show) || 'outcomes';
+  const watchedCount = useMemo(() => watchedGoals(app.viewer.id, app.snapshot).length, [app.viewer.id, app.snapshot]);
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
   const [layout, setLayout] = useLayout();
   const flat = (n: TreeNode, depth = 0): { goal: Goal; depth: number }[] => [{ goal: n.goal, depth }, ...n.children.flatMap((c) => flat(c, depth + 1))];
@@ -104,11 +103,14 @@ export function GoalsScreen() {
     ['levels', 'By level', null],
     ['teams', 'By team', null],
     ...(mine.length ? [['mine', 'Mine', mine.length] as [Show, string, number]] : []),
-    ...(navMode === 'four' ? [['watching', 'Watching', null] as [Show, string, null]] : []),
+    ['watching', 'Watching', watchedCount],
   ];
 
   // Each kind of view gets the room it needs: a list reads best narrow, a table or board wants width, the map wants everything.
-  const frame = (!alt ? 'page' : layout === 'map' ? 'page full' : 'page wide') + ' goals-page';
+  const frame = (!alt ? 'page' : layout === 'map' ? 'page full' : 'page wide') + ' goals-page' + (show === 'watching' && !alt ? ' watching' : '');
+  // Watching is a scope of Goals (one Watching, 5 Nov): the same toolbar, filters and layouts, and in the list its own
+  // groups beside what changed this week. Sorted, it's a plain list in that order, like any other scope.
+  const watchingList = show === 'watching' && !alt && !query.sort;
   const openView = (v: { params: string }) => { const p = new URLSearchParams(v.params); for (const k of ['today', 'store']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); };
   const viewName = tabs.find(([k]) => k === show)?.[1] ?? 'Goals';
   const [exporting, setExporting] = useState(false);
@@ -127,7 +129,7 @@ export function GoalsScreen() {
       {/* A short header, so the goals start near the top: the title and the one creating action, then one toolbar. */}
       <div className="page-head row between goals-head">
         <span className="goals-title">
-          <h1 className="title-xl">Goals</h1>
+          <h1 className="title-xl">{show === 'watching' ? 'Watching' : 'Goals'}</h1>
           {/* The week line breaks only between its parts, never inside one. */}
           <span className="hint goals-period">{periodLabel(app.cycle, app.week).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
         </span>
@@ -169,7 +171,7 @@ export function GoalsScreen() {
       <FirstReports />
       {refined && shown.length === 0 && <EmptyResult title="No goals match" action={<button type="button" className="btn" onClick={() => { const p = new URLSearchParams(); for (const k of ['today', 'store', 'view']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>Clear search and filters</button>}>Remove a filter above, or clear them all.</EmptyResult>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
-      {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
+      {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
@@ -177,7 +179,7 @@ export function GoalsScreen() {
       {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={ATTENTION.every((k) => query.status.includes(k)) && query.status.length === ATTENTION.length} onAttention={(on) => setQuery((cur) => ({ ...cur, status: on ? [...ATTENTION] : [] }))} /></Suspense>}
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
-      {!alt && refined && groups.map((g) => (
+      {!alt && refined && !watchingList && groups.map((g) => (
         <section key={g.key} className="block" aria-label={g.title}>
           <h2 className="block-title">{g.title} <span className="hint">· {g.rows.length}</span></h2>
           <ul className="tree">{g.rows.map((r) => <li key={r.goal.id}><GoalRow g={r.goal} /></li>)}</ul>
@@ -242,7 +244,7 @@ export function GoalsScreen() {
         );
       })}
 
-      {!alt && !refined && show === 'watching' && <WatchingBody />}
+      {watchingList && (shown.length > 0 || !refined) && <WatchingBody goals={shown} />}
 
       {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><GoalRow g={g} showOwner={false} /></li>)}</ul>}
       {/* The key sits after the goals: every row already shows its status in words. */}

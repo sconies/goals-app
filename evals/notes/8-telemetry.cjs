@@ -42,7 +42,7 @@ module.exports = {
       p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
       p.on('pageerror', (e) => errors.push('page error: ' + e.message));
       await p.goto(url('/'));
-      await p.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), who);
+      await p.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       return { c, p, sent, errors };
     }
     // What the page sends when it's hidden (switching tabs, closing): the quickest way to see what's waiting.
@@ -59,7 +59,7 @@ module.exports = {
 
     async function checkIn(p) {
       await p.goto(url('/check-in/alerts'));
-      const g = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-app-v2:example')).goals.find((x) => x.id === 'alerts'));
+      const g = await p.evaluate(async () => (await window.__goalsStore.load('platform-org')).goals.find((x) => x.id === 'alerts'));
       await p.getByLabel('This week’s value').fill(String(g.plan.start));
       await p.getByRole('button', { name: 'Continue' }).click();
       const changed = p.getByRole('button', { name: 'Something changed', exact: true });

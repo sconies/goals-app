@@ -214,3 +214,10 @@
 /* Brought into view when opened from a link: clear of the phone's tab bar below and the bar above. */
 .goal-page .respond-form, .goal-page .reply-form { scroll-margin-top: 112px; scroll-margin-bottom: 24px; }
 @container app (max-width: 760px) { .goal-page .respond-form, .goal-page .reply-form { scroll-margin-bottom: 96px; } }
+
+/* One way to ask (5 Nov): the comment box posts a comment, or asks the owner the same words as a question. */
+.note-compose { flex-wrap: wrap; }
+.note-compose-actions { flex-wrap: wrap; }
+.action-do { margin-top: 2px; }
+.save-note { font-weight: 500; }
+.demo-team { padding: var(--s2) 12px 0; }

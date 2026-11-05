@@ -92,7 +92,7 @@ describe('database save functions, as the public user', () => {
   it('saves a request with its change-log entry, then its answer for every goal waiting on it (0017)', async () => {
     const [g1, g2] = snap.goals;
     const by = snap.people[0]!.id, to = snap.people[1]!.id;
-    const r = { id: 'req_rpc_1', goalIds: [g1!.id], askedBy: by, recipientId: to, ask: 'Approve the interim scope', status: 'open' as const, checkInId: null, createdAt: now.toISOString(), updatedAt: now.toISOString(), answer: null, answeredBy: null, answeredAt: null };
+    const r = { id: 'req_rpc_1', kind: 'decision' as const, goalIds: [g1!.id], askedBy: by, recipientId: to, ask: 'Approve the interim scope', status: 'open' as const, dueWeek: null, reviewId: null, week: null, checkInId: null, createdAt: now.toISOString(), updatedAt: now.toISOString(), answer: null, answeredBy: null, answeredAt: null };
     await commit({ requests: [r], changes: [{ id: 'chg_req_1', at: now.toISOString(), actorId: by, goalId: g1!.id, entity: 'request', entityId: r.id, action: 'asked', summary: 'Asked for a decision or help', diffs: [] }] });
     await commit({ requests: [{ ...r, goalIds: [g1!.id, g2!.id], status: 'answered', answer: 'Approved.', answeredBy: to, answeredAt: now.toISOString() }], changes: [{ id: 'chg_req_2', at: now.toISOString(), actorId: to, goalId: g1!.id, entity: 'request', entityId: r.id, action: 'answered', summary: 'Answered the request', diffs: [] }] });
     const rows = (await db.query<{ status: string; goal_ids: string[]; answer: string }>('select status, goal_ids, answer from okr_requests where id = $1', ['req_rpc_1'])).rows;
@@ -100,6 +100,19 @@ describe('database save functions, as the public user', () => {
     expect(await count('okr_changes', `entity = 'request' and workspace_id = '${ws}'`)).toBe(2);
     // An answered request must carry its answer.
     await expect(commit({ requests: [{ ...r, id: 'req_rpc_2', status: 'answered' }], changes: [] })).rejects.toThrow();
+  });
+
+  it('saves every kind of ask, and an action marked done (0023)', async () => {
+    const [g1] = snap.goals;
+    const by = snap.people[0]!.id, to = snap.people[1]!.id;
+    const base = { goalIds: [g1!.id], askedBy: by, recipientId: to, checkInId: null, createdAt: now.toISOString(), updatedAt: now.toISOString(), answer: null, answeredBy: null, answeredAt: null, reviewId: null, week: 44 };
+    const action = { ...base, id: 'ask_rpc_a', kind: 'action' as const, ask: 'Write the budget case', status: 'open' as const, dueWeek: 46 };
+    const question = { ...base, id: 'ask_rpc_q', kind: 'question' as const, ask: 'When does it land?', status: 'open' as const, dueWeek: null };
+    const update = { ...base, id: 'ask_rpc_u', kind: 'update' as const, ask: 'Could you post an update?', status: 'withdrawn' as const, dueWeek: null };
+    await commit({ requests: [action, question, update], changes: [] });
+    await commit({ requests: [{ ...action, status: 'done', answer: '', answeredBy: to, answeredAt: now.toISOString() }], changes: [{ id: 'chg_ask_done', at: now.toISOString(), actorId: to, goalId: g1!.id, entity: 'request', entityId: action.id, action: 'done', summary: 'Marked the action done', diffs: [] }] });
+    const rows = (await db.query<{ id: string; kind: string; status: string; due_week: number | null }>(`select id, kind, status, due_week from okr_requests where id like 'ask_rpc_%' order by id`)).rows;
+    expect(rows).toEqual([{ id: 'ask_rpc_a', kind: 'action', status: 'done', due_week: 46 }, { id: 'ask_rpc_q', kind: 'question', status: 'open', due_week: null }, { id: 'ask_rpc_u', kind: 'update', status: 'withdrawn', due_week: null }]);
   });
 
   it('turns asks already in check-ins into open requests, addressed to the person named (0017 backfill)', async () => {

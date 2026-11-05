@@ -13,10 +13,10 @@ import { emptyDraft, evaluate, isShare, toCheckIn, type Draft, type Evaluation }
 import { replanned } from '../../domain/goal';
 import { withKeys } from '../../domain/goalKey';
 import { goalAsOf, planAt } from '../../domain/plan';
-import { requestsAfterCheckIn } from '../../domain/requests';
-import type { Change, CheckIn, Cycle, Decision, Goal, HelpRequest, MetricGoal, Review, SavedView, Snapshot, StageUpdate, Watch } from '../../domain/types';
-import { demoYear, yearName } from '../yearStory';
-import { COMMENTS, HELD, REVIEWS, SAID, UNDER_WAY, UPDATE_ASKS, VIEWS, WATCHES } from './conversation';
+import { requestsAfterCheckIn } from '../../domain/asks';
+import type { Ask, Change, CheckIn, Cycle, Decision, Goal, MetricGoal, Review, SavedView, Snapshot, StageUpdate, Watch } from '../../domain/types';
+import { demoYear, yearName } from './year';
+import { CLOSED, COMMENTS, HELD, REVIEWS, SAID, UNDER_WAY, UPDATE_ASKS, VIEWS, WATCHES } from './conversation';
 import { GOALS, type GoalSpec, type Phase } from './goals';
 import { PEOPLE, TEAMS } from './people';
 import { AHEAD, BEHIND, fill, PATHS, STEADY, type Said, type Theme } from './stories';
@@ -94,7 +94,7 @@ export function buildPlatformOrg(today: Date): Snapshot {
   const own = new Map<string, CheckIn[]>(keyed.map((g) => [g.id, []]));
   const ctx = (by: string, when: Date): A.ActionContext => ({ snapshot: S, cycle, week: Math.min(NOW, Math.max(0, Math.floor((when.getTime() - startMs) / (7 * DAY)))), actor: person(by), now: when.toISOString(), newId });
   /** Save what an action returns, as the store would. */
-  const save = (c: { changes: Change[]; decisions?: Decision[]; requests?: HelpRequest[]; watches?: Watch[]; views?: SavedView[]; reviews?: Review[]; checkIns?: CheckIn[]; tokens?: Snapshot['tokens'] } | null) => {
+  const save = (c: { changes: Change[]; decisions?: Decision[]; requests?: Ask[]; watches?: Watch[]; views?: SavedView[]; reviews?: Review[]; checkIns?: CheckIn[]; tokens?: Snapshot['tokens'] } | null) => {
     if (!c) return;
     const upsert = <T extends { id: string }>(list: T[], items: T[] = []) => { for (const x of items) { const i = list.findIndex((y) => y.id === x.id); if (i < 0) list.push(x); else list[i] = x; } };
     S.changes.push(...c.changes);
@@ -328,6 +328,17 @@ export function buildPlatformOrg(today: Date): Snapshot {
           if (happened(t)) save(A.reviewCall(ctx(review.createdBy, t), g, review, 'acknowledge', '', { week: w }));
         }
       }
+    }
+    // Questions answered and actions marked done, by whoever must respond, the afternoon after they were asked at the
+    // earliest. Nothing else closes them: a comment or a check-in doesn't.
+    for (const [goalId, start, cw, text] of CLOSED) {
+      if (T(cw) !== w) continue;
+      const a = S.requests!.find((x) => x.status === 'open' && x.goalIds[0] === goalId && x.ask.startsWith(start) && (x.kind === 'question' || x.kind === 'action'));
+      if (!a || !a.recipientId) continue;
+      const when = new Date(Math.max(at(w, 1, 15).getTime(), Date.parse(a.createdAt) + 20 * HOUR));
+      if (!happened(when)) continue;
+      const x = ctx(a.recipientId, when);
+      save(a.kind === 'action' ? A.markActionDone(x, a, text) : A.answerRequest(x, a, text));
     }
   }
 

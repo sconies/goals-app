@@ -137,7 +137,7 @@ module.exports = {
     {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: 'dark' });
       const p = await ctx.newPage();
-      await p.goto(url('/')); await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'priya'));
+      await p.goto(url('/')); await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'priya'));
       await p.goto(url('/data')); await p.waitForTimeout(400);
       const dk = await p.evaluate(() => ({ ro: getComputedStyle(document.querySelector('.dtable td.dcell.ro:not(.dname)')).backgroundColor, rw: getComputedStyle(document.querySelector('.dtable td.dcell:not(.ro):not(.dname)')).backgroundColor, body: getComputedStyle(document.querySelector('.data-wrap')).backgroundColor }));
       const rw = /rgba\(0, 0, 0, 0\)/.test(dk.rw) ? dk.body : dk.rw;

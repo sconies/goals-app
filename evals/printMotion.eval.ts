@@ -1,7 +1,7 @@
 /* Lane's review notes (5 Nov), print-motion: the one-page views gather everything critical from the domain, and the
    motion layer's arithmetic lands exactly where it should. Each case is tagged with its requirement ID. */
 import { describe, expect, it } from 'vitest';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { goalSheet, reviewSheet } from '../src/domain/onePager';
 import { currentWeek } from '../src/domain/plan';
 import { attentionFor } from '../src/domain/attention';

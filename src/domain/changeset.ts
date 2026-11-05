@@ -11,9 +11,9 @@ import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { personChange, personProblems } from './people';
-import { requestsAfterCheckIn } from './requests';
+import { requestsAfterCheckIn } from './asks';
 import { initials } from './importer';
-import type { Change, CheckIn, Cycle, Diff, Goal, HelpRequest, MetricGoal, MetricPlan, Person, RecoveryState, Snapshot, StageUpdate, Status } from './types';
+import type { Change, CheckIn, Cycle, Diff, Goal, Ask, MetricGoal, MetricPlan, Person, RecoveryState, Snapshot, StageUpdate, Status } from './types';
 
 /** A row as a header → value map (lower-case headers), and its row number in the sheet. */
 export type Rec = Record<string, string> & { __row?: string };
@@ -436,8 +436,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
   }
 
-  /* Requests: a goal's latest check-in raises, continues or withdraws its request, as in the app (domain/requests). */
-  const reqOut = new Map<string, HelpRequest>();
+  /* Requests: a goal's latest check-in raises, continues or withdraws its request, as in the app (domain/asks). */
+  const reqOut = new Map<string, Ask>();
   for (const c of ciOut) {
     const later = s.checkIns.some((x) => x.goalId === c.goalId && x.week > c.week) || ciOut.some((x) => x.goalId === c.goalId && x.week > c.week);
     const g = work.get(c.goalId);

@@ -47,13 +47,23 @@ function clock(): (() => Date) | undefined {
     development, the evals) or with `?store=browser` it keeps real workspaces in this browser instead.
     The Supabase client loads only when it is used, so the demo stays small. */
 async function store(today?: () => Date): Promise<Store> {
-  if (mode === 'demo') { pickExampleFromUrl(location.search); return new BrowserStore(today); }
+  if (mode === 'demo') { pickExampleFromUrl(location.search); return inspectable(new BrowserStore(today)); }
   const { VITE_SUPABASE_URL: url, VITE_SUPABASE_KEY: key } = import.meta.env;
   if (url && key && new URLSearchParams(location.search).get('store') !== 'browser') {
     const { SupabaseStore } = await import('./data/supabaseStore');
     return new SupabaseStore(url, key);
   }
-  return new BrowserStore(today, { key: LIVE_KEY, example: false });
+  return inspectable(new BrowserStore(today, { key: LIVE_KEY, example: false }));
+}
+
+/**
+ * A store kept in this browser can be read from the page (`window.__goalsStore.load(id)`), for the evals and for anyone
+ * checking what the demo holds: the example isn't stored whole any more (only the saves are), so reading localStorage
+ * no longer shows it. It holds only what's already in this browser.
+ */
+function inspectable(s: BrowserStore): BrowserStore {
+  (window as unknown as { __goalsStore?: Pick<Store, 'load' | 'workspaces' | 'commit'> }).__goalsStore = { load: (id) => s.load(id), workspaces: () => s.workspaces(), commit: (id, c) => s.commit(id, c) };
+  return s;
 }
 
 const today = clock();

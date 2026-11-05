@@ -2,15 +2,15 @@
    Markdown (to paste into any AI chat). Pure functions; the app turns them into files.
    The Goals, Plan and Check-ins sheets use the import's column names, so an export can be edited and loaded back. */
 import { planHistoryOf } from './goal';
-import { requestsOf } from './requests';
+import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf, isOverdue } from './asks';
 import { causeLabel } from './checkin';
 import { LEVEL_LABEL } from './format';
 import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
 import { MEANING, RESULT_MEANING, RESULT_TEXT } from './story';
 import { isYear, periodLabel, quarterOf, quarters } from './year';
-import { answerOf } from './review';
+import { answerOf, saidIn } from './review';
 import { handledFor, type Handled } from './attention';
-import { assessMilestone, LABEL } from './status';
+import { LABEL } from './status';
 import { summariseAll, type GoalSummary } from './summary';
 import type { CheckIn, Cycle, Goal, Snapshot, Workspace } from './types';
 
@@ -42,9 +42,14 @@ function prepare(x: ExportInput) {
   return { goals, sums, name };
 }
 
+/** A check-in's stages as the owner gave them (done, expected or on its due week), so loading the file back changes
+    nothing: an overdue stage with no new date is still "due week …", not the week the rules expect it. */
 function stagesText(g: Goal, c: CheckIn): string {
   if (g.kind !== 'milestone' || !c.stages) return '';
-  return assessMilestone(g, c.week, c.stages).stages.map((s) => `${s.name}: ${s.kind === 'done' ? 'done week ' + s.doneWeek : s.weeksLate > 0 ? 'expected week ' + s.expectedWeek : 'due week ' + s.dueWeek}`).join('; ');
+  return g.stages.map((st) => {
+    const u = c.stages!.find((x) => x.stageId === st.id);
+    return `${st.name}: ${u?.doneWeek != null ? 'done week ' + u.doneWeek : u?.forecastWeek != null ? 'expected week ' + u.forecastWeek : 'due week ' + st.dueWeek}`;
+  }).join('; ');
 }
 
 /* ---------- workbook ---------- */
@@ -131,27 +136,27 @@ const README: Cell[][] = [
   ['People', 'Name, Job title, Team, Admin, Team objective', 'Who’s who', 'Changed in Data; not loaded back from a file yet'],
 ];
 
-/** Requests for a decision or help on the exported goals: open, answered or withdrawn, with every goal waiting on each. */
-function requestRows(x: ExportInput, ids: Set<string>, name: (id: string) => string): Cell[][] {
+/** Every ask on the exported goals (a decision or help, an update, a question, an action): where each stands, with every goal it's about. */
+function askRows(x: ExportInput, ids: Set<string>, name: (id: string) => string): Cell[][] {
   const title = (id: string) => x.snapshot.goals.find((g) => g.id === id)?.title ?? id;
-  const list = requestsOf(x.snapshot).filter((r) => r.goalIds.some((id) => ids.has(id)));
+  const list = asksOf(x.snapshot).filter((r) => r.goalIds.some((id) => ids.has(id)));
   return [
-    ['ID', 'Goals', 'Goal keys', 'Goal IDs', 'Asked by', 'Asked of', 'Request', 'Status', 'Asked at', 'Answer', 'Answered by', 'Answered at'],
-    ...list.map((r) => [r.id, r.goalIds.map(title).join('; '), r.goalIds.map((id) => x.snapshot.goals.find((g) => g.id === id)?.key ?? '').filter(Boolean).join('; ') || null, r.goalIds.join('; '), name(r.askedBy) || null, r.recipientId ? name(r.recipientId) || null : 'Anyone', r.ask, r.status === 'open' ? 'Open' : r.status === 'answered' ? 'Answered' : 'Withdrawn', r.createdAt, r.answer, r.answeredBy ? name(r.answeredBy) || null : null, r.answeredAt]),
+    ['ID', 'Kind', 'Ask', 'Goals', 'Goal keys', 'Goal IDs', 'Asked by', 'Asked of', 'Status', 'Due week', 'Review', 'Asked at', 'Answer', 'Answered by', 'Answered at'],
+    ...list.map((r) => [r.id, ASK_KIND_LABEL[r.kind], r.ask, r.goalIds.map(title).join('; '), r.goalIds.map((id) => x.snapshot.goals.find((g) => g.id === id)?.key ?? '').filter(Boolean).join('; ') || null, r.goalIds.join('; '), name(r.askedBy) || null, r.recipientId ? name(r.recipientId) || null : 'Anyone', ASK_STATUS_LABEL[r.status], r.dueWeek, x.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, r.createdAt, r.answer || null, r.answeredBy ? name(r.answeredBy) || null : null, r.answeredAt]),
   ];
 }
 
 export function workbook(x: ExportInput): Table[] {
   const { goals, sums, name } = prepare(x);
   const ids = new Set(goals.map((g) => g.id));
-  const notes = x.snapshot.decisions.filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));
+  const notes = saidIn(x.snapshot).filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));
   const goalTitle = (id: string) => goals.find((g) => g.id === id)?.title ?? '';
   return [
     { name: 'Goals', rows: [[...GOAL_EXPORT_COLUMNS, ...GOAL_DERIVED_COLUMNS], ...sums.map((s) => goalRow(s, x.snapshot.goals))] },
     { name: 'Plan', rows: planRows(x, sums) },
     { name: 'Check-ins', rows: [[...CHECKIN_EXPORT_COLUMNS], ...checkInRows(x, sums, name)] },
-    { name: 'Notes and actions', rows: [['Goal key', 'Goal ID', 'Goal', 'Week', 'Kind', 'Said by', 'Text', 'Who', 'Due week', 'Review', 'Answer', 'At'], ...notes.map((d) => [goals.find((g) => g.id === d.goalId)?.key ?? null, d.goalId, goalTitle(d.goalId), d.week, d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note', name(d.byId), d.note, d.kind === 'action' ? name(d.assigneeId ?? '') || null : null, d.dueWeek ?? null, x.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? null, d.kind === 'ask' ? answerOf(d, x.snapshot)?.text ?? null : null, d.at])] },
-    { name: 'Requests', rows: requestRows(x, ids, name) },
+    { name: 'Notes and actions', rows: [['Goal key', 'Goal ID', 'Goal', 'Week', 'Kind', 'Said by', 'Text', 'Who', 'Due week', 'Review', 'Answer', 'At'], ...notes.map((d) => [goals.find((g) => g.id === d.goalId)?.key ?? null, d.goalId, goalTitle(d.goalId), d.week, d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note', name(d.byId), d.note, d.kind === 'action' ? name(d.assigneeId ?? '') || null : null, d.dueWeek ?? null, x.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? null, d.ask ? answerOf(d)?.text ?? null : null, d.at])] },
+    { name: 'Asks', rows: askRows(x, ids, name) },
     { name: 'People', rows: [['ID', 'Name', 'Job title', 'Team', 'Admin', 'Team objective'], ...x.snapshot.people.map((p) => { const t = x.snapshot.teams.find((t) => t.id === p.teamId); return [p.id, p.name, p.role || null, t?.name ?? null, p.admin ? 'yes' : null, t && t.leadId === p.id ? t.objective || null : null]; })] },
     { name: 'README', rows: [[`${x.ws.name}, ${x.cycle.name}. Exported ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`], [], ...README] },
   ];
@@ -211,10 +216,10 @@ export function toJson(x: ExportInput) {
         })),
       };
     }),
-    notes: x.snapshot.decisions.filter((d) => sums.some((s) => s.goal.id === d.goalId) && ['note', 'ask', 'action'].includes(d.kind)).map((d) => ({
+    notes: saidIn(x.snapshot).filter((d) => sums.some((s) => s.goal.id === d.goalId) && ['note', 'ask', 'action'].includes(d.kind)).map((d) => ({
       goalId: d.goalId, goalKey: sums.find((s) => s.goal.id === d.goalId)?.goal.key ?? null, week: d.week, kind: d.kind === 'ask' ? 'question' : d.kind, by: name(d.byId), text: d.note,
       ...(d.kind === 'action' ? { who: name(d.assigneeId ?? '') || null, dueWeek: d.dueWeek ?? null } : {}),
-      ...(d.kind === 'ask' ? { answer: answerOf(d, x.snapshot)?.text ?? null } : {}),
+      ...(d.ask ? { status: d.ask.status, answer: answerOf(d)?.text ?? null } : {}),
       at: d.at,
     })),
   };
@@ -358,15 +363,15 @@ export function aiBrief(x: ExportInput): string {
   out.push('');
 
   const ids = new Set(goals.map((g) => g.id));
-  const open = x.snapshot.decisions.filter((d) => ids.has(d.goalId) && (d.kind === 'action' || (d.kind === 'ask' && !answerOf(d, x.snapshot))));
+  const open = asksOf(x.snapshot).filter((a) => a.status === 'open' && (a.kind === 'question' || a.kind === 'action') && ids.has(a.goalIds[0]!));
   if (open.length) {
-    out.push('## Open questions and actions from reviews');
-    const name = (id: string) => x.snapshot.people.find((p) => p.id === id)?.name ?? 'someone';
-    for (const d of open) {
-      const g = goals.find((y) => y.id === d.goalId)!;
-      out.push(d.kind === 'ask'
-        ? `- Question for ${name(g.ownerId)} on ${g.title} (week ${d.week}), not answered yet: ${d.note}`
-        : `- Action for ${name(d.assigneeId ?? g.ownerId)}${d.dueWeek ? ` by week ${d.dueWeek}` : ''} on ${g.title}: ${d.note}`);
+    out.push('## Open questions and actions');
+    const name = (id: string | null) => x.snapshot.people.find((p) => p.id === id)?.name ?? 'someone';
+    for (const a of open) {
+      const g = goals.find((y) => y.id === a.goalIds[0])!;
+      out.push(a.kind === 'question'
+        ? `- Question for ${name(a.recipientId)} on ${g.title}${a.week ? ` (week ${a.week})` : ''}, not answered yet: ${a.ask}`
+        : `- Action for ${name(a.recipientId)}${a.dueWeek ? ` by week ${a.dueWeek}${isOverdue(a, x.week) ? ', overdue' : ''}` : ''} on ${g.title}: ${a.ask}`);
     }
     out.push('');
   }

@@ -137,12 +137,12 @@ module.exports = {
       const cell = await p.locator('.dash-watch').innerText();
       check(/1 needs attention/.test(cell) && /2 being handled/.test(cell), `[ATTENTION-HANDLED] Elena's strip does not move it to being handled ("${cell.replace(/\n/g, ' ')}")`);
       // Aisha checks in again: new information.
-      await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'aisha'));
+      await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'aisha'));
       await p.goto(url('/check-in/access'));
       await p.getByRole('button', { name: 'Continue' }).click();
       await p.getByRole('button', { name: /Still true: post check-in/ }).click();
       await p.getByText('Check-in saved').first().waitFor().catch(() => {});
-      await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'elena'));
+      await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'elena'));
       const again = await watchState();
       check(again.needs && !again.handled, '[ATTENTION-HANDLED] after a new check-in the red goal is not back under Needs attention');
       await c.close();

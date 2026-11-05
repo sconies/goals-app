@@ -63,7 +63,6 @@ export const COMMENTS: Comment[] = [
 export const UPDATE_ASKS: [week: number, day: number, goal: string, by: string, undo?: boolean][] = [
   [30, 1, 'lead-mq', 'wen'],
   [41, 2, 'devsat-docs', 'grace', true],
-  [42, 3, 'env-search', 'camille'],
   [43, 1, 'cost-storage', 'amara'],
 ];
 
@@ -115,9 +114,9 @@ export const SAID: Said[] = [
   ['security', 40, 'iam-jit', 'action', 'farah', 'Move the SRE break-glass accounts to just-in-time access.', 'leilani', 47],
   ['devprod', 40, 'lead-mq', 'ask', 'daniel', 'If MergeFlow slip again, can we run the web monorepo on the queue without batching?'],
   ['weekly', 41, 'slo-multiregion', 'note', 'marisol', 'Showing it off track rather than stretching it. Replication work goes into next year’s plan.'],
-  ['weekly', 42, 'ns-lead', 'action', 'amara', 'Take the runner budget to the finance review.', 'amara', 43],
+  ['weekly', 42, 'ns-lead', 'action', 'amara', 'Take the runner budget to the finance review.', 'amara', 46],
   ['devprod', 42, 'lead-flaky', 'action', 'daniel', 'Fix the two shared fixtures behind the new flakes.', 'aiko', 45],
-  ['reliability', 42, 'ns-cfr', 'ask', 'marisol', 'How many of this month’s failed changes would the canary halt have caught?'],
+  ['reliability', 42, 'cfr-halt', 'ask', 'marisol', 'How many of this month’s failed changes would the canary halt have caught?'],
   ['dataml', 42, 'fresh-kafka', 'action', 'jun', 'Cost both options: wait for the vendor or self-host the connector.', 'santiago', 44],
   ['weekly', 43, 'ns-devsat', 'note', 'amara', 'The pulse dip lines up with CI times. Nothing new to do; it’s the same critical path as lead time.'],
   ['weekly', 43, 'ns-cost', 'ask', 'amara', 'Storage lifecycle hasn’t been updated for three weeks. Is it still on?'],
@@ -127,11 +126,33 @@ export const SAID: Said[] = [
   ['weekly', 44, 'ns-vuln', 'action', 'amara', 'Report container findings separately until the fix-it week is done.', 'farah', 48],
   ['weekly', 44, 'ns-env', 'action', 'ingrid', 'Decide whether to split data-backed environments into their own goal.', 'camille', 47],
   ['devprod', 44, 'dep-jenkins', 'ask', 'daniel', 'What’s left on Jenkins after the payments team moves?'],
+  ['devprod', 44, 'lead-ci-time', 'ask', 'daniel', 'If the runner budget is approved on the 12th, how soon does queue wait drop under five minutes?'],
   ['reliability', 44, 'ns-slo', 'note', 'marisol', 'Clean month. 99.97% across tier-1.'],
   ['dataml', 44, 'ml-gpu', 'action', 'jun', 'Pilot queue-based scheduling with the assistant team’s training jobs.', 'obinna', 48],
   ['weekly', 44, 'cost-storage', 'ask', 'amara', 'No update since week 40. Is the lifecycle work paused, and if so, what does that do to cost per request?'],
   ['reliability', 45, 'ns-mttr', 'note', 'marisol', 'Back on plan now July is out of the average. Well done.'],
   ['reliability', 45, 'cfr-halt', 'ask', 'marisol', 'Is week 45 still right for the halt on tier-1, given the burn-rate signal arrived late?'],
+];
+
+/**
+ * The questions answered and the actions marked done, by whoever must respond (the goal's owner; whoever does the
+ * action): [goal, the start of what was said, week, the answer or the note it was marked done with]. Every other
+ * question and action from a review is still open: one ask model, so a comment or a check-in doesn't close one.
+ */
+export const CLOSED: [goal: string, said: string, week: number, text: string][] = [
+  ['ns-cost', 'Show GPU spend separately', 18, 'GPU spend has its own line in the monthly cost report from June.'],
+  ['ns-lead', 'What’s the latest date for the merge queue pilot', 22, 'Week 38 for the web monorepo. Any later and lead time can’t make its plan this year.'],
+  ['ns-slo', 'Storage failover drill', 33, 'Drill run on both services; failover took four minutes each.'],
+  ['ns-devsat', 'Publish the top five survey actions', 30, 'Published on the portal, each with an owner.'],
+  ['vuln-containers', 'Agree the rebuild trigger with CI/CD', 36, 'Raised as a request to Rhea.'],
+  ['vuln-secrets', 'Do we know how the mobile repository keys', 37, 'A personal token pushed from a laptop with the local hook turned off. Push protection now runs on the server as well.'],
+  ['ns-lead', 'One-page case for the Q4 runner budget', 43, 'Sent to Amara: 18% more CI spend for Q4, about six hours off lead time.'],
+  ['ns-env', 'Is the 15-minute promise realistic', 40, 'Not with today’s snapshot restore. Pre-warmed snapshots get the top five under 15 minutes; the rest may need a goal of their own.'],
+  ['lead-mq', 'If MergeFlow slip again', 41, 'Yes. Without batching it still halves the queue wait; we only lose the batch speed-up.'],
+  ['lead-flaky', 'Fix the two shared fixtures', 45, 'Both fixtures fixed. The rate should drop under 1.8% next week.'],
+  ['cfr-halt', 'How many of this month’s failed changes', 43, 'Two of the three. The third was a console config change, which no canary sees.'],
+  ['fresh-kafka', 'Cost both options', 43, 'Both are in the doc: self-hosting is about two weeks’ work and £3k a month less, but we own its upgrades.'],
+  ['ns-cost', 'Storage lifecycle hasn’t been updated', 43, 'Still on. Jonah is on the incident rota this month and will update it next week.'],
 ];
 
 /** Who watches what: [person, kind, goal or level] */

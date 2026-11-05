@@ -149,11 +149,10 @@ module.exports = {
     await step('goals section', async () => {
       const [c, p] = await open(1280, 800, 'maya', '/');
       // A saved view of Maya's and one pinned for everyone, in the example's data.
-      await p.evaluate(() => {
-        const k = 'goals-app-v2:example', s = JSON.parse(localStorage.getItem(k));
+      // Saved through the store: the demo keeps only its saves on top of the example (DEMO-STORAGE).
+      await p.evaluate(async () => {
         const at = '2026-10-29T10:00:00.000Z';
-        s.views = [...(s.views || []), { id: 'view_n4a', personId: 'maya', name: 'Off track', params: 'status=off', pinned: false, createdAt: at, updatedAt: at, deletedAt: null }, { id: 'view_n4b', personId: 'elena', name: 'North star', params: 'level=north-star', pinned: true, createdAt: at, updatedAt: at, deletedAt: null }];
-        localStorage.setItem(k, JSON.stringify(s));
+        await window.__goalsStore.commit('platform-org', { views: [{ id: 'view_n4a', personId: 'maya', name: 'Off track', params: 'status=off', pinned: false, createdAt: at, updatedAt: at, deletedAt: null }, { id: 'view_n4b', personId: 'elena', name: 'North star', params: 'level=north-star', pinned: true, createdAt: at, updatedAt: at, deletedAt: null }], changes: [] });
       });
       await p.reload(); await p.waitForTimeout(300);
       const sub = p.locator('.side .subnav');
@@ -196,8 +195,9 @@ module.exports = {
       const c = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const p = await c.newPage();
       await p.goto(url('/')); await p.locator('.page-head').first().waitFor();
-      await p.evaluate(() => {
-        const ex = JSON.parse(localStorage.getItem('goals-app-v2:example'));
+      await p.evaluate(async () => {
+        const full = await window.__goalsStore.load('platform-org');
+        const ex = { ...full, changes: [], checkIns: full.checkIns.filter((c) => c.week >= 42) };
         localStorage.setItem('goals-live-v1:workspaces', JSON.stringify([{ id: 'ws_one', name: 'Acme', kind: 'own', createdAt: '2026-09-01T00:00:00Z' }]));
         localStorage.setItem('goals-live-v1:ws_one', JSON.stringify(ex));
         localStorage.setItem('goals-live-workspace', 'ws_one');
@@ -298,10 +298,10 @@ module.exports = {
         await dlg.getByLabel('Move them to').selectOption({ label: 'Data Platform' });
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
         await p.waitForTimeout(400);
-        const s = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-app-v2:example')));
+        const s = await p.evaluate(() => window.__goalsStore.load('platform-org'));
         const names = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-app-v2:names') || '{}'));
         const data = s.teams.find((t) => t.name === 'Data Platform');
-        fail(names.example === 'Acme Platform', `[WORKSPACE-ADMIN] ${w}: the new name is not saved`);
+        fail(names['platform-org'] === 'Acme Platform', `[WORKSPACE-ADMIN] ${w}: the new name is not saved`);
         fail(!!data && !s.teams.some((t) => t.id === 'sec') && s.people.find((x) => x.id === 'aisha').teamId === data.id && s.goals.filter((g) => g.teamId === 'sec').length === 0, `[WORKSPACE-ADMIN] ${w}: teams after the changes: ${s.teams.map((t) => t.name).join(', ')}`);
         fail(['Renamed the workspace to “Acme Platform”', 'Added the team “Data”', 'Renamed the team “Data” to “Data Platform”'].every((x) => s.changes.some((ch) => ch.summary === x && ch.actorId === 'elena')) && s.changes.some((ch) => /^Removed the team “Security”, moving/.test(ch.summary)), `[WORKSPACE-ADMIN] ${w}: the changes are not all logged`);
         const visible = await p.locator('.team-opt').allInnerTexts();

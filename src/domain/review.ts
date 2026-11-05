@@ -3,7 +3,8 @@
 import { attentionFor, type GoalAttention } from './attention';
 import { daysSince, weekDate } from './plan';
 import { checkInsFor, RANK } from './status';
-import type { Cycle, Decision, Goal, Level, Review, Snapshot, Watch } from './types';
+import { asksOf, isResolved } from './asks';
+import type { Ask, Cycle, Decision, Goal, Level, Review, Snapshot, Watch } from './types';
 
 /** A goal and every goal feeding it, at any depth. */
 export function treeOf(rootId: string, goals: Goal[]): Goal[] {
@@ -90,7 +91,7 @@ export interface ReviewSession {
   done: number;
   total: number;
   /** What was said in this session. */
-  said: Decision[];
+  said: Said[];
 }
 
 /** Agenda order: new information, then what's being handled, then the healthy goals. */
@@ -102,7 +103,7 @@ export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date,
   const items = goalsIn(r.scope, s.goals)
     .map((g) => attentionFor(g, s, cycle, today))
     .sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
-  const said = s.decisions.filter((d) => d.reviewId === r.id && d.week === w);
+  const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
   // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
   const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));
   const done = items.filter((a) => covered.has(a.goal.id)).length;
@@ -143,19 +144,33 @@ export function sessionStateText(st: SessionState): string {
  * (a goal reviewed, a note, a question or an action), dated by the last thing said in it. Null if it never has been.
  */
 export function lastHeld(r: Review, s: Snapshot, sessionWk: number): { week: number; on: string } | null {
-  const past = s.decisions.filter((d) => d.reviewId === r.id && d.week < sessionWk);
+  const past = saidIn(s).filter((d) => d.reviewId === r.id && d.week < sessionWk);
   if (!past.length) return null;
   const week = Math.max(...past.map((d) => d.week));
   const on = past.filter((d) => d.week === week).map((d) => d.at).sort().at(-1)!;
   return { week, on: on.slice(0, 10) };
 }
 
+/** A review's open actions: every action agreed in it, in any session, not yet marked done or withdrawn (overdue ones included). */
+export function openActions(r: Review, s: Snapshot): Ask[] {
+  return asksOf(s).filter((a) => a.reviewId === r.id && a.kind === 'action' && a.status === 'open');
+}
+
 /**
- * A review's open actions: every action agreed in it, in any session, that isn't yet past the week it's due by.
- * An action with no date stays open. Actions carry no "done" mark, so the due week is what closes them.
+ * One thing said about a goal in a review session: seen or a note (a decision), or a question or an action (an ask
+ * raised in the session, carrying its own state). One record of the session for the review, the goal page and exports.
  */
-export function openActions(r: Review, s: Snapshot, week: number): Decision[] {
-  return s.decisions.filter((d) => d.reviewId === r.id && d.kind === 'action' && (d.dueWeek == null || d.dueWeek >= week));
+export interface Said extends Decision { ask: Ask | null }
+
+/** Everything said in reviews: the notes, and the questions and actions raised in them (not ones taken back). */
+export function saidIn(s: Pick<Snapshot, 'decisions' | 'requests'> & Partial<Snapshot>): Said[] {
+  return [
+    ...s.decisions.map((d) => ({ ...d, ask: null })),
+    ...asksOf(s).filter((a) => a.reviewId && (a.kind === 'question' || a.kind === 'action') && a.status !== 'withdrawn').map((a): Said => ({
+      id: a.id, goalId: a.goalIds[0]!, checkInId: null, reviewId: a.reviewId, week: a.week ?? 0, kind: a.kind === 'question' ? 'ask' : 'action',
+      byId: a.askedBy, at: a.createdAt, note: a.ask, assigneeId: a.recipientId, dueWeek: a.dueWeek, ask: a,
+    })),
+  ];
 }
 
 /** The week of the session after this one. */
@@ -185,22 +200,13 @@ export const DECISION_LABEL: Record<Decision['kind'], string> = {
 };
 
 /**
- * The owner's answer to a question from a review: their first comment or check-in on the goal after it
- * was asked. A question with no answer is still open.
+ * The answer to a question or action said in a review: the ask's own answer (or the note it was marked done with),
+ * once it has one. A comment never answers it. Null while it's open.
  */
-export function answerOf(ask: Decision, s: Snapshot): { text: string; at: string; byId: string } | null {
-  const goal = s.goals.find((g) => g.id === ask.goalId);
-  if (!goal) return null;
-  const c = s.changes.find((x) => x.goalId === goal.id && x.actorId === goal.ownerId && x.at > ask.at && (x.entity === 'note' || x.entity === 'check-in'));
-  if (!c) return null;
-  const said = c.diffs.find((d) => d.field === 'Comment' || d.field === 'Note' || d.field === 'Why' || d.field === 'Reason');
-  return { text: said?.to ?? c.summary, at: c.at, byId: c.actorId };
-}
-
-/** Questions from reviews on a person's goals that they haven't answered yet. */
-export function openQuestions(personId: string, s: Snapshot): Decision[] {
-  const mine = new Set(s.goals.filter((g) => g.ownerId === personId).map((g) => g.id));
-  return s.decisions.filter((d) => d.kind === 'ask' && mine.has(d.goalId) && !answerOf(d, s));
+export function answerOf(d: Said): { text: string; at: string; byId: string } | null {
+  const a = d.ask;
+  if (!a || !isResolved(a)) return null;
+  return { text: a.answer || (a.status === 'done' ? 'Done' : ''), at: a.answeredAt ?? a.updatedAt, byId: a.answeredBy ?? '' };
 }
 
 /** The tree and level watches that cover a goal for a person, not counting a watch on the goal itself. */

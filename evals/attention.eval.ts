@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
 import { applyCommit } from '../src/data/store';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { attentionFor, attentionList, splitAttention } from '../src/domain/attention';
 import { aiBrief } from '../src/domain/export';
 import { dashboard, groupWatched, nextReview } from '../src/domain/home';

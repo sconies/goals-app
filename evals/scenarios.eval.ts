@@ -6,7 +6,7 @@ import { blankGoal, buildGoal, draftOf, goalAsOf, overHundredHint, validateGoal 
 import { currentWeek, forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { applyQuery, EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../src/domain/query';
 import { summariseAll } from '../src/domain/summary';
 import { goalYear, goalYearFor } from '../src/domain/year';

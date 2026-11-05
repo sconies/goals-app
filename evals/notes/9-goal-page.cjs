@@ -13,7 +13,7 @@ const SIZES = [[390, 844, true], [1280, 800, false]];
 const LIMIT = 250;
 
 /** A page in a fresh browser, in a workspace, as a person. */
-async function at(browser, url, { w, h, touch, ws = 'example', who, route, reduced = false, perms = [] }) {
+async function at(browser, url, { w, h, touch, ws = 'platform-org', who, route, reduced = false, perms = [] }) {
   const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch, isMobile: !!touch && w < 800, reducedMotion: reduced ? 'reduce' : 'no-preference', permissions: perms });
   const p = await c.newPage();
   await p.goto(url('/'));
@@ -132,7 +132,7 @@ module.exports = {
         await p.getByRole('dialog').getByRole('button', { name: 'Save question' }).click();
         await p.waitForTimeout(400);
         // Aisha, on Home: Answer opens the goal with the question open and the box focused, in the first screen.
-        await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'aisha'));
+        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'aisha'));
         await p.goto(url('/'));
         const need = p.locator('.need').filter({ hasText: 'Can the interim scope land' });
         await need.getByRole('link', { name: 'Answer' }).click();
@@ -156,14 +156,14 @@ module.exports = {
         await p.locator('main').waitFor(); await p.waitForTimeout(300);
         chk(await p.locator('.need').filter({ hasText: 'Can the interim scope land' }).count() === 0, `${at3}: the answered question is still on Home`);
         // The old link (?tab=comments) still opens the question.
-        await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'elena'));
+        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'elena'));
         await p.goto(url('/goals/access?review=weekly'));
         await p.locator('.decide').waitFor();
         await p.getByRole('button', { name: 'Ask Aisha a question' }).click();
         await p.getByRole('dialog').getByRole('textbox').fill('Who signs off the vendor fix?');
         await p.getByRole('dialog').getByRole('button', { name: 'Save question' }).click();
         await p.waitForTimeout(400);
-        await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'aisha'));
+        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'aisha'));
         await p.goto(url('/goals/access?tab=comments'));
         await p.locator('.asked').waitFor(); await p.waitForTimeout(300);
         chk(await p.evaluate(() => document.activeElement?.tagName === 'TEXTAREA' && !!document.activeElement.closest('.asked')), `${at3}: ?tab=comments does not open the question`);
@@ -283,7 +283,7 @@ module.exports = {
       });
       const p = await c.newPage();
       await p.goto(url('/'));
-      await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'maya'));
+      await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'maya'));
       await p.goto(url('/goals/head'));
       await p.waitForTimeout(800);
       const m = await p.evaluate(() => ({ anims: [...window.__gp.anims.values()], counts: window.__gp.counts }));
@@ -304,7 +304,7 @@ module.exports = {
       const c = await browser.newContext({ viewport: { width: 390, height: 844 } });
       const p = await c.newPage();
       await p.goto(url('/'));
-      await p.evaluate(() => { localStorage.setItem('goals-app-viewer:example', 'maya'); localStorage.setItem('goals-seen:example:maya:access', JSON.stringify({ at: '2026-10-27T09:00:00.000Z', status: 'risk' })); });
+      await p.evaluate(() => { localStorage.setItem('goals-app-viewer:platform-org', 'maya'); localStorage.setItem('goals-seen:platform-org:maya:access', JSON.stringify({ at: '2026-10-27T09:00:00.000Z', status: 'risk' })); });
       await p.goto(url('/goals/access'));
       await p.locator('.goal-bar').waitFor(); await p.waitForTimeout(60);
       const m = await p.evaluate(() => ({ line: document.querySelector('.context-line')?.innerText ?? '', moved: !!document.querySelector('.goal-bar .bar-status.moved'), about: !!document.querySelector('details.about[open]') }));
