@@ -1,4 +1,4 @@
-import { currentWeek, forecast, planAt, shapeProgress, valueSeries } from './plan';
+import { currentWeek, forecast, planAt, projection, shapeProgress, valueSeries } from './plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus, worst } from './status';
 import { emptyDraft, evaluate, MISSING_TEXT, REASON_CODES, toCheckIn, VALUE_CODES, type Draft } from './checkin';
 import { blankGoal, buildGoal, validateGoal } from './goal';
@@ -33,11 +33,40 @@ describe('plan', () => {
     expect(planAt({ start: 34, target: 18, shape: 'back' }, 4, 13)).toBeCloseTo(34 - 16 * Math.pow(4 / 13, 1.5));
   });
 
-  it('forecasts from the last three weeks of trend, and needs that much data', () => {
+  it('projects from a line through the recent weeks, and needs three weeks of numbers', () => {
     expect(forecast([{ week: 1, value: 10 }, { week: 2, value: 12 }], 13)).toBeNull();
     expect(forecast([{ week: 1, value: 10 }, { week: 4, value: 16 }], 13)).toBe(16 + 2 * 9);
-    // Uses the latest value at least three weeks earlier, not the first one.
-    expect(forecast([{ week: 1, value: 0 }, { week: 3, value: 10 }, { week: 6, value: 16 }], 13)).toBeCloseTo(16 + 2 * 7);
+    // A clean trend: the line is the trend, and its range is the line itself.
+    const clean = projection([{ week: 1, value: 0 }, { week: 3, value: 10 }, { week: 6, value: 25 }], 13)!;
+    expect(clean.value).toBeCloseTo(60);
+    expect(clean.low).toBeCloseTo(60);
+    expect(clean.high).toBeCloseTo(60);
+    expect(clean.slope).toBeCloseTo(5);
+    // Only the last eight weeks count: an old slump doesn't drag the line.
+    const recent = projection([{ week: 1, value: 90 }, { week: 2, value: 10 }, ...Array.from({ length: 8 }, (_, i) => ({ week: 10 + i, value: 20 + 2 * i }))], 20)!;
+    expect(recent.from).toBe(10);
+    expect(recent.value).toBeCloseTo(40);
+  });
+
+  it('is steady on a noisy number: a range, not a swing from one week (the support example’s CSAT)', () => {
+    // CSAT swinging 80–87 all year around 83–84, against a 88 target at week 53.
+    const csat = [84, 81, 86, 82, 87, 80, 85, 83, 84, 81, 86, 82].map((value, i) => ({ week: 34 + i, value }));
+    const p = projection(csat, 53)!;
+    // Flat, where it has been all year: about 83%, with a range either side, not the old two-point slope's 77%.
+    expect(p.value).toBeGreaterThan(81);
+    expect(p.value).toBeLessThan(85);
+    expect(p.low).toBeLessThan(p.value);
+    expect(p.high).toBeGreaterThan(p.value);
+    expect(p.high - p.low).toBeLessThan(12);
+    // One more noisy week moves it by a few points, where the two-point slope swung from 78% to 101%.
+    const next = projection([...csat, { week: 46, value: 80 }], 53)!;
+    const next2 = projection([...csat, { week: 46, value: 87 }], 53)!;
+    expect(Math.abs(next.value - next2.value)).toBeLessThan(5);
+    expect(Math.abs(next.value - p.value)).toBeLessThan(2);
+    // A clean rise of the same size is called exactly, with no range.
+    const rise = projection(csat.map((x, i) => ({ week: x.week, value: 80 + 0.5 * i })), 53)!;
+    expect(rise.value).toBeCloseTo(80 + 0.5 * 19);
+    expect(rise.high - rise.low).toBeCloseTo(0);
   });
 
   it('keeps the latest check-in for each week', () => {

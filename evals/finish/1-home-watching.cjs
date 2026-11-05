@@ -175,11 +175,12 @@ module.exports = {
       check(bg.every((x) => x === 'rgb(102, 112, 133)'), `[WA] 23: dark grey avatar is ${bg[0]}`);
       await c.close();
     }
-    // [Home] 17: the Respond sheet's footer doesn't jump when the error shows.
+    // [Home] 17: the Respond form's footer doesn't jump when the error shows.
     {
+      // Respond opens the goal with the request open in place since the flagship page (5 Nov); the same footer promise.
       const [c, p] = await open(390, 844, 'elena', '/', true);
-      await p.locator('.need .btn').first().click();
-      const dlg = p.getByRole('dialog', { name: 'Respond to the request' });
+      await p.locator('.need').getByRole('link', { name: 'Respond' }).first().click();
+      const dlg = p.getByRole('region', { name: 'Respond to the request' });
       await dlg.waitFor(); await p.waitForTimeout(400);
       const before = await box(p, '.respond-form .sheet-foot');
       await dlg.getByRole('button', { name: 'Record the answer' }).click();

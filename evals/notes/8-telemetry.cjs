@@ -77,7 +77,6 @@ module.exports = {
         try {
           await checkIn(p);
           await go(p, '/goals/alerts');
-          await p.getByRole('tab', { name: /Comments and changes/ }).click();
           await p.getByLabel('Add a comment').fill(SECRET + ' said the vendor');
           await p.getByRole('button', { name: 'Post comment' }).click();
           await p.getByText(SECRET + ' said the vendor').first().waitFor({ timeout: 3000 });
@@ -122,7 +121,6 @@ module.exports = {
           await p.waitForTimeout(150);
           const off = Date.now();
           await p.goto(url('/goals/head'));
-          await p.getByRole('tab', { name: /Comments and changes/ }).click();
           await p.getByLabel('Add a comment').fill('Checked with the team');
           await p.getByRole('button', { name: 'Post comment' }).click();
           await p.goto(url('/settings'));

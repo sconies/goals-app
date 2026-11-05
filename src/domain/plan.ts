@@ -92,17 +92,64 @@ export function valueSeries(checkIns: CheckIn[]): Point[] {
   return [...byWeek.values()].sort((a, b) => a.week - b.week).map((c) => ({ week: c.week, value: c.value as number }));
 }
 
+/** How many recent weeks of numbers a projection is fitted to. */
+export const PROJECTION_WEEKS = 8;
+
+/** Where the recent trend takes a number by a week: the likeliest value and a range around it. */
+export interface Projection {
+  /** The fitted line's value at `week`. */
+  value: number;
+  /** The range: about two chances in three that the number lands inside it if nothing changes. */
+  low: number;
+  high: number;
+  /** The week projected to. */
+  week: number;
+  /** The first and last weeks of numbers the fit used. */
+  from: number;
+  to: number;
+  /** The fitted change per week. */
+  slope: number;
+}
+
 /**
- * Where the metric lands at the end of the cycle if the last three weeks' trend holds.
- * Needs a value at least three weeks before the latest one.
+ * Where the number lands by `toWeek` if the recent trend holds (approved by Lane, 5 Nov). A least-squares line through
+ * the numbers of the last eight weeks, not a slope between two points, so one noisy week can't swing it; and a range,
+ * not a single number: the spread of the numbers around the line, widening the further it reaches. A clean trend has
+ * no spread, so its range is the line itself. Needs a number at least three weeks before the latest one (the window
+ * reaches back to it when the recent weeks are sparse). The app, the import, the reviews and the AI assistant all ask here.
  */
-export function forecast(series: Point[], weeks: number): number | null {
+export function projection(series: Point[], toWeek: number): Projection | null {
   const last = series[series.length - 1];
   if (!last) return null;
-  const earlier = [...series].reverse().find((p) => p.week <= last.week - 3);
-  if (!earlier) return null;
-  const slope = (last.value - earlier.value) / (last.week - earlier.week);
-  return last.value + slope * (weeks - last.week);
+  let pts = series.filter((p) => p.week > last.week - PROJECTION_WEEKS);
+  if (last.week - pts[0]!.week < 3) {
+    const earlier = [...series].reverse().find((p) => p.week <= last.week - 3);
+    if (!earlier) return null;
+    pts = [earlier, ...pts.filter((p) => p.week > earlier.week)];
+  }
+  const n = pts.length;
+  const xm = pts.reduce((s, p) => s + p.week, 0) / n;
+  const ym = pts.reduce((s, p) => s + p.value, 0) / n;
+  const sxx = pts.reduce((s, p) => s + (p.week - xm) ** 2, 0);
+  const slope = pts.reduce((s, p) => s + (p.week - xm) * (p.value - ym), 0) / sxx;
+  const at = (w: number) => ym + slope * (w - xm);
+  const sse = pts.reduce((s, p) => s + (p.value - at(p.week)) ** 2, 0);
+  const spread = n > 2 ? Math.sqrt(sse / (n - 2)) : 0;
+  // A slope the numbers barely support counts for little: on a number that swings week to week, the line leans only as
+  // far as the evidence for it (t² / (1 + t²), t the slope over its standard error). A clean trend keeps its full slope.
+  const se = spread / Math.sqrt(sxx);
+  const t = se > 1e-12 ? slope / se : Infinity;
+  const lean = Number.isFinite(t) ? (t * t) / (1 + t * t) : 1;
+  const value = ym + lean * slope * (toWeek - xm);
+  // The range: where the trend line itself could be, from the spread around it, wider the further it reaches.
+  const half = spread * Math.sqrt(1 / n + (toWeek - xm) ** 2 / sxx);
+  const tidy = (v: number) => Math.round(v * 1e9) / 1e9;
+  return { value: tidy(value), low: tidy(value - half), high: tidy(value + half), week: toWeek, from: pts[0]!.week, to: last.week, slope: tidy(lean * slope) };
+}
+
+/** The likeliest value of the projection: where the number lands by `weeks` if the recent trend holds. */
+export function forecast(series: Point[], weeks: number): number | null {
+  return projection(series, weeks)?.value ?? null;
 }
 
 /** "2–8 Nov" (or "28 Oct–3 Nov"): the calendar days of a cycle week, Monday to Sunday. */

@@ -14,7 +14,7 @@ async function chartFacts(p) {
     const yt = axis.filter((t) => t.getAttribute('text-anchor') === 'end' && /^-?[\d.]+$/.test(t.textContent)).map((t) => ({ v: Number(t.textContent), r: box(t).right }));
     const xt = axis.filter((t) => !/^-?[\d.]+$/.test(t.textContent)).map((t) => { const b = box(t); return { t: t.textContent, l: b.left, r: b.right, top: b.top }; }).sort((a, b) => a.l - b.l);
     const tl = svg.querySelector('.c-target-t'), tline = svg.querySelector('.c-target');
-    const key = svg.parentElement.querySelector('.chart-key');
+    const key = (svg.closest('.chart-box') || svg.parentElement).querySelector('.chart-key');
     const kcs = key && getComputedStyle(key);
     return {
       svg: { l: s.left, r: s.right, b: s.bottom }, plotL, yt, xt,
@@ -58,7 +58,9 @@ module.exports = {
     let c, p;
 
     // ---------- the goal page ----------
-    // [Goal 2, 15, 17, 21, 22, 26, 29, 30; 6, 8, 10] Maya's north star on a laptop.
+    // [Goal 2, 15, 17, 21, 22, 26, 29, 30; 6, 8, 10] Maya's north star on a laptop. Rebuilt as the flagship page (5 Nov):
+    // the threats block is the pinned first row of What feeds it, the status line is the summary bar's second line, the
+    // contributing counts are the bar's "Fed by" line, and the comments tab is the one Activity stream.
     [c, p] = await open(1280, 800, 'maya', '/goals/head');
     await p.locator('svg.chart').waitFor();
     const head = await p.evaluate(() => {
@@ -66,33 +68,31 @@ module.exports = {
       const rows = [...document.querySelectorAll('.goal-page .tree .trow')].filter((t) => t.getClientRects().length);
       const narrowTitle = rows.filter((t) => r(t.querySelector('.trow-title')).width < r(t).width * 0.6 - 1).length;
       const clamped = [...document.querySelectorAll('.goal-page .trow-why')].filter((w) => w.scrollHeight > w.clientHeight + 1).length;
-      const why = [...document.querySelectorAll('.threat-why')].map((w) => { const cs = getComputedStyle(w); return r(w).height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom); });
-      const req = document.querySelector('.request-block'), thr = document.querySelector('.threats');
-      const sa = document.querySelector('.show-all');
+      const why = [...document.querySelectorAll('.pinned-why')].map((w) => { const cs = getComputedStyle(w); return r(w).height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom); });
+      const sa = document.querySelector('#activity .show-all');
       return {
         narrowTitle, clamped, why,
-        mix: document.querySelectorAll('.goal-page .mix').length, counts: document.querySelectorAll('.status-count').length,
-        reqFirst: !!(req && thr && (req.compareDocumentPosition(thr) & Node.DOCUMENT_POSITION_FOLLOWING)),
-        reqBg: req && getComputedStyle(req).backgroundColor,
-        statusAlign: getComputedStyle(document.querySelector('.statusline')).alignItems,
+        mix: document.querySelectorAll('.goal-page .mix').length, counts: document.querySelectorAll('.bar-feeds .feeds-count').length,
+        countShapes: [...document.querySelectorAll('.bar-feeds .feeds-count')].every((x) => x.querySelector('.status-shape')),
+        statusAlign: getComputedStyle(document.querySelector('.goal-bar .bar-2')).alignItems,
         showAll: sa ? Math.round(r(sa).width) : null,
-        // The projection is one of the status block's four facts (N2, Lane's notes 5 Nov): its explanation in the muted colour.
-        fc: (() => { const f = document.querySelector('.story .forecast, .story .fact[data-key=projection] .fact-detail'); return f ? getComputedStyle(f).color : null; })(),
+        // The projection's words under the chart are an explanation, in the muted colour, not an alert.
+        fc: (() => { const f = document.querySelector('.goal-chart .chart-say'); return f ? getComputedStyle(f).color : null; })(),
+        crumbs: document.querySelectorAll('.crumbs').length,
+        back: document.querySelector('.goal-page > .backlink')?.innerText.trim() ?? '',
       };
     });
     if (head.narrowTitle) fails.push(`head 1280: ${head.narrowTitle} goal rows give the title under 60%`);
     if (head.clamped) fails.push(`head 1280: ${head.clamped} reasons clamped`);
-    if (head.why.some((h) => h > 22)) fails.push(`head 1280: a “why it’s here” line is ${Math.round(Math.max(...head.why))}px tall`);
-    if (head.mix || head.counts < 3) fails.push(`head: contributing goals shown as a colour bar (${head.mix}) not counts (${head.counts})`);
-    if (!head.reqFirst) fails.push('head: the request card comes after the threats');
-    if (head.reqBg !== 'rgb(255, 255, 255)') fails.push(`head: request card filled ${head.reqBg}`);
-    if (head.statusAlign !== 'baseline') fails.push('status line not on one baseline');
-    if (!(head.showAll > 0 && head.showAll < 260)) fails.push(`“Show all check-ins” is ${head.showAll}px wide`);
-    if (head.fc !== 'rgb(71, 84, 103)') fails.push(`projection line in ${head.fc}`);
+    if (!head.why.length || head.why.some((h) => h > 22)) fails.push(`head 1280: the pinned goal's “most likely to make it miss” line is ${head.why.length ? Math.round(Math.max(...head.why)) + 'px tall' : 'missing'}`);
+    if (head.mix || head.counts < 3 || !head.countShapes) fails.push(`head: the goals feeding it shown as a colour bar (${head.mix}) not counts with shapes (${head.counts})`);
+    if (head.statusAlign !== 'baseline') fails.push('the bar’s status line is not on one baseline');
+    if (!(head.showAll > 0 && head.showAll < 260)) fails.push(`Activity’s “Show all” is ${head.showAll}px wide`);
+    if (head.fc !== 'rgb(71, 84, 103)') fails.push(`projection words in ${head.fc}`);
+    if (head.crumbs || !/^Back to /.test(head.back)) fails.push(`head: a breadcrumb (${head.crumbs}) or no named Back link (“${head.back}”)`);
     checkChart(await chartFacts(p), 'head 1280 chart', fails, { ticks: [4, 6] });
-    await p.getByRole('tab', { name: /Comments and changes/ }).click();
-    const changes = await p.locator('.changes > li').count();
-    if (changes > 8 || !(await p.getByRole('button', { name: /^Show all \d+$/ }).count())) fails.push(`comments tab shows ${changes} entries without a Show all`);
+    const changes = await p.locator('#activity .stream > li').count();
+    if (changes > 8 || !(await p.locator('#activity').getByRole('button', { name: /^Show all \d+$/ }).count())) fails.push(`Activity shows ${changes} entries without a Show all`);
     await c.close();
 
     // [Goal 2, 4, 7, 31] The same on a phone.
@@ -100,41 +100,43 @@ module.exports = {
     await p.locator('svg.chart').waitFor();
     const ph = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
-      const rows = [...document.querySelectorAll('.goal-page .threats .trow')];
-      const stacked = rows.every((t) => r(t.querySelector('.trow-title')).width > r(t).width * 0.8);
-      const weeks = [...document.querySelectorAll('.cilist .ci-week')].map((e) => Math.round(r(e).height));
-      const req = document.querySelector('.request-block'), story = document.querySelector('.story');
-      // The request sits under its group's heading ("Asked of you", N2): measured from the top of that group.
-      const grp = req && (req.closest('.rail-group') || req);
-      return { stacked, weeks, gap: grp && story ? Math.round(r(grp).top - r(story).bottom) : null, sideways: document.documentElement.scrollWidth - innerWidth };
+      const rows = [...document.querySelectorAll('#feeds .trow')];
+      const stacked = rows.length > 0 && rows.every((t) => r(t.querySelector('.trow-title')).width > r(t).width * 0.8);
+      return { stacked, sideways: document.documentElement.scrollWidth - innerWidth };
     });
-    if (!ph.stacked) fails.push('head 390: threat rows not stacked (title not full width)');
-    if (ph.weeks.some((h) => h > 24)) fails.push(`head 390: “Week n” wraps (${Math.max(...ph.weeks)}px)`);
-    if (ph.gap == null || ph.gap > 40) fails.push(`head 390: request card ${ph.gap}px under the status`);
+    await p.locator('#activity .ci-week').first().scrollIntoViewIfNeeded();
+    const weeks = await p.evaluate(() => [...document.querySelectorAll('#activity .ci-week')].map((e) => Math.round(e.getBoundingClientRect().height)));
+    if (!ph.stacked) fails.push('head 390: rows in What feeds it not stacked (title not full width)');
+    if (weeks.some((h) => h > 24)) fails.push(`head 390: “Week n” wraps (${Math.max(...weeks)}px)`);
     if (ph.sideways > 0) fails.push(`head 390: ${ph.sideways}px sideways`);
     checkChart(await chartFacts(p), 'head 390 chart', fails, { ticks: [3, 4] });
     await c.close();
 
-    // [Goal 1, 19, 20, 23] Elena on a goal with milestones, on a small phone.
+    // [Goal 1, 19, 20, 23] Elena on a goal with milestones, on a small phone: what's asked of her sits right under the bar.
     [c, p] = await open(360, 740, 'elena', '/goals/access', true);
     await p.locator('.stagelist').waitFor();
     const acc = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
       const card = document.querySelector('.stagelist');
-      const w = [...document.querySelectorAll('.request-block button')].map((b) => [b.textContent, Math.round(r(b).height)]);
-      return { sideways: document.documentElement.scrollWidth - innerWidth, out: [...card.querySelectorAll('.chip')].filter((x) => r(x).right > r(card).right + 1).length, dots: card.querySelectorAll('.dot').length, w };
+      const w = [...document.querySelectorAll('.asked-item button')].map((b) => [b.textContent, Math.round(r(b).height)]);
+      const asked = document.querySelector('.asked'), bar = document.querySelector('.goal-bar');
+      const item = document.querySelector('.asked-item > section');
+      return { sideways: document.documentElement.scrollWidth - innerWidth, out: [...card.querySelectorAll('.chip')].filter((x) => r(x).right > r(card).right + 1).length, dots: card.querySelectorAll('.dot').length, w,
+        gap: asked && bar ? Math.round(r(asked).top - r(bar).bottom) : null, bg: item ? getComputedStyle(item).backgroundColor : null };
     });
     if (acc.sideways > 0) fails.push(`access 360: ${acc.sideways}px sideways`);
     if (acc.out) fails.push(`access 360: ${acc.out} stage tags run out of the card`);
     if (acc.dots) fails.push('access: colour-only dots beside the stages');
-    if (acc.w.some(([, h]) => h < 44)) fails.push(`access 360: request buttons ${acc.w.map((x) => x.join(' ')).join(', ')}px`);
+    if (!acc.w.length || acc.w.some(([, h]) => h < 44)) fails.push(`access 360: Asked of you buttons ${acc.w.map((x) => x.join(' ')).join(', ') || 'missing'}px`);
+    if (acc.gap == null || acc.gap > 40) fails.push(`access 360: Asked of you ${acc.gap}px under the bar`);
+    if (acc.bg !== 'rgb(255, 255, 255)') fails.push(`access: the request card is filled ${acc.bg}`);
     await c.close();
 
     // [Goal 13, 18, 24] Every goal gets the same columns; quarter cards are white; this quarter is outlined.
     [c, p] = await open(1440, 900, 'elena', '/goals/env');
-    const envA = await p.evaluate(() => Math.round(document.querySelector('.split-b').getBoundingClientRect().width));
+    const envA = await p.evaluate(() => Math.round(document.querySelector('.goal-main').getBoundingClientRect().width));
     await p.goto(p.url().replace('/goals/env', '/goals/head')); await p.waitForTimeout(400);
-    const headA = await p.evaluate(() => Math.round(document.querySelector('.split-b').getBoundingClientRect().width));
+    const headA = await p.evaluate(() => Math.round(document.querySelector('.goal-main').getBoundingClientRect().width));
     if (envA !== headA) fails.push(`main column ${envA}px on env, ${headA}px on head`);
     const q = await p.evaluate(() => [...document.querySelectorAll('.quarters li')].map((li) => ({ bg: getComputedStyle(li).backgroundColor, now: li.classList.contains('q-now'), bc: getComputedStyle(li).borderTopColor, dash: /—/.test(li.innerText) })));
     if (q.some((x) => x.bg !== 'rgb(255, 255, 255)')) fails.push('a quarter card is tinted');
@@ -148,9 +150,8 @@ module.exports = {
     const rv = await p.evaluate(() => { const l = document.querySelector('.c-fc'); const b = l?.getBoundingClientRect(); return { drawn: !!l, len: b ? Math.hypot(b.width, b.height) : 0, keyed: /Projection/.test(document.querySelector('.chart-key')?.innerText || '') }; });
     if (rv.keyed !== rv.drawn || (rv.drawn && rv.len < 16)) fails.push(`review: projection drawn ${Math.round(rv.len)}px, keyed ${rv.keyed}`);
     checkChart(await chartFacts(p), 'review 1280 chart', fails, { ticks: [3, 6] });
-    // [Goal 22] The breadcrumb: 8px either side of the separator.
-    const crumb = await p.evaluate(() => { const ch = document.querySelector('.crumbs svg'); const a = ch?.nextElementSibling, b = ch?.parentElement?.previousElementSibling; return ch && a && b ? [Math.round(ch.getBoundingClientRect().left - b.getBoundingClientRect().right), Math.round(a.getBoundingClientRect().left - ch.getBoundingClientRect().right)] : null; });
-    if (!crumb || crumb[0] !== 8 || crumb[1] !== 8) fails.push(`breadcrumb gaps ${crumb}`);
+    // [Goal 22] The breadcrumb went with the flagship page (5 Nov): the Back link above the bar is the one way back,
+    // checked on the north star above.
     await c.close();
 
     // [Check-in 3] The chart on the number step: round ticks, target above its line, labels inside, a one-line key.

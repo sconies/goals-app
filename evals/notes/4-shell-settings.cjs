@@ -236,7 +236,7 @@ module.exports = {
       fail(/Back to Activity/.test(await back().innerText()), `[SETTINGS] Settings after Activity: "${await back().innerText()}"`);
       await back().click(); await p.waitForTimeout(250);
       fail(/\/demo\/activity/.test(p.url()), `[SETTINGS] Back from Settings went to ${p.url()}`);
-      // Home → a goal → Edit → saved: Back on the goal skips the form and returns Home.
+      // Home → a goal → Change this goal → saved: Back on the goal skips the form and returns Home.
       await p.locator('.side').getByRole('link', { name: 'Home' }).click(); await p.waitForTimeout(250);
       await p.goto(url('/goals/head')); await p.waitForTimeout(300);
       fail(/Back to Goals/.test(await back().innerText()), `[SETTINGS] a goal opened from outside: "${await back().innerText()}" (want its parent, Goals)`);
@@ -245,7 +245,10 @@ module.exports = {
       await p.locator('.page a[href*="/goals/"]:visible').filter({ hasNotText: /^Goals$/ }).first().click(); await p.waitForTimeout(300);
       fail(/Back to Home/.test(await back().innerText()), `[SETTINGS] a goal opened from Home: "${await back().innerText()}"`);
       const title = (await p.locator('h1').first().innerText()).trim();
-      await p.getByRole('link', { name: 'Edit', exact: true }).click(); await p.waitForTimeout(300);
+      // Edit is "Change this goal" in the bar's "…" menu since the flagship page (5 Nov); each part opens the same form.
+      await p.locator('.goal-bar summary[aria-label="More about this goal"]').click();
+      await p.getByRole('group', { name: 'More about this goal' }).getByRole('button', { name: 'Change this goal' }).click(); await p.waitForTimeout(300);
+      await p.getByRole('link', { name: 'Improve the definition' }).click(); await p.waitForTimeout(300);
       fail((await back().innerText()).includes(`Back to ${title}`), `[SETTINGS] Edit goal: "${await back().innerText()}" (want Back to ${title})`);
       await p.getByRole('button', { name: 'Save changes' }).click(); await p.waitForTimeout(400);
       fail(/Back to Home/.test(await back().innerText()), `[SETTINGS] after saving an edit, the goal's Back says "${await back().innerText()}" (want Home, not the form)`);

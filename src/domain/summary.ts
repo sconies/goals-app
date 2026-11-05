@@ -2,7 +2,7 @@
    The table, board, cards, history grid, spreadsheet, JSON and AI brief all read from here, so they can't disagree. */
 import { causeLabel } from './checkin';
 import { fmt, gapText, kindLabel, LEVEL_LABEL, nowText, targetText } from './format';
-import { planAt, planEnd, valueSeries, weekDate, type Point } from './plan';
+import { planAt, planEnd, valueSeries, weekDate, type Point, type Projection } from './plan';
 import { assessPosted, checkInsFor, goalStatus, LABEL, RANK } from './status';
 import { forecastText } from './tree';
 import { storyOf, type Story } from './story';
@@ -31,6 +31,8 @@ export interface GoalSummary {
   lastWeek: number | null;
   lastPostedAt: string | null;
   forecast: string | null;
+  /** Where the recent trend takes a number goal by its due week, as a range (none for a goal gone quiet). */
+  projection: Projection | null;
   feedsInto: string | null;
   /** The owner's latest reason, path to green and what they need, when behind. */
   why: string;
@@ -72,6 +74,7 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
     lastWeek: last?.week ?? null,
     lastPostedAt: last?.postedAt ?? null,
     forecast: st.status === 'stale' ? null : forecastText(goal, a, cycle.weeks)?.text ?? null,
+    projection: st.status === 'stale' || a.kind !== 'metric' ? null : a.projection,
     feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
     why: behind && last ? [last.cause ? causeLabel(last.cause) : '', last.why].filter((x) => x && x !== 'On plan.').join(': ') : '',
     pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : '') : '',

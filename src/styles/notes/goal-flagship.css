@@ -1,0 +1,216 @@
+/* The flagship goal page (approved by Lane, 5 Nov). Loaded last. Flat surfaces, hairline-divided rows, status as a shape
+   and a word, no edge stripes, no capsules. Motion: each piece 250ms at most (delays included), on transforms, opacity
+   and clip-path only, and none of it under reduced motion (the rule in styles.css). */
+
+/* ---------- the page ---------- */
+.goal-page .goal-col { display: flex; flex-direction: column; gap: var(--s5); max-width: 1040px; }
+.goal-page .goal-main, .goal-page .goal-side { display: flex; flex-direction: column; gap: var(--s5); }
+.goal-page > .backlink { align-self: flex-start; }
+
+/* ---------- the summary bar ---------- */
+.goal-page .goal-bar-slot { position: relative; z-index: 8; }
+.goal-page .goal-bar {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "one act" "who act" "two two" "three three";
+  column-gap: var(--s4); row-gap: 6px; padding: var(--s4) 0 var(--s3); background: var(--bg); max-width: 1040px;
+}
+/* Off track: a quiet wash over the whole bar, never an edge (design rules). */
+.goal-page .goal-bar[data-tone="off"] { background: var(--off-wash); border-radius: 12px; padding-inline: var(--s4); }
+.goal-page .bar-1 { grid-area: one; display: flex; align-items: flex-start; gap: var(--s3); min-width: 0; }
+.goal-page .bar-title { margin: 0; font-size: var(--t-2xl); line-height: 2.125rem; font-weight: 700; letter-spacing: -0.015em; min-width: 0; }
+.goal-page .bar-who { grid-area: who; display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s2); font-size: 0.875rem; color: var(--fg-2); }
+.goal-page .bar-2 { grid-area: two; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--s3); margin-top: var(--s2); }
+.goal-page .bar-status { font-size: var(--t-lg); line-height: 1.5rem; font-weight: 650; gap: 8px; }
+.goal-page .bar-status svg { width: 18px; height: 18px; align-self: center; }
+.goal-page .bar-now { font-size: 2rem; line-height: 2.5rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--fg); }
+.goal-page .bar-against { font-size: 0.9375rem; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.goal-page .bar-dir { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8125rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.goal-page .bar-dir.dir-worsening { color: var(--off-fg); }
+.goal-page .bar-dir.dir-recovering { color: var(--on-fg); }
+.goal-page .bar-3 { grid-area: three; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s2); font-size: 0.9375rem; line-height: 1.375rem; color: var(--fg-2); max-width: 72ch; }
+.goal-page .bar-why { color: var(--fg); }
+.goal-page .bar-handled { color: var(--muted); }
+.goal-page .bar-handled.not-handled { color: var(--risk-fg); font-weight: 600; }
+.goal-page .bar-feeds { flex-basis: 100%; font-size: 0.8125rem; color: var(--muted); }
+.goal-page .bar-feeds .feeds-count { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.goal-page .bar-feeds .status-shape { width: 12px; height: 12px; }
+.goal-page .bar-actions { grid-area: act; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--s2); }
+.goal-page .bar-actions .bar-menu > summary { padding-inline: 10px; }
+.goal-page .bar-me { display: none; }
+.goal-page .asked-line { flex-basis: 100%; }
+
+/* Once scrolled away: one line at the top (title, status, number, the main action). The same element, fixed in place
+   while the slot behind it keeps its height, so nothing under it moves. */
+.goal-page .goal-bar.compact {
+  z-index: 9; display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s3); padding: var(--s2) var(--s4); max-width: none;
+  border-bottom: 1px solid var(--line); border-radius: 0; box-sizing: border-box;
+}
+.goal-page .goal-bar.compact > .bar-1 { flex: 1 1 200px; align-items: center; }
+.goal-page .goal-bar.compact .bar-title { font-size: 1rem; line-height: 1.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.goal-page .goal-bar.compact > .bar-who, .goal-page .goal-bar.compact > .bar-3, .goal-page .goal-bar.compact .bar-against, .goal-page .goal-bar.compact .bar-dir { display: none; }
+.goal-page .goal-bar.compact > .bar-2 { margin: 0; gap: var(--s2); }
+.goal-page .goal-bar.compact .bar-status { font-size: 0.9375rem; }
+.goal-page .goal-bar.compact .bar-now { font-size: 1rem; line-height: 1.5rem; }
+.goal-page .goal-bar.compact > .bar-actions { margin-left: auto; }
+.goal-page .goal-bar.compact .bar-actions .btn:not(.primary), .goal-page .goal-bar.compact .bar-menu { display: none; }
+
+/* A status that changed since you last looked turns in once; a target reached gives the status a soft pulse. */
+.goal-page .bar-status.moved .status-shape { animation: pm-shape-swap .22s .02s ease-out both; transform-box: fill-box; transform-origin: center; }
+.goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse .24s ease-out both; transform-box: fill-box; transform-origin: center; }
+
+/* ---------- on a phone the bar is the page's header ---------- */
+@container app (max-width: 760px) {
+  .app.goal-top .mtop { display: none; }
+  .app.goal-top .page.goal-page { padding-top: var(--s3); }
+  .goal-page .goal-bar { grid-template-columns: minmax(0, 1fr); grid-template-areas: "one" "who" "two" "three" "act"; padding-top: var(--s2); row-gap: 4px; }
+  .goal-page .goal-bar[data-tone="off"] { padding-inline: var(--s3); }
+  .goal-page .bar-title { font-size: 1.25rem; line-height: 1.625rem; }
+  .goal-page .bar-2 { margin-top: 4px; gap: 2px var(--s2); }
+  .goal-page .bar-now { font-size: 1.5rem; line-height: 2rem; }
+  .goal-page .bar-against { font-size: 0.875rem; }
+  .goal-page .bar-3 { font-size: 0.875rem; line-height: 1.25rem; }
+  .goal-page .goal-col { gap: var(--s4); }
+  .goal-page > .backlink { margin-bottom: calc(-1 * var(--s3)); }
+  .goal-page .bar-me { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
+  .goal-page .bar-me .profilebtn { min-width: 44px; min-height: 44px; border: 0; background: transparent; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+  .goal-page .bar-me .demo-entry.compact { min-height: 44px; padding: 0 8px; align-items: center; }
+  .goal-page .bar-actions { justify-content: flex-start; margin-top: 6px; }
+  .goal-page .bar-actions { flex-wrap: nowrap; }
+  .goal-page .bar-actions .btn.primary { flex: 1 1 auto; min-width: 0; white-space: normal; text-align: center; }
+  .goal-page .bar-actions .btn:not(.primary) { flex: none; }
+  .goal-page .goal-bar.compact { padding: 4px var(--s3); column-gap: 8px; row-gap: 0; }
+  .goal-page .goal-bar.compact > .bar-1 { flex-basis: 100%; }
+  .goal-page .goal-bar.compact > .bar-actions { margin: 0 0 0 auto; }
+  .goal-page .goal-bar.compact .bar-actions .btn.primary { flex: none; padding-inline: 10px; font-size: 0.8125rem; }
+  .goal-page .goal-bar.compact > .bar-2 { flex: 0 1 auto; min-width: 0; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
+  .goal-page .goal-bar.compact .bar-status { font-size: 0.875rem; gap: 6px; }
+  .goal-page .goal-bar.compact .bar-now { font-size: 0.9375rem; }
+}
+
+/* ---------- asked of you ---------- */
+.goal-page .asked-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s3); }
+.goal-page .asked-item > section { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: var(--s3) var(--s4); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; }
+.goal-page .asked-item.is-open > section { align-items: stretch; }
+.goal-page .asked-text { margin: 0; font-weight: 600; color: var(--fg); }
+.goal-page .asked-item .respond-form, .goal-page .asked-item .reply-form { margin-top: var(--s2); }
+.goal-page .respond-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.goal-page .respond-foot .linkish { min-height: 44px; }
+
+/* ---------- the context line ---------- */
+.goal-page .context-line { margin: 0; font-size: 0.875rem; line-height: 1.25rem; color: var(--fg-2); max-width: 72ch; }
+.goal-page .context-line.posted { color: var(--fg); font-weight: 600; }
+
+/* ---------- the chart ---------- */
+.goal-page .goal-chart-block .chart-say { margin: var(--s2) 0 0; color: var(--muted); max-width: 72ch; }
+.chart .c-band { fill: var(--off-mark); fill-opacity: .1; stroke: none; }
+.chart.scrubbable { touch-action: pan-y; cursor: crosshair; }
+.chart-scrub { border-radius: 4px; }
+.chart-scrub:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.c-scrub line { stroke: var(--fg-2); stroke-width: 1; }
+.c-scrub-dot { fill: var(--surface); stroke: var(--fg); stroke-width: 2.5; }
+.c-scrub-plan { fill: var(--accent); }
+.chart-read { margin: 6px 0 0; min-height: 1.25rem; font-size: 0.8125rem; line-height: 1.25rem; color: var(--fg); font-variant-numeric: tabular-nums; }
+.chart-read.hint { color: var(--muted); }
+/* Drawing itself, in turn: the plan, then the actual, then the projection and the path to green; "now" pulses once. */
+@keyframes gp-now { 0% { opacity: .2; } 60% { opacity: 1; } 100% { opacity: 1; } }
+@keyframes gp-land { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+@keyframes gp-lit { from { opacity: .3; } to { opacity: 1; } }
+.chart.draw .c-plan, .chart.draw .c-orig { animation: pm-draw .16s ease-out both; }
+.chart.draw .c-act { animation: pm-draw .2s .04s ease-out both; }
+.chart.draw .c-fc, .chart.draw .c-band, .chart.draw .c-ptg { animation: pm-draw .12s .12s ease-out both; }
+.chart.draw .c-ptg-dot { animation: pm-dot-in .12s .12s ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart.draw .c-today { animation: gp-now .24s ease-out both; }
+.chart .c-dot.landed, .chart .c-breach.landed { animation: gp-land .24s ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart.hit .c-target { stroke-dasharray: none; stroke-width: 2.5; animation: gp-lit .24s ease-out both; }
+
+/* ---------- why ---------- */
+.goal-page .why-block p { margin: 0; font-size: 0.9375rem; color: var(--fg-2); max-width: 72ch; }
+.goal-page .signal-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px var(--s4); }
+.goal-page .signal-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 600; color: var(--risk-fg); }
+.goal-page .signal-tag svg { width: 14px; height: 14px; flex: none; }
+
+/* ---------- what's being done ---------- */
+.goal-page .doing .ptg { border-top: 0; padding-top: 0; margin-top: 0; gap: 4px; }
+.goal-page .doing .ptg-what { font-weight: 600; }
+.goal-page .doing .ptg-when { margin: 0; color: var(--fg-2); }
+.goal-page .ptg-none { margin: 0; }
+.goal-page .action-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.goal-page .action-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--s3); align-items: baseline; padding: 10px 0; border-top: 1px solid var(--line-2); }
+.goal-page .action-row:first-child { border-top: 0; }
+.goal-page .action-state { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-2); white-space: nowrap; }
+.goal-page .action-state svg { width: 13px; height: 13px; flex: none; }
+.goal-page .action-state.state-overdue { color: var(--off-fg); }
+.goal-page .action-state.state-done { color: var(--muted); }
+.goal-page .open-mark { width: 10px; height: 10px; border: 1.5px solid currentColor; border-radius: 2px; flex: none; }
+.goal-page .action-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.goal-page .action-what { color: var(--fg); }
+.goal-page .state-done .action-what { color: var(--fg-2); }
+
+/* ---------- last time we talked ---------- */
+.goal-page .talked p { margin: 0; }
+.goal-page .talked-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.goal-page .talked-list li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--line-2); }
+.goal-page .talked-list li:first-child { border-top: 0; }
+.goal-page .talked-list .action-state { text-transform: none; letter-spacing: 0; font-size: 0.8125rem; }
+
+/* ---------- what feeds it ---------- */
+.goal-page .feeds .pinned-why { display: block; padding: 0 0 var(--s2) 0; }
+.goal-page .feeds .show-all { align-self: flex-start; }
+
+/* ---------- this year by quarter: the tiles fill in turn ---------- */
+.goal-page .quarters > li { animation: rise .12s ease-out both; }
+.goal-page .quarters > li:nth-child(2) { animation-delay: .04s; }
+.goal-page .quarters > li:nth-child(3) { animation-delay: .08s; }
+.goal-page .quarters > li:nth-child(4) { animation-delay: .12s; }
+
+/* ---------- activity ---------- */
+.goal-page .activity-filter { align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.goal-page .stream { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.goal-page .stream > li.stream-ci, .goal-page .stream > li.stream-group { border-top: 1px solid var(--line-2); }
+.goal-page .stream > li:first-child { border-top: 0; }
+.goal-page .stream .cilist li { border-top: 0; }
+.goal-page .stream-group .cilist { padding-left: var(--s4); }
+.goal-page .stream-group .cilist li { border-top: 1px solid var(--line-2); }
+.goal-page .group-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: var(--s3); align-items: baseline; width: 100%; min-height: 44px; padding: 12px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.goal-page .group-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.goal-page .group-why { color: var(--fg-2); }
+@container gcol (max-width: 520px) { .goal-page .group-row { grid-template-columns: minmax(0, 1fr) auto; } .goal-page .group-why { grid-column: 1 / -1; grid-row: 2; } }
+
+/* ---------- about this goal ---------- */
+.goal-page .about > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--s2); min-height: 44px; }
+.goal-page .about > summary::-webkit-details-marker { display: none; }
+.goal-page .about > summary::after { content: ''; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); margin: -4px 0 0 6px; transition: transform .15s; }
+.goal-page .about[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+.goal-page details.about { display: block; }
+.goal-page .about > * + * { margin-top: var(--s3); }
+.goal-page .about .plan-history { margin: 0; padding: 0; list-style: none; }
+.goal-page .about-change { display: flex; flex-direction: column; gap: 6px; padding-top: var(--s4); border-top: 1px solid var(--line-2); }
+.goal-page .about-change h3 { margin: 0; }
+.goal-page .about-change p { margin: 0; }
+.goal-page .change-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px var(--s5); }
+.goal-page .change-list .linkish { min-height: 44px; display: inline-flex; align-items: center; }
+.goal-page .gkey-plain { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* On a phone an item asked of you is one compact card: its button beside the words until it's open. */
+@container app (max-width: 760px) {
+  .goal-page .asked-item > section { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px var(--s3); padding: var(--s2) var(--s3); }
+  .goal-page .asked-item > section > .field-label { flex-basis: 100%; }
+  .goal-page .asked-item > section > .asked-text { flex: 1 1 160px; }
+  .goal-page .asked-item.is-open > section > * { flex-basis: 100%; }
+  .goal-page .asked .block-title { font-size: 1rem; }
+}
+
+/* ---------- print: the bar prints as the page's head ---------- */
+@media print { .goal-page .goal-bar.compact { position: static !important; } .goal-page .bar-actions, .goal-page .bar-me { display: none !important; } }
+
+/* The goal links in an answer's hint are 44px targets on a touch screen, as they were in the sheet. */
+@media (pointer: coarse) { .goal-page .respond-form .hint a { display: inline-flex; align-items: center; min-height: 44px; } }
+
+/* About's plan table on a narrow phone: the week, the plan and the actual; the dates go (they're in the week inspector). */
+@container app (max-width: 420px) {
+  .goal-page .about .plantable th:nth-child(2), .goal-page .about .plantable td.pt-date { display: none; }
+  .goal-page .about .plantable table { width: 100%; }
+}
+
+/* Brought into view when opened from a link: clear of the phone's tab bar below and the bar above. */
+.goal-page .respond-form, .goal-page .reply-form { scroll-margin-top: 112px; scroll-margin-bottom: 24px; }
+@container app (max-width: 760px) { .goal-page .respond-form, .goal-page .reply-form { scroll-margin-bottom: 96px; } }

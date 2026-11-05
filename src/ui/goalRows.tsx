@@ -164,7 +164,7 @@ function descendantsOf(goal: Goal, app: App): Goal[] {
 }
 
 /** Watch this goal, or it and everything feeding it; or stop. Says what else is covering it. */
-export function WatchButton({ goal }: { goal: Goal }) {
+export function WatchButton({ goal, primary }: { goal: Goal; primary?: boolean }) {
   const app = useApp();
   const [open, setOpen] = useState(false);
   const w = watchOf(app.viewer.id, goal, app.snapshot);
@@ -190,7 +190,7 @@ export function WatchButton({ goal }: { goal: Goal }) {
   };
   return (
     <>
-      <button className={'btn' + (w ? ' watching' : '')} aria-pressed={!!w} onClick={() => (w === null && !feeding ? void doWatch('goal') : setOpen(true))}>
+      <button className={'btn' + (w ? ' watching' : primary ? ' primary' : '')} aria-pressed={!!w} onClick={() => (w === null && !feeding ? void doWatch('goal') : setOpen(true))}>
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 8s2.2-4.5 6-4.5S14 8 14 8s-2.2 4.5-6 4.5S2 8 2 8z" /><circle cx="8" cy="8" r="1.8" /></svg>{label}
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title={goal.title}>

@@ -255,19 +255,23 @@ module.exports = {
     });
 
     // #17 and #15: Respond starts in the answer, not on the goal link; its text links are 44px targets on a phone.
+    // Since the flagship goal page (5 Nov) Respond opens the goal with the request open in place, not a sheet; the same
+    // promises hold there, and its button is on screen when it opens.
     await step('Respond', async () => {
       const [c, p] = await open(390, 844, 'elena', '/', true);
-      await p.locator('.need').getByRole('button', { name: 'Respond' }).first().click();
-      const sheet = p.getByRole('dialog', { name: 'Respond to the request' });
+      await p.locator('.need').getByRole('link', { name: 'Respond' }).first().click();
+      const sheet = p.getByRole('region', { name: 'Respond to the request' });
       await sheet.waitFor();
-      await p.waitForTimeout(150);
+      await p.waitForTimeout(250);
       const tag = await p.evaluate(() => document.activeElement && document.activeElement.tagName);
       if (tag !== 'TEXTAREA') fails.push(`Respond: first focus is on a ${tag}, not the answer`);
       const leave = await sheet.getByRole('button', { name: 'Leave it open' }).boundingBox();
       const link = await sheet.locator('.hint a').first().boundingBox();
       if (!leave || leave.height < 44) fails.push(`Respond 390: "Leave it open" is ${leave && round(leave.height)}px tall`);
       if (!link || link.height < 44) fails.push(`Respond 390: the goal link is ${link && round(link.height)}px tall`);
-      checkFooter(fails, 'Respond 390×844', await footerEverywhere(p));
+      const rec = await sheet.getByRole('button', { name: 'Record the answer' }).boundingBox();
+      const fold = await p.evaluate(() => { const t = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length); return t ? t.getBoundingClientRect().top : innerHeight; });
+      if (!rec || rec.y + rec.height > fold) fails.push(`Respond 390: “Record the answer” is ${rec ? 'below the fold' : 'missing'}`);
       await c.close();
     });
 

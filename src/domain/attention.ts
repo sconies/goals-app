@@ -2,7 +2,8 @@
    "Needs attention" means new information: a goal that is behind but that someone has looked at since its latest
    check-in (reviewed, noted, an action agreed, or its request answered) is being handled until something new happens. */
 import { assessMetric, assessMilestone, assessRange, checkInsFor, goalStatus, LABEL, type GoalStatus } from './status';
-import { fmt, weekLabel } from './format';
+import { fmt, rangeText, weekLabel } from './format';
+import { isShare } from './checkin';
 import { currentWeek } from './plan';
 import { answeredSince } from './requests';
 import type { CheckIn, Cycle, Decision, Goal, Snapshot } from './types';
@@ -58,7 +59,7 @@ export function worseningTrend(goal: Goal, cycle: Cycle, checkIns: CheckIn[]): s
     if (a == null || b == null || c == null) return null;
     if (c < b && b < a && c < 1) return `Progress against plan has fallen two check-ins running: ${Math.round(a * 100)}% → ${Math.round(b * 100)}% → ${Math.round(c * 100)}%.`;
     const last = assessMetric(goal, cycle.weeks, pts[pts.length - 1]!.week, pts[pts.length - 1]!.value, pts.slice(0, -1));
-    if (last.forecastMisses && last.forecast != null && last.calc === 'on') return `On track today, but the last three weeks’ trend lands at ${fmt(last.forecast, goal)} against a target of ${fmt(goal.plan.target, goal)}.`;
+    if (last.forecastMisses && last.projection && last.calc === 'on') return `On track today, but the recent trend heads for ${rangeText(last.projection, goal, isShare(goal))} by week ${last.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.`;
     return null;
   }
   if (goal.kind === 'range') {

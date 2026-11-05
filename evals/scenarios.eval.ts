@@ -38,7 +38,7 @@ describe('plans', () => {
     expect(new Set(steps)).toEqual(new Set([0, 1 / 3, 2 / 3, 1]));
     expect(steps[13]).toBe(1);
   });
-  it(R('FORECAST', 'projects the last three weeks of trend to week 13'), () => {
+  it(R('FORECAST', 'projects the recent trend, a line through the last weeks of numbers, to week 13'), () => {
     expect(forecast([{ week: 3, value: 30 }, { week: 6, value: 36 }], 13)).toBeCloseTo(36 + 2 * 7);
   });
   it(R('FORECAST', 'shows no forecast with less than three weeks of trend'), () => {

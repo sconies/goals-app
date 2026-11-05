@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
@@ -13,14 +13,13 @@ import { periodWord, shortPeriod } from '../domain/year';
 import { LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
 import { openForPerson } from '../domain/requests';
-import type { Change, HelpRequest } from '../domain/types';
+import type { Change } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { saveReviewOrder } from './Inspect';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 import { FirstReports } from '../ui/FirstReports';
-import { RespondSheet } from './Respond';
 import { HomeNews } from './Help';
 
 function greeting(d: Date) {
@@ -162,7 +161,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
 }
 
 type AskKind = 'question' | 'request' | 'action' | 'comment';
-type Ask = { key: string; kind: AskKind; who: string; what: string; quote?: string; meta: string; to: string; action: string; at: string; request?: HelpRequest };
+type Ask = { key: string; kind: AskKind; who: string; what: string; quote?: string; meta: string; to: string; action: string; at: string };
 /** Each kind of ask is named once, in its group's heading, so every item leads with the goal it's about. */
 const ASK_GROUP: Record<AskKind, string> = { question: 'Questions for you', request: 'Decisions or help needed', action: 'Actions for you', comment: 'On your goals' };
 
@@ -172,20 +171,19 @@ const ASK_GROUP: Record<AskKind, string> = { question: 'Questions for you', requ
  */
 function NeedsYou() {
   const app = useApp();
-  const [responding, setResponding] = useState<HelpRequest | null>(null);
   const me = app.viewer;
   const first = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
   const reviewDay = WEEKDAY[app.cycle.reviewDay];
   const items: Ask[] = [];
   for (const d of openQuestions(me.id, app.snapshot)) {
     const r = app.snapshot.reviews.find((x) => x.id === d.reviewId);
-    items.push({ key: d.id, kind: 'question', who: d.byId, what: app.goal(d.goalId)?.title ?? '', quote: d.note, meta: `${first(d.byId)} asked you${r ? ` in ${r.name}` : ''}. Before ${reviewDay}’s review.`, to: `/goals/${d.goalId}?tab=comments`, action: 'Answer', at: d.at });
+    items.push({ key: d.id, kind: 'question', who: d.byId, what: app.goal(d.goalId)?.title ?? '', quote: d.note, meta: `${first(d.byId)} asked you${r ? ` in ${r.name}` : ''}. Before ${reviewDay}’s review.`, to: `/goals/${d.goalId}?respond=${d.id}`, action: 'Answer', at: d.at });
   }
   // Open requests for a decision or help addressed to you: once each, however many goals are waiting on it.
   for (const r of openForPerson(me.id, app.snapshot)) {
     const goals = r.goalIds.map((id) => app.goal(id)).filter((g) => !!g);
     if (!goals.length) continue;
-    items.push({ key: 'req-' + r.id, kind: 'request', who: r.askedBy, what: goals.length > 1 ? `${goals[0]!.title}, and ${goals.length - 1} more ${goals.length === 2 ? 'goal' : 'goals'} waiting on it` : goals[0]!.title, quote: r.ask, meta: `Asked by ${first(r.askedBy)} ${timeAgo(r.createdAt, app.today)}; open until you answer`, to: `/goals/${goals[0]!.id}`, action: 'Respond', at: r.createdAt, request: r });
+    items.push({ key: 'req-' + r.id, kind: 'request', who: r.askedBy, what: goals.length > 1 ? `${goals[0]!.title}, and ${goals.length - 1} more ${goals.length === 2 ? 'goal' : 'goals'} waiting on it` : goals[0]!.title, quote: r.ask, meta: `Asked by ${first(r.askedBy)} ${timeAgo(r.createdAt, app.today)}; open until you answer`, to: `/goals/${goals[0]!.id}?respond=${r.id}`, action: 'Respond', at: r.createdAt });
   }
   // Actions from reviews assigned to you that are due from this week on (or undated and recent).
   for (const d of app.snapshot.decisions) {
@@ -199,13 +197,12 @@ function NeedsYou() {
   // An ask for an update is done once they've checked in since.
   const answeredAsk = (c: Change) => isUpdateAsk(c) && app.snapshot.checkIns.some((x) => x.goalId === c.goalId && x.postedAt > c.at);
   for (const c of liveNotes(app.snapshot.changes).filter((c) => c.goalId && mine.has(c.goalId) && c.actorId !== me.id && daysSince(c.at, app.today) <= 7 && !answeredAsk(c)).slice(-3)) {
-    items.push({ key: c.id, kind: 'comment', who: c.actorId, what: app.goal(c.goalId!)?.title ?? '', quote: c.diffs[0]?.to, meta: `${isUpdateAsk(c) ? `${first(c.actorId)} asked for an update` : `${first(c.actorId)} commented`} ${timeAgo(c.at, app.today)}`, ...(isUpdateAsk(c) ? { to: `/check-in/${c.goalId}`, action: 'Check in' } : { to: `/goals/${c.goalId}?tab=comments`, action: 'Reply' }), at: c.at });
+    items.push({ key: c.id, kind: 'comment', who: c.actorId, what: app.goal(c.goalId!)?.title ?? '', quote: c.diffs[0]?.to, meta: `${isUpdateAsk(c) ? `${first(c.actorId)} asked for an update` : `${first(c.actorId)} commented`} ${timeAgo(c.at, app.today)}`, ...(isUpdateAsk(c) ? { to: `/check-in/${c.goalId}`, action: 'Check in' } : { to: `/goals/${c.goalId}?respond=${c.id}`, action: 'Reply' }), at: c.at });
   }
   if (!items.length) return null;
   items.sort((a, b) => b.at.localeCompare(a.at));
   const shown = items.slice(0, 5);
   const groups = [...new Set(shown.map((x) => x.kind))].map((k) => [k, shown.filter((x) => x.kind === k)] as const);
-  const done = responding && !openForPerson(me.id, app.snapshot).some((r) => r.id === responding.id);
   return (
     <section className="block needs-you">
       <h2 className="block-title">Needs your response <span className="count-pill">{items.length}</span></h2>
@@ -221,7 +218,8 @@ function NeedsYou() {
                   {x.quote && <span className="need-quote">“{x.quote}”</span>}
                   <span className="need-meta">{x.meta}</span>
                   <span className="need-action">
-                    {x.request ? <button type="button" className="btn sm" onClick={() => setResponding(x.request!)}>{x.action}</button> : <Link className="btn sm" to={x.to}>{x.action}</Link>}
+                    {/* Each opens the goal with this item open and its box ready (the flagship goal page, 5 Nov). */}
+                    <Link className="btn sm" to={x.to}>{x.action}</Link>
                   </span>
                 </span>
               </li>
@@ -229,7 +227,6 @@ function NeedsYou() {
           </ul>
         </div>
       ))}
-      {responding && !done && <RespondSheet request={responding} onClose={() => setResponding(null)} />}
     </section>
   );
 }
