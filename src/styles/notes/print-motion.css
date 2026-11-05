@@ -1,1 +1,171 @@
-/* Lane's review notes (5 Nov): print-motion. Loaded after the fit-and-finish sheets. */
+/* Lane's review notes (5 Nov): print-motion. Loaded after the fit-and-finish sheets.
+   1. Motion: short (250ms at most, delays included), easing out, on transforms and opacity only so nothing shifts the
+      layout, never in the way of a click, and all of it off under prefers-reduced-motion (the rule at the end, and the
+      JS half in ui/motion.ts checks the same setting).
+   2. Print: one A4 portrait page per goal or review session, black on white, no navigation, status still a shape and a
+      word. */
+
+/* ---------- 1. motion ---------- */
+@keyframes pm-page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pm-ring-in { from { stroke-dasharray: 0 999; } }
+@keyframes pm-shape-swap { 0% { opacity: 0; transform: scale(.4) rotate(-90deg); } 70% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: none; } }
+@keyframes pm-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes pm-dot-in { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: none; } }
+@keyframes pm-pulse { 0% { transform: scale(.97); } 55% { transform: scale(1.015); } 100% { transform: none; } }
+
+/* Route changes: the new page settles in. Sheets keep their own slide (sheet-up), shortened below. */
+/* Backwards fill only: once settled the page holds no transform, so fixed panels inside it (the map's bottom sheet) stay fixed to the window. */
+main.work > .page, main.work > .focus { animation: pm-page-in .18s ease-out backwards; }
+
+/* Progress rings fill from empty while their count runs up; a change moves on from where it was. */
+.ring-fill { animation: pm-ring-in .24s ease-out both; transition: stroke-dasharray .24s cubic-bezier(.2, .8, .2, 1); }
+.ring-text { font-variant-numeric: tabular-nums; }
+
+/* A counting number reserves its final width underneath, so the words beside it never move. */
+.countup { display: inline-grid; font-variant-numeric: tabular-nums; }
+.countup > .countup-now, .countup::after { grid-area: 1 / 1; }
+.countup::after { content: attr(data-final); visibility: hidden; height: 0; overflow: hidden; }
+
+/* A status that changes in place: the new shape turns in over the old. */
+.status-shape.shape-swap { animation: pm-shape-swap .22s ease-out both; transform-box: fill-box; transform-origin: center; }
+
+/* Charts draw their actual line once, left to right, the first time they're shown; the latest point lands last. */
+.chart .c-act { animation: pm-draw .24s ease-out both; }
+.chart .c-dot { animation: pm-dot-in .12s .12s ease-out both; transform-box: fill-box; transform-origin: center; }
+
+/* A check-in posting: the tick draws, the status shape turns in, and the saved line gives a soft pulse. */
+.tick svg circle { animation-duration: .2s; }
+.tick svg path { animation: draw .18s .06s ease-out forwards; }
+.celebrate .chip .status-shape { animation: pm-shape-swap .22s .02s ease-out both; transform-box: fill-box; transform-origin: center; }
+.celebrate > p:has(.chip) { animation: pm-pulse .24s ease-out both; }
+
+/* Existing motion, brought within 250ms. */
+.ring.complete .ring-text { animation-duration: .22s; }
+.bar > i { transition-duration: .24s; }
+.qsection.done .qnum, .rail-mark.done { animation-duration: .2s; }
+
+/* Hover lift on cards: a pixel up, no shadow (surfaces stay flat). Pointer devices only. */
+@media (hover: hover) {
+  .board-card, .gcard, .outcome-card, .headline-card, .kindcard, .card.link { transition: transform .15s ease-out, border-color .15s, background-color .15s; }
+  .board-card:hover, .gcard:hover, .outcome-card:hover, .headline-card:hover, .kindcard:hover, .card.link:hover { transform: translateY(-1px); }
+  .board-card:active, .gcard:active, .outcome-card:active, .headline-card:active, .kindcard:active { transform: none; }
+}
+
+/* ---------- 2. print ---------- */
+
+/* The entry points: small and secondary, beside the page's other actions. */
+.print-link { gap: 6px; }
+.print-link .icon { flex: none; }
+
+/* On screen: the page as it will print, with the one action above it. */
+.print-page { gap: var(--s4); }
+.print-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); }
+.print-back { display: inline-flex; align-items: center; gap: 2px; min-height: 32px; }
+.print-how { flex: 1 1 260px; }
+.print-go { gap: 6px; }
+.print-sheet { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: var(--s4); padding: var(--s5); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.ps-head { display: flex; flex-direction: column; gap: 2px; }
+.ps-eyebrow { font-size: var(--t-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.ps-title { font-size: var(--t-xl); line-height: 1.75rem; font-weight: 700; }
+.ps-meta { font-size: var(--t-sm); color: var(--fg-2); display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; }
+.ps-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+.ps-status .chip { align-self: center; }
+.ps-now { font-size: var(--t-2xl); line-height: 2.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ps-numbers { display: flex; flex-wrap: wrap; gap: 0 var(--s3); font-size: var(--t-sm); color: var(--fg-2); }
+.ps-result { font-size: var(--t-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-variant: small-caps; }
+.ps-facts { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s2); }
+.ps-fact { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: var(--s3); }
+.ps-fact dt { font-size: var(--t-sm); font-weight: 600; color: var(--fg-2); }
+.ps-fact dd { margin: 0; font-size: var(--t-sm); }
+.ps-block { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.ps-h { font-size: var(--t-sm); font-weight: 700; }
+.ps-label { font-size: var(--t-xs); font-weight: 600; color: var(--muted); }
+.ps-line .chip { margin-right: 2px; vertical-align: -2px; }
+.ps-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s4); font-size: var(--t-sm); }
+.ps-said { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); font-size: var(--t-sm); }
+.ps-said li { display: flex; flex-direction: column; gap: 0; }
+.ps-said-kind { font-size: var(--t-xs); font-weight: 600; color: var(--muted); }
+.ps-said-wrap { display: flex; flex-direction: column; gap: var(--s1); }
+.ps-quarters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
+.ps-quarters li { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ps-q-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2); font-size: var(--t-sm); }
+.ps-q-head .q-result { display: inline-flex; align-items: center; gap: 4px; }
+.ps-q-head .q-result svg { width: 12px; height: 12px; }
+.ps-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: var(--t-sm); }
+.ps-rows li { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) auto; align-items: baseline; gap: var(--s3); padding: 6px 0; border-top: 1px solid var(--line-2); }
+.ps-rows li:first-child { border-top: 0; }
+.ps-row-title { font-weight: 600; min-width: 0; }
+.ps-goal { display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--line); }
+.ps-goal-head { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) auto; align-items: baseline; gap: var(--s3); }
+.ps-goal { gap: var(--s1); padding-top: var(--s2); }
+.ps-inline { font-size: var(--t-sm); }
+.ps-inline strong { font-weight: 600; }
+.ps-rows li.ps-row-2 { grid-template-columns: 9.5rem minmax(0, 1fr); }
+.ps-row-body { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.ps-foot { font-size: var(--t-xs); color: var(--muted); padding-top: var(--s2); border-top: 1px solid var(--line); }
+.ps-chart .chart-box { min-height: 0 !important; }
+.ps-chart .chart { max-width: 100%; height: auto; }
+
+@media (max-width: 640px) {
+  .print-sheet { padding: var(--s4); }
+  .print-go { width: 100%; justify-content: center; min-height: 44px; }
+  .ps-fact { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .ps-cols { grid-template-columns: minmax(0, 1fr); }
+  .ps-quarters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ps-rows li, .ps-rows li.ps-row-2, .ps-goal-head { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+@page { size: A4 portrait; margin: 12mm 13mm 14mm; }
+@media print {
+  /* Black on white whatever the theme; the status shapes keep their shapes and words. */
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    --bg: #fff; --surface: #fff; --surface-2: #fff; --surface-3: #fff; --tint: #fff;
+    --fg: #000; --fg-2: #000; --muted: #333; --faint: #555; --line: #bbb; --line-2: #ccc; --line-strong: #888;
+    --accent: #000; --accent-text: #000; --track: #ccc; --off-wash: #fff;
+    --on-fg: #000; --on-mark: #000; --risk-fg: #000; --risk-mark: #000; --off-fg: #000; --off-mark: #000; --stale-fg: #000; --stale-mark: #000; --done-fg: #000; --done-mark: #000;
+    color-scheme: light;
+  }
+  html, body, .app, .shell, main.work { background: #fff !important; color: #000; }
+  /* No navigation, no chrome: only the page. */
+  .mtop, .side, .tabbar, .skip, .toasts, .coach, .coach-ring, .research-bar, .local-banner, .print-bar, .sheet-wrap, .demo-entry { display: none !important; }
+  body > :not(#root) { display: none !important; }
+  .app, .shell, main.work { display: block !important; min-height: 0 !important; height: auto !important; overflow: visible !important; padding: 0 !important; margin: 0 !important; container-type: normal; }
+  .page.print-page { max-width: none !important; margin: 0 !important; padding: 0 !important; gap: 0; }
+  /* A smaller type scale on paper, so a goal fits one page. */
+  html { font-size: 12.5px; }
+  .print-sheet { max-width: none; padding: 0; border: 0; border-radius: 0; gap: 9px; line-height: 1.3; }
+  .print-sheet * { line-height: 1.3; }
+  .ps-title { font-size: 16pt; }
+  .ps-now { font-size: 17pt; }
+  .ps-status { padding-bottom: 6px; }
+  .ps-facts { gap: 3px; }
+  .ps-rows li { padding: 3px 0; }
+  .ps-said { gap: 4px; }
+  .ps-fact, .ps-block, .ps-goal, .ps-rows li, .ps-said li, .ps-status, .ps-cols { break-inside: avoid; }
+  .ps-h, .ps-goal-head { break-after: avoid; }
+  .chip, .tone-on, .tone-risk, .tone-off, .tone-stale, .tone-done, .tone-ahead, .tone-planned, .ps-result { color: #000 !important; background: none !important; }
+  /* In black and white the lines are told apart by weight and dash: actual solid black, plan solid grey, projection
+     dashed, path to green dotted, the original plan light dotted. */
+  .chart .c-act, .chart .c-fc, .chart .c-target { stroke: #000 !important; }
+  .chart .c-plan { stroke: #8a8a8a !important; }
+  .chart .c-ptg { stroke: #000 !important; stroke-dasharray: 2 3 !important; }
+  .chart .c-orig { stroke: #aaa !important; }
+  .chart .c-grid { stroke: #ddd !important; }
+  .chart .c-dot, .chart .c-breach { fill: #000 !important; stroke: #000 !important; }
+  .chart .c-ptg-dot { fill: #fff !important; stroke: #000 !important; }
+  .chart .c-area { fill: #eee !important; }
+  .chart text { fill: #000 !important; }
+  .l-act, .l-fc { border-color: #000 !important; }
+  .l-plan { border-color: #8a8a8a !important; }
+  .l-ptg { border-color: #000 !important; border-top-style: dotted !important; }
+  .l-orig { border-color: #aaa !important; }
+  * { animation: none !important; transition: none !important; }
+  a { color: #000; text-decoration: none; }
+  svg { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+
+/* ---------- reduced motion: nothing moves ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .board-card:hover, .gcard:hover, .outcome-card:hover, .headline-card:hover, .kindcard:hover, .card.link:hover { transform: none; }
+}

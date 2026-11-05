@@ -7,14 +7,20 @@ import type { DisplayStatus, Level, Person } from '../domain/types';
 import { LEVEL_LABEL } from '../domain/format';
 import { Icon } from './Icon';
 import { useToasts } from '../app/state';
+import { useCountUp } from './motion';
 
-/** Status is shape plus word, never colour alone. */
+/**
+ * Status is shape plus word, never colour alone. When a shape's status changes in place (a check-in previewed or
+ * posted), the new shape is drawn fresh and fades in over the old one (motion layer).
+ */
 export function StatusShape({ k }: { k: DisplayStatus }) {
-  if (k === 'on') return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" stroke="currentColor" strokeWidth="2" /></svg>;
-  if (k === 'risk') return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" /></svg>;
-  if (k === 'off') return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>;
-  if (k === 'done') return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" /><path d="m5 8.2 2 2 4-4.4" fill="none" stroke="var(--surface)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-  return <svg className="status-shape" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 2.5" /></svg>;
+  const first = useRef(k);
+  const cls = 'status-shape' + (first.current !== k ? ' shape-swap' : '');
+  if (k === 'on') return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" stroke="currentColor" strokeWidth="2" /></svg>;
+  if (k === 'risk') return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" /></svg>;
+  if (k === 'off') return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>;
+  if (k === 'done') return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" /><path d="m5 8.2 2 2 4-4.4" fill="none" stroke="var(--surface)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 2.5" /></svg>;
 }
 
 /** A small warning mark: the app's own shape, not an emoji. */
@@ -83,6 +89,8 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 
 /** A ring that fills as work gets done. The number in the middle is what's left. */
 export function ProgressRing({ done, total, size = 56, label }: { done: number; total: number; size?: number; label?: string }) {
+  // The arc draws in from empty (CSS) while the count runs up to it; both move on when another goal is done.
+  const shown = Math.round(useCountUp(done, { from: 0 }));
   const r = (size - 8) / 2, c = 2 * Math.PI * r, frac = total ? done / total : 1;
   const complete = total > 0 && done >= total;
   return (
@@ -92,7 +100,7 @@ export function ProgressRing({ done, total, size = 56, label }: { done: number; 
         {frac > 0 && <circle cx={size / 2} cy={size / 2} r={r} className="ring-fill" strokeDasharray={`${c * frac} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />}
       </svg>
       <span className="ring-text" aria-hidden="true">
-        {complete ? <svg viewBox="0 0 16 16" width={size / 2.6} height={size / 2.6}><path d="m3.5 8.5 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> : `${done}/${total}`}
+        {complete ? <svg viewBox="0 0 16 16" width={size / 2.6} height={size / 2.6}><path d="m3.5 8.5 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> : `${shown}/${total}`}
       </span>
     </span>
   );

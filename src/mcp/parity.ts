@@ -58,6 +58,7 @@ export const SCREENS: Record<string, Entry> = {
   Import: ['bulk_change'],
   Export: ['export'],
   Retro: ['get_wrap_up', 'wrap_up_goal', 'start_next_cycle'],
+  Print: ['get_goal', 'get_review'],
   Workspace: ['list_people', 'save_person', 'list_tokens', 'create_token', 'revoke_token', 'list_feedback', 'delete_workspace'],
   Onboarding: { notForAssistants: 'Setting up a new workspace happens before there is a token for it.' },
   Start: { notForAssistants: 'The first screen, before a workspace exists.' },

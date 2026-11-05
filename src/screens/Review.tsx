@@ -162,6 +162,7 @@ export function ReviewHome() {
             {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} on track reviewed</button>}
             {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
+            <Link className="btn ghost print-link" to={`/reviews/${review.id}/print`}><Icon name="print" /><span className="print-link-label">Print or save as PDF</span></Link>
           </div>
         </div>
       </section>

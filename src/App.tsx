@@ -20,12 +20,15 @@ import { Shell } from './ui/Shell';
 import { Import } from './screens/Import';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { Research } from './screens/Research';
+import { GoalPrint, ReviewPrint } from './screens/Print';
+import { MotionLayer } from './ui/Count';
 
 export function Routed() {
   const app = useApp();
   if (!app.viewerChosen) return <WhoAreYou />;
   return (
     <Shell>
+      <MotionLayer />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
@@ -45,6 +48,8 @@ export function Routed() {
         <Route path="/goals/new" element={<GoalWizard />} />
         <Route path="/goals/:goalId" element={<GoalScreen />} />
         <Route path="/goals/:goalId/edit" element={<GoalEdit />} />
+        <Route path="/goals/:goalId/print" element={<GoalPrint />} />
+        <Route path="/reviews/:reviewId/print" element={<ReviewPrint />} />
         <Route path="/activity" element={<Activity />} />
         <Route path="/data" element={<DataTables />} />
         <Route path="/workspace" element={<WorkspaceHome />} />
