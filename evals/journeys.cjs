@@ -1,12 +1,23 @@
 /* User-journey evals: drive the built app in Chromium as each profile would, on a phone and a desktop,
    and score every journey against the 10-point ease-of-use test in requirements.json.
-   Usage: BASE=http://localhost:4318 [DOWN=http://localhost:4319] node evals/journeys.cjs */
+   Usage: BASE=http://localhost:4318 [DOWN=http://localhost:4319] node evals/journeys.cjs
+   ONLY=U1,U2[,PLATFORM]  run just these journeys (PLATFORM: and the platform checks)
+   CHECKS=P6,F3           run just these platform checks (and no others)
+   FINISH=F1,N3           run just these per-area modules
+   SHARD=k/n              run shard k of n: journeys by position, platform checks as evals/shards.cjs places them; writes
+                          out/journeys-k.json (P5 is left to the merge, which has every shard's console errors) */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
 const BASE = process.env.BASE || 'http://localhost:4318';
 const DOWN = process.env.DOWN || '';
+const SHARD = (/^(\d+)\/(\d+)$/.exec(process.env.SHARD || '') || []).slice(1).map(Number);
+const secs = {}; // seconds each platform check took
+let shardPlan = null; // set once the journeys are registered
+const picked = (process.env.CHECKS || '').split(',').filter(Boolean);
+/** Does this platform check run here? Not in another shard, and not when CHECKS names others. */
+const want = (id) => (!picked.length || picked.includes(id)) && (!shardPlan || shardPlan.checks.includes(id));
 const TODAY = '2026-10-30'; // Friday of week 7 in the example
 const OUT = path.join(__dirname, 'out');
 const AXE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
@@ -1809,6 +1820,7 @@ journey('U29', ['WALKTHROUGHS'], 'Every walkthrough starts as the right person a
 }, ['errors', 'budget', 'one-action', 'a11y']);
 
 /* ---------------- platform checks ---------------- */
+const P5 = (errors) => ({ id: 'P5', reqs: ['NO-ERRORS'], title: 'No console or page errors across every journey', pass: errors.length === 0, error: errors.slice(0, 4).join(' | ') || undefined });
   // F1–F8: the per-area fit-and-finish reports (4 Nov). Each area keeps its own checks in evals/finish/*.cjs.
 async function finishChecks(add) {
   {
@@ -1824,8 +1836,11 @@ async function finishChecks(add) {
     for (const f of ['finish', 'notes'].flatMap((d) => fs.readdirSync(path.join(__dirname, d)).filter((x) => x.endsWith('.cjs')).sort().map((x) => path.join(__dirname, d, x)))) {
       const m = require(f);
       if (pick.length && !pick.includes(m.id)) continue;
+      if (!want(m.id)) continue;
       let fails;
+      const t0 = Date.now();
       try { fails = await m.run({ open, url, browser, down: DOWN }); } catch (e) { fails = [`check crashed: ${String(e.message || e).split('\n')[0]}`]; }
+      secs[m.id] = Math.round((Date.now() - t0) / 100) / 10;
       add(m.id, m.reqs ?? ['FIT-AND-FINISH-AREAS'], m.title ?? `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
     }
   }
@@ -1834,17 +1849,23 @@ async function finishChecks(add) {
 async function platformChecks() {
   if (process.env.FINISH) { const out = []; await finishChecks((id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error })); return out; }
   const out = [];
-  const add = (id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error });
+  const add = (id, reqs, title, pass, error) => out.push({ id, reqs, title, pass, error: pass ? undefined : error, });
+  // How long each check took, to balance the shards (written to the results; the weights in shards.cjs come from here).
+  let mark = Date.now();
+  const lap = (id) => { if (want(id)) secs[id] = Math.round((Date.now() - mark) / 100) / 10; mark = Date.now(); };
   // Reduced motion switches animation off.
-  const ctx = await browser.newContext({ viewport: DEVICES.desktop, reducedMotion: 'reduce' });
-  const p = await ctx.newPage();
-  await p.goto(url('/'));
-  await p.locator('.hero').waitFor();
-  const anim = await p.$eval('.hero', (e) => getComputedStyle(e).animationName);
-  add('P1', ['MOTION'], 'Animation switches off under reduced motion', anim === 'none', `hero animation is ${anim}`);
-  await ctx.close();
+  if (want('P1')) {
+    const ctx = await browser.newContext({ viewport: DEVICES.desktop, reducedMotion: 'reduce' });
+    const p = await ctx.newPage();
+    await p.goto(url('/'));
+    await p.locator('.hero').waitFor();
+    const anim = await p.$eval('.hero', (e) => getComputedStyle(e).animationName);
+    add('P1', ['MOTION'], 'Animation switches off under reduced motion', anim === 'none', `hero animation is ${anim}`);
+    await ctx.close();
+  }
+  lap('P1');
   // A dead database: a skeleton while waiting, then a clear error with Try again.
-  if (DOWN) {
+  if (DOWN && want('P2')) {
     const c2 = await browser.newContext({ viewport: DEVICES.phone });
     const q = await c2.newPage();
     await q.goto(DOWN + '/?today=' + TODAY);
@@ -1855,8 +1876,10 @@ async function platformChecks() {
     add('P2', ['MOTION', 'NO-ERRORS'], 'Loading shows a skeleton, and an unreachable database becomes a clear error with Try again', skeleton && error, `skeleton ${skeleton}, error ${error}`);
     await c2.close();
   }
+  lap('P2');
   // Every screen fits a phone with no sideways scroll and no serious a11y issues.
   for (const [device, vp] of Object.entries(DEVICES)) {
+    if (!want(device === 'phone' ? 'P3' : 'P4')) continue;
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
@@ -1882,10 +1905,11 @@ async function platformChecks() {
     }
     add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y'] : ['A11Y'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
     await c3.close();
+    lap(device === 'phone' ? 'P3' : 'P4');
   }
   // P6: the design rules (docs/design-rules.md), on every screen and every Goals layout, at phone and desktop width.
   const design = [];
-  for (const [device, vp] of Object.entries(DEVICES)) {
+  for (const [device, vp] of want('P6') ? Object.entries(DEVICES) : []) {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['maya', '/'], ['elena', '/'], ['maya', '/goals'], ['maya', '/goals?view=table'], ['maya', '/goals?view=board'], ['maya', '/goals?view=history'], ['maya', '/goals?view=cards'], ['maya', '/goals?view=map'],
@@ -1918,12 +1942,13 @@ async function platformChecks() {
     }
     await c4.close();
   }
-  add('P6', ['DESIGN-RULES'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules', !design.length, design.slice(0, 6).join(' | '));
+  lap('P6');
+  if (want('P6')) add('P6', ['DESIGN-RULES'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules', !design.length, design.slice(0, 6).join(' | '));
   // P7: wide screens and a short laptop. Each kind of page uses the room it has: no clipped tables, portfolio views and
   // the map fill the work area, Home, a goal and Watching put their side column beside the main one, and on a 1440×700
   // laptop a goal's chart starts above the fold.
   const wide = [];
-  for (const [w, hgt] of [[1920, 1080], [2560, 1300]]) {
+  for (const [w, hgt] of want('P7') ? [[1920, 1080], [2560, 1300]] : []) {
     const c5 = await browser.newContext({ viewport: { width: w, height: hgt } });
     const r = await c5.newPage();
     for (const [who, route, kind] of [['elena', '/', 'split'], ['elena', '/goals?view=table', 'fill'], ['elena', '/goals?view=board', 'fill'], ['elena', '/goals?view=cards', 'fill'], ['elena', '/goals?view=map', 'map'], ['sam', '/goals/review', 'split'], ['tom', '/watching', 'split'], ['elena', '/activity', 'plain']]) {
@@ -1953,7 +1978,7 @@ async function platformChecks() {
     }
     await c5.close();
   }
-  {
+  if (want('P7')) {
     const c6 = await browser.newContext({ viewport: { width: 1440, height: 700 } });
     const r = await c6.newPage();
     await r.goto(url('/goals/review'));
@@ -1964,9 +1989,10 @@ async function platformChecks() {
     if (top > 640) wide.push(`1440×700 /goals/review: the chart starts at ${Math.round(top)}px, below the fold`);
     await c6.close();
   }
+  lap('P7');
   // P8: the goals start in the first screen. The Goals header (views, layout, search, filters) mustn't push them down.
   const fold = [];
-  for (const [device, vp] of Object.entries(DEVICES)) {
+  for (const [device, vp] of want('P8') ? Object.entries(DEVICES) : []) {
     const c7 = await browser.newContext({ viewport: vp });
     const r = await c7.newPage();
     for (const v of ['list', 'table', 'board']) {
@@ -1980,11 +2006,12 @@ async function platformChecks() {
     }
     await c7.close();
   }
+  lap('P8');
   // P9: every width in between (the reviewers couldn't resize their browsers). A small phone, a tablet both ways, a
   // laptop and an ultra-wide monitor: no sideways scroll, nothing cut off at the edge, navigation always there, and
   // prose never stretched across a wide screen.
   const widths = [];
-  for (const [w, hgt] of [[360, 740], [768, 1024], [1024, 768], [1280, 800], [3440, 1440]]) {
+  for (const [w, hgt] of want('P9') ? [[360, 740], [768, 1024], [1024, 768], [1280, 800], [3440, 1440]] : []) {
     const c8 = await browser.newContext({ viewport: { width: w, height: hgt }, hasTouch: w <= 1024 });
     const r = await c8.newPage();
     for (const [who, route] of [['maya', '/'], ['elena', '/'], ['elena', '/goals'], ['elena', '/goals?view=table'], ['elena', '/goals?view=history'], ['elena', '/goals?view=history&hist=weekly&weeks=year'], ['elena', '/goals?view=board'],
@@ -2013,11 +2040,12 @@ async function platformChecks() {
     }
     await c8.close();
   }
-  add('P9', ['EVERY-WIDTH'], 'Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width', !widths.length, widths.slice(0, 8).join(' | '));
+  lap('P9');
+  if (want('P9')) add('P9', ['EVERY-WIDTH'], 'Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width', !widths.length, widths.slice(0, 8).join(' | '));
   // P10: fit and finish (review of 4 Nov), re-measured: text follows the browser's size, one control height, phone
   // rows and toolbars that stack, a usable rail, no sideways scroll in a review, and one left edge for every layout.
   const finish = [];
-  {
+  if (want('P10')) {
     const at = async (w, h, who, path, touch) => {
       const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch });
       const r = await c.newPage();
@@ -2053,10 +2081,12 @@ async function platformChecks() {
     if (lx !== tx) finish.push(`Goals moves ${Math.abs(lx - tx)}px between List and Table`);
     await c.close();
   }
-  add('P10', ['FIT-AND-FINISH'], 'Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge', !finish.length, finish.join(' | '));
+  lap('P10');
+  if (want('P10')) add('P10', ['FIT-AND-FINISH'], 'Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge', !finish.length, finish.join(' | '));
   await finishChecks(add);
-  add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
-  add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
+  if (want('P8')) add('P8', ['WIDE-SCREENS', 'PHONE'], 'The goals start in the first screen: the Goals header stays short on a phone and a desktop', !fold.length, fold.join(' | '));
+  if (want('P7')) add('P7', ['WIDE-SCREENS'], 'Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold', !wide.length, wide.slice(0, 6).join(' | '));
+  out.forEach((x) => { x.seconds = secs[x.id]; });
   return out;
 }
 
@@ -2065,7 +2095,14 @@ async function platformChecks() {
   browser = await chromium.launch();
   const journeys = [];
   const only = (process.env.ONLY || '').split(',').filter(Boolean);
-  for (const j of J.filter((x) => !only.length || only.includes(x.id))) {
+  const ids = J.map((x) => x.id);
+  if (SHARD.length) {
+    const [k, n] = SHARD;
+    if (!(n >= 1 && k >= 1 && k <= n)) throw new Error(`SHARD=${process.env.SHARD} is not k/n`);
+    shardPlan = require('./shards.cjs').plan(n, ids)[k - 1];
+    console.log(`Shard ${k}/${n}: journeys ${shardPlan.journeys.join(' ') || '–'} · checks ${shardPlan.checks.join(' ') || '–'}`);
+  }
+  for (const j of J.filter((x) => (!only.length || only.includes(x.id)) && (!shardPlan || shardPlan.journeys.includes(x.id)))) {
     const per = {};
     for (const device of Object.keys(DEVICES)) {
       const started = Date.now();
@@ -2099,12 +2136,17 @@ async function platformChecks() {
     const missed = CRITERIA.filter((k) => scores[k] === false);
     if (missed.length) console.log(`     missed: ${missed.join(', ')}`);
   }
-  const platform = only.length && !only.includes('PLATFORM') ? [] : await platformChecks();
+  // Platform checks run unless ONLY names journeys alone; a shard runs the ones it was given; CHECKS asks for them by name.
+  const platform = only.length && !only.includes('PLATFORM') && !picked.length ? [] : await platformChecks();
   platform.forEach((x) => console.log(`${x.pass ? 'PASS' : 'FAIL'} ${x.id} ${x.title}${x.pass ? '' : '\n     ' + x.error}`));
-  platform.push({ id: 'P5', reqs: ['NO-ERRORS'], title: 'No console or page errors across every journey', pass: consoleErrors.length === 0, error: consoleErrors.slice(0, 4).join(' | ') || undefined });
-  console.log(`${consoleErrors.length ? 'FAIL' : 'PASS'} P5 No console or page errors${consoleErrors.length ? '\n     ' + consoleErrors.slice(0, 4).join('\n     ') : ''}`);
+  // P5 reads the console errors of every journey, so a shard hands them over and the merge decides (see run.mjs).
+  if (!shardPlan) {
+    platform.push(P5(consoleErrors));
+    console.log(`${consoleErrors.length ? 'FAIL' : 'PASS'} P5 No console or page errors${consoleErrors.length ? '\n     ' + consoleErrors.slice(0, 4).join('\n     ') : ''}`);
+  }
   await browser.close();
-  fs.writeFileSync(path.join(OUT, 'journeys.json'), JSON.stringify({ journeys, platform }, null, 2));
+  const file = shardPlan ? `journeys-${SHARD[0]}.json` : 'journeys.json';
+  fs.writeFileSync(path.join(OUT, file), JSON.stringify({ shard: shardPlan ? { k: SHARD[0], n: SHARD[1], journeys: shardPlan.journeys, checks: shardPlan.checks } : undefined, journeys, platform, consoleErrors }, null, 2));
   process.exit(journeys.every((r) => r.pass) && platform.every((x) => x.pass) ? 0 : 1);
 })();
 
