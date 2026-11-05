@@ -21559,7 +21559,7 @@ function settleKeys(stored, incoming) {
 // src/data/rows.ts
 /** Postgres numerics can arrive as strings; timestamps in any ISO form. Normalise both. */
 var num$1 = (v) => v == null ? null : Number(v);
-var iso = (v) => new Date(v).toISOString();
+var iso$1 = (v) => new Date(v).toISOString();
 var workspaceToRow = (w) => ({
 	id: w.id,
 	name: w.name,
@@ -21570,7 +21570,8 @@ var workspaceFromRow = (r) => ({
 	id: r.id,
 	name: r.name,
 	kind: r.kind,
-	createdAt: iso(r.created_at)
+	createdAt: iso$1(r.created_at),
+	...r.recording === false ? { recording: false } : {}
 });
 var teamToRow = (ws, t, withLead = true) => ({
 	workspace_id: ws,
@@ -21691,7 +21692,7 @@ function goalFromRows(r, stageRows) {
 		...r.why_helps ? { whyHelps: r.why_helps } : {},
 		source: r.source,
 		definition: r.definition,
-		createdAt: iso(r.created_at),
+		createdAt: iso$1(r.created_at),
 		...r.pending ? { pending: r.pending } : {},
 		...r.version != null ? { version: Number(r.version) } : {},
 		...r.also_helps?.length ? { alsoHelps: r.also_helps } : {}
@@ -21772,7 +21773,7 @@ var checkInFromRow = (r) => ({
 	goalId: r.goal_id,
 	authorId: r.author_id,
 	week: Number(r.week),
-	postedAt: iso(r.posted_at),
+	postedAt: iso$1(r.posted_at),
 	value: num$1(r.value),
 	stages: r.stages,
 	status: r.status,
@@ -21813,7 +21814,7 @@ var decisionFromRow = (r) => ({
 	week: Number(r.week),
 	kind: r.kind,
 	byId: r.by_id,
-	at: iso(r.at),
+	at: iso$1(r.at),
 	note: r.note,
 	...r.assignee_id ? { assigneeId: r.assignee_id } : {},
 	...r.due_week != null ? { dueWeek: Number(r.due_week) } : {}
@@ -21832,7 +21833,7 @@ var changeToRow = (ws, c) => ({
 });
 var changeFromRow = (r) => ({
 	id: r.id,
-	at: iso(r.at),
+	at: iso$1(r.at),
 	actorId: r.actor_id,
 	goalId: r.goal_id,
 	entity: r.entity,
@@ -21877,7 +21878,7 @@ var reviewFromRow = (r) => ({
 	},
 	people: r.people ?? [],
 	createdBy: r.created_by,
-	createdAt: iso(r.created_at),
+	createdAt: iso$1(r.created_at),
 	...r.version != null ? { version: Number(r.version) } : {}
 });
 var retroToRow = (ws, r) => ({
@@ -21899,7 +21900,7 @@ var retroFromRow = (r) => ({
 	learned: r.learned,
 	next: r.next,
 	byId: r.by_id,
-	at: iso(r.at)
+	at: iso$1(r.at)
 });
 var feedbackToRow = (ws, f) => ({
 	workspace_id: ws,
@@ -21916,7 +21917,7 @@ var feedbackFromRow = (r) => ({
 	path: r.path,
 	mood: r.mood,
 	text: r.text,
-	at: iso(r.at)
+	at: iso$1(r.at)
 });
 var tokenToRow = (ws, t) => ({
 	workspace_id: ws,
@@ -21946,9 +21947,9 @@ var viewFromRow = (r) => ({
 	name: r.name,
 	params: r.params ?? "",
 	pinned: !!r.pinned,
-	createdAt: iso(r.created_at),
-	updatedAt: iso(r.updated_at),
-	deletedAt: r.deleted_at ? iso(r.deleted_at) : null
+	createdAt: iso$1(r.created_at),
+	updatedAt: iso$1(r.updated_at),
+	deletedAt: r.deleted_at ? iso$1(r.deleted_at) : null
 });
 var requestToRow = (ws, r) => ({
 	workspace_id: ws,
@@ -21975,9 +21976,9 @@ var requestFromRow = (r) => ({
 	checkInId: r.check_in_id,
 	answer: r.answer,
 	answeredBy: r.answered_by,
-	answeredAt: r.answered_at ? iso(r.answered_at) : null,
-	createdAt: iso(r.created_at),
-	updatedAt: iso(r.updated_at)
+	answeredAt: r.answered_at ? iso$1(r.answered_at) : null,
+	createdAt: iso$1(r.created_at),
+	updatedAt: iso$1(r.updated_at)
 });
 var tokenFromRow = (r) => ({
 	id: r.id,
@@ -21985,9 +21986,9 @@ var tokenFromRow = (r) => ({
 	name: r.name,
 	tokenHash: r.token_hash,
 	createdBy: r.created_by,
-	createdAt: iso(r.created_at),
-	lastUsedAt: r.last_used_at ? iso(r.last_used_at) : null,
-	revokedAt: r.revoked_at ? iso(r.revoked_at) : null
+	createdAt: iso$1(r.created_at),
+	lastUsedAt: r.last_used_at ? iso$1(r.last_used_at) : null,
+	revokedAt: r.revoked_at ? iso$1(r.revoked_at) : null
 });
 /** One save as the payload okr_commit takes: rows for each table, stages per milestone, and what the save expects. */
 function commitPayload(ws, c) {
@@ -22017,6 +22018,7 @@ function commitPayload(ws, c) {
 		...c.teams?.length ? { teams: c.teams.map((x) => teamToRow(ws, x)) } : {},
 		...c.removeTeams?.length ? { remove_teams: c.removeTeams } : {},
 		...c.workspace ? { workspace_name: c.workspace.name } : {},
+		...c.recording !== void 0 ? { workspace_recording: c.recording } : {},
 		changes: c.changes.map((x) => changeToRow(ws, x)),
 		expect: c.expect ? {
 			goals: c.expect.goals,
@@ -24419,6 +24421,7 @@ var StaleError = class extends Error {
 		this.name = "StaleError";
 	}
 };
+var isStale = (e) => e instanceof StaleError || e instanceof Error && /\bstale: /.test(e.message);
 /** Applies a commit to a snapshot. Shared by the browser store and the app's optimistic update. */
 function applyCommit(s, c) {
 	const upsert = (list, items = []) => {
@@ -26100,6 +26103,34 @@ function renameWorkspace(x, ws, name) {
 				field: "Workspace name",
 				from: ws.name,
 				to: clean
+			}]
+		}]
+	};
+}
+/**
+* Admins: turn on or off recording of how the app is used in this workspace (src/telemetry; what it records is in the
+* guide's "What the app records"). Off, nothing is recorded or sent for the workspace. Null when it already is.
+*/
+function setRecording(x, ws, on) {
+	if (!x.actor.admin) no("Only admins can turn recording on or off.");
+	if (typeof on !== "boolean") no("Say whether to record: on or off.");
+	const was = ws.recording !== false;
+	if (was === on) return null;
+	return {
+		recording: on,
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "workspace",
+			entityId: ws.id,
+			action: "edited",
+			summary: on ? "Turned recording back on" : "Turned recording off",
+			diffs: [{
+				field: "Recording",
+				from: was ? "On" : "Off",
+				to: on ? "On" : "Off"
 			}]
 		}]
 	};
@@ -29494,11 +29525,12 @@ var ARTICLES = [
 				"Admins add a person, change their details, or make them an admin. There is always at least one admin.",
 				"Rename the workspace; add, rename and remove teams. A team with people or goals moves them to another team in the same save.",
 				"AI assistants: make a personal token for someone (shown once) and revoke tokens. Feedback: read what people sent with the feedback button.",
+				"What the app records: recording of how the app is used is on for everyone. Untick it to turn it off for the whole workspace; while it’s off, nothing is recorded or sent.",
 				"Delete the workspace, after typing its name. It can’t be undone; an example can only be reset."
 			]
 		}, {
 			heading: "Who can",
-			list: ["Everyone can see the people and teams.", "Only admins add or change people and teams, make tokens, rename or delete the workspace. Whoever sets up a workspace is its first admin."]
+			list: ["Everyone can see the people and teams.", "Only admins add or change people and teams, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin."]
 		}],
 		routes: ["/workspace"],
 		screens: ["Workspace"],
@@ -29506,7 +29538,8 @@ var ARTICLES = [
 			"ADMIN",
 			"WORKSPACE-ADMIN",
 			"PROFILES",
-			"WORKSPACES"
+			"WORKSPACES",
+			"TELEMETRY-SWITCH"
 		],
 		keywords: [
 			"admin",
@@ -29517,18 +29550,20 @@ var ARTICLES = [
 			"delete workspace",
 			"directory",
 			"feedback",
-			"tokens"
+			"tokens",
+			"recording"
 		],
 		related: [
 			"ai-assistants",
 			"set-up",
-			"settings"
+			"settings",
+			"recording"
 		]
 	},
 	{
 		id: "settings",
 		title: "Settings",
-		summary: "Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens.",
+		summary: "Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens. It also says what the app records.",
 		group: "you",
 		sections: [{
 			heading: "How to use it",
@@ -29537,6 +29572,7 @@ var ARTICLES = [
 				"Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
 				"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
 				"You: your name, job title and team. An admin changes these.",
+				"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
 				"Your AI assistants: the tokens that act as you, which you can revoke.",
 				"Detail pages have a Back link to where you came from."
 			]
@@ -29562,7 +29598,75 @@ var ARTICLES = [
 			"appearance",
 			"back link"
 		],
-		related: ["ai-assistants", "any-device"]
+		related: [
+			"ai-assistants",
+			"any-device",
+			"recording"
+		]
+	},
+	{
+		id: "recording",
+		title: "What the app records",
+		summary: "The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use.",
+		group: "you",
+		sections: [
+			{
+				heading: "What is recorded",
+				list: [
+					"The pages you open, and how long each takes to show.",
+					"The buttons you press that do something, such as posting a check-in, saving a goal or answering a request, and whether it worked.",
+					"How far you get in a task: a check-in, a new goal, changing a goal, a review, answering a request, an import, the wrap-up or setting up a workspace. Where you start, each step you reach, and whether you finish or stop.",
+					"Errors, saves that didn’t go through (and whether a rule said no or the connection failed), and how long loading took.",
+					"With each: an id for this browser tab, your id in the workspace and the workspace’s id. Not your name."
+				]
+			},
+			{
+				heading: "What is never recorded",
+				list: [
+					"Anything you type: notes, numbers, names, goal titles, comments, answers or searches.",
+					"What a page shows you.",
+					"The app only sends things it names itself, from a fixed list. Anything else is dropped in your browser before it is sent."
+				]
+			},
+			{
+				heading: "How long, and who can see it",
+				list: [
+					"Each record is kept for 90 days. After that only daily totals are kept: how many, how many failed, how long they took and where people stopped, with nothing about any one visit.",
+					"Only the people who build and run the app, and the AI that helps them, can read it. No one in your workspace can, admins included.",
+					"It is kept in the app’s own database, in a standard format (OpenTelemetry), so it could later go to your company’s own monitoring tool."
+				]
+			},
+			{
+				heading: "Turning it off",
+				list: ["Everyone is recorded by default. Settings says whether it is on where you are.", "An admin can turn it off for the whole workspace on Workspace, under What the app records. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: [
+			"TELEMETRY-SIGNALS",
+			"TELEMETRY-PRIVACY",
+			"TELEMETRY-FLOWS",
+			"TELEMETRY-RETENTION",
+			"TELEMETRY-SWITCH"
+		],
+		keywords: [
+			"recording",
+			"privacy",
+			"telemetry",
+			"analytics",
+			"tracking",
+			"observability",
+			"what is recorded",
+			"turn off recording",
+			"errors",
+			"slow"
+		],
+		related: [
+			"settings",
+			"workspace",
+			"ai-assistants"
+		]
 	},
 	{
 		id: "ai-assistants",
@@ -29574,7 +29678,7 @@ var ARTICLES = [
 				heading: "What it can do",
 				list: [
 					"Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.",
-					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams.",
+					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, via the AI assistant."
 				]
 			},
@@ -29741,6 +29845,22 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "what-the-app-records",
+		date: "2026-11-05",
+		title: "What the app records",
+		points: [
+			"The app now records how it is used: the pages people open, the buttons they press, where they stop in a task, errors and slow pages. Never anything anyone types.",
+			"Settings says exactly what is and isn’t recorded, for how long (90 days, then only daily totals) and who can see it.",
+			"Admins can turn recording off for the whole workspace on Workspace. While it is off, nothing is sent.",
+			"AI assistants are recorded the same way, and an admin’s assistant can turn recording off too."
+		],
+		articles: [
+			"recording",
+			"settings",
+			"workspace"
+		]
+	},
 	{
 		id: "help-and-whats-new",
 		date: "2026-11-05",
@@ -31379,6 +31499,29 @@ var WORK_TOOLS = [
 		}
 	},
 	{
+		name: "set_recording",
+		title: "Turn recording on or off",
+		description: "Admins: turn on or off recording of how the app is used in this workspace: the pages people open, the actions they take, where they stop in a flow, errors and slow loads. Never anything anyone types. Off, nothing is recorded or sent for the workspace, from the app or from assistants. Everyone is recorded by default; the change is logged. get_help with \"recording\" says exactly what is recorded.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["on"],
+			properties: { on: bool$1("true to record how the app is used here, false to stop.") }
+		},
+		annotations: {
+			...WRITE,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			if (typeof a.on !== "boolean") throw new Error("Say on: true to record, or on: false to stop.");
+			const on = a.on;
+			return {
+				...await save(ctx, setRecording(ax(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
+				data: { recording: ctx.ws.recording !== false }
+			};
+		}
+	},
+	{
 		name: "save_team",
 		title: "Add or change a team",
 		description: "Admins: add a team, or rename one or change its lead. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.",
@@ -32100,7 +32243,8 @@ async function callTool(name, args, ctx) {
 	} catch (e) {
 		return {
 			isError: true,
-			text: e instanceof Error ? e.message : String(e)
+			text: e instanceof Error ? e.message : String(e),
+			cause: e
 		};
 	}
 }
@@ -32130,7 +32274,7 @@ var fail = (id, code, message) => ({
 	}
 });
 /** Handles one JSON-RPC message. Notifications (no id) get no reply. The context loads only when a tool runs. */
-async function handle(msg, context) {
+async function handle(msg, context, trace) {
 	const m = msg;
 	if (!m || m.jsonrpc !== "2.0" || typeof m.method !== "string") return fail(m?.id ?? null, -32600, "Invalid request");
 	const isNote = m.id === void 0;
@@ -32158,8 +32302,8 @@ async function handle(msg, context) {
 		case "tools/call": {
 			const name = String(m.params?.name ?? "");
 			if (!TOOLS.some((t) => t.name === name)) return fail(m.id, -32602, `Unknown tool: ${name}`);
-			const ctx = await context();
-			const r = await callTool(name, m.params?.arguments ?? {}, ctx);
+			const run = async () => callTool(name, m.params?.arguments ?? {}, await context());
+			const r = trace ? await trace(name, run) : await run();
 			return ok(m.id, {
 				content: [{
 					type: "text",
@@ -32175,16 +32319,16 @@ async function handle(msg, context) {
 	}
 }
 /** A POST body: one message or a batch. Returns the replies to send (null when there are none: answer 202). */
-async function handleBody(body, context) {
+async function handleBody(body, context, trace) {
 	if (Array.isArray(body)) {
 		const out = [];
 		for (const m of body) {
-			const r = await handle(m, context);
+			const r = await handle(m, context, trace);
 			if (r) out.push(r);
 		}
 		return out.length ? out : null;
 	}
-	return handle(body, context);
+	return handle(body, context, trace);
 }
 /** SHA-256 of a token, as hex: what's stored, and what a presented token is checked against. */
 async function hashToken(token) {
@@ -32196,11 +32340,256 @@ function newToken() {
 	const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
 }
+// src/telemetry/errors.ts
+function errorType(e) {
+	if (e instanceof NotAllowed) return "not_allowed";
+	if (isStale(e)) return "stale";
+	const msg = e instanceof Error ? e.message : String(e);
+	if (msg === "loop") return "not_allowed";
+	if (/did not answer in time|AbortError|aborted/i.test(msg) || e instanceof Error && e.name === "AbortError") return "timeout";
+	if (/Failed to fetch|NetworkError|Load failed|network/i.test(msg)) return "network";
+	if (/^(Saving|Creating|Deleting|Removing|Renaming|Logging|Adding|Sending|Watching|Stopping|Unlinking|Setting)\b|okr_|violates|constraint|PGRST|permission denied/i.test(msg)) return "database";
+	return "error";
+}
+// src/telemetry/ids.ts
+var TRACE_ID = /^(?!0{32})[0-9a-f]{32}$/;
+var SPAN_ID = /^(?!0{16})[0-9a-f]{16}$/;
+function hex(bytes) {
+	const b = crypto.getRandomValues(new Uint8Array(bytes));
+	let s = "";
+	for (const x of b) s += x.toString(16).padStart(2, "0");
+	return /^0+$/.test(s) ? hex(bytes) : s;
+}
+var newTraceId = () => hex(16);
+var newSpanId = () => hex(8);
+/** A W3C `traceparent` header (version 00), or null when it's missing or malformed. */
+function parseTraceparent(header) {
+	const m = /^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/.exec((header ?? "").trim().toLowerCase());
+	if (!m || m[1] === "ff") return null;
+	const [, , traceId, spanId] = m;
+	return TRACE_ID.test(traceId) && SPAN_ID.test(spanId) ? {
+		traceId,
+		spanId
+	} : null;
+}
+// src/telemetry/attributes.ts
+/** A name the code chose: an action, a route's parts, an error class. Letters, digits and a few separators. */
+var NAME = /^[A-Za-z][\w.:/-]{0,79}$/;
+/** An id the app generated (a person, a workspace, a goal). */
+var ID = /^[\w.:-]{1,80}$/;
+var ATTRIBUTES = {
+	"service.name": /^goals-[a-z]+$/,
+	"service.version": ID,
+	"deployment.environment": [
+		"demo",
+		"live",
+		"test"
+	],
+	"telemetry.sdk.name": ["goals-telemetry"],
+	"telemetry.sdk.language": ["webjs", "nodejs"],
+	"user_agent.original": /^[\w ./;:,()+\-_]{1,300}$/,
+	"session.id": /^[0-9a-f]{32}$/,
+	"user.id": ID,
+	"app.workspace.id": ID,
+	"app.store": ["browser", "supabase"],
+	"app.viewport.width": "number",
+	"http.route": /^\/[\w\-/:*]{0,120}$/,
+	"url.path": /^\/[\w\-./:~%]{0,200}$/,
+	"app.navigation.type": [
+		"load",
+		"push",
+		"pop",
+		"replace",
+		"result"
+	],
+	"app.action.name": NAME,
+	"app.mark.name": NAME,
+	"app.via": ["app", "mcp"],
+	"app.count": "number",
+	"app.save.outcome": [
+		"saved",
+		"refused",
+		"stale",
+		"failed"
+	],
+	"app.slow": "boolean",
+	"app.flow.name": NAME,
+	"app.flow.event": [
+		"start",
+		"step",
+		"finish",
+		"stop"
+	],
+	"app.flow.step": NAME,
+	"app.flow.step.index": "number",
+	"app.flow.step.count": "number",
+	"app.flow.duration_ms": "number",
+	"app.flow.stop.reason": ["left", "closed"],
+	"db.system": ["postgresql", "browser"],
+	"db.operation": NAME,
+	"error.type": NAME,
+	"exception.type": NAME,
+	"exception.message": "text",
+	"exception.stacktrace": "stack",
+	"app.error.source": [
+		"window",
+		"promise",
+		"react",
+		"save"
+	],
+	"mcp.method.name": NAME,
+	"gen_ai.tool.name": NAME,
+	"rpc.system": ["jsonrpc"],
+	"http.request.method": [
+		"GET",
+		"POST",
+		"OPTIONS",
+		"DELETE"
+	],
+	"http.response.status_code": "number"
+};
+/**
+* Free text the code produced (an error's message) with anything that could be a person's own words or numbers taken
+* out: whatever is in quotes, and every number. What's left says what kind of thing went wrong.
+*/
+function redact(text, max = 300) {
+	return text.replace(/“[^”]*”|"[^"]*"|‘[^’]*’|'[^']*'|`[^`]*`/g, "…").replace(/\d+(?:[.,]\d+)*/g, "#").replace(/[\r\n\t]+/g, " ").slice(0, max);
+}
+/** A stack trace as its frames only (functions, files, lines), redacted like a message. */
+function stackOf(stack, max = 1500) {
+	return stack.split("\n").map((l) => l.trim()).filter((l) => /^at |@/.test(l)).slice(0, 12).map((f) => f.replace(/[?#].*?(?=:\d+:\d+\)?$)/, "").replace(/“[^”]*”|"[^"]*"|'[^']*'/g, "…")).join("\n").slice(0, max);
+}
+function clean(rule, v, key) {
+	if (rule === "number") return typeof v === "number" && Number.isFinite(v) ? Math.round(v * 1e3) / 1e3 : void 0;
+	if (rule === "boolean") return typeof v === "boolean" ? v : void 0;
+	if (typeof v !== "string") return void 0;
+	if (rule === "text") return redact(v);
+	if (rule === "stack") return stackOf(v);
+	if (Array.isArray(rule)) return rule.includes(v) ? v : void 0;
+	const s = key === "url.path" ? v.split(/[?#]/)[0] : v;
+	return rule.test(s) ? s : void 0;
+}
+/** Only the allowed attributes, each of the right type and shape. Everything else is dropped. */
+function sanitise(attrs) {
+	const out = {};
+	if (!attrs) return out;
+	let size = 2;
+	for (const [k, v] of Object.entries(attrs)) {
+		const rule = ATTRIBUTES[k];
+		if (!rule) continue;
+		const c = clean(rule, v, k);
+		if (c === void 0) continue;
+		const add = JSON.stringify(k).length + JSON.stringify(c).length + 2;
+		if (size + add > 4096) continue;
+		size += add;
+		out[k] = c;
+	}
+	return out;
+}
+// src/telemetry/model.ts
+/** A name the code chose (a span's, a log's body, a metric's): never free text. */
+var RECORD_NAME = /^[A-Za-z][\w .:/*-]{0,119}$/;
+var safeName = (n) => RECORD_NAME.test(n) ? n : "unnamed";
+var iso = (ms) => new Date(ms).toISOString();
+var ctx = (a) => ({
+	workspace_id: typeof a["app.workspace.id"] === "string" ? a["app.workspace.id"] : null,
+	session_id: typeof a["session.id"] === "string" ? a["session.id"] : null
+});
+function spanRow(s) {
+	const attributes = sanitise(s.attributes);
+	const end = Math.max(s.endMs, s.startMs);
+	return {
+		trace_id: s.traceId,
+		span_id: s.spanId,
+		parent_span_id: s.parentSpanId ?? null,
+		name: safeName(s.name),
+		kind: s.kind ?? "INTERNAL",
+		start_time: iso(s.startMs),
+		end_time: iso(end),
+		duration_ms: Math.round((end - s.startMs) * 1e3) / 1e3,
+		status_code: s.status ?? "UNSET",
+		status_message: s.statusMessage && RECORD_NAME.test(s.statusMessage) ? s.statusMessage : null,
+		attributes,
+		resource: sanitise(s.resource),
+		...ctx(attributes)
+	};
+}
+// src/telemetry/server.ts
+var SERVER_RESOURCE = {
+	"service.name": "goals-mcp",
+	"service.version": WHATS_NEW[0]?.id ?? "unknown",
+	"deployment.environment": "live",
+	"telemetry.sdk.name": "goals-telemetry",
+	"telemetry.sdk.language": "nodejs"
+};
+var SpanCollector = class {
+	common;
+	now;
+	rows = [];
+	constructor(common = {}, now = () => Date.now()) {
+		this.common = common;
+		this.now = now;
+	}
+	start(name, o = {}) {
+		const startMs = this.now();
+		const traceId = o.parent?.traceId ?? newTraceId();
+		const spanId = newSpanId();
+		let ended = false;
+		return {
+			traceId,
+			spanId,
+			end: (e = {}) => {
+				if (ended) return;
+				ended = true;
+				this.rows.push(spanRow({
+					traceId,
+					spanId,
+					parentSpanId: o.parent?.spanId ?? null,
+					name,
+					kind: o.kind ?? "INTERNAL",
+					startMs,
+					endMs: this.now(),
+					status: e.status,
+					statusMessage: e.statusMessage,
+					attributes: {
+						...this.common,
+						...o.attributes,
+						...e.attributes
+					},
+					resource: SERVER_RESOURCE
+				}));
+			}
+		};
+	}
+	/** Times a piece of work as a child span; a failure ends it with the failure's class, never its message. */
+	async child(name, parent, attributes, run, kind = "CLIENT") {
+		const s = this.start(name, {
+			kind,
+			parent,
+			attributes
+		});
+		try {
+			const v = await run();
+			s.end({ status: "OK" });
+			return v;
+		} catch (e) {
+			const t = errorType(e);
+			s.end({
+				status: "ERROR",
+				statusMessage: t,
+				attributes: { "error.type": t }
+			});
+			throw e;
+		}
+	}
+};
 // server/mcp.ts
+/** The longest the end of a request waits for its spans to be stored. */
+var TELEMETRY_WAIT_MS = 1500;
 var CORS = {
 	"Access-Control-Allow-Origin": "*",
 	"Access-Control-Allow-Methods": "POST, OPTIONS",
-	"Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version",
+	"Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, traceparent, tracestate",
 	"Access-Control-Expose-Headers": "Mcp-Session-Id"
 };
 var json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
@@ -32245,10 +32634,58 @@ async function serve(req, deps) {
 		}, 400);
 	}
 	const now = deps.now?.() ?? /* @__PURE__ */ new Date();
+	const incoming = parseTraceparent(req.headers.get("traceparent"));
+	const spans = new SpanCollector({
+		"user.id": found.token.personId,
+		"app.workspace.id": found.workspaceId,
+		"app.via": "mcp"
+	});
+	let current = null;
+	const traceTool = async (tool, run) => {
+		const span = spans.start(`tools/call ${tool}`, {
+			kind: "SERVER",
+			parent: incoming,
+			attributes: {
+				"mcp.method.name": "tools/call",
+				"gen_ai.tool.name": tool,
+				"rpc.system": "jsonrpc",
+				"http.request.method": "POST"
+			}
+		});
+		current = span;
+		try {
+			const r = await run();
+			const t = r.isError ? r.cause !== void 0 ? errorType(r.cause) : "tool_error" : null;
+			span.end(t ? {
+				status: "ERROR",
+				statusMessage: t,
+				attributes: { "error.type": t }
+			} : { status: "OK" });
+			return r;
+		} catch (e) {
+			const t = errorType(e);
+			span.end({
+				status: "ERROR",
+				statusMessage: t,
+				attributes: { "error.type": t }
+			});
+			throw e;
+		} finally {
+			current = null;
+		}
+	};
+	const db = (op, run) => spans.child(op, current, {
+		"db.system": "postgresql",
+		"db.operation": op
+	}, run);
 	let ctx = null;
 	const context = async () => {
 		if (ctx) return ctx;
-		const [loaded, name] = await Promise.all([deps.load(found.workspaceId), deps.workspaceName(found.workspaceId)]);
+		const [loaded, name, recording] = await Promise.all([
+			db("select", () => deps.load(found.workspaceId)),
+			deps.workspaceName(found.workspaceId),
+			deps.recording ? deps.recording(found.workspaceId).catch(() => true) : Promise.resolve(true)
+		]);
 		let all = loaded;
 		const cycle = currentCycle(all.cycles, now);
 		if (!cycle) throw new Error("This workspace has no cycle yet.");
@@ -32258,7 +32695,8 @@ async function serve(req, deps) {
 			ws: {
 				id: found.workspaceId,
 				name,
-				kind: found.workspaceId === EXAMPLE.id ? "example" : "own"
+				kind: found.workspaceId === EXAMPLE.id ? "example" : "own",
+				...recording === false ? { recording: false } : {}
 			},
 			snapshot: scopeToCycle(all, cycle),
 			cycle,
@@ -32269,7 +32707,7 @@ async function serve(req, deps) {
 			newId,
 			allGoals: all.goals,
 			save: async (c) => {
-				await deps.commit(found.workspaceId, withExpectations(c, all));
+				await db("okr_commit", () => deps.commit(found.workspaceId, withExpectations(c, all)));
 				all = applyCommit(all, c);
 				ctx.snapshot = scopeToCycle(all, cycle);
 				ctx.allGoals = all.goals;
@@ -32277,20 +32715,25 @@ async function serve(req, deps) {
 					...ctx.ws,
 					name: c.workspace.name
 				};
+				if (c.recording !== void 0) ctx.ws = {
+					...ctx.ws,
+					recording: c.recording
+				};
 			},
 			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {}
 		};
 		return ctx;
 	};
+	let res;
 	try {
-		const out = await handleBody(body, context);
+		const out = await handleBody(body, context, traceTool);
 		await deps.touch(found.token.id, now.toISOString()).catch(() => void 0);
-		return out ? json(out) : new Response(null, {
+		res = out ? json(out) : new Response(null, {
 			status: 202,
 			headers: CORS
 		});
 	} catch (e) {
-		return json({
+		res = json({
 			jsonrpc: "2.0",
 			id: body?.id ?? null,
 			error: {
@@ -32299,6 +32742,21 @@ async function serve(req, deps) {
 			}
 		}, 500);
 	}
+	await sendSpans(deps, spans.rows, found.workspaceId, ctx);
+	return res;
+}
+/** Stores the request's spans when the workspace records (as it was at the end of the request: a call that turned
+recording off sends nothing). Never fails the request, and never holds it up for long. */
+async function sendSpans(deps, rows, workspaceId, ctx) {
+	if (!rows.length || !deps.telemetry) return;
+	try {
+		if (!(ctx ? ctx.ws.recording !== false : deps.recording ? await deps.recording(workspaceId).catch(() => true) : true)) return;
+		let timer;
+		await Promise.race([deps.telemetry(rows).catch(() => void 0), new Promise((r) => {
+			timer = setTimeout(r, TELEMETRY_WAIT_MS);
+		})]);
+		clearTimeout(timer);
+	} catch {}
 }
 // server/vercel.ts
 function deps() {
@@ -32327,7 +32785,14 @@ function deps() {
 		async touch(id, at) {
 			await db.from("okr_api_tokens").update({ last_used_at: at }).eq("id", id);
 		},
-		deleteWorkspace: (ws) => store.deleteWorkspace(ws)
+		deleteWorkspace: (ws) => store.deleteWorkspace(ws),
+		async recording(id) {
+			const { data, error } = await db.from("okr_workspaces").select("recording").eq("id", id).maybeSingle();
+			return error ? true : data?.recording !== false;
+		},
+		async telemetry(spans) {
+			await db.from("okr_telemetry_spans").insert(spans);
+		}
 	};
 }
 var handler = async (req) => {

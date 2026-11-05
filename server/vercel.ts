@@ -1,5 +1,6 @@
 /* The Vercel function at /api/mcp. Built into api/mcp.js by `npm run build:mcp` (one self-contained file).
-   It reads and writes Supabase with SUPABASE_SERVICE_ROLE_KEY when set, otherwise the app's public key. */
+   It reads and writes Supabase with SUPABASE_SERVICE_ROLE_KEY when set, otherwise the app's public key, and records a
+   span per tool call in the telemetry tables (migration 0022) when the workspace records. */
 import { createClient } from '@supabase/supabase-js';
 import { SupabaseStore } from '../src/data/supabaseStore';
 import { tokenFromRow, type TokenRow } from '../src/data/rows';
@@ -28,6 +29,14 @@ function deps(): Deps {
     commit: (ws, c) => store.commit(ws, c),
     async touch(id, at) { await db.from('okr_api_tokens').update({ last_used_at: at }).eq('id', id); },
     deleteWorkspace: (ws) => store.deleteWorkspace(ws),
+    // Recording (migration 0022): on unless the workspace has turned it off; before the migration there's no switch.
+    async recording(id) {
+      const { data, error } = await db.from('okr_workspaces').select('recording').eq('id', id).maybeSingle();
+      return error ? true : (data as { recording?: boolean | null } | null)?.recording !== false;
+    },
+    // The server's own spans, with the service role key when it's set (otherwise the public key, which can add rows
+    // but not read them). A missing table or a refusal is ignored: telemetry never changes an answer.
+    async telemetry(spans) { await db.from('okr_telemetry_spans').insert(spans); },
   };
 }
 

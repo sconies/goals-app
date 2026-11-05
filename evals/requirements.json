@@ -450,6 +450,31 @@
       "id": "WHATS-NEW",
       "area": "Help",
       "text": "What's new lists each release newest first, with a date, a title, a few plain lines for people and links to the guide. A quiet dot beside Help, and one dismissible line on Home, show a release the person hasn't seen until they open What's new, remembered across reloads. CI refuses a change to the app without an entry, and an AI assistant can read the entries."
+    },
+    {
+      "id": "TELEMETRY-SIGNALS",
+      "area": "Observability",
+      "text": "The app records traces, logs and metrics in its own database in OpenTelemetry's shape (32-hex trace ids, 16-hex span ids, parent, kind, start and end, status, attributes and resource; logs with timestamp, severity and body), using semantic-convention names. One trace per thing a person does: the action, the save's RPC timed from the client as a CLIENT span (db.system, db.operation), and the page that shows the result. Pages, errors, failed saves (a rule saying no told apart from a network or database fault) and slow loads are recorded. The MCP server records a SERVER span per tool call and joins the caller's trace from a W3C traceparent header. When the tables are missing, the database is down or there is none, the app works exactly as before, with no console errors and no retry storm."
+    },
+    {
+      "id": "TELEMETRY-PRIVACY",
+      "area": "Observability",
+      "text": "Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, in Settings and a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them."
+    },
+    {
+      "id": "TELEMETRY-FLOWS",
+      "area": "Observability",
+      "text": "The named flows (check-in, quick check-in, review, new goal, change a goal, answer a request, import, wrap-up, set up a workspace) are defined once beside the guide, each with its article and ordered steps reached by App routes, named actions or a screen's own marks. Telemetry records when a flow starts, each step it reaches (step n of m), and whether it finishes or stops (left without finishing). The last 20 steps of a tab's session are kept in memory for a later markup."
+    },
+    {
+      "id": "TELEMETRY-RETENTION",
+      "area": "Observability",
+      "text": "Raw spans, logs and metrics are kept 90 days. A nightly pg_cron job rolls each day up into daily totals (counts, errors, p50 and p95 durations by name, route and flow step; flow starts, finishes and stops by step), kept indefinitely, and rolls a day up again before pruning it."
+    },
+    {
+      "id": "TELEMETRY-SWITCH",
+      "area": "Observability",
+      "text": "Recording is on for everyone by default. An admin (and only an admin, in the app or through the MCP set_recording tool) can turn it off for a workspace; the switch is saved with the workspace and logged. While it is off nothing is sent for that workspace, from the browser or the MCP server, and the database refuses rows for it."
     }
   ],
   "notYetBuilt": [

@@ -591,20 +591,21 @@ export const ARTICLES: Article[] = [
         'Admins add a person, change their details, or make them an admin. There is always at least one admin.',
         'Rename the workspace; add, rename and remove teams. A team with people or goals moves them to another team in the same save.',
         'AI assistants: make a personal token for someone (shown once) and revoke tokens. Feedback: read what people sent with the feedback button.',
+        'What the app records: recording of how the app is used is on for everyone. Untick it to turn it off for the whole workspace; while it’s off, nothing is recorded or sent.',
         'Delete the workspace, after typing its name. It can’t be undone; an example can only be reset.',
       ] },
-      { heading: 'Who can', list: ['Everyone can see the people and teams.', 'Only admins add or change people and teams, make tokens, rename or delete the workspace. Whoever sets up a workspace is its first admin.'] },
+      { heading: 'Who can', list: ['Everyone can see the people and teams.', 'Only admins add or change people and teams, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.'] },
     ],
     routes: ['/workspace'],
     screens: ['Workspace'],
-    reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'PROFILES', 'WORKSPACES'],
-    keywords: ['admin', 'people', 'teams', 'add person', 'rename', 'delete workspace', 'directory', 'feedback', 'tokens'],
-    related: ['ai-assistants', 'set-up', 'settings'],
+    reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'PROFILES', 'WORKSPACES', 'TELEMETRY-SWITCH'],
+    keywords: ['admin', 'people', 'teams', 'add person', 'rename', 'delete workspace', 'directory', 'feedback', 'tokens', 'recording'],
+    related: ['ai-assistants', 'set-up', 'settings', 'recording'],
   },
   {
     id: 'settings',
     title: 'Settings',
-    summary: 'Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens.',
+    summary: 'Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens. It also says what the app records.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
@@ -612,6 +613,7 @@ export const ARTICLES: Article[] = [
         'Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.',
         'Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.',
         'You: your name, job title and team. An admin changes these.',
+        'What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.',
         'Your AI assistants: the tokens that act as you, which you can revoke.',
         'Detail pages have a Back link to where you came from.',
       ] },
@@ -621,7 +623,41 @@ export const ARTICLES: Article[] = [
     screens: ['Settings'],
     reqs: ['SETTINGS', 'MOTION', 'MOTION-ALIVE'],
     keywords: ['theme', 'dark mode', 'light mode', 'accent', 'colour', 'sidebar', 'collapse', 'appearance', 'back link'],
-    related: ['ai-assistants', 'any-device'],
+    related: ['ai-assistants', 'any-device', 'recording'],
+  },
+  {
+    id: 'recording',
+    title: 'What the app records',
+    summary: 'The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use.',
+    group: 'you',
+    sections: [
+      { heading: 'What is recorded', list: [
+        'The pages you open, and how long each takes to show.',
+        'The buttons you press that do something, such as posting a check-in, saving a goal or answering a request, and whether it worked.',
+        'How far you get in a task: a check-in, a new goal, changing a goal, a review, answering a request, an import, the wrap-up or setting up a workspace. Where you start, each step you reach, and whether you finish or stop.',
+        'Errors, saves that didn’t go through (and whether a rule said no or the connection failed), and how long loading took.',
+        'With each: an id for this browser tab, your id in the workspace and the workspace’s id. Not your name.',
+      ] },
+      { heading: 'What is never recorded', list: [
+        'Anything you type: notes, numbers, names, goal titles, comments, answers or searches.',
+        'What a page shows you.',
+        'The app only sends things it names itself, from a fixed list. Anything else is dropped in your browser before it is sent.',
+      ] },
+      { heading: 'How long, and who can see it', list: [
+        'Each record is kept for 90 days. After that only daily totals are kept: how many, how many failed, how long they took and where people stopped, with nothing about any one visit.',
+        'Only the people who build and run the app, and the AI that helps them, can read it. No one in your workspace can, admins included.',
+        'It is kept in the app’s own database, in a standard format (OpenTelemetry), so it could later go to your company’s own monitoring tool.',
+      ] },
+      { heading: 'Turning it off', list: [
+        'Everyone is recorded by default. Settings says whether it is on where you are.',
+        'An admin can turn it off for the whole workspace on Workspace, under What the app records. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['TELEMETRY-SIGNALS', 'TELEMETRY-PRIVACY', 'TELEMETRY-FLOWS', 'TELEMETRY-RETENTION', 'TELEMETRY-SWITCH'],
+    keywords: ['recording', 'privacy', 'telemetry', 'analytics', 'tracking', 'observability', 'what is recorded', 'turn off recording', 'errors', 'slow'],
+    related: ['settings', 'workspace', 'ai-assistants'],
   },
   {
     id: 'ai-assistants',
@@ -631,7 +667,7 @@ export const ARTICLES: Article[] = [
     sections: [
       { heading: 'What it can do', list: [
         'Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.',
-        'Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams.',
+        'Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.',
         'It meets the same rules as you, with exactly your rights, and every change is logged as you, via the AI assistant.',
       ] },
       { heading: 'How to connect', list: [
@@ -725,24 +761,41 @@ function parseRoute(r: string): { segs: string[]; query: [string, string][] } {
 }
 
 /**
- * The article for a page: the one whose route matches the address most closely. Fixed path segments beat
- * parameters (/goals/new over /goals/:goalId), and a route that needs a query value beats one that doesn't.
+ * How closely a route (as App.tsx and the guide write it) matches an address: null when it doesn't. Fixed path
+ * segments beat parameters (/goals/new over /goals/:goalId), and a route that needs a query value beats one that
+ * doesn't. Shared by the Help link on every page and by the named flows (src/help/flows.ts).
  */
-export function articleForPath(pathname: string, search = ''): Article | undefined {
+export function routeScore(route: string, pathname: string, search = ''): number | null {
   const segs = pathname.split('/').filter(Boolean);
+  const p = parseRoute(route);
+  if (p.segs.length !== segs.length) return null;
+  if (!p.segs.every((s, i) => s.startsWith(':') || s === segs[i])) return null;
   const q = new URLSearchParams(search);
+  if (!p.query.every(([k, v]) => (v === '*' ? q.has(k) && q.get(k) !== '' : q.get(k) === v))) return null;
+  return p.segs.filter((s) => !s.startsWith(':')).length * 10 + p.query.length * 100;
+}
+
+/** The article for a page: the one whose route matches the address most closely. */
+export function articleForPath(pathname: string, search = ''): Article | undefined {
   let best: { a: Article; score: number } | undefined;
   for (const a of ARTICLES) {
     for (const r of a.routes) {
-      const p = parseRoute(r);
-      if (p.segs.length !== segs.length) continue;
-      if (!p.segs.every((s, i) => s.startsWith(':') || s === segs[i])) continue;
-      if (!p.query.every(([k, v]) => (v === '*' ? q.has(k) && q.get(k) !== '' : q.get(k) === v))) continue;
-      const score = p.segs.filter((s) => !s.startsWith(':')).length * 10 + p.query.length * 100;
-      if (!best || score > best.score) best = { a, score };
+      const score = routeScore(r, pathname, search);
+      if (score !== null && (!best || score > best.score)) best = { a, score };
     }
   }
   return best?.a;
+}
+
+/** The App.tsx route an address is on, e.g. /goals/:goalId for /goals/G-12: what telemetry records instead of ids. */
+let appRoutes: string[] | null = null;
+export function appRouteFor(pathname: string): string | undefined {
+  let best: { r: string; score: number } | undefined;
+  for (const r of (appRoutes ??= guideRoutes())) {
+    const score = routeScore(r, pathname);
+    if (score !== null && (!best || score > best.score)) best = { r, score };
+  }
+  return best?.r;
 }
 
 /** The route paths the guide explains, without their queries: for the checks that every route has an article. */

@@ -19,6 +19,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'what-the-app-records',
+    date: '2026-11-05',
+    title: 'What the app records',
+    points: [
+      'The app now records how it is used: the pages people open, the buttons they press, where they stop in a task, errors and slow pages. Never anything anyone types.',
+      'Settings says exactly what is and isn’t recorded, for how long (90 days, then only daily totals) and who can see it.',
+      'Admins can turn recording off for the whole workspace on Workspace. While it is off, nothing is sent.',
+      'AI assistants are recorded the same way, and an admin’s assistant can turn recording off too.',
+    ],
+    articles: ['recording', 'settings', 'workspace'],
+  },
+  {
     id: 'help-and-whats-new',
     date: '2026-11-05',
     title: 'Help and what’s new',

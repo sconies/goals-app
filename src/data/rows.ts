@@ -3,7 +3,7 @@
 import type { ApiToken, HelpRequest, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
 
 type W = { workspace_id: string };
-export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string }
+export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string; recording?: boolean | null }
 export interface TeamRow extends W { id: string; name: string; lead_id: string | null; objective: string }
 export interface PersonRow extends W { id: string; name: string; role: string; initials: string; team_id: string | null; is_admin: boolean }
 export interface CycleRow extends W { id: string; name: string; start_date: string; weeks: number; review_day: number }
@@ -32,7 +32,8 @@ const num = (v: unknown): number | null => (v == null ? null : Number(v));
 const iso = (v: string) => new Date(v).toISOString();
 
 export const workspaceToRow = (w: Workspace): WorkspaceRow => ({ id: w.id, name: w.name, kind: w.kind, created_at: w.createdAt });
-export const workspaceFromRow = (r: WorkspaceRow): Workspace => ({ id: r.id, name: r.name, kind: r.kind, createdAt: iso(r.created_at) });
+// Recording is on unless it has been turned off (null, or no column before migration 0022, is on).
+export const workspaceFromRow = (r: WorkspaceRow): Workspace => ({ id: r.id, name: r.name, kind: r.kind, createdAt: iso(r.created_at), ...(r.recording === false ? { recording: false } : {}) });
 export const teamToRow = (ws: string, t: Team, withLead = true): TeamRow => ({ workspace_id: ws, id: t.id, name: t.name, lead_id: withLead && t.leadId ? t.leadId : null, objective: t.objective });
 export const teamFromRow = (r: TeamRow): Team => ({ id: r.id, name: r.name, leadId: r.lead_id ?? '', objective: r.objective });
 export const personToRow = (ws: string, p: Person): PersonRow => ({ workspace_id: ws, id: p.id, name: p.name, role: p.role, initials: p.initials, team_id: p.teamId, is_admin: p.admin });
@@ -167,6 +168,8 @@ export function commitPayload(ws: string, c: import('./store').Commit) {
     ...(c.teams?.length ? { teams: c.teams.map((x) => teamToRow(ws, x)) } : {}),
     ...(c.removeTeams?.length ? { remove_teams: c.removeTeams } : {}),
     ...(c.workspace ? { workspace_name: c.workspace.name } : {}),
+    // The recording switch (migration 0022's okr_write sets okr_workspaces.recording).
+    ...(c.recording !== undefined ? { workspace_recording: c.recording } : {}),
     changes: c.changes.map((x) => changeToRow(ws, x)),
     expect: c.expect ? {
       goals: c.expect.goals, reviews: c.expect.reviews,

@@ -8,7 +8,8 @@
 const fs = require('fs');
 const AXE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 const SIZES = [[390, 844, true], [768, 1024, true], [1280, 800, false]];
-const LATEST = "Help and what’s new";
+// The newest release's title, read from What's new itself, so a new release doesn't need this check changed.
+const LATEST = /title: '([^']+)'/.exec(fs.readFileSync(require('path').join(__dirname, '../../src/help/whatsNew.ts'), 'utf8'))[1];
 
 module.exports = {
   id: 'N7',

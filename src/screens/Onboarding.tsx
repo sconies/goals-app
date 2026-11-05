@@ -15,6 +15,8 @@ import { Steps } from '../ui/bits';
 import { overHundredHint } from '../domain/goal';
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
+import type { Mark } from '../help/flows';
+import { useMark } from '../telemetry/react';
 
 interface PersonRow { name: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string }
@@ -38,6 +40,8 @@ const blankGoal = (owner = ''): GoalRow => ({ title: '', kind: 'metric', unit: '
 const YES = /^(y|yes|true|1|admin|sponsor|coach|goals coach)$/i;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const STEP_LABELS = ['Workspace', 'You', 'Your team', 'Starting point', 'Outcome', 'Goals', 'Check'];
+/** Each step, for the named flow (src/help/flows.ts). */
+const STEP_MARKS: Mark[] = ['setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'setUp.step-4', 'setUp.step-5', 'setUp.step-6', 'setUp.step-7'];
 
 /** Rows of a pasted or uploaded people table, matched to our columns by header when there is one. */
 export function peopleFromTable(tsv: string): { rows: PersonRow[]; objectives: Record<string, string> } {
@@ -195,6 +199,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
   const close = () => (onClose ? onClose() : nav(setup.hasWorkspaces ? '/workspace' : '/'));
   const shownStep = d.step + 1;
+  useMark(STEP_MARKS[d.step] ?? null);
   const updatePerson = (i: number, p: Partial<PersonRow>) => set({ people: d.people.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const updateGoal = (i: number, p: Partial<GoalRow>) => set({ goals: d.goals.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const label = busy ? 'Creating…' : d.step === 6 ? 'Create workspace' : 'Next';

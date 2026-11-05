@@ -71,6 +71,7 @@ Other assistants:
 | `save_person` | Admins: add someone, or change their name, job title, team or admin rights |
 | `save_team` / `remove_team` | Admins: add a team, or rename one or change its lead; remove one. A team with people or goals (in any cycle) needs `move_to`, another team they all move to in the same save |
 | `rename_workspace` | Admins: give the workspace a new name |
+| `set_recording` | Admins: turn on or off recording of how the app is used in the workspace (`on: true` or `false`). Off, nothing is recorded or sent for it, from the app or the server |
 | `wrap_up_goal` / `start_next_cycle` | Wrap up a goal at the end of the cycle; admins start the next cycle (needs `confirm: true`) |
 | `save_view` / `delete_view` / `pin_view` | Save, change or delete a view of the goals; admins pin one for everyone |
 | `create_token` / `revoke_token` | Admins make a token (shown once); an admin or the token's person revokes it |
@@ -83,5 +84,6 @@ Goal, plan and check-in tools take `dry_run: true` to check a change without sav
 
 - **Hosting.** The server is a Vercel function. `server/vercel.ts` is bundled into `api/mcp.js` by `npm run build:mcp`, and CI checks that the bundle matches its source.
 - **Database key.** It reads and writes Supabase with `SUPABASE_SERVICE_ROLE_KEY` when that is set, otherwise with the app's public key.
+- **Telemetry.** Each tool call is recorded as a SERVER span in `okr_telemetry_spans` (migration 0022), with CLIENT spans for the database reads and saves inside it, unless the workspace has turned recording off. Send a W3C `traceparent` header and the spans join your trace. Spans carry the tool's name, the person's and workspace's ids and the class of any failure, never a tool's arguments or answers. A failure to store them never changes an answer.
 - **Until company sign-in arrives**, the app's public key can still write to every table. A token makes clear who an assistant acts for and can be switched off, but it doesn't stop someone with the public key. The next step is sign-in, then making the public key read-only, so that all writes go through the server.
 - **Vercel's deployment protection** must let `/api/mcp` through (for example, a custom domain, or protection for previews only), or assistants will get Vercel's sign-in page instead of the server.

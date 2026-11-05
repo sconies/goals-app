@@ -1,6 +1,9 @@
 /* The Model Context Protocol over HTTP, stateless: each POST carries JSON-RPC messages and gets JSON back.
    Implements what a tools-only server needs: initialize, ping, tools/list and tools/call. */
-import { callTool, TOOLS, type McpContext } from './tools';
+import { callTool, TOOLS, type McpContext, type ToolResult } from './tools';
+
+/** Wraps each tool call, for the server's own telemetry: the context loading and the tool itself, in one span. */
+export type TraceTool = (tool: string, run: () => Promise<ToolResult>) => Promise<ToolResult>;
 
 export const SERVER_INFO = { name: 'goals', title: 'Goals', version: '1.0.0' };
 export const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
@@ -13,7 +16,7 @@ const ok = (id: Rpc['id'], result: unknown): Reply => ({ jsonrpc: '2.0', id: id 
 const fail = (id: Rpc['id'], code: number, message: string): Reply => ({ jsonrpc: '2.0', id: id ?? null, error: { code, message } });
 
 /** Handles one JSON-RPC message. Notifications (no id) get no reply. The context loads only when a tool runs. */
-export async function handle(msg: unknown, context: () => Promise<McpContext>): Promise<Reply | null> {
+export async function handle(msg: unknown, context: () => Promise<McpContext>, trace?: TraceTool): Promise<Reply | null> {
   const m = msg as Rpc;
   if (!m || m.jsonrpc !== '2.0' || typeof m.method !== 'string') return fail((m as Rpc)?.id ?? null, -32600, 'Invalid request');
   const isNote = m.id === undefined;
@@ -34,8 +37,8 @@ export async function handle(msg: unknown, context: () => Promise<McpContext>): 
     case 'tools/call': {
       const name = String(m.params?.name ?? '');
       if (!TOOLS.some((t) => t.name === name)) return fail(m.id, -32602, `Unknown tool: ${name}`);
-      const ctx = await context();
-      const r = await callTool(name, (m.params?.arguments ?? {}) as Record<string, unknown>, ctx);
+      const run = async () => callTool(name, (m.params?.arguments ?? {}) as Record<string, unknown>, await context());
+      const r = trace ? await trace(name, run) : await run();
       return ok(m.id, {
         content: [{ type: 'text', text: r.text }],
         ...(r.data !== undefined && r.data !== null && typeof r.data === 'object' && !Array.isArray(r.data) ? { structuredContent: r.data } : {}),
@@ -49,14 +52,14 @@ export async function handle(msg: unknown, context: () => Promise<McpContext>): 
 }
 
 /** A POST body: one message or a batch. Returns the replies to send (null when there are none: answer 202). */
-export async function handleBody(body: unknown, context: () => Promise<McpContext>): Promise<Reply | Reply[] | null> {
+export async function handleBody(body: unknown, context: () => Promise<McpContext>, trace?: TraceTool): Promise<Reply | Reply[] | null> {
   if (Array.isArray(body)) {
     // One at a time, in order: a later call in the batch sees what an earlier one saved.
     const out: Reply[] = [];
-    for (const m of body) { const r = await handle(m, context); if (r) out.push(r); }
+    for (const m of body) { const r = await handle(m, context, trace); if (r) out.push(r); }
     return out.length ? out : null;
   }
-  return handle(body, context);
+  return handle(body, context, trace);
 }
 
 /** SHA-256 of a token, as hex: what's stored, and what a presented token is checked against. */

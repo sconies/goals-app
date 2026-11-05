@@ -1,4 +1,5 @@
-/* Workspace: its name and teams, switching workspaces (when there's more than one), and (for admins) the people in it. */
+/* Workspace: its name and teams, switching workspaces (when there's more than one), and (for admins) the people in it,
+   AI assistants, what the app records here, feedback, and deleting it. */
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
@@ -67,6 +68,7 @@ export function WorkspaceHome() {
       <aside className="split-side" aria-label="Teams and settings">
         <Teams />
         {admin ? <AiAssistants /> : <section className="block"><h2 className="block-title">AI assistants</h2><p className="hint">Your tokens for an AI assistant are in <Link to="/settings">Settings</Link>.</p></section>}
+        {admin && <Recording />}
         {admin && <FeedbackList />}
         {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
       </aside>
@@ -320,6 +322,36 @@ function PersonSheet({ person, onClose }: { person: Person | null; onClose: () =
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></div>
       </form>
     </Sheet>
+  );
+}
+
+/** For admins: the workspace's recording switch. On for everyone by default; off, nothing is recorded or sent from it. */
+function Recording() {
+  const app = useApp();
+  const on = app.ws.recording !== false;
+  const [busy, setBusy] = useState(false);
+  const flip = async (next: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await app.setRecording(next);
+      app.toast(next ? `Recording is back on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}. Nothing more is sent.`);
+    } catch { /* the rule's message is shown */ }
+    setBusy(false);
+  };
+  return (
+    <section className="block recording-block" aria-labelledby="ws-rec">
+      <h2 className="block-title" id="ws-rec">What the app records</h2>
+      <p className="hint">How people use the app here: the pages they open, the buttons they press, where they stop in a task, errors and slow pages. Never anything anyone types. Kept for 90 days, then only daily totals; only the people who build the app can read it.</p>
+      <label className="check record-check">
+        <input type="checkbox" checked={on} disabled={busy} onChange={(e) => void flip(e.target.checked)} />
+        <span className="stack" style={{ gap: 0 }}>
+          <span>Record how the app is used in {app.ws.name}</span>
+          <span className="hint">{on ? 'On for everyone here. Turn it off and nothing more is sent.' : 'Off: nothing is recorded or sent from this workspace.'}</span>
+        </span>
+      </label>
+      <p className="hint"><Link to="/help/recording">What’s recorded, exactly</Link></p>
+    </section>
   );
 }
 

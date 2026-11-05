@@ -252,6 +252,8 @@ export interface Workspace {
   name: string;
   kind: 'example' | 'own';
   createdAt: string;
+  /** Whether the app records how it is used here (src/telemetry): on unless an admin has turned it off. */
+  recording?: boolean;
 }
 
 export interface Snapshot {

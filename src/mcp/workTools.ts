@@ -618,6 +618,19 @@ export const WORK_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'set_recording',
+    title: 'Turn recording on or off',
+    description: 'Admins: turn on or off recording of how the app is used in this workspace: the pages people open, the actions they take, where they stop in a flow, errors and slow loads. Never anything anyone types. Off, nothing is recorded or sent for the workspace, from the app or from assistants. Everyone is recorded by default; the change is logged. get_help with "recording" says exactly what is recorded.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['on'], properties: { on: bool('true to record how the app is used here, false to stop.') } },
+    annotations: { ...WRITE, idempotentHint: true },
+    async run(a, ctx) {
+      if (typeof a.on !== 'boolean') throw new Error('Say on: true to record, or on: false to stop.');
+      const on = a.on;
+      const res = await save(ctx, A.setRecording(ax(ctx), ctx.ws, on), on ? 'Turned recording back on for this workspace' : 'Turned recording off for this workspace: nothing more is recorded or sent', `Nothing to change: recording is already ${on ? 'on' : 'off'}.`);
+      return { ...res, data: { recording: ctx.ws.recording !== false } };
+    },
+  },
+  {
     name: 'save_team',
     title: 'Add or change a team',
     description: 'Admins: add a team, or rename one or change its lead. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.',

@@ -98,7 +98,8 @@ describe('What’s new', () => {
       expect(e.points.length).toBeLessThanOrEqual(6);
       expect(e.articles.every((a) => !!articleById(a))).toBe(true);
     });
-    expect(WHATS_NEW[0]!.id).toBe('help-and-whats-new');
+    // The release that brought Help and What's new is listed (newer releases go above it).
+    expect(WHATS_NEW.some((e) => e.id === 'help-and-whats-new')).toBe(true);
     expect(WHATS_NEW.some((e) => e.date === '2026-11-04' && /AI assistant/.test(e.title))).toBe(true);
   });
 
