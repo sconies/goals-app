@@ -206,10 +206,11 @@ const GROWTH: ExampleSpec = {
 
 export const EXAMPLE_PLATFORM: Workspace = { id: 'example', name: 'Example: Developer Platform', kind: 'example', createdAt: '2026-01-01T00:00:00.000Z' };
 
-/** Every example workspace in the demo, and how to build its data. The first is the default. The last, a
-    Platform Engineering division of about 100 people, is there to see the app at the size of a real organisation. */
-export const EXAMPLES: { workspace: Workspace; build: (today: Date) => Snapshot }[] = [
+/** Every example workspace in the demo, and how to build its data. The first is the default. A hidden one isn't
+    offered until someone opens it by its link: the Platform Engineering division of about 100 people, there to see
+    the app at the size of a real organisation (/demo?example=platform-org). */
+export const EXAMPLES: { workspace: Workspace; build: (today: Date) => Snapshot; hidden?: boolean }[] = [
   { workspace: EXAMPLE_PLATFORM, build: seed },
   ...[SUPPORT, SALES, GROWTH].map((s) => ({ workspace: s.workspace, build: (today: Date) => buildExample(s, today) })),
-  platformOrg,
+  { ...platformOrg, hidden: true },
 ];

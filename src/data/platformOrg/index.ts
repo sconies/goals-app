@@ -1,5 +1,5 @@
 /* The Platform Engineering example: one division of about 100 people with 12 north stars, a year of history, in Q4.
-   A demo example alongside the others (pick it under Other example companies, or open /demo?example=platform-org);
+   A hidden demo example: open /demo?example=platform-org, and from then on it is offered with the others;
    not the default. Built to find where the app breaks at the size of a real organisation.
 
    The people who play the main example's parts (for rewriting the walkthroughs and evals by swapping names):

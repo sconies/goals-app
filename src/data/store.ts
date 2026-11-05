@@ -8,11 +8,17 @@ const exampleBuild = (id: string) => EXAMPLES.find((e) => e.workspace.id === id)
 
 /** The demo remembers the example it last opened under this key (app/state.tsx reads it). */
 const DEMO_WORKSPACE = 'goals-app-workspace';
+/** The hidden examples this browser has opened by their link: from then on they're offered like the others. */
+const OPENED = 'goals-app-v2:opened-examples';
+const opened = (): string[] => { try { return JSON.parse(localStorage.getItem(OPENED) ?? '[]') as string[]; } catch { return []; } };
 /** `/demo?example=<id>` opens that example, as if it had been picked in the app (for testing with a larger example). */
 export function pickExampleFromUrl(search: string) {
   const id = new URLSearchParams(search).get('example');
   if (!id || !exampleBuild(id)) return;
-  try { localStorage.setItem(DEMO_WORKSPACE, id); } catch { /* storage blocked */ }
+  try {
+    if (!opened().includes(id)) localStorage.setItem(OPENED, JSON.stringify([...opened(), id]));
+    localStorage.setItem(DEMO_WORKSPACE, id);
+  } catch { /* storage blocked */ }
 }
 
 /** One save: the records that leave draft, and the change-log entries that describe them. */
@@ -166,7 +172,8 @@ export class BrowserStore implements Store {
     const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
     // An example keeps its new name (if an admin renamed it here) until it's reset.
     const names = this.get<Record<string, string>>(this.key + ':names') ?? {};
-    return this.hasExample ? [...EXAMPLES.map((e) => (names[e.workspace.id] ? { ...e.workspace, name: names[e.workspace.id]! } : e.workspace)), ...own] : own;
+    const shown = EXAMPLES.filter((e) => !e.hidden || opened().includes(e.workspace.id));
+    return this.hasExample ? [...shown.map((e) => (names[e.workspace.id] ? { ...e.workspace, name: names[e.workspace.id]! } : e.workspace)), ...own] : own;
   }
 
   private rename(id: string, name: string) {

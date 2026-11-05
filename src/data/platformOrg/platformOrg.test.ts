@@ -6,7 +6,7 @@ import { goalsIn } from '../../domain/review';
 import { checkInsFor, goalStatus } from '../../domain/status';
 import type { Snapshot } from '../../domain/types';
 import { EXAMPLES } from '../examples';
-import { BrowserStore } from '../store';
+import { BrowserStore, pickExampleFromUrl } from '../store';
 import { buildPlatformOrg, PERSONAS } from './index';
 
 const TODAY = new Date('2026-11-05T12:00:00Z');
@@ -156,11 +156,15 @@ describe('the Platform Engineering example', () => {
     }
   });
 
-  it('is an extra example in the demo, not the default', async () => {
+  it('is an extra example in the demo, not the default, offered once it has been opened by its link', async () => {
     expect(EXAMPLES[0]!.workspace.id).toBe('example');
-    expect(EXAMPLES.some((e) => e.workspace.id === 'platform-org')).toBe(true);
     const store = new BrowserStore(() => TODAY);
+    expect((await store.workspaces()).map((w) => w.id)).not.toContain('platform-org');
+    pickExampleFromUrl('?example=platform-org&today=2026-11-05');
+    expect(localStorage.getItem('goals-app-workspace')).toBe('platform-org');
     expect((await store.workspaces()).map((w) => w.id)).toContain('platform-org');
     expect((await store.load('platform-org')).goals.length).toBe(s.goals.length);
+    pickExampleFromUrl('?example=nothing-like-it');
+    expect(localStorage.getItem('goals-app-workspace')).toBe('platform-org');
   });
 });
