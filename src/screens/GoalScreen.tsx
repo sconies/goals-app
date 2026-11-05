@@ -38,7 +38,7 @@ import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { reducedMotion, STORY_MS } from '../ui/motion';
 import { byWhen, rangeHeading, rangeSentence, stagesSentence, standingSentence } from '../domain/chartStory';
-import { storyPace } from '../app/appearance';
+import { effectOn, storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 
 export function GoalScreen() {
@@ -195,7 +195,7 @@ function GoalView({ goal }: { goal: Goal }) {
       <ReviewBar goalId={goal.id} />
       <GoalBack />
       <GoalBar goal={goal} status={status} figures={figures} why={why} feeds={feeds} stale={stale} actions={actions} askedLine={askedLine}
-        statusMoved={statusMoved} hit={hit} countFrom={own[0]?.value ?? null} />
+        statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own[0]?.value ?? null : null} />
 
       {published && (
         <section className="first-checkin" aria-label="First check-in">

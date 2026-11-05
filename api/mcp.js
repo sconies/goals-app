@@ -29779,7 +29779,7 @@ var ARTICLES = [
 			list: [
 				"Light or dark: light, dark, or follow your device.",
 				"Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
-				"How a goal’s page moves: Quick, Steady or Slow (how slowly its chart draws in and its number counts up), and how hard it lands: Gentle, Strong or Big.",
+				"How a goal’s page moves: a Speed slider (from the original speed to four times slower), an Impact slider (from none to very big), and switches for each effect: counting the number up, drawing the chart in, the ring, the jolt and the off-track shake. A preview replays as you change them.",
 				"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
 				"You: your name, job title and team. An admin changes these.",
 				"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
