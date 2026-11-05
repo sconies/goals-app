@@ -27,7 +27,7 @@ describe('the four facts on the example goals', () => {
   it('a number goal falling behind says so in every fact', () => {
     const [plan, trend, since, proj] = val('alerts');
     expect(plan).toMatch(/pts behind plan$/);
-    expect(trend).toMatch(/^\d+% → \d+% → \d+% of plan$/);
+    expect(trend).toMatch(/^(\d+ → \d+ → \d+ pts behind plan|.+ → .+ → \d+ pts (behind|ahead of) plan)$/);
     expect(since).toMatch(/^Down \d+ pts$/);
     expect(proj).toMatch(new RegExp(`by week ${cycle.weeks}$`));
     expect(facts('alerts').facts.every((f) => f.tone === 'bad')).toBe(true);

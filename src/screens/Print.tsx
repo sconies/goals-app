@@ -88,7 +88,7 @@ export function GoalPrint() {
         <Facts facts={sh.facts} />
 
         <section className="ps-block ps-chart" aria-label="Chart">
-          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={stale ? null : a.forecast} ptgBy={stale ? null : ptgBy} height={170} />}
+          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptgBy} height={170} />}
           {goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={150} />}
           {a.kind === 'milestone' && <StageList a={a} />}
         </section>

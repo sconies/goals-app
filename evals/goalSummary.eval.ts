@@ -32,11 +32,21 @@ describe('the four facts a goal leads with', () => {
     expect(source).toMatchObject({ week: 6, authorId: 'o' });
   });
 
-  it(R('a number goal: the share of plan at each of the last three check-ins'), () => {
+  it(R('a number goal: the gap to plan at each of the last three check-ins, in its own units, and which way it’s heading'), () => {
+    // Plans 36, 40, 44 against 37, 39, 40: one point ahead, then one and four behind. Never a share of plan (5 Nov).
     const t = fact(summaryFacts(up, cycle, ups, 6).facts, 'trend');
-    expect(t.value).toBe('106% → 95% → 83% of plan');
+    expect(t.value).toBe('1 ahead → 1 behind → 4 pts behind plan');
     expect(t.detail).toBe('Losing ground on the plan, weeks 4–6');
     expect(t.tone).toBe('bad');
+    expect(t.direction).toBe('worsening');
+    // Behind all three times: "1 → 2 → 3 pts behind plan", falling further behind.
+    const behind = fact(summaryFacts(up, cycle, [ci('up', 4, { value: 35 }), ci('up', 5, { value: 38 }), ci('up', 6, { value: 41 })], 6).facts, 'trend');
+    expect(behind.value).toBe('1 → 2 → 3 pts behind plan');
+    expect(behind.detail).toBe('Falling further behind, weeks 4–6');
+    // The same number while the plan rises is said once, plainly: flat, not a collapse.
+    const flat = fact(summaryFacts(up, cycle, [ci('up', 4, { value: 35 }), ci('up', 5, { value: 38 }), ci('up', 6, { value: 38 })], 6).facts, 'trend');
+    expect(flat.detail).toBe('Flat at 38% for two weeks while the plan rises');
+    expect(flat.direction).toBe('worsening');
   });
 
   it(R('a number goal: the change since the previous check-in, and the call if it moved'), () => {
@@ -46,11 +56,13 @@ describe('the four facts a goal leads with', () => {
     expect(s.tone).toBe('good');
   });
 
-  it(R('a number goal: where the recent trend lands at the due week, against the target'), () => {
+  it(R('a number goal: where the recent trend lands at the due week, as a range, against the target'), () => {
     const p = fact(summaryFacts(up, cycle, [ci('up', 3, { value: 30 }), ...ups], 6).facts, 'projection');
-    // 30 in week 3 to 40 in week 6: 3.33 a week, so 63 by week 13, 9 short of 72.
-    expect(p.value).toBe('63% by week 13');
-    expect(p.detail).toMatch(/^Misses the 72% target by 9 pts\. Projected by the app/);
+    // 30, 37, 39, 40 in weeks 3–6: a line through all four (not week 6 against week 3), with a range from their spread.
+    expect(p.value).toMatch(/^Heading for \d+–\d+% by week 13$/);
+    expect(p.detail).toMatch(/^Misses the 72% target by about \d+ pts\. Projected by the app from the last 4 weeks/);
+    expect(p.projection!.low).toBeLessThan(p.projection!.high);
+    expect(p.projection!.high).toBeLessThan(72);
     expect(fact(summaryFacts(up, cycle, ups, 6).facts, 'projection').value).toBe('Not enough check-ins yet');
     expect(fact(summaryFacts(up, cycle, ups, 6, true).facts, 'projection').value).toBe('Not projected');
   });
@@ -71,6 +83,7 @@ describe('the four facts a goal leads with', () => {
     expect(fact(facts, 'since').value).toBe('Up 0.6 pts');
     expect(fact(facts, 'since').tone).toBe('bad');
     expect(fact(facts, 'projection').detail).toMatch(/^Outside the 12\.0% limit/);
+    expect(fact(facts, 'trend').direction).toBe('worsening');
   });
 
   it(R('dated stages: stages late against those due, the slip over the last check-ins and since the last one, and the next stage'), () => {

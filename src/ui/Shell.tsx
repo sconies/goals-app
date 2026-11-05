@@ -17,6 +17,7 @@ import { Icon } from './Icon';
 import { ProfileSheet } from './ProfileSheet';
 import { PageHelp } from '../screens/Help';
 import { useUnreadNews } from '../help/seen';
+import { isGoalTop, ShellTopContext } from './shellTop';
 
 type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'data' | 'new' | 'workspace' | 'settings';
 const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
@@ -215,8 +216,19 @@ export function Shell({ children }: { children: ReactNode }) {
   const focusMode = /^\/check-in(\/|$)|^\/quick-check-in$|^\/import$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   const icons = look.sidebar === 'icons';
   const wsName = app.ws.name.replace(/^Example:\s*/, '');
+  // On a goal's own page, on a phone, its summary bar takes the header's place; the header's controls go with it.
+  const goalTop = isGoalTop(pathname, search);
+  const topControls = (
+    <>
+      {app.mode === 'demo' && !present && <DemoEntry compact onOpen={() => setSheet('demo')} />}
+      <button className="profilebtn" onClick={openPeople}>
+        <Avatar p={app.viewer} />
+        <span className="sr">{app.mode === 'demo' ? 'Switch person' : 'Not you?'} ({app.viewer.name})</span>
+      </button>
+    </>
+  );
   return (
-    <div className={'app' + (focusMode ? ' focus-mode' : '') + (icons ? ' nav-icons' : '')}>
+    <div className={'app' + (focusMode ? ' focus-mode' : '') + (icons ? ' nav-icons' : '') + (goalTop ? ' goal-top' : '')}>
       <a className="skip" href="#main">Skip to content</a>
       <div className="mtop">
         <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{wsName.slice(0, 1).toUpperCase()}</span>
@@ -224,11 +236,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <strong className="ellipsis">{title}</strong>
           <span className="tiny muted ellipsis">{app.ws.kind === 'example' ? 'Example data' : app.ws.name}, {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
         </span>
-        {app.mode === 'demo' && !present && <DemoEntry compact onOpen={() => setSheet('demo')} />}
-        <button className="profilebtn" onClick={openPeople}>
-          <Avatar p={app.viewer} />
-          <span className="sr">{app.mode === 'demo' ? 'Switch person' : 'Not you?'} ({app.viewer.name})</span>
-        </button>
+        {!goalTop && topControls}
       </div>
       <div className="shell">
         <nav className="side" aria-label="Main">
@@ -269,7 +277,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
         <main className="work" ref={work} id="main">
           {app.mode === 'live' && app.storeKind === 'browser' && <div className="local-banner" role="note">This is a copy kept in this browser only. Nobody else sees changes made here.</div>}
-          {children}
+          <ShellTopContext.Provider value={goalTop ? topControls : null}>{children}</ShellTopContext.Provider>
           <PageHelp />
         </main>
       </div>

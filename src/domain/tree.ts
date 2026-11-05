@@ -1,6 +1,7 @@
 /* Goal trees: each goal with nothing above it, and the goals that feed it, at any depth. */
 import { checkInsFor, RANK } from './status';
-import { fmt, fmtDiff } from './format';
+import { isShare } from './checkin';
+import { fmt, rangeText } from './format';
 import type { Assessment } from './status';
 import type { CheckIn, Goal, Status } from './types';
 
@@ -58,12 +59,17 @@ export function statusChange(goal: Goal, checkIns: CheckIn[]): { from: Status; w
   return { from: prev.status, week: prev.week, worse: RANK[last.status] > RANK[prev.status] };
 }
 
-/** Where the trend lands by the end of the cycle, for a number goal with enough data. */
+/**
+ * Where the recent trend takes a number goal by its due week, as a range (plan.ts works it out), against the target.
+ * `warn` when the likeliest value falls short.
+ */
 export function forecastText(goal: Goal, a: Assessment, weeks: number): { text: string; warn: boolean } | null {
-  if (a.kind !== 'metric' || goal.kind !== 'metric' || a.forecast == null) return null;
+  if (a.kind !== 'metric' || goal.kind !== 'metric' || a.forecast == null || !a.projection) return null;
+  const due = goal.plan.endWeek ?? weeks;
+  const range = rangeText(a.projection, goal, isShare(goal));
   // "Above" and "below" rather than "short of", which reads wrong for a lower-is-better number.
-  const gap = a.forecast - goal.plan.target;
+  const above = a.forecast > goal.plan.target;
   return a.forecastMisses
-    ? { text: `Projected by the app at week ${goal.plan.endWeek ?? weeks}: ${fmt(a.forecast, goal)}, ${fmtDiff(gap, goal)} ${gap > 0 ? 'above' : 'below'} the ${fmt(goal.plan.target, goal)} target. An estimate from the recent trend, not the owner’s date.`, warn: true }
-    : { text: `Projected by the app to reach the ${fmt(goal.plan.target, goal)} target by week ${goal.plan.endWeek ?? weeks}, on the recent trend.`, warn: false };
+    ? { text: `Heading for ${range} by week ${due}, ${above ? 'above' : 'below'} the ${fmt(goal.plan.target, goal)} target. Projected by the app from the recent trend, not the owner’s date.`, warn: true }
+    : { text: `Projected by the app to reach the ${fmt(goal.plan.target, goal)} target by week ${due} on the recent trend (heading for ${range}).`, warn: false };
 }

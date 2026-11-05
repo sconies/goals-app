@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
@@ -14,11 +14,16 @@ import { DueField, FieldError, LevelField, StageFields } from '../ui/GoalFields'
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { parseNumber } from '../domain/checkin';
 import { Icon } from '../ui/Icon';
+import { goalChange } from '../domain/changes';
 import { BackLink } from '../ui/BackLink';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
 
-/** Editing an existing goal: one short screen, for its owner or an admin. Once check-ins have started, a plan change needs a reason and is flagged. */
+/**
+ * Editing an existing goal: one short screen, for its owner or an admin. Once check-ins have started, a plan change needs
+ * a reason and is flagged. The goal page's "Change this goal" opens one part of it (`?part=definition`, `plan` or
+ * `owner`), and a change made there always asks why: the reason goes in the goal's activity for everyone watching.
+ */
 export function GoalEdit() {
   const app = useApp();
   const { goalId } = useParams();
@@ -39,11 +44,19 @@ function EditSheet({ goal }: { goal: Goal }) {
   const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftOf(goal), reason: '' }));
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [params] = useSearchParams();
+  const partParam = params.get('part');
+  const part = partParam === 'definition' || partParam === 'plan' || partParam === 'owner' ? partParam : null;
+  const show = (p: 'definition' | 'plan' | 'owner') => !part || part === p;
   const errors = validateGoal(d, cycle);
   const err = (k: keyof GoalErrors) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
   const valid = Object.keys(errors).length === 0;
   const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
   const replanning = !!built && started && planChanged(goal, built);
+  // Something people would see changed: what the change log would record (changes.ts), not every field the form rebuilds.
+  const edited = !!built && goalChange(goal, built, app.lookup, app.viewer.id, '', '') != null;
+  // A change made from one part of "Change this goal" says why, whatever it changes.
+  const needReason = replanning || (!!part && edited);
   // When the target is due, and the plan from the shape (before any numbers typed by hand), for the plan table.
   const yearEnd = yearEndWeek(cycle);
   const endOptions = dueOptions(cycle, week, yearEnd);
@@ -61,13 +74,13 @@ function EditSheet({ goal }: { goal: Goal }) {
 
   const save = async () => {
     setTried(true);
-    if (!built || saving || (replanning && !reasonOk)) return;
+    if (!built || saving || (needReason && !reasonOk)) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
-      if (changed) await app.saveGoal(after, goal, replanning ? d.reason.trim() : undefined);
-      app.toast(!changed ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : 'Saved.');
+      if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined);
+      app.toast(!changed ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
       clear();
       back();
     } catch {
@@ -77,11 +90,11 @@ function EditSheet({ goal }: { goal: Goal }) {
 
   const label = saving ? 'Saving…' : !valid && tried ? 'Fix the highlighted fields' : 'Save changes';
   // Asked right under what changed (the numbers), not at the bottom of the section.
-  const reasonField = replanning && (
+  const reasonField = needReason && (
     <label className="field reason-field">
       <span className="field-label">Why change it?</span>
       <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="e.g. The vendor contract moved the start to week 6" aria-label="Why change it?" />
-      {tried && !reasonOk ? <FieldError>Say why, in a sentence. People watching this goal will see it.</FieldError> : <span className="hint">The original plan stays on the chart, dotted.</span>}
+      {tried && !reasonOk ? <FieldError>Say why, in a sentence. People watching this goal will see it.</FieldError> : <span className="hint">{replanning ? 'The original plan stays on the chart, dotted.' : 'It goes in the goal’s activity for everyone watching.'}</span>}
     </label>
   );
 
@@ -93,15 +106,24 @@ function EditSheet({ goal }: { goal: Goal }) {
         <button className="iconbtn" onClick={back} aria-label="Close and keep the draft"><Icon name="close" /></button>
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
-        <h1 className="qtitle big">Edit {goal.title}</h1>
+        <h1 className="qtitle big">{part === 'definition' ? `Improve the definition: ${goal.title}` : part === 'plan' ? `Change the ${goal.kind === 'metric' ? 'plan or target' : goal.kind === 'range' ? 'limit' : 'stages'}: ${goal.title}` : part === 'owner' ? `Change the owner or level: ${goal.title}` : `Edit ${goal.title}`}</h1>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}
+        {show('definition') && (
         <label className="field">
           <span className="field-label">Name</span>
           <input className="input" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
           {err('title')}
         </label>
+        )}
+        {part === 'definition' && (
+          <>
+            <label className="field"><span className="field-label">How it’s measured</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>
+            <label className="field"><span className="field-label">Where the number comes from</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} /></label>
+            {reasonField}
+          </>
+        )}
 
-        <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="plan-h">
+        {show('plan') && <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="plan-h">
           <div className="stack" style={{ gap: 'var(--s1)' }}>
             <h2 className="block-title" id="plan-h">{goal.kind === 'metric' ? 'Plan' : goal.kind === 'range' ? 'Limit' : 'Stages'}</h2>
             {started && <span className="hint">Check-ins have started, so a change here needs a reason. Watchers see it flagged.</span>}
@@ -146,9 +168,10 @@ function EditSheet({ goal }: { goal: Goal }) {
               onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
           )}
           {goal.kind !== 'metric' && reasonField}
-        </section>
+          {part === 'plan' && goal.kind === 'metric' && !replanning && reasonField}
+        </section>}
 
-        <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="fit-h">
+        {show('owner') && <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="fit-h">
           <h2 className="block-title" id="fit-h">Owner and links</h2>
           <div className="pair">
             <label className="field"><span className="field-label">Owner</span>
@@ -183,7 +206,8 @@ function EditSheet({ goal }: { goal: Goal }) {
               <textarea className="input" rows={2} value={d.whyHelps} onChange={(e) => set({ whyHelps: e.target.value })} placeholder="What should change in the goal it feeds, and why" />
             </label>
           )}
-          <details className="disclose"><summary>More details</summary>
+          {part === 'owner' && reasonField}
+          {!part && <details className="disclose"><summary>More details</summary>
             {d.parentId && (
               <label className="field" style={{ maxWidth: 300 }}><span className="field-label">How much it moves “{parent?.title}”</span>
                 <input className="input" inputMode="decimal" value={d.effect} onChange={(e) => set({ effect: e.target.value })} />{err('effect')}
@@ -192,11 +216,11 @@ function EditSheet({ goal }: { goal: Goal }) {
             <label className="check"><input type="checkbox" checked={d.guardrail} onChange={(e) => set({ guardrail: e.target.checked })} /><span>It’s a guardrail</span></label>
             <label className="field"><span className="field-label">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} /></label>
             <label className="field"><span className="field-label">Definition</span><textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} /></label>
-          </details>
-        </section>
+          </details>}
+        </section>}
 
         <div className="focus-foot">
-          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (replanning && !reasonOk)))}>{label}</button>
+          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (needReason && !reasonOk)))}>{label}</button>
         </div>
       </form>
     </div>

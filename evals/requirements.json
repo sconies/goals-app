@@ -9,7 +9,7 @@
     {
       "id": "FORECAST",
       "area": "Plans",
-      "text": "Forecast is the last three weeks' slope projected to the end of the cycle, and only shown with enough data."
+      "text": "The projection is a least-squares line through the last eight weeks of numbers (reaching back to one three weeks earlier when they're sparse), leaning only as far as the numbers support, projected to the due week as a range, and only shown with enough data."
     },
     {
       "id": "REBASELINE",
@@ -114,7 +114,7 @@
     {
       "id": "GOAL-PAGE",
       "area": "Goals",
-      "text": "The goal page shows status strip, why, path to green, chart with plan/forecast/path back, and check-in history."
+      "text": "The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal."
     },
     {
       "id": "PERSIST",
@@ -394,7 +394,37 @@
     {
       "id": "GOAL-SUMMARY",
       "area": "Goals",
-      "text": "A goal's page leads with four facts (against plan, trend over the last check-ins, change since the last update, projection to the target), then the path to green in the main column; the header stays on screen while scrolling; what the goal feeds and how its number is measured are shown under the title. In a review, the chart and recent check-ins are open, each past check-in opens to the full check-in, and the side column is grouped under labelled headings."
+      "text": "A goal's facts are worked out once (summaryFacts): the gap to plan, the trend over the last check-ins in the goal's own units with its direction, the change since the last update, and the projection as a range. In a review, the chart and recent check-ins are open and each past check-in opens to the full check-in."
+    },
+    {
+      "id": "GOAL-PAGE-BAR",
+      "area": "Goals",
+      "text": "A goal's summary bar reads in two seconds: title, owner, level and key; status as shape and word, the number against plan and target in the goal's units and a direction (or stages slipping, or inside the limit); why and whether it's being handled; for a goal others feed, how they stand. One main action by role and state, and a menu for Share image, Copy link, Print and Change this goal. On scroll it shrinks to one line at the top; on a phone it is the page's header."
+    },
+    {
+      "id": "GOAL-PAGE-ONCE",
+      "area": "Goals",
+      "text": "Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. The chart is within the first phone screen."
+    },
+    {
+      "id": "GOAL-PAGE-INTENT",
+      "area": "Goals",
+      "text": "A goal's page follows how you arrived: Home's Answer, Respond and Reply open it with that item expanded under Asked of you and its box focused (?respond=<id>; ?tab=comments still works); after a check-in it says what was posted and the on-time streak; a returning visitor sees what changed since they last looked; a first-time viewer sees what the number measures with About open; drilling down, Back names the goal you came from."
+    },
+    {
+      "id": "GOAL-PAGE-ALIVE",
+      "area": "Goals",
+      "text": "A goal's page moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn; each 250ms at most, and none of it under reduced motion. Any week can be read by dragging along the chart or with the arrow keys."
+    },
+    {
+      "id": "PROJECTION-RANGE",
+      "area": "Plans",
+      "text": "The projection is steady on a noisy number and called exactly on a clean trend: one more noisy week moves it by a few points, not tens; it is a range everywhere it's shown (the chart, Home and reviews' warnings, exports and the AI assistant's get_goal)."
+    },
+    {
+      "id": "GOAL-SHARE",
+      "area": "Goals",
+      "text": "Share image makes a PNG of the goal's summary bar and a small chart, with the goal's link, without a new library: copied to the clipboard where the browser allows, otherwise saved through the one file saver with the link copied."
     },
     {
       "id": "ATTENTION-HANDLED",

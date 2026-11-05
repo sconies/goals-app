@@ -147,7 +147,8 @@ module.exports = {
       const [c, p] = await open(1280, 800, 'elena', '/goals/access?review=weekly');
       await p.locator('.decide').waitFor();
       const m = await p.evaluate(() => {
-        const head = document.querySelector('.goal-head').getBoundingClientRect(), ev = document.querySelector('.goal-evidence').getBoundingClientRect();
+        // The head is the summary bar since the flagship page (5 Nov); the evidence is the chart and recent check-ins.
+        const head = document.querySelector('.goal-bar').getBoundingClientRect(), ev = document.querySelector('.review-evidence').getBoundingClientRect();
         const d = document.querySelector('.decide'), cs = getComputedStyle(d), track = getComputedStyle(document.querySelector('.reviewbar .bar')).backgroundColor;
         const cur = [...document.querySelectorAll('.side [aria-current="page"]')].map((e) => e.textContent.trim());
         return { gap: ev.top - head.bottom, pad: [cs.paddingTop, cs.paddingBottom], track, cur };

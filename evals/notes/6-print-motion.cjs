@@ -24,7 +24,7 @@ const SAMPLER = () => {
       const total = (t.iterations === Infinity ? Infinity : (Number(t.duration) || 0) * (t.iterations || 1)) + (t.delay || 0);
       window.__pm.anims.set(a, { name: name(a), total });
     }
-    const c = document.querySelector('.statusline .countup-now');
+    const c = document.querySelector('.goal-bar .countup-now, .statusline .countup-now');
     if (c) { const v = c.textContent; if (window.__pm.counts[window.__pm.counts.length - 1] !== v) window.__pm.counts.push(v); }
     requestAnimationFrame(tick);
   };
@@ -145,6 +145,8 @@ module.exports = {
     // ---------- [Print] the entry points: small, secondary, and they lead to the page ----------
     for (const [route, to] of [['/goals/head', '/goals/head/print'], ['/reviews/weekly', '/reviews/weekly/print']]) {
       const [c, p] = await open(1280, 800, 'elena', route);
+      // On a goal it's in the summary bar's "…" menu since the flagship page (5 Nov): still small and secondary.
+      if (route.startsWith('/goals/')) { await p.locator('.goal-bar summary[aria-label="More about this goal"]').click(); await p.waitForTimeout(150); }
       const link = p.getByRole('link', { name: 'Print or save as PDF' });
       fail(await link.count() === 1 && !(await link.evaluate((e) => e.classList.contains('primary'))), `[Print] ${route}: no secondary “Print or save as PDF”`);
       if (await link.count() === 1) { await link.click(); await p.waitForTimeout(300); fail(p.url().includes(to), `[Print] ${route}: the link went to ${p.url()}`); }

@@ -1,24 +1,35 @@
-/* N2: Lane's review notes (5 Nov), goal-page. run({ open, url, browser }) returns a list of failures.
-   The status block's four facts, the path to green in the main column, the grouped side column, the header that stays
-   on screen, what the goal feeds and how it's measured, and the review walk (chart and check-ins open, each check-in
-   opening to the whole check-in, no collapsed column at 1024–1200), at phone, tablet and desktop widths, light and dark. */
+/* N2: Lane's review notes (5 Nov), goal-page, as rebuilt into the flagship page the same day. run({ open, url, browser })
+   returns a list of failures.
+   What each old check protected, and where it is now:
+   - the four facts (against plan, trend, since, projection) → the summary bar's second line (number, plan, target,
+     direction) and the words under the chart (trend and projection); the facts themselves are still worked out once in
+     summaryFacts (evals/goalSummary.eval.ts);
+   - the path to green in the main column → What's being done, in the main column, with the owner's date labelled;
+   - the grouped side column → Asked of you, Actions and Last time we talked, under labelled headings;
+   - the header that stays on screen → the summary bar itself shrinking to one line, under the review bar when there is one;
+   - what it feeds and how it's measured under the title → About this goal (open on a first visit), and Back naming the
+     goal it feeds when you arrive from outside;
+   - the review walk (chart and check-ins open, each check-in opening in full, full width when stacked) → unchanged;
+   - check-ins opening in full on the Check-ins tab → the same rows in the Activity stream;
+   - goal rows that never draw over each other → the rows in What feeds it. */
 
-const FACTS = ['Against plan', 'Trend', 'Since last update', 'Projection'];
-const GROUPS = ['Asked of you', 'Requests', 'What the owner says', 'Signals', 'Said in reviews'];
-
-/** The status block, the path to green and the side column, as the page shows them. */
-async function facts(p) {
+/** The summary bar and the columns, as the page shows them. */
+async function bar(p) {
   return p.evaluate(() => {
     const vis = (e) => !!e && e.getClientRects().length > 0;
     const txt = (e) => (e ? e.innerText.replace(/\s+/g, ' ').trim() : '');
-    const ptg = document.querySelector('.ptg');
+    const b = document.querySelector('.goal-bar');
+    const ptg = document.querySelector('.doing .ptg');
     return {
-      labels: [...document.querySelectorAll('.story .fact dt')].filter(vis).map(txt),
-      values: [...document.querySelectorAll('.story .fact .fact-value')].map(txt),
-      source: txt(document.querySelector('.story .fact-source')),
-      ptg: vis(ptg) ? { inHead: !!ptg.closest('.goal-head'), inRail: !!ptg.closest('.goal-rail'), text: txt(ptg) } : null,
-      heads: [...document.querySelectorAll('.goal-rail .rail-head')].filter(vis).map(txt),
-      emptyGroups: [...document.querySelectorAll('.goal-rail .rail-group')].filter((g) => g.children.length < 2).length,
+      status: txt(b?.querySelector('.bar-status')),
+      shape: !!b?.querySelector('.bar-status svg'),
+      now: txt(b?.querySelector('.bar-now')),
+      against: [...(b?.querySelectorAll('.bar-against') ?? [])].map(txt),
+      dir: txt(b?.querySelector('.bar-dir')),
+      why: txt(b?.querySelector('.bar-why')),
+      handled: txt(b?.querySelector('.bar-handled')),
+      ptg: vis(ptg) ? { inMain: !!ptg.closest('.goal-main, .goal-col'), inSide: !!ptg.closest('.goal-side'), text: txt(ptg) } : null,
+      heads: [...document.querySelectorAll('.goal-side .block-title')].filter(vis).map(txt),
       sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     };
   });
@@ -27,128 +38,134 @@ async function facts(p) {
 module.exports = {
   id: 'N2',
   area: 'goal-page',
-  title: 'Review notes, goal-page',
-  reqs: ['GOAL-SUMMARY'],
+  title: 'Review notes, goal-page (the flagship page)',
+  reqs: ['GOAL-SUMMARY', 'GOAL-PAGE-BAR', 'GOAL-PAGE'],
   async run({ open }) {
     const fails = [];
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
     let c, p;
 
-    // (a, b, c) Facts, path to green and side groups, on a number goal behind plan, at every width, light and dark.
+    // (a, b) The bar's second and third lines, and the path to green in the main column, on a number goal behind plan,
+    // at every width, light and dark.
     for (const [w, h, touch] of [[390, 844, true], [1100, 900, false], [1280, 800, false], [1440, 900, false]]) {
       for (const scheme of ['light', 'dark']) {
         [c, p] = await open(w, h, 'kofi', '/goals/alerts', touch);
         await p.emulateMedia({ colorScheme: scheme });
-        await p.locator('.story .facts').waitFor();
-        const f = await facts(p);
+        await p.locator('.goal-bar').waitFor();
+        await p.waitForTimeout(300);
+        const f = await bar(p);
         const at = `alerts ${w} ${scheme}`;
-        chk(JSON.stringify(f.labels) === JSON.stringify(FACTS), `${at}: facts labelled ${f.labels.join(' / ')}`);
-        chk(/behind plan$/.test(f.values[0] || ''), `${at}: against plan reads “${f.values[0]}”`);
-        chk(/^\d+% → \d+% → \d+% of plan$/.test(f.values[1] || ''), `${at}: trend reads “${f.values[1]}”`);
-        chk(/^(Up|Down) /.test(f.values[2] || ''), `${at}: since last update reads “${f.values[2]}”`);
-        chk(/by week \d+$/.test(f.values[3] || ''), `${at}: projection reads “${f.values[3]}”`);
-        chk(/^Week \d+ check-in · Kofi Boateng · /.test(f.source), `${at}: source line “${f.source}”`);
-        chk(f.ptg && f.ptg.inHead && !f.ptg.inRail && /Path to green/.test(f.ptg.text) && /Owner’s date: back on plan by/.test(f.ptg.text), `${at}: path to green not in the main column (${JSON.stringify(f.ptg)})`);
-        chk(f.heads.length >= 2 && f.heads.every((x) => GROUPS.includes(x)) && !f.emptyGroups, `${at}: side groups ${f.heads.join(' / ')} (${f.emptyGroups} empty)`);
+        chk(/^(At risk|Off track)$/.test(f.status) && f.shape, `${at}: bar status “${f.status}”`);
+        chk(/^\d+%$/.test(f.now), `${at}: bar number “${f.now}”`);
+        chk(/plan \d+%/.test(f.against.join(' ')) && /target \d+%/.test(f.against.join(' ')), `${at}: bar says “${f.against.join(' / ')}”`);
+        chk(/^(worsening|flat|recovering)$/.test(f.dir), `${at}: bar direction “${f.dir}”`);
+        chk(f.why.length > 20 && /^· (being handled|nobody on it yet)/.test(f.handled), `${at}: line 3 “${f.why}” “${f.handled}”`);
+        chk(f.ptg && f.ptg.inMain && !f.ptg.inSide && /Path to green/.test(f.ptg.text) && /Owner’s date: back on plan by/.test(f.ptg.text), `${at}: path to green not in the main column (${JSON.stringify(f.ptg)})`);
+        if (w >= 1100) chk(f.heads.length >= 1 && f.heads.every((x) => ['Asked of you', 'Actions', 'Last time we talked'].includes(x)), `${at}: side headings ${f.heads.join(' / ')}`);
         chk(f.sideways <= 1, `${at}: ${f.sideways}px sideways`);
-        // Side text sits on the page: no fill behind it in either theme (the dark bars in Lane's screenshot).
-        const filled = await p.evaluate(() => [...document.querySelectorAll('.goal-rail *, .story *')]
-          .filter((e) => !e.closest('.request-block, .btn, button') && /^(P|SPAN|STRONG|EM|DIV|DT|DD|H2)$/.test(e.tagName))
+        // Words in the bar and the side column sit on the page (or the bar's off-track wash), never on a fill of their own.
+        const filled = await p.evaluate(() => [...document.querySelectorAll('.goal-bar *, .goal-side *')]
+          .filter((e) => !e.closest('.asked-item, .btn, button, .view-menu-list, .bar-me, summary, .avatar') && /^(P|SPAN|STRONG|EM|DIV|DT|DD|H2|H1)$/.test(e.tagName))
           .filter((e) => { const b = getComputedStyle(e).backgroundColor; return b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent'; })
           .map((e) => e.tagName.toLowerCase() + '.' + e.className).slice(0, 3));
         chk(!filled.length, `${at}: text with a fill behind it: ${filled.join(', ')}`);
-        // A path to green only when behind: an on-track goal has none, and its facts still lead.
         if (scheme === 'light' && w === 1280) {
-          await p.goto(p.url().replace('/goals/alerts', '/goals/lead')); await p.locator('.story .facts').waitFor();
-          const on = await facts(p);
-          chk(!on.ptg && on.labels.length === 4, `lead 1280: on track shows path to green ${!!on.ptg}, ${on.labels.length} facts`);
+          // On track: no path to green, and line 3 has no "being handled".
+          await p.goto(p.url().replace('/goals/alerts', '/goals/lead')); await p.locator('.goal-bar').waitFor();
+          const on = await bar(p);
+          chk(!on.ptg && !on.handled, `lead 1280: on track shows path to green ${!!on.ptg}, handled “${on.handled}”`);
         }
         await c.close();
       }
     }
 
-    // (a) A range and dated stages get the same four facts, in their own terms.
+    // (a) A range and dated stages, in their own terms.
     [c, p] = await open(1280, 800, 'elena', '/goals/cfr');
-    await p.locator('.story .facts').waitFor();
-    let f = await facts(p);
-    chk(f.labels[0] === 'Against the limit' && /limit$/.test(f.values[0] || '') && f.labels.length === 4, `cfr: facts ${f.labels.join(' / ')}: ${f.values[0]}`);
-    await p.goto(p.url().replace('/goals/cfr', '/goals/access')); await p.locator('.story .facts').waitFor();
-    f = await facts(p);
-    chk(/stages? late$/.test(f.values[0] || '') && /weeks late$/.test(f.values[1] || '') && /slipped \d+ weeks?$/.test(f.values[2] || '') && /^Finishes week \d+/.test(f.values[3] || ''), `access: facts read ${f.values.join(' / ')}`);
-    chk(f.heads[0] === 'Asked of you', `access as Elena: first side group “${f.heads[0]}”`);
-    // (e) What it feeds, with that goal's status, as a link.
-    const feeds = await p.evaluate(() => { const l = document.querySelector('.ctx-feeds'); return l ? { text: l.innerText.replace(/\s+/g, ' '), href: l.querySelector('a.ctx-parent')?.getAttribute('href'), shape: !!l.querySelector('.chip svg') } : null; });
-    chk(feeds && /^Feeds into: Intake-to-delivery time · (On track|At risk|Off track|No recent update)/.test(feeds.text) && /\/goals\/head/.test(feeds.href || '') && feeds.shape, `access: feeds line ${JSON.stringify(feeds)}`);
+    await p.locator('.goal-bar').waitFor();
+    let f = await bar(p);
+    chk(/at most \d/.test(f.against.join(' ')) && /(inside|outside) the limit/.test(f.against.join(' ')), `cfr: bar says ${f.against.join(' / ')}`);
+    await p.goto(p.url().replace('/goals/cfr', '/goals/access')); await p.locator('.goal-bar').waitFor();
+    f = await bar(p);
+    chk(/^\d of \d stages done$/.test(f.now) && /stages? slipping/.test(f.against.join(' ')), `access: bar says ${f.now} / ${f.against.join(' / ')}`);
+    chk(f.heads[0] === 'Asked of you', `access as Elena: first side heading “${f.heads[0]}”`);
+    // (e) Arriving from outside on a goal that feeds another, Back names that goal; About says what it feeds.
+    const back = (await p.locator('.goal-page > .backlink').innerText()).trim();
+    chk(back === 'Back to Intake-to-delivery time', `access from outside: “${back}”`);
+    const feeds = await p.evaluate(() => { const dt = [...document.querySelectorAll('.about dt')].find((d) => d.textContent === 'Feeds into'); const a = dt?.nextElementSibling?.querySelector('a'); return a ? a.getAttribute('href') : null; });
+    chk(/\/goals\/head$/.test(feeds || ''), `access: About's Feeds into links to ${feeds}`);
     await c.close();
 
-    // (e) How it's measured, and how many goals feed this one; the owner can add a missing definition, others can't.
+    // (e) How it's measured, in About (open on a first visit); only the owner (or an admin) is offered to change it.
     [c, p] = await open(390, 844, 'maya', '/goals/head', true);
-    await p.locator('.goal-context').waitFor();
-    const ctx = await p.evaluate(() => ({ measure: document.querySelector('.ctx-measure')?.innerText.replace(/\s+/g, ' ') || '', feeding: document.querySelector('.ctx-feeding')?.innerText || '' }));
-    chk(/^How it’s measured: .+\(source: .+\)$/.test(ctx.measure), `head: measure line “${ctx.measure}”`);
-    chk(/^\d+ goals feed this one$/.test(ctx.feeding), `head: feeding line “${ctx.feeding}”`);
+    await p.locator('details.about[open]').waitFor();
+    const about = await p.evaluate(() => { const dt = [...document.querySelectorAll('.about dt')].find((d) => d.textContent === 'How it’s measured'); return dt?.nextElementSibling?.innerText.replace(/\s+/g, ' ') || ''; });
+    chk(/Source: .+\.$/.test(about) && about.length > 20, `head: How it’s measured “${about}”`);
     await c.close();
     for (const [who, want] of [['kofi', true], ['maya', false]]) {
       [c, p] = await open(1280, 800, who, '/goals/alerts');
-      await p.locator('.story').waitFor();
-      const link = await p.locator('.ctx-measure a').count();
-      chk(!!link === want, `alerts as ${who}: ${link ? 'an' : 'no'} edit link for the missing definition`);
+      await p.locator('.goal-bar').waitFor();
+      const n = await p.locator('#change-goal a').count();
+      chk(!!n === want, `alerts as ${who}: ${n} ways to change the goal`);
       await c.close();
     }
 
-    // (d) The header stays on screen: hidden at the top; once the title scrolls away, title, status, number and actions,
-    // under the phone's top bar or the review bar.
+    // (d) The bar stays on screen: in place at the top, then one line once scrolled, under the review bar in a review.
     for (const [w, h, touch, who, route] of [[390, 844, true, 'elena', '/goals/head'], [1280, 800, false, 'elena', '/goals/cfr'], [1440, 900, false, 'maya', '/goals/head'], [1100, 800, false, 'elena', '/goals/access?review=weekly']]) {
       [c, p] = await open(w, h, who, route, touch);
-      await p.locator('.story').waitFor();
-      const before = await p.locator('.goal-sticky-bar').count();
+      await p.locator('.goal-bar').waitFor();
+      const before = await p.locator('.goal-bar.compact').count();
       await p.evaluate(() => window.scrollTo(0, 1400)); await p.waitForTimeout(300);
       const s = await p.evaluate(() => {
-        const bar = document.querySelector('.goal-sticky-bar');
-        if (!bar) return null;
-        const above = [...document.querySelectorAll('.mtop, .goal-page > .reviewbar')].filter((e) => e.getClientRects().length && /sticky|fixed/.test(getComputedStyle(e).position));
-        const r = bar.getBoundingClientRect();
-        return { top: Math.round(r.top), under: Math.round(Math.max(0, ...above.map((e) => e.getBoundingClientRect().bottom))), title: bar.querySelector('.goal-sticky-title')?.innerText, chip: !!bar.querySelector('.chip svg'), number: bar.querySelector('.goal-sticky-number')?.innerText, actions: [...bar.querySelectorAll('.btn')].map((b) => b.innerText.trim()), bg: getComputedStyle(bar).backgroundColor };
+        const b = document.querySelector('.goal-bar.compact');
+        if (!b) return null;
+        const above = [...document.querySelectorAll('.goal-page > .reviewbar')].filter((e) => e.getClientRects().length && /sticky|fixed/.test(getComputedStyle(e).position));
+        const r = b.getBoundingClientRect();
+        return { n: document.querySelectorAll('.goal-bar').length, top: Math.round(r.top), h: Math.round(r.height), under: Math.round(Math.max(0, ...above.map((e) => e.getBoundingClientRect().bottom))), title: b.querySelector('.bar-title')?.innerText, chip: !!b.querySelector('.bar-status svg'), number: b.querySelector('.bar-now')?.innerText, actions: [...b.querySelectorAll('.bar-actions .btn')].filter((x) => x.getClientRects().length).map((x) => x.innerText.trim()), bg: getComputedStyle(b).backgroundColor };
       });
       const at = `${route} ${w}`;
-      chk(before === 0, `${at}: sticky header shown before scrolling`);
-      chk(s && Math.abs(s.top - s.under) <= 1, `${at}: sticky header at ${s?.top}, under ${s?.under}`);
-      chk(s && s.title && s.chip && s.number && !/rgba\(0, 0, 0, 0\)/.test(s.bg), `${at}: sticky header ${JSON.stringify(s)}`);
-      if (!/review=/.test(route)) chk(s && s.actions.some((a) => /Edit|Watch/.test(a)), `${at}: sticky header actions ${s?.actions}`);
+      chk(before === 0, `${at}: bar compact before scrolling`);
+      chk(s && s.n === 1, `${at}: ${s?.n} bars (the compact bar must be the same element)`);
+      chk(s && Math.abs(s.top - s.under) <= 1, `${at}: compact bar at ${s?.top}, under ${s?.under}`);
+      chk(s && s.title && s.chip && s.number && !/rgba\(0, 0, 0, 0\)/.test(s.bg) && s.h <= (w < 500 ? 100 : 64), `${at}: compact bar ${JSON.stringify(s)}`);
+      if (!/review=/.test(route)) chk(s && s.actions.length >= 1, `${at}: compact bar actions ${s?.actions}`);
+      // Back at the top it opens out again.
+      await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(250);
+      chk(await p.locator('.goal-bar.compact').count() === 0, `${at}: the bar stays compact at the top`);
       await c.close();
     }
 
-    // (f) The review walk: the chart and recent check-ins open, full width when the columns stack (1024–1200), and
-    // each check-in opens to the whole check-in.
+    // (f) The review walk: the chart and recent check-ins open, full width when the columns stack (1024–1200), and each
+    // check-in opens to the whole check-in.
     for (const [w, h, touch] of [[390, 844, true], [1024, 768, false], [1100, 900, false], [1200, 900, false], [1280, 800, false]]) {
       [c, p] = await open(w, h, 'elena', '/goals/access?review=weekly', touch);
       await p.locator('.decide').waitFor();
       const m = await p.evaluate(() => {
         const ev = document.querySelector('.review-evidence'), split = document.querySelector('.goal-page .split');
-        const stacked = getComputedStyle(split).display !== 'grid';
+        const box = split || document.querySelector('.goal-page .goal-col');
         return {
           shown: !!ev && ev.getClientRects().length > 0 && !ev.closest('details:not([open])'),
-          w: ev ? Math.round(ev.getBoundingClientRect().width) : 0, splitW: Math.round(split.getBoundingClientRect().width), stacked,
+          w: ev ? Math.round(ev.getBoundingClientRect().width) : 0, boxW: Math.round(box.getBoundingClientRect().width), stacked: !split,
           stages: !!ev?.querySelector('.stagelist, svg.chart'), rows: ev ? ev.querySelectorAll('.ci-row').length : 0,
         };
       });
       const at = `review ${w}`;
       chk(m.shown && m.stages && m.rows >= 2, `${at}: chart and check-ins not open (${JSON.stringify(m)})`);
-      chk(m.w >= (m.stacked ? m.splitW - 2 : 380), `${at}: evidence column ${m.w}px of ${m.splitW}px`);
+      chk(m.w >= (m.stacked ? m.boxW - 2 : 380), `${at}: evidence column ${m.w}px of ${m.boxW}px`);
       await p.locator('.review-evidence .ci-row').first().click();
       const full = await p.locator('.review-evidence .ci-full').first().innerText().catch(() => '');
       chk(/Call/.test(full) && /Why/.test(full) && /Path to green/.test(full) && /Checked in/.test(full), `${at}: an opened check-in shows “${full.replace(/\s+/g, ' ').slice(0, 80)}”`);
       await c.close();
     }
-    // The same on the goal page's Check-ins tab, a number goal, dark.
+    // The same rows in the Activity stream, a number goal, dark.
     [c, p] = await open(1440, 900, 'elena', '/goals/alerts');
     await p.emulateMedia({ colorScheme: 'dark' });
-    await p.locator('.cilist .ci-row').first().click();
-    const row = await p.evaluate(() => { const b = document.querySelector('.cilist .ci-row'); const d = document.querySelector('.cilist .ci-full'); return { exp: b?.getAttribute('aria-expanded'), text: d?.innerText.replace(/\s+/g, ' ') || '' }; });
-    chk(row.exp === 'true' && /Cause/.test(row.text) && /Path to green/.test(row.text) && /Checked in Kofi Boateng/.test(row.text), `alerts tab: opened check-in ${JSON.stringify(row)}`);
+    await p.locator('#activity').getByRole('button', { name: 'Check-ins', exact: true }).click();
+    await p.locator('#activity .ci-row').first().click();
+    const row = await p.evaluate(() => { const b = document.querySelector('#activity .ci-row'); const d = document.querySelector('#activity .ci-full'); return { exp: b?.getAttribute('aria-expanded'), text: d?.innerText.replace(/\s+/g, ' ') || '' }; });
+    chk(row.exp === 'true' && /Cause/.test(row.text) && /Path to green/.test(row.text) && /Checked in Kofi Boateng/.test(row.text), `alerts activity: opened check-in ${JSON.stringify(row)}`);
     await c.close();
 
-    // The goals most likely to make it miss: no part of a row draws over another (status over the number, 5 Nov).
+    // What feeds it: no part of a row draws over another (status over the number, 5 Nov).
     for (const w of [1280, 1440, 390]) {
       [c, p] = await open(w, 900, 'maya', '/goals/head');
       const clash = await p.evaluate(() => {

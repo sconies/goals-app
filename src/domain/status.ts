@@ -1,5 +1,5 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
-import { daysSince, currentWeek, forecast, goalAsOf, planAt, type Point, planEnd } from './plan';
+import { daysSince, currentWeek, goalAsOf, planAt, projection, type Point, type Projection, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
 
 export const RANK: Record<DisplayStatus, number> = { done: 0, planned: 0, none: 0, on: 1, risk: 2, stale: 2, off: 3 };
@@ -28,7 +28,11 @@ export interface MetricAssessment {
   target: number;
   /** Share of the planned change achieved so far; null before a plan has moved. */
   ratio: number | null;
+  /** The likeliest value by the due week if the recent trend holds (the projection's middle). */
   forecast: number | null;
+  /** The projection to the due week, as a range: plan.ts works it out. */
+  projection: Projection | null;
+  /** The likeliest value falls short of the target. */
   forecastMisses: boolean;
   ahead: boolean;
   behind: boolean;
@@ -74,9 +78,10 @@ export function assessMetric(goal: MetricGoal, weeks: number, week: number, actu
   const plan = planAt(goal.plan, week, weeks);
   const series = actual == null ? history : [...history.filter((p) => p.week < week), { week, value: actual }];
   // Project to when the target is due: the cycle's end, or later for a goal that runs to the end of the year.
-  const fc = forecast(series, planEnd(goal.plan, weeks));
+  const pr = projection(series, planEnd(goal.plan, weeks));
+  const fc = pr?.value ?? null;
   const dir = Math.sign(target - start);
-  const base = { kind: 'metric' as const, week, plan, target, actual, forecast: fc, forecastMisses: fc != null && (fc - target) * dir < 0 };
+  const base = { kind: 'metric' as const, week, plan, target, actual, forecast: fc, projection: pr, forecastMisses: fc != null && (fc - target) * dir < 0 };
   if (week === 0) return { ...base, calc: 'planned', ratio: null, ahead: false, behind: false };
   if (actual == null) return { ...base, calc: 'none', ratio: null, ahead: false, behind: false };
   const planned = plan - start;

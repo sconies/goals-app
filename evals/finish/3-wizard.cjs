@@ -264,8 +264,10 @@ module.exports = {
     // The plan table on the goal page at 360 stays inside the screen.
     {
       const [c, p] = await open(360, 780, 'maya', '/goals/lead');
-      const tab = p.getByRole('tab', { name: 'Details' });
-      if (await tab.count()) { await tab.click(); await p.waitForTimeout(200); }
+      // The plan table is in About this goal, open on a first visit (the flagship page, 5 Nov; it was the Details tab).
+      const about = p.locator('details.about');
+      if (await about.count() && !(await about.evaluate((d) => d.open))) { await about.locator('summary').click(); await p.waitForTimeout(200); }
+      await p.getByText('Plan and actual by week').first().waitFor({ timeout: 3000 }).catch(() => f('goal page at 360: no plan table in About this goal'));
       await noSideScroll(p, 'goal page details at 360', f);
       await c.close();
     }
