@@ -23,6 +23,7 @@ import { Research } from './screens/Research';
 import { Settings } from './screens/Settings';
 import { GoalPrint, ReviewPrint } from './screens/Print';
 import { MotionLayer } from './ui/Count';
+import { MotionLab } from './ui/MotionLab';
 import { HelpArticle, HelpHome, WhatsNew } from './screens/Help';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 
@@ -33,6 +34,7 @@ export function Routed() {
   return (
     <Shell>
       <MotionLayer />
+      <MotionLab />
       {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
       <ErrorBoundary at={pathname}>
       <Routes>

@@ -26536,6 +26536,51 @@ function shapeOf(s) {
 	if (v.startsWith("step")) return "stepped";
 	return null;
 }
+// src/domain/chartStory.ts
+var CURRENCY = /^([£$€]|USD|GBP|EUR)\s?([km]?)$/i;
+var SYMBOL = {
+	USD: "$",
+	GBP: "£",
+	EUR: "€"
+};
+/** An amount people read at a glance: "£3.41m", "£61k", "83%", "12 days". Money units ("£k", "$m", "€") get the symbol
+in front and a k or m to suit the size; everything else keeps its unit. */
+function sayAmount(v, g) {
+	const m = CURRENCY.exec(g.unit ?? "");
+	if (m) {
+		const sym = SYMBOL[m[1].toUpperCase()] ?? m[1];
+		const scale = m[2]?.toLowerCase() === "k" ? 1e3 : m[2]?.toLowerCase() === "m" ? 1e6 : 1;
+		const x = Math.abs(v * scale), sign = v < 0 ? "−" : "";
+		const trim = (n, d) => String(Number(n.toFixed(d)));
+		if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, x >= 1e7 ? 1 : 2)}m`;
+		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, x >= 1e4 ? 0 : 1)}k`;
+		return `${sign}${sym}${Math.round(x)}`;
+	}
+	const n = Number(v.toFixed(g.decimals)).toLocaleString("en-GB", { maximumFractionDigits: g.decimals });
+	if (!g.unit) return n;
+	if (g.unit === "%") return n + "%";
+	return `${n} ${Math.abs(Number(v.toFixed(g.decimals))) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
+}
+/** The last day of the week a goal is due, said as a date: "by 3 Jan". */
+function byWhen(cycle, due) {
+	if (!cycle) return `by week ${due}`;
+	if (due >= cycle.weeks) return cycle.weeks >= 48 ? "by the end of the year" : "by the end of the cycle";
+	return "by " + weekDates(cycle, due).split("–").pop().trim();
+}
+/**
+* "On its recent trend it ends at about £3.56m by 3 Jan (somewhere between £3.41m and £3.71m), just missing the £3.6m
+* target. Projected by the app from the last eight weeks, not the owner's date."
+*/
+function headingSentence(goal, p, misses, when, share = false) {
+	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
+	const likely = sayAmount(clamp(p.likely), goal), lo = sayAmount(clamp(p.low), goal), hi = sayAmount(clamp(p.high), goal);
+	const range = lo === hi ? "" : ` (somewhere between ${lo} and ${hi})`;
+	const target = sayAmount(goal.plan.target, goal);
+	const span = Math.abs(goal.plan.target - goal.plan.start) || Math.abs(goal.plan.target) || 1;
+	const off = Math.abs(p.likely - goal.plan.target) / span;
+	const close = off < .05 ? "just " : off > .25 ? "well " : "";
+	return `On its recent trend it ends at about ${likely} ${when}${range}, ${misses ? `${close === "well " ? "well short of" : close === "just " ? "just missing" : "missing"} its target of ${target}` : `${close === "well " ? "comfortably beating" : "reaching"} its target of ${target}`}. Projected by the app from the last eight weeks, not the owner’s date.`;
+}
 // src/domain/tree.ts
 /** Whether making `goal` feed `parentId` would make a loop: the parent is the goal or feeds into it. */
 function makesLoop(goalId, parentId, goals) {
@@ -26552,17 +26597,16 @@ function makesLoop(goalId, parentId, goals) {
 * Where the recent trend takes a number goal by its due week, as a range (plan.ts works it out), against the target.
 * `warn` when the likeliest value falls short.
 */
-function forecastText(goal, a, weeks) {
+function forecastText(goal, a, weeks, cycle) {
 	if (a.kind !== "metric" || goal.kind !== "metric" || a.forecast == null || !a.projection) return null;
 	const due = goal.plan.endWeek ?? weeks;
-	const range = rangeText(a.projection, goal, isShare(goal));
-	const above = a.forecast > goal.plan.target;
-	return a.forecastMisses ? {
-		text: `Heading for ${range} by week ${due}, ${above ? "above" : "below"} the ${fmt(goal.plan.target, goal)} target. Projected by the app from the recent trend, not the owner’s date.`,
-		warn: true
-	} : {
-		text: `Projected by the app to reach the ${fmt(goal.plan.target, goal)} target by week ${due} on the recent trend (heading for ${range}).`,
-		warn: false
+	return {
+		text: headingSentence(goal, {
+			likely: a.forecast,
+			low: a.projection.low,
+			high: a.projection.high
+		}, a.forecastMisses, byWhen(cycle, due), isShare(goal)),
+		warn: a.forecastMisses
 	};
 }
 // src/domain/changeset.ts
@@ -27331,7 +27375,7 @@ function storyOf(g, s, cycle, week, today) {
 	}
 	const quarters = quarterResults(g, cycle, s.checkIns, week);
 	const lastEnded = [...quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed");
-	const fc = forecastText(g, a, cycle.weeks);
+	const fc = forecastText(g, a, cycle.weeks, cycle);
 	const outlook = fc && status !== "stale" ? fc.text : null;
 	let why = null, doing = null, byWhen = null, needs = null;
 	const ptg = last?.pathToGreen ?? null;
@@ -27421,7 +27465,7 @@ function summarise(goal, s, cycle, today, week) {
 		gapTone: st.status === "stale" ? "stale" : gap.tone,
 		lastWeek: last?.week ?? null,
 		lastPostedAt: last?.postedAt ?? null,
-		forecast: st.status === "stale" ? null : forecastText(goal, a, cycle.weeks)?.text ?? null,
+		forecast: st.status === "stale" ? null : forecastText(goal, a, cycle.weeks, cycle)?.text ?? null,
 		projection: st.status === "stale" || a.kind !== "metric" ? null : a.projection,
 		feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
 		why: behind && last ? [last.cause ? causeLabel(last.cause) : "", last.why].filter((x) => x && x !== "On plan.").join(": ") : "",
@@ -29735,7 +29779,7 @@ var ARTICLES = [
 			list: [
 				"Light or dark: light, dark, or follow your device.",
 				"Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
-				"How a goal’s page moves: Quick, Steady or Slow (how slowly its chart draws in and its number counts up), and how hard it lands: Gentle, Strong or Big.",
+				"Motion lab, at the bottom: play with how a goal’s page moves. Speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.",
 				"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
 				"You: your name, job title and team. An admin changes these.",
 				"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
@@ -30022,7 +30066,7 @@ var WHATS_NEW = [
 		points: [
 			"A summary bar reads in two seconds: the status, the number against plan and target, which way it’s heading, why, and whether anyone is on it. It shrinks to one line as you scroll.",
 			"What’s asked of you is answered on the goal, and Home’s Answer, Respond and Reply open it ready to type.",
-			"The chart is near the top and draws itself in until its latest point lands, with the projection as a range from the last eight weeks. Choose how slowly it moves and how hard it lands in Settings.",
+			"Under the chart: against plan, likely end and target in three short rows, with a bar showing where it will likely land. The Motion lab, at the bottom of Settings, changes how it all moves.",
 			"One list of what’s being done, with who, when and whether each is open, done or overdue; and what was said the last time it was discussed.",
 			"Check-ins, comments and changes in one stream, a reason repeated week after week said once, and “Since you looked” when you come back.",
 			"Share image copies a picture of the goal with its link. Linking to a decision already asked for another goal is now in the check-in."

@@ -7,7 +7,7 @@ import { currentWeek } from '../src/domain/plan';
 import { attentionFor } from '../src/domain/attention';
 import { summarise } from '../src/domain/summary';
 import { easeOut, flipDeltas, MOTION_MS, STORY_MS, tween, type Pos } from '../src/ui/motion';
-import { IMPACTS, PACE_FACTOR, PACES } from '../src/app/appearance';
+import { EFFECTS, IMPACT, PACE, impactWords, paceWords } from '../src/app/appearance';
 
 const R = (id: string, text: string) => `[${id}] ${text}`;
 const today = new Date('2026-10-30T12:00:00Z');
@@ -61,10 +61,12 @@ describe('print views', () => {
 describe('motion', () => {
   it(R('MOTION-ALIVE', 'interface motion takes 250ms at most'), () => expect(MOTION_MS).toBeLessThanOrEqual(250));
   it(R('GOAL-PAGE-ALIVE', "the goal page's story moves slowly enough to see, and not too long"), () => { expect(STORY_MS).toBeGreaterThanOrEqual(600); expect(STORY_MS).toBeLessThanOrEqual(1200); });
-  it(R('GOAL-PAGE-ALIVE', 'pace and impact are settings: Steady (the default) is half the speed of Quick, Slow a third'), () => {
-    expect(PACES.map(([k]) => k)).toEqual(['quick', 'steady', 'slow']);
-    expect(IMPACTS.map(([k]) => k)).toEqual(['gentle', 'strong', 'big']);
-    expect(PACE_FACTOR).toEqual({ quick: 1, steady: 2, slow: 3 });
+  it(R('GOAL-PAGE-ALIVE', 'speed and impact are sliders with five effect switches; the default is twice as slow as the original'), () => {
+    expect(PACE).toEqual({ min: 1, max: 4, step: 0.25, default: 2 });
+    expect(IMPACT).toEqual({ min: 0, max: 2, step: 0.1, default: 1 });
+    expect(EFFECTS.map(([k]) => k)).toEqual(['count', 'draw', 'ring', 'jolt', 'shake']);
+    expect([paceWords(1), paceWords(2), paceWords(3.5)]).toEqual(['Original speed', '2× slower', '3.5× slower']);
+    expect([impactWords(0), impactWords(0.5), impactWords(1), impactWords(1.5), impactWords(2)]).toEqual(['None', 'Gentle', 'Strong', 'Big', 'Very big']);
   });
   it(R('MOTION-ALIVE', 'a count eases out and lands exactly on the value'), () => {
     expect(tween(12, 82, 1)).toBe(82);

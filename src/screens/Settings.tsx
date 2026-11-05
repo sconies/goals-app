@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
-import { ACCENTS, IMPACTS, PACES, SIDEBARS, THEMES, setAppearance, useAppearance } from '../app/appearance';
+import { ACCENTS, LANDINGS, SIDEBARS, THEMES, impactWords, openMotionLab, paceWords, setAppearance, useAppearance } from '../app/appearance';
 import { Avatar } from '../ui/bits';
 import { BackLink } from '../ui/BackLink';
 import { ProfileSheet } from '../ui/ProfileSheet';
@@ -44,20 +44,6 @@ export function Settings() {
           </div>
           <span className="hint">For links, buttons and what’s selected. Status colours stay the same, so on track, at risk and off track always look alike.</span>
         </div>
-        <div className="field">
-          <span className="field-label" id="set-pace">How a goal’s page moves</span>
-          <div className="seg" role="group" aria-labelledby="set-pace">
-            {PACES.map(([k, l]) => <button key={k} type="button" aria-pressed={look.pace === k} onClick={() => setAppearance({ pace: k })}>{l}</button>)}
-          </div>
-          <span className="hint">How slowly the chart draws in and the number counts up. Steady is half the speed of Quick, Slow a third.</span>
-        </div>
-        <div className="field">
-          <span className="field-label" id="set-impact">How hard it lands</span>
-          <div className="seg" role="group" aria-labelledby="set-impact">
-            {IMPACTS.map(([k, l]) => <button key={k} type="button" aria-pressed={look.impact === k} onClick={() => setAppearance({ impact: k })}>{l}</button>)}
-          </div>
-          <span className="hint">When the number and the chart reach today: a thump, a ring from the latest point, and a shake if it’s off track. All of it switches off when your device asks for reduced motion.</span>
-        </div>
       </section>
 
       <section className="block settings-block" aria-labelledby="set-nav">
@@ -88,6 +74,15 @@ export function Settings() {
 
       <AiAssistants mine />
       <ProfileSheet open={who} onClose={() => setWho(false)} />
+
+      <section className="block settings-block motion-lab-entry" aria-labelledby="set-motion">
+        <h2 className="block-title" id="set-motion">Motion lab</h2>
+        <p className="hint" style={{ marginTop: 0 }}>For the moment a goal’s number lands. Slow it right down, make it hit harder, give it a wobble or a bounce, or switch it all off. Purely for fun; nobody else sees your choice.</p>
+        <span className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="button" className="btn sm" onClick={openMotionLab}>Open the Motion lab</button>
+          <span className="small muted">{paceWords(look.pace)} · {impactWords(look.impact)} impact · {LANDINGS.find(([k]) => k === look.landing)?.[1]}</span>
+        </span>
+      </section>
     </div>
   );
 }

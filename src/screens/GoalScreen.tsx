@@ -12,8 +12,7 @@ import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, LEVEL_LABEL } from '../domain/format';
 import { planHistoryOf, valueSeries, weekDates } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
-import { summaryFacts } from '../domain/summaryFacts';
-import { forecastText } from '../domain/tree';
+import { summaryFacts, weeksLateAt } from '../domain/summaryFacts';
 import { criticalPath } from '../domain/map';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { openUpdateAsk } from '../domain/updateAsks';
@@ -37,19 +36,34 @@ import { MenuButton } from '../ui/MenuButton';
 import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { reducedMotion, STORY_MS } from '../ui/motion';
-import { storyPace } from '../app/appearance';
+import { byWhen, metricFacts, rangeFacts, sayAmount, stageFacts, type StoryFacts } from '../domain/chartStory';
+import { ChartFacts } from '../ui/ChartFacts';
+import { isShare } from '../domain/checkin';
+import { effectOn, landedMoment, openMotionLab, storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 
 export function GoalScreen() {
   const app = useApp();
   const { goalId } = useParams();
   const goal = goalId ? app.goal(goalId) : undefined;
+  // The Motion lab's "Replay this page" plays the story again by mounting the page afresh.
+  const [replay, setReplay] = useState(0);
+  useEffect(() => { const on = () => setReplay((n) => n + 1); window.addEventListener('goals-replay', on); return () => window.removeEventListener('goals-replay', on); }, []);
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn sm" to="/goals">All goals</Link></Empty></div>;
-  return <GoalView key={goal.id + ':' + app.viewer.id} goal={goal} />;
+  return <GoalView key={goal.id + ':' + app.viewer.id + ':' + replay} goal={goal} />;
 }
 
 /** Where the page's two columns start: as the shared side-column layout does (styles.css, `.split`). */
 const WIDE = 960;
+
+/** Five quick taps on a goal's status open the Motion lab (an Easter egg). */
+const taps: number[] = [];
+function secretTap() {
+  const now = Date.now();
+  taps.push(now);
+  while (taps.length && now - taps[0]! > 2000) taps.shift();
+  if (taps.length >= 5) { taps.length = 0; openMotionLab(); }
+}
 
 function GoalView({ goal }: { goal: Goal }) {
   const app = useApp();
@@ -194,7 +208,7 @@ function GoalView({ goal }: { goal: Goal }) {
       <ReviewBar goalId={goal.id} />
       <GoalBack />
       <GoalBar goal={goal} status={status} figures={figures} why={why} feeds={feeds} stale={stale} actions={actions} askedLine={askedLine}
-        statusMoved={statusMoved} hit={hit} countFrom={own[0]?.value ?? null} />
+        statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own[0]?.value ?? null : null} />
 
       {published && (
         <section className="first-checkin" aria-label="First check-in">
@@ -236,7 +250,7 @@ function GoalBar({ goal, status, figures, why, feeds, stale, actions, askedLine,
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
   const num = figures.nowValue != null && goal.kind !== 'milestone'
-    ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={STORY_MS * storyPace()} />
+    ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={STORY_MS * storyPace()} onLanded={landedMoment} />
     : figures.now;
   const arrow = figures.direction && (
     <span className={'bar-dir dir-' + figures.direction} title={figures.directionText ?? undefined} aria-label={figures.directionText ? `Heading: ${figures.directionText}` : undefined}>
@@ -257,7 +271,7 @@ function GoalBar({ goal, status, figures, why, feeds, stale, actions, askedLine,
           {goal.key && <span className="gkey" title={`This goal’s key: it never changes, and /goals/${goal.key} opens it`}>{goal.key}</span>}
         </div>
         <div className="bar-2">
-          <Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} />
+          <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>
           <span className="bar-now">{num}</span>
           {figures.against.map((x) => <span key={x} className="bar-against"><span aria-hidden="true">· </span>{x}</span>)}
           {!stale && arrow}
@@ -455,27 +469,32 @@ function GoalChart({ goal, stale, landed, hit }: { goal: Goal; stale: boolean; l
       return parts.join(' · ') + (c && c.why && c.why !== 'On plan.' ? `. ${c.cause ? causeLabel(c.cause) + ': ' : ''}${c.why}` : '');
     },
   };
-  const fc = !stale ? forecastText(goal, a, cycle.weeks) : null;
   const facts = summaryFacts(goal, cycle, app.snapshot.checkIns, week, stale).facts;
   const rangeProj = goal.kind === 'range' ? facts.find((f) => f.key === 'projection' && f.projection) : undefined;
-  const trend = facts.find((f) => f.key === 'trend');
-  // Direction and the projection have their one home here, in words under the lines.
-  const caption = [trend && trend.value !== 'Not enough check-ins yet' && !stale ? `${trend.value}: ${trend.detail?.charAt(0).toLowerCase()}${trend.detail?.slice(1)}.` : '', fc?.text ?? '', rangeProj ? `Heading for ${rangeProj.value}. ${rangeProj.detail}.` : '', stale ? 'No projection: the last check-in is too old to project from.' : ''].filter(Boolean).join(' ');
+  // Where it stands and where it's heading, as a few short rows and a small "likely end" bar (chartStory.ts, ChartFacts).
+  const storyFacts: StoryFacts = stale ? { rows: [], footnote: 'No projection: the last check-in is too old to project from.' }
+    : goal.kind === 'metric' && a.kind === 'metric'
+      ? metricFacts(goal, series, cycle.weeks, a.forecast != null && a.projection ? { likely: a.forecast, low: a.projection.low, high: a.projection.high } : null, a.forecastMisses, byWhen(cycle, goal.plan.endWeek ?? cycle.weeks), isShare(goal))
+    : goal.kind === 'range' ? rangeFacts(goal, series, rangeProj?.projection ?? null, byWhen(cycle, cycle.weeks))
+    : goal.kind === 'milestone' ? stageFacts(own.filter((c) => c.stages).slice(-3).map((c) => ({ week: c.week, late: weeksLateAt(goal, c) })))
+    : { rows: [] };
+  const say = (v: number) => (goal.kind === 'milestone' ? String(v) : sayAmount(v, goal));
+  const caption = storyFacts.rows.length || storyFacts.footnote ? <ChartFacts facts={storyFacts} say={say} /> : null;
   return (
     <section className="block goal-chart-block" aria-label="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
           <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptg?.byWeek ?? null} scrub={scrub} draw={draw} landed={landed && draw} hit={hit} />
-          {(caption || goal.originalPlan) && <figcaption className="small chart-say">{caption}{goal.originalPlan ? <> <PlanChanges goal={goal} /></> : null}</figcaption>}
+          {(caption || goal.originalPlan) && <figcaption className="small">{caption}{goal.originalPlan ? <PlanChanges goal={goal} /> : null}</figcaption>}
         </figure>
       )}
       {goal.kind === 'range' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
           <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && draw} />
-          {caption && <figcaption className="small chart-say">{caption}</figcaption>}
+          {caption && <figcaption className="small">{caption}</figcaption>}
         </figure>
       )}
-      {a.kind === 'milestone' && <div className="card"><StageList a={a} />{caption && <p className="small chart-say">{caption}</p>}</div>}
+      {a.kind === 'milestone' && <div className="card"><StageList a={a} />{caption}</div>}
     </section>
   );
 }

@@ -88,6 +88,7 @@ module.exports = {
           mtop: [...document.querySelectorAll('.mtop')].some((e) => e.getClientRects().length),
           me: !!document.querySelector('.goal-bar .bar-me .profilebtn') && [...document.querySelectorAll('.goal-bar .bar-me')].some((e) => e.getClientRects().length),
           caption: document.querySelector('.goal-chart .chart-say')?.innerText ?? '',
+          endBar: !!document.querySelector('.goal-chart .chart-facts svg.cf-end'),
           band: !!document.querySelector('.goal-chart .c-band'),
         }));
         const at1 = `J1 ${dev}`;
@@ -100,7 +101,8 @@ module.exports = {
         if (dev === 'laptop') chk(s.chartBottom != null && s.chartBottom <= s.fold + 120, `${at1}: the chart ends at ${s.chartBottom}px, fold ${Math.round(s.fold)}`);
         chk(s.primaries.length <= 1, `${at1}: ${s.primaries.length} primary actions in the first screen (${s.primaries.join(' | ')})`);
         // The projection is a range on the chart, in words under it (approved: least squares over the recent weeks).
-        chk(bar.band && /Heading for \d+–\d+% by week \d+/.test(bar.caption), `${at1}: projection range on the chart: band ${bar.band}, “${bar.caption.slice(0, 120)}”`);
+        // Under the chart: short rows and a likely-end bar, not a paragraph (Lane, 5 Nov).
+        chk(bar.band && /Likely end\s+about \d+%/.test(bar.caption) && /could be \d+% to \d+%/.test(bar.caption) && bar.endBar && !/→|week \d/.test(bar.caption), `${at1}: projection on the chart as rows and a bar: band ${bar.band}, bar ${bar.endBar}, “${bar.caption.slice(0, 160)}”`);
         // The reason is said once near the top; weeks that repeated it are one group in the activity.
         const said = await sayings(p, 'Billing questions doubled after the price change');
         chk(said.top === 1 && said.all <= 2, `${at1}: the reason is said ${said.top} times in the first two screens, ${said.all} in all`);
@@ -328,6 +330,21 @@ module.exports = {
       await c.close();
     }
 
+    /* ---------- the Motion lab: the last thing in Settings, with a light line; the Konami code opens it too ---------- */
+    {
+      const [c, p] = await at(browser, url, { w: 390, h: 844, touch: true, who: 'maya', route: '/settings' });
+      const last = await p.evaluate(() => { const b = [...document.querySelectorAll('.settings-page .settings-block, .page .settings-block')]; return b.length ? b[b.length - 1].querySelector('h2')?.textContent : null; });
+      chk(last === 'Motion lab', `Motion lab: the last Settings section is “${last}”`);
+      await p.getByRole('button', { name: 'Open the Motion lab' }).click();
+      const dlg = p.getByRole('dialog', { name: 'Motion lab' });
+      chk(await dlg.isVisible().catch(() => false), 'Motion lab: Open the Motion lab shows no lab');
+      chk(await dlg.getByRole('slider', { name: 'Speed' }).count() === 1 && await dlg.getByRole('slider', { name: 'Impact' }).count() === 1 && await dlg.getByRole('button', { name: 'Wobble' }).count() === 1, 'Motion lab: no Speed and Impact sliders or landing styles');
+      await c.close();
+      const [c2, q] = await at(browser, url, { w: 1280, h: 800, who: 'maya', route: '/goals' });
+      for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) await q.keyboard.press(k);
+      chk(await q.getByRole('dialog', { name: 'Motion lab' }).isVisible().catch(() => false), 'Motion lab: the Konami code does not open it');
+      await c2.close();
+    }
     return fails;
   },
 };

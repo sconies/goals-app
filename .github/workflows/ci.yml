@@ -131,10 +131,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - uses: actions/download-artifact@v4
         with:
           pattern: evals-shard-*
           path: shards
+      # The merge loads each check module for its id and requirements, and those require their dependencies (axe-core).
+      - run: npm ci --ignore-scripts
       - name: Merge the shards into the scorecard
         run: node evals/run.mjs --merge shards
       - name: Scorecard

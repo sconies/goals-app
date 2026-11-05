@@ -574,7 +574,7 @@ function Verdict({ goal, e }: { goal: Goal; e: Evaluation }) {
     // Two different questions, kept apart: where it is against this week's plan, and where the recent trend ends up.
     title = `This week: ${gap.short}`;
     line = `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${app.week}.`;
-    const fc = forecastText(goal, a, app.cycle.weeks);
+    const fc = forecastText(goal, a, app.cycle.weeks, app.cycle);
     if (fc) forecast = { text: (fc.warn ? 'By the due date: ' : '') + fc.text + (fc.warn && a.ratio >= 1 ? ' The plan expects a faster pace later, so the two can disagree.' : ''), warn: fc.warn };
   } else if (a.kind === 'range' && goal.kind === 'range') line = `${gap.long}. The limit is ${targetText(goal)}.`;
   const hasChart = a.kind !== 'milestone';

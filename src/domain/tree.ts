@@ -1,9 +1,9 @@
 /* Goal trees: each goal with nothing above it, and the goals that feed it, at any depth. */
 import { checkInsFor, RANK } from './status';
 import { isShare } from './checkin';
-import { fmt, rangeText } from './format';
 import type { Assessment } from './status';
-import type { CheckIn, Goal, Status } from './types';
+import type { CheckIn, Cycle, Goal, Status } from './types';
+import { byWhen, headingSentence } from './chartStory';
 
 export interface TreeNode { goal: Goal; children: TreeNode[] }
 
@@ -63,13 +63,9 @@ export function statusChange(goal: Goal, checkIns: CheckIn[]): { from: Status; w
  * Where the recent trend takes a number goal by its due week, as a range (plan.ts works it out), against the target.
  * `warn` when the likeliest value falls short.
  */
-export function forecastText(goal: Goal, a: Assessment, weeks: number): { text: string; warn: boolean } | null {
+export function forecastText(goal: Goal, a: Assessment, weeks: number, cycle?: Cycle): { text: string; warn: boolean } | null {
   if (a.kind !== 'metric' || goal.kind !== 'metric' || a.forecast == null || !a.projection) return null;
   const due = goal.plan.endWeek ?? weeks;
-  const range = rangeText(a.projection, goal, isShare(goal));
-  // "Above" and "below" rather than "short of", which reads wrong for a lower-is-better number.
-  const above = a.forecast > goal.plan.target;
-  return a.forecastMisses
-    ? { text: `Heading for ${range} by week ${due}, ${above ? 'above' : 'below'} the ${fmt(goal.plan.target, goal)} target. Projected by the app from the recent trend, not the owner’s date.`, warn: true }
-    : { text: `Projected by the app to reach the ${fmt(goal.plan.target, goal)} target by week ${due} on the recent trend (heading for ${range}).`, warn: false };
+  // One plain phrasing wherever the app says where a goal is heading (chartStory.ts).
+  return { text: headingSentence(goal, { likely: a.forecast, low: a.projection.low, high: a.projection.high }, a.forecastMisses, byWhen(cycle, due), isShare(goal)), warn: a.forecastMisses };
 }

@@ -57,13 +57,18 @@
 .goal-page .bar-status.moved .status-shape { animation: pm-shape-swap calc(.55s * var(--pace)) calc(.1s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
 .goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse calc(.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
 
-/* How a goal's page moves, set in Settings (src/app/appearance.ts): pace is a multiple of the base timings (Steady, the
-   default, is half the speed of Quick), impact how hard it lands. Defaults first, then the other choices. */
-:root { --pace: 2; --thump-num: 1.32; --thump-dot: 2.6; --ring: 7.5; --shake: 8px; --jolt: 5px; }
-:root[data-pace="quick"] { --pace: 1; }
-:root[data-pace="slow"] { --pace: 3; }
-:root[data-impact="gentle"] { --thump-num: 1.12; --thump-dot: 1.6; --ring: 4; --shake: 3px; --jolt: 0px; }
-:root[data-impact="big"] { --thump-num: 1.55; --thump-dot: 3.4; --ring: 11; --shake: 14px; --jolt: 10px; }
+/* How a goal's page moves, set in Settings (src/app/appearance.ts) with two sliders and five switches: --pace is how many
+   times slower than the original the story runs (2 by default), --impact how hard it lands (0 none, 1 the default,
+   2 very strong). Every effect's strength follows --impact; data-motion-off lists the effects switched off. */
+:root {
+  --pace: 2; --impact: 1;
+  --thump-num: calc(1 + 0.32 * var(--impact)); --thump-dot: calc(1 + 1.6 * var(--impact)); --ring: calc(1 + 6.5 * var(--impact));
+  --shake: calc(8px * var(--impact)); --jolt: calc(5px * var(--impact));
+}
+:root[data-motion-off~="draw"] .chart.draw *, :root[data-motion-off~="draw"] .goal-chart { animation: none !important; }
+:root[data-motion-off~="draw"] .chart .c-dot-ring, :root[data-motion-off~="ring"] .chart .c-dot-ring { display: none; }
+:root[data-motion-off~="jolt"] .goal-page .bar-2, :root[data-motion-off~="jolt"] .goal-chart { animation: none !important; }
+:root[data-motion-off~="shake"] .goal-page .goal-bar[data-tone="off"] .bar-2 .bar-status .status-shape { animation: none !important; }
 
 /* The number counts up (STORY_MS × pace), then lands: a thump (overshoot, recoil, settle) and the bar jolts with it.
    Off track adds a shake to the status shape, a clear "this is behind". */
@@ -247,3 +252,54 @@
 /* Brought into view when opened from a link: clear of the phone's tab bar below and the bar above. */
 .goal-page .respond-form, .goal-page .reply-form { scroll-margin-top: 112px; scroll-margin-bottom: 24px; }
 @container app (max-width: 760px) { .goal-page .respond-form, .goal-page .reply-form { scroll-margin-bottom: 96px; } }
+
+/* ---------- Settings: how a goal's page moves ---------- */
+.motion-settings .slider-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 112px; align-items: center; gap: var(--s3); min-height: 44px; }
+.motion-settings .slider-row input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px; }
+.motion-settings .slider-value { font-size: 0.875rem; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.motion-settings .effect-list { border: 0; padding: 0; margin: var(--s2) 0 0; display: flex; flex-direction: column; gap: 2px; }
+.motion-settings .effect-list .check { display: flex; align-items: center; gap: var(--s2); min-height: 40px; }
+.motion-preview { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); margin-top: var(--s3); max-width: 320px; }
+.motion-preview-stage { width: 100%; display: flex; flex-direction: column; gap: var(--s2); }
+.motion-preview .goal-bar { padding: var(--s2) var(--s3); display: block; }
+.motion-preview .goal-bar .bar-2 { margin: 0; }
+.motion-preview .goal-bar .bar-now { font-size: 1.5rem; line-height: 2rem; }
+.motion-preview .goal-chart { padding: var(--s2); }
+@media (max-width: 520px) { .motion-settings .slider-row { grid-template-columns: minmax(0, 1fr) auto; } .motion-settings .slider-row input[type="range"] { grid-column: 1 / -1; grid-row: 2; } }
+.motion-settings .slider-row { max-width: 560px; }
+
+/* Landing styles from the Motion lab (data-landing; Thump is the default). */
+@keyframes gp-num-spring { 0% { transform: scale(1); } 20% { transform: scale(var(--thump-num)); } 40% { transform: scale(calc(2 - var(--thump-num))); } 60% { transform: scale(calc(1 + (var(--thump-num) - 1) / 2)); } 80% { transform: scale(calc(1 - (var(--thump-num) - 1) / 4)); } 100% { transform: none; } }
+@keyframes gp-num-wobble { 0%, 100% { transform: none; } 20% { transform: rotate(calc(-8deg * var(--impact))) scale(var(--thump-num)); } 40% { transform: rotate(calc(6deg * var(--impact))); } 60% { transform: rotate(calc(-4deg * var(--impact))); } 80% { transform: rotate(calc(2deg * var(--impact))); } }
+@keyframes gp-num-drop { 0% { transform: translateY(calc(-40px * var(--impact))); opacity: 0; } 50% { transform: none; opacity: 1; } 70% { transform: translateY(calc(-12px * var(--impact))); } 85% { transform: none; } 93% { transform: translateY(calc(-4px * var(--impact))); } 100% { transform: none; } }
+:root[data-landing="spring"] .goal-page .bar-now .countup.landed { animation-name: gp-num-spring; }
+:root[data-landing="wobble"] .goal-page .bar-now .countup.landed { animation-name: gp-num-wobble; }
+:root[data-landing="drop"] .goal-page .bar-now .countup.landed { animation-name: gp-num-drop; }
+:root[data-landing="spring"] .chart.draw .c-last { animation-name: gp-num-spring; }
+:root[data-landing="wobble"] .chart.draw .c-last { animation-name: gp-num-wobble; }
+:root[data-landing="drop"] .chart.draw .c-last { animation-name: gp-num-drop; }
+
+/* The Motion lab: hidden, found by five quick taps on a goal's status or the Konami code. */
+.motion-lab .field { margin-bottom: var(--s3); }
+.motion-lab .seg { flex-wrap: wrap; }
+
+/* ---------- under the chart: short facts and the likely-end bar ---------- */
+.chart-facts { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s2); color: var(--fg-2); }
+.chart-facts .cf-rows { margin: 0; display: grid; gap: 6px; }
+.chart-facts .cf-row { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: var(--s3); align-items: baseline; }
+.chart-facts dt { font-size: 0.8125rem; color: var(--muted); }
+.chart-facts dd { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s2); }
+.chart-facts .cf-value { font-weight: 650; color: var(--fg); font-variant-numeric: tabular-nums; }
+.chart-facts .cf-note { font-size: 0.875rem; color: var(--fg-2); }
+.chart-facts .cf-note.tone-good { color: var(--on-fg); }
+.chart-facts .cf-note.tone-bad { color: var(--off-fg); }
+.chart-facts .cf-end { max-width: 420px; overflow: visible; }
+.chart-facts .cf-axis { stroke: var(--line); stroke-width: 1; }
+.chart-facts .cf-band { fill: var(--track, var(--line)); }
+.chart-facts .cf-dot { fill: var(--fg); }
+.chart-facts .cf-mark { stroke: var(--on-fg); stroke-width: 2; }
+.chart-facts .tone-bad .cf-mark, .chart-facts .cf-end.tone-bad .cf-mark { stroke: var(--off-fg); }
+.chart-facts .cf-mark-label { font-size: 11px; fill: var(--fg-2); font-weight: 600; }
+.chart-facts .cf-range { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.chart-facts .cf-foot { margin: 0; font-size: 0.75rem; color: var(--muted); }
+@container gcol (max-width: 420px) { .chart-facts .cf-row { grid-template-columns: 88px minmax(0, 1fr); } }
