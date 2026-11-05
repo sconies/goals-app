@@ -8,7 +8,7 @@ import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList } from '../domain/attention';
 import { wrapUpOpen } from '../domain/cycle';
 import { askText, openForPerson, requestsOf } from '../domain/requests';
-import { agendaOf, answerOf, openQuestions, reviewSession, watchedGoals } from '../domain/review';
+import { agendaOf, answerOf, lastHeld, openActions, openQuestions, reviewSession, sessionState, sessionStateText, watchedGoals } from '../domain/review';
 import { checkInsFor } from '../domain/status';
 import type { Level, Retro, Review, Watch } from '../domain/types';
 import { isUpdateAsk, liveNotes } from '../domain/updateAsks';
@@ -137,9 +137,10 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(_a, ctx) {
       const list = ctx.snapshot.reviews.map((r) => {
         const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
-        return { id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people.map((p) => name(ctx, p)), sessionWeek: x.week, sessionDate: x.date, reviewed: x.done, of: x.total, youreIn: r.people.includes(ctx.actor.id) };
+        const held = lastHeld(r, ctx.snapshot, x.week);
+        return { id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people.map((p) => name(ctx, p)), sessionWeek: x.week, sessionDate: x.date, reviewed: x.done, of: x.total, state: sessionStateText(sessionState(x)), lastHeld: held?.on ?? null, openActions: openActions(r, ctx.snapshot, ctx.week).length, youreIn: r.people.includes(ctx.actor.id) };
       });
-      return { data: { reviews: list }, text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.of} goals, ${r.reviewed} reviewed this session (week ${r.sessionWeek})`), 'No reviews yet.') };
+      return { data: { reviews: list }, text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.state} (session ${r.sessionDate}) · last held ${r.lastHeld ?? 'never'} · ${r.openActions} open actions`), 'No reviews yet.') };
     },
   },
   {

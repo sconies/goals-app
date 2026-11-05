@@ -1,26 +1,46 @@
-/* Goal reviews: the list, setting one up, and a review's session (start or continue, progress, what was said).
-   Walking the goals happens on the goal pages themselves (see Inspect). */
+/* Goal reviews: the list, setting one up, a review's session (its agenda, start or continue, what was said) and the
+   summary a session ends on. Walking the goals happens on the goal pages themselves (see Inspect). */
 import { useMemo, useState } from 'react';
 import { useDraft } from '../app/drafts';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
-import { LEVEL_LABEL } from '../domain/format';
+import { gapText, LEVEL_LABEL } from '../domain/format';
+import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
-import { answerOf, goalsIn, isHealthy, reviewSession, type ReviewSession } from '../domain/review';
+import { answerOf, dayText, goalsIn, isHealthy, lastHeld, nextSessionWeek, openActions, reviewSession, sessionDate, sessionState, sessionStateText, type ReviewSession, type SessionState } from '../domain/review';
+import { assessPosted, LABEL } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
-import type { Level, Review as ReviewT } from '../domain/types';
+import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
-import { Avatar, Chip, Empty, ProgressRing } from '../ui/bits';
-import { saveReviewOrder, TreeRow, worstFirst } from './Inspect';
+import { Avatar, Chip, Empty, LevelTag, ProgressRing, StatusShape } from '../ui/bits';
+import { goalNow, saveReviewOrder, worstFirst } from './Inspect';
 import { Icon } from '../ui/Icon';
 
-const dateText = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
 const goalsN = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
+const firstName = (n: string) => n.split(' ')[0];
 
 /** The old single review now lives on the reviews page. */
 export function ReviewRedirect() {
   return <Navigate to="/reviews" replace />;
+}
+
+/**
+ * A session's state as a shape and a word. Square shapes, so they never read as a goal's status (those are circles):
+ * an empty square for not started, half filled for in progress, filled with a tick for held.
+ */
+function SessionShape({ k }: { k: SessionState['kind'] }) {
+  return (
+    <svg className="session-shape" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      {k === 'held'
+        ? <><rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="currentColor" /><path d="m4.8 8.2 2.2 2.2 4.2-4.6" fill="none" stroke="var(--surface)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></>
+        : <><rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />{k === 'in-progress' && <path d="M2.25 8h11.5v3.75a2 2 0 0 1-2 2h-7.5a2 2 0 0 1-2-2z" fill="currentColor" />}</>}
+    </svg>
+  );
+}
+
+export function SessionStateWord({ st }: { st: SessionState }) {
+  return <span className="session-state" data-state={st.kind}><SessionShape k={st.kind} /><span>{sessionStateText(st)}</span></span>;
 }
 
 export function Reviews() {
@@ -44,21 +64,112 @@ export function Reviews() {
   );
 }
 
+/** One review: where this session stands, its date, when it was last held, its open actions and its people. */
 function ReviewLine({ s }: { s: ReviewSession }) {
   const app = useApp();
-  const thisWeek = s.week === Math.max(1, app.week);
+  const st = sessionState(s);
+  const last = lastHeld(s.review, app.snapshot, s.week);
+  const actions = openActions(s.review, app.snapshot, app.week).length;
+  const people = s.review.people.map((id) => app.person(id)).filter((p) => !!p);
+  const facts: [string, string][] = st.kind === 'held'
+    ? [['Next', dayText(sessionDate(s.review, app.cycle, nextSessionWeek(s.review, s.week)))], ['Open actions', String(actions)]]
+    : [['Session', dayText(s.date)], ['Last held', last ? dayText(last.on) : 'Not yet'], ['Open actions', String(actions)]];
   return (
-    <Link className="arow" to={`/reviews/${s.review.id}`} data-tone={thisWeek && s.done < s.total ? 'info' : undefined}>
-      <span className="arow-main">
-        <span className="arow-title">{s.review.name}</span>
-        <span className="arow-why">{cadence(s.review)}. {goalsN(s.total)}, {s.review.people.length} {s.review.people.length === 1 ? 'person' : 'people'}.</span>
-        <span className="arow-why">{thisWeek ? (s.done >= s.total ? `Done this week (${dateText(s.date)})` : `This week, ${dateText(s.date)}: ${s.done} of ${s.total} covered`) : `Next on ${dateText(s.date)}`}</span>
+    <Link className="arow rv-line" to={`/reviews/${s.review.id}`}>
+      <SessionStateWord st={st} />
+      <span className="rv-name">{s.review.name}</span>
+      <span className="rv-facts">{facts.map(([k, v]) => <span key={k} className="rv-fact"><span className="rv-fact-k">{k}</span> <span className="rv-fact-v">{v}</span></span>)}</span>
+      <span className="rv-people"><span className="rv-fact-k">People</span> <span className="rv-names">{people.map((p) => firstName(p.name)).join(', ')}</span></span>
+    </Link>
+  );
+}
+
+/**
+ * A goal on a review's agenda: one line with its status, name and level, its number and how it stands against the
+ * plan. No reasons: the walk shows them on the goal's own page. Its own layout, not the shared goal row, so the name
+ * keeps its room at every width and nothing is cut off.
+ */
+function AgendaRow({ g }: { g: Goal }) {
+  const app = useApp();
+  const st = app.statusOf(g);
+  const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
+  const gap = gapText(g, a);
+  return (
+    <Link to={'/goals/' + g.id} className="agenda-row" data-tone={st.status}>
+      <span className={'agenda-status tone-' + st.status}><StatusShape k={st.status} /><span>{LABEL[st.status]}</span></span>
+      <span className="agenda-name"><span className="agenda-title">{g.title}</span><LevelTag level={g.level} /></span>
+      <span className="agenda-now">
+        <span className="agenda-num">{goalNow(g, a)}</span>
+        {st.status === 'stale'
+          ? (st.latest ? <span className="agenda-gap muted">as of week {st.latest.week}</span> : null)
+          : <span className={'agenda-gap tone-' + gap.tone}>{gap.short}</span>}
       </span>
     </Link>
   );
 }
 
-/** A review: this session's progress, start or continue, the goals in order, and what was said. */
+function Agenda({ goals }: { goals: Goal[] }) {
+  return <ul className="agenda">{goals.map((g) => <li key={g.id}><AgendaRow g={g} /></li>)}</ul>;
+}
+
+/** What was said in a session: actions (who, by when), questions for owners (with any answer), notes, and the goals reviewed. */
+function SessionRecord({ s, title, reviewed }: { s: ReviewSession; title: string; reviewed: 'open' | 'folded' | 'none' }) {
+  const app = useApp();
+  const asks = s.said.filter((d) => d.kind === 'ask');
+  const actions = s.said.filter((d) => d.kind === 'action');
+  const notes = s.said.filter((d) => d.kind === 'note');
+  const covered = s.items.filter((a) => s.covered.has(a.goal.id)).map((a) => a.goal);
+  const goalLink = (id: string) => <Link className="linkish" to={`/goals/${id}`}>{app.goal(id)?.title}</Link>;
+  if (!asks.length && !actions.length && !notes.length && (reviewed === 'none' || !covered.length)) return null;
+  return (
+    <section className="block session-record">
+      <h2 className="block-title">{title}</h2>
+      {actions.length > 0 && (
+        <div className="stack" style={{ gap: 'var(--s1)' }}>
+          <h3 className="field-label">Actions · {actions.length}</h3>
+          <ul className="record">{actions.map((d) => (
+            <li key={d.id}><span className="strong">{d.note}</span><span className="hint">{app.person(d.assigneeId ?? app.goal(d.goalId)?.ownerId ?? '')?.name ?? 'Someone'} · {d.dueWeek ? `by week ${d.dueWeek}, ${weekDates(app.cycle, d.dueWeek)}` : 'no date'} · {goalLink(d.goalId)}</span></li>
+          ))}</ul>
+        </div>
+      )}
+      {asks.length > 0 && (
+        <div className="stack" style={{ gap: 'var(--s1)' }}>
+          <h3 className="field-label">Questions for owners · {asks.filter((d) => !answerOf(d, app.snapshot)).length} waiting</h3>
+          <ul className="record">{asks.map((d) => {
+            const ans = answerOf(d, app.snapshot);
+            const g = app.goal(d.goalId);
+            return (
+              <li key={d.id}>
+                <span className="strong">{d.note}</span>
+                <span className="hint">For {firstName(app.person(g?.ownerId ?? '')?.name ?? 'the owner')} · {goalLink(d.goalId)}</span>
+                {ans ? <span className="small"><strong>Answered:</strong> {ans.text}</span> : <span className="hint tone-risk">Waiting for an answer</span>}
+              </li>
+            );
+          })}</ul>
+        </div>
+      )}
+      {notes.length > 0 && (
+        <div className="stack" style={{ gap: 'var(--s1)' }}>
+          <h3 className="field-label">Notes · {notes.length}</h3>
+          <ul className="record">{notes.map((d) => (
+            <li key={d.id}><span>{d.note}</span><span className="hint">{firstName(app.person(d.byId)?.name ?? '')} · {goalLink(d.goalId)}</span></li>
+          ))}</ul>
+        </div>
+      )}
+      {reviewed === 'open' && covered.length > 0 && (
+        <div className="stack" style={{ gap: 'var(--s1)' }}>
+          <h3 className="field-label">Reviewed · {covered.length}</h3>
+          <Agenda goals={covered} />
+        </div>
+      )}
+      {reviewed === 'folded' && covered.length > 0 && (
+        <details className="disclose"><summary>Reviewed · {covered.length}</summary><Agenda goals={covered} /></details>
+      )}
+    </section>
+  );
+}
+
+/** A review: this session's agenda, start or continue, and what was said so far. */
 export function ReviewHome() {
   const app = useApp();
   const nav = useNavigate();
@@ -69,7 +180,7 @@ export function ReviewHome() {
   const [listHealthy, setListHealthy] = useState(false);
   if (!review) return <div className="page narrow"><Empty title="That review doesn’t exist"><Link className="btn" to="/reviews">All reviews</Link></Empty></div>;
   const s = reviewSession(review, app.snapshot, app.cycle, app.today, app.week);
-  const thisWeek = s.week === Math.max(1, app.week);
+  const st = sessionState(s);
   // The walk is the exceptions, one at a time; healthy goals are acknowledged together below, or walked if you choose.
   const exceptions = s.items.filter((a) => !isHealthy(a));
   const healthy = s.items.filter(isHealthy);
@@ -82,71 +193,30 @@ export function ReviewHome() {
   const healthyLeft = healthy.filter((a) => !s.covered.has(a.goal.id));
   const ackHealthy = async () => {
     setBusy(true);
+    // Marking these finishes the session when they're all that's left: then it ends on its summary.
+    const finishes = s.items.every((a) => s.covered.has(a.goal.id) || healthyLeft.includes(a));
     try {
       for (const a of healthyLeft) await app.reviewCall(a.goal, review, s.week, 'acknowledge', '');
       app.toast(`${goalsN(healthyLeft.length)} on track marked reviewed`);
+      if (finishes) nav(`/reviews/${review.id}/summary`);
     } catch { /* the save already said what went wrong */ }
     setBusy(false);
   };
-  const done = s.total > 0 && s.done >= s.total;
+  const done = st.kind === 'held';
   const people = review.people.map((id) => app.person(id)).filter((p) => !!p);
   const inIt = review.people.includes(app.viewer.id);
   const canChange = inIt || app.viewer.admin;
   const join = async () => {
     try { await app.saveReview({ ...review, people: [...review.people, app.viewer.id] }, review); app.toast(`You’re in ${review.name}`); } catch { /* the save already said what went wrong */ }
   };
-  const asks = s.said.filter((d) => d.kind === 'ask');
-  const actions = s.said.filter((d) => d.kind === 'action');
-  const notes = s.said.filter((d) => d.kind === 'note');
-  // Reviewed without comment: covered, with nothing but "reviewed" said about it.
-  const quiet = s.items.filter((a) => s.covered.has(a.goal.id) && !s.said.some((d) => d.goalId === a.goal.id && d.kind !== 'acknowledge'));
   const remaining = walk.filter((a) => !s.covered.has(a.goal.id));
   const reviewedItems = s.items.filter((a) => s.covered.has(a.goal.id));
-  const firstName = (n: string) => n.split(' ')[0];
-
-  const record = (
-    <section className="block">
-      <h2 className="block-title">{done ? 'The record' : 'Said so far'}</h2>
-      {actions.length > 0 && (
-        <div className="stack" style={{ gap: 'var(--s1)' }}>
-          <span className="field-label">Actions · {actions.length}</span>
-          <ul className="record">{actions.map((d) => (
-            <li key={d.id}><span className="strong">{d.note}</span><span className="hint">{app.person(d.assigneeId ?? app.goal(d.goalId)?.ownerId ?? '')?.name ?? 'Someone'}{d.dueWeek ? ` · by week ${d.dueWeek}` : ' · no date'} · <Link className="linkish" to={`/goals/${d.goalId}`}>{app.goal(d.goalId)?.title}</Link></span></li>
-          ))}</ul>
-        </div>
-      )}
-      {asks.length > 0 && (
-        <div className="stack" style={{ gap: 'var(--s1)' }}>
-          <span className="field-label">Questions for owners · {asks.filter((d) => !answerOf(d, app.snapshot)).length} waiting</span>
-          <ul className="record">{asks.map((d) => {
-            const ans = answerOf(d, app.snapshot);
-            const g = app.goal(d.goalId);
-            return (
-              <li key={d.id}>
-                <span className="strong">{d.note}</span>
-                <span className="hint">For {firstName(app.person(g?.ownerId ?? '')?.name ?? 'the owner')} · <Link className="linkish" to={`/goals/${d.goalId}`}>{g?.title}</Link></span>
-                {ans ? <span className="small"><strong>Answered:</strong> {ans.text}</span> : <span className="hint tone-risk">Waiting for an answer</span>}
-              </li>
-            );
-          })}</ul>
-        </div>
-      )}
-      {notes.length > 0 && (
-        <div className="stack" style={{ gap: 'var(--s1)' }}>
-          <span className="field-label">Notes · {notes.length}</span>
-          <ul className="record">{notes.map((d) => (
-            <li key={d.id}><span className="small"><Link className="linkish" to={`/goals/${d.goalId}`}>{app.goal(d.goalId)?.title}</Link></span><span>{d.note}</span><span className="hint">{firstName(app.person(d.byId)?.name ?? '')}</span></li>
-          ))}</ul>
-        </div>
-      )}
-      {quiet.length > 0 && (
-        <details className="disclose"><summary>Reviewed without comment · {quiet.length}</summary>
-          <ul className="tree">{quiet.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>
-        </details>
-      )}
-      {done && <p className="hint">Reviewing a goal records that you looked at it; its own status doesn’t change.</p>}
-    </section>
-  );
+  // One terse line under the name: the date and what's on, or where it got to.
+  const line = done
+    ? `${sessionStateText(st)} · next ${dayText(sessionDate(review, app.cycle, nextSessionWeek(review, s.week)))}`
+    : st.kind === 'in-progress'
+      ? `${dayText(s.date)} · ${s.done} of ${s.total} reviewed`
+      : [dayText(s.date), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} on track` : ''].filter(Boolean).join(' · ');
 
   return (
     <div className="page narrow review-home">
@@ -155,52 +225,79 @@ export function ReviewHome() {
         <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals reviewed`} />
         <div className="hero-body">
           <span className="eyebrow">{cadence(review)}</span>
-          <h1 className="title-xl">{done ? `Review complete: ${goalsN(s.done)} reviewed` : review.name}</h1>
-          <span className="muted">{done ? `${review.name}, ${dateText(s.date)}.` : `${thisWeek ? 'This week' : 'Next'}: ${dateText(s.date)}. Worst and stalest first.${thisWeek ? '' : ' You can start early; it counts for that session.'}`}</span>
+          <h1 className="title-xl">{review.name}</h1>
+          <span className="muted review-line">{line}</span>
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
             {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(walk.length)}`}</button>}
             {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} on track reviewed</button>}
             {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
+            {done && <Link className="btn" to={`/reviews/${review.id}/summary`}>Summary</Link>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
           </div>
         </div>
       </section>
-      {done && s.said.length > 0 && record}
       {!done && remaining.length > 0 && (
         <section className="block">
           <h2 className="block-title">Still to review · {remaining.length}</h2>
-          <ul className="tree">{remaining.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>
+          <Agenda goals={remaining.map((a) => a.goal)} />
         </section>
       )}
       {!done && !walkAll && exceptions.length > 0 && healthyLeft.length > 0 && (
         <section className="block healthy-group">
-          <div className="stack" style={{ gap: 2 }}>
+          <div className="healthy-head">
             <h2 className="block-title">On track, nothing new · {healthyLeft.length}</h2>
-            <span className="hint">{healthyLeft.length === 1 ? 'This goal is' : 'These goals are'} on track with nothing flagged. Mark them reviewed together, or open any one to look closer.</span>
+            {inIt && first && <button className="btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} reviewed</button>}
           </div>
-          {/* The rows exist only once opened, so a folded group doesn't hide unlabelled status shapes. */}
+          {/* Folded, and the rows exist only once opened, so a folded group doesn't hide unlabelled status shapes. */}
           <details className="disclose" onToggle={(e) => setListHealthy(e.currentTarget.open)}><summary>Show {goalsN(healthyLeft.length)}</summary>
-            {listHealthy && <ul className="tree">{healthyLeft.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}</ul>}
+            {listHealthy && (
+              <div className="stack" style={{ gap: 'var(--s2)' }}>
+                <Agenda goals={healthyLeft.map((a) => a.goal)} />
+                {inIt && <button type="button" className="linkish small" onClick={() => setWalkAll(true)}>Walk them one at a time instead</button>}
+              </div>
+            )}
           </details>
-          {inIt && (
-            <div className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap' }}>
-              {first && <button className="btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} reviewed</button>}
-              <button type="button" className="linkish small" onClick={() => setWalkAll(true)}>Walk them one at a time instead</button>
-            </div>
-          )}
         </section>
       )}
-      {!done && s.said.length > 0 && record}
-      {!done && reviewedItems.length > 0 && (
-        <details className="disclose"><summary>Reviewed · {reviewedItems.length}</summary>
-          <ul className="tree">{reviewedItems.map((a) => <li key={a.goal.id} className="covered"><TreeRow g={a.goal} /></li>)}</ul>
-        </details>
+      <SessionRecord s={s} title={done ? 'What was said' : 'Said so far'} reviewed="none" />
+      {reviewedItems.length > 0 && (
+        <details className="disclose"><summary>Reviewed · {reviewedItems.length}</summary><Agenda goals={reviewedItems.map((a) => a.goal)} /></details>
       )}
       {!s.items.length && <p className="hint">No goals match this review yet. <Link className="linkish" to={`/reviews/${review.id}/edit`}>Pick some</Link></p>}
       <section className="block">
         <h2 className="block-title">People</h2>
         <div className="people">{people.map((p) => <span key={p.id} className="person"><Avatar p={p} size="sm" />{p.name}</span>)}</div>
       </section>
+    </div>
+  );
+}
+
+/** Where a review's session ends: what was said in it, and the way back to the review. */
+export function ReviewSummary() {
+  const app = useApp();
+  const { reviewId } = useParams();
+  const review = app.snapshot.reviews.find((r) => r.id === reviewId);
+  if (!review) return <div className="page narrow"><Empty title="That review doesn’t exist"><Link className="btn" to="/reviews">All reviews</Link></Empty></div>;
+  const s = reviewSession(review, app.snapshot, app.cycle, app.today, app.week);
+  const st = sessionState(s);
+  const done = st.kind === 'held';
+  return (
+    <div className="page narrow review-summary">
+      <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link><span aria-hidden="true">/</span><Link to={`/reviews/${review.id}`}>{review.name}</Link></nav>
+      <section className="hero">
+        <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals reviewed`} />
+        <div className="hero-body">
+          <span className="eyebrow">{review.name}</span>
+          <h1 className="title-xl">{done ? 'Review complete' : 'The session so far'}</h1>
+          <SessionStateWord st={st} />
+          <div className="actions" style={{ marginTop: 'var(--s2)' }}>
+            <Link className="btn primary big-btn" to={`/reviews/${review.id}`}>Back to the review</Link>
+            <Link className="linkish" to="/reviews">All reviews</Link>
+          </div>
+        </div>
+      </section>
+      <SessionRecord s={s} title="What was said" reviewed="open" />
+      {!s.said.length && <p className="hint">Nothing has been said in this session yet.</p>}
     </div>
   );
 }

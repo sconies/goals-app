@@ -39,8 +39,16 @@ export function useReview(goalId: string) {
     done: session ? order.filter((id) => !open(id)).length : 0,
     prev: () => { if (index > 0) go(order[index - 1]); },
     next: () => go(order[index + 1]),
-    /** After saying something: the next goal not yet covered, or the summary. */
-    afterCall: () => go(order.slice(index + 1).find((id) => id !== goalId && open(id)) ?? order.slice(0, Math.max(0, index)).find((id) => id !== goalId && open(id))),
+    /**
+     * After reviewing this goal: the next goal not yet covered. With none left in the walk, the session's summary when
+     * every goal in it is now reviewed, or the agenda when some (the ones on track) are still to mark.
+     */
+    afterCall: () => {
+      const nextId = order.slice(index + 1).find((id) => id !== goalId && open(id)) ?? order.slice(0, Math.max(0, index)).find((id) => id !== goalId && open(id));
+      if (nextId || !review || !session) return go(nextId);
+      const finished = session.items.every((a) => a.goal.id === goalId || session.covered.has(a.goal.id));
+      nav(finished ? `/reviews/${review.id}/summary` : `/reviews/${review.id}`);
+    },
   };
 }
 
@@ -270,6 +278,11 @@ export function freshness(g: Goal, app: ReturnType<typeof useApp>): { text: stri
   return { text: stale ? `No check-in for ${d} days` : d < 1 ? 'Checked in today' : d === 1 ? 'Checked in yesterday' : `Checked in ${d} days ago`, stale };
 }
 
+/** A goal's number as a row shows it: its latest value, or how many stages are done. */
+export function goalNow(g: Goal, a: ReturnType<typeof assessPosted>): string {
+  return a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? '—' : fmt(a.actual, g);
+}
+
 export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean }) {
   const app = useApp();
   const att = app.attentionOf(g);
@@ -280,7 +293,7 @@ export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean 
   const moved = statusChange(g, app.snapshot.checkIns);
   const owner = app.person(g.ownerId);
   const fresh = freshness(g, app);
-  const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? '—' : fmt(a.actual, g);
+  const now = goalNow(g, a);
   const result = goalResult(g, app.cycle, app.snapshot.checkIns, app.week);
   const why = `${moved?.worse ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}. ` : ''}${flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}`;
   return (

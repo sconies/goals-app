@@ -649,7 +649,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
   // Exceptions are listed; goals on track with nothing flagged are one named group with a count.
   const healthyN = Number(((await p.locator('.healthy-group .block-title').innerText().catch(() => '')).match(/(\d+)\s*$/) || ['', '0'])[1]);
-  h.set('attention', (await p.locator('.tree .trow').count()) + healthyN >= 2, 'the review does not list its goals');
+  h.set('attention', (await p.locator('.agenda .agenda-row').count()) + healthyN >= 2, 'the review does not list its goals');
   h.set('finish', await p.getByRole('button', { name: /^Start review/ }).isVisible().catch(() => false) || await p.getByText('Next:').isVisible().catch(() => false), 'no way to start the new review');
   const s = await h.snapshot();
   const r = s.reviews.find((x) => x.name === 'SRE fortnightly');
