@@ -131,7 +131,7 @@ export function TreeCard({ node }: { node: TreeNode }) {
   const st = app.statusOf(g);
   const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
   const gap = gapBeside(g, a);
-  const fc = forecastText(g, a, app.cycle.weeks);
+  const fc = forecastText(g, a, app.cycle.weeks, app.cycle);
   const feed = descendants(node);
   const counts = (['off', 'risk', 'stale', 'on', 'done', 'planned'] as const).map((k) => [k, feed.filter((c) => app.statusOf(c).status === k).length] as const).filter(([, n]) => n);
   return (

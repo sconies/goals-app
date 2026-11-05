@@ -73,7 +73,7 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
     gapTone: st.status === 'stale' ? 'stale' : gap.tone,
     lastWeek: last?.week ?? null,
     lastPostedAt: last?.postedAt ?? null,
-    forecast: st.status === 'stale' ? null : forecastText(goal, a, cycle.weeks)?.text ?? null,
+    forecast: st.status === 'stale' ? null : forecastText(goal, a, cycle.weeks, cycle)?.text ?? null,
     projection: st.status === 'stale' || a.kind !== 'metric' ? null : a.projection,
     feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
     why: behind && last ? [last.cause ? causeLabel(last.cause) : '', last.why].filter((x) => x && x !== 'On plan.').join(': ') : '',

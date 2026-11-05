@@ -100,7 +100,7 @@ module.exports = {
         if (dev === 'laptop') chk(s.chartBottom != null && s.chartBottom <= s.fold + 120, `${at1}: the chart ends at ${s.chartBottom}px, fold ${Math.round(s.fold)}`);
         chk(s.primaries.length <= 1, `${at1}: ${s.primaries.length} primary actions in the first screen (${s.primaries.join(' | ')})`);
         // The projection is a range on the chart, in words under it (approved: least squares over the recent weeks).
-        chk(bar.band && /Heading for \d+–\d+% by week \d+/.test(bar.caption), `${at1}: projection range on the chart: band ${bar.band}, “${bar.caption.slice(0, 120)}”`);
+        chk(bar.band && /ends at about \d+% by (the end of the (year|cycle)|\d+ \w{3}) \(somewhere between \d+% and \d+%\)/.test(bar.caption) && !/→|week \d/.test(bar.caption), `${at1}: projection range on the chart, said plainly: band ${bar.band}, “${bar.caption.slice(0, 160)}”`);
         // The reason is said once near the top; weeks that repeated it are one group in the activity.
         const said = await sayings(p, 'Billing questions doubled after the price change');
         chk(said.top === 1 && said.all <= 2, `${at1}: the reason is said ${said.top} times in the first two screens, ${said.all} in all`);

@@ -12,7 +12,7 @@ import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, LEVEL_LABEL } from '../domain/format';
 import { planHistoryOf, valueSeries, weekDates } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
-import { summaryFacts } from '../domain/summaryFacts';
+import { summaryFacts, weeksLateAt } from '../domain/summaryFacts';
 import { forecastText } from '../domain/tree';
 import { criticalPath } from '../domain/map';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
@@ -37,6 +37,7 @@ import { MenuButton } from '../ui/MenuButton';
 import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { reducedMotion, STORY_MS } from '../ui/motion';
+import { byWhen, rangeHeading, rangeSentence, stagesSentence, standingSentence } from '../domain/chartStory';
 import { storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 
@@ -455,12 +456,24 @@ function GoalChart({ goal, stale, landed, hit }: { goal: Goal; stale: boolean; l
       return parts.join(' · ') + (c && c.why && c.why !== 'On plan.' ? `. ${c.cause ? causeLabel(c.cause) + ': ' : ''}${c.why}` : '');
     },
   };
-  const fc = !stale ? forecastText(goal, a, cycle.weeks) : null;
+  const fc = !stale ? forecastText(goal, a, cycle.weeks, cycle) : null;
   const facts = summaryFacts(goal, cycle, app.snapshot.checkIns, week, stale).facts;
   const rangeProj = goal.kind === 'range' ? facts.find((f) => f.key === 'projection' && f.projection) : undefined;
   const trend = facts.find((f) => f.key === 'trend');
   // Direction and the projection have their one home here, in words under the lines.
-  const caption = [trend && trend.value !== 'Not enough check-ins yet' && !stale ? `${trend.value}: ${trend.detail?.charAt(0).toLowerCase()}${trend.detail?.slice(1)}.` : '', fc?.text ?? '', rangeProj ? `Heading for ${rangeProj.value}. ${rangeProj.detail}.` : '', stale ? 'No projection: the last check-in is too old to project from.' : ''].filter(Boolean).join(' ');
+  // Where it stands and where it's heading, in plain sentences (chartStory.ts) for every kind of goal.
+  const standing = stale ? null
+    : goal.kind === 'metric' ? standingSentence(goal, series, cycle.weeks)
+    : goal.kind === 'milestone' ? stagesSentence(own.filter((c) => c.stages).slice(-3).map((c) => ({ week: c.week, late: weeksLateAt(goal, c) })))
+    : goal.kind === 'range' && series.length ? (() => {
+        const { bound, limit } = goal.range;
+        const last = series[series.length - 1]!, first = series[Math.max(0, series.length - 3)]!;
+        const inside = bound === 'atMost' ? last.value <= limit : last.value >= limit;
+        const towards = last.value === first.value ? null : bound === 'atMost' ? last.value > first.value : last.value < first.value;
+        return rangeSentence(goal, series, inside, towards);
+      })()
+    : null;
+  const caption = [standing ?? (trend && trend.value !== 'Not enough check-ins yet' && !stale ? `${trend.value}: ${trend.detail?.charAt(0).toLowerCase()}${trend.detail?.slice(1)}.` : ''), fc?.text ?? '', rangeProj?.projection && goal.kind === 'range' ? rangeHeading(goal, rangeProj.projection, byWhen(cycle, cycle.weeks)) : '', stale ? 'No projection: the last check-in is too old to project from.' : ''].filter(Boolean).join(' ');
   return (
     <section className="block goal-chart-block" aria-label="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
