@@ -198,7 +198,8 @@ module.exports = {
       const m = await agendaReport(p);
       fail(m.rows === 2 && !m.clipped.length && !m.outside.length && m.sideways <= 1, `Held review at 390: ${m.rows} rows, clipped ${m.clipped.length}, sideways ${m.sideways}`);
       const btn = await p.getByRole('link', { name: 'Edit review setup' }).boundingBox();
-      fail(!!btn && btn.height >= 44, `Held review at 390: Edit review setup is ${n(btn?.height)}px tall`);
+      // Rounded like the message: a 2.75rem (44px) target can measure 43.99 after sub-pixel layout on some machines.
+      fail(!!btn && n(btn.height) >= 44, `Held review at 390: Edit review setup is ${n(btn?.height)}px tall`);
       await c.close();
     }
     return fails;
