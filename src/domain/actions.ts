@@ -9,6 +9,7 @@ import { personChange, personProblems } from './people';
 import { answerRequest as answered, canAnswer, linkRequest as linked } from './requests';
 import { sessionWeek } from './review';
 import { checkInsFor } from './status';
+import { clampWidth, isTableView, layoutParams, layoutProblems, parseLayout, type TableLayout } from './tableLayout';
 import type { ApiToken, Cycle, Decision, Goal, HelpRequest, Level, Person, Retro, Review, SavedView, Snapshot, Watch } from './types';
 import { askChange, openUpdateAsk, undoAskChange, updateAskText } from './updateAsks';
 
@@ -22,6 +23,8 @@ export interface ActionContext {
   /** Now, as an ISO timestamp. */
   now: string;
   newId: (prefix: string) => string;
+  /** Every goal in the workspace, in every cycle: for the rules that reach past this cycle (removing a team). */
+  allGoals?: Goal[];
 }
 
 /** A rule says no: the message says why, in words the person (or their assistant) can act on. */
@@ -227,10 +230,26 @@ export function saveView(x: ActionContext, v: { id?: string; name: string; param
   if (!clean) no('Give the view a name.');
   const old = v.id ? liveView(x, v.id) : undefined;
   if (v.id && !old) no('There’s no view with that ID.');
+  // A view of a data table stays one, and a view of the Goals screen stays one.
+  if (isTableView(v)) { const problems = layoutProblems(parseLayout(v.params)); if (problems.length) no(problems.join(' ')); }
+  if (old && isTableView(old) !== isTableView(v)) no(isTableView(old) ? 'That view is of a data table; save a table layout to it.' : 'That view is of the Goals screen, not a data table.');
   if (old && old.personId !== x.actor.id && !x.actor.admin) no('Only its owner or an admin can change this view.');
   const view: SavedView = old ? { ...old, name: clean, params: v.params, updatedAt: x.now } : { id: x.newId('view'), personId: x.actor.id, name: clean, params: v.params, pinned: false, createdAt: x.now, updatedAt: x.now, deletedAt: null };
   // A personal view changes no goal, so it isn't logged; a pinned one changes what everyone sees, so it is.
   return { id: view.id, commit: { views: [view], changes: old?.pinned ? [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: view.id, action: 'edited', summary: `Changed the pinned view “${clean}”`, diffs: [{ field: 'Pinned view', from: old.name, to: clean }] }] : [] } };
+}
+
+/**
+ * Save the layout of a data table (its columns in order, their widths, and its search, filters and sort) as a named
+ * table view, or change one of yours. Given the table's columns, a column it doesn't have is refused. It's a saved view
+ * like any other: yours, an admin can pin it for everyone, and it's deleted the same way.
+ */
+export function saveTableView(x: ActionContext, v: { id?: string; name: string; layout: TableLayout }, head?: readonly string[]): { commit: Commit; id: string } {
+  const problems = layoutProblems(v.layout, head);
+  if (problems.length) no(problems.join(' '));
+  if (v.layout.cols && !v.layout.cols.length) no('Show at least one column.');
+  const widths = Object.fromEntries(Object.entries(v.layout.widths).map(([c, w]) => [c, clampWidth(v.layout.table, c, w)]));
+  return saveView(x, { id: v.id, name: v.name, params: layoutParams({ ...v.layout, widths }) });
 }
 
 /** Delete one of your views; an admin can also delete a pinned one. Null when it's already gone. */
@@ -276,6 +295,70 @@ export function revokeToken(x: ActionContext, id: string): Commit | null {
 export function sendFeedback(x: ActionContext, mood: 'good' | 'meh' | 'bad', text: string, path: string): Commit {
   if (!['good', 'meh', 'bad'].includes(mood)) no('Mood is good, meh or bad.');
   return { feedback: [{ id: x.newId('fb'), personId: x.actor.id, path, mood, text: text.trim(), at: x.now }], changes: [] };
+}
+
+/* ---------- The workspace and its teams ---------- */
+
+/** Admins: give the workspace a new name. Null when it already has that name. */
+export function renameWorkspace(x: ActionContext, ws: { id: string; name: string }, name: string): Commit | null {
+  if (!x.actor.admin) no('Only admins can rename the workspace.');
+  const clean = name.trim().replace(/\s+/g, ' ');
+  if (!clean) no('Give the workspace a name.');
+  if (clean.length > 80) no('Keep the name to 80 characters or fewer.');
+  if (clean === ws.name) return null;
+  return { workspace: { name: clean }, changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited', summary: `Renamed the workspace to “${clean}”`, diffs: [{ field: 'Workspace name', from: ws.name, to: clean }] }] };
+}
+
+/** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
+export function saveTeam(x: ActionContext, t: { id?: string; name: string; leadId?: string | null }): { commit: Commit | null; id: string } {
+  if (!x.actor.admin) no('Only admins can add or change teams.');
+  const clean = t.name.trim().replace(/\s+/g, ' ');
+  if (!clean) no('Give the team a name.');
+  if (clean.length > 60) no('Keep the team’s name to 60 characters or fewer.');
+  const before = t.id ? x.snapshot.teams.find((v) => v.id === t.id) : undefined;
+  if (t.id && !before) no('There’s no team with that ID.');
+  const same = x.snapshot.teams.find((v) => v.id !== before?.id && v.name.trim().toLowerCase() === clean.toLowerCase());
+  if (same) no(`There’s already a team called ${same.name}.`);
+  const leadId = t.leadId === undefined ? before?.leadId ?? '' : t.leadId ?? '';
+  if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no('The team lead isn’t in this workspace.');
+  const team = { id: before?.id ?? x.newId('team'), name: clean, leadId, objective: before?.objective ?? '' };
+  const name = (id: string) => x.snapshot.people.find((p) => p.id === id)?.name ?? '—';
+  const diffs = before
+    ? [...(before.name !== team.name ? [{ field: 'Team name', from: before.name, to: team.name }] : []), ...((before.leadId || '') !== leadId ? [{ field: 'Team lead', from: name(before.leadId), to: name(leadId) }] : [])]
+    : [{ field: 'Team', from: '—', to: team.name }];
+  if (before && !diffs.length) return { commit: null, id: team.id };
+  return { id: team.id, commit: { teams: [team], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: team.id, action: before ? 'edited' : 'created', summary: before ? (before.name !== team.name ? `Renamed the team “${before.name}” to “${team.name}”` : `Changed the team “${team.name}”`) : `Added the team “${team.name}”`, diffs }] } };
+}
+
+/** What still belongs to a team: its people, and its goals in every cycle (the workspace's goals when known). */
+export function teamMembers(x: Pick<ActionContext, 'snapshot' | 'allGoals'>, teamId: string) {
+  return { people: x.snapshot.people.filter((p) => p.teamId === teamId), goals: (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId) };
+}
+
+/** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
+export function removeTeam(x: ActionContext, id: string, moveTo?: string | null): Commit {
+  if (!x.actor.admin) no('Only admins can remove teams.');
+  const team = x.snapshot.teams.find((t) => t.id === id);
+  if (!team) no('There’s no team with that ID.');
+  const { people, goals } = teamMembers(x, id);
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const what = [people.length ? plural(people.length, 'person', 'people') : '', goals.length ? plural(goals.length, 'goal', 'goals') : ''].filter(Boolean).join(' and ');
+  const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : undefined;
+  if (moveTo && (!to || moveTo === id)) no('Move them to another team that’s in this workspace.');
+  if (what && !to) no(`${team!.name} still has ${what}. Move them to another team first.`);
+  const movedPeople = people.map((p) => ({ ...p, teamId: to!.id }));
+  const movedGoals = goals.map((g) => ({ ...g, teamId: to!.id }));
+  const l = lookupOf(x.snapshot);
+  const goalChanges = goals.map((g, i) => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: g.id, entity: 'goal' as const, entityId: g.id, action: 'edited' as const, summary: `Moved to ${to!.name}, as ${team!.name} was removed`, diffs: [{ field: 'Team', from: team!.name, to: l.teamName(movedGoals[i]!.teamId) }] }));
+  return {
+    ...(movedPeople.length ? { people: movedPeople } : {}),
+    ...(movedGoals.length ? { goals: movedGoals } : {}),
+    removeTeams: [id],
+    changes: [
+      { id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: id, action: 'removed', summary: what ? `Removed the team “${team!.name}”, moving ${what} to ${to!.name}` : `Removed the team “${team!.name}”`, diffs: [{ field: 'Team', from: team!.name, to: '—' }, ...(people.length ? [{ field: 'People moved', from: team!.name, to: `${to!.name}: ${people.map((p) => p.name).join(', ')}` }] : [])] },
+      ...goalChanges,
+    ],
+  };
 }
 
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */

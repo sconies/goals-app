@@ -8,7 +8,9 @@ import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, HelpRequest, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
 import { currentCycle, scopeToCycle } from '../domain/cycle';
+import { findGoal, nextKey, withKeys } from '../domain/goalKey';
 import { requestsAfterCheckIn } from '../domain/requests';
+import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
@@ -32,7 +34,15 @@ export interface AppState {
   resetExample(): Promise<void>;
   /** Admins: delete the open workspace (not an example) and everything in it, then open another. */
   deleteWorkspace(): Promise<void>;
+  /** Admins: give the open workspace a new name. */
+  renameWorkspace(name: string): Promise<void>;
+  /** Admins: add a team, or rename one or change its lead. Returns its id. */
+  saveTeam(t: { id?: string; name: string; leadId?: string | null }): Promise<string>;
+  /** Admins: remove a team; one with people or goals moves them to `moveTo` in the same save. */
+  removeTeam(id: string, moveTo?: string | null): Promise<void>;
   snapshot: Snapshot;
+  /** Every goal in the workspace, in every cycle (snapshot has this cycle's): for what reaches past it, like a team's goals. */
+  allGoals: Goal[];
   cycle: Cycle;
   week: number;
   today: Date;
@@ -87,6 +97,8 @@ export interface AppState {
   revokeToken(id: string): Promise<void>;
   /** Save a view of the goals (new, or one of yours renamed or changed). Returns its id. */
   saveView(v: { id?: string; name: string; params: string }): Promise<string>;
+  /** Save a data table's layout (columns in order, widths, search, filters, sort) as a named table view. Returns its id. */
+  saveTableView(v: { id?: string; name: string; layout: TableLayout }, head?: readonly string[]): Promise<string>;
   /** Delete one of your views; an admin can also delete a pinned one. */
   deleteView(id: string): Promise<void>;
   /** Admins: show a view to everyone in the workspace, or stop. */
@@ -192,6 +204,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     const actor = (meId && data.people.find((p) => p.id === meId)) || data.people.find((p) => p.admin) || data.people[0];
     const logged: Snapshot = {
       ...data,
+      // Every goal has its key from the start: G-1, G-2 … in the order they were set up.
+      goals: withKeys(data.goals),
       changes: [...data.changes, {
         id: newId('chg'), at, actorId: actor?.id ?? 'import', goalId: null, entity: 'workspace', entityId: w.id, action: 'imported',
         summary: `Created “${name}” with ${data.people.length} ${data.people.length === 1 ? 'person' : 'people'}, ${data.teams.length} ${data.teams.length === 1 ? 'team' : 'teams'} and ${data.goals.length} ${data.goals.length === 1 ? 'goal' : 'goals'}`, diffs: [],
@@ -285,8 +299,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     const stamp = () => new Date(Date.now() + skewDays * 86_400_000).toISOString();
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
-    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId });
-    async function act<T extends Commit | { commit: Commit } | null>(run: () => T): Promise<T> {
+    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals });
+    async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
       try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       const c = out && 'commit' in out ? out.commit : (out as Commit | null);
@@ -296,7 +310,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
     return {
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot: sc, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind,
+      ws, workspaces, snapshot: sc, allGoals: snapshot.goals, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
@@ -315,10 +329,17 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         setWsId(next);
         toast(`Deleted ${ws.name}`);
       },
+      renameWorkspace: async (name) => {
+        const out = await act(() => A.renameWorkspace(ax(), ws, name));
+        if (out?.workspace) { const next = out.workspace.name; setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, name: next } : w))); }
+      },
+      saveTeam: async (t) => { const out = await act(() => A.saveTeam(ax(), t)); return out.id; },
+      removeTeam: async (id, moveTo) => { await act(() => A.removeTeam(ax(), id, moveTo)); },
       setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
       team: (id) => sc.teams.find((t) => t.id === id),
-      goal: (id) => sc.goals.find((g) => g.id === id),
+      // By ID or by key, so /goals/G-12 opens the same goal as its ID does.
+      goal: (id) => findGoal(sc.goals, id),
       statusOf: (g) => {
         let st = statuses.get(g.id);
         if (!st) statuses.set(g.id, (st = goalStatus(g, cycle, sc.checkIns, now)));
@@ -355,6 +376,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
           toast('That would make a loop: the goal it feeds already feeds into it. Pick another.', 'error');
           throw new Error('loop');
         }
+        // A new goal takes the workspace's next key; a goal being changed keeps its own.
+        if (!before && !after.key) after = { ...after, key: nextKey(sc.goals, sc.keysIssued) };
         const change = goalChange(before, after, lookup, viewer.id, stamp(), newId('chg'));
         if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
         await commit({ goals: [after], changes: change ? [change] : [] });
@@ -386,6 +409,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         return token;
       },
       saveView: async (v) => { const out = await act(() => A.saveView(ax(), v)); return out.id; },
+      saveTableView: async (v, head) => { const out = await act(() => A.saveTableView(ax(), v, head)); return out.id; },
       deleteView: async (id) => { await act(() => A.deleteView(ax(), id)); },
       pinView: async (id, pinned) => { await act(() => A.pinView(ax(), id, pinned)); },
       revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },

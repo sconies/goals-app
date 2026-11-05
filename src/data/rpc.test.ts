@@ -114,6 +114,27 @@ describe('database save functions, as the public user', () => {
     expect(asker.id).toBeTruthy();
   });
 
+  it('renames the workspace and adds, renames and removes a team, each in one save (0020)', async () => {
+    const at = now.toISOString();
+    const log = (id: string) => ({ id, at, actorId: snap.people[0]!.id, goalId: null, entity: 'workspace' as const, entityId: ws, action: 'edited' as const, summary: 'x', diffs: [] });
+    await commit({ workspace: { name: 'Platform Engineering' }, changes: [log('chg_ws_name')] });
+    expect((await db.query<{ name: string }>('select name from okr_workspaces where id = $1', [ws])).rows[0]!.name).toBe('Platform Engineering');
+    await commit({ teams: [{ id: 'team_rpc', name: 'Data', leadId: '', objective: '' }], changes: [log('chg_team_add')] });
+    await commit({ teams: [{ id: 'team_rpc', name: 'Data Platform', leadId: '', objective: '' }], changes: [log('chg_team_rename')] });
+    expect((await db.query<{ name: string }>('select name from okr_teams where id = $1', ['team_rpc'])).rows[0]!.name).toBe('Data Platform');
+    // A team that still has goals can't go: the whole save is refused, its log entry too.
+    const owned = snap.teams.find((t) => snap.goals.some((g) => g.teamId === t.id))!;
+    await expect(commit({ removeTeams: [owned.id], changes: [log('chg_team_refused')] })).rejects.toThrow();
+    expect(await count('okr_teams', `id = '${owned.id}'`)).toBe(1);
+    expect(await count('okr_changes', `id = 'chg_team_refused'`)).toBe(0);
+    // Moved first, in the same save, it goes.
+    const goals = snap.goals.filter((g) => g.teamId === owned.id).map((g) => ({ ...g, teamId: 'team_rpc' }));
+    const people = snap.people.filter((p) => p.teamId === owned.id).map((p) => ({ ...p, teamId: 'team_rpc' }));
+    await commit({ goals, people, removeTeams: [owned.id], changes: [log('chg_team_remove')] });
+    expect(await count('okr_teams', `id = '${owned.id}'`)).toBe(0);
+    expect(await count('okr_goals', `team_id = 'team_rpc'`)).toBe(goals.length);
+  });
+
   it('logs a retried save only once', async () => {
     const entry = { id: 'chg_rpc_retry', at: now.toISOString(), actorId: snap.people[0]!.id, goalId: null, entity: 'note' as const, entityId: 'n1', action: 'noted' as const, summary: 'Commented', diffs: [] };
     await commit({ changes: [entry] });

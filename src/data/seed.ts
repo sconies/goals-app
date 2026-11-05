@@ -3,6 +3,7 @@
    seven weeks is written below in story weeks 1–7 and placed at the end of the year by yearStory.ts. */
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../domain/checkin';
 import { checkInChange, goalChange } from '../domain/changes';
+import { withKeys } from '../domain/goalKey';
 import { requestsFromCheckIns } from '../domain/requests';
 import { checkInsFor } from '../domain/status';
 import type { Cause, Change, CheckIn, Cycle, Decision, Goal, Level, MetricGoal, MilestoneGoal, Person, RangeGoal, Review, Snapshot, StageUpdate, Team, Watch } from '../domain/types';
@@ -151,7 +152,8 @@ export function seed(today: Date): Snapshot {
   };
   // Two dotted lines: goals that also help one they don't feed.
   const ALSO: Record<string, string[]> = { cache: ['lead'], idle: ['env'] };
-  const allGoals = goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString(), ...(WHY[g.id] ? { whyHelps: WHY[g.id] } : {}), ...(ALSO[g.id] ? { alsoHelps: ALSO[g.id] } : {}) }));
+  // Keys G-1, G-2 … in the order the goals were created.
+  const allGoals = withKeys(goals.map((g, i) => ({ ...g, createdAt: new Date(start - 5 * DAY + i * 1000).toISOString(), ...(WHY[g.id] ? { whyHelps: WHY[g.id] } : {}), ...(ALSO[g.id] ? { alsoHelps: ALSO[g.id] } : {}) })));
 
   const postedAt = (week: number) => {
     const planned = start + week * 7 * DAY + 2 * DAY + 10 * 3_600_000;

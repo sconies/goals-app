@@ -1,8 +1,14 @@
 /* The app's own icons: 16px line drawings in the nav's style (design rule 3: no glyph characters as icons). */
-export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'arrow-up' | 'arrow-down' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch' | 'check-circle' | 'alert' | 'chevron-up' | 'more' | 'check';
+export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'arrow-up' | 'arrow-down' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch' | 'check-circle' | 'alert' | 'chevron-up' | 'more' | 'check' | 'settings' | 'sidebar-collapse' | 'sidebar-expand' | 'print' | 'grip' | 'download';
 
 const PATHS: Record<IconName, string> = {
+  grip: 'M6 4v.1M10 4v.1M6 8v.1M10 8v.1M6 12v.1M10 12v.1',
+  download: 'M8 2.5v7.5M4.75 6.75 8 10l3.25-3.25M3 13.25h10',
+  print: 'M4.5 6V2.5h7V6M4.5 11.5h-2V6h11v5.5h-2M4.5 9.5h7v4h-7z',
   check: 'M3.5 8.5l3 3 6-7',
+  settings: 'M2.5 4.5h5.5M11.5 4.5h2M9.75 2.75v3.5M2.5 11.5h2M8 11.5h5.5M6.25 9.75v3.5',
+  'sidebar-collapse': 'M2.5 3h11v10h-11zM6 3v10M10.5 6 8.5 8l2 2',
+  'sidebar-expand': 'M2.5 3h11v10h-11zM6 3v10M9 6l2 2-2 2',
   close: 'M4 4l8 8M12 4l-8 8',
   'chevron-left': 'M10 3.5L5.5 8 10 12.5',
   'chevron-right': 'M6 3.5L10.5 8 6 12.5',

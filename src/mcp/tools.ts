@@ -8,6 +8,8 @@ import { describe, planChanges, type ChangeSet, type Rec, type Tables } from '..
 import { aiBrief, toCsv, toJson, workbook } from '../domain/export';
 import { summariseAll } from '../domain/summary';
 import { WORK_TOOLS } from './workTools';
+import { findGoal, isKey, normalKey } from '../domain/goalKey';
+import { isTableView } from '../domain/tableLayout';
 import type { Cycle, DisplayStatus, Level, Person, Snapshot } from '../domain/types';
 
 export interface McpContext {
@@ -21,6 +23,8 @@ export interface McpContext {
   now: string;
   newId: (prefix: string) => string;
   save(c: Commit): Promise<void>;
+  /** Every goal in the workspace, in every cycle, when the server has them (removing a team reaches past this cycle). */
+  allGoals?: Snapshot['goals'];
   /** Deletes the whole workspace (admins, confirmed by name); not every server can. */
   deleteWorkspace?: () => Promise<void>;
 }
@@ -88,9 +92,10 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   return { data: { ...data, saved: true }, text: `Saved as ${ctx.actor.name}: ${what}` };
 }
 
+/** A goal by its ID or its key (G-12). */
 const goalRef = (ctx: McpContext, id: unknown) => {
-  const g = ctx.snapshot.goals.find((x) => x.id === id);
-  if (!g) throw new Error(`There's no goal with ID ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs.`);
+  const g = findGoal(ctx.snapshot.goals, String(id ?? ''));
+  if (!g) throw new Error(`There's no goal with ${isKey(String(id ?? '')) ? 'key' : 'ID'} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
   return g;
 };
 
@@ -109,7 +114,7 @@ const GOAL_FIELDS = {
   must_stay: str('Keep-in-range goals: which side of the limit is good.', { enum: ['at most', 'at least'] }),
   margin: num('Keep-in-range goals: how close to the limit counts as at risk.'),
   stages: { type: 'array', items: { type: 'string' }, description: 'Milestone goals: each stage as "Name@week", e.g. "Pilot@6".' },
-  feeds_into_id: str('The ID of the goal this one feeds. Empty string to unlink.'),
+  feeds_into_id: str('The ID or key (G-12) of the goal this one feeds. Empty string to unlink.'),
   why_it_helps: str('Why we expect it to help the goal it feeds.'),
   source: str('Where the number comes from.'),
   definition: str('Exactly what is counted.'),
@@ -131,9 +136,9 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'find_goals',
     title: 'Find goals',
-    description: 'List goals in the current cycle with their status, latest number, this week’s plan, target and gap. Filter by words in the name, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has.',
+    description: 'List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
-      text: str('Words in the goal’s name.'),
+      text: str('Words in the goal’s name, or its key (G-12).'),
       owner: str('Part of the owner’s name.'),
       status: str('Only goals with this status.', { enum: STATUSES }),
       level: str('Only goals at this level.', { enum: LEVELS }),
@@ -144,25 +149,26 @@ const CORE_TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       const has = (s: string, q: unknown) => !q || s.toLowerCase().includes(String(q).toLowerCase());
+      const byKey = normalKey(a.text as string | undefined);
       let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ''))) : null;
       if (a.view) {
-        const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+        const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
         if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
         query = parseQuery(new URLSearchParams(v.params));
       }
       let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week)
-        .filter((s) => has(s.goal.title, a.text) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+        .filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
       // The same search, filters and sort as the Goals screen (domain/query.ts).
       if (query) list = applyQuery(list, query, { goals: ctx.snapshot.goals, cycle: ctx.cycle, week: ctx.week });
-      const data = list.map((s) => ({ id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
-      return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: data }, text: data.length ? data.map((g) => `${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ''} · ${g.gap}`).join('\n') : 'No goals match.' };
+      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
+      return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: data }, text: data.length ? data.map((g) => `${g.key ? g.key + ' · ' : ''}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ''} · ${g.gap}`).join('\n') : 'No goals match.' };
     },
   },
   {
     name: 'get_goal',
     title: 'One goal in full',
     description: 'Everything about one goal: its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID, from find_goals.') } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key (e.g. G-12), from find_goals.') } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
@@ -176,7 +182,7 @@ const CORE_TOOLS: ToolDef[] = [
     title: 'Post a check-in',
     description: 'Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: {
-      goal_id: str('The goal’s ID.'),
+      goal_id: str('The goal’s ID or its key, e.g. G-12.'),
       week: int('The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later.'),
       value: num('Number goals: the value for the week.'),
       stages: str('Milestone goals: e.g. "Pilot: done week 6; Rollout: expected week 9".'),
@@ -193,8 +199,8 @@ const CORE_TOOLS: ToolDef[] = [
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
-      goalRef(ctx, a.goal_id);
-      const r = row({ ...a, week: a.week ?? ctx.week }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
+      const g = goalRef(ctx, a.goal_id);
+      const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
       return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run });
     },
   },
@@ -202,11 +208,11 @@ const CORE_TOOLS: ToolDef[] = [
     name: 'update_goal',
     title: 'Change a goal',
     description: 'Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID.'), ...GOAL_FIELDS, reason: str('Why the plan is changing.'), dry_run: DRY } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), ...GOAL_FIELDS, reason: str('Why the plan is changing.'), dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
-      goalRef(ctx, a.goal_id);
-      return change(ctx, { goals: [row(a, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined });
+      const g = goalRef(ctx, a.goal_id);
+      return change(ctx, { goals: [row({ ...a, goal_id: g.id }, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined });
     },
   },
   {
@@ -224,14 +230,13 @@ const CORE_TOOLS: ToolDef[] = [
     title: 'Set plan numbers by hand',
     description: 'Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'numbers'], properties: {
-      goal_id: str('The goal’s ID.'),
+      goal_id: str('The goal’s ID or its key, e.g. G-12.'),
       numbers: { type: 'array', description: 'Planned values by week.', items: { type: 'object', required: ['week', 'value'], properties: { week: int('Week from the cycle start.'), value: num('Planned value.') } } },
       reason: str('Why the plan is changing.'), dry_run: DRY,
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
-      goalRef(ctx, a.goal_id);
-      const r: Rec = { __row: '1', id: String(a.goal_id) };
+      const r: Rec = { __row: '1', id: goalRef(ctx, a.goal_id).id };
       for (const p of (a.numbers as { week: number; value: number }[]) ?? []) r[`week ${p.week}`] = String(p.value);
       return change(ctx, { plan: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined });
     },
@@ -240,7 +245,7 @@ const CORE_TOOLS: ToolDef[] = [
     name: 'add_comment',
     title: 'Comment on a goal',
     description: 'Add a comment to a goal’s history. Anyone can comment; it doesn’t change the status.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'text'], properties: { goal_id: str('The goal’s ID.'), text: str('The comment.') } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'text'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), text: str('The comment.') } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
@@ -252,7 +257,7 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'bulk_change',
     title: 'Change many goals at once',
-    description: 'Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{"ID": "...", "Target": 90}], check_ins: [{"Goal ID": "...", "Week": 3, "Value": 41}], plan: [{"ID": "...", "Week 5": 45}]). Checks every row and returns what would change; nothing is saved unless "apply" is true and every row is valid.',
+    description: 'Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{"ID": "...", "Target": 90}], check_ins: [{"Goal ID": "...", "Week": 3, "Value": 41}], plan: [{"ID": "...", "Week 5": 45}]). A goal’s key (G-12) works wherever its ID does: in ID, Key, Goal ID, Goal key and Feeds into ID. Checks every row and returns what would change; nothing is saved unless "apply" is true and every row is valid.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       goals: { type: 'array', items: { type: 'object' }, description: 'Rows for the Goals sheet. ID to change a goal; no ID to add one.' },
       plan: { type: 'array', items: { type: 'object' }, description: 'Rows for the Plan sheet: ID and "Week N" columns.' },

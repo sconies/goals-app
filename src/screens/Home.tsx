@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
-import { attentionList } from '../domain/attention';
+import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
+import { dashboard, groupWatched, type Dashboard } from '../domain/home';
 import { fmt, gapText } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
@@ -18,7 +19,8 @@ import type { Change, Goal, HelpRequest } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo } from '../ui/bits';
 import { Spark, StageSpark } from '../ui/charts';
 import { Icon } from '../ui/Icon';
-import { saveReviewOrder, TreeRow, worstFirst } from './Inspect';
+import { saveReviewOrder, TreeRow } from './Inspect';
+import { HandledGroup } from './Watching';
 import { FirstReports } from './GoalsScreen';
 import { RespondSheet } from './Respond';
 
@@ -68,6 +70,8 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   const att = attentionList(app.snapshot, app.cycle, app.today, { goals: mine });
+  // Needs attention is new information; a goal someone has looked at since its latest check-in is being handled.
+  const { needs, handled } = splitAttention(att);
   const rest = mine.filter((g) => !att.some((a) => a.goal.id === g.id));
   const wrapLeft = wrapUpOpen(app.cycle, app.week) ? mine.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)) : [];
   const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => s.week === Math.max(1, app.week) && s.done < s.total);
@@ -150,11 +154,25 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
       <aside className="home-side split-side" aria-label="For you">{side}</aside>
       <div className="home-main split-b">
         <FirstReports />
-        {mine.length > 0 && att.length > 0 && <AttentionSection list={att} empty="" title="Your goals that need you" />}
-        {rest.length > 0 && (
-          <section className="block">
-            <h2 className="block-title">{att.length ? 'Your other goals' : 'Your goals'}</h2>
-            <div className="glist">{rest.map((g) => <GoalLine key={g.id} g={g} />)}</div>
+        {mine.length > 0 && (
+          <section className="block home-mine">
+            <div className="row between">
+              <h2 className="block-title">Your goals <span className="count-pill">{mine.length}</span></h2>
+              {mine.length > 1 && <Link className="small linkish" to="/goals?show=mine">See them in Goals</Link>}
+            </div>
+            {needs.length > 0 && (
+              <div className="home-sub">
+                <h3 className="need-group-title">Need attention <span className="count-pill">· {needs.length}</span></h3>
+                <AttentionList list={needs} />
+              </div>
+            )}
+            <HandledGroup list={handled} folded />
+            {rest.length > 0 && (
+              <div className="home-sub">
+                {att.length > 0 && <h3 className="need-group-title">Nothing flagged <span className="count-pill">· {rest.length}</span></h3>}
+                <div className="glist">{rest.map((g) => <GoalLine key={g.id} g={g} />)}</div>
+              </div>
+            )}
           </section>
         )}
         {after}
@@ -236,31 +254,40 @@ function NeedsYou() {
   );
 }
 
-/** Important changes: what got worse this week in goals you watch or own, and why you're seeing it. */
-function ImportantChanges() {
+/**
+ * The goals you watch and don't own: what needs attention first (with what got worse this week), then what has gone
+ * quiet; what's being handled is folded away; the rest is a count with a way to Watching.
+ */
+function WatchedGoals() {
   const app = useApp();
   const watched = watchedGoals(app.viewer.id, app.snapshot).filter((g) => g.ownerId !== app.viewer.id);
-  const ids = new Set(watched.map((g) => g.id));
-  const changed = watched.map((g) => {
-    const st = app.statusOf(g);
-    const moved = statusChange(g, app.snapshot.checkIns);
-    const reason = moved?.worse && moved.week >= app.week - 1 ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}` : st.status === 'stale' ? 'No recent update' : app.attentionOf(g).flags.some((f) => f.kind === 'trend') ? 'Trend getting worse' : null;
-    return { g, reason };
-  }).filter((x) => x.reason);
   if (!watched.length) return null;
-  const rest = watched.filter((g) => !changed.some((c) => c.g.id === g.id)).sort(worstFirst(app));
-  const bad = watched.filter((g) => ['off', 'risk', 'stale'].includes(app.statusOf(g).status)).length;
+  const groups = groupWatched(watched.map((g) => app.attentionOf(g)).sort(attentionOrder));
+  const exceptions = [...groups.needs, ...groups.quiet];
+  const worse = exceptions.filter((a) => { const moved = statusChange(a.goal, app.snapshot.checkIns); return moved?.worse && moved.week >= app.week - 1; }).length;
+  // Nothing new needs attention: the first few you watch, with how fresh they are, so Home still shows them.
+  const shown = exceptions.length ? exceptions.slice(0, 4) : groups.fine.slice(0, 3);
+  const parts = [
+    groups.needs.length ? `${groups.needs.length} need${groups.needs.length === 1 ? 's' : ''} attention` : 'Nothing new needs attention',
+    groups.handled.length ? `${groups.handled.length} being handled` : '',
+    groups.quiet.length ? `${groups.quiet.length} with no recent update` : '',
+    groups.fine.length ? `${groups.fine.length} on track or done` : '',
+  ].filter(Boolean);
   return (
-    <section className="block">
+    <section className="block home-watch">
       <div className="row between">
-        <h2 className="block-title">Important changes</h2>
-        <Link className="small linkish" to="/watching">All {watched.length} you’re watching</Link>
+        <h2 className="block-title">Goals you watch <span className="count-pill">{watched.length}</span></h2>
+        <Link className="small linkish" to="/watching">All you’re watching</Link>
       </div>
-      <p className="hint">{changed.length ? `In goals you watch: ${changed.length} got worse or went quiet.` : `Nothing got worse this week in the goals you watch.`} {bad ? `${bad} of ${ids.size} need attention.` : ''}</p>
-      <ul className="tree">
-        {changed.slice(0, 4).map(({ g, reason }) => <li key={g.id}><span className="change-reason">{reason}</span><TreeRow g={g} /></li>)}
-        {!changed.length && rest.slice(0, 3).map((g) => <li key={g.id}><TreeRow g={g} /></li>)}
-      </ul>
+      <p className="hint">{parts.join(' · ')}.{worse ? ` ${worse} got worse this week.` : ''}</p>
+      {shown.length > 0 && (
+        <ul className="tree">
+          {/* Each row says itself when it got worse ("Was on track in week 43") or went quiet. */}
+          {shown.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}
+        </ul>
+      )}
+      {exceptions.length > shown.length && <Link className="small linkish" to="/watching">{exceptions.length - shown.length} more in Watching</Link>}
+      <HandledGroup list={groups.handled} folded />
     </section>
   );
 }
@@ -298,24 +325,54 @@ function AdminCard() {
   return null;
 }
 
-function AttentionSection({ list, empty, limit = 3, title = 'Needs attention' }: { list: ReturnType<typeof attentionList>; empty: string; limit?: number; title?: string }) {
+/** Your goals that need attention, each with its one action: check in when that's what it needs, otherwise open it. */
+function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
   const app = useApp();
   return (
-    <section className="block">
-      <div className="row between">
-        <h2 className="block-title">{title}{list.length ? <span className="count-pill">{list.length}</span> : null}</h2>
-        {list.length > limit && <Link className="small linkish" to="/goals?show=attention">Show all {list.length}</Link>}
-      </div>
-      {list.length ? (
-        <div className="alist">
-          {list.slice(0, limit).map((a) => (
-            <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id}
-              action={a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path')
-                ? <Link className="btn sm" to={'/check-in/' + a.goal.id}>Check in</Link>
-                : <Link className="btn sm" to={'/goals/' + a.goal.id}>Open</Link>} />
-          ))}
+    <div className="alist">
+      {list.map((a) => (
+        <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id}
+          action={a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' || f.kind === 'stale' || f.kind === 'no-path' || f.kind === 'missed-path')
+            ? <Link className="btn sm" to={'/check-in/' + a.goal.id}>Check in</Link>
+            : <Link className="btn sm" to={'/goals/' + a.goal.id}>Open</Link>} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The week at a glance, above everything else (Lane's notes, 5 Nov): your goals by status (shape and word), your
+ * on-time streak, the goals you watch that need attention, and your next review. One row on a desktop, two by two on a
+ * phone; plain cells divided by hairlines, no tinted tiles.
+ */
+function DashStrip({ d }: { d: Dashboard }) {
+  const when = d.next ? (d.next.days === 0 ? 'today' : d.next.days === 1 ? 'tomorrow' : `in ${d.next.days} days`) : '';
+  const w = d.watching;
+  return (
+    <section className="dash" aria-label="Your week at a glance">
+      <Link className="dash-cell dash-goals" to={d.scope === 'mine' ? '/goals?show=mine' : '/goals'}>
+        <span className="dash-label">{d.scope === 'mine' ? 'Your goals' : 'All goals'} · {d.total}</span>
+        <span className="dash-counts">
+          {d.counts.map((c) => <span key={c.status} className={'dash-count tone-' + c.status}><StatusShape k={c.status} />{c.n} {LABEL[c.status].toLowerCase()}</span>)}
+        </span>
+      </Link>
+      {d.streak != null && (
+        <div className="dash-cell dash-streak">
+          <span className="dash-label">On-time streak</span>
+          <span className="dash-value">{d.streak} {d.streak === 1 ? 'week' : 'weeks'}</span>
+          <span className="dash-sub">{d.streak ? 'All in before the review' : 'Check in before the review to start one'}</span>
         </div>
-      ) : <div className="calm"><StatusShape k="done" /> {empty}</div>}
+      )}
+      <Link className="dash-cell dash-watch" to="/watching">
+        <span className="dash-label">Watching{w ? ` · ${w.all.length}` : ''}</span>
+        <span className="dash-value">{!w ? 'Nothing yet' : w.needs.length ? `${w.needs.length} need${w.needs.length === 1 ? 's' : ''} attention` : 'Nothing new'}</span>
+        <span className="dash-sub">{!w ? 'Follow the goals you care about' : [w.handled.length ? `${w.handled.length} being handled` : '', w.quiet.length ? `${w.quiet.length} gone quiet` : ''].filter(Boolean).join(' · ') || 'Nothing behind or quiet'}</span>
+      </Link>
+      <Link className="dash-cell dash-review" to={d.next ? `/reviews/${d.next.id}` : '/reviews'}>
+        <span className="dash-label">Next review{d.next && <span className="dash-label-when"> · {d.next.weekday}</span>}</span>
+        <span className="dash-value" title={d.next ? `${d.next.name}, ${d.next.weekday} ${when}` : undefined}>{d.next ? d.next.name : 'None you’re in'}</span>
+        <span className="dash-sub">{d.next ? `${d.next.weekday} · ${when}` : 'See every review'}</span>
+      </Link>
     </section>
   );
 }
@@ -327,10 +384,11 @@ export function Home() {
     <div className="page home">
       <div className="page-head">
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
-        <span className="muted small">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
+        <span className="muted small home-where">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
       </div>
+      <DashStrip d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} />
       <div className="home-grid split">
-        <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<ImportantChanges />} />
+        <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<WatchedGoals />} />
       </div>
     </div>
   );

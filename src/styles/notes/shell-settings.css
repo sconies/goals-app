@@ -1,0 +1,133 @@
+/* Lane's review notes (5 Nov): shell-settings. Loaded after the fit-and-finish sheets.
+   Settings (theme, accent, sidebar), the Goals section of the navigation, the collapsible sidebar, the Back link,
+   and the workspace's name and teams. */
+
+/* ---------- Accent colours ----------
+   Chosen in Settings and set on <html data-accent> (src/app/appearance.ts; index.html before first paint). Cobalt is the
+   default in styles.css. Each accent's text colour passes 4.5:1 on every page and panel colour, and its fill passes
+   4.5:1 under its own text, in light and dark (checked by evals/settings.eval.ts, which reads these blocks).
+   Status colours never change with the accent: they mean a status. */
+:root[data-theme="dark"] { --primary: #4F60E6; --primary-fg: #FFFFFF; }
+:root[data-accent="violet"] { --accent: #6D3FD1; --accent-fg: #FFFFFF; --accent-soft: #F2EDFC; --accent-wash: #FAF8FF; --accent-line: #D8CBF5; --accent-text: #5A30B5; --primary: #6D3FD1; --primary-fg: #FFFFFF; }
+:root[data-accent="petrol"] { --accent: #0B6E88; --accent-fg: #FFFFFF; --accent-soft: #E6F3F6; --accent-wash: #F5FAFB; --accent-line: #B5DCE5; --accent-text: #095D73; --primary: #0B6E88; --primary-fg: #FFFFFF; }
+:root[data-accent="graphite"] { --accent: #344054; --accent-fg: #FFFFFF; --accent-soft: #EEF0F3; --accent-wash: #F8F9FA; --accent-line: #CDD2DA; --accent-text: #344054; --primary: #344054; --primary-fg: #FFFFFF; }
+:root[data-accent="violet"][data-theme="dark"] { --accent: #A88BF4; --accent-fg: #0E1116; --accent-soft: #2A2142; --accent-wash: #1D1830; --accent-line: #4C3B80; --accent-text: #CDBBFA; --primary: #A88BF4; --primary-fg: #0E1116; }
+:root[data-accent="petrol"][data-theme="dark"] { --accent: #4DB3CF; --accent-fg: #0E1116; --accent-soft: #14313A; --accent-wash: #11232A; --accent-line: #235A69; --accent-text: #94D5E6; --primary: #4DB3CF; --primary-fg: #0E1116; }
+:root[data-accent="graphite"][data-theme="dark"] { --accent: #C3C9D3; --accent-fg: #0E1116; --accent-soft: #262C37; --accent-wash: #1A1F27; --accent-line: #46505F; --accent-text: #DDE1E7; --primary: #C3C9D3; --primary-fg: #0E1116; }
+@media (prefers-color-scheme: dark) {
+  :root[data-accent="violet"]:not([data-theme="light"]) { --accent: #A88BF4; --accent-fg: #0E1116; --accent-soft: #2A2142; --accent-wash: #1D1830; --accent-line: #4C3B80; --accent-text: #CDBBFA; --primary: #A88BF4; --primary-fg: #0E1116; }
+  :root[data-accent="petrol"]:not([data-theme="light"]) { --accent: #4DB3CF; --accent-fg: #0E1116; --accent-soft: #14313A; --accent-wash: #11232A; --accent-line: #235A69; --accent-text: #94D5E6; --primary: #4DB3CF; --primary-fg: #0E1116; }
+  :root[data-accent="graphite"]:not([data-theme="light"]) { --accent: #C3C9D3; --accent-fg: #0E1116; --accent-soft: #262C37; --accent-wash: #1A1F27; --accent-line: #46505F; --accent-text: #DDE1E7; --primary: #C3C9D3; --primary-fg: #0E1116; }
+}
+
+/* ---------- The sidebar's head: the workspace's name, not a control (switching is in the person menu) ---------- */
+.ws-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 8px; min-width: 0; }
+.ws-head .ws-name { font-size: 0.9375rem; }
+/* On a phone the mark keeps the room the old switcher button had, so the top bar keeps its height (71px). */
+.mtop > .wsmark { margin: 8px; }
+
+/* ---------- Goals as a section: Goals, then Mine, Watching, All and saved views, one step in ---------- */
+.nav-section { display: flex; flex-direction: column; gap: 2px; }
+.nav-section.in-section > .nav:first-child:not([aria-current]) { color: var(--fg); font-weight: 600; }
+.subnav { display: flex; flex-direction: column; gap: 1px; }
+/* The sub-items' words start under the section's word: past the icon (18px) and its gap. */
+.side .nav.sub { min-height: 32px; padding-left: 42px; font-size: 0.875rem; font-weight: 500; color: var(--muted); }
+.side .nav.sub[aria-current="page"] { color: var(--fg); font-weight: 600; }
+.side .nav.sub .sub-icon { display: none; }
+.side .nav.sub > span { min-width: 0; }
+.side .nav.more-views { color: var(--accent-text); }
+
+/* ---------- The foot of the sidebar: Settings, feedback, you, and the collapse toggle ---------- */
+.side .settings-nav { margin-top: auto; color: var(--muted); }
+.side .settings-nav ~ .feedback-nav { margin-top: 0; }
+.side .collapse-nav { min-height: 32px; color: var(--muted); font-size: 0.8125rem; font-weight: 500; }
+
+/* ---------- The icon rail: on a tablet always, on a desktop when chosen (Settings, or the toggle) ---------- */
+@container app (max-width: 1100px) and (min-width: 761px) {
+  .side .ws-head { justify-content: center; padding: 8px 0; }
+  .side .ws-head > :not(.wsmark) { display: none; }
+  /* The rail keeps Goals and Watching (it has an icon); the other items under Goals are on the Goals page itself. */
+  .side .nav.sub:not(.has-icon) { display: none; }
+  .side .nav.sub.has-icon { padding: 0; min-height: 38px; }
+  .side .nav.sub .sub-icon { display: inline-flex; }
+  /* Always icons here: nothing to collapse. */
+  .side .collapse-nav { display: none; }
+}
+@container app (min-width: 1101px) {
+  .app.nav-icons .side { flex-basis: 68px; padding: 12px 8px; align-items: center; }
+  .app.nav-icons .side .nav { width: 48px; justify-content: center; padding: 0; position: relative; }
+  .app.nav-icons .side .nav span:not(.count) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .app.nav-icons .side .nav .count { position: absolute; top: 2px; right: 0; min-width: 18px; padding: 0 4px; line-height: 1rem; font-size: 0.75rem; }
+  .app.nav-icons .side .ws-head { justify-content: center; padding: 8px 0; }
+  .app.nav-icons .side .ws-head > :not(.wsmark) { display: none; }
+  .app.nav-icons .side .nav.sub:not(.has-icon) { display: none; }
+  .app.nav-icons .side .nav.sub.has-icon { padding: 0; min-height: 38px; }
+  .app.nav-icons .side .nav.sub .sub-icon { display: inline-flex; }
+  .app.nav-icons .side .me { position: relative; }
+  .app.nav-icons .side .me > .stack { display: flex; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .app.nav-icons .side .demo-entry:not(.compact) { width: 44px; height: 44px; padding: 0; align-items: center; justify-content: center; }
+  .app.nav-icons .side .demo-entry .demo-as { display: none; }
+  .app.nav-icons .side .demo-entry .demo-word { font-size: 0.625rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .app.nav-icons .toasts { left: calc(68px + (100vw - 68px) / 2); }
+}
+
+/* ---------- Back: one link, top left of a detail page, saying where it goes ---------- */
+.backlink { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; max-width: 100%; min-height: 32px; margin-left: -4px; padding: 0 6px 0 2px; border-radius: 6px; color: var(--muted); font-size: 0.875rem; font-weight: 550; text-decoration: none; }
+.backlink:hover { color: var(--fg); background: var(--surface-3); }
+.backlink .icon { flex: none; }
+/* On a page it takes the room of the page's top padding, so the page itself doesn't move down much. */
+.page > .backlink { margin-top: calc(-1 * var(--s4)); margin-bottom: calc(-1 * var(--s3)); }
+.page > .reviewbar + .backlink { margin-top: calc(-1 * var(--s3)); }
+.focus-top .backlink { min-width: 0; flex: 0 1 auto; }
+@media (pointer: coarse) { .backlink { min-height: 44px; } }
+@container app (max-width: 760px) { .backlink { min-height: 44px; } .page > .backlink { margin-top: calc(-1 * var(--s3)); margin-bottom: calc(-1 * var(--s4)); } }
+
+/* ---------- Settings ---------- */
+.settings-page .settings-block { gap: var(--s4); padding-top: var(--s5); border-top: 1px solid var(--line); }
+.settings-page .ai-block { padding-top: var(--s5); border-top: 1px solid var(--line); }
+.settings-page .field { display: flex; flex-direction: column; gap: var(--s2); }
+.settings-page .seg { align-self: flex-start; }
+.accent-list { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.accent-opt { display: inline-flex; align-items: center; gap: var(--s2); min-height: 40px; padding: 0 14px 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--fg); font-weight: 550; font-size: 0.875rem; }
+.accent-opt[aria-checked="true"] { border-color: var(--accent); outline: 1px solid var(--accent); outline-offset: 0; }
+.accent-swatch { flex: none; width: 16px; height: 16px; border-radius: 999px; }
+.accent-opt[data-accent-choice="cobalt"] .accent-swatch { background: #3451D1; }
+.accent-opt[data-accent-choice="violet"] .accent-swatch { background: #6D3FD1; }
+.accent-opt[data-accent-choice="petrol"] .accent-swatch { background: #0B6E88; }
+.accent-opt[data-accent-choice="graphite"] .accent-swatch { background: #344054; }
+:root[data-theme="dark"] .accent-opt[data-accent-choice="cobalt"] .accent-swatch { background: #7C8EF2; }
+:root[data-theme="dark"] .accent-opt[data-accent-choice="violet"] .accent-swatch { background: #A88BF4; }
+:root[data-theme="dark"] .accent-opt[data-accent-choice="petrol"] .accent-swatch { background: #4DB3CF; }
+:root[data-theme="dark"] .accent-opt[data-accent-choice="graphite"] .accent-swatch { background: #C3C9D3; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .accent-opt[data-accent-choice="cobalt"] .accent-swatch { background: #7C8EF2; }
+  :root:not([data-theme="light"]) .accent-opt[data-accent-choice="violet"] .accent-swatch { background: #A88BF4; }
+  :root:not([data-theme="light"]) .accent-opt[data-accent-choice="petrol"] .accent-swatch { background: #4DB3CF; }
+  :root:not([data-theme="light"]) .accent-opt[data-accent-choice="graphite"] .accent-swatch { background: #C3C9D3; }
+}
+.settings-you { gap: var(--s3); align-items: center; flex-wrap: wrap; }
+@media (pointer: coarse) { .accent-opt { min-height: 44px; } }
+@container app (max-width: 760px) { .accent-opt { min-height: 44px; } .settings-page .seg button { min-height: 40px; } }
+
+/* ---------- The person menu: Settings, then the workspaces (when there's more than one), then who you are ---------- */
+.you-menu { padding-bottom: var(--s3); margin-bottom: var(--s3); border-bottom: 1px solid var(--line-2); }
+.you-menu .you-workspaces { margin-top: var(--s2); }
+.you-menu .you-workspaces > .field-label { padding-inline: 12px; }
+.you-menu .menuitem > .wsmark { flex: 0 0 24px; width: 24px; height: 24px; border-radius: 6px; font-size: 0.75rem; }
+.sheet .more-goals > .field-label, .sheet .more-rest { padding-inline: 12px; }
+.sheet .more-rest { margin-top: var(--s2); }
+
+/* ---------- Workspace: its name, and its teams ---------- */
+.ws-title-row { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+.ws-title-row .ws-title { overflow-wrap: anywhere; }
+.ws-list-head { justify-content: space-between; }
+/* The section's 12px gap is too much between a list and its own heading. */
+.ws-list-head + .stack { margin-top: calc(-1 * var(--s1)); }
+.ws-rename-buttons { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.teams-block { margin-bottom: var(--s3); }
+.teams-head { flex-wrap: wrap; row-gap: var(--s2); }
+.teams-head .block-title { display: block; }
+.team-list { list-style: none; margin: 0; padding: 0; }
+.optlist .opt.team-opt { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); align-items: center; padding-top: 12px; padding-bottom: 12px; }
+.team-actions { display: flex; gap: var(--s2); }
+@container app (max-width: 480px) { .optlist .opt.team-opt { grid-template-columns: minmax(0, 1fr); row-gap: var(--s2); } }

@@ -21467,6 +21467,95 @@ function shouldShowDeprecationWarning() {
 	return parseInt(versionMatch[1], 10) <= 20;
 }
 if (shouldShowDeprecationWarning()) console.warn("⚠️  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
+/** "G-12" → 12; anything else → null. Lower case and a missing dash are forgiven ("g12"). */
+function keyNumber(ref) {
+	const m = /^\s*g-?(\d{1,9})\s*$/i.exec(ref ?? "");
+	return m ? Number(m[1]) : null;
+}
+var formatKey = (n) => `G-${n}`;
+/** Does this look like a goal key rather than an ID? */
+var isKey = (ref) => keyNumber(ref) != null;
+/** "g12" → "G-12"; not a key → null. */
+var normalKey = (ref) => {
+	const n = keyNumber(ref);
+	return n == null ? null : formatKey(n);
+};
+/** The highest key number among these goals (0 when none has one). */
+function lastKey(goals, floor = 0) {
+	let max = floor;
+	for (const g of goals) {
+		const n = keyNumber(g.key);
+		if (n != null && n > max) max = n;
+	}
+	return max;
+}
+/** A goal by its ID, or else by its key. The goals are one cycle's, so a key names one goal. */
+function findGoal(goals, ref) {
+	if (!ref) return void 0;
+	const byId = goals.find((g) => g.id === ref);
+	if (byId) return byId;
+	const k = normalKey(ref);
+	return k ? goals.find((g) => g.key === k) : void 0;
+}
+/** The oldest first, as the goals were created; ties keep the order they're listed in. */
+var creationOrder = (goals) => goals.map((g, i) => ({
+	g,
+	i
+})).sort((a, b) => (a.g.createdAt || "").localeCompare(b.g.createdAt || "") || a.i - b.i).map((x) => x.g);
+/**
+* Every goal with a key: goals that have one keep it; the rest get the next numbers, oldest first. Stable, so data from
+* before keys existed gets the same keys every time it's read. A goal carried into a later cycle with no key takes
+* the key of the goal it continues when there is one (same title, the cycle before).
+*/
+function withKeys(goals, floor = 0) {
+	if (goals.every((g) => g.key)) return goals;
+	let next = lastKey(goals, floor);
+	const keyOf = new Map(goals.filter((g) => g.key).map((g) => [g.id, g.key]));
+	const taken = new Set(goals.filter((g) => g.key).map((g) => g.cycleId + ":" + g.key));
+	const ordered = creationOrder(goals);
+	for (const g of ordered) {
+		if (keyOf.has(g.id)) continue;
+		const same = ordered.find((x) => x.cycleId !== g.cycleId && x.title === g.title && keyOf.has(x.id) && !taken.has(g.cycleId + ":" + keyOf.get(x.id)));
+		const key = same ? keyOf.get(same.id) : formatKey(++next);
+		keyOf.set(g.id, key);
+		taken.add(g.cycleId + ":" + key);
+	}
+	return goals.map((g) => g.key ? g : {
+		...g,
+		key: keyOf.get(g.id)
+	});
+}
+/**
+* Goals about to be saved, settled against what's stored: a goal already stored keeps its stored key (keys never
+* change); a new goal keeps the key it came with unless another goal in its cycle already has it, or it has none, and
+* then takes the next number. Run by every store on save, so two people adding goals at once can't share a key.
+*/
+function settleKeys(stored, incoming) {
+	let next = lastKey(stored);
+	const byId = new Map(stored.map((g) => [g.id, g]));
+	const taken = new Set(stored.filter((g) => g.key).map((g) => g.cycleId + ":" + g.key));
+	const out = [];
+	const brought = lastKey(incoming.filter((g) => !byId.get(g.id)?.key));
+	for (const g of incoming) {
+		const old = byId.get(g.id);
+		if (old?.key) {
+			out.push(g.key === old.key ? g : {
+				...g,
+				key: old.key
+			});
+			continue;
+		}
+		const k = normalKey(g.key);
+		const key = k && !taken.has(g.cycleId + ":" + k) ? k : formatKey(Math.max(next, brought) + 1);
+		next = Math.max(next, keyNumber(key));
+		taken.add(g.cycleId + ":" + key);
+		out.push(g.key === key ? g : {
+			...g,
+			key
+		});
+	}
+	return out;
+}
 // src/data/rows.ts
 /** Postgres numerics can arrive as strings; timestamps in any ISO form. Normalise both. */
 var num$1 = (v) => v == null ? null : Number(v);
@@ -21533,6 +21622,7 @@ function goalToRows(ws, g) {
 		goal: {
 			workspace_id: ws,
 			id: g.id,
+			key: g.key ?? null,
 			cycle_id: g.cycleId,
 			team_id: g.teamId,
 			owner_id: g.ownerId,
@@ -21588,6 +21678,7 @@ var planOf = (op) => ({
 function goalFromRows(r, stageRows) {
 	const common = {
 		id: r.id,
+		...r.key ? { key: r.key } : {},
 		cycleId: r.cycle_id,
 		teamId: r.team_id,
 		ownerId: r.owner_id,
@@ -21923,6 +22014,9 @@ function commitPayload(ws, c) {
 		tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
 		views: (c.views ?? []).map((x) => viewToRow(ws, x)),
 		requests: (c.requests ?? []).map((x) => requestToRow(ws, x)),
+		...c.teams?.length ? { teams: c.teams.map((x) => teamToRow(ws, x)) } : {},
+		...c.removeTeams?.length ? { remove_teams: c.removeTeams } : {},
+		...c.workspace ? { workspace_name: c.workspace.name } : {},
 		changes: c.changes.map((x) => changeToRow(ws, x)),
 		expect: c.expect ? {
 			goals: c.expect.goals,
@@ -22984,6 +23078,7 @@ function planChanged(a, b) {
 function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 	const common = {
 		id: base.id,
+		...existing?.key ? { key: existing.key } : {},
 		cycleId: cycle.id,
 		teamId: d.teamId,
 		ownerId: d.ownerId,
@@ -23367,7 +23462,7 @@ function buildExample(spec, today) {
 		initials: initials$1(p.name),
 		admin: !!p.admin
 	}));
-	const goals = spec.goals.map((g, i) => {
+	const goals = withKeys(spec.goals.map((g, i) => {
 		const base = {
 			id: g.id,
 			cycleId: cycle.id,
@@ -23417,7 +23512,7 @@ function buildExample(spec, today) {
 				dueWeek: toYear(due)
 			}))
 		};
-	});
+	}));
 	const postedAt = (week) => new Date(Math.max(start + week * 7 * DAY$1, Math.min(start + week * 7 * DAY$1 + 2 * DAY$1 + 36e6, today.getTime() - 6e4)));
 	const checkIns = [];
 	for (const g of goals) {
@@ -24339,7 +24434,7 @@ function applyCommit(s, c) {
 	});
 	const byId = new Map(s.goals.map((g, i) => [g.id, i]));
 	const goals = [...s.goals];
-	for (const g of bump(s.goals, c.goals)) {
+	for (const g of bump(s.goals, c.goals && settleKeys(s.goals, c.goals))) {
 		const i = byId.get(g.id);
 		if (i == null) {
 			byId.set(g.id, goals.length);
@@ -24350,6 +24445,7 @@ function applyCommit(s, c) {
 	const replaced = (x) => newIds.has(x.id);
 	return {
 		...s,
+		teams: upsert(s.teams, c.teams).filter((t) => !(c.removeTeams ?? []).includes(t.id)),
 		people: upsert(s.people, c.people),
 		goals,
 		checkIns: [...s.checkIns.filter((x) => !replaced(x)), ...c.checkIns ?? []],
@@ -24438,7 +24534,7 @@ var SupabaseStore = class {
 			teams: teams.map(teamFromRow),
 			people: people.map(personFromRow),
 			cycles: cycles.map(cycleFromRow),
-			goals: goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages)),
+			goals: withKeys(goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages))),
 			checkIns: checkIns.map(checkInFromRow),
 			decisions: decisions.map(decisionFromRow),
 			changes: changes.map(changeFromRow).sort((a, b) => a.at.localeCompare(b.at)),
@@ -24464,12 +24560,20 @@ var SupabaseStore = class {
 		if (await this.rpc("okr_commit", {
 			ws,
 			payload: commitPayload(ws, c)
-		}, "Saving") !== "missing") return;
+		}, "Saving") !== "missing") {
+			await this.teamsAndName(ws, c);
+			return;
+		}
 		await this.legacyCommit(ws, c);
+	}
+	async teamsAndName(ws, c) {
+		if (c.removeTeams?.length) await this.must(this.db.from("okr_teams").delete().eq("workspace_id", ws).in("id", c.removeTeams), "Removing the team");
+		if (c.workspace) await this.must(this.db.from("okr_workspaces").update({ name: c.workspace.name }).eq("id", ws), "Renaming the workspace");
 	}
 	/** The save before migration 0011: one request per table, not in a transaction. Used only until 0011 is applied. */
 	async legacyCommit(ws, c) {
 		if (c.cycles?.length) await this.must(this.db.from("okr_cycles").upsert(c.cycles.map((x) => cycleToRow(ws, x))), "Saving the cycle");
+		if (c.teams?.length) await this.must(this.db.from("okr_teams").upsert(c.teams.map((t) => teamToRow(ws, t))), "Saving the team");
 		if (c.people?.length) await this.must(this.db.from("okr_people").upsert(c.people.map((p) => personToRow(ws, p))), "Saving people");
 		for (const g of c.goals ?? []) {
 			const { goal, stages } = goalToRows(ws, g);
@@ -24492,6 +24596,7 @@ var SupabaseStore = class {
 		if (c.views?.length) await this.must(this.db.from("okr_views").upsert(c.views.map((x) => viewToRow(ws, x))), "Saving the view");
 		if (c.requests?.length) await this.must(this.db.from("okr_requests").upsert(c.requests.map((x) => requestToRow(ws, x))), "Saving the request");
 		for (const id of c.unwatch ?? []) await this.must(this.db.from("okr_watches").delete().eq("id", id), "Stopping watching");
+		await this.teamsAndName(ws, c);
 		if (c.changes.length) await this.must(this.db.from("okr_changes").insert(c.changes.map((x) => changeToRow(ws, x))), "Logging the change");
 	}
 	async insertAll(ws, s) {
@@ -24575,6 +24680,7 @@ function scopeToCycle(s, cycle) {
 	return {
 		...s,
 		goals,
+		keysIssued: lastKey(s.goals, s.keysIssued),
 		checkIns: s.checkIns.filter((c) => ids.has(c.goalId)),
 		decisions: s.decisions.filter((d) => ids.has(d.goalId)),
 		retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
@@ -24781,7 +24887,7 @@ function worseningTrend(goal, cycle, checkIns) {
 	const slipped = assessMilestone(goal, last.week, last.stages).stages.find((s, i) => s.kind !== "done" && s.expectedWeek > (before.stages[i]?.expectedWeek ?? s.expectedWeek));
 	return slipped ? `${slipped.name} slipped to ${weekLabel(slipped.expectedWeek, cycle.weeks)} at the last check-in.` : null;
 }
-function attentionFor(goal, s, cycle, today) {
+function flagsFor(goal, s, cycle, today) {
 	const status = goalStatus(goal, cycle, s.checkIns, today);
 	const { latest, week } = status;
 	const flags = [];
@@ -24804,16 +24910,101 @@ function attentionFor(goal, s, cycle, today) {
 	if (week >= 1 && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", "Check-in due", `Due before the review in week ${week}.`, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
+		status,
+		flags
+	};
+}
+function attentionFor(goal, s, cycle, today) {
+	const { status, flags } = flagsFor(goal, s, cycle, today);
+	return {
 		goal,
 		status,
 		flags,
-		weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0)
+		weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0),
+		handled: handledFor(goal, s, cycle, today, status, flags)
 	};
 }
-/** Everything that needs attention, worst first. Goals with only a due check-in are left out unless asked. */
-function attentionList(s, cycle, today, opts = {}) {
-	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort((a, b) => b.weight - a.weight || a.goal.title.localeCompare(b.goal.title));
+/** The kinds of look that put a behind goal in hand, strongest first. */
+var HANDLED_ORDER = [
+	"action",
+	"answered",
+	"noted",
+	"reviewed"
+];
+var LOOKS = {
+	action: "action",
+	note: "noted",
+	acknowledge: "reviewed"
+};
+/**
+* Whether a goal that is off track or at risk is being handled, and by what. It is when, since its latest check-in,
+* someone other than the owner marked it reviewed or added a note, an action was agreed (and isn't overdue), or a
+* request it's waiting on was answered; and no flag has appeared since that look (a missed recovery date, say). A new
+* check-in always makes it news again, so it needs attention until someone looks at that.
+*/
+function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today), flags) {
+	if (status.status !== "off" && status.status !== "risk") return null;
+	const latest = status.latest;
+	if (!latest) return null;
+	const since = latest.postedAt;
+	const week = currentWeek(cycle, today);
+	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
+	const day = today.toISOString().slice(0, 10);
+	const looks = [];
+	for (const d of s.decisions) {
+		const kind = LOOKS[d.kind];
+		if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
+		if (kind !== "action" && d.byId === goal.ownerId) continue;
+		if (kind === "action" && d.dueWeek != null && d.dueWeek < week) continue;
+		const review = d.reviewId ? s.reviews.find((r) => r.id === d.reviewId)?.name : null;
+		const where = review ? `in ${review}` : `by ${first(d.byId)}`;
+		const text = kind === "action" ? `Action: ${first(d.assigneeId ?? goal.ownerId)}${d.dueWeek != null ? `, due week ${d.dueWeek}` : ""}` : `${kind === "noted" ? "Noted" : "Reviewed"} ${where}, week ${d.week}`;
+		looks.push({
+			kind,
+			text,
+			said: kind === "reviewed" ? "" : d.note,
+			byId: d.byId,
+			at: d.at,
+			week: d.week,
+			reviewId: d.reviewId
+		});
+	}
+	const answer = answeredSince(goal.id, since, s);
+	if (answer?.answeredAt && answer.answeredAt.slice(0, 10) <= day) {
+		const w = currentWeek(cycle, new Date(answer.answeredAt));
+		looks.push({
+			kind: "answered",
+			text: `Request answered by ${first(answer.answeredBy)}, week ${w}`,
+			said: answer.answer ?? "",
+			byId: answer.answeredBy ?? "",
+			at: answer.answeredAt,
+			week: w,
+			reviewId: null
+		});
+	}
+	if (!looks.length) return null;
+	const firstLook = looks.reduce((a, b) => a.at < b.at ? a : b);
+	const now = (flags ?? flagsFor(goal, s, cycle, today).flags).filter((f) => f.kind !== "due").map((f) => f.kind);
+	const then = new Set(flagsFor(goal, s, cycle, new Date(firstLook.at)).flags.map((f) => f.kind));
+	if (now.some((k) => !then.has(k))) return null;
+	return looks.sort((a, b) => HANDLED_ORDER.indexOf(a.kind) - HANDLED_ORDER.indexOf(b.kind) || b.at.localeCompare(a.at))[0];
 }
+/** A list of goals' attention split into what needs attention (new information) and what is being handled. */
+function splitAttention(list) {
+	return {
+		needs: list.filter((a) => !a.handled),
+		handled: list.filter((a) => !!a.handled)
+	};
+}
+/**
+* Everything flagged, worst first, with the goals being handled after the ones that need attention (split them with
+* splitAttention). Goals with only a due check-in are left out unless asked.
+*/
+function attentionList(s, cycle, today, opts = {}) {
+	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort(attentionOrder);
+}
+/** Needs attention before being handled; then worst first, then by name. */
+var attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
 // src/domain/review.ts
 /** A goal and every goal feeding it, at any depth. */
 function treeOf$2(rootId, goals) {
@@ -24864,14 +25055,22 @@ function sessionDate(r, cycle, week) {
 * Reviews walk the rest one at a time and acknowledge these together (Senior UX review, 2 Nov).
 */
 var isHealthy = (a) => (a.status.status === "on" || a.status.status === "done") && a.flags.every((f) => f.kind === "due");
-/** What a session still has to do: goals to discuss one at a time, and goals on track to cover together. */
+/**
+* What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
+* every goal that isn't healthy, the ones with new information first; `handled` names the ones in it that are already
+* being handled (someone looked since the latest check-in), so an agenda can group them under "Being handled".
+*/
 function agendaOf(s) {
 	const left = s.items.filter((a) => !s.covered.has(a.goal.id));
+	const discuss = left.filter((a) => !isHealthy(a));
 	return {
-		discuss: left.filter((a) => !isHealthy(a)),
-		healthy: left.filter(isHealthy)
+		discuss,
+		healthy: left.filter(isHealthy),
+		handled: discuss.filter((a) => !!a.handled)
 	};
 }
+/** Agenda order: new information, then what's being handled, then the healthy goals. */
+var tier = (a) => a.handled ? 1 : isHealthy(a) ? 2 : 0;
 function reviewSession(r, s, cycle, today, week) {
 	const w = sessionWeek(r, week);
 	const lastCheckIn = (g) => {
@@ -24879,7 +25078,7 @@ function reviewSession(r, s, cycle, today, week) {
 		const last = own[own.length - 1];
 		return last ? daysSince(last.postedAt, today) : 999;
 	};
-	const items = goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
+	const items = goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
 	const said = s.decisions.filter((d) => d.reviewId === r.id && d.week === w);
 	const covered = new Set(said.filter((d) => d.kind === "acknowledge").map((d) => d.goalId));
 	const done = items.filter((a) => covered.has(a.goal.id)).length;
@@ -24893,6 +25092,51 @@ function reviewSession(r, s, cycle, today, week) {
 		total: items.length,
 		said
 	};
+}
+/** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
+var dayText = (iso) => (/* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z")).toLocaleDateString("en-GB", {
+	weekday: "short",
+	day: "numeric",
+	month: "short",
+	timeZone: "UTC"
+});
+function sessionState(s) {
+	if (s.total > 0 && s.done >= s.total) return {
+		kind: "held",
+		on: (s.said.filter((d) => d.kind === "acknowledge").map((d) => d.at).sort().at(-1) ?? s.date).slice(0, 10)
+	};
+	if (s.done > 0 || s.said.length > 0) return {
+		kind: "in-progress",
+		done: s.done,
+		total: s.total
+	};
+	return { kind: "not-started" };
+}
+/** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
+function sessionStateText(st) {
+	if (st.kind === "held") return `Held ${dayText(st.on)}`;
+	if (st.kind === "in-progress") return `In progress · ${st.done} of ${st.total} reviewed`;
+	return "Not started";
+}
+/**
+* When a review was last held before its current session: the latest earlier session in which anything was said
+* (a goal reviewed, a note, a question or an action), dated by the last thing said in it. Null if it never has been.
+*/
+function lastHeld(r, s, sessionWk) {
+	const past = s.decisions.filter((d) => d.reviewId === r.id && d.week < sessionWk);
+	if (!past.length) return null;
+	const week = Math.max(...past.map((d) => d.week));
+	return {
+		week,
+		on: past.filter((d) => d.week === week).map((d) => d.at).sort().at(-1).slice(0, 10)
+	};
+}
+/**
+* A review's open actions: every action agreed in it, in any session, that isn't yet past the week it's due by.
+* An action with no date stays open. Actions carry no "done" mark, so the due week is what closes them.
+*/
+function openActions(r, s, week) {
+	return s.decisions.filter((d) => d.reviewId === r.id && d.kind === "action" && (d.dueWeek == null || d.dueWeek >= week));
 }
 /**
 * The owner's answer to a question from a review: their first comment or check-in on the goal after it
@@ -24913,6 +25157,254 @@ function answerOf(ask, s) {
 function openQuestions(personId, s) {
 	const mine = new Set(s.goals.filter((g) => g.ownerId === personId).map((g) => g.id));
 	return s.decisions.filter((d) => d.kind === "ask" && mine.has(d.goalId) && !answerOf(d, s));
+}
+// src/domain/tableFilter.ts
+var OP_LABEL = {
+	is: "is any of",
+	isNot: "is none of",
+	contains: "contains",
+	notContains: "doesn’t contain",
+	eq: "=",
+	ne: "≠",
+	gt: ">",
+	gte: "≥",
+	lt: "<",
+	lte: "≤",
+	empty: "is empty",
+	notEmpty: "is not empty"
+};
+/** Conditions that need no value. */
+var NO_VALUE = ["empty", "notEmpty"];
+var isNum = (v) => v.trim() !== "" && !isNaN(Number(v));
+/** Does one cell value pass the filter? */
+function passes(cell, f) {
+	const v = cell.trim();
+	const want = f.value.trim();
+	switch (f.op) {
+		case "empty": return v === "";
+		case "notEmpty": return v !== "";
+		case "is": return want.split("|").some((w) => w.toLowerCase() === v.toLowerCase());
+		case "isNot": return !want.split("|").some((w) => w.toLowerCase() === v.toLowerCase());
+		case "contains": return v.toLowerCase().includes(want.toLowerCase());
+		case "notContains": return !v.toLowerCase().includes(want.toLowerCase());
+		default: {
+			if (!isNum(v) || !isNum(want)) return false;
+			const a = Number(v), b = Number(want);
+			return f.op === "eq" ? a === b : f.op === "ne" ? a !== b : f.op === "gt" ? a > b : f.op === "gte" ? a >= b : f.op === "lt" ? a < b : a <= b;
+		}
+	}
+}
+/** Rows (as header → value) that pass every filter and contain every search word, sorted. */
+function applyTable(rows, head, q, filters, sort) {
+	const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+	const idx = (c) => head.indexOf(c);
+	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
+	const out = rows.filter((r) => words.every((w) => r.cells.some((c) => c.toLowerCase().includes(w))) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
+	const si = sort ? idx(sort.col) : -1;
+	if (sort && si >= 0) out.sort((a, b) => {
+		const x = a.cells[si] ?? "", y = b.cells[si] ?? "";
+		if (!x.trim() || !y.trim()) return (x.trim() ? 0 : 1) - (y.trim() ? 0 : 1);
+		return (isNum(x) && isNum(y) ? Number(x) - Number(y) : x.localeCompare(y, void 0, { numeric: true })) * sort.dir;
+	});
+	return out;
+}
+function parseFilters(p) {
+	return p.getAll("f").map((x) => {
+		const [col = "", op = "", ...rest] = x.split("~");
+		return {
+			col,
+			op,
+			value: rest.join("~")
+		};
+	}).filter((f) => f.col && f.op in OP_LABEL);
+}
+function parseSort(p) {
+	const v = p.get("s");
+	if (!v) return null;
+	const i = v.lastIndexOf("~");
+	return i > 0 ? {
+		col: v.slice(0, i),
+		dir: v.slice(i + 1) === "desc" ? -1 : 1
+	} : null;
+}
+function filterEntries(filters, sort) {
+	return [...filters.map((f) => ["f", `${f.col}~${f.op}~${f.value}`]), ...sort ? [["s", `${sort.col}~${sort.dir === 1 ? "asc" : "desc"}`]] : []];
+}
+// src/domain/tableLayout.ts
+var TABLES = {
+	goals: {
+		sheet: "Goals",
+		label: "Goals",
+		name: "Goal",
+		always: ["Key"],
+		hidden: [],
+		defaults: [
+			"Key",
+			"Goal",
+			"Level",
+			"Team",
+			"Owner",
+			"Type",
+			"Unit",
+			"Start",
+			"Target",
+			"Status",
+			"Now",
+			"Gap",
+			"Last check-in week",
+			"Feeds into"
+		]
+	},
+	checkIns: {
+		sheet: "Check-ins",
+		label: "Check-ins",
+		name: "Goal",
+		always: ["ID"],
+		hidden: [],
+		defaults: [
+			"ID",
+			"Goal key",
+			"Goal",
+			"Week",
+			"Value",
+			"Stages",
+			"Call",
+			"Calculated",
+			"Plan that week",
+			"Why",
+			"Recovery",
+			"Back on plan by week",
+			"Needs",
+			"Posted by"
+		]
+	},
+	plan: {
+		sheet: "Plan",
+		label: "Plans",
+		name: "Goal",
+		always: ["Key"],
+		hidden: [],
+		defaults: null
+	},
+	requests: {
+		sheet: "Requests",
+		label: "Requests",
+		name: "Request",
+		always: ["ID"],
+		hidden: [],
+		defaults: [
+			"ID",
+			"Request",
+			"Goals",
+			"Goal keys",
+			"Asked by",
+			"Asked of",
+			"Status",
+			"Asked at",
+			"Answer",
+			"Answered by"
+		]
+	},
+	people: {
+		sheet: "People",
+		label: "People",
+		name: "Name",
+		always: ["ID"],
+		hidden: ["Team objective"],
+		defaults: null
+	}
+};
+/** The tables, in the order the Data screen lists them. */
+var TABLE_ORDER = [
+	"goals",
+	"checkIns",
+	"plan",
+	"requests",
+	"people"
+];
+var isDataTable = (t) => typeof t === "string" && t in TABLES;
+function minWidth(table, col) {
+	if (col === TABLES[table].name) return 120;
+	if (/^(Week \d+|Week|Key|Goal key|Decimals|Q[1-4])$/.test(col)) return 56;
+	return 72;
+}
+var clampWidth = (table, col, w) => Math.round(Math.min(640, Math.max(minWidth(table, col), w)));
+/** The columns a table shows, in order: its name column, then the chosen columns (or the usual ones) that it has. */
+function visibleColumns(table, head, cols) {
+	const t = TABLES[table];
+	const has = (c) => head.includes(c) && !t.hidden.includes(c) && c !== t.name;
+	const always = t.always.filter(has);
+	let rest;
+	if (cols) {
+		rest = cols.filter(has);
+		for (const c of always) if (!rest.includes(c)) rest.splice(Math.min(rest.length, Math.max(0, head.indexOf(c) - 1)), 0, c);
+	} else {
+		const pick = t.defaults;
+		rest = head.filter((c) => has(c) && (!pick || pick.includes(c) || always.includes(c)));
+	}
+	return [...head.includes(t.name) ? [t.name] : [], ...new Set(rest)];
+}
+/** Every column a table can show, besides its name column. */
+var choosableColumns = (table, head) => head.filter((c) => !TABLES[table].hidden.includes(c) && c !== TABLES[table].name);
+function layoutParams(l) {
+	const p = new URLSearchParams([["table", l.table]]);
+	for (const c of l.cols ?? []) p.append("c", c);
+	for (const [c, w] of Object.entries(l.widths)) p.append("w", `${c}~${Math.round(w)}`);
+	if (l.q.trim()) p.append("q", l.q.trim());
+	for (const [k, v] of filterEntries(l.filters, l.sort)) p.append(k, v);
+	return p.toString();
+}
+function parseLayout(params) {
+	const p = new URLSearchParams(params.replace(/^.*\?/, ""));
+	const table = p.get("table");
+	if (!isDataTable(table)) return null;
+	const cols = p.getAll("c").filter(Boolean);
+	const widths = {};
+	for (const w of p.getAll("w")) {
+		const i = w.lastIndexOf("~");
+		const n = Number(w.slice(i + 1));
+		if (i > 0 && Number.isFinite(n)) widths[w.slice(0, i)] = clampWidth(table, w.slice(0, i), n);
+	}
+	return {
+		table,
+		cols: cols.length ? cols : null,
+		widths,
+		q: p.get("q") ?? "",
+		filters: parseFilters(p),
+		sort: parseSort(p)
+	};
+}
+/** A saved view of a data table, rather than of the Goals screen. */
+var isTableView = (v) => /^table=/.test(v.params);
+/** What's wrong with a layout, in words: an unknown table, or (given the table's columns) a column it doesn't have. */
+function layoutProblems(l, head) {
+	if (!l) return [`The table should be one of ${TABLE_ORDER.join(", ")}.`];
+	const out = [];
+	if (head) {
+		const unknown = [
+			...l.cols ?? [],
+			...Object.keys(l.widths),
+			...l.filters.map((f) => f.col),
+			...l.sort ? [l.sort.col] : []
+		].filter((c) => !head.includes(c));
+		if (unknown.length) out.push(`The ${TABLES[l.table].label} table has no ${unknown.length === 1 ? "column" : "columns"} called ${[...new Set(unknown)].map((c) => `“${c}”`).join(", ")}.`);
+	}
+	if ((l.cols ?? []).length > 400) out.push("That’s more columns than any table has.");
+	return out;
+}
+/**
+* The table as it shows: the visible columns in order, and the rows that pass the search and filters, sorted. Values
+* stay as they are (numbers as numbers), so a spreadsheet can work with them. Header row first.
+*/
+function shownTable(sheet, l) {
+	const [head0, ...body] = sheet.rows;
+	const head = (head0 ?? []).map((c) => c == null ? "" : String(c));
+	const cols = visibleColumns(l.table, head, l.cols).map((c) => head.indexOf(c));
+	const shown = applyTable(body.map((raw) => ({
+		raw,
+		cells: raw.map((c) => c == null ? "" : String(c))
+	})), head, l.q, l.filters, l.sort);
+	return [cols.map((i) => head[i]), ...shown.map((r) => cols.map((i) => r.raw[i] ?? null))];
 }
 // src/domain/updateAsks.ts
 var UPDATE_ASK = "Asked for an update";
@@ -25386,6 +25878,11 @@ function saveView(x, v) {
 	if (!clean) no("Give the view a name.");
 	const old = v.id ? liveView(x, v.id) : void 0;
 	if (v.id && !old) no("There’s no view with that ID.");
+	if (isTableView(v)) {
+		const problems = layoutProblems(parseLayout(v.params));
+		if (problems.length) no(problems.join(" "));
+	}
+	if (old && isTableView(old) !== isTableView(v)) no(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
 	if (old && old.personId !== x.actor.id && !x.actor.admin) no("Only its owner or an admin can change this view.");
 	const view = old ? {
 		...old,
@@ -25423,6 +25920,25 @@ function saveView(x, v) {
 			}] : []
 		}
 	};
+}
+/**
+* Save the layout of a data table (its columns in order, their widths, and its search, filters and sort) as a named
+* table view, or change one of yours. Given the table's columns, a column it doesn't have is refused. It's a saved view
+* like any other: yours, an admin can pin it for everyone, and it's deleted the same way.
+*/
+function saveTableView(x, v, head) {
+	const problems = layoutProblems(v.layout, head);
+	if (problems.length) no(problems.join(" "));
+	if (v.layout.cols && !v.layout.cols.length) no("Show at least one column.");
+	const widths = Object.fromEntries(Object.entries(v.layout.widths).map(([c, w]) => [c, clampWidth(v.layout.table, c, w)]));
+	return saveView(x, {
+		id: v.id,
+		name: v.name,
+		params: layoutParams({
+			...v.layout,
+			widths
+		})
+	});
 }
 /** Delete one of your views; an admin can also delete a pinned one. Null when it's already gone. */
 function deleteView(x, id) {
@@ -25560,6 +26076,153 @@ function sendFeedback(x, mood, text, path) {
 			at: x.now
 		}],
 		changes: []
+	};
+}
+/** Admins: give the workspace a new name. Null when it already has that name. */
+function renameWorkspace(x, ws, name) {
+	if (!x.actor.admin) no("Only admins can rename the workspace.");
+	const clean = name.trim().replace(/\s+/g, " ");
+	if (!clean) no("Give the workspace a name.");
+	if (clean.length > 80) no("Keep the name to 80 characters or fewer.");
+	if (clean === ws.name) return null;
+	return {
+		workspace: { name: clean },
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "workspace",
+			entityId: ws.id,
+			action: "edited",
+			summary: `Renamed the workspace to “${clean}”`,
+			diffs: [{
+				field: "Workspace name",
+				from: ws.name,
+				to: clean
+			}]
+		}]
+	};
+}
+/** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
+function saveTeam(x, t) {
+	if (!x.actor.admin) no("Only admins can add or change teams.");
+	const clean = t.name.trim().replace(/\s+/g, " ");
+	if (!clean) no("Give the team a name.");
+	if (clean.length > 60) no("Keep the team’s name to 60 characters or fewer.");
+	const before = t.id ? x.snapshot.teams.find((v) => v.id === t.id) : void 0;
+	if (t.id && !before) no("There’s no team with that ID.");
+	const same = x.snapshot.teams.find((v) => v.id !== before?.id && v.name.trim().toLowerCase() === clean.toLowerCase());
+	if (same) no(`There’s already a team called ${same.name}.`);
+	const leadId = t.leadId === void 0 ? before?.leadId ?? "" : t.leadId ?? "";
+	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no("The team lead isn’t in this workspace.");
+	const team = {
+		id: before?.id ?? x.newId("team"),
+		name: clean,
+		leadId,
+		objective: before?.objective ?? ""
+	};
+	const name = (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? "—";
+	const diffs = before ? [...before.name !== team.name ? [{
+		field: "Team name",
+		from: before.name,
+		to: team.name
+	}] : [], ...(before.leadId || "") !== leadId ? [{
+		field: "Team lead",
+		from: name(before.leadId),
+		to: name(leadId)
+	}] : []] : [{
+		field: "Team",
+		from: "—",
+		to: team.name
+	}];
+	if (before && !diffs.length) return {
+		commit: null,
+		id: team.id
+	};
+	return {
+		id: team.id,
+		commit: {
+			teams: [team],
+			changes: [{
+				id: x.newId("chg"),
+				at: x.now,
+				actorId: x.actor.id,
+				goalId: null,
+				entity: "workspace",
+				entityId: team.id,
+				action: before ? "edited" : "created",
+				summary: before ? before.name !== team.name ? `Renamed the team “${before.name}” to “${team.name}”` : `Changed the team “${team.name}”` : `Added the team “${team.name}”`,
+				diffs
+			}]
+		}
+	};
+}
+/** What still belongs to a team: its people, and its goals in every cycle (the workspace's goals when known). */
+function teamMembers(x, teamId) {
+	return {
+		people: x.snapshot.people.filter((p) => p.teamId === teamId),
+		goals: (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId)
+	};
+}
+/** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
+function removeTeam(x, id, moveTo) {
+	if (!x.actor.admin) no("Only admins can remove teams.");
+	const team = x.snapshot.teams.find((t) => t.id === id);
+	if (!team) no("There’s no team with that ID.");
+	const { people, goals } = teamMembers(x, id);
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	const what = [people.length ? plural(people.length, "person", "people") : "", goals.length ? plural(goals.length, "goal", "goals") : ""].filter(Boolean).join(" and ");
+	const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : void 0;
+	if (moveTo && (!to || moveTo === id)) no("Move them to another team that’s in this workspace.");
+	if (what && !to) no(`${team.name} still has ${what}. Move them to another team first.`);
+	const movedPeople = people.map((p) => ({
+		...p,
+		teamId: to.id
+	}));
+	const movedGoals = goals.map((g) => ({
+		...g,
+		teamId: to.id
+	}));
+	const l = lookupOf(x.snapshot);
+	const goalChanges = goals.map((g, i) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actor.id,
+		goalId: g.id,
+		entity: "goal",
+		entityId: g.id,
+		action: "edited",
+		summary: `Moved to ${to.name}, as ${team.name} was removed`,
+		diffs: [{
+			field: "Team",
+			from: team.name,
+			to: l.teamName(movedGoals[i].teamId)
+		}]
+	}));
+	return {
+		...movedPeople.length ? { people: movedPeople } : {},
+		...movedGoals.length ? { goals: movedGoals } : {},
+		removeTeams: [id],
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "workspace",
+			entityId: id,
+			action: "removed",
+			summary: what ? `Removed the team “${team.name}”, moving ${what} to ${to.name}` : `Removed the team “${team.name}”`,
+			diffs: [{
+				field: "Team",
+				from: team.name,
+				to: "—"
+			}, ...people.length ? [{
+				field: "People moved",
+				from: team.name,
+				to: `${to.name}: ${people.map((p) => p.name).join(", ")}`
+			}] : []]
+		}, ...goalChanges]
 	};
 }
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */
@@ -25925,6 +26588,8 @@ function planChanges(input) {
 	const person = (name) => [...people.values()].find((p) => norm(p.name) === norm(name));
 	const team = (name) => s.teams.find((t) => norm(t.name) === norm(name));
 	const work = new Map(s.goals.map((g) => [g.id, g]));
+	const goalByRef = (ref) => ref ? work.get(ref) ?? findGoal([...work.values()], ref) : void 0;
+	let lastKeyGiven = lastKey(s.goals, s.keysIssued);
 	const touched = /* @__PURE__ */ new Map();
 	const started = (id) => s.checkIns.some((c) => c.goalId === id);
 	const canChange = (g) => actor.admin || g.ownerId === actor.id;
@@ -25933,10 +26598,13 @@ function planChanges(input) {
 	(input.tables.goals ?? []).forEach((r, i) => {
 		const row = rowOf(r, i);
 		const id = val(r, "id");
+		const keyRef = val(r, "key");
 		const title = val(r, "goal");
-		if (!id && !title && Object.entries(r).every(([k, v]) => k === "__row" || !v)) return;
-		const existing = id ? work.get(id) ?? null : null;
+		if (!id && !keyRef && !title && Object.entries(r).every(([k, v]) => k === "__row" || !v)) return;
+		const existing = goalByRef(id || keyRef) ?? null;
 		if (id && !existing) return err("Goals", row, title || id, `There’s no goal with ID ${id} in ${cycle.name}. Leave ID empty to add a new goal.`);
+		if (!id && keyRef && !existing) return err("Goals", row, title || keyRef, `There’s no goal with key ${keyRef} in ${cycle.name}. Leave Key and ID empty to add a new goal.`);
+		if (existing && keyRef && normalKey(keyRef) !== existing.key) return err("Goals", row, existing.title, `Key ${keyRef} isn’t this goal’s key (${existing.key ?? "none"}). A goal’s key never changes.`);
 		if (!existing) {
 			if (!title) return err("Goals", row, "", "Name the goal in the Goal column.");
 			const same = [...work.values()].find((g) => norm(g.title) === norm(title));
@@ -26005,6 +26673,7 @@ function planChanges(input) {
 		const errs = Object.values(validateGoal(d, cycle));
 		if (errs.length) return err("Goals", row, d.title, errs.join(" "));
 		const gid = existing?.id ?? newId("goal");
+		const key = existing ? existing.key : formatKey(++lastKeyGiven);
 		if (has(r, "feeds into id") || has(r, "feeds into")) parentLinks.push({
 			id: gid,
 			row,
@@ -26022,6 +26691,10 @@ function planChanges(input) {
 			...existing,
 			...built
 		};
+		if (key) built = {
+			...built,
+			key
+		};
 		if (existing && d.whyHelps === "" && "whyHelps" in built) delete built.whyHelps;
 		work.set(gid, built);
 		touched.set(gid, {
@@ -26036,11 +26709,12 @@ function planChanges(input) {
 		const g = work.get(l.id);
 		let parentId = null;
 		if (l.byId) {
-			if (!work.has(l.byId)) {
+			const p = goalByRef(l.byId);
+			if (!p) {
 				err("Goals", l.row, g.title, `Feeds into ID ${l.byId} isn’t a goal in ${cycle.name}.`);
 				continue;
 			}
-			parentId = l.byId;
+			parentId = p.id;
 		} else if (l.byTitle) {
 			const p = [...work.values()].find((x) => norm(x.title) === norm(l.byTitle));
 			if (!p) {
@@ -26069,13 +26743,14 @@ function planChanges(input) {
 	}
 	(input.tables.plan ?? []).forEach((r, i) => {
 		const row = rowOf(r, i);
-		const id = val(r, "id");
-		if (!id) {
-			if (val(r, "goal")) err("Plan", row, val(r, "goal"), "Add the goal’s ID so the plan can be matched to it.");
+		const ref = val(r, "id") || val(r, "key");
+		if (!ref) {
+			if (val(r, "goal")) err("Plan", row, val(r, "goal"), "Add the goal’s ID or key so the plan can be matched to it.");
 			return;
 		}
-		const g = work.get(id);
-		if (!g) return err("Plan", row, val(r, "goal") || id, `There’s no goal with ID ${id}.`);
+		const g = goalByRef(ref);
+		if (!g) return err("Plan", row, val(r, "goal") || ref, `There’s no goal with ${isKey(ref) && !work.has(ref) ? "key" : "ID"} ${ref}.`);
+		const id = g.id;
 		if (g.kind !== "metric") return err("Plan", row, g.title, "Only number goals have plan numbers.");
 		const from = g.plan.fromWeek ?? 0, end = planEnd(g.plan, cycle.weeks);
 		const typed = /* @__PURE__ */ new Map();
@@ -26167,15 +26842,16 @@ function planChanges(input) {
 		row: rowOf(r, i)
 	}));
 	const byTitle = new Map([...work.values()].map((g) => [norm(g.title), g]));
-	const goalFor = (r) => val(r, "goal id") ? work.get(val(r, "goal id")) : byTitle.get(norm(val(r, "goal")));
+	const goalRefOf = (r) => val(r, "goal id") || val(r, "goal key");
+	const goalFor = (r) => goalRefOf(r) ? goalByRef(goalRefOf(r)) : byTitle.get(norm(val(r, "goal")));
 	const imported = /* @__PURE__ */ new Map();
 	rows.sort((a, b) => (goalFor(a.r)?.id ?? "").localeCompare(goalFor(b.r)?.id ?? "") || (parseNumber(val(a.r, "week")) ?? 0) - (parseNumber(val(b.r, "week")) ?? 0));
 	for (const { r, row } of rows) {
 		if (Object.entries(r).every(([k, v]) => k === "__row" || !v)) continue;
 		const g = goalFor(r);
-		const name = val(r, "goal") || val(r, "goal id");
+		const name = val(r, "goal") || goalRefOf(r);
 		if (!g) {
-			err("Check-ins", row, name, val(r, "goal id") ? `There’s no goal with ID ${val(r, "goal id")}.` : `There’s no goal called “${val(r, "goal")}”. Add the Goal ID column to be exact.`);
+			err("Check-ins", row, name, goalRefOf(r) ? `There’s no goal with ${isKey(goalRefOf(r)) ? "key" : "ID"} ${goalRefOf(r)}.` : `There’s no goal called “${val(r, "goal")}”. Add the Goal ID or Goal key column to be exact.`);
 			continue;
 		}
 		const w = parseNumber(val(r, "week"));
@@ -26623,6 +27299,15 @@ function summarise(goal, s, cycle, today, week) {
 function summariseAll(goals, s, cycle, today, week) {
 	return goals.map((g) => summarise(g, s, cycle, today, week));
 }
+var STATUS_ORDER = [
+	"off",
+	"risk",
+	"stale",
+	"none",
+	"on",
+	"planned",
+	"done"
+];
 // src/domain/export.ts
 var EXPORT_FORMAT = "goals-app.export";
 var levelWord = {
@@ -26660,7 +27345,9 @@ function stagesText(g, c) {
 	if (g.kind !== "milestone" || !c.stages) return "";
 	return assessMilestone(g, c.week, c.stages).stages.map((s) => `${s.name}: ${s.kind === "done" ? "done week " + s.doneWeek : s.weeksLate > 0 ? "expected week " + s.expectedWeek : "due week " + s.dueWeek}`).join("; ");
 }
+/** The goal's readable key comes first (G-12); its ID, the identity the app keeps, next. Either matches it on the way back. */
 var GOAL_EXPORT_COLUMNS = [
+	"Key",
 	"ID",
 	"Goal",
 	"Level",
@@ -26707,6 +27394,7 @@ var GOAL_DERIVED_COLUMNS = [
 ];
 var CHECKIN_EXPORT_COLUMNS = [
 	"ID",
+	"Goal key",
 	"Goal ID",
 	"Goal",
 	"Week",
@@ -26733,6 +27421,7 @@ function goalRow(s, all) {
 	const parent = g.parentId ? all.find((x) => x.id === g.parentId) : null;
 	const m = g.kind === "metric" ? g : null, r = g.kind === "range" ? g : null;
 	return [
+		g.key ?? null,
 		g.id,
 		g.title,
 		levelWord[g.level],
@@ -26789,6 +27478,7 @@ function checkInRows(x, sums, name) {
 			const ptg = c.pathToGreen;
 			rows.push([
 				c.id,
+				g.key ?? null,
 				g.id,
 				g.title,
 				c.week,
@@ -26812,7 +27502,12 @@ function checkInRows(x, sums, name) {
 			]);
 		}
 	}
-	return rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])) || Number(a[3]) - Number(b[3]) || String(a[18]).localeCompare(String(b[18])));
+	const [gi, wi, pi] = [
+		"Goal",
+		"Week",
+		"Posted at"
+	].map((c) => CHECKIN_EXPORT_COLUMNS.indexOf(c));
+	return rows.sort((a, b) => String(a[gi]).localeCompare(String(b[gi])) || Number(a[wi]) - Number(b[wi]) || String(a[pi]).localeCompare(String(b[pi])));
 }
 /** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
 function planRows(x, sums) {
@@ -26820,6 +27515,7 @@ function planRows(x, sums) {
 	const last = Math.max(x.cycle.weeks, ...metric.map((g) => planEnd(g.plan, x.cycle.weeks)));
 	const weeks = Array.from({ length: last }, (_, i) => i + 1);
 	return [[
+		"Key",
 		"ID",
 		"Goal",
 		"Unit",
@@ -26829,6 +27525,7 @@ function planRows(x, sums) {
 		const end = planEnd(g.plan, x.cycle.weeks);
 		const from = g.plan.fromWeek ?? 0;
 		return [
+			g.key ?? null,
 			g.id,
 			g.title,
 			g.unit,
@@ -26843,6 +27540,12 @@ var README = [
 		"Column",
 		"What it means",
 		"When loaded back"
+	],
+	[
+		"Goals",
+		"Key",
+		"The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal: it gets the next one.",
+		"Matches the goal, like ID"
 	],
 	[
 		"Goals",
@@ -26924,7 +27627,7 @@ var README = [
 	],
 	[
 		"Check-ins",
-		"Goal ID, Week, Value or Stages",
+		"Goal key or Goal ID, Week, Value or Stages",
 		"One row per check-in: a goal and week, and what was reported",
 		"Adds a check-in, or corrects the one with that ID (or that week’s latest when there’s no ID)"
 	],
@@ -26971,6 +27674,7 @@ function requestRows(x, ids, name) {
 	return [[
 		"ID",
 		"Goals",
+		"Goal keys",
 		"Goal IDs",
 		"Asked by",
 		"Asked of",
@@ -26983,6 +27687,7 @@ function requestRows(x, ids, name) {
 	], ...requestsOf(x.snapshot).filter((r) => r.goalIds.some((id) => ids.has(id))).map((r) => [
 		r.id,
 		r.goalIds.map(title).join("; "),
+		r.goalIds.map((id) => x.snapshot.goals.find((g) => g.id === id)?.key ?? "").filter(Boolean).join("; ") || null,
 		r.goalIds.join("; "),
 		name(r.askedBy) || null,
 		r.recipientId ? name(r.recipientId) || null : "Anyone",
@@ -27019,6 +27724,7 @@ function workbook(x) {
 		{
 			name: "Notes and actions",
 			rows: [[
+				"Goal key",
 				"Goal ID",
 				"Goal",
 				"Week",
@@ -27031,6 +27737,7 @@ function workbook(x) {
 				"Answer",
 				"At"
 			], ...notes.map((d) => [
+				goals.find((g) => g.id === d.goalId)?.key ?? null,
 				d.goalId,
 				goalTitle(d.goalId),
 				d.week,
@@ -27133,6 +27840,7 @@ function toJson(x) {
 			const g = s.goal;
 			return {
 				id: g.id,
+				key: g.key ?? null,
 				title: g.title,
 				level: g.level,
 				type: g.kind,
@@ -27246,6 +27954,7 @@ function toJson(x) {
 			"action"
 		].includes(d.kind)).map((d) => ({
 			goalId: d.goalId,
+			goalKey: sums.find((s) => s.goal.id === d.goalId)?.goal.key ?? null,
 			week: d.week,
 			kind: d.kind === "ask" ? "question" : d.kind,
 			by: name(d.byId),
@@ -27260,14 +27969,15 @@ function toJson(x) {
 	};
 }
 /** One goal's story, given room: why it's off, the recovery plan, by when, what's needed. */
-function storyBlock(sm, cycleWeeks) {
+function storyBlock(sm, cycleWeeks, handled) {
 	const st = sm.story;
 	const g = sm.goal;
 	const out = [];
 	const tags = [st.since, st.result ? st.result.text : null].filter(Boolean).join(" · ");
-	out.push(`### ${g.title}`);
+	out.push(`### ${g.title}${g.key ? ` (${g.key})` : ""}`);
 	out.push(`**${LABEL[sm.status]}**${tags ? ` · ${tags}` : ""} · ${sm.owner}, ${sm.team}${st.feeds ? ` · ${st.feeds}` : ""}`);
 	out.push("");
+	if (handled) out.push(`- **Being handled:** ${handled.text}${handled.said ? `: ${handled.said}` : "."}`);
 	out.push(`- **Where it is:** ${st.where}`);
 	if (st.outlook) out.push(`- **Where it’s heading:** ${st.outlook}`);
 	if (sm.status === "stale") {
@@ -27288,7 +27998,13 @@ function aiBrief(x) {
 	const by = new Map(sums.map((s) => [s.goal.id, s]));
 	const count = (k) => sums.filter((s) => s.status === k).length;
 	const out = [];
-	const off = sums.filter((s) => s.status === "off"), risk = sums.filter((s) => s.status === "risk"), quiet = sums.filter((s) => s.status === "stale");
+	const handled = /* @__PURE__ */ new Map();
+	for (const s of sums) {
+		const h = ["off", "risk"].includes(s.status) ? handledFor(s.goal, x.snapshot, x.cycle, x.today) : null;
+		if (h) handled.set(s.goal.id, h);
+	}
+	const off = sums.filter((s) => s.status === "off" && !handled.has(s.goal.id)), risk = sums.filter((s) => s.status === "risk" && !handled.has(s.goal.id)), quiet = sums.filter((s) => s.status === "stale");
+	const inHand = sums.filter((s) => handled.has(s.goal.id));
 	const results = sums.filter((s) => s.story.result);
 	const asks = sums.filter((s) => s.story.needs && ["off", "risk"].includes(s.status));
 	const flagged = sums.filter((s) => s.story.warnings.length && s.status !== "stale");
@@ -27300,6 +28016,7 @@ function aiBrief(x) {
 		`${sums.length} goals`,
 		off.length ? `${off.length} off track` : "",
 		risk.length ? `${risk.length} at risk` : "",
+		inHand.length ? `${inHand.length} behind and being handled` : "",
 		quiet.length ? `${quiet.length} with no recent update` : "",
 		count("on") ? `${count("on")} on track` : "",
 		count("done") ? `${count("done")} done` : ""
@@ -27334,6 +28051,12 @@ function aiBrief(x) {
 		out.push("## At risk: could miss without a change");
 		out.push("");
 		for (const s of risk) out.push(...storyBlock(s, x.cycle.weeks));
+	}
+	if (inHand.length) {
+		out.push("## Being handled: behind, but someone has looked since the latest check-in");
+		out.push("Nothing new since: no new check-in and no new warning. They need attention again when either comes.");
+		out.push("");
+		for (const s of inHand) out.push(...storyBlock(s, x.cycle.weeks, handled.get(s.goal.id)));
 	}
 	if (quiet.length) {
 		out.push("## No recent update: no check-in for two weeks or more");
@@ -27385,7 +28108,7 @@ function aiBrief(x) {
 	out.push("## Every goal, by what it feeds");
 	const line = (s, depth) => {
 		const lvl = s.goal.level !== "team" ? ` [${LEVEL_LABEL[s.goal.level]}]` : "";
-		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
+		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${s.goal.key ? ` (${s.goal.key})` : ""}${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
 	};
 	const seen = /* @__PURE__ */ new Set();
 	const walk = (g, depth) => {
@@ -27564,6 +28287,85 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
+// src/domain/progress.ts
+/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
+function reviewDate(cycle, week) {
+	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
+	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
+	return d.toISOString().slice(0, 10);
+}
+/**
+* Consecutive weeks, counting back from the latest finished one, in which every goal the
+* person owns was checked in by the owner on or before the review day.
+*/
+function onTimeStreak(personId, s, cycle, week) {
+	const goals = s.goals.filter((g) => g.ownerId === personId);
+	if (!goals.length) return 0;
+	const onTime = (w) => goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
+	let streak = 0;
+	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
+	return streak;
+}
+var WEEKDAY = [
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday"
+];
+// src/domain/home.ts
+/** Splits goals' attention into the Watching groups. The order of the list is kept within each group. */
+function groupWatched(all) {
+	const behind = (a) => a.status.status === "off" || a.status.status === "risk";
+	return {
+		all,
+		needs: all.filter((a) => behind(a) && !a.handled),
+		handled: all.filter((a) => behind(a) && !!a.handled),
+		quiet: all.filter((a) => a.status.status === "stale"),
+		fine: all.filter((a) => !behind(a) && a.status.status !== "stale")
+	};
+}
+/** The next session of a review the person takes part in, today's included. */
+function nextReview(personId, s, cycle, week, today) {
+	const day = today.toISOString().slice(0, 10);
+	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
+		let w = sessionWeek(r, week);
+		if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1);
+		const date = sessionDate(r, cycle, w);
+		return {
+			id: r.id,
+			name: r.name,
+			week: w,
+			date,
+			weekday: WEEKDAY[r.weekday] ?? "",
+			days: 0 - daysSince(date, today) + 0
+		};
+	}).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))[0] ?? null;
+}
+function dashboard(personId, s, cycle, week, today) {
+	const mine = s.goals.filter((g) => g.ownerId === personId);
+	const goals = mine.length ? mine : s.goals;
+	const by = /* @__PURE__ */ new Map();
+	for (const g of goals) {
+		const k = goalStatus(g, cycle, s.checkIns, today).status;
+		by.set(k, (by.get(k) ?? 0) + 1);
+	}
+	const watched = watchedGoals(personId, s);
+	return {
+		scope: mine.length ? "mine" : "all",
+		counts: STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({
+			status: k,
+			n: by.get(k)
+		})),
+		total: goals.length,
+		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
+		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
+		next: nextReview(personId, s, cycle, week, today)
+	};
+}
 // src/mcp/workTools.ts
 var str$1 = (description, extra = {}) => ({
 	type: "string",
@@ -27609,7 +28411,8 @@ var ax = (ctx) => ({
 	week: ctx.week,
 	actor: ctx.actor,
 	now: ctx.now,
-	newId: ctx.newId
+	newId: ctx.newId,
+	...ctx.allGoals ? { allGoals: ctx.allGoals } : {}
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 async function save(ctx, c, done, nothing) {
@@ -27624,11 +28427,13 @@ async function save(ctx, c, done, nothing) {
 	return { text: `${done} (as ${ctx.actor.name}).` };
 }
 var name = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
+/** A goal by its ID or its key (G-12). */
 var goalOf = (ctx, id) => {
-	const g = ctx.snapshot.goals.find((x) => x.id === id);
-	if (!g) throw new Error(`There’s no goal with ID ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs.`);
+	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
+var goalIds = (ctx, v) => v?.map((id) => goalOf(ctx, id).id);
 var requestOf = (ctx, id) => {
 	const r = requestsOf(ctx.snapshot).find((x) => x.id === id);
 	if (!r) throw new Error(`There’s no request with ID ${String(id)}. Use list_requests to get IDs.`);
@@ -27665,21 +28470,54 @@ var requestData = (ctx, r) => ({
 	status: r.status,
 	askedBy: name(ctx, r.askedBy),
 	askedOf: r.recipientId ? name(ctx, r.recipientId) : "anyone",
-	goals: r.goalIds.map((g) => ({
-		id: g,
-		title: ctx.snapshot.goals.find((x) => x.id === g)?.title ?? g
-	})),
+	goals: r.goalIds.map((g) => {
+		const x = ctx.snapshot.goals.find((y) => y.id === g);
+		return {
+			id: g,
+			key: x?.key ?? null,
+			title: x?.title ?? g
+		};
+	}),
 	raisedAt: r.createdAt,
 	answer: r.answer,
 	answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null,
 	youCanAnswer: r.status === "open" && (!r.recipientId || r.recipientId === ctx.actor.id || ctx.actor.admin)
 });
 var lines = (l, none) => l.length ? l.join("\n") : none;
+/** A data table's sheet, from the same workbook the Data screen and the exports use. */
+var sheetOf = (ctx, t) => workbook({
+	ws: ctx.ws,
+	snapshot: ctx.snapshot,
+	cycle: ctx.cycle,
+	week: ctx.week,
+	today: ctx.today
+}).find((x) => x.name === TABLES[t].sheet);
+var headOf = (ctx, t) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ""));
+/** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
+function layoutFrom(ctx, a) {
+	if (a.view != null) {
+		const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+		const l = v ? parseLayout(v.params) : null;
+		if (!l) throw new Error(`There’s no table view called “${String(a.view)}” that you can see. Use list_views.`);
+		return l;
+	}
+	if (!isDataTable(a.table)) throw new Error(`Say which table: ${TABLE_ORDER.join(", ")}.`);
+	const parsed = parseLayout(`table=${a.table}&${String(a.query ?? "").replace(/^.*\?/, "")}`);
+	const widths = a.widths ?? {};
+	const layout = {
+		...parsed,
+		cols: a.columns?.length ? a.columns : null,
+		widths: Object.fromEntries(Object.entries(widths).map(([c, w]) => [c, Number(w)]))
+	};
+	const problems = layoutProblems(layout, headOf(ctx, layout.table));
+	if (problems.length) throw new Error(`${problems.join(" ")} Its columns: ${choosableColumns(layout.table, headOf(ctx, layout.table)).join(", ")}.`);
+	return layout;
+}
 var WORK_TOOLS = [
 	{
 		name: "get_my_work",
 		title: "What needs me",
-		description: "What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention, requests for a decision or help waiting on them, questions from reviews on their goals, asks for an update, actions they agreed to, and the reviews they’re in.",
+		description: "What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention (new since anyone looked), those behind but already being handled, requests for a decision or help waiting on them, questions from reviews on their goals, asks for an update, actions they agreed to, and the reviews they’re in.",
 		inputSchema: {
 			type: "object",
 			properties: {},
@@ -27693,10 +28531,19 @@ var WORK_TOOLS = [
 				id: g.id,
 				title: g.title
 			}));
-			const attention = attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length).map((a) => ({
+			const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length));
+			const attention = split.needs.map((a) => ({
 				id: a.goal.id,
 				title: a.goal.title,
 				status: a.status.status,
+				why: a.flags.map((f) => f.detail)
+			}));
+			const handled = split.handled.map((a) => ({
+				id: a.goal.id,
+				title: a.goal.title,
+				status: a.status.status,
+				inHand: a.handled.text,
+				said: a.handled.said || null,
 				why: a.flags.map((f) => f.detail)
 			}));
 			const requests = openForPerson(me, s).map((r) => requestData(ctx, r));
@@ -27732,11 +28579,40 @@ var WORK_TOOLS = [
 					of: x.total
 				};
 			});
+			const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
+			const glance = {
+				goals: {
+					whose: d.scope,
+					total: d.total,
+					byStatus: d.counts.map((c) => ({
+						status: LABEL[c.status],
+						n: c.n
+					}))
+				},
+				onTimeStreakWeeks: d.streak,
+				watching: d.watching ? {
+					goals: d.watching.all.length,
+					needAttention: d.watching.needs.map((a) => a.goal.title),
+					beingHandled: d.watching.handled.map((a) => ({
+						title: a.goal.title,
+						inHand: a.handled.text
+					})),
+					noRecentUpdate: d.watching.quiet.length
+				} : null,
+				nextReview: d.next ? {
+					id: d.next.id,
+					name: d.next.name,
+					date: d.next.date,
+					day: d.next.weekday
+				} : null
+			};
 			return {
 				data: {
 					week: ctx.week,
+					atAGlance: glance,
 					checkInsDue: due,
 					needsAttention: attention,
+					beingHandled: handled,
 					requestsForYou: requests,
 					questionsOnYourGoals: questions,
 					asksForAnUpdate: asks,
@@ -27746,11 +28622,13 @@ var WORK_TOOLS = [
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
+					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} being handled.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Requests waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join("; ") : "none"}.`,
 					`Questions on your goals: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question}`).join("; ") : "none"}.`,
 					`Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by}`).join("; ") : "none"}.`,
-					`Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.join(" ")}`).join("; ") : "none"}.`
+					`Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.join(" ")}`).join("; ") : "none"}.`,
+					`Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === "off" ? "off track" : "at risk"}): ${g.inHand}`).join("; ") : "none"}.`
 				].join("\n")
 			};
 		}
@@ -27770,13 +28648,13 @@ var WORK_TOOLS = [
 					"all"
 				] }),
 				for_me: bool$1("Only requests asked of you (or of anyone)."),
-				goal_id: str$1("Only requests a goal is waiting on.")
+				goal_id: str$1("Only requests a goal is waiting on (its ID or key).")
 			}
 		},
 		annotations: READ,
 		async run(a, ctx) {
 			const st = a.status ?? "open";
-			const list = requestsOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(String(a.goal_id))).map((r) => requestData(ctx, r));
+			const list = requestsOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
 			return {
 				data: { requests: list },
 				text: lines(list.map((r) => `${r.id} · ${r.status} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(", ")}${r.answer ? ` · answer: ${r.answer}` : ""}`), "No requests match.")
@@ -27796,6 +28674,7 @@ var WORK_TOOLS = [
 		async run(_a, ctx) {
 			const list = ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+				const held = lastHeld(r, ctx.snapshot, x.week);
 				return {
 					id: r.id,
 					name: r.name,
@@ -27807,19 +28686,22 @@ var WORK_TOOLS = [
 					sessionDate: x.date,
 					reviewed: x.done,
 					of: x.total,
+					state: sessionStateText(sessionState(x)),
+					lastHeld: held?.on ?? null,
+					openActions: openActions(r, ctx.snapshot, ctx.week).length,
 					youreIn: r.people.includes(ctx.actor.id)
 				};
 			});
 			return {
 				data: { reviews: list },
-				text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.of} goals, ${r.reviewed} reviewed this session (week ${r.sessionWeek})`), "No reviews yet.")
+				text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.state} (session ${r.sessionDate}) · last held ${r.lastHeld ?? "never"} · ${r.openActions} open actions`), "No reviews yet.")
 			};
 		}
 	},
 	{
 		name: "get_review",
 		title: "A review’s agenda",
-		description: "One review’s current session: the goals to discuss (worst first, with why), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.",
+		description: "One review’s current session: the goals to discuss (new information first, worst first, with why; those already being handled say what’s in hand), the healthy ones, and what has been said so far: notes, questions for owners (with any answers) and actions.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -27836,7 +28718,8 @@ var WORK_TOOLS = [
 				title: g.goal.title,
 				owner: name(ctx, g.goal.ownerId),
 				status: g.status.status,
-				why: g.flags.map((f) => f.detail)
+				why: g.flags.map((f) => f.detail),
+				beingHandled: g.handled?.text ?? null
 			});
 			const said = x.said.map((d) => ({
 				id: d.id,
@@ -27863,7 +28746,7 @@ var WORK_TOOLS = [
 			};
 			return {
 				data,
-				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}. ${g.why.join(" ")}`), "- nothing")}\nHealthy: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
+				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}.${g.beingHandled ? ` Being handled: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nHealthy: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
 			};
 		}
 	},
@@ -27920,11 +28803,16 @@ var WORK_TOOLS = [
 			return {
 				data: {
 					people,
-					teams: ctx.snapshot.teams.map((t) => ({
-						id: t.id,
-						name: t.name,
-						lead: name(ctx, t.leadId)
-					}))
+					teams: ctx.snapshot.teams.map((t) => {
+						const m = teamMembers(ax(ctx), t.id);
+						return {
+							id: t.id,
+							name: t.name,
+							lead: name(ctx, t.leadId),
+							people: m.people.length,
+							goals: m.goals.length
+						};
+					})
 				},
 				text: people.map((p) => `${p.id} · ${p.name}${p.jobTitle ? `, ${p.jobTitle}` : ""} · ${p.team ?? "no team"}${p.admin ? " · admin" : ""}`).join("\n")
 			};
@@ -27933,7 +28821,7 @@ var WORK_TOOLS = [
 	{
 		name: "get_activity",
 		title: "The activity log",
-		description: "Every saved change, newest first: who made it, when, and what changed. Filter with the same query as the Activity page, e.g. \"who=maya&kind=checkins,plans&when=this-week\". Keys: q (words), who (person IDs), goal (a goal ID; add tree=1 for what feeds it), team (IDs), level (north-star, svp, team), kind (checkins, plans, goals, reviews, comments, people, imports, ai, cycle), when (this-week, last-week, quarter, custom with from and to as yyyy-mm-dd).",
+		description: "Every saved change, newest first: who made it, when, and what changed. Filter with the same query as the Activity page, e.g. \"who=maya&kind=checkins,plans&when=this-week\". Keys: q (words), who (person IDs), goal (a goal’s ID or key; add tree=1 for what feeds it), team (IDs), level (north-star, svp, team), kind (checkins, plans, goals, reviews, comments, people, imports, ai, cycle), when (this-week, last-week, quarter, custom with from and to as yyyy-mm-dd).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -27944,7 +28832,9 @@ var WORK_TOOLS = [
 		},
 		annotations: READ,
 		async run(a, ctx) {
-			const keep = activityFilter(parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, ""))), {
+			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
+			if (q.goal) q.goal = goalOf(ctx, q.goal).id;
+			const keep = activityFilter(q, {
 				snapshot: ctx.snapshot,
 				cycle: ctx.cycle,
 				week: ctx.week,
@@ -27971,7 +28861,7 @@ var WORK_TOOLS = [
 	{
 		name: "list_views",
 		title: "Saved views",
-		description: "Your saved views of the goals and the ones pinned for everyone, with each one’s query (use it with find_goals).",
+		description: "Your saved views and the ones pinned for everyone: views of the Goals screen, with each one’s query (use it with find_goals), and table views of the data tables, with their columns in order and widths (use them with export_table).",
 		inputSchema: {
 			type: "object",
 			properties: {},
@@ -27979,16 +28869,25 @@ var WORK_TOOLS = [
 		},
 		annotations: READ,
 		async run(_a, ctx) {
-			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => ({
-				id: v.id,
-				name: v.name,
-				query: v.params,
-				pinned: v.pinned,
-				owner: name(ctx, v.personId)
-			}));
+			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
+				const l = isTableView(v) ? parseLayout(v.params) : null;
+				return {
+					id: v.id,
+					name: v.name,
+					of: l ? `the ${TABLES[l.table].label} data table` : "the Goals screen",
+					...l ? {
+						table: l.table,
+						columns: l.cols,
+						widths: l.widths
+					} : {},
+					query: v.params,
+					pinned: v.pinned,
+					owner: name(ctx, v.personId)
+				};
+			});
 			return {
 				data: { views: list },
-				text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? " (pinned)" : ""} · ${v.query}`), "No saved views.")
+				text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? " (pinned)" : ""} · of ${v.of} · ${v.query}`), "No saved views.")
 			};
 		}
 	},
@@ -28107,7 +29006,7 @@ var WORK_TOOLS = [
 			required: ["request_id", "goal_id"],
 			properties: {
 				request_id: str$1("The request’s ID."),
-				goal_id: str$1("The goal that waits on it.")
+				goal_id: str$1("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE,
@@ -28125,7 +29024,7 @@ var WORK_TOOLS = [
 			required: ["request_id", "goal_id"],
 			properties: {
 				request_id: str$1("The request’s ID."),
-				goal_id: str$1("The goal withdrawing it.")
+				goal_id: str$1("The goal withdrawing it (its ID or key).")
 			}
 		},
 		annotations: WRITE,
@@ -28141,7 +29040,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID.") }
+			properties: { goal_id: str$1("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE,
@@ -28160,7 +29059,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID.") }
+			properties: { goal_id: str$1("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE,
 		async run(a, ctx) {
@@ -28181,7 +29080,7 @@ var WORK_TOOLS = [
 			],
 			properties: {
 				review_id: str$1("The review’s ID."),
-				goal_id: str$1("The goal’s ID."),
+				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
 				kind: str$1("What it is.", { enum: [
 					"acknowledge",
 					"note",
@@ -28259,8 +29158,8 @@ var WORK_TOOLS = [
 					"Thursday",
 					"Friday"
 				] }),
-				goals: ids("Goal IDs it walks."),
-				trees: ids("Goal IDs it walks with everything feeding them."),
+				goals: ids("Goal IDs or keys it walks."),
+				trees: ids("Goal IDs or keys it walks with everything feeding them."),
 				levels: ids("Levels it walks: north-star, svp, team."),
 				people: ids("Who’s in it (names or IDs). New reviews include you.")
 			}
@@ -28279,8 +29178,8 @@ var WORK_TOOLS = [
 			if (a.review_id) {
 				const before = reviewOf(ctx, a.review_id);
 				const scope = {
-					goals: a.goals ?? before.scope.goals,
-					trees: a.trees ?? before.scope.trees,
+					goals: goalIds(ctx, a.goals) ?? before.scope.goals,
+					trees: goalIds(ctx, a.trees) ?? before.scope.trees,
 					levels: a.levels ? levelsOf(a.levels) : before.scope.levels
 				};
 				const after = {
@@ -28297,8 +29196,8 @@ var WORK_TOOLS = [
 				name: String(a.name ?? ""),
 				everyWeeks: Number(a.every_weeks ?? 1),
 				weekday: day ?? ctx.cycle.reviewDay,
-				goals: a.goals,
-				trees: a.trees,
+				goals: goalIds(ctx, a.goals),
+				trees: goalIds(ctx, a.trees),
 				levels: levelsOf(a.levels),
 				people: people ? [.../* @__PURE__ */ new Set([ctx.actor.id, ...people])] : void 0
 			});
@@ -28322,7 +29221,7 @@ var WORK_TOOLS = [
 					"tree",
 					"level"
 				] }),
-				ref: str$1("A goal ID, or a level (north-star, svp, team).")
+				ref: str$1("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
 			}
 		},
 		annotations: {
@@ -28330,7 +29229,8 @@ var WORK_TOOLS = [
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save(ctx, watch(ax(ctx), a.kind, String(a.ref ?? "")), `Watching ${a.kind === "level" ? `every ${String(a.ref)} goal` : goalOf(ctx, a.ref).title}`, "Already watching that.");
+			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf(ctx, a.ref).id;
+			return save(ctx, watch(ax(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf(ctx, ref).title}`, "Already watching that.");
 		}
 	},
 	{
@@ -28395,7 +29295,7 @@ var WORK_TOOLS = [
 				"next"
 			],
 			properties: {
-				goal_id: str$1("The goal’s ID."),
+				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
 				result: str$1("How it landed.", { enum: [
 					"hit",
 					"partly",
@@ -28453,7 +29353,7 @@ var WORK_TOOLS = [
 	{
 		name: "save_view",
 		title: "Save a view of the goals",
-		description: "Save a search, filters and sort of the Goals screen under a name (the same query find_goals takes), or rename or change one of yours. Without view_id it saves a new one.",
+		description: "Save a search, filters and sort of the Goals screen under a name (the same query find_goals takes), or rename or change one of yours. Without view_id it saves a new one. For a data table’s layout, use save_table_view.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -28474,6 +29374,80 @@ var WORK_TOOLS = [
 			return {
 				...await save(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
+			};
+		}
+	},
+	{
+		name: "save_table_view",
+		title: "Save a data table’s layout",
+		description: "Save a layout of one of the data tables (goals, checkIns, plan, requests, people) as a named table view, as the Data screen does: the columns to show, in order (the table’s name column always comes first), their widths in pixels, and its search, filters and sort. Without view_id it saves a new one; with it, it changes one of yours. Open it in the app from Data, or export it with export_table.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["name", "table"],
+			properties: {
+				view_id: str$1("The table view to change."),
+				name: str$1("Its name."),
+				table: str$1("Which data table.", { enum: TABLE_ORDER }),
+				columns: ids("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
+				widths: {
+					type: "object",
+					additionalProperties: { type: "number" },
+					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
+				},
+				query: str$1("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			const layout = layoutFrom(ctx, a);
+			const out = saveTableView(ax(ctx), {
+				id: a.view_id,
+				name: String(a.name ?? ""),
+				layout
+			}, headOf(ctx, layout.table));
+			return {
+				...await save(ctx, out.commit, `Saved the table view “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				data: { id: out.id }
+			};
+		}
+	},
+	{
+		name: "export_table",
+		title: "Export a data table as shown",
+		description: "One of the data tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted. Give a saved table view by name, or the table with columns and a query. CSV by default, or rows as JSON.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				view: str$1("The name of a saved table view: one of yours, or one pinned for everyone."),
+				table: str$1("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+				columns: ids("The columns, in order. Leave out for the usual columns."),
+				query: str$1("Search, filters and sort, as for save_table_view."),
+				format: str$1("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+			}
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			const layout = layoutFrom(ctx, a);
+			const rows = shownTable(sheetOf(ctx, layout.table), layout);
+			const [head = [], ...body] = rows;
+			const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? "row" : "rows"}, ${head.length} columns`;
+			if (a.format === "json") return {
+				data: {
+					table: layout.table,
+					columns: head,
+					rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null])))
+				},
+				text: what
+			};
+			return {
+				data: {
+					table: layout.table,
+					columns: head,
+					count: body.length
+				},
+				text: toCsv(rows)
 			};
 		}
 	},
@@ -28581,6 +29555,81 @@ var WORK_TOOLS = [
 		annotations: WRITE,
 		async run(a, ctx) {
 			return save(ctx, sendFeedback(ax(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
+		}
+	},
+	{
+		name: "rename_workspace",
+		title: "Rename the workspace",
+		description: "Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["name"],
+			properties: { name: str$1("The new name.") }
+		},
+		annotations: {
+			...WRITE,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			const from = ctx.ws.name;
+			return save(ctx, renameWorkspace(ax(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
+		}
+	},
+	{
+		name: "save_team",
+		title: "Add or change a team",
+		description: "Admins: add a team, or rename one or change its lead. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["name"],
+			properties: {
+				team: str$1("The team to change (name or ID). Leave out to add a team."),
+				name: str$1("The team’s name."),
+				lead: str$1("The team lead (a person’s name or ID); empty string for none.")
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			const id = a.team !== void 0 ? teamOf(ctx, a.team) ?? void 0 : void 0;
+			const leadId = a.lead === void 0 ? void 0 : a.lead === "" || a.lead === null ? null : personOf(ctx, a.lead).id;
+			const out = saveTeam(ax(ctx), {
+				id,
+				name: String(a.name ?? ""),
+				...leadId !== void 0 ? { leadId } : {}
+			});
+			return {
+				...await save(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
+				data: { id: out.id }
+			};
+		}
+	},
+	{
+		name: "remove_team",
+		title: "Remove a team",
+		description: "Admins: remove a team. A team that still has people or goals (in any cycle) needs move_to, another team: they all move there in the same save, and each goal’s history says so. Ask the person which team first.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["team"],
+			properties: {
+				team: str$1("The team to remove (name or ID)."),
+				move_to: str$1("Where its people and goals go (a team’s name or ID).")
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: false,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const id = teamOf(ctx, a.team);
+			if (!id) throw new Error("Name the team to remove.");
+			const name = ctx.snapshot.teams.find((t) => t.id === id).name;
+			const to = a.move_to !== void 0 && a.move_to !== "" ? teamOf(ctx, a.move_to) : null;
+			return save(ctx, removeTeam(ax(ctx), id, to), `Removed the team ${name}`, "");
 		}
 	},
 	{
@@ -28735,9 +29784,10 @@ async function change(ctx, tables, opts) {
 		text: `Saved as ${ctx.actor.name}: ${what}`
 	};
 }
+/** A goal by its ID or its key (G-12). */
 var goalRef = (ctx, id) => {
-	const g = ctx.snapshot.goals.find((x) => x.id === id);
-	if (!g) throw new Error(`There's no goal with ID ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs.`);
+	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	if (!g) throw new Error(`There's no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
 var GOAL_FIELDS = {
@@ -28767,7 +29817,7 @@ var GOAL_FIELDS = {
 		items: { type: "string" },
 		description: "Milestone goals: each stage as \"Name@week\", e.g. \"Pilot@6\"."
 	},
-	feeds_into_id: str("The ID of the goal this one feeds. Empty string to unlink."),
+	feeds_into_id: str("The ID or key (G-12) of the goal this one feeds. Empty string to unlink."),
 	why_it_helps: str("Why we expect it to help the goal it feeds."),
 	source: str("Where the number comes from."),
 	definition: str("Exactly what is counted.")
@@ -28823,12 +29873,12 @@ var TOOLS = [...[
 	{
 		name: "find_goals",
 		title: "Find goals",
-		description: "List goals in the current cycle with their status, latest number, this week’s plan, target and gap. Filter by words in the name, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has.",
+		description: "List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				text: str("Words in the goal’s name."),
+				text: str("Words in the goal’s name, or its key (G-12)."),
 				owner: str("Part of the owner’s name."),
 				status: str("Only goals with this status.", { enum: STATUSES }),
 				level: str("Only goals at this level.", { enum: LEVELS }),
@@ -28843,19 +29893,21 @@ var TOOLS = [...[
 		},
 		async run(a, ctx) {
 			const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
+			const byKey = normalKey(a.text);
 			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
 			if (a.view) {
-				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
 				if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
 				query = parseQuery(new URLSearchParams(v.params));
 			}
-			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => has(s.goal.title, a.text) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
 			if (query) list = applyQuery(list, query, {
 				goals: ctx.snapshot.goals,
 				cycle: ctx.cycle,
 				week: ctx.week
 			});
 			const data = list.map((s) => ({
+				key: s.goal.key ?? null,
 				id: s.goal.id,
 				title: s.goal.title,
 				type: s.goal.kind,
@@ -28877,7 +29929,7 @@ var TOOLS = [...[
 					weeks: ctx.cycle.weeks,
 					goals: data
 				},
-				text: data.length ? data.map((g) => `${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
+				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
 			};
 		}
 	},
@@ -28889,7 +29941,7 @@ var TOOLS = [...[
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str("The goal’s ID, from find_goals.") }
+			properties: { goal_id: str("The goal’s ID or its key (e.g. G-12), from find_goals.") }
 		},
 		annotations: {
 			readOnlyHint: true,
@@ -28925,7 +29977,7 @@ var TOOLS = [...[
 			additionalProperties: false,
 			required: ["goal_id"],
 			properties: {
-				goal_id: str("The goal’s ID."),
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
 				value: num("Number goals: the value for the week."),
 				stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
@@ -28967,9 +30019,10 @@ var TOOLS = [...[
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			goalRef(ctx, a.goal_id);
+			const g = goalRef(ctx, a.goal_id);
 			return change(ctx, { checkIns: [row({
 				...a,
+				goal_id: g.id,
 				week: a.week ?? ctx.week
 			}, {
 				goal_id: "goal id",
@@ -28997,7 +30050,7 @@ var TOOLS = [...[
 			additionalProperties: false,
 			required: ["goal_id"],
 			properties: {
-				goal_id: str("The goal’s ID."),
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				...GOAL_FIELDS,
 				reason: str("Why the plan is changing."),
 				dry_run: DRY
@@ -29010,8 +30063,11 @@ var TOOLS = [...[
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			goalRef(ctx, a.goal_id);
-			return change(ctx, { goals: [row(a, {
+			const g = goalRef(ctx, a.goal_id);
+			return change(ctx, { goals: [row({
+				...a,
+				goal_id: g.id
+			}, {
 				goal_id: "id",
 				...GOAL_COLS
 			})] }, {
@@ -29063,7 +30119,7 @@ var TOOLS = [...[
 			additionalProperties: false,
 			required: ["goal_id", "numbers"],
 			properties: {
-				goal_id: str("The goal’s ID."),
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				numbers: {
 					type: "array",
 					description: "Planned values by week.",
@@ -29087,10 +30143,9 @@ var TOOLS = [...[
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			goalRef(ctx, a.goal_id);
 			const r = {
 				__row: "1",
-				id: String(a.goal_id)
+				id: goalRef(ctx, a.goal_id).id
 			};
 			for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
 			return change(ctx, { plan: [r] }, {
@@ -29108,7 +30163,7 @@ var TOOLS = [...[
 			additionalProperties: false,
 			required: ["goal_id", "text"],
 			properties: {
-				goal_id: str("The goal’s ID."),
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				text: str("The comment.")
 			}
 		},
@@ -29145,7 +30200,7 @@ var TOOLS = [...[
 	{
 		name: "bulk_change",
 		title: "Change many goals at once",
-		description: "Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{\"ID\": \"...\", \"Target\": 90}], check_ins: [{\"Goal ID\": \"...\", \"Week\": 3, \"Value\": 41}], plan: [{\"ID\": \"...\", \"Week 5\": 45}]). Checks every row and returns what would change; nothing is saved unless \"apply\" is true and every row is valid.",
+		description: "Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{\"ID\": \"...\", \"Target\": 90}], check_ins: [{\"Goal ID\": \"...\", \"Week\": 3, \"Value\": 41}], plan: [{\"ID\": \"...\", \"Week 5\": 45}]). A goal’s key (G-12) works wherever its ID does: in ID, Key, Goal ID, Goal key and Feeds into ID. Checks every row and returns what would change; nothing is saved unless \"apply\" is true and every row is valid.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -29410,10 +30465,16 @@ async function serve(req, deps) {
 			actor,
 			now: now.toISOString(),
 			newId,
+			allGoals: all.goals,
 			save: async (c) => {
 				await deps.commit(found.workspaceId, withExpectations(c, all));
 				all = applyCommit(all, c);
 				ctx.snapshot = scopeToCycle(all, cycle);
+				ctx.allGoals = all.goals;
+				if (c.workspace) ctx.ws = {
+					...ctx.ws,
+					name: c.workspace.name
+				};
 			},
 			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {}
 		};

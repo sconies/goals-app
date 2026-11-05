@@ -1,5 +1,6 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
+import { isTableView } from '../domain/tableLayout';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -36,10 +37,10 @@ export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery)
   return [q, set];
 }
 
-/** The views this person sees: their own and the ones an admin pinned for everyone. */
+/** The views this person sees: their own and the ones an admin pinned for everyone. Table views belong to Data. */
 export function useViews(): SavedView[] {
   const app = useApp();
-  return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === app.viewer.id)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
+  return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && !isTableView(v) && (v.pinned || v.personId === app.viewer.id)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
 }
 
 /** One item in a small menu: a button, or a link. */

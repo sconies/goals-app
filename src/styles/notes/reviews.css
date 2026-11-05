@@ -1,0 +1,67 @@
+/* Lane's review notes (5 Nov): reviews. Loaded after the fit-and-finish sheets. */
+
+/* ---------- A session's state: a square shape and a word (goal statuses are circles) ---------- */
+.session-state { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); line-height: 1.25rem; font-weight: 600; color: var(--fg-2); }
+.session-shape { flex: none; width: 14px; height: 14px; }
+.session-state[data-state="not-started"] .session-shape { color: var(--faint); }
+.session-state[data-state="in-progress"] .session-shape { color: var(--accent); }
+.session-state[data-state="held"] .session-shape { color: var(--on-mark); }
+
+/* ---------- The Reviews list: state, name, the facts, the people ---------- */
+.reviews-list a.rv-line { display: flex; flex-direction: column; align-items: stretch; gap: 4px; color: inherit; text-decoration: none; }
+.rv-name { font-size: var(--t-md); line-height: 1.375rem; font-weight: 650; overflow-wrap: anywhere; }
+.rv-facts { display: flex; flex-wrap: wrap; column-gap: 24px; row-gap: 2px; font-size: var(--t-sm); line-height: 1.25rem; }
+.rv-fact { white-space: nowrap; }
+.rv-fact-k { color: var(--muted); }
+.rv-fact-v { color: var(--fg); font-weight: 550; font-variant-numeric: tabular-nums; }
+.rv-people { font-size: var(--t-sm); line-height: 1.25rem; min-width: 0; overflow-wrap: anywhere; }
+.rv-names { color: var(--fg); }
+@media (hover: hover) { .reviews-list a.rv-line:hover .rv-name { text-decoration: underline; text-underline-offset: 2px; } }
+
+/* ---------- A review's agenda: one line per goal ----------
+   Its own layout, not the shared goal row: the status, then the name (which keeps the room), then the number and the
+   gap against the plan. Nothing is clamped or clipped; long text wraps. The row lays itself out by its list's width. */
+.agenda { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: clip; container: agenda / inline-size; }
+.agenda > li + li { border-top: 1px solid var(--line-2); }
+.agenda-row {
+  display: grid; grid-template-columns: 9rem minmax(13rem, 1fr) minmax(0, max-content); grid-template-areas: "status name now";
+  column-gap: 16px; row-gap: 2px; align-items: first baseline; padding: 12px 16px; color: inherit; text-decoration: none;
+}
+.agenda-row[data-tone="off"] { background: var(--off-wash); }
+.agenda-status { grid-area: status; display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--t-sm); line-height: 1.25rem; font-weight: 600; min-width: 0; }
+.agenda-status svg { flex: none; width: 14px; height: 14px; align-self: center; }
+.agenda-name { grid-area: name; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; min-width: 0; }
+.agenda-title { font-size: var(--t-md); line-height: 1.375rem; font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.agenda-name .level { margin: 0; line-height: 1.25rem; }
+.agenda-now { grid-area: now; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; column-gap: 8px; font-size: var(--t-sm); line-height: 1.25rem; text-align: right; min-width: 0; }
+.agenda-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.agenda-gap { font-weight: 550; overflow-wrap: anywhere; }
+@media (hover: hover) {
+  .agenda-row:hover { background: var(--surface-3); }
+  .agenda-row:hover .agenda-title { text-decoration: underline; text-underline-offset: 2px; }
+}
+/* Less room: the status and the number share the first line, the name has the whole second line. */
+@container agenda (max-width: 619px) {
+  .agenda-row { grid-template-columns: max-content minmax(0, 1fr); grid-template-areas: "status now" "name name"; row-gap: 4px; padding: 12px 16px; }
+}
+
+/* ---------- A review's page ---------- */
+.review-line { font-size: var(--t-sm); line-height: 1.25rem; }
+.healthy-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.healthy-group .disclose[open] summary { margin-bottom: 8px; }
+.healthy-group .disclose .linkish { align-self: flex-start; }
+
+/* ---------- What was said ---------- */
+.session-record h3.field-label { margin: 0; }
+.session-record .record { margin-bottom: 0; }
+.session-record .record .hint { overflow-wrap: anywhere; }
+
+/* ---------- The summary a session ends on ---------- */
+.review-summary .crumbs { flex-wrap: wrap; align-items: center; }
+.review-summary .hero .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+@container app (max-width: 600px) {
+  .review-summary .hero-body { align-self: stretch; }
+  .review-summary .hero .actions { flex-direction: column; align-items: stretch; width: 100%; }
+  .review-summary .hero .actions .btn { width: 100%; }
+  .review-summary .hero .actions .linkish { min-height: 44px; justify-content: center; }
+}

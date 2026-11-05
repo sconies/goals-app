@@ -1,5 +1,6 @@
 /* Closing a cycle: which cycle is current, the retro on each goal, and starting the next cycle
    with the goals that carry on. */
+import { lastKey } from './goalKey';
 import { requestsFromCheckIns } from './requests';
 import { isYear, yearWeeks } from './year';
 import { yearName } from './yearName';
@@ -26,6 +27,7 @@ export function scopeToCycle(s: Snapshot, cycle: Cycle): Snapshot {
   return {
     ...s,
     goals,
+    keysIssued: lastKey(s.goals, s.keysIssued),
     checkIns: s.checkIns.filter((c) => ids.has(c.goalId)),
     decisions: s.decisions.filter((d) => ids.has(d.goalId)),
     retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),

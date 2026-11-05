@@ -156,3 +156,51 @@ describe('moving goal years to calendar weeks (0018)', () => {
     expect(await one(`select plan_from_week from okr_goals where id = 's'`)).toEqual({ plan_from_week: 3 });
   });
 });
+
+describe('readable goal keys (0021)', () => {
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  const before = files.filter((f) => f < '0021').map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
+  const keys = readFileSync(join(dir, files.find((f) => f.startsWith('0021'))!), 'utf8');
+  let db: PGlite;
+  const goal = (id: string, cycle: string, title: string, at: string, key: string | null = null, ws = 'w') =>
+    `insert into okr_goals (id, workspace_id, cycle_id, team_id, owner_id, title, kind, io, unit, decimals, plan_start, plan_target, plan_shape, level, created_at${key ? ', key' : ''})
+     values ('${id}', '${ws}', '${cycle}', 't', 'p', '${title}', 'metric', 'output', '%', 0, 1, 2, 'straight', 'team', '${at}'${key ? `, '${key}'` : ''})`;
+  const keyOf = async (id: string) => (await db.query<{ key: string }>(`select key from okr_goals where id = '${id}'`)).rows[0]!.key;
+  beforeAll(async () => {
+    db = new PGlite();
+    await db.exec(`create role anon nologin;`);
+    await db.exec(before);
+    await db.exec(`insert into okr_workspaces (id, name, kind) values ('w', 'W', 'own'), ('v', 'V', 'own');
+      insert into okr_teams (id, name, lead_id, objective, workspace_id) values ('t', 'Team', 'p', '', 'w');
+      insert into okr_people (id, name, role, initials, team_id, is_admin, workspace_id) values ('p', 'Pat', '', 'P', 't', true, 'w');
+      insert into okr_cycles (id, name, start_date, weeks, workspace_id) values ('y1', '2025', '2024-12-30', 52, 'w'), ('y2', '2026', '2025-12-29', 53, 'w'), ('z', '2026', '2025-12-29', 53, 'v');`);
+    // Last year's goals, then this year's: one carried on (same title), one new. Another workspace counts on its own.
+    await db.exec([goal('a', 'y1', 'Lead time', '2025-01-01'), goal('b', 'y1', 'Stopped goal', '2025-01-02'), goal('c', 'y2', 'Lead time', '2026-01-01'), goal('d', 'y2', 'Brand new', '2026-01-02'), goal('e', 'z', 'Other place', '2026-01-01', null, 'v')].join(';\n'));
+    await db.exec(keys);
+    await db.exec(keys);
+  }, 30_000);
+
+  it('gives existing goals keys in the order they were made, per workspace; a carried goal keeps its key', async () => {
+    expect([await keyOf('a'), await keyOf('b'), await keyOf('c'), await keyOf('d'), await keyOf('e')]).toEqual(['G-1', 'G-2', 'G-1', 'G-3', 'G-1']);
+  });
+  it('gives a new goal the next key, never one used before, and keeps the key a carried goal brings', async () => {
+    await db.exec(goal('f', 'y2', 'Another', '2026-02-01'));
+    expect(await keyOf('f')).toBe('G-4');
+    // The app chose G-4 too (someone else added a goal a moment earlier): this one gets the next.
+    await db.exec(goal('g', 'y2', 'At the same time', '2026-02-01', 'G-4'));
+    expect(await keyOf('g')).toBe('G-5');
+    // Into next year, carried with its key: kept.
+    await db.query(`insert into okr_cycles (id, name, start_date, weeks, workspace_id) values ('y3', '2027', '2026-12-28', 52, 'w')`);
+    await db.exec(goal('h', 'y3', 'Another', '2027-01-01', 'G-4'));
+    expect(await keyOf('h')).toBe('G-4');
+  });
+  it('never changes a key, and refuses two goals with one key in a cycle', async () => {
+    await db.exec(`update okr_goals set key = 'G-9' where id = 'd'`);
+    expect(await keyOf('d')).toBe('G-3');
+    await db.exec(`update okr_goals set title = 'Renamed' where id = 'd'`);
+    expect(await keyOf('d')).toBe('G-3');
+    await db.exec('alter table okr_goals disable trigger okr_goals_key');
+    await expect(db.query(`update okr_goals set key = 'G-1' where id = 'd'`)).rejects.toThrow();
+    await expect(db.query(`update okr_goals set key = 'X-1' where id = 'd'`)).rejects.toThrow();
+  });
+});

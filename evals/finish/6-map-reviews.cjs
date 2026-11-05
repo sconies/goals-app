@@ -188,7 +188,7 @@ module.exports = {
       const m = await p.evaluate(() => {
         const a = [...document.querySelectorAll('.hero .actions .btn')].map((b) => b.getBoundingClientRect().width);
         const hw = document.querySelector('.hero').getBoundingClientRect().width;
-        const t = document.querySelector('.tree .trow-title').getBoundingClientRect().width;
+        const t = document.querySelector('.agenda .agenda-name').getBoundingClientRect().width;
         return { a, t, hw };
       });
       fail(m.a.length >= 2 && m.a.every((x) => Math.abs(x - m.hw) < 1), `RV 10: hero buttons ${m.a.map(n).join('/')} wide at 390`);
@@ -207,9 +207,10 @@ module.exports = {
     }
     {
       const [c, p] = await open(1280, 800, 'elena', '/reviews/weekly');
-      await p.locator('.tree .trow').first().waitFor();
-      const cols = await p.evaluate(() => getComputedStyle(document.querySelector('.tree .trow')).gridTemplateColumns.split(' '));
-      fail(cols[0] === '104px' && cols[2] === '176px', `RV 11: Still to review columns ${cols.join(' ')}`);
+      await p.locator('.agenda .agenda-row').first().waitFor();
+      const cols = await p.evaluate(() => getComputedStyle(document.querySelector('.agenda .agenda-row')).gridTemplateColumns.split(' '));
+      // The agenda's own rows (Lane, 5 Nov): one fixed status column so the names line up, the name taking the room.
+      fail(cols[0] === '144px' && parseFloat(cols[1]) >= 200, `RV 11: Still to review columns ${cols.join(' ')}`);
       await p.goto(p.url().replace(/\/reviews\/weekly/, '/reviews'));
       await p.locator('a.arow').first().waitFor();
       const ap = await p.evaluate(() => getComputedStyle(document.querySelector('a.arow')).padding);
@@ -235,6 +236,8 @@ module.exports = {
       // Below 1024: the review's text links are 44px targets.
       const [c, p] = await open(768, 1024, 'elena', '/reviews/weekly');
       await p.locator('.hero').waitFor();
+      await p.locator('.healthy-group summary').click(); // the choice to walk them sits inside the folded group (Lane, 5 Nov)
+      await p.locator('.healthy-group .linkish').first().waitFor();
       const hs = await p.evaluate(() => [...document.querySelectorAll('.healthy-group .linkish')].map((e) => e.getBoundingClientRect().height));
       fail(hs.length > 0 && hs.every((x) => x >= 44), `RV 7: "Walk them one at a time" is ${hs.map(n).join('/')}px tall at 768`);
       await c.close();

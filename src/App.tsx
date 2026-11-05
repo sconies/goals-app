@@ -9,7 +9,7 @@ import { GoalScreen } from './screens/GoalScreen';
 import { GoalsScreen } from './screens/GoalsScreen';
 import { GoalWizard } from './screens/GoalWizard';
 import { Home } from './screens/Home';
-import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews } from './screens/Review';
+import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from './screens/Review';
 import { Watching } from './screens/Watching';
 import { RetroGoal, WrapUp } from './screens/Retro';
 import { WorkspaceHome } from './screens/Workspace';
@@ -20,12 +20,16 @@ import { Shell } from './ui/Shell';
 import { Import } from './screens/Import';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { Research } from './screens/Research';
+import { Settings } from './screens/Settings';
+import { GoalPrint, ReviewPrint } from './screens/Print';
+import { MotionLayer } from './ui/Count';
 
 export function Routed() {
   const app = useApp();
   if (!app.viewerChosen) return <WhoAreYou />;
   return (
     <Shell>
+      <MotionLayer />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
@@ -38,6 +42,7 @@ export function Routed() {
         <Route path="/reviews/new" element={<ReviewEdit />} />
         <Route path="/reviews/:reviewId" element={<ReviewHome />} />
         <Route path="/reviews/:reviewId/edit" element={<ReviewEdit />} />
+        <Route path="/reviews/:reviewId/summary" element={<ReviewSummary />} />
         <Route path="/watching" element={<Watching />} />
         <Route path="/retro" element={<WrapUp />} />
         <Route path="/retro/:goalId" element={<RetroGoal />} />
@@ -45,10 +50,13 @@ export function Routed() {
         <Route path="/goals/new" element={<GoalWizard />} />
         <Route path="/goals/:goalId" element={<GoalScreen />} />
         <Route path="/goals/:goalId/edit" element={<GoalEdit />} />
+        <Route path="/goals/:goalId/print" element={<GoalPrint />} />
+        <Route path="/reviews/:reviewId/print" element={<ReviewPrint />} />
         <Route path="/activity" element={<Activity />} />
         <Route path="/data" element={<DataTables />} />
         <Route path="/workspace" element={<WorkspaceHome />} />
         <Route path="/workspace/new" element={<Onboarding />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/ready" element={<Ready />} />
         <Route path="*" element={<div className="page narrow"><Empty title="Page not found" /></div>} />
       </Routes>

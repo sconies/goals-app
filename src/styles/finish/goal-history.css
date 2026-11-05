@@ -51,7 +51,8 @@
 /* Narrow column (under 600px): status, then the title full width, then the number and gap on one line, then the reason in full. */
 @container gcol (max-width: 599px) {
   .goal-page .tree .trow { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; row-gap: 4px; }
-  .goal-page .tree .trow > * { grid-column: 1 / -1; }
+  /* Reset the shared row's named areas first, or the status and the number land on the same implicit row. */
+  .goal-page .tree .trow > * { grid-area: auto; grid-column: 1 / -1; }
   .goal-page .tree .trow-main { display: contents; }
   .goal-page .tree .trow-icon { order: 1; padding-top: 0; }
   .goal-page .tree .trow-title { order: 2; }

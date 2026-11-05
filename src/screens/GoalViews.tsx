@@ -173,7 +173,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                     <tr data-tone={s.status} className={sel.has(goal.id) ? 'selected' : undefined}>
                       <td className="selcol"><label className="selhit"><input type="checkbox" aria-label={`Select ${goal.title}`} checked={sel.has(goal.id)} onChange={(e) => toggle([goal.id], e.target.checked)} /></label></td>
                       <td className="gt-goal" style={depth ? { paddingLeft: `calc(var(--s3) + ${depth * 16}px)` } : undefined}>
-                        <span className="gt-name"><Link to={'/goals/' + goal.id}>{goal.title}</Link><LevelTag level={goal.level} /></span>
+                        <span className="gt-name"><Link to={'/goals/' + goal.id}>{goal.title}</Link><LevelTag level={goal.level} />{goal.key && <span className="gkey" title="The goal’s key">{goal.key}</span>}</span>
                       </td>
                       {show.has('owner') && <td className="col-opt">{s.owner}</td>}
                       <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? <Keep text={`Last: week ${s.lastWeek}`} /> : app.week > 0 ? 'No check-in yet' : ''}</span></td>

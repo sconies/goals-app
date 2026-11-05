@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { causeLabel } from '../domain/checkin';
-import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL, weekLabel } from '../domain/format';
+import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import { answeredSince, askText, canAnswer, openFor } from '../domain/requests';
-import type { Change, Goal, HelpRequest, MetricGoal } from '../domain/types';
+import type { Change, CheckIn, DisplayStatus, Goal, HelpRequest, MetricGoal } from '../domain/types';
+import { summaryFacts } from '../domain/summaryFacts';
+import { storyOf } from '../domain/story';
 import { planHistoryOf } from '../domain/goal';
 import { Avatar, Chip, Empty, FlagPill, LevelTag, Sheet, timeAgo, StatusShape } from '../ui/bits';
 import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList } from '../ui/charts';
@@ -17,8 +19,10 @@ import { weekDates } from '../domain/plan';
 import { ReviewBar, ReviewCallBar, TreeRow, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
 import { RespondSheet } from './Respond';
 import { criticalPath } from '../domain/map';
-import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
+import { ancestors, outcomeTrees, type TreeNode } from '../domain/tree';
 import { Icon } from '../ui/Icon';
+import { GoalBack } from '../ui/BackLink';
+import { CountNumber } from '../ui/Count';
 
 export function GoalScreen() {
   const app = useApp();
@@ -107,7 +111,6 @@ function GoalView({ goal }: { goal: Goal }) {
     return [onPath.has(g.id) ? 'On the critical path' : '', at.status.status === 'stale' ? 'Last result unknown' : f ? f.label : LABEL[at.status.status]].filter(Boolean).join('. ') + '.';
   };
   const rv = useReview(goal.id);
-  const fc = forecastText(goal, a, cycle.weeks);
   const series = valueSeries(own);
   const ptg = latest?.pathToGreen ?? null;
   const isOwner = app.viewer.id === goal.ownerId;
@@ -116,7 +119,6 @@ function GoalView({ goal }: { goal: Goal }) {
   const [params, setParams] = useSearchParams();
   const published = params.get("published") === "1";
   const [tab, setTab] = useState<'activity' | 'check-ins' | 'details'>(params.get('tab') === 'comments' ? 'activity' : 'check-ins');
-  const [allCheckIns, setAllCheckIns] = useState(false);
   const [allChanges, setAllChanges] = useState(false);
   const flags = att.flags.filter((f) => f.kind !== 'due');
   // The status line already says off track or at risk, and the owner's note follows: show only flags that add something.
@@ -124,10 +126,14 @@ function GoalView({ goal }: { goal: Goal }) {
   const canEdit = isOwner || app.viewer.admin;
   // In a review, what was said in this session is listed by the review bar; don't show it twice.
   const asks = app.snapshot.decisions.filter((d) => d.goalId === goal.id && (d.kind === 'ask' || d.kind === 'action') && !(rv.active && d.reviewId === rv.review?.id && d.week === rv.session?.week)).slice(-3).reverse();
-  const lastBy = latest ? app.person(latest.authorId) : undefined;
 
   const stale = st.status === 'stale';
+  const behind = st.status === 'risk' || st.status === 'off';
   const dateText = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  // The four facts the page leads with, and the owner's path to green: worked out once, in the domain.
+  const summary = summaryFacts(goal, cycle, app.snapshot.checkIns, week, stale);
+  const story = storyOf(goal, app.snapshot, cycle, week, app.today);
+  const source = summary.source;
   // A request for an update stays visible ("Asked 2 hours ago") until the next check-in, rather than a passing toast.
   // Whoever asked can undo it (Senior UX review, finding 9); it's logged, and drops off the owner's Home.
   const asked = openUpdateAsk(goal.id, app.snapshot, latest?.postedAt ?? null);
@@ -148,28 +154,52 @@ function GoalView({ goal }: { goal: Goal }) {
   // In a review, the page is compact: result, what changed, what's needed; the rest folds away.
   const compact = rv.active;
   const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? 'No value yet' : fmt(a.actual, goal);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const ownerSays = latest?.why && latest.why !== 'On plan.' ? latest : null;
+
+  const chart = (
+    <>
+      {goal.kind === 'metric' && a.kind === 'metric' && (
+        <figure className="card goal-chart" style={{ margin: 0 }}>
+          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} ptgBy={stale ? null : ptg?.byWeek ?? null} />
+          {goal.originalPlan && <PlanChanges goal={goal} />}
+        </figure>
+      )}
+      {goal.kind === 'range' && <figure className="card goal-chart" style={{ margin: 0 }}><RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} /></figure>}
+      {a.kind === 'milestone' && <div className="card"><StageList a={a} /></div>}
+    </>
+  );
 
   return (
     <div className="page goal-page">
       <ReviewBar goalId={goal.id} />
+      <GoalBack />
+      {/* Once the title scrolls away, a slim header keeps the goal, its status and its actions on screen. */}
+      <StickyHead watch={titleRef} title={goal.title} status={st.status} number={stale ? 'Current performance unknown' : headlineNumber}
+        actions={compact ? null : <>{canEdit && <Link className="btn sm" to={`/goals/${goal.id}/edit`}>Edit</Link>}{!isOwner && <WatchButton goal={goal} />}</>} />
       {!compact && <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/goals">Goals</Link>
         {path.map((p) => <span key={p.id} className="row"><Icon name="chevron-right" className="muted" /><Link to={'/goals/' + p.id}>{p.title}</Link></span>)}
       </nav>}
       <div className="row between" style={{ alignItems: 'flex-start' }}>
         <span className="stack" style={{ gap: 6, minWidth: 0 }}>
-          <h1 className="title-xl">{goal.title}</h1>
+          <h1 className="title-xl" ref={titleRef}>{goal.title}</h1>
           <span className="row hint" style={{ gap: 'var(--s2)' }}>
             <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name}{team ? `, ${team.name}` : ''}
             <LevelTag level={goal.level} />
+            {goal.key && <span className="gkey" title={`This goal’s key: it never changes, and /goals/${goal.key} opens it`}>{goal.key}</span>}
           </span>
         </span>
         {!compact && <div className="actions">
           {isOwner && week > 0 && <Link className={'btn' + (due && !(published && own.length === 0) ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Check in now'}</Link>}
           {canEdit && <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>}
           {!isOwner && <WatchButton goal={goal} />}
+          <Link className="btn ghost print-link" to={`/goals/${goal.id}/print`}><Icon name="print" /><span className="print-link-label">Print or save as PDF</span></Link>
         </div>}
       </div>
+
+      {/* What it feeds, how many feed it, and how its number is measured: right under the title. */}
+      <GoalContext goal={goal} parent={parent} feeding={children.length} canEdit={canEdit && !compact} />
 
       {published && own.length === 0 && (
         <section className="first-checkin" aria-label="First check-in">
@@ -184,35 +214,85 @@ function GoalView({ goal }: { goal: Goal }) {
         </section>
       )}
 
-      {parent && goal.whyHelps && <p className="small muted why-helps">Feeds “{parent.title}”: {goal.whyHelps}</p>}
-
-      {/* Status first; then, on a wide screen, the evidence on the left and the owner's account beside it. */}
+      {/* Status first; then, on a wide screen, the evidence on the left and what needs a response beside it. */}
       <div className="goal-grid split">
       <div className="goal-head split-a">
-      <section className="story" data-tone={st.status}>
+      <section className="story" data-tone={st.status} aria-label="Where it stands">
         <div className="statusline">
           <Chip k={st.status} />
-          {stale ? <span className="big">Current performance unknown</span> : <span className="big">{headlineNumber}</span>}
+          {stale ? <span className="big">Current performance unknown</span> : <span className="big">{a.kind !== 'milestone' && a.actual != null && goal.kind !== 'milestone' ? <CountNumber value={a.actual} from={own.at(-2)?.value} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} /> : headlineNumber}</span>}
           {!stale && <span className={'strong tone-' + gap.tone}>{gap.short}</span>}
         </div>
-        {stale
-          ? <span className="small">{latest ? `Last reported: ${headlineNumber} in week ${latest.week} (${dateText(latest.postedAt)}), ${st.daysSinceCheckIn} days ago.` : 'Nothing reported yet.'} Without a newer check-in, the status and any projection can’t be trusted.</span>
-          : a.kind === 'metric' && goal.kind === 'metric' && latest ? <span className="hint">{gap.long}.</span> : null}
+        {stale && <span className="small">{latest ? `Last reported: ${headlineNumber} in week ${latest.week} (${dateText(latest.postedAt)}), ${st.daysSinceCheckIn} days ago.` : 'Nothing reported yet.'} Without a newer check-in, the status and any projection can’t be trusted.</span>}
         {stale && !isOwner && (asked
           ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(asked.at, app.today)}{asked.actorId !== app.viewer.id ? ` (${app.person(asked.actorId)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s on their Home until they check in.{asked.actorId === app.viewer.id && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
           : <div className="row" style={{ gap: 'var(--s3)' }}><button type="button" className="btn sm" disabled={asking} onClick={() => void askForUpdate()}>Ask {ownerFirst} for an update</button><span className="small" role="status">{undone ? 'Undone. It’s off their Home.' : ''}</span></div>)}
-        {fc && !stale && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <Icon name="trend-down" />}{fc.warn && (st.status === 'on' || st.status === 'done') ? 'On track means on plan this week. ' : ''}{fc.text}</span>}
-        {!stale && <span className="hint">{latest ? `From the week ${latest.week} check-in, checked in by ${lastBy?.name} ${timeAgo(latest.postedAt, app.today)}.` : 'No check-ins yet.'}</span>}
+        {summary.facts.length > 0 && (
+          <dl className="facts">
+            {summary.facts.map((f) => (
+              <div key={f.key} className="fact" data-key={f.key} data-tone={f.tone}>
+                <dt>{f.label}</dt>
+                <dd><span className="fact-value">{f.value}</span>{f.detail && <span className="fact-detail">{f.detail}</span>}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        <span className="hint fact-source">{source ? <>Week {source.week} check-in · {app.person(source.authorId)?.name ?? 'someone'} · {timeAgo(source.postedAt, app.today)}</> : 'No check-ins yet.'}</span>
+        {/* The way back, in the main column where it's read with the numbers (Lane's notes, 5 Nov). */}
+        {behind && latest && (
+          <section className="ptg" aria-label="Path to green">
+            <h2 className="ptg-title">Path to green</h2>
+            {story.doing
+              ? <p className="ptg-what">{story.doing}</p>
+              : <p className="ptg-what muted">{isOwner ? 'You haven’t said how it gets back on plan yet. Say so in your next check-in.' : `${ownerFirst} hasn’t said how it gets back on plan yet.`}</p>}
+            {(story.byWhen || story.needs || ptg?.needs || story.next) && (
+              <dl className="ptg-facts">
+                {story.byWhen && <><dt>When</dt><dd>{story.byWhen}{ptg?.byWeek != null && ptg.byWeek < week ? ' (missed)' : ''}</dd></>}
+                {(story.needs || ptg?.needs) && <><dt>Needs</dt><dd>{story.needs ?? ptg?.needs}</dd></>}
+                {story.next && <><dt>Next step</dt><dd>{story.next}</dd></>}
+              </dl>
+            )}
+          </section>
+        )}
       </section>
       </div>
-      {/* The side column comes before the threats in the page's order, so a request is reached (and, on a phone, seen) first. */}
+      {/* The side column comes before the evidence in the page's order, so a request is reached (and, on a phone, seen) first.
+          Grouped under small headings, and only the groups with something in them. */}
       <div className="goal-rail split-side">
 
       {/* Requests for a decision or help: open until answered or withdrawn, answered once for every goal waiting on it. */}
-      <Requests goal={goal} compact={compact} behind={st.status === 'risk' || st.status === 'off'} since={latest?.postedAt ?? null} />
+      <Requests goal={goal} compact={compact} behind={behind} since={latest?.postedAt ?? null} />
+
+      {(ownerSays || (!behind && latest?.next)) && (
+        <section className="why rail-group" aria-labelledby="g-owner">
+          <h2 className="rail-head" id="g-owner">What the owner says</h2>
+          {ownerSays && (
+            <div className="quote-block">
+              <span className="field-label">{owner?.name.split(' ')[0]} said in week {ownerSays.week}</span>
+              <p>{ownerSays.cause && <strong>{causeLabel(ownerSays.cause)}. </strong>}{ownerSays.why}</p>
+            </div>
+          )}
+          {!behind && latest?.next && (
+            <div className="quote-block">
+              <span className="field-label">Next step</span>
+              <p>{latest.next}</p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {notes.length > 0 && (
+        <section className="why rail-group" aria-labelledby="g-signals">
+          <h2 className="rail-head" id="g-signals">Signals</h2>
+          {notes.map((f) => (
+            <p key={f.kind} className="note-line" data-tone={f.tone}><FlagPill f={f} /> <span>{f.detail}</span></p>
+          ))}
+        </section>
+      )}
 
       {asks.length > 0 && (
-        <section className="why" aria-label="From reviews">
+        <section className="why rail-group" aria-labelledby="g-reviews">
+          <h2 className="rail-head" id="g-reviews">Said in reviews</h2>
           {asks.map((d) => {
             const r = app.snapshot.reviews.find((x) => x.id === d.reviewId);
             return (
@@ -223,27 +303,6 @@ function GoalView({ goal }: { goal: Goal }) {
               </div>
             );
           })}
-        </section>
-      )}
-
-      {(notes.length > 0 || (latest?.why && latest.why !== 'On plan.') || ptg) && (
-        <section className="why" aria-label="What’s going on">
-          {notes.map((f) => (
-            <p key={f.kind} className="note-line" data-tone={f.tone}><FlagPill f={f} /> <span>{f.detail}</span></p>
-          ))}
-          {latest?.why && latest.why !== 'On plan.' && (
-            <div className="quote-block">
-              <span className="field-label">{owner?.name.split(' ')[0]} said in week {latest.week}</span>
-              <p>{latest.cause && <strong>{causeLabel(latest.cause)}. </strong>}{latest.why}</p>
-            </div>
-          )}
-          {ptg && (
-            <div className="quote-block">
-              <span className="field-label">{ptg.byWeek != null ? <>Owner’s date: back on plan by {weekLabel(ptg.byWeek, cycle.weeks)}{ptg.state === 'help' ? ', once the decision or help arrives' : ''}{ptg.byWeek < week && (st.status === 'risk' || st.status === 'off') ? ' (missed)' : ''}</> : ptg.state === 'investigating' ? 'Still investigating; no recovery date yet' : ptg.state === 'help' ? 'No date until the decision or help arrives' : ptg.state === 'target' ? 'The owner thinks the target should change' : 'No recovery date yet'}</span>
-              {/* A decision request is shown once, above; here it's the date that matters. */}
-              <p>{ptg.state === 'help' && openFor(goal.id, app.snapshot).length > 0 && (st.status === 'risk' || st.status === 'off') ? 'Waiting on the decision or help above.' : ptg.what}</p>
-            </div>
-          )}
         </section>
       )}
       </div>
@@ -257,17 +316,10 @@ function GoalView({ goal }: { goal: Goal }) {
         </section>
       )}
 
-      {(() => { const chart = (<section className="block">
-        {goal.kind === 'metric' && a.kind === 'metric' && (
-          <figure className="card goal-chart" style={{ margin: 0 }}>
-            <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} ptgBy={stale ? null : ptg?.byWeek ?? null} />
-            {goal.originalPlan && <PlanChanges goal={goal} />}
-          </figure>
-        )}
-        {goal.kind === 'range' && <figure className="card goal-chart" style={{ margin: 0 }}><RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} /></figure>}
-        {a.kind === 'milestone' && <div className="card"><StageList a={a} /></div>}
-      </section>);
-        return compact ? <details className="disclose"><summary>Chart and check-ins</summary>{chart}<CheckInList goal={goal} /></details> : chart; })()}
+      {/* In a review the chart and the latest check-ins are open: that's what a reviewer looks at first (Lane's notes, 5 Nov). */}
+      {compact
+        ? <section className="block review-evidence" aria-labelledby="g-chart"><h2 className="block-title" id="g-chart">Chart and recent check-ins</h2>{chart}<CheckInRows goal={goal} limit={4} /></section>
+        : <section className="block">{chart}</section>}
 
       {!compact && isYear(cycle) && <QuarterStrip goal={goal} />}
 
@@ -302,19 +354,7 @@ function GoalView({ goal }: { goal: Goal }) {
           <ol className="changes">{changes.slice(0, allChanges ? undefined : 8).map((c) => <ChangeItem key={c.id} c={c} />)}</ol>
           {changes.length > 8 && !allChanges && <button type="button" className="linkish small show-all" onClick={() => setAllChanges(true)}>Show all {changes.length}</button>}
         </> : <p className="small muted">No changes yet.</p>)}
-        {tab === 'check-ins' && (own.length ? (<>
-          <ol className="cilist">
-            {[...own].reverse().slice(0, allCheckIns ? undefined : 8).map((c) => (
-              <li key={c.id}>
-                <span className="strong ci-week"><span className="nowrap">Week {c.week}</span>{own.filter((x) => x.week === c.week).length > 1 ? <span className="hint ci-date">{new Date(c.postedAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span> : null}</span>
-                <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
-                <Chip k={c.status} />
-                {c.why && c.why !== 'On plan.' && <span className="small cilist-why">{c.why}</span>}
-              </li>
-            ))}
-          </ol>
-          {own.length > 8 && !allCheckIns && <button type="button" className="linkish small show-all" onClick={() => setAllCheckIns(true)}>Show all {own.length} check-ins</button>}
-        </>) : <p className="small muted">No check-ins yet.</p>)}
+        {tab === 'check-ins' && <CheckInRows goal={goal} limit={8} dated />}
         {tab === 'details' && goal.kind === 'metric' && <PlanTable plan={goal.plan} unit={goal} actuals={own} label="Plan and actual by week" />}
         {tab === 'details' && (
           <dl className="details">
@@ -333,6 +373,77 @@ function GoalView({ goal }: { goal: Goal }) {
       </div>
       </div>
       {rv.active && <ReviewCallBar goal={goal} />}
+    </div>
+  );
+}
+
+/** Under the title: what this goal feeds (with that goal's status), how many goals feed it, and how its number is measured. */
+function GoalContext({ goal, parent, feeding, canEdit }: { goal: Goal; parent: Goal | undefined; feeding: number; canEdit: boolean }) {
+  const app = useApp();
+  const measured = goal.kind !== 'milestone';
+  const def = goal.definition.trim(), src = goal.source.trim();
+  if (!parent && !feeding && !(measured && (def || src || canEdit))) return null;
+  return (
+    <div className="goal-context">
+      {(parent || feeding > 0) && (
+        <p className="ctx-line ctx-feeds">
+          {parent && <><span className="ctx-label">Feeds into:</span> <Link className="ctx-parent" to={'/goals/' + parent.id}>{parent.title}</Link> <span aria-hidden="true">·</span> <Chip k={app.statusOf(parent).status} /></>}
+          {parent && feeding > 0 && <span aria-hidden="true" className="ctx-sep">·</span>}
+          {feeding > 0 && <Link className="linkish ctx-feeding" to={`/goals?feeds=${goal.id}`}>{feeding === 1 ? '1 goal feeds this one' : `${feeding} goals feed this one`}</Link>}
+        </p>
+      )}
+      {parent && goal.whyHelps && <p className="small muted why-helps">{goal.whyHelps}</p>}
+      {measured && (def || src) && (
+        <p className="ctx-line ctx-measure"><span className="ctx-label">How it’s measured:</span> {def || 'Not described yet'}{src ? <span className="muted"> (source: {src})</span> : null}{!def && canEdit && <> <Link className="linkish" to={`/goals/${goal.id}/edit`}>Describe it</Link></>}</p>
+      )}
+      {measured && !def && !src && canEdit && (
+        <p className="ctx-line ctx-measure"><span className="ctx-label">How it’s measured:</span> <span className="muted">not described yet.</span> <Link className="linkish" to={`/goals/${goal.id}/edit`}>Add how it’s measured</Link></p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The slim header that takes over once the title has scrolled away: title, status and number, with Edit and Watch.
+ * It sits under whatever already sticks to the top (the phone's top bar, or the review bar in a review).
+ */
+function StickyHead({ watch, title, status, number, actions }: { watch: RefObject<HTMLElement | null>; title: string; status: DisplayStatus; number: string; actions: ReactNode }) {
+  const [shown, setShown] = useState(false);
+  const [top, setTop] = useState(0);
+  useEffect(() => {
+    const el = watch.current;
+    if (!el) return;
+    // What already sticks to the top of the window, so this header goes under it rather than behind it.
+    const above = () => {
+      let y = 0;
+      for (const e of document.querySelectorAll<HTMLElement>('.mtop, .goal-page > .reviewbar')) {
+        if (!e.getClientRects().length) continue;
+        const pos = getComputedStyle(e).position;
+        if (pos === 'sticky' || pos === 'fixed') y = Math.max(y, Math.round(e.getBoundingClientRect().bottom));
+      }
+      return y;
+    };
+    const check = () => {
+      const t = above();
+      setTop(t);
+      setShown(el.getBoundingClientRect().bottom < t);
+    };
+    let raf = 0;
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(check); };
+    check();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
+  }, [watch]);
+  return (
+    <div className="goal-sticky" style={{ top }} data-shown={shown || undefined}>
+      {shown && (
+        <div className="goal-sticky-bar" role="region" aria-label="This goal">
+          <span className="goal-sticky-title">{title}</span>
+          <span className="goal-sticky-status"><Chip k={status} /><span className="strong goal-sticky-number">{number}</span></span>
+          {actions && <span className="goal-sticky-actions">{actions}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -363,22 +474,61 @@ function NoteComposer({ goal }: { goal: Goal }) {
   );
 }
 
-/** The goal's check-ins, newest first, for the folded-away history in a review. */
-function CheckInList({ goal }: { goal: Goal }) {
+/**
+ * The goal's check-ins, newest first: one row each (week, number, the call, the reason), and each row opens to the whole
+ * check-in. Used on the goal page's Check-ins tab and, open, in a review.
+ */
+function CheckInRows({ goal, limit, dated }: { goal: Goal; limit: number; dated?: boolean }) {
   const app = useApp();
   const own = app.checkInsOf(goal);
+  const [all, setAll] = useState(false);
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
   if (!own.length) return <p className="small muted">No check-ins yet.</p>;
+  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   return (
-    <ol className="cilist">
-      {[...own].reverse().map((c) => (
-        <li key={c.id}>
-          <span className="strong ci-week"><span className="nowrap">Week {c.week}</span></span>
-          <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
-          <Chip k={c.status} />
-          {c.why && c.why !== 'On plan.' && <span className="small cilist-why">{c.why}</span>}
-        </li>
-      ))}
-    </ol>
+    <>
+      <ol className="cilist ci-open">
+        {[...own].reverse().slice(0, all ? undefined : limit).map((c) => {
+          const isOpen = open.has(c.id);
+          return (
+            <li key={c.id} className={isOpen ? 'is-open' : undefined}>
+              <button type="button" className="ci-row" aria-expanded={isOpen} aria-controls={'ci-' + c.id} onClick={() => toggle(c.id)}>
+                <span className="strong ci-week"><span className="nowrap">Week {c.week}</span>{dated && own.filter((x) => x.week === c.week).length > 1 ? <span className="hint ci-date">{new Date(c.postedAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span> : null}</span>
+                <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
+                <Chip k={c.status} />
+                <span className="ci-tail">{c.why && c.why !== 'On plan.' ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">On plan</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
+              </button>
+              {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
+            </li>
+          );
+        })}
+      </ol>
+      {own.length > limit && !all && <button type="button" className="linkish small show-all" onClick={() => setAll(true)}>Show all {own.length} check-ins</button>}
+    </>
+  );
+}
+
+/** One check-in in full: the call and what the rules calculated, the cause and why, the path to green, needs, next step, who and when. */
+function CheckInFull({ goal, c, id }: { goal: Goal; c: CheckIn; id: string }) {
+  const app = useApp();
+  const who = app.person(c.authorId);
+  const ptg = c.pathToGreen;
+  const m = goal.kind === 'milestone' ? assessMilestone(goal, c.week, c.stages) : null;
+  return (
+    <dl className="ci-full" id={id}>
+      <dt>Call</dt>
+      <dd>{c.status === c.calculated ? <>{LABEL[c.status]}, as the numbers say</> : <>Called {LABEL[c.status].toLowerCase()}; the numbers said {LABEL[c.calculated].toLowerCase()}</>}</dd>
+      {m && <><dt>Stages</dt><dd><ul className="ci-stages">{m.stages.map((s) => <li key={s.id}>{s.name}: {s.kind === 'done' ? `done week ${s.doneWeek}` : `due week ${s.dueWeek}${s.expectedWeek > s.dueWeek ? `, expected week ${s.expectedWeek}` : ''}`}</li>)}</ul></dd></>}
+      {c.cause && <><dt>Cause</dt><dd>{causeLabel(c.cause)}</dd></>}
+      {c.why && <><dt>Why</dt><dd>{c.why}</dd></>}
+      {c.greenerWhy && <><dt>Why greener</dt><dd>{c.greenerWhy}</dd></>}
+      {ptg && <><dt>Path to green</dt><dd>{ptg.what}{ptg.byWeek != null ? <span className="muted"> · back on plan by week {ptg.byWeek}</span> : ptg.state === 'investigating' ? <span className="muted"> · still investigating</span> : null}</dd></>}
+      {ptg?.needs && <><dt>Needs</dt><dd>{ptg.needs}</dd></>}
+      {c.proposeTarget != null && goal.kind !== 'milestone' && <><dt>Proposed target</dt><dd>{fmt(c.proposeTarget, goal)}</dd></>}
+      {c.next && <><dt>Next step</dt><dd>{c.next}</dd></>}
+      <dt>Checked in</dt>
+      <dd>{who?.name ?? 'Someone'}, {whenText(c.postedAt, app.today)}{c.backfilled ? ' (loaded later)' : ''}</dd>
+    </dl>
   );
 }
 
@@ -429,8 +579,11 @@ function Requests({ goal, compact, behind, since }: { goal: Goal; compact: boole
   const others = (app.snapshot.requests ?? []).filter((r) => r.status === 'open' && !r.goalIds.includes(goal.id));
   if (!open.length && !answered && !(isOwner && behind && others.length)) return null;
   const first = (id: string | null) => (id ? app.person(id)?.name.split(' ')[0] ?? 'someone' : 'anyone');
+  // "Asked of you" when one is waiting on the viewer; otherwise just "Requests".
+  const mine = open.some((r) => r.recipientId === app.viewer.id);
   return (
-    <>
+    <section className="rail-group requests-group" aria-labelledby="g-requests">
+      <h2 className="rail-head" id="g-requests">{mine ? 'Asked of you' : 'Requests'}</h2>
       {open.map((r) => {
         const linked = r.goalIds[0] !== goal.id;
         return (
@@ -468,6 +621,6 @@ function Requests({ goal, compact, behind, since }: { goal: Goal; compact: boole
           </div>
         </Sheet>
       )}
-    </>
+    </section>
   );
 }

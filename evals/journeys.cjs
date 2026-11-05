@@ -241,7 +241,9 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
 journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows what’s due, off track, stale or slipping', 1, async (h, device) => {
   const p = h.use(await newPage(device, 'maya'));
   await p.goto(url('/'));
-  await see(p, 'Your goals that need you');
+  // Lane's notes (5 Nov): Home shows "Your goals" (what needs attention, what's being handled) and "Goals you watch".
+  await see(p, 'Your goals');
+  await see(p, 'Need attention');
   await see(p, 'Watching', 'home also shows the goals Maya watches');
   await h.checkpoint('home');
   h.set('progress', await p.locator('.hero .ring').isVisible(), 'no weekly progress ring');
@@ -251,7 +253,9 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   h.set('attention', reasons.every((r) => r.trim().length > 20) && await p.locator('.arow[data-tone=risk] .arow-icon, .arow[data-tone=off] .arow-icon').count() > 0, 'attention rows lack a reason or a status icon');
   await h.inView(cards.first(), 'entry', 'the first attention card');
   await see(p, 'late', 'an overdue check-in is called late');
-  await h.click(cards.first().getByRole('link', { name: 'Check in' }));
+  // The north star is being handled (Elena noted it in last week's review), so the first card is a goal already
+  // checked in; the week's check-in is the hero's one action.
+  await h.click(p.locator('.home-hero').getByRole('link', { name: /Start check-in|Pick up where you left off/ }));
   await see(p, 'What’s the number this week?');
   h.set('finish', true);
   await p.context().close();
@@ -421,7 +425,8 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
   const s = await h.snapshot(wsId);
   h.set('logged', !!s && s.changes.some((c) => c.action === 'imported' && /5 people/.test(c.summary)), 'creating the workspace is not logged');
-  await p.locator('.wsbtn:visible').first().click();
+  // Switching workspace is in the person menu (review notes, 5 Nov), shown when there's more than one.
+  await p.locator('.me:visible, .profilebtn:visible').first().click();
   await p.getByRole('dialog').getByRole('button', { name: /Example: Developer Platform/ }).click();
   await see(p, 'Priya', 'switching back shows the example again');
   await p.context().close();
@@ -507,7 +512,7 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   await p.goto(url('/goals?show=attention'));
   await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
   await h.click(p.locator('.arow-main', { hasText: 'Repo-access controls' }));
-  await see(p, 'checked in by');
+  await see(p, 'check-in · '); // "Week 43 check-in · Aisha Rahman · 9 days ago" (N2)
   h.set('attention', await p.locator('.story[data-tone=off] .chip.off').isVisible() && await p.locator('.why .note-line').count() > 0, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
   await h.click(p.getByRole('tab', { name: /Comments and changes/ }));
@@ -649,7 +654,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'the review page has no progress');
   // Exceptions are listed; goals on track with nothing flagged are one named group with a count.
   const healthyN = Number(((await p.locator('.healthy-group .block-title').innerText().catch(() => '')).match(/(\d+)\s*$/) || ['', '0'])[1]);
-  h.set('attention', (await p.locator('.tree .trow').count()) + healthyN >= 2, 'the review does not list its goals');
+  h.set('attention', (await p.locator('.agenda .agenda-row').count()) + healthyN >= 2, 'the review does not list its goals');
   h.set('finish', await p.getByRole('button', { name: /^Start review/ }).isVisible().catch(() => false) || await p.getByText('Next:').isVisible().catch(() => false), 'no way to start the new review');
   const s = await h.snapshot();
   const r = s.reviews.find((x) => x.name === 'SRE fortnightly');
@@ -763,7 +768,7 @@ journey('U16', ['ATTENTION', 'WATCHING'], 'Home by responsibility, and the 4-tab
   const card = p.locator('.need-group', { hasText: 'Decisions or help needed' }).locator('.need').first();
   await h.inView(card, 'entry', 'the decision that needs Elena');
   h.set('attention', await card.getByText(/approve an interim/i).isVisible() && await card.getByRole('button', { name: 'Respond' }).isVisible(), 'the request does not say what is needed or offer a specific action');
-  await see(p, 'Important changes');
+  await see(p, 'Goals you watch');
   await h.checkpoint('home');
   // Respond opens the request itself, ready to answer (product review, 3 Nov).
   await h.click(card.getByRole('button', { name: 'Respond' }));
@@ -1790,14 +1795,14 @@ async function finishChecks(add) {
       await r.goto(url(route)); await r.waitForTimeout(400);
       return [c, r];
     };
-    const dir = path.join(__dirname, 'finish');
     const pick = (process.env.FINISH || '').split(',').filter(Boolean);
-    for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.cjs')).sort()) {
-      const m = require(path.join(dir, f));
+    // finish/: the fit-and-finish areas; notes/: Lane's review notes (5 Nov). Each module names its requirements.
+    for (const f of ['finish', 'notes'].flatMap((d) => fs.readdirSync(path.join(__dirname, d)).filter((x) => x.endsWith('.cjs')).sort().map((x) => path.join(__dirname, d, x)))) {
+      const m = require(f);
       if (pick.length && !pick.includes(m.id)) continue;
       let fails;
       try { fails = await m.run({ open, url, browser }); } catch (e) { fails = [`check crashed: ${String(e.message || e).split('\n')[0]}`]; }
-      add(m.id, ['FIT-AND-FINISH-AREAS'], `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
+      add(m.id, m.reqs ?? ['FIT-AND-FINISH-AREAS'], m.title ?? `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
     }
   }
 }

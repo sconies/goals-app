@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-04 22:11 UTC.
+Run 2026-11-05 08:24 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -17,7 +17,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 12 | Demo: switch person, look around, start over | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 4) |
 | 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 3) |
 | 7 | An owner changes a target with a reason; a watcher sees it | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 16) |
-| 8 | Watching: see what has gone quiet and chase it | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 3 · 3 (budget 4) |
+| 8 | Watching: see what has gone quiet and chase it | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 3 (budget 4) |
 | 9 | Follow goals you don’t own: watch a tree or a level | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 6) |
 | 13 | Anyone sets up a review: name, cadence, goals, people | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 10) |
 | 14 | An admin adds a person and makes them an admin | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 8) |
@@ -62,7 +62,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**76 of 76 pass**. Spec scenarios 81/81.
+**88 of 88 pass**. Spec scenarios 145/145.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -142,6 +142,18 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **SAVED-VIEWS** Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. | Goals | 3 | U32, U33, U34 |
 | ✅ | **EXCEPTIONS-FIRST** A leader's attention goes to the exceptions. A weekly review walks the goals that need a look one at a time and takes the goals on track with nothing flagged together in one acknowledgement, which can be opened or walked instead. A goal page says which contributing goals are most likely to make it miss. A request for a decision has Respond beside it. Asking for an update leaves a lasting 'Asked' in place of the button. The table keeps each goal's story to one line, with Details to open it, and the board puts the north star first and folds healthy lanes to a count. New goal asks before resuming an unpublished one. One name per idea: No recent update, Contributing goals, Decision or help needed. | Leading | 0 | U33 |
 | ✅ | **DATA-TABLES** Every person, goal, check-in and plan is in a table anyone can read, search, sort and filter by any column: a value from its list, a number condition, words, or empty; the filters and sort are in the link. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged. Every record shows its own ID, which never changes. | Data | 0 | U35 |
+| ✅ | **REVIEW-LIST-STATE** The Reviews page says, for every review, where this session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held and how many of its actions are open. | Reviews | 5 | N1 |
+| ✅ | **REVIEW-AGENDA** A review's agenda reads at a glance: one line per goal (status, name, number, gap) with nothing cut off at any width; the end of a review shows what was said and leads back to the review. | Reviews | 0 | N1 |
+| ✅ | **GOAL-SUMMARY** A goal's page leads with four facts (against plan, trend over the last check-ins, change since the last update, projection to the target), then the path to green in the main column; the header stays on screen while scrolling; what the goal feeds and how its number is measured are shown under the title. In a review, the chart and recent check-ins are open, each past check-in opens to the full check-in, and the side column is grouped under labelled headings. | Goals | 8 | N2 |
+| ✅ | **ATTENTION-HANDLED** Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI). | Attention | 7 | N3 |
+| ✅ | **HOME-DASHBOARD** Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. | Home | 4 | N3 |
+| ✅ | **SETTINGS** A Settings page holds personal choices that are remembered: light, dark or system, an accent colour, a collapsed or full side navigation, and your AI assistant tokens. Detail pages have a Back link to where you came from. | Interface | 11 | N4 |
+| ✅ | **NAV-GOALS** Goals is one section of the navigation with Mine, Watching and All, and your saved views under it; a person in one workspace never sees a workspace switcher. | Interface | 0 | N4 |
+| ✅ | **WORKSPACE-ADMIN** Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. | Workspace | 6 | N4 |
+| ✅ | **TABLE-LAYOUTS** In the data tables, columns can be reordered and resized, the layout saved and reopened, and the table exported as shown. | Data | 5 | N5 |
+| ✅ | **READABLE-IDS** Every goal has a short, readable key (G-1, G-2 … per workspace) that never changes, shown on the goal, in tables, exports and links, and accepted by the AI assistant and imports. | Data | 11 | N5 |
+| ✅ | **PRINT-EXPORT** A goal and a review each have a print-ready one-page view (save as PDF) with everything critical: status, numbers against plan, chart, path to green, latest check-in, requests and actions. | Export | 4 | N6 |
+| ✅ | **MOTION-ALIVE** The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every animation is under 250ms and off when the person asks for reduced motion. | Interface | 3 | N6 |
 
 ## Platform checks
 
@@ -160,6 +172,12 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **F6** Fit and finish, map-reviews
 - ✅ **F7** Fit and finish, data-workspace
 - ✅ **F8** Fit and finish, sheets
+- ✅ **N1** Review notes, reviews
+- ✅ **N2** Review notes, goal-page
+- ✅ **N3** Review notes, attention-home
+- ✅ **N4** Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin
+- ✅ **N5** Review notes, data-ids
+- ✅ **N6** Review notes, print-motion
 - ✅ **P8** The goals start in the first screen: the Goals header stays short on a phone and a desktop
 - ✅ **P7** Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold
 - ✅ **P5** No console or page errors across every journey

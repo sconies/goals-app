@@ -69,17 +69,22 @@ export function sessionDate(r: Review, cycle: Cycle, week: number): string {
  */
 export const isHealthy = (a: GoalAttention) => (a.status.status === 'on' || a.status.status === 'done') && a.flags.every((f) => f.kind === 'due');
 
-/** What a session still has to do: goals to discuss one at a time, and goals on track to cover together. */
-export function agendaOf(s: ReviewSession): { discuss: GoalAttention[]; healthy: GoalAttention[] } {
+/**
+ * What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
+ * every goal that isn't healthy, the ones with new information first; `handled` names the ones in it that are already
+ * being handled (someone looked since the latest check-in), so an agenda can group them under "Being handled".
+ */
+export function agendaOf(s: ReviewSession): { discuss: GoalAttention[]; healthy: GoalAttention[]; handled: GoalAttention[] } {
   const left = s.items.filter((a) => !s.covered.has(a.goal.id));
-  return { discuss: left.filter((a) => !isHealthy(a)), healthy: left.filter(isHealthy) };
+  const discuss = left.filter((a) => !isHealthy(a));
+  return { discuss, healthy: left.filter(isHealthy), handled: discuss.filter((a) => !!a.handled) };
 }
 
 export interface ReviewSession {
   review: Review;
   week: number;
   date: string;
-  /** Worst first, then the longest since a check-in. */
+  /** New information, then what's being handled, then the healthy goals; each worst first, then the longest since a check-in. */
   items: GoalAttention[];
   covered: Set<string>;
   done: number;
@@ -88,18 +93,73 @@ export interface ReviewSession {
   said: Decision[];
 }
 
+/** Agenda order: new information, then what's being handled, then the healthy goals. */
+const tier = (a: GoalAttention) => (a.handled ? 1 : isHealthy(a) ? 2 : 0);
+
 export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date, week: number): ReviewSession {
   const w = sessionWeek(r, week);
   const lastCheckIn = (g: Goal) => { const own = checkInsFor(g, s.checkIns); const last = own[own.length - 1]; return last ? daysSince(last.postedAt, today) : 999; };
   const items = goalsIn(r.scope, s.goals)
     .map((g) => attentionFor(g, s, cycle, today))
-    .sort((a, b) => b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
+    .sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
   const said = s.decisions.filter((d) => d.reviewId === r.id && d.week === w);
   // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
   const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));
   const done = items.filter((a) => covered.has(a.goal.id)).length;
   return { review: r, week: w, date: sessionDate(r, cycle, w), items, covered, done, total: items.length, said };
 }
+
+/** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
+export const dayText = (iso: string) => new Date(iso.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/**
+ * Where a review's current session stands. Held means every goal in it has been marked reviewed; it is held on the
+ * day the last one was. In progress means something has been said or reviewed, but not every goal. Otherwise it
+ * hasn't started.
+ */
+export type SessionState =
+  | { kind: 'not-started' }
+  | { kind: 'in-progress'; done: number; total: number }
+  | { kind: 'held'; on: string };
+
+export function sessionState(s: ReviewSession): SessionState {
+  if (s.total > 0 && s.done >= s.total) {
+    const last = s.said.filter((d) => d.kind === 'acknowledge').map((d) => d.at).sort().at(-1);
+    return { kind: 'held', on: (last ?? s.date).slice(0, 10) };
+  }
+  if (s.done > 0 || s.said.length > 0) return { kind: 'in-progress', done: s.done, total: s.total };
+  return { kind: 'not-started' };
+}
+
+/** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
+export function sessionStateText(st: SessionState): string {
+  if (st.kind === 'held') return `Held ${dayText(st.on)}`;
+  if (st.kind === 'in-progress') return `In progress · ${st.done} of ${st.total} reviewed`;
+  return 'Not started';
+}
+
+/**
+ * When a review was last held before its current session: the latest earlier session in which anything was said
+ * (a goal reviewed, a note, a question or an action), dated by the last thing said in it. Null if it never has been.
+ */
+export function lastHeld(r: Review, s: Snapshot, sessionWk: number): { week: number; on: string } | null {
+  const past = s.decisions.filter((d) => d.reviewId === r.id && d.week < sessionWk);
+  if (!past.length) return null;
+  const week = Math.max(...past.map((d) => d.week));
+  const on = past.filter((d) => d.week === week).map((d) => d.at).sort().at(-1)!;
+  return { week, on: on.slice(0, 10) };
+}
+
+/**
+ * A review's open actions: every action agreed in it, in any session, that isn't yet past the week it's due by.
+ * An action with no date stays open. Actions carry no "done" mark, so the due week is what closes them.
+ */
+export function openActions(r: Review, s: Snapshot, week: number): Decision[] {
+  return s.decisions.filter((d) => d.reviewId === r.id && d.kind === 'action' && (d.dueWeek == null || d.dueWeek >= week));
+}
+
+/** The week of the session after this one. */
+export const nextSessionWeek = (r: Review, sessionWk: number) => sessionWeek(r, sessionWk + 1);
 
 /** How a call reads in the change log, after the person's name. */
 export const DECISION_LOG: Record<Decision['kind'], string> = {

@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { withKeys } from '../domain/goalKey';
 import type { Snapshot, Workspace } from '../domain/types';
 import {
   changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows, requestFromRow, requestToRow, type RequestRow,
@@ -76,7 +77,8 @@ export class SupabaseStore implements Store {
       teams: teams.map(teamFromRow),
       people: people.map(personFromRow),
       cycles: cycles.map(cycleFromRow),
-      goals: goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages)),
+      // Until migration 0021 gives every goal its key, keys are worked out the same way on each read.
+      goals: withKeys(goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages))),
       checkIns: checkIns.map(checkInFromRow),
       decisions: decisions.map(decisionFromRow),
       changes: changes.map(changeFromRow).sort((a, b) => a.at.localeCompare(b.at)),
@@ -101,13 +103,24 @@ export class SupabaseStore implements Store {
 
   /** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. */
   async commit(ws: string, c: Commit) {
-    if ((await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c) }, 'Saving')) !== 'missing') return;
+    if ((await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c) }, 'Saving')) !== 'missing') {
+      // Before migration 0020, okr_commit saves teams but can't remove one or rename the workspace: finish those here.
+      // Afterwards they've already happened, and doing them again changes nothing.
+      await this.teamsAndName(ws, c);
+      return;
+    }
     await this.legacyCommit(ws, c);
+  }
+
+  private async teamsAndName(ws: string, c: Commit) {
+    if (c.removeTeams?.length) await this.must(this.db.from('okr_teams').delete().eq('workspace_id', ws).in('id', c.removeTeams), 'Removing the team');
+    if (c.workspace) await this.must(this.db.from('okr_workspaces').update({ name: c.workspace.name }).eq('id', ws), 'Renaming the workspace');
   }
 
   /** The save before migration 0011: one request per table, not in a transaction. Used only until 0011 is applied. */
   private async legacyCommit(ws: string, c: Commit) {
     if (c.cycles?.length) await this.must(this.db.from('okr_cycles').upsert(c.cycles.map((x) => cycleToRow(ws, x))), 'Saving the cycle');
+    if (c.teams?.length) await this.must(this.db.from('okr_teams').upsert(c.teams.map((t) => teamToRow(ws, t))), 'Saving the team');
     if (c.people?.length) await this.must(this.db.from('okr_people').upsert(c.people.map((p) => personToRow(ws, p))), 'Saving people');
     for (const g of c.goals ?? []) {
       const { goal, stages } = goalToRows(ws, g);
@@ -130,6 +143,7 @@ export class SupabaseStore implements Store {
     if (c.views?.length) await this.must(this.db.from('okr_views').upsert(c.views.map((x) => viewToRow(ws, x))), 'Saving the view');
     if (c.requests?.length) await this.must(this.db.from('okr_requests').upsert(c.requests.map((x) => requestToRow(ws, x))), 'Saving the request');
     for (const id of c.unwatch ?? []) await this.must(this.db.from('okr_watches').delete().eq('id', id), 'Stopping watching');
+    await this.teamsAndName(ws, c);
     if (c.changes.length) await this.must(this.db.from('okr_changes').insert(c.changes.map((x) => changeToRow(ws, x))), 'Logging the change');
   }
 
