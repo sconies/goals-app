@@ -81,11 +81,12 @@
   .goal-page .bar-me .profilebtn { min-width: 44px; min-height: 44px; border: 0; background: transparent; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
   .goal-page .bar-me .demo-entry.compact { min-height: 44px; padding: 0 8px; align-items: center; }
   .goal-page .bar-actions { justify-content: flex-start; margin-top: 6px; }
-  /* On a phone the actions sit at the left, so the "…" menu opens from the row's left edge (anchored to the button's
-     right edge it ran off the screen). */
-  .goal-page .bar-actions { position: relative; }
-  .goal-page .bar-actions .bar-menu { position: static; }
+  /* On a phone the "…" menu opens from the summary bar's left edge, just under it (anchored to the button's right edge
+     it ran off the screen). The bar's slot is the positioned box it hangs from. */
+  .goal-page .bar-actions, .goal-page .bar-actions .bar-menu { position: static; }
   .goal-page .bar-actions .bar-menu .view-menu-list { left: 0; right: auto; max-width: calc(100vw - 2 * var(--s3)); }
+  /* Closed, the browser still lays the list out inside the button's box (contained), off the right edge: take it out. */
+  .goal-page .bar-actions .bar-menu:not([open]) .view-menu-list { display: none; }
   .goal-page .bar-actions { flex-wrap: nowrap; }
   .goal-page .bar-actions .btn.primary { flex: 1 1 auto; min-width: 0; white-space: normal; text-align: center; }
   .goal-page .bar-actions .btn:not(.primary) { flex: none; }
