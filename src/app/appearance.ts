@@ -27,15 +27,18 @@ export const EFFECTS = [
   ['shake', 'A shake when it’s off track'],
 ] as const;
 export type Effect = (typeof EFFECTS)[number][0];
+/** How the number and the latest point land (the Motion lab's fun options). */
+export const LANDINGS = [['thump', 'Thump'], ['spring', 'Spring'], ['wobble', 'Wobble'], ['drop', 'Drop']] as const;
+export type Landing = (typeof LANDINGS)[number][0];
 
 /** Words for a pace: "Original speed", "2× slower". */
 export const paceWords = (p: number) => (p <= 1 ? 'Original speed' : `${Number(p.toFixed(2))}× slower`);
 /** Words for an impact. */
 export const impactWords = (i: number) => (i <= 0 ? 'None' : i < 0.6 ? 'Gentle' : i < 1.3 ? 'Strong' : i < 1.7 ? 'Big' : 'Very big');
 
-const KEYS = { theme: 'goals-theme', accent: 'goals-accent', sidebar: 'goals-sidebar', pace: 'goals-pace', impact: 'goals-impact', off: 'goals-motion-off' } as const;
-export interface Appearance { theme: Theme; accent: Accent; sidebar: Sidebar; pace: number; impact: number; off: Effect[] }
-const DEFAULT: Appearance = { theme: 'system', accent: 'cobalt', sidebar: 'full', pace: PACE.default, impact: IMPACT.default, off: [] };
+const KEYS = { theme: 'goals-theme', accent: 'goals-accent', sidebar: 'goals-sidebar', pace: 'goals-pace', impact: 'goals-impact', off: 'goals-motion-off', landing: 'goals-landing', sound: 'goals-sound', buzz: 'goals-buzz' } as const;
+export interface Appearance { theme: Theme; accent: Accent; sidebar: Sidebar; pace: number; impact: number; off: Effect[]; landing: Landing; sound: boolean; buzz: boolean }
+const DEFAULT: Appearance = { theme: 'system', accent: 'cobalt', sidebar: 'full', pace: PACE.default, impact: IMPACT.default, off: [], landing: 'thump', sound: false, buzz: false };
 
 const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const pick = <T extends string>(v: string | null, list: [T, string][], d: T): T => (list.some(([k]) => k === v) ? (v as T) : d);
@@ -56,6 +59,8 @@ function read(): Appearance {
     pace: num(get(KEYS.pace), { quick: 1, steady: 2, slow: 3 }, PACE.min, PACE.max, DEFAULT.pace),
     impact: num(get(KEYS.impact), { gentle: 0.5, strong: 1, big: 1.6 }, IMPACT.min, IMPACT.max, DEFAULT.impact),
     off: effectsOff(get(KEYS.off)),
+    landing: (LANDINGS.some(([k]) => k === get(KEYS.landing)) ? get(KEYS.landing) : DEFAULT.landing) as Landing,
+    sound: get(KEYS.sound) === '1', buzz: get(KEYS.buzz) === '1',
   };
   return cached;
 }
@@ -68,10 +73,32 @@ export function applyAppearance(a: Appearance = read()) {
   d.style.setProperty('--pace', String(a.pace));
   d.style.setProperty('--impact', String(a.impact));
   if (a.off.length) d.setAttribute('data-motion-off', a.off.join(' ')); else d.removeAttribute('data-motion-off');
+  if (a.landing === 'thump') d.removeAttribute('data-landing'); else d.setAttribute('data-landing', a.landing);
 }
 
 /** The chosen pace as a multiple (2 by default), for motion driven from code (the count-up). */
 export const storyPace = (): number => read().pace;
+/** The moment it lands: a soft "tock" and a buzz on phones, each only if switched on in the Motion lab, never under
+    reduced motion. */
+export function landedMoment() {
+  const a = read();
+  try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch { /* no matchMedia */ }
+  if (a.buzz) { try { navigator.vibrate?.(Math.round(20 + 40 * a.impact)); } catch { /* no vibration */ } }
+  if (a.sound) {
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx(), o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
+      o.type = 'sine'; o.frequency.setValueAtTime(320, t); o.frequency.exponentialRampToValueAtTime(140, t + 0.12);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06 + 0.06 * a.impact, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.2); o.onended = () => void ctx.close();
+    } catch { /* no audio */ }
+  }
+}
+
+/** Opens the Motion lab (the Easter egg): five quick taps on a goal's status, or the Konami code. */
+export const openMotionLab = () => window.dispatchEvent(new Event('goals-motion-lab'));
+
 /** Whether one of the goal page's effects is on. */
 export const effectOn = (e: Effect): boolean => !read().off.includes(e);
 
@@ -82,7 +109,7 @@ export function setAppearance(change: Partial<Appearance>) {
     const v = next[k];
     const same = Array.isArray(v) ? v.length === 0 : v === DEFAULT[k];
     // Private windows can refuse storage: the choice still holds for this visit.
-    try { if (same) localStorage.removeItem(KEYS[k]); else localStorage.setItem(KEYS[k], Array.isArray(v) ? v.join(',') : String(v)); } catch { /* storage blocked */ }
+    try { if (same) localStorage.removeItem(KEYS[k]); else localStorage.setItem(KEYS[k], Array.isArray(v) ? v.join(',') : typeof v === 'boolean' ? (v ? '1' : '0') : String(v)); } catch { /* storage blocked */ }
   }
   cached = next;
   applyAppearance(next);

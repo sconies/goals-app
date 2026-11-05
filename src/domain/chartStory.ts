@@ -120,3 +120,82 @@ export function rangeHeading(goal: RangeGoal, p: { value: number; low: number; h
   const side = bound === 'atMost' ? (outside ? 'over' : 'under') : (outside ? 'under' : 'over');
   return `On its recent trend it ends at about ${likely} ${when}${lo === hi ? '' : ` (somewhere between ${lo} and ${hi})`}, ${side} its ${sayAmount(limit, goal)} limit${outside ? '' : ' as it should be'}. Projected by the app from the last eight weeks.`;
 }
+
+/* ---------- the same story as short facts, for the goal page (Lane, 5 Nov: "rather show it, or point form") ---------- */
+
+export type Tone = 'good' | 'bad' | 'flat';
+export interface StoryRow { label: string; value: string; note?: string; tone?: Tone }
+/** Where it will likely end, for a small bar: the range, the likeliest value, and the target or limit as a mark. */
+export interface EndBar { low: number; high: number; likely: number; mark: number; markLabel: string; tone: Tone }
+export interface StoryFacts { rows: StoryRow[]; end?: EndBar; footnote?: string }
+
+const trendWord = (now: number, then: number, unit: number): { word: string; tone: Tone } => {
+  const move = now - then;
+  if (Math.abs(move) < unit) return { word: 'holding steady', tone: 'flat' };
+  if (now < 0) return move > 0 ? { word: 'catching up', tone: 'good' } : { word: 'slipping', tone: 'bad' };
+  return move > 0 ? { word: 'pulling ahead', tone: 'good' } : { word: 'lead shrinking', tone: 'bad' };
+};
+
+/** A number goal: Now, Likely end, Target. */
+export function metricFacts(goal: MetricGoal, points: { week: number; value: number }[], weeks: number, p: { likely: number; low: number; high: number } | null, misses: boolean, when: string, share = false): StoryFacts {
+  const rows: StoryRow[] = [];
+  const valued = points.filter((x) => Number.isFinite(x.value));
+  const last = valued[valued.length - 1];
+  const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
+  const unit = 10 ** -goal.decimals;
+  const gapAt = (x: { week: number; value: number }) => (x.value - planAt(goal.plan, x.week, weeks)) * dir;
+  if (last) {
+    const now = gapAt(last);
+    const value = Math.abs(now) < unit / 2 ? 'On plan' : `${sayDiff(now, goal)} ${now < 0 ? 'behind' : 'ahead'}`;
+    const earlier = valued.length >= 2 ? valued[Math.max(0, valued.length - 3)]! : null;
+    if (earlier && earlier.week !== last.week) {
+      const then = gapAt(earlier);
+      const t = trendWord(now, then, unit);
+      const thenWords = Math.abs(then) < unit / 2 ? 'on plan' : `${sayDiff(then, goal)} ${then < 0 ? 'behind' : 'ahead'}`;
+      rows.push({ label: 'Against plan', value, note: `${t.word} · was ${thenWords} ${ago(last.week - earlier.week)}`, tone: t.tone });
+    } else rows.push({ label: 'Against plan', value });
+  }
+  if (!p) return { rows };
+  const clamp = (v: number) => (share ? Math.min(100, Math.max(0, v)) : v);
+  const lo = sayAmount(clamp(p.low), goal), hi = sayAmount(clamp(p.high), goal);
+  rows.push({ label: 'Likely end', value: `about ${sayAmount(clamp(p.likely), goal)}`, note: `${when.replace(/^by /, 'by ')}${lo === hi ? '' : ` · could be ${lo} to ${hi}`}` });
+  const span = Math.abs(goal.plan.target - goal.plan.start) || Math.abs(goal.plan.target) || 1;
+  const off = Math.abs(p.likely - goal.plan.target) / span;
+  const verdict = misses ? (off < 0.05 ? 'just missing it' : off > 0.25 ? 'well short' : 'missing it') : off > 0.25 ? 'comfortably beating it' : 'on course';
+  rows.push({ label: 'Target', value: sayAmount(goal.plan.target, goal), note: verdict, tone: misses ? 'bad' : 'good' });
+  return {
+    rows,
+    end: { low: clamp(p.low), high: clamp(p.high), likely: clamp(p.likely), mark: goal.plan.target, markLabel: `Target ${sayAmount(goal.plan.target, goal)}`, tone: misses ? 'bad' : 'good' },
+    footnote: 'Projected by the app from the last eight weeks, not the owner’s date.',
+  };
+}
+
+/** A goal kept inside a limit: Now, Likely end, Limit. */
+export function rangeFacts(goal: RangeGoal, points: { week: number; value: number }[], p: { value: number; low: number; high: number } | null, when: string): StoryFacts {
+  const rows: StoryRow[] = [];
+  const { bound, limit } = goal.range;
+  const outsideAt = (v: number) => (bound === 'atMost' ? v > limit : v < limit);
+  const last = points[points.length - 1];
+  if (last) {
+    const earlier = points.length >= 2 ? points[Math.max(0, points.length - 3)]! : null;
+    const worse = earlier ? (bound === 'atMost' ? last.value > earlier.value : last.value < earlier.value) : false;
+    const note = [outsideAt(last.value) ? `outside the ${sayAmount(limit, goal)} limit` : `inside the ${sayAmount(limit, goal)} limit`, earlier && earlier.week !== last.week && earlier.value !== last.value ? `was ${sayAmount(earlier.value, goal)} ${ago(last.week - earlier.week)}` : ''].filter(Boolean).join(' · ');
+    rows.push({ label: 'Now', value: sayAmount(last.value, goal), note, tone: outsideAt(last.value) || worse ? 'bad' : 'good' });
+  }
+  if (!p) return { rows };
+  const out = outsideAt(p.value);
+  const lo = sayAmount(p.low, goal), hi = sayAmount(p.high, goal);
+  rows.push({ label: 'Likely end', value: `about ${sayAmount(p.value, goal)}`, note: `${when}${lo === hi ? '' : ` · could be ${lo} to ${hi}`}` });
+  rows.push({ label: 'Limit', value: sayAmount(limit, goal), note: out ? (bound === 'atMost' ? 'heading over it' : 'heading under it') : 'staying inside it', tone: out ? 'bad' : 'good' });
+  return { rows, end: { low: p.low, high: p.high, likely: p.value, mark: limit, markLabel: `Limit ${sayAmount(limit, goal)}`, tone: out ? 'bad' : 'good' }, footnote: 'Projected by the app from the last eight weeks.' };
+}
+
+/** A dated-stages goal: how late it is now, and which way. */
+export function stageFacts(late: { week: number; late: number }[]): StoryFacts {
+  const last = late[late.length - 1];
+  if (!last) return { rows: [] };
+  const w = (n: number) => (n === 1 ? '1 week late' : `${n} weeks late`);
+  const earlier = late.length >= 2 ? late[0]! : null;
+  const note = earlier && earlier.week !== last.week ? `${last.late > earlier.late ? 'slipping' : last.late < earlier.late ? 'recovering' : 'holding steady'} · was ${earlier.late === 0 ? 'on time' : w(earlier.late)} ${ago(last.week - earlier.week)}` : undefined;
+  return { rows: [{ label: 'Stages', value: last.late === 0 ? 'On time' : w(last.late), note, tone: last.late === 0 ? 'good' : 'bad' }] };
+}

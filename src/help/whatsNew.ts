@@ -25,7 +25,7 @@ export const WHATS_NEW: NewsEntry[] = [
     points: [
       'A summary bar reads in two seconds: the status, the number against plan and target, which way it’s heading, why, and whether anyone is on it. It shrinks to one line as you scroll.',
       'What’s asked of you is answered on the goal, and Home’s Answer, Respond and Reply open it ready to type.',
-      'The chart is near the top, draws itself in, and says in plain words where the goal stands and where it’s heading. Choose how slowly it moves and how hard it lands in Settings.',
+      'Under the chart: against plan, likely end and target in three short rows, with a bar showing where it will likely land. The Motion lab, at the bottom of Settings, changes how it all moves.',
       'One list of what’s being done, with who, when and whether each is open, done or overdue; and what was said the last time it was discussed.',
       'Check-ins, comments and changes in one stream, a reason repeated week after week said once, and “Since you looked” when you come back.',
       'Share image copies a picture of the goal with its link. Linking to a decision already asked for another goal is now in the check-in.',

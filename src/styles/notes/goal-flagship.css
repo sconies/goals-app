@@ -267,3 +267,39 @@
 .motion-preview .goal-chart { padding: var(--s2); }
 @media (max-width: 520px) { .motion-settings .slider-row { grid-template-columns: minmax(0, 1fr) auto; } .motion-settings .slider-row input[type="range"] { grid-column: 1 / -1; grid-row: 2; } }
 .motion-settings .slider-row { max-width: 560px; }
+
+/* Landing styles from the Motion lab (data-landing; Thump is the default). */
+@keyframes gp-num-spring { 0% { transform: scale(1); } 20% { transform: scale(var(--thump-num)); } 40% { transform: scale(calc(2 - var(--thump-num))); } 60% { transform: scale(calc(1 + (var(--thump-num) - 1) / 2)); } 80% { transform: scale(calc(1 - (var(--thump-num) - 1) / 4)); } 100% { transform: none; } }
+@keyframes gp-num-wobble { 0%, 100% { transform: none; } 20% { transform: rotate(calc(-8deg * var(--impact))) scale(var(--thump-num)); } 40% { transform: rotate(calc(6deg * var(--impact))); } 60% { transform: rotate(calc(-4deg * var(--impact))); } 80% { transform: rotate(calc(2deg * var(--impact))); } }
+@keyframes gp-num-drop { 0% { transform: translateY(calc(-40px * var(--impact))); opacity: 0; } 50% { transform: none; opacity: 1; } 70% { transform: translateY(calc(-12px * var(--impact))); } 85% { transform: none; } 93% { transform: translateY(calc(-4px * var(--impact))); } 100% { transform: none; } }
+:root[data-landing="spring"] .goal-page .bar-now .countup.landed { animation-name: gp-num-spring; }
+:root[data-landing="wobble"] .goal-page .bar-now .countup.landed { animation-name: gp-num-wobble; }
+:root[data-landing="drop"] .goal-page .bar-now .countup.landed { animation-name: gp-num-drop; }
+:root[data-landing="spring"] .chart.draw .c-last { animation-name: gp-num-spring; }
+:root[data-landing="wobble"] .chart.draw .c-last { animation-name: gp-num-wobble; }
+:root[data-landing="drop"] .chart.draw .c-last { animation-name: gp-num-drop; }
+
+/* The Motion lab: hidden, found by five quick taps on a goal's status or the Konami code. */
+.motion-lab .field { margin-bottom: var(--s3); }
+.motion-lab .seg { flex-wrap: wrap; }
+
+/* ---------- under the chart: short facts and the likely-end bar ---------- */
+.chart-facts { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s2); color: var(--fg-2); }
+.chart-facts .cf-rows { margin: 0; display: grid; gap: 6px; }
+.chart-facts .cf-row { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: var(--s3); align-items: baseline; }
+.chart-facts dt { font-size: 0.8125rem; color: var(--muted); }
+.chart-facts dd { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s2); }
+.chart-facts .cf-value { font-weight: 650; color: var(--fg); font-variant-numeric: tabular-nums; }
+.chart-facts .cf-note { font-size: 0.875rem; color: var(--fg-2); }
+.chart-facts .cf-note.tone-good { color: var(--on-fg); }
+.chart-facts .cf-note.tone-bad { color: var(--off-fg); }
+.chart-facts .cf-end { max-width: 420px; overflow: visible; }
+.chart-facts .cf-axis { stroke: var(--line); stroke-width: 1; }
+.chart-facts .cf-band { fill: var(--track, var(--line)); }
+.chart-facts .cf-dot { fill: var(--fg); }
+.chart-facts .cf-mark { stroke: var(--on-fg); stroke-width: 2; }
+.chart-facts .tone-bad .cf-mark, .chart-facts .cf-end.tone-bad .cf-mark { stroke: var(--off-fg); }
+.chart-facts .cf-mark-label { font-size: 11px; fill: var(--fg-2); font-weight: 600; }
+.chart-facts .cf-range { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.chart-facts .cf-foot { margin: 0; font-size: 0.75rem; color: var(--muted); }
+@container gcol (max-width: 420px) { .chart-facts .cf-row { grid-template-columns: 88px minmax(0, 1fr); } }

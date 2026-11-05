@@ -29779,7 +29779,7 @@ var ARTICLES = [
 			list: [
 				"Light or dark: light, dark, or follow your device.",
 				"Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
-				"How a goal’s page moves: a Speed slider (from the original speed to four times slower), an Impact slider (from none to very big), and switches for each effect: counting the number up, drawing the chart in, the ring, the jolt and the off-track shake. A preview replays as you change them.",
+				"Motion lab, at the bottom: play with how a goal’s page moves. Speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.",
 				"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
 				"You: your name, job title and team. An admin changes these.",
 				"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
@@ -30066,7 +30066,7 @@ var WHATS_NEW = [
 		points: [
 			"A summary bar reads in two seconds: the status, the number against plan and target, which way it’s heading, why, and whether anyone is on it. It shrinks to one line as you scroll.",
 			"What’s asked of you is answered on the goal, and Home’s Answer, Respond and Reply open it ready to type.",
-			"The chart is near the top, draws itself in, and says in plain words where the goal stands and where it’s heading. Choose how slowly it moves and how hard it lands in Settings.",
+			"Under the chart: against plan, likely end and target in three short rows, with a bar showing where it will likely land. The Motion lab, at the bottom of Settings, changes how it all moves.",
 			"One list of what’s being done, with who, when and whether each is open, done or overdue; and what was said the last time it was discussed.",
 			"Check-ins, comments and changes in one stream, a reason repeated week after week said once, and “Since you looked” when you come back.",
 			"Share image copies a picture of the goal with its link. Linking to a decision already asked for another goal is now in the check-in."

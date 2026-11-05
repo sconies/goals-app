@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { headingSentence, sayAmount, sayDiff, standingSentence } from './chartStory';
+import { headingSentence, metricFacts, sayAmount, sayDiff, standingSentence } from './chartStory';
 import type { MetricGoal } from './types';
 
 const money = { kind: 'metric', unit: '£k', decimals: 0, plan: { start: 2000, target: 3600, shape: 'linear' } } as unknown as MetricGoal;
@@ -28,5 +28,14 @@ describe('chart story in plain words (Lane, 5 Nov)', () => {
   it('standing: no arrows, no jargon', () => {
     const s = standingSentence(pct, [{ week: 1, value: 70 }, { week: 2, value: 71 }, { week: 3, value: 71 }], 13) ?? '';
     expect(s).not.toMatch(/→|pts|plan:/);
+  });
+  it('facts: short rows and a likely-end bar instead of a paragraph', () => {
+    const plan = { ...money, plan: { start: 0, target: 3600, shape: 'linear' } } as unknown as MetricGoal;
+    const f = metricFacts(plan, [{ week: 43, value: 2850 }, { week: 45, value: 2950 }], 53, { likely: 3558, low: 3409, high: 3706 }, true, 'by the end of the year');
+    expect(f.rows.map((r) => r.label)).toEqual(['Against plan', 'Likely end', 'Target']);
+    expect(f.rows[1]).toMatchObject({ value: 'about £3.56m', note: 'by the end of the year · could be £3.41m to £3.71m' });
+    expect(f.rows[2]).toMatchObject({ value: '£3.6m', note: 'just missing it', tone: 'bad' });
+    expect(f.end).toMatchObject({ low: 3409, high: 3706, likely: 3558, mark: 3600, markLabel: 'Target £3.6m' });
+    for (const r of f.rows) expect(`${r.value} ${r.note ?? ''}`).not.toMatch(/→|£k|week \d/);
   });
 });

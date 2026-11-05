@@ -633,7 +633,7 @@ export const ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'Light or dark: light, dark, or follow your device.',
         'Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.',
-        'How a goal’s page moves: a Speed slider (from the original speed to four times slower), an Impact slider (from none to very big), and switches for each effect: counting the number up, drawing the chart in, the ring, the jolt and the off-track shake. A preview replays as you change them.',
+        'Motion lab, at the bottom: play with how a goal’s page moves. Speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.',
         'Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.',
         'You: your name, job title and team. An admin changes these.',
         'What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.',

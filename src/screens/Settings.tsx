@@ -4,8 +4,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
-import { ACCENTS, EFFECTS, IMPACT, PACE, SIDEBARS, THEMES, impactWords, paceWords, setAppearance, useAppearance } from '../app/appearance';
-import { MotionPreview } from '../ui/MotionPreview';
+import { ACCENTS, LANDINGS, SIDEBARS, THEMES, impactWords, openMotionLab, paceWords, setAppearance, useAppearance } from '../app/appearance';
 import { Avatar } from '../ui/bits';
 import { BackLink } from '../ui/BackLink';
 import { ProfileSheet } from '../ui/ProfileSheet';
@@ -45,30 +44,6 @@ export function Settings() {
           </div>
           <span className="hint">For links, buttons and what’s selected. Status colours stay the same, so on track, at risk and off track always look alike.</span>
         </div>
-        <div className="field motion-settings">
-          <span className="field-label" id="set-motion">How a goal’s page moves</span>
-          <label className="slider-row" htmlFor="set-pace">
-            <span>Speed</span>
-            <input id="set-pace" type="range" min={PACE.min} max={PACE.max} step={PACE.step} value={look.pace} aria-valuetext={paceWords(look.pace)} onChange={(e) => setAppearance({ pace: Number(e.target.value) })} />
-            <span className="slider-value">{paceWords(look.pace)}</span>
-          </label>
-          <label className="slider-row" htmlFor="set-impact">
-            <span>Impact</span>
-            <input id="set-impact" type="range" min={IMPACT.min} max={IMPACT.max} step={IMPACT.step} value={look.impact} aria-valuetext={impactWords(look.impact)} onChange={(e) => setAppearance({ impact: Number(e.target.value) })} />
-            <span className="slider-value">{impactWords(look.impact)}</span>
-          </label>
-          <fieldset className="effect-list">
-            <legend className="sr">Effects</legend>
-            {EFFECTS.map(([k, l]) => (
-              <label key={k} className="check">
-                <input type="checkbox" checked={!look.off.includes(k)} onChange={(e) => setAppearance({ off: e.target.checked ? look.off.filter((x) => x !== k) : [...look.off, k] })} /> {l}
-              </label>
-            ))}
-          </fieldset>
-          <MotionPreview pace={look.pace} countOn={!look.off.includes('count')} replayKey={`${look.pace}-${look.impact}-${look.off.join('.')}`} />
-          <span className="hint">The number counts up and the chart draws in, then both land with an impact. All of it switches off when your device asks for reduced motion.</span>
-          {(look.pace !== PACE.default || look.impact !== IMPACT.default || look.off.length > 0) && <button type="button" className="linkish small" onClick={() => setAppearance({ pace: PACE.default, impact: IMPACT.default, off: [] })}>Back to the default</button>}
-        </div>
       </section>
 
       <section className="block settings-block" aria-labelledby="set-nav">
@@ -99,6 +74,15 @@ export function Settings() {
 
       <AiAssistants mine />
       <ProfileSheet open={who} onClose={() => setWho(false)} />
+
+      <section className="block settings-block motion-lab-entry" aria-labelledby="set-motion">
+        <h2 className="block-title" id="set-motion">Motion lab</h2>
+        <p className="hint" style={{ marginTop: 0 }}>For the moment a goal’s number lands. Slow it right down, make it hit harder, give it a wobble or a bounce, or switch it all off. Purely for fun; nobody else sees your choice.</p>
+        <span className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="button" className="btn sm" onClick={openMotionLab}>Open the Motion lab</button>
+          <span className="small muted">{paceWords(look.pace)} · {impactWords(look.impact)} impact · {LANDINGS.find(([k]) => k === look.landing)?.[1]}</span>
+        </span>
+      </section>
     </div>
   );
 }
