@@ -241,10 +241,12 @@ module.exports = {
       await p.goto(url('/goals/head')); await p.waitForTimeout(300);
       fail(/Back to Goals/.test(await back().innerText()), `[SETTINGS] a goal opened from outside: "${await back().innerText()}" (want its parent, Goals)`);
       await p.locator('.side').getByRole('link', { name: 'Home' }).click(); await p.waitForTimeout(250);
-      await p.locator('a[href$="/goals/head"]').first().click(); await p.waitForTimeout(300);
+      // Any of Maya's own goals on Home (the north star may be folded away under Being handled).
+      await p.locator('.page a[href*="/goals/"]:visible').filter({ hasNotText: /^Goals$/ }).first().click(); await p.waitForTimeout(300);
       fail(/Back to Home/.test(await back().innerText()), `[SETTINGS] a goal opened from Home: "${await back().innerText()}"`);
+      const title = (await p.locator('h1').first().innerText()).trim();
       await p.getByRole('link', { name: 'Edit', exact: true }).click(); await p.waitForTimeout(300);
-      fail(/Back to Intake-to-delivery time/.test(await back().innerText()), `[SETTINGS] Edit goal: "${await back().innerText()}"`);
+      fail((await back().innerText()).includes(`Back to ${title}`), `[SETTINGS] Edit goal: "${await back().innerText()}" (want Back to ${title})`);
       await p.getByRole('button', { name: 'Save changes' }).click(); await p.waitForTimeout(400);
       fail(/Back to Home/.test(await back().innerText()), `[SETTINGS] after saving an edit, the goal's Back says "${await back().innerText()}" (want Home, not the form)`);
       await back().click(); await p.waitForTimeout(300);
