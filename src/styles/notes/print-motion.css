@@ -147,7 +147,7 @@ main.work > .page, main.work > .focus { animation: pm-page-in .18s ease-out back
   /* In black and white the lines are told apart by weight and dash: actual solid black, plan solid grey, projection
      dashed, path to green dotted, the original plan light dotted. */
   .chart .c-act, .chart .c-fc, .chart .c-target { stroke: #000 !important; }
-  .chart .c-plan { stroke: #8a8a8a !important; }
+  .chart .c-plan { stroke: #000 !important; stroke-opacity: .18 !important; }
   .chart .c-ptg { stroke: #000 !important; stroke-dasharray: 2 3 !important; }
   .chart .c-orig { stroke: #aaa !important; }
   .chart .c-grid { stroke: #ddd !important; }
@@ -156,7 +156,7 @@ main.work > .page, main.work > .focus { animation: pm-page-in .18s ease-out back
   .chart .c-area { fill: #eee !important; }
   .chart text { fill: #000 !important; }
   .l-act, .l-fc { border-color: #000 !important; }
-  .l-plan { border-color: #8a8a8a !important; }
+  .chart-key i.l-plan { background: #d6d6d6 !important; }
   .l-ptg { border-color: #000 !important; border-top-style: dotted !important; }
   .l-orig { border-color: #aaa !important; }
   * { animation: none !important; transition: none !important; }

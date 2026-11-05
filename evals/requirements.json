@@ -417,6 +417,11 @@
       "text": "A goal's page moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see and lands with an impact, both set in Settings: the pace (Quick, Steady or Slow; Steady, the default, is half the speed of Quick, the chart drawing over about two seconds and everything done within four) and how hard it lands (Gentle, Strong or Big: the number and the latest point thump, a ring spreads from the point, the bar and the chart jolt, and an off-track status shakes). None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys."
     },
     {
+      "id": "CHART-READ",
+      "area": "Plans",
+      "text": "On a goal's chart the plan and the actual never look alike: the plan is a broad pale band and the actual a thin solid line, different in width and colour in every theme and accent; each chart says which way is better (higher or lower) in its corner."
+    },
+    {
       "id": "PROJECTION-RANGE",
       "area": "Plans",
       "text": "The projection is steady on a noisy number and called exactly on a clean trend: one more noisy week moves it by a few points, not tens; it is a range everywhere it's shown (the chart, Home and reviews' warnings, exports and the AI assistant's get_goal)."

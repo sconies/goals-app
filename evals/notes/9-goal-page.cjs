@@ -69,7 +69,7 @@ module.exports = {
   id: 'N9',
   area: 'goal-page-flagship',
   title: 'The flagship goal page: five journeys at 390 and 1280; status once, no repeats, the chart in the first screen, motion and Share',
-  reqs: ['GOAL-PAGE-BAR', 'GOAL-PAGE-ONCE', 'GOAL-PAGE-INTENT', 'GOAL-PAGE-ALIVE', 'GOAL-SHARE', 'PROJECTION-RANGE'],
+  reqs: ['GOAL-PAGE-BAR', 'GOAL-PAGE-ONCE', 'GOAL-PAGE-INTENT', 'GOAL-PAGE-ALIVE', 'GOAL-SHARE', 'PROJECTION-RANGE', 'CHART-READ'],
   async run({ url, browser }) {
     const fails = [];
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
@@ -327,6 +327,23 @@ module.exports = {
       await p.locator('.goal-bar').waitFor(); await p.waitForTimeout(60);
       const m = await p.evaluate(() => ({ line: document.querySelector('.context-line')?.innerText ?? '', moved: !!document.querySelector('.goal-bar .bar-status.moved'), about: !!document.querySelector('details.about[open]') }));
       chk(/^Since you looked on Tuesday: .*at risk → off track\./.test(m.line) && m.moved && !m.about, `since you looked: “${m.line}”, shape turns ${m.moved}, About open ${m.about}`);
+      await c.close();
+    }
+
+    /* ---------- plan and actual never alike; which way is better (Lane, 5 Nov) ---------- */
+    for (const [ws, who, route, way] of [['example-support', 'hana', '/goals/csat', 'Higher'], ['example', 'elena', '/goals/lead', 'Lower']]) {
+      const [c, p] = await at(browser, url, { w: 1280, h: 800, ws, who, route });
+      for (const theme of ['light', 'dark']) for (const accent of ['cobalt', 'violet', 'petrol', 'graphite']) {
+        const r = await p.evaluate(([theme, accent]) => {
+          const d = document.documentElement;
+          d.setAttribute('data-theme', theme); if (accent === 'cobalt') d.removeAttribute('data-accent'); else d.setAttribute('data-accent', accent);
+          const st = (q) => { const e = document.querySelector('.goal-chart ' + q); if (!e) return null; const s = getComputedStyle(e); return { c: s.stroke, w: parseFloat(s.strokeWidth), o: Number(s.strokeOpacity) }; };
+          return { plan: st('.c-plan'), act: st('.c-act'), better: document.querySelector('.goal-chart .c-better-t')?.textContent ?? '' };
+        }, [theme, accent]);
+        const at9 = `Chart ${route} ${theme} ${accent}`;
+        chk(r.plan && r.act && r.plan.w >= 2.5 * r.act.w && (r.plan.c !== r.act.c || r.plan.o <= 0.5 * r.act.o), `${at9}: plan ${JSON.stringify(r.plan)} and actual ${JSON.stringify(r.act)} look alike`);
+        chk(r.better === `${way} is better`, `${at9}: says “${r.better}”, not “${way} is better”`);
+      }
       await c.close();
     }
 

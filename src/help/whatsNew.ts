@@ -19,6 +19,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'chart-plan-and-better',
+    date: '2026-11-05',
+    title: 'Charts that are easier to read',
+    points: [
+      'The plan is now a broad pale band and the actual a solid dark line on it, so the two never look alike, whatever your colour or theme.',
+      'Each chart says which way is better, higher or lower, with an arrow in its top-left corner.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
     id: 'goal-page-flagship',
     date: '2026-11-05',
     title: 'A goal’s page, rebuilt',
