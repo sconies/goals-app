@@ -14,6 +14,7 @@ import { DueField, FieldError, LevelField, StageFields } from '../ui/GoalFields'
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { parseNumber } from '../domain/checkin';
 import { Icon } from '../ui/Icon';
+import { BackLink } from '../ui/BackLink';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
 
@@ -87,7 +88,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   return (
     <div className="focus goal-form goal-edit">
       <div className="focus-top">
-        <span className="field-label">Edit goal</span>
+        <BackLink to={'/goals/' + goal.id} label={goal.title} />
         <span />
         <button className="iconbtn" onClick={back} aria-label="Close and keep the draft"><Icon name="close" /></button>
       </div>

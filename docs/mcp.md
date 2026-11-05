@@ -4,10 +4,10 @@ The app has an MCP server at `/api/mcp`. An assistant such as Claude can use it 
 
 ## How it works
 
-- **Who it acts as.** An admin makes a personal token for one person under Workspace → AI assistants. The assistant then acts as that person, with exactly their rights. For example:
+- **Who it acts as.** An admin makes a personal token for one person under Workspace → AI assistants (each person sees and revokes their own under Settings). The assistant then acts as that person, with exactly their rights. For example:
   - owners change their own goals; admins can change any goal; anyone can comment;
   - only the person asked (or an admin) answers a request;
-  - only admins add people, pin views, make tokens, start the next cycle or delete the workspace.
+  - only admins add people, change teams, pin views, make tokens, start the next cycle, or rename or delete the workspace.
 - **The same rules as the app.** The app and the server call the same code:
   - check-ins, goals and plans go through the bulk-change engine, the same as spreadsheet import;
   - everything else goes through the shared actions in `src/domain/actions.ts`, which say who may do what.
@@ -44,7 +44,7 @@ Other assistants:
 | `list_requests` | Requests for a decision or help: open, answered or withdrawn; yours to answer; one goal's |
 | `list_reviews` / `get_review` | Every review, and one review's current agenda: goals to discuss with why, healthy ones, and what's been said |
 | `list_watching` | Your watches and the goals they cover |
-| `list_people` | People with job titles, teams and admins; the teams |
+| `list_people` | People with job titles, teams and admins; the teams, with how many people and goals each has |
 | `get_activity` | The change log, filtered like the Activity page (for example `who=maya&kind=checkins&when=this-week`) |
 | `list_views` | Your saved views and the pinned ones |
 | `list_tokens` | AI assistant tokens: all for an admin, otherwise your own |
@@ -67,6 +67,8 @@ Other assistants:
 | `save_review` | Set up a review, or change one |
 | `watch` / `unwatch` | Watch a goal, a goal and what feeds it, or a level; stop |
 | `save_person` | Admins: add someone, or change their name, job title, team or admin rights |
+| `save_team` / `remove_team` | Admins: add a team, or rename one or change its lead; remove one. A team with people or goals (in any cycle) needs `move_to`, another team they all move to in the same save |
+| `rename_workspace` | Admins: give the workspace a new name |
 | `wrap_up_goal` / `start_next_cycle` | Wrap up a goal at the end of the cycle; admins start the next cycle (needs `confirm: true`) |
 | `save_view` / `delete_view` / `pin_view` | Save, change or delete a view of the goals; admins pin one for everyone |
 | `create_token` / `revoke_token` | Admins make a token (shown once); an admin or the token's person revokes it |

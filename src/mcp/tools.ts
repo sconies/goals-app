@@ -21,6 +21,8 @@ export interface McpContext {
   now: string;
   newId: (prefix: string) => string;
   save(c: Commit): Promise<void>;
+  /** Every goal in the workspace, in every cycle, when the server has them (removing a team reaches past this cycle). */
+  allGoals?: Snapshot['goals'];
   /** Deletes the whole workspace (admins, confirmed by name); not every server can. */
   deleteWorkspace?: () => Promise<void>;
 }

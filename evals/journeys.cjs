@@ -421,7 +421,8 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
   const s = await h.snapshot(wsId);
   h.set('logged', !!s && s.changes.some((c) => c.action === 'imported' && /5 people/.test(c.summary)), 'creating the workspace is not logged');
-  await p.locator('.wsbtn:visible').first().click();
+  // Switching workspace is in the person menu (review notes, 5 Nov), shown when there's more than one.
+  await p.locator('.me:visible, .profilebtn:visible').first().click();
   await p.getByRole('dialog').getByRole('button', { name: /Example: Developer Platform/ }).click();
   await see(p, 'Priya', 'switching back shows the example again');
   await p.context().close();

@@ -1,10 +1,11 @@
-/* Workspace: switching workspaces, and (for admins) the people in this one. */
+/* Workspace: its name and teams, switching workspaces (when there's more than one), and (for admins) the people in it. */
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { initials } from '../domain/importer';
 import { personProblems } from '../domain/people';
-import type { Person } from '../domain/types';
+import type { Person, Team } from '../domain/types';
+import { teamMembers } from '../domain/actions';
 import { newId } from '../data/store';
 import { Avatar, Sheet, timeAgo } from '../ui/bits';
 
@@ -24,24 +25,31 @@ export function WorkspaceHome() {
   const shown = new Set(found.slice(0, limit).map((x) => x.id));
   const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id && shown.has(x.id))] as const), ['No team', found.filter((x) => (!x.teamId || !app.team(x.teamId)) && shown.has(x.id))] as const].filter(([, l]) => l.length);
   const admins = app.snapshot.people.filter((p) => p.admin);
+  // Most people are in one workspace: then there's nothing to switch between, only this one's name.
+  const several = app.workspaces.length > 1;
   return (
     <div className="page workspace">
       <div className="page-head">
         <h1 className="title-xl">Workspace</h1>
-        <span className="hint">{app.mode === 'demo' ? 'The example, and any you set up here to try it. All of it stays in this browser.' : 'Each workspace has its own people, goals, cycle and change log.'}</span>
+        <span className="hint">{app.mode === 'demo' ? 'The example, and any you set up here to try it. All of it stays in this browser.' : 'Each workspace has its own people, teams, goals, cycle and change log.'}</span>
       </div>
       <div className="split">
       <section className="block split-a">
-        <div className="glist">
-          {app.workspaces.map((w) => (
-            <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => app.switchWorkspace(w.id)}>
-              <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
-              <span className="gline-title">{w.name}</span>
-              <span className="gline-now">{w.id === app.ws.id ? 'Open now' : w.kind === 'example' ? 'Demo data' : 'Your data'}</span>
-            </button>
-          ))}
-        </div>
-        <div className="row" style={{ marginTop: 'var(--s3)' }}>
+        <WorkspaceName several={several} />
+        {several && (
+          <div className="stack" style={{ gap: 'var(--s1)' }}>
+            <div className="glist">
+              {app.workspaces.map((w) => (
+                <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => app.switchWorkspace(w.id)}>
+                  <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
+                  <span className="gline-title">{w.name}</span>
+                  <span className="gline-now">{w.id === app.ws.id ? 'Open now' : w.kind === 'example' ? 'Demo data' : 'Your data'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="row">
           <Link className="btn" to="/workspace/new">{app.mode === 'demo' ? 'Try setting up your own' : 'New workspace'}</Link>
           {app.mode === 'live' && <a className="btn" href="/demo">Try the demo</a>}
           {app.mode === 'demo' && app.ws.kind === 'example' && <button className="btn" aria-expanded={confirming} onClick={() => setConfirming(true)}>Reset the example</button>}
@@ -56,8 +64,9 @@ export function WorkspaceHome() {
           </div>
         )}
       </section>
-      <aside className="split-side" aria-label="Settings">
-        <AiAssistants />
+      <aside className="split-side" aria-label="Teams and settings">
+        <Teams />
+        {admin ? <AiAssistants /> : <section className="block"><h2 className="block-title">AI assistants</h2><p className="hint">Your tokens for an AI assistant are in <Link to="/settings">Settings</Link>.</p></section>}
         {admin && <FeedbackList />}
         {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
       </aside>
@@ -96,6 +105,178 @@ export function WorkspaceHome() {
       </div>
       {editing && <PersonSheet person={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
+  );
+}
+
+/** The workspace's name, and for admins a way to change it, in place. */
+function WorkspaceName({ several }: { several: boolean }) {
+  const app = useApp();
+  const [name, setName] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
+  const save = async () => {
+    setTried(true);
+    if (name === null || !name.trim() || busy) return;
+    setBusy(true);
+    try {
+      const same = name.trim().replace(/\s+/g, ' ') === app.ws.name;
+      await app.renameWorkspace(name);
+      app.toast(same ? 'Nothing changed.' : 'Renamed the workspace');
+      setName(null); setTried(false);
+    } catch { /* the rule's message is shown */ }
+    setBusy(false);
+  };
+  if (name !== null) {
+    return (
+      <form className="stack ws-rename" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+        <div className="field">
+          <label className="field"><span className="field-label">Workspace name</span>
+            <input className={'input' + (tried && !name.trim() ? ' invalid' : '')} aria-invalid={tried && !name.trim() ? true : undefined} autoFocus maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          {tried && !name.trim() && <span className="hint tone-off" role="alert">Give the workspace a name.</span>}
+        </div>
+        <span className="ws-rename-buttons"><button type="submit" className="btn">{busy ? 'Saving…' : 'Save the name'}</button><button type="button" className="btn ghost" onClick={() => { setName(null); setTried(false); }}>Cancel</button></span>
+      </form>
+    );
+  }
+  const rename = app.viewer.admin && <button type="button" className="btn sm" onClick={() => setName(app.ws.name)} aria-label={`Rename ${app.ws.name}`} title={several ? `Rename the one that’s open: ${app.ws.name}` : undefined}>Rename</button>;
+  // With several, the list below names them all (this one is "Open now"): a heading for it, and Rename for the open one.
+  if (several) return <div className="ws-title-row ws-list-head"><span className="label">Your workspaces · {app.workspaces.length}</span>{rename}</div>;
+  return (
+    <div className="ws-title-row">
+      <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{app.ws.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
+      <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
+        <h2 className="block-title ws-title">{app.ws.name}</h2>
+        <span className="hint">{app.snapshot.people.length} people · {app.snapshot.teams.length} {app.snapshot.teams.length === 1 ? 'team' : 'teams'} · {app.cycle.name}</span>
+      </span>
+      {rename}
+    </div>
+  );
+}
+
+/** The teams, with how many people and goals each has. Admins add, rename and remove them. */
+function Teams() {
+  const app = useApp();
+  const [editing, setEditing] = useState<Team | 'new' | null>(null);
+  const [removing, setRemoving] = useState<Team | null>(null);
+  const admin = app.viewer.admin;
+  const ctx = { snapshot: app.snapshot, allGoals: app.allGoals };
+  return (
+    <div className="stack teams-block" style={{ gap: 'var(--s2)' }}>
+      <div className="row between teams-head">
+        <h2 className="block-title">Teams<span className="hint count-after">· {app.snapshot.teams.length}</span></h2>
+        {admin && <button className="btn" onClick={() => setEditing('new')}>Add a team</button>}
+      </div>
+      {!app.snapshot.teams.length ? <p className="hint">No teams yet.</p> : (
+        <ul className="optlist team-list" aria-label="Teams">
+          {app.snapshot.teams.map((t) => {
+            const m = teamMembers(ctx, t.id);
+            const lead = app.person(t.leadId);
+            return (
+              <li key={t.id} className="opt static team-opt">
+                <span className="person-text">
+                  <span className="person-name">{t.name}</span>
+                  <span className="hint">{[lead ? `Led by ${lead.name}` : '', `${m.people.length} ${m.people.length === 1 ? 'person' : 'people'}`, `${m.goals.length} ${m.goals.length === 1 ? 'goal' : 'goals'}`].filter(Boolean).join(' · ')}</span>
+                </span>
+                {admin && (
+                  <span className="team-actions">
+                    <button type="button" className="btn sm" onClick={() => setEditing(t)} aria-label={`Rename ${t.name}`}>Rename</button>
+                    <button type="button" className="btn sm" onClick={() => setRemoving(t)} aria-label={`Remove ${t.name}`}>Remove</button>
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {editing && <TeamSheet team={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {removing && <RemoveTeamSheet team={removing} onClose={() => setRemoving(null)} />}
+    </div>
+  );
+}
+
+function TeamSheet({ team, onClose }: { team: Team | null; onClose: () => void }) {
+  const app = useApp();
+  const [name, setName] = useState(team?.name ?? '');
+  const [leadId, setLeadId] = useState(team?.leadId ?? '');
+  const [tried, setTried] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const clean = name.trim().replace(/\s+/g, ' ');
+  const dup = app.snapshot.teams.find((t) => t.id !== team?.id && !!clean && t.name.trim().toLowerCase() === clean.toLowerCase());
+  const save = async () => {
+    setTried(true);
+    if (!clean || dup || busy) return;
+    setBusy(true);
+    try {
+      await app.saveTeam({ id: team?.id, name, leadId: leadId || null });
+      app.toast(team ? (team.name !== clean ? `Renamed to ${clean}` : 'Saved') : `Added ${clean}`);
+      onClose();
+    } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title={team ? `Change ${team.name}` : 'Add a team'}>
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+        <div className="field">
+          <label className="field"><span className="field-label">Team name</span>
+            <input className={'input' + (tried && (!clean || dup) ? ' invalid' : '')} aria-invalid={tried && (!clean || !!dup) ? true : undefined} autoFocus maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          {tried && !clean && <span className="hint tone-off" role="alert">Give the team a name.</span>}
+          {tried && dup && <span className="hint tone-off" role="alert">There’s already a team called {dup.name}.</span>}
+        </div>
+        <label className="field"><span className="field-label">Team lead <span className="hint">optional</span></span>
+          <select className="input" value={leadId} onChange={(e) => setLeadId(e.target.value)}>
+            <option value="">No lead</option>
+            {app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : team ? 'Save' : 'Add the team'}</button></div>
+      </form>
+    </Sheet>
+  );
+}
+
+/** Removing a team: an empty one goes at once; one with people or goals moves them to another team in the same save. */
+function RemoveTeamSheet({ team, onClose }: { team: Team; onClose: () => void }) {
+  const app = useApp();
+  const m = teamMembers({ snapshot: app.snapshot, allGoals: app.allGoals }, team.id);
+  const others = app.snapshot.teams.filter((t) => t.id !== team.id);
+  const [to, setTo] = useState('');
+  const [tried, setTried] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const has = [m.people.length ? `${m.people.length} ${m.people.length === 1 ? 'person' : 'people'}` : '', m.goals.length ? `${m.goals.length} ${m.goals.length === 1 ? 'goal' : 'goals'}` : ''].filter(Boolean).join(' and ');
+  const go = async () => {
+    setTried(true);
+    if ((has && !to) || busy) return;
+    setBusy(true);
+    try {
+      const dest = app.team(to)?.name;
+      await app.removeTeam(team.id, to || null);
+      app.toast(has ? `Removed ${team.name}, and moved ${has} to ${dest}` : `Removed ${team.name}`);
+      onClose();
+    } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title={`Remove ${team.name}`}>
+      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void go(); }} noValidate>
+        {!has ? <p className="small">No one is in {team.name} and it has no goals, so it can go. The change log keeps a note of it.</p> : !others.length ? (
+          <p className="small">{team.name} has {has}. Add another team to move them to first: every goal belongs to a team.</p>
+        ) : (
+          <>
+            <p className="small">{team.name} has {has}{m.goals.some((g) => g.cycleId !== app.cycle.id) ? ', some in earlier cycles' : ''}. They move to another team first, in the same step, and each goal’s history says so.</p>
+            <div className="field">
+              <label className="field"><span className="field-label">Move them to</span>
+                <select className={'input' + (tried && !to ? ' invalid' : '')} aria-invalid={tried && !to ? true : undefined} value={to} onChange={(e) => setTo(e.target.value)}>
+                  <option value="">Choose a team</option>
+                  {others.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </label>
+              {tried && !to && <span className="hint tone-off" role="alert">Choose where they go.</span>}
+            </div>
+          </>
+        )}
+        <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button>{(!has || others.length > 0) && <button className="btn danger big-btn" type="submit">{busy ? 'Removing…' : has ? 'Move them and remove' : 'Remove the team'}</button>}</div>
+      </form>
+    </Sheet>
   );
 }
 
@@ -195,36 +376,39 @@ function DeleteWorkspace() {
   );
 }
 
-/** Personal tokens for AI assistants (MCP): admins make them; the assistant acts as that person. */
-function AiAssistants() {
+/** Personal tokens for AI assistants (MCP): admins make them; the assistant acts as that person. In Settings (`mine`),
+    your own tokens; on Workspace, an admin sees and manages everyone's. */
+export function AiAssistants({ mine = false }: { mine?: boolean }) {
   const app = useApp();
   const [making, setMaking] = useState(false);
   const live = (app.snapshot.tokens ?? []).filter((t) => !t.revokedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const shown = app.viewer.admin ? live : live.filter((t) => t.personId === app.viewer.id);
+  const shown = app.viewer.admin && !mine ? live : live.filter((t) => t.personId === app.viewer.id);
+  const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
   return (
-    <section className="block">
+    <section className="block ai-block" aria-labelledby={mine ? 'ai-mine' : 'ai-all'}>
       <div className="row between">
-        <h2 className="block-title">AI assistants</h2>
+        <h2 className="block-title" id={mine ? 'ai-mine' : 'ai-all'}>{mine ? 'Your AI assistants' : 'AI assistants'}</h2>
         {app.viewer.admin && app.mode === 'live' && <button className="btn" onClick={() => setMaking(true)}>Make a token</button>}
       </div>
-      <p className="hint">An AI assistant such as Claude can read these goals and post check-ins or changes through MCP, acting as one person: the same rights and rules, and every change is logged as theirs, marked “via AI assistant”.</p>
+      <p className="hint">An AI assistant such as Claude can read these goals and post check-ins or changes through MCP, acting as one person: the same rights and rules, and every change is logged as theirs, marked “via AI assistant”.{mine ? ' These are the tokens that act as you.' : ''}</p>
       {app.mode === 'demo'
         ? <p className="hint">This works in the real app. In the demo, data stays in your browser, where an assistant can’t reach it.</p>
         : !shown.length
-          ? <p className="hint">{app.viewer.admin ? 'No tokens yet.' : 'Ask an admin to make you a token.'}</p>
+          ? <p className="hint">{app.viewer.admin ? (mine ? 'No tokens act as you yet.' : 'No tokens yet.') : `Ask an admin to make you a token${admins.length ? `: ${admins.join(', ')}` : ''}.`}</p>
           : (
             <div className="optlist">
               {shown.map((t) => (
                 <div key={t.id} className="opt static">
                   <span className="stack" style={{ gap: 0, minWidth: 0 }}>
                     <span>{t.name}</span>
-                    <span className="hint">{app.person(t.personId)?.name ?? 'Someone'} · made {timeAgo(t.createdAt, app.today)} · {t.lastUsedAt ? `last used ${timeAgo(t.lastUsedAt, app.today)}` : 'not used yet'}</span>
+                    <span className="hint">{mine ? '' : `${app.person(t.personId)?.name ?? 'Someone'} · `}made {timeAgo(t.createdAt, app.today)} · {t.lastUsedAt ? `last used ${timeAgo(t.lastUsedAt, app.today)}` : 'not used yet'}</span>
                   </span>
                   <button className="btn sm" onClick={async () => { await app.revokeToken(t.id); app.toast(`Revoked “${t.name}”`); }} aria-label={`Revoke ${t.name}`}>Revoke</button>
                 </div>
               ))}
             </div>
           )}
+      {mine && app.viewer.admin && <p className="hint">As an admin, you see everyone’s tokens and make them for others on <Link to="/workspace">Workspace</Link>.</p>}
       {making && <TokenSheet onClose={() => setMaking(false)} />}
     </section>
   );

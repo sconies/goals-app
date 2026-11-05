@@ -24,7 +24,7 @@ const READ = { readOnlyHint: true, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const VIA = { field: 'Via', from: '—', to: 'AI assistant (MCP)' };
 
-const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId });
+const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}) });
 
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 async function save(ctx: McpContext, c: Commit | null, done: string, nothing: string): Promise<ToolResult> {
@@ -179,7 +179,7 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(_a, ctx) {
       const team = (id: string | null) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
       const people = ctx.snapshot.people.map((p) => ({ id: p.id, name: p.name, jobTitle: p.role, team: team(p.teamId), admin: p.admin, goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length }));
-      const teams = ctx.snapshot.teams.map((t) => ({ id: t.id, name: t.name, lead: name(ctx, t.leadId) }));
+      const teams = ctx.snapshot.teams.map((t) => { const m = A.teamMembers(ax(ctx), t.id); return { id: t.id, name: t.name, lead: name(ctx, t.leadId), people: m.people.length, goals: m.goals.length }; });
       return { data: { people, teams }, text: people.map((p) => `${p.id} · ${p.name}${p.jobTitle ? `, ${p.jobTitle}` : ''} · ${p.team ?? 'no team'}${p.admin ? ' · admin' : ''}`).join('\n') };
     },
   },
@@ -478,6 +478,47 @@ export const WORK_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['mood', 'text'], properties: { mood: str('How it felt.', { enum: ['good', 'meh', 'bad'] }), text: str('What happened, or what would help.') } },
     annotations: WRITE,
     async run(a, ctx) { return save(ctx, A.sendFeedback(ax(ctx), a.mood as 'good' | 'meh' | 'bad', String(a.text ?? ''), 'mcp'), 'Sent the feedback', ''); },
+  },
+  {
+    name: 'rename_workspace',
+    title: 'Rename the workspace',
+    description: 'Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['name'], properties: { name: str('The new name.') } },
+    annotations: { ...WRITE, idempotentHint: true },
+    async run(a, ctx) {
+      const from = ctx.ws.name;
+      return save(ctx, A.renameWorkspace(ax(ctx), ctx.ws, String(a.name ?? '')), `Renamed the workspace from “${from}” to “${String(a.name ?? '').trim().replace(/\s+/g, ' ')}”`, 'Nothing to change: it already has that name.');
+    },
+  },
+  {
+    name: 'save_team',
+    title: 'Add or change a team',
+    description: 'Admins: add a team, or rename one or change its lead. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['name'], properties: {
+      team: str('The team to change (name or ID). Leave out to add a team.'), name: str('The team’s name.'), lead: str('The team lead (a person’s name or ID); empty string for none.'),
+    } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      const id = a.team !== undefined ? teamOf(ctx, a.team) ?? undefined : undefined;
+      const leadId = a.lead === undefined ? undefined : a.lead === '' || a.lead === null ? null : personOf(ctx, a.lead).id;
+      const out = A.saveTeam(ax(ctx), { id, name: String(a.name ?? ''), ...(leadId !== undefined ? { leadId } : {}) });
+      const res = await save(ctx, out.commit, id ? `Saved the team ${String(a.name ?? '').trim()}` : `Added the team ${String(a.name ?? '').trim()} (ID ${out.id})`, 'Nothing to change: the team already says that.');
+      return { ...res, data: { id: out.id } };
+    },
+  },
+  {
+    name: 'remove_team',
+    title: 'Remove a team',
+    description: 'Admins: remove a team. A team that still has people or goals (in any cycle) needs move_to, another team: they all move there in the same save, and each goal’s history says so. Ask the person which team first.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['team'], properties: { team: str('The team to remove (name or ID).'), move_to: str('Where its people and goals go (a team’s name or ID).') } },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    async run(a, ctx) {
+      const id = teamOf(ctx, a.team);
+      if (!id) throw new Error('Name the team to remove.');
+      const name = ctx.snapshot.teams.find((t) => t.id === id)!.name;
+      const to = a.move_to !== undefined && a.move_to !== '' ? teamOf(ctx, a.move_to) : null;
+      return save(ctx, A.removeTeam(ax(ctx), id, to), `Removed the team ${name}`, '');
+    },
   },
   {
     name: 'delete_workspace',

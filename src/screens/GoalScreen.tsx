@@ -19,6 +19,7 @@ import { RespondSheet } from './Respond';
 import { criticalPath } from '../domain/map';
 import { ancestors, forecastText, outcomeTrees, type TreeNode } from '../domain/tree';
 import { Icon } from '../ui/Icon';
+import { GoalBack } from '../ui/BackLink';
 
 export function GoalScreen() {
   const app = useApp();
@@ -152,6 +153,7 @@ function GoalView({ goal }: { goal: Goal }) {
   return (
     <div className="page goal-page">
       <ReviewBar goalId={goal.id} />
+      <GoalBack />
       {!compact && <nav aria-label="Breadcrumb" className="crumbs">
         <Link to="/goals">Goals</Link>
         {path.map((p) => <span key={p.id} className="row"><Icon name="chevron-right" className="muted" /><Link to={'/goals/' + p.id}>{p.title}</Link></span>)}

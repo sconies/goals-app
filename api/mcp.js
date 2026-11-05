@@ -1,4 +1,4 @@
-// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// ../../../node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -6,7 +6,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// node_modules/tslib/tslib.es6.mjs
+// ../../../node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -42,12 +42,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// node_modules/@supabase/functions-js/dist/module/helper.js
+// ../../../node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// node_modules/@supabase/functions-js/dist/module/types.js
+// ../../../node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -137,7 +137,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// ../../../node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -390,7 +390,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// node_modules/@supabase/postgrest-js/dist/index.mjs
+// ../../../node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -4364,7 +4364,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -4457,7 +4457,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -4491,7 +4491,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -4633,7 +4633,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -4819,7 +4819,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// ../../../node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -6514,7 +6514,7 @@ var Socket = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -6601,7 +6601,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -6634,7 +6634,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -6656,7 +6656,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -6758,7 +6758,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -6893,7 +6893,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -7584,7 +7584,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -7695,7 +7695,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -8307,7 +8307,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// node_modules/iceberg-js/dist/index.mjs
+// ../../../node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -8803,7 +8803,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// node_modules/@supabase/storage-js/dist/index.mjs
+// ../../../node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -11990,9 +11990,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/version.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -12021,7 +12021,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -12307,7 +12307,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -12510,7 +12510,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -12908,7 +12908,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -13067,13 +13067,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/types.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// ../../../node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -14219,7 +14219,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -14251,7 +14251,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -14270,7 +14270,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -14310,7 +14310,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -14500,7 +14500,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -15106,7 +15106,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// ../../../node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -20607,9 +20607,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// ../../../node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// node_modules/@supabase/supabase-js/dist/index.mjs
+// ../../../node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
@@ -21923,6 +21923,9 @@ function commitPayload(ws, c) {
 		tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
 		views: (c.views ?? []).map((x) => viewToRow(ws, x)),
 		requests: (c.requests ?? []).map((x) => requestToRow(ws, x)),
+		...c.teams?.length ? { teams: c.teams.map((x) => teamToRow(ws, x)) } : {},
+		...c.removeTeams?.length ? { remove_teams: c.removeTeams } : {},
+		...c.workspace ? { workspace_name: c.workspace.name } : {},
 		changes: c.changes.map((x) => changeToRow(ws, x)),
 		expect: c.expect ? {
 			goals: c.expect.goals,
@@ -24350,6 +24353,7 @@ function applyCommit(s, c) {
 	const replaced = (x) => newIds.has(x.id);
 	return {
 		...s,
+		teams: upsert(s.teams, c.teams).filter((t) => !(c.removeTeams ?? []).includes(t.id)),
 		people: upsert(s.people, c.people),
 		goals,
 		checkIns: [...s.checkIns.filter((x) => !replaced(x)), ...c.checkIns ?? []],
@@ -24464,12 +24468,20 @@ var SupabaseStore = class {
 		if (await this.rpc("okr_commit", {
 			ws,
 			payload: commitPayload(ws, c)
-		}, "Saving") !== "missing") return;
+		}, "Saving") !== "missing") {
+			await this.teamsAndName(ws, c);
+			return;
+		}
 		await this.legacyCommit(ws, c);
+	}
+	async teamsAndName(ws, c) {
+		if (c.removeTeams?.length) await this.must(this.db.from("okr_teams").delete().eq("workspace_id", ws).in("id", c.removeTeams), "Removing the team");
+		if (c.workspace) await this.must(this.db.from("okr_workspaces").update({ name: c.workspace.name }).eq("id", ws), "Renaming the workspace");
 	}
 	/** The save before migration 0011: one request per table, not in a transaction. Used only until 0011 is applied. */
 	async legacyCommit(ws, c) {
 		if (c.cycles?.length) await this.must(this.db.from("okr_cycles").upsert(c.cycles.map((x) => cycleToRow(ws, x))), "Saving the cycle");
+		if (c.teams?.length) await this.must(this.db.from("okr_teams").upsert(c.teams.map((t) => teamToRow(ws, t))), "Saving the team");
 		if (c.people?.length) await this.must(this.db.from("okr_people").upsert(c.people.map((p) => personToRow(ws, p))), "Saving people");
 		for (const g of c.goals ?? []) {
 			const { goal, stages } = goalToRows(ws, g);
@@ -24492,6 +24504,7 @@ var SupabaseStore = class {
 		if (c.views?.length) await this.must(this.db.from("okr_views").upsert(c.views.map((x) => viewToRow(ws, x))), "Saving the view");
 		if (c.requests?.length) await this.must(this.db.from("okr_requests").upsert(c.requests.map((x) => requestToRow(ws, x))), "Saving the request");
 		for (const id of c.unwatch ?? []) await this.must(this.db.from("okr_watches").delete().eq("id", id), "Stopping watching");
+		await this.teamsAndName(ws, c);
 		if (c.changes.length) await this.must(this.db.from("okr_changes").insert(c.changes.map((x) => changeToRow(ws, x))), "Logging the change");
 	}
 	async insertAll(ws, s) {
@@ -25560,6 +25573,153 @@ function sendFeedback(x, mood, text, path) {
 			at: x.now
 		}],
 		changes: []
+	};
+}
+/** Admins: give the workspace a new name. Null when it already has that name. */
+function renameWorkspace(x, ws, name) {
+	if (!x.actor.admin) no("Only admins can rename the workspace.");
+	const clean = name.trim().replace(/\s+/g, " ");
+	if (!clean) no("Give the workspace a name.");
+	if (clean.length > 80) no("Keep the name to 80 characters or fewer.");
+	if (clean === ws.name) return null;
+	return {
+		workspace: { name: clean },
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "workspace",
+			entityId: ws.id,
+			action: "edited",
+			summary: `Renamed the workspace to “${clean}”`,
+			diffs: [{
+				field: "Workspace name",
+				from: ws.name,
+				to: clean
+			}]
+		}]
+	};
+}
+/** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
+function saveTeam(x, t) {
+	if (!x.actor.admin) no("Only admins can add or change teams.");
+	const clean = t.name.trim().replace(/\s+/g, " ");
+	if (!clean) no("Give the team a name.");
+	if (clean.length > 60) no("Keep the team’s name to 60 characters or fewer.");
+	const before = t.id ? x.snapshot.teams.find((v) => v.id === t.id) : void 0;
+	if (t.id && !before) no("There’s no team with that ID.");
+	const same = x.snapshot.teams.find((v) => v.id !== before?.id && v.name.trim().toLowerCase() === clean.toLowerCase());
+	if (same) no(`There’s already a team called ${same.name}.`);
+	const leadId = t.leadId === void 0 ? before?.leadId ?? "" : t.leadId ?? "";
+	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no("The team lead isn’t in this workspace.");
+	const team = {
+		id: before?.id ?? x.newId("team"),
+		name: clean,
+		leadId,
+		objective: before?.objective ?? ""
+	};
+	const name = (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? "—";
+	const diffs = before ? [...before.name !== team.name ? [{
+		field: "Team name",
+		from: before.name,
+		to: team.name
+	}] : [], ...(before.leadId || "") !== leadId ? [{
+		field: "Team lead",
+		from: name(before.leadId),
+		to: name(leadId)
+	}] : []] : [{
+		field: "Team",
+		from: "—",
+		to: team.name
+	}];
+	if (before && !diffs.length) return {
+		commit: null,
+		id: team.id
+	};
+	return {
+		id: team.id,
+		commit: {
+			teams: [team],
+			changes: [{
+				id: x.newId("chg"),
+				at: x.now,
+				actorId: x.actor.id,
+				goalId: null,
+				entity: "workspace",
+				entityId: team.id,
+				action: before ? "edited" : "created",
+				summary: before ? before.name !== team.name ? `Renamed the team “${before.name}” to “${team.name}”` : `Changed the team “${team.name}”` : `Added the team “${team.name}”`,
+				diffs
+			}]
+		}
+	};
+}
+/** What still belongs to a team: its people, and its goals in every cycle (the workspace's goals when known). */
+function teamMembers(x, teamId) {
+	return {
+		people: x.snapshot.people.filter((p) => p.teamId === teamId),
+		goals: (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId)
+	};
+}
+/** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
+function removeTeam(x, id, moveTo) {
+	if (!x.actor.admin) no("Only admins can remove teams.");
+	const team = x.snapshot.teams.find((t) => t.id === id);
+	if (!team) no("There’s no team with that ID.");
+	const { people, goals } = teamMembers(x, id);
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	const what = [people.length ? plural(people.length, "person", "people") : "", goals.length ? plural(goals.length, "goal", "goals") : ""].filter(Boolean).join(" and ");
+	const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : void 0;
+	if (moveTo && (!to || moveTo === id)) no("Move them to another team that’s in this workspace.");
+	if (what && !to) no(`${team.name} still has ${what}. Move them to another team first.`);
+	const movedPeople = people.map((p) => ({
+		...p,
+		teamId: to.id
+	}));
+	const movedGoals = goals.map((g) => ({
+		...g,
+		teamId: to.id
+	}));
+	const l = lookupOf(x.snapshot);
+	const goalChanges = goals.map((g, i) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actor.id,
+		goalId: g.id,
+		entity: "goal",
+		entityId: g.id,
+		action: "edited",
+		summary: `Moved to ${to.name}, as ${team.name} was removed`,
+		diffs: [{
+			field: "Team",
+			from: team.name,
+			to: l.teamName(movedGoals[i].teamId)
+		}]
+	}));
+	return {
+		...movedPeople.length ? { people: movedPeople } : {},
+		...movedGoals.length ? { goals: movedGoals } : {},
+		removeTeams: [id],
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "workspace",
+			entityId: id,
+			action: "removed",
+			summary: what ? `Removed the team “${team.name}”, moving ${what} to ${to.name}` : `Removed the team “${team.name}”`,
+			diffs: [{
+				field: "Team",
+				from: team.name,
+				to: "—"
+			}, ...people.length ? [{
+				field: "People moved",
+				from: team.name,
+				to: `${to.name}: ${people.map((p) => p.name).join(", ")}`
+			}] : []]
+		}, ...goalChanges]
 	};
 }
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */
@@ -27609,7 +27769,8 @@ var ax = (ctx) => ({
 	week: ctx.week,
 	actor: ctx.actor,
 	now: ctx.now,
-	newId: ctx.newId
+	newId: ctx.newId,
+	...ctx.allGoals ? { allGoals: ctx.allGoals } : {}
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 async function save(ctx, c, done, nothing) {
@@ -27920,11 +28081,16 @@ var WORK_TOOLS = [
 			return {
 				data: {
 					people,
-					teams: ctx.snapshot.teams.map((t) => ({
-						id: t.id,
-						name: t.name,
-						lead: name(ctx, t.leadId)
-					}))
+					teams: ctx.snapshot.teams.map((t) => {
+						const m = teamMembers(ax(ctx), t.id);
+						return {
+							id: t.id,
+							name: t.name,
+							lead: name(ctx, t.leadId),
+							people: m.people.length,
+							goals: m.goals.length
+						};
+					})
 				},
 				text: people.map((p) => `${p.id} · ${p.name}${p.jobTitle ? `, ${p.jobTitle}` : ""} · ${p.team ?? "no team"}${p.admin ? " · admin" : ""}`).join("\n")
 			};
@@ -28581,6 +28747,81 @@ var WORK_TOOLS = [
 		annotations: WRITE,
 		async run(a, ctx) {
 			return save(ctx, sendFeedback(ax(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
+		}
+	},
+	{
+		name: "rename_workspace",
+		title: "Rename the workspace",
+		description: "Admins: give the workspace a new name (up to 80 characters). Everyone sees the new name; the change is logged.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["name"],
+			properties: { name: str$1("The new name.") }
+		},
+		annotations: {
+			...WRITE,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			const from = ctx.ws.name;
+			return save(ctx, renameWorkspace(ax(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
+		}
+	},
+	{
+		name: "save_team",
+		title: "Add or change a team",
+		description: "Admins: add a team, or rename one or change its lead. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["name"],
+			properties: {
+				team: str$1("The team to change (name or ID). Leave out to add a team."),
+				name: str$1("The team’s name."),
+				lead: str$1("The team lead (a person’s name or ID); empty string for none.")
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			const id = a.team !== void 0 ? teamOf(ctx, a.team) ?? void 0 : void 0;
+			const leadId = a.lead === void 0 ? void 0 : a.lead === "" || a.lead === null ? null : personOf(ctx, a.lead).id;
+			const out = saveTeam(ax(ctx), {
+				id,
+				name: String(a.name ?? ""),
+				...leadId !== void 0 ? { leadId } : {}
+			});
+			return {
+				...await save(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
+				data: { id: out.id }
+			};
+		}
+	},
+	{
+		name: "remove_team",
+		title: "Remove a team",
+		description: "Admins: remove a team. A team that still has people or goals (in any cycle) needs move_to, another team: they all move there in the same save, and each goal’s history says so. Ask the person which team first.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["team"],
+			properties: {
+				team: str$1("The team to remove (name or ID)."),
+				move_to: str$1("Where its people and goals go (a team’s name or ID).")
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: false,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const id = teamOf(ctx, a.team);
+			if (!id) throw new Error("Name the team to remove.");
+			const name = ctx.snapshot.teams.find((t) => t.id === id).name;
+			const to = a.move_to !== void 0 && a.move_to !== "" ? teamOf(ctx, a.move_to) : null;
+			return save(ctx, removeTeam(ax(ctx), id, to), `Removed the team ${name}`, "");
 		}
 	},
 	{
@@ -29410,10 +29651,16 @@ async function serve(req, deps) {
 			actor,
 			now: now.toISOString(),
 			newId,
+			allGoals: all.goals,
 			save: async (c) => {
 				await deps.commit(found.workspaceId, withExpectations(c, all));
 				all = applyCommit(all, c);
 				ctx.snapshot = scopeToCycle(all, cycle);
+				ctx.allGoals = all.goals;
+				if (c.workspace) ctx.ws = {
+					...ctx.ws,
+					name: c.workspace.name
+				};
 			},
 			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {}
 		};

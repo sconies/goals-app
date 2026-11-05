@@ -32,7 +32,15 @@ export interface AppState {
   resetExample(): Promise<void>;
   /** Admins: delete the open workspace (not an example) and everything in it, then open another. */
   deleteWorkspace(): Promise<void>;
+  /** Admins: give the open workspace a new name. */
+  renameWorkspace(name: string): Promise<void>;
+  /** Admins: add a team, or rename one or change its lead. Returns its id. */
+  saveTeam(t: { id?: string; name: string; leadId?: string | null }): Promise<string>;
+  /** Admins: remove a team; one with people or goals moves them to `moveTo` in the same save. */
+  removeTeam(id: string, moveTo?: string | null): Promise<void>;
   snapshot: Snapshot;
+  /** Every goal in the workspace, in every cycle (snapshot has this cycle's): for what reaches past it, like a team's goals. */
+  allGoals: Goal[];
   cycle: Cycle;
   week: number;
   today: Date;
@@ -285,8 +293,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     const stamp = () => new Date(Date.now() + skewDays * 86_400_000).toISOString();
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
-    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId });
-    async function act<T extends Commit | { commit: Commit } | null>(run: () => T): Promise<T> {
+    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals });
+    async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
       try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       const c = out && 'commit' in out ? out.commit : (out as Commit | null);
@@ -296,7 +304,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
     return {
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot: sc, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind,
+      ws, workspaces, snapshot: sc, allGoals: snapshot.goals, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
@@ -315,6 +323,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         setWsId(next);
         toast(`Deleted ${ws.name}`);
       },
+      renameWorkspace: async (name) => {
+        const out = await act(() => A.renameWorkspace(ax(), ws, name));
+        if (out?.workspace) { const next = out.workspace.name; setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, name: next } : w))); }
+      },
+      saveTeam: async (t) => { const out = await act(() => A.saveTeam(ax(), t)); return out.id; },
+      removeTeam: async (id, moveTo) => { await act(() => A.removeTeam(ax(), id, moveTo)); },
       setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
       team: (id) => sc.teams.find((t) => t.id === id),

@@ -1,6 +1,6 @@
 /* The demo's controls, kept out of the way: one quiet "Demo" control opens a panel to switch role, take a
    walkthrough, research the app, change or reset the example data, or leave. Nothing else on screen changes. */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { setNavMode, useNavMode } from '../app/navMode';
@@ -41,7 +41,7 @@ export function DemoEntry({ onOpen, compact }: { onOpen: () => void; compact?: b
   );
 }
 
-export function DemoPanel({ onClose, onPresent, title = 'Demo' }: { onClose: () => void; onPresent: () => void; title?: string }) {
+export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { onClose: () => void; onPresent: () => void; title?: string; children?: ReactNode }) {
   const app = useApp();
   const nav = useNavigate();
   const navMode = useNavMode();
@@ -73,6 +73,7 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo' }: { onClose: () 
   const tours = TOURS.filter((t) => app.ws.kind !== 'example' || app.person(t.personId));
   return (
     <Sheet open onClose={onClose} title={title} wide>
+      {children}
       {/* People and walkthroughs side by side on a desktop; everything else below, in one row of short sections. */}
       <div className="demo-grid">
         <section className="stack demo-people" style={{ gap: 4 }} aria-label="See it as">
