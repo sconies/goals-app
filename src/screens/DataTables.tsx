@@ -3,24 +3,27 @@
    through the bulk-change engine, so the same rules, rights and change log apply as for Import and the AI assistant.
    Each table's layout is the person's own: which columns, in what order (drag a heading, or move them in Columns) and
    how wide (drag a heading's edge, or use the arrow keys on it). It's remembered in this browser, can be saved as a
-   named table view, and the table exports exactly as it shows (domain/tableLayout). */
+   named layout, and the table exports exactly as it shows (domain/tableLayout). Filters are in DataFilters; columns,
+   widths and saved layouts in DataLayout. */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { downloadText, downloadWorkbook } from '../app/spreadsheet';
+import { saveAndSay } from '../app/files';
 import type { ChangeSet, Rec, Tables } from '../domain/changeset';
 import { GOAL_DERIVED_COLUMNS, toCsv, workbook, type Cell } from '../domain/export';
 import { Chip, Sheet } from '../ui/bits';
 import { LABEL } from '../domain/status';
 import type { DisplayStatus, SavedView } from '../domain/types';
-import { Preview } from './Import';
-import { MenuButton } from './GoalFilters';
+import { Preview } from '../ui/Preview';
+import { MenuButton } from '../ui/MenuButton';
+import { ColumnsSheet, readLocal, SaveLayoutSheet, useColumnMoves, writeLocal, type Local } from './DataLayout';
+import { FilterEditor, shortFilter } from './DataFilters';
 import {
-  applyTable, columnKind, describeFilter, filterEntries, NO_VALUE, OP_LABEL, OPS, parseFilters, parseSort, SEP,
-  type ColumnKind, type Op, type PropFilter, type TableSort,
+  applyTable, columnKind, describeFilter, filterEntries, parseFilters, parseSort,
+  type ColumnKind, type PropFilter, type TableSort,
 } from '../domain/tableFilter';
 import {
-  choosableColumns, clampWidth, isTableView, layoutParams, MAX_WIDTH, minWidth, moveColumn, parseLayout, shownTable, TABLE_ORDER, TABLES, visibleColumns,
+  choosableColumns, clampWidth, isTableView, layoutParams, MAX_WIDTH, minWidth, parseLayout, shownTable, TABLE_ORDER, TABLES, visibleColumns,
   type DataTable, type TableLayout,
 } from '../domain/tableLayout';
 import { Icon } from '../ui/Icon';
@@ -42,43 +45,12 @@ const NAME = Object.fromEntries(TABLE_ORDER.map((t) => [t, TABLES[t].name])) as 
 /** IDs and keys: set quietly, in the ID face. */
 const ID_COLS = ['ID', 'Key', 'Goal key', 'Goal keys'];
 
-/** This browser's layout of each table: columns in order and widths. (Saved table views go with the person.) */
-type Local = { cols: string[] | null; widths: Record<string, number> };
-const layoutKey = (t: Tab) => `goals-data-layout:${t}`;
-const readLocal = (t: Tab): Local => {
-  try {
-    const v = localStorage.getItem(layoutKey(t));
-    if (v) { const o = JSON.parse(v) as Partial<Local>; return { cols: Array.isArray(o.cols) ? o.cols : null, widths: o.widths && typeof o.widths === 'object' ? o.widths : {} }; }
-    // Before layouts: the columns someone chose.
-    const old = localStorage.getItem(`goals-data-cols:${t}`);
-    return { cols: old ? JSON.parse(old) as string[] : null, widths: {} };
-  } catch { return { cols: null, widths: {} }; }
-};
-const writeLocal = (t: Tab, l: Local) => {
-  try { if (!l.cols && !Object.keys(l.widths).length) localStorage.removeItem(layoutKey(t)); else localStorage.setItem(layoutKey(t), JSON.stringify(l)); } catch { /* storage blocked */ }
-};
-
 const text = (v: Cell | undefined) => (v == null ? '' : String(v));
 /** A goal's status word back to its status, so the cell can show the shape beside the word (the words come from the rules). */
 const STATUS_OF = Object.fromEntries(Object.entries(LABEL).map(([k, v]) => [v, k])) as Record<string, DisplayStatus>;
 /** A moment such as 2026-10-28T10:00:00.000Z, said the way people read it: 28 Oct 2026, 10:00. */
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 const when = (v: string) => { const d = new Date(v); return Number.isNaN(d.getTime()) ? v : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
-/** The column chooser's groups: a long list reads in parts. */
-const PLAN_COLS = ['Unit', 'Decimals', 'Start', 'Target', 'Plan', 'Plan from week', 'Due week', 'Limit', 'Must stay', 'Margin', 'Stages'];
-const GROUPS: Record<Tab, string[]> = { goals: ['Details', 'Plan', 'This week', 'Quarters'], plan: ['Details', 'Weeks'], checkIns: [''], people: [''], requests: [''] };
-const groupOf = (t: Tab, c: string): string => {
-  if (t === 'goals') return /^Q[1-4]$/.test(c) ? 'Quarters' : (GOAL_DERIVED_COLUMNS as readonly string[]).includes(c) ? 'This week' : PLAN_COLS.includes(c) ? 'Plan' : 'Details';
-  if (t === 'plan') return /^Week \d+$/.test(c) ? 'Weeks' : 'Details';
-  return '';
-};
-/** A filter as one short line for its chip: the first two values, then how many more. The full text is in the editor. */
-const shortFilter = (f: PropFilter) => {
-  const vs = f.value.split(SEP).filter(Boolean);
-  if ((f.op !== 'is' && f.op !== 'isNot') || vs.length <= 2) return describeFilter(f);
-  return `${f.col} ${OP_LABEL[f.op]} ${vs.slice(0, 2).join(', ')} +${vs.length - 2}`;
-};
-const slug = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'table';
 /** A width set by hand holds the column at exactly that. */
 const sized = (w: number | undefined) => (w ? { width: w, minWidth: w, maxWidth: w } : undefined);
 const noEdits = (): Record<Tab, Record<string, Record<string, string>>> => ({ people: {}, goals: {}, checkIns: {}, plan: {}, requests: {} });
@@ -161,7 +133,7 @@ export function DataTables() {
   const kinds = useMemo(() => Object.fromEntries(head.map((c, i) => [c, columnKind(rows.map((r) => r.cells[i] ?? ''))])) as Record<string, ColumnKind>, [head, rows]);
   const narrowed = !!q.trim() || filters.length > 0;
 
-  /* ---------- table views: named layouts, kept with the person (or pinned for everyone) ---------- */
+  /* ---------- saved layouts: named, kept with the person (or pinned for everyone) ---------- */
   const views = (app.snapshot.views ?? []).filter((v) => !v.deletedAt && isTableView(v) && (v.pinned || v.personId === app.viewer.id) && parseLayout(v.params)?.table === tab)
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.name.localeCompare(b.name));
   const activeView = views.find((v) => v.params === layoutParams(current));
@@ -178,56 +150,12 @@ export function DataTables() {
   const exportAs = async (kind: 'csv' | 'xlsx') => {
     const sheet = book.find((x) => x.name === TABLES[tab].sheet)!;
     const out = shownTable(sheet, current);
-    const base = `${slug(app.ws.name)}-${slug(TABLES[tab].label)}${activeView ? '-' + slug(activeView.name) : ''}-${app.today.toISOString().slice(0, 10)}`;
-    try {
-      if (kind === 'csv') downloadText(toCsv(out), base + '.csv', 'text/csv;charset=utf-8');
-      else await downloadWorkbook([{ name: TABLES[tab].label, rows: out }], base + '.xlsx');
-      app.toast(`Exported ${out.length - 1} ${out.length === 2 ? 'row' : 'rows'} and ${out[0]?.length ?? 0} columns, as shown`);
-    } catch (e) { app.toast('Couldn’t export: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
+    const name = { workspace: app.ws.name, what: TABLES[tab].label, scope: activeView?.name ?? '', date: app.today };
+    await saveAndSay(app.toast, name, kind === 'csv' ? { kind: 'csv', text: toCsv(out) } : { kind: 'xlsx', sheets: [{ name: TABLES[tab].label, rows: out }] },
+      `Exported ${out.length - 1} ${out.length === 2 ? 'row' : 'rows'} and ${out[0]?.length ?? 0} columns, as shown`);
   };
 
-  /* ---------- moving a column by dragging its heading (mouse or pen; on touch, Columns moves them) ---------- */
-  const headRef = useRef<HTMLTableRowElement>(null);
-  const [dragging, setDragging] = useState<string | null>(null);
-  const dragged = useRef(false);
-  const startDrag = (e: React.PointerEvent, col: string) => {
-    if (e.pointerType === 'touch' || e.button !== 0 || col === NAME[tab]) return;
-    const x0 = e.clientX;
-    let live = false;
-    let now = order;
-    const move = (ev: PointerEvent) => {
-      if (!live) {
-        if (Math.abs(ev.clientX - x0) < 6) return;
-        live = true;
-        setDragging(col);
-      }
-      const from = now.indexOf(col);
-      for (const th of headRef.current?.querySelectorAll<HTMLElement>('th[data-col]') ?? []) {
-        const c = th.dataset.col!;
-        const k = now.indexOf(c);
-        if (c === col || k < 1) continue;
-        const b = th.getBoundingClientRect();
-        // Past the middle of a neighbour, in the direction of travel: take its place.
-        if ((k > from && ev.clientX > b.left + b.width / 2 && ev.clientX < b.right) || (k < from && ev.clientX < b.left + b.width / 2 && ev.clientX > b.left)) {
-          now = moveColumn(now, col, k);
-          setLay({ cols: now.slice(1) });
-          break;
-        }
-      }
-    };
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-      // The press that ends a drag isn't also a click on the heading (which sorts).
-      if (live) { dragged.current = true; setTimeout(() => { dragged.current = false; }, 0); }
-      setDragging(null);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
-  };
-  // The Views and Export menus open on whichever side of their button has room.
+  // The Saved layouts and Export menus open on whichever side of their button has room.
   const toolsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = toolsRef.current;
@@ -242,42 +170,7 @@ export function DataTables() {
     el.addEventListener('toggle', place, true);
     return () => el.removeEventListener('toggle', place, true);
   }, []);
-  // While a column is moving, the page says so (the cursor), and text isn't selected.
-  useEffect(() => {
-    if (!dragging) return;
-    document.body.classList.add('col-dragging');
-    return () => document.body.classList.remove('col-dragging');
-  }, [dragging]);
-
-  /* ---------- a column's width: drag its heading's edge, or the arrow keys on that edge ---------- */
-  // A column that sizes itself still says how wide it is.
-  useLayoutEffect(() => {
-    for (const h of headRef.current?.querySelectorAll<HTMLElement>('.col-resize') ?? []) {
-      if (!h.hasAttribute('data-set')) h.setAttribute('aria-valuenow', String(Math.max(Number(h.getAttribute('aria-valuemin')), Math.round(h.closest('th')!.getBoundingClientRect().width))));
-    }
-  });
-  const startResize = (e: React.PointerEvent<HTMLElement>, col: string) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const handle = e.currentTarget;
-    const w0 = handle.closest('th')!.getBoundingClientRect().width, x0 = e.clientX;
-    try { handle.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ }
-    const move = (ev: PointerEvent) => setWidth(col, w0 + ev.clientX - x0);
-    const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); };
-    handle.addEventListener('pointermove', move);
-    handle.addEventListener('pointerup', up);
-    handle.addEventListener('pointercancel', up);
-  };
-  const resizeKey = (e: React.KeyboardEvent<HTMLElement>, col: string) => {
-    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); setWidth(col, null); return; }
-    const w = widthOf(col) ?? Math.round(e.currentTarget.closest('th')!.getBoundingClientRect().width);
-    const step = e.shiftKey ? 64 : 16;
-    const next = e.key === 'ArrowLeft' ? w - step : e.key === 'ArrowRight' ? w + step : e.key === 'Home' ? minWidth(tab, col) : e.key === 'End' ? MAX_WIDTH : null;
-    if (next == null) return;
-    e.preventDefault();
-    setWidth(col, next);
-  };
+  const { headRef, dragging, dragged, startDrag, startResize, resizeKey } = useColumnMoves(tab, order, (cols) => setLay({ cols }), widthOf, setWidth);
 
   // Choices for the cells that have a fixed set of answers; the engine checks the rest.
   const options: Record<string, string[]> = {
@@ -357,7 +250,7 @@ export function DataTables() {
         </label>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setEditing({ index: null })}><Icon name="plus" />Filter</button>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setChoosing(true)}>Columns · {cols.length} of {all.length + 1}</button>
-        <MenuButton className="data-views" summary="" label={activeView ? `View: ${activeView.name}` : 'Views'} items={viewItems} />
+        <MenuButton className="data-views" summary="" label={activeView ? `Saved layout: ${activeView.name}` : 'Saved layouts'} items={viewItems} />
         <MenuButton className="data-export" summary="" label="Export" items={[{ label: 'CSV, as shown', onClick: () => void exportAs('csv') }, { label: 'Excel (.xlsx), as shown', onClick: () => void exportAs('xlsx') }]} />
         <span className="small muted data-count" role="status">{shown.length === rows.length ? `${rows.length} rows` : `${shown.length} of ${rows.length} rows`}</span>
       </div>
@@ -379,7 +272,7 @@ export function DataTables() {
         </div>
       )}
       {choosing && <ColumnsSheet tab={tab} order={order} always={always} all={all} onCols={(c) => setLay({ cols: c })} onClose={() => setChoosing(false)} />}
-      {savingView && <SaveTableView tab={tab} layout={current} head={head} views={views} active={activeView} onClose={() => setSavingView(false)} />}
+      {savingView && <SaveLayoutSheet tab={tab} layout={current} head={head} views={views} active={activeView} onClose={() => setSavingView(false)} />}
       {editing && <FilterEditor head={head.filter((c) => !TABLES[tab].hidden.includes(c))} kinds={kinds} values={(c) => [...new Set(rows.map((r) => r.cells[head.indexOf(c)] ?? '').filter((v) => v.trim()))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))}
         start={editing.index != null ? filters[editing.index] : undefined}
         onSave={(f) => { setView({ filters: editing.index != null ? filters.map((x, j) => (j === editing.index ? f : x)) : [...filters, f] }); setEditing(null); setLimit(PAGE); }}
@@ -463,151 +356,9 @@ export function DataTables() {
       )}
       {cs && (
         <Sheet open onClose={() => setCs(null)} title="Review your changes" wide>
-          <Preview cs={cs} name={`${total} ${total === 1 ? 'change' : 'changes'} from the data tables`} reason={reason} setReason={(v) => { setReason(v); review(v); }} busy={busy} onApply={() => void apply()} onAgain={() => setCs(null)} againLabel="Keep editing" fixHint="Fix those cells, then review again." />
+          <Preview cs={cs} name={`${total} ${total === 1 ? 'change' : 'changes'} in Data`} reason={reason} setReason={(v) => { setReason(v); review(v); }} busy={busy} onApply={() => void apply()} onAgain={() => setCs(null)} againLabel="Keep editing" fixHint="Fix those cells, then review again." />
         </Sheet>
       )}
     </div>
-  );
-}
-
-/** Which columns a table shows and in what order. Move them up and down (with a keyboard, and on touch, as well as by
-    dragging a heading on a computer), and tick the ones to show. The name column always comes first. */
-function ColumnsSheet({ tab, order, always, all, onCols, onClose }: { tab: Tab; order: string[]; always: string[]; all: string[]; onCols: (c: string[] | null) => void; onClose: () => void }) {
-  const [said, setSaid] = useState('');
-  const rest = order.slice(1);
-  const move = (c: string, by: number) => {
-    const k = order.indexOf(c);
-    const to = Math.max(1, Math.min(order.length - 1, k + by));
-    if (to === k) return;
-    onCols(moveColumn(order, c, to).slice(1));
-    setSaid(`${c} moved to place ${to + 1} of ${order.length}.`);
-  };
-  return (
-    <Sheet open onClose={onClose} title="Columns">
-      <div className="stack col-chooser" style={{ gap: 'var(--s4)' }}>
-        <span className="hint">Choose what this table shows and in what order; it stays this way in this browser. {always.join(' and ')} always show, and {NAME[tab].toLowerCase()} comes first. On a computer you can also drag a column’s heading to move it, and its edge to change its width.</span>
-        <section className="col-order-wrap" aria-labelledby="col-order-h">
-          <h3 className="label" id="col-order-h">Shown, in this order</h3>
-          <ol className="col-order">
-            <li className="col-order-row fixed"><span className="col-order-name">{order[0]}</span><span className="hint">Always first</span></li>
-            {rest.map((c, k) => (
-              <li key={c} className="col-order-row">
-                <span className="col-order-name">{c}</span>
-                <span className="col-order-moves">
-                  <button type="button" className="iconbtn" aria-label={`Move ${c} up`} disabled={k === 0} onClick={() => move(c, -1)}><Icon name="chevron-up" /></button>
-                  <button type="button" className="iconbtn" aria-label={`Move ${c} down`} disabled={k === rest.length - 1} onClick={() => move(c, 1)}><Icon name="chevron-down" /></button>
-                </span>
-              </li>
-            ))}
-          </ol>
-          <span className="sr" role="status">{said}</span>
-        </section>
-        <div className="col-groups">{GROUPS[tab].map((g) => {
-          const list = all.filter((c) => groupOf(tab, c) === g);
-          if (!list.length) return null;
-          return (
-            <fieldset key={g || 'all'} className="col-group">
-              <legend className={g ? 'label' : 'sr'}>{g || 'Columns'}</legend>
-              <div className="col-checks">{list.map((c) => (
-                <label key={c} className="check"><input type="checkbox" disabled={always.includes(c)} checked={order.includes(c)} onChange={(e) => {
-                  onCols(e.target.checked ? [...rest, c] : rest.filter((x) => x !== c));
-                }} /> {c}</label>
-              ))}</div>
-            </fieldset>
-          );
-        })}</div>
-        <div className="sheet-foot">
-          <span className="row" style={{ gap: 'var(--s3)' }}>
-            <button type="button" className="linkish small" onClick={() => onCols(null)}>The usual columns</button>
-            <button type="button" className="linkish small" onClick={() => onCols([...rest, ...all.filter((c) => !rest.includes(c))])}>Every column</button>
-          </span>
-          <button type="button" className="btn primary" onClick={onClose}>Done</button>
-        </div>
-      </div>
-    </Sheet>
-  );
-}
-
-/** Save the table's layout under a name: a new table view, or over one of yours with the same name. */
-function SaveTableView({ tab, layout, head, views, active, onClose }: { tab: Tab; layout: TableLayout; head: string[]; views: SavedView[]; active?: SavedView; onClose: () => void }) {
-  const app = useApp();
-  const mine = views.filter((v) => v.personId === app.viewer.id);
-  const [name, setName] = useState(active && active.personId === app.viewer.id ? active.name : '');
-  const [busy, setBusy] = useState(false);
-  const same = mine.find((v) => v.name.trim().toLowerCase() === name.trim().toLowerCase());
-  const save = async () => {
-    if (!name.trim() || busy) return;
-    setBusy(true);
-    try {
-      await app.saveTableView({ id: same?.id, name, layout }, head);
-      app.toast(same ? `Saved over “${same.name}”` : `Saved “${name.trim()}”. It opens from Views.`);
-      onClose();
-    } catch { setBusy(false); }
-  };
-  const n = visibleColumns(tab, head, layout.cols).length;
-  const set = Object.keys(layout.widths).length;
-  const bits = [`${n} columns`, set ? `${set} ${set === 1 ? 'width' : 'widths'} set` : '', layout.filters.length ? `${layout.filters.length} ${layout.filters.length === 1 ? 'filter' : 'filters'}` : '', layout.q ? `the search “${layout.q}”` : '', layout.sort ? `sorted by ${layout.sort.col}` : ''].filter(Boolean);
-  return (
-    <Sheet open onClose={onClose} title={`Save this ${TABLES[tab].label.toLowerCase()} layout`}>
-      <form className="stack save-table-view" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
-        <span className="hint">Keeps the columns, their order and widths, and the search, filters and sort ({bits.join(', ')}). It opens from Views, on any computer you use.</span>
-        <label className="field"><span className="field-label">Name</span>
-          <input className="input" autoFocus value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="e.g. Owners and gaps" />
-        </label>
-        {same && <span className="hint">You already have a view called “{same.name}”: this saves over it.</span>}
-        {mine.length > 0 && (
-          <div className="stack" style={{ gap: 'var(--s2)' }}>
-            <span className="label">Your {TABLES[tab].label.toLowerCase()} views</span>
-            <ul className="table-views">{mine.map((v) => (
-              <li key={v.id}><span>{v.name}{v.pinned ? <span className="hint"> · pinned for everyone</span> : null}</span>
-                <button type="button" className="linkish small" onClick={() => void app.deleteView(v.id).then(() => app.toast(`Deleted “${v.name}”`))}>Delete<span className="sr"> {v.name}</span></button></li>
-            ))}</ul>
-          </div>
-        )}
-        <div className="sheet-foot">
-          <button type="button" className="linkish small" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn primary" disabled={!name.trim() || busy}>{same ? 'Save over it' : 'Save view'}</button>
-        </div>
-      </form>
-    </Sheet>
-  );
-}
-
-/** Add or change one filter: a column, a condition that suits it, and a value. */
-function FilterEditor({ head, kinds, values, start, onSave, onClose }: { head: string[]; kinds: Record<string, ColumnKind>; values: (col: string) => string[]; start?: PropFilter; onSave: (f: PropFilter) => void; onClose: () => void }) {
-  const [col, setCol] = useState(start?.col ?? head.find((c) => kinds[c] === 'choice') ?? head[0] ?? '');
-  const kind = kinds[col] ?? 'text';
-  const [op, setOp] = useState<Op>(start?.op ?? OPS[kind][0]!);
-  const [value, setValue] = useState(start?.value ?? '');
-  const pickCol = (c: string) => { setCol(c); setOp(OPS[kinds[c] ?? 'text'][0]!); setValue(''); };
-  const picked = value.split(SEP).filter(Boolean);
-  const multi = op === 'is' || op === 'isNot';
-  const ready = NO_VALUE.includes(op) || value.trim() !== '';
-  return (
-    <Sheet open onClose={onClose} title={start ? 'Change the filter' : 'Add a filter'}>
-      <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); if (ready) onSave({ col, op, value: NO_VALUE.includes(op) ? '' : value }); }}>
-        <div className="prop-row">
-          <label className="field"><span className="field-label">Property</span>
-            <select className="input" value={col} onChange={(e) => pickCol(e.target.value)}>{head.map((c) => <option key={c} value={c}>{c}</option>)}</select>
-          </label>
-          <label className="field"><span className="field-label">Condition</span>
-            <select className="input" value={op} onChange={(e) => { const next = e.target.value as Op; if ((next === 'is' || next === 'isNot') !== multi) setValue(''); setOp(next); }}>{OPS[kind].map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}</select>
-          </label>
-        </div>
-        {!NO_VALUE.includes(op) && (multi && kind !== 'number'
-          ? (
-            <fieldset className="filter-group"><legend className="field-label">Value</legend>
-              <span className="filter-options prop-values">{values(col).map((v) => (
-                <label key={v} className="check"><input type="checkbox" checked={picked.includes(v)} onChange={() => setValue((picked.includes(v) ? picked.filter((x) => x !== v) : [...picked, v]).join(SEP))} /> {v}</label>
-              ))}</span>
-            </fieldset>
-          )
-          : <label className="field"><span className="field-label">Value</span><input className="input" autoFocus inputMode={kind === 'number' ? 'decimal' : undefined} value={value} onChange={(e) => setValue(e.target.value)} placeholder={kind === 'number' ? 'A number' : 'Some text'} /></label>)}
-        <div className="sheet-foot">
-          <button type="button" className="linkish small" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn primary" disabled={!ready}>{start ? 'Change filter' : 'Add filter'}</button>
-        </div>
-      </form>
-    </Sheet>
   );
 }

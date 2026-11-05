@@ -1,4 +1,4 @@
-/* Fields the new-goal wizard and Edit goal share, so they look and behave the same in both. */
+/* Fields the new-goal wizard, Edit goal and setting up a workspace share, so they look and behave the same in each. */
 import type { ReactNode } from 'react';
 import { LEVEL_LABEL } from '../domain/format';
 import type { Level } from '../domain/types';
@@ -66,7 +66,7 @@ export function DueField({ label, options, choice, onChoose, dates, labelClass, 
 type Stage = { id: string; name: string; dueWeek: string };
 
 /** Dated stages: "Stage" and "Due week" said once above the rows; an error sits under the first row it's about. */
-export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks }: {
+export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks, goalName }: {
   stages: Stage[];
   onChange: (stages: Stage[]) => void;
   onAdd: () => void;
@@ -75,7 +75,10 @@ export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks 
   labelClass: string;
   /** The cycle's weeks: only to find which row a week error is about. */
   weeks: number;
+  /** Where several goals' stages share a screen (setting up a workspace), the goal each field belongs to. */
+  goalName?: string;
 }) {
+  const named = (what: string) => (goalName ? `${goalName}: ${what.charAt(0).toLowerCase()}${what.slice(1)}` : what);
   const edit = (id: string, patch: Partial<Stage>) => onChange(stages.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   // The error goes under the row it's about: the first unnamed stage, the first with a week out of range, or the first row.
   const badName = !!error && !/week/.test(error);
@@ -88,9 +91,9 @@ export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks 
       {stages.map((s, i) => (
         <div key={s.id} className="stage">
           <div className="stage-row">
-            <input className="input stage-name" value={s.name} aria-label={`Stage ${i + 1}`} aria-invalid={i === bad && badName} onChange={(e) => edit(s.id, { name: e.target.value })} placeholder={i === 0 ? 'e.g. Threat model' : 'Stage name'} />
-            <input className="input stage-week" inputMode="numeric" aria-label={`Stage ${i + 1}: due week`} aria-invalid={i === bad && !badName} value={s.dueWeek} onChange={(e) => edit(s.id, { dueWeek: e.target.value })} placeholder="Due week" />
-            {stages.length > 1 ? <button type="button" className="iconbtn stage-remove" onClick={() => onChange(stages.filter((x) => x.id !== s.id))} aria-label={'Remove stage ' + (i + 1)}><Icon name="close" /></button> : <span className="stage-remove" aria-hidden="true" />}
+            <input className="input stage-name" value={s.name} aria-label={named(`Stage ${i + 1}`)} aria-invalid={i === bad && badName} onChange={(e) => edit(s.id, { name: e.target.value })} placeholder={i === 0 ? 'e.g. Threat model' : 'Stage name'} />
+            <input className="input stage-week" inputMode="numeric" aria-label={named(`Stage ${i + 1}: due week`)} aria-invalid={i === bad && !badName} value={s.dueWeek} onChange={(e) => edit(s.id, { dueWeek: e.target.value })} placeholder="Due week" />
+            {stages.length > 1 ? <button type="button" className="iconbtn stage-remove" onClick={() => onChange(stages.filter((x) => x.id !== s.id))} aria-label={named('Remove stage ' + (i + 1))}><Icon name="close" /></button> : <span className="stage-remove" aria-hidden="true" />}
           </div>
           {i === bad && error && <FieldError>{error}</FieldError>}
         </div>

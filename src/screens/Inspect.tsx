@@ -1,16 +1,12 @@
-/* Looking across goals: trees of goals, watching, and walking a review one goal at a time.
-   A review is the goal pages themselves in a fixed order, with next and previous and a bar for what's said. */
+/* Walking a review one goal at a time. A review is the goal pages themselves in a fixed order, with next and previous
+   and a bar for what's said. (The rows, trees and Watch button that used to live here are in ui/goalRows.) */
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { fmt, gapText, LEVEL_LABEL } from '../domain/format';
-import { daysSince, weekDates } from '../domain/plan';
-import { coveringWatches, reviewSession, watchOf } from '../domain/review';
-import { assessPosted, checkInsFor, LABEL, RANK } from '../domain/status';
-import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
-import { goalResult, RESULT_TEXT } from '../domain/story';
-import type { Decision, Goal, Level, Watch } from '../domain/types';
-import { Chip, LevelTag, Sheet, StatusShape } from '../ui/bits';
+import { weekDates } from '../domain/plan';
+import { reviewSession } from '../domain/review';
+import type { Decision, Goal } from '../domain/types';
+import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 
 /* ---------- review order: fixed when a session starts, so moving between goals doesn't reshuffle it ---------- */
@@ -40,14 +36,13 @@ export function useReview(goalId: string) {
     prev: () => { if (index > 0) go(order[index - 1]); },
     next: () => go(order[index + 1]),
     /**
-     * After reviewing this goal: the next goal not yet covered. With none left in the walk, the session's summary when
-     * every goal in it is now reviewed, or the agenda when some (the ones on track) are still to mark.
+     * After reviewing this goal: the next goal not yet covered. With none left in the walk, back to the review, which
+     * leads with what was said once every goal in it is reviewed, or shows the ones on track still to mark.
      */
     afterCall: () => {
       const nextId = order.slice(index + 1).find((id) => id !== goalId && open(id)) ?? order.slice(0, Math.max(0, index)).find((id) => id !== goalId && open(id));
       if (nextId || !review || !session) return go(nextId);
-      const finished = session.items.every((a) => a.goal.id === goalId || session.covered.has(a.goal.id));
-      nav(finished ? `/reviews/${review.id}/summary` : `/reviews/${review.id}`);
+      nav(`/reviews/${review.id}`);
     },
   };
 }
@@ -164,160 +159,5 @@ function SayComposer({ goal, mode, existing, onClose, onSaved }: { goal: Goal; m
         <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : `Save ${mode === 'ask' ? 'question' : mode}`}</button></div>
       </form>
     </Sheet>
-  );
-}
-
-/* ---------- watching ---------- */
-function descendantsOf(goal: Goal, app: ReturnType<typeof useApp>): Goal[] {
-  const out: Goal[] = [];
-  const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { if (out.includes(c) || c.id === goal.id) continue; out.push(c); walk(c.id); } };
-  walk(goal.id);
-  return out;
-}
-
-/** Watch this goal, or it and everything feeding it; or stop. Says what else is covering it. */
-export function WatchButton({ goal }: { goal: Goal }) {
-  const app = useApp();
-  const [open, setOpen] = useState(false);
-  const w = watchOf(app.viewer.id, goal, app.snapshot);
-  const covers = coveringWatches(app.viewer.id, goal, app.snapshot);
-  const coverText = (x: Watch) => x.kind === 'level' ? `every ${LEVEL_LABEL[x.ref as Level]} goal` : `${app.goal(x.ref)?.title ?? 'a goal'} and what feeds it`;
-  const feeding = descendantsOf(goal, app).length;
-  const label = w === null ? 'Watch' : w !== 'via' && w.kind === 'tree' ? 'Watching all' : 'Watching';
-  const doWatch = async (kind: 'goal' | 'tree') => {
-    try {
-      await app.watch(kind, goal.id);
-      if (kind === 'tree' && w && w !== 'via' && w.kind === 'goal') await app.unwatch(w.id);
-      app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`);
-      setOpen(false);
-    } catch { /* the save already said what went wrong */ }
-  };
-  const stop = async (x: Watch) => {
-    try {
-      await app.unwatch(x.id);
-      const still = covers.filter((c) => c.id !== x.id);
-      app.toast(still.length ? `Stopped. Still watching it as part of ${coverText(still[0]!)}.` : `Stopped watching ${goal.title}`);
-      setOpen(false);
-    } catch { /* the save already said what went wrong */ }
-  };
-  return (
-    <>
-      <button className={'btn' + (w ? ' watching' : '')} aria-pressed={!!w} onClick={() => (w === null && !feeding ? void doWatch('goal') : setOpen(true))}>
-        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 8s2.2-4.5 6-4.5S14 8 14 8s-2.2 4.5-6 4.5S2 8 2 8z" /><circle cx="8" cy="8" r="1.8" /></svg>{label}
-      </button>
-      <Sheet open={open} onClose={() => setOpen(false)} title={goal.title}>
-        <div className="stack" style={{ gap: 'var(--s3)' }}>
-          {covers.length > 0 && <p className="hint">You’re watching it as part of {covers.map(coverText).join(' and ')}.</p>}
-          <div className="optlist">
-            {w === null && <button className="opt" onClick={() => void doWatch('goal')}><span>Watch this goal</span><span className="hint">See its changes on Watching</span></button>}
-            {feeding > 0 && !(w && w !== 'via' && w.kind === 'tree') && <button className="opt" onClick={() => void doWatch('tree')}><span>{w ? 'Also watch everything feeding it' : 'Watch it and everything feeding it'}</span><span className="hint">{feeding} more {feeding === 1 ? 'goal' : 'goals'}</span></button>}
-            {w && w !== 'via' && <button className="opt" onClick={() => void stop(w)}><span>Stop watching {w.kind === 'tree' ? 'it and what feeds it' : 'this goal'}</span></button>}
-            {covers.map((c) => <button key={c.id} className="opt" onClick={() => void stop(c)}><span>Stop watching {coverText(c)}</span></button>)}
-          </div>
-        </div>
-      </Sheet>
-    </>
-  );
-}
-
-/* ---------- trees ---------- */
-/** A goal at the top of a tree: its number, target, forecast and how the goals feeding it are doing. */
-export function TreeCard({ node }: { node: TreeNode }) {
-  const app = useApp();
-  const g = node.goal;
-  const st = app.statusOf(g);
-  const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
-  const gap = gapText(g, a);
-  const fc = forecastText(g, a, app.cycle.weeks);
-  const feed = descendants(node);
-  const counts = (['off', 'risk', 'stale', 'on', 'done', 'planned'] as const).map((k) => [k, feed.filter((c) => app.statusOf(c).status === k).length] as const).filter(([, n]) => n);
-  const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? 'No value yet' : fmt(a.actual, g);
-  return (
-    <Link to={'/goals/' + g.id} className="outcome-card">
-      <span className="outcome-title">{g.title}<LevelTag level={g.level} /></span>
-      <span className="outcome-now">
-        <Chip k={st.status} />
-        <span className="big">{now}</span>
-        {g.kind === 'metric' && <span className="hint">target {fmt(g.plan.target, g)}</span>}
-        {st.status !== 'stale' && <span className={'small strong tone-' + gap.tone}>{gap.short}</span>}
-      </span>
-      {fc && <span className={fc.warn ? 'forecast small' : 'hint'}>{fc.warn && <Icon name="trend-down" />}{fc.text}</span>}
-      {feed.length > 0 && (
-        <span className="stack" style={{ gap: 'var(--s2)' }}>
-          <span className="mix" role="img" aria-label={counts.map(([k, n]) => `${n} ${LABEL[k].toLowerCase()}`).join(', ')}>
-            {counts.map(([k, n]) => <i key={k} className={'mix-' + k} style={{ flexGrow: n }} />)}
-          </span>
-          <span className="hint">{feed.length} {feed.length === 1 ? 'goal feeds' : 'goals feed'} it: {counts.map(([k, n]) => `${n} ${LABEL[k].toLowerCase()}`).join(', ')}</span>
-        </span>
-      )}
-    </Link>
-  );
-}
-
-/** Worst first: what needs attention, then the status, then the name. */
-export function worstFirst(app: ReturnType<typeof useApp>) {
-  return (x: Goal, y: Goal) => app.attentionOf(y).weight - app.attentionOf(x).weight || RANK[app.statusOf(y).status] - RANK[app.statusOf(x).status] || x.title.localeCompare(y.title);
-}
-
-export function TreeRows({ nodes, depth = 0 }: { nodes: TreeNode[]; depth?: number }) {
-  if (!nodes.length) return null;
-  return (
-    <ul className={depth ? 'tree sub' : 'tree'}>
-      {nodes.map((n) => <li key={n.goal.id}><TreeRow g={n.goal} />{n.children.length > 0 && <TreeRows nodes={n.children} depth={depth + 1} />}</li>)}
-    </ul>
-  );
-}
-
-/** "Checked in 2 days ago", "No check-in for 24 days", "No check-in yet". */
-export function freshness(g: Goal, app: ReturnType<typeof useApp>): { text: string; stale: boolean } {
-  const own = checkInsFor(g, app.snapshot.checkIns);
-  const last = own[own.length - 1];
-  if (!last) return { text: 'No check-in yet', stale: app.week > 1 };
-  const d = daysSince(last.postedAt, app.today);
-  const stale = app.statusOf(g).status === 'stale';
-  return { text: stale ? `No check-in for ${d} days` : d < 1 ? 'Checked in today' : d === 1 ? 'Checked in yesterday' : `Checked in ${d} days ago`, stale };
-}
-
-/** A goal's number as a row shows it: its latest value, or how many stages are done. */
-export function goalNow(g: Goal, a: ReturnType<typeof assessPosted>): string {
-  return a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? '—' : fmt(a.actual, g);
-}
-
-export function TreeRow({ g, showOwner = true }: { g: Goal; showOwner?: boolean }) {
-  const app = useApp();
-  const att = app.attentionOf(g);
-  const st = att.status;
-  const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
-  const gap = gapText(g, a);
-  const flag = att.flags.find((f) => f.kind !== 'due');
-  const moved = statusChange(g, app.snapshot.checkIns);
-  const owner = app.person(g.ownerId);
-  const fresh = freshness(g, app);
-  const now = goalNow(g, a);
-  const result = goalResult(g, app.cycle, app.snapshot.checkIns, app.week);
-  const why = `${moved?.worse ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}. ` : ''}${flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}`;
-  return (
-    <Link to={'/goals/' + g.id} className="trow" data-tone={st.status}>
-      {/* Status is always a shape and a word, in a slot of its own so they line up down a list. */}
-      <span className={'trow-icon tone-' + st.status}><StatusShape k={st.status} /><span className="trow-status">{LABEL[st.status]}</span></span>
-      <span className="trow-main">
-        <span className="trow-title"><span className="trow-name">{g.title}</span><LevelTag level={g.level} /></span>
-        {/* The whole reason is in the title when a wide row clamps it to three lines. */}
-        <span className="trow-why" title={why}>
-          {moved?.worse && <span className="tone-risk">Was {LABEL[moved.from].toLowerCase()} in week {moved.week}. </span>}
-          {flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`}
-        </span>
-      </span>
-      {/* The value, how it stands against the plan, and a missed result in words under them. A goal gone quiet says when
-          its number is from, rather than repeating "no recent update". */}
-      <span className="trow-now">
-        <span>{now}</span>
-        {st.status === 'stale'
-          ? (st.latest ? <span className="trow-asof">as of week {st.latest.week}</span> : null)
-          : <span className={'tone-' + gap.tone}>{gap.short}</span>}
-        {result && <span className={'result-tag result-' + result.kind}>{RESULT_TEXT[result.kind]}</span>}
-      </span>
-      {g.level !== 'team' && <span className="sr">{LEVEL_LABEL[g.level]} level</span>}
-    </Link>
   );
 }

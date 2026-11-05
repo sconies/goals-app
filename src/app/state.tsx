@@ -15,6 +15,20 @@ import { sendDemoFeedback } from './research';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
 import { hashToken, newToken } from '../mcp/protocol';
+import { ACTIONS } from '../mcp/parity';
+import { telemetry } from '../telemetry';
+
+/** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
+    which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too). */
+const TRACED = Object.keys(ACTIONS).filter((k) => k !== 'previewChanges' && k !== 'createWorkspace');
+function traced(v: AppState): AppState {
+  const out = { ...v } as unknown as Record<string, unknown>;
+  for (const k of TRACED) {
+    const fn = out[k];
+    if (typeof fn === 'function') out[k] = (...args: unknown[]) => telemetry.action(k, () => (fn as (...a: unknown[]) => unknown)(...args));
+  }
+  return out as unknown as AppState;
+}
 
 export interface Toast {
   id: number;
@@ -40,6 +54,8 @@ export interface AppState {
   saveTeam(t: { id?: string; name: string; leadId?: string | null }): Promise<string>;
   /** Admins: remove a team; one with people or goals moves them to `moveTo` in the same save. */
   removeTeam(id: string, moveTo?: string | null): Promise<void>;
+  /** Admins: turn on or off recording of how the app is used in the open workspace. Off, nothing is sent. */
+  setRecording(on: boolean): Promise<void>;
   snapshot: Snapshot;
   /** Every goal in the workspace, in every cycle (snapshot has this cycle's): for what reaches past it, like a team's goals. */
   allGoals: Goal[];
@@ -198,7 +214,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, wsId, attempt]);
 
-  const createWorkspace = useCallback(async (name: string, data: Snapshot, meId?: string) => {
+  // No workspace yet (setting one up): nothing to switch recording off, so it records, without a workspace.
+  useEffect(() => { if (empty) telemetry.setContext({ workspaceId: null, userId: null, store: store.kind, recording: true }); }, [empty, store]);
+
+  const createWorkspace = useCallback((name: string, data: Snapshot, meId?: string) => telemetry.action('createWorkspace', async () => {
     const at = new Date().toISOString();
     const w: Workspace = { id: newId('ws'), name, kind: 'own', createdAt: at };
     const actor = (meId && data.people.find((p) => p.id === meId)) || data.people.find((p) => p.admin) || data.people[0];
@@ -219,7 +238,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     setWsId(w.id);
     return w.id;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store]);
+  }), [store]);
 
   /** Reloads the open workspace from the store, unless a save has happened since the reload started. */
   const reload = useCallback(async (ws: string) => {
@@ -308,7 +327,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       return out;
     }
 
-    return {
+    return traced({
       mode, viewerChosen: mode === 'demo' || chosen,
       ws, workspaces, snapshot: sc, allGoals: snapshot.goals, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
@@ -335,6 +354,13 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       saveTeam: async (t) => { const out = await act(() => A.saveTeam(ax(), t)); return out.id; },
       removeTeam: async (id, moveTo) => { await act(() => A.removeTeam(ax(), id, moveTo)); },
+      setRecording: async (on) => {
+        const out = await act(() => A.setRecording(ax(), ws, on));
+        if (!out) return;
+        // At once, before anything else is recorded: off means nothing more is sent for this workspace.
+        telemetry.setContext({ recording: on });
+        setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, recording: on } : w)));
+      },
       setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
       team: (id) => sc.teams.find((t) => t.id === id),
@@ -414,7 +440,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       pinView: async (id, pinned) => { await act(() => A.pinView(ax(), id, pinned)); },
       revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },
       startNextCycle: async () => { const out = await act(() => A.startNextCycle(ax())); return out.name; },
-    };
+    });
   }, [loaded, viewerId, store, today, workspaces, commit, toast, createWorkspace, mode]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);

@@ -2,7 +2,7 @@
    Nothing here is a new rule: it gathers what the summary, the story, the requests, the quarters and the review session
    already work out, so the page can't disagree with the screen. */
 import { causeLabel } from './checkin';
-import { fmt } from './format';
+import { fmt, NO_VALUE } from './format';
 import { WEEKDAY } from './progress';
 import { answeredSince, askText, openFor } from './requests';
 import { answerOf, DECISION_LABEL, isHealthy, reviewSession } from './review';
@@ -63,7 +63,7 @@ export function goalSheet(goal: Goal, s: Snapshot, cycle: Cycle, week: number, t
   const latest = last ? {
     c: last,
     by: name(s, last.authorId),
-    value: goal.kind === 'milestone' ? sum.now : last.value == null ? 'No value' : fmt(last.value, goal),
+    value: goal.kind === 'milestone' ? sum.now : last.value == null ? NO_VALUE : fmt(last.value, goal),
     reason: [last.cause ? causeLabel(last.cause) : '', last.why && last.why !== 'On plan.' ? last.why : ''].filter(Boolean).join('. '),
   } : null;
   const open = openFor(goal.id, s).map((r) => ({ ask: askText(r, s.people), from: name(s, r.askedBy), to: name(s, r.recipientId), createdAt: r.createdAt, waiting: r.goalIds.length }));

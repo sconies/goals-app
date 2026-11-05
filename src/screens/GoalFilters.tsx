@@ -1,8 +1,8 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
 import { isTableView } from '../domain/tableLayout';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import {
@@ -12,6 +12,7 @@ import {
 import type { Level, SavedView } from '../domain/types';
 import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
+import { MenuButton, type MenuItem } from '../ui/MenuButton';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
 const VIEW_KEYS = ['show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
@@ -37,38 +38,10 @@ export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery)
   return [q, set];
 }
 
-/** The views this person sees: their own and the ones an admin pinned for everyone. Table views belong to Data. */
+/** The views this person sees: their own and the ones an admin pinned for everyone. Data's saved layouts are kept apart. */
 export function useViews(): SavedView[] {
   const app = useApp();
   return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && !isTableView(v) && (v.pinned || v.personId === app.viewer.id)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
-}
-
-/** One item in a small menu: a button, or a link. */
-export interface MenuItem { label: string; onClick?: () => void; to?: string; current?: boolean }
-
-/**
- * A small menu behind one button, for actions that would otherwise crowd a row on a phone (saved views, the bulk
- * actions, Import and Export). Each item closes the menu.
- */
-export function MenuButton({ label, items, className, summary, icon }: { label: string; items: MenuItem[]; className?: string; summary?: string; icon?: React.ReactNode }) {
-  const menu = useRef<HTMLDetailsElement>(null);
-  const close = () => { if (menu.current) menu.current.open = false; };
-  // A press anywhere else closes it, as a menu should.
-  useEffect(() => {
-    const away = (e: PointerEvent) => { if (menu.current?.open && !menu.current.contains(e.target as Node)) menu.current.open = false; };
-    document.addEventListener('pointerdown', away);
-    return () => document.removeEventListener('pointerdown', away);
-  }, []);
-  return (
-    <details className={'view-menu' + (className ? ' ' + className : '')} ref={menu}>
-      <summary className={'btn sm ' + (summary ?? 'ghost')} aria-label={icon ? label : undefined} title={icon ? label : undefined}>{icon ?? label}{!icon && <Icon name="chevron-down" size={12} className="menu-chev" />}</summary>
-      <div className="view-menu-list" role="group" aria-label={label}>
-        {items.map((it) => it.to
-          ? <Link key={it.label} className="menuitem" to={it.to} onClick={close}>{it.label}</Link>
-          : <button key={it.label} type="button" className="menuitem" aria-current={it.current || undefined} onClick={() => { close(); it.onClick?.(); }}>{it.label}</button>)}
-      </div>
-    </details>
-  );
 }
 
 /** Search, filters and sort, with the active filters as words you can remove one by one. */

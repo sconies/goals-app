@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { downloadText } from '../app/spreadsheet';
+import { saveAndSay } from '../app/files';
 import { useApp } from '../app/state';
 import {
   ACTIVITY_KEYS, ACTIVITY_KINDS, activityEntries, activityFilter, activityRows, describeActivity, EMPTY_ACTIVITY, kindOf, parseActivity, WHEN_OPTIONS, withoutActivity,
@@ -11,7 +11,7 @@ import { LEVEL_LABEL } from '../domain/format';
 import { watchedGoals } from '../domain/review';
 import type { Change, Level } from '../domain/types';
 import { Avatar, Sheet } from '../ui/bits';
-import { ChangeItem } from './GoalScreen';
+import { ChangeItem } from '../ui/ChangeItem';
 import { Icon } from '../ui/Icon';
 
 function dayLabel(iso: string, today: Date) {
@@ -62,8 +62,8 @@ export function Activity() {
   const counts = new Map(ACTIVITY_KINDS.map(([k]) => [k, inScope.filter((c) => kindOf(c) === k).length]));
   const narrowed = chips.length > 0 || a.watching != null;
   const saveCsv = () => {
-    downloadText(toCsv(activityRows(list, app.snapshot)), `activity-${app.today.toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
-    app.toast(`Saved ${list.length} ${list.length === 1 ? 'change' : 'changes'} as CSV`);
+    void saveAndSay(app.toast, { workspace: app.ws.name, what: 'activity', scope: narrowed ? 'filtered' : '', date: app.today }, { kind: 'csv', text: toCsv(activityRows(list, app.snapshot)) },
+      `Saved ${list.length} ${list.length === 1 ? 'change' : 'changes'} as CSV`);
   };
   const filterCount = chips.filter((c) => c.key !== 'q' && c.key !== 'kind' && c.key !== 'when').length;
   return (

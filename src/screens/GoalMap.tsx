@@ -13,8 +13,8 @@ import { LABEL, RANK } from '../domain/status';
 import { RESULT_TEXT } from '../domain/story';
 import { summarise } from '../domain/summary';
 import type { DisplayStatus, Goal } from '../domain/types';
-import { Chip, StatusShape } from '../ui/bits';
-import { StoryLines } from './GoalViews';
+import { Chip, StatusWord } from '../ui/bits';
+import { StoryLines } from '../ui/GoalStory';
 import { Icon } from '../ui/Icon';
 
 type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: string | null; children: number; collapsed: boolean; critical: boolean; root: boolean; context: boolean; onToggle: (id: string) => void };
@@ -26,7 +26,7 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
   return (
     <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '')} data-tone={status} {...coach}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
-      <span className={'map-status tone-' + status}><StatusShape k={status} />{LABEL[status]}{result && <span className={'result-tag result-' + (result === 'Completed' ? 'completed' : result === 'Completed late' ? 'late' : 'missed')}>{result}</span>}</span>
+      <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + (result === 'Completed' ? 'completed' : result === 'Completed late' ? 'late' : 'missed')}>{result}</span>}</StatusWord>
       <span className="map-title">{goal.title}</span>
       <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${owner}${goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}`}</span>
       {children > 0 && (

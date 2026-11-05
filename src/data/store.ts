@@ -28,6 +28,8 @@ export interface Commit {
   removeTeams?: string[];
   /** The workspace's new name. */
   workspace?: { name: string };
+  /** The workspace's recording switch (domain/actions setRecording): whether the app records how it is used there. */
+  recording?: boolean;
   changes: Change[];
   /** What the save was based on; filled in by withExpectations. A save is refused if any of it has changed since. */
   expect?: Expectations;
@@ -157,7 +159,19 @@ export class BrowserStore implements Store {
     const own = this.get<Workspace[]>(this.key + ':workspaces') ?? [];
     // An example keeps its new name (if an admin renamed it here) until it's reset.
     const names = this.get<Record<string, string>>(this.key + ':names') ?? {};
-    return this.hasExample ? [...EXAMPLES.map((e) => (names[e.workspace.id] ? { ...e.workspace, name: names[e.workspace.id]! } : e.workspace)), ...own] : own;
+    // …and its recording switch, the same way.
+    const off = this.notRecording();
+    const withSwitch = (w: Workspace): Workspace => (off.includes(w.id) ? { ...w, recording: false } : w);
+    return (this.hasExample ? [...EXAMPLES.map((e) => (names[e.workspace.id] ? { ...e.workspace, name: names[e.workspace.id]! } : e.workspace)), ...own] : own).map(withSwitch);
+  }
+
+  /** Workspaces that have turned recording off: kept in this browser, and in memory when storage is blocked. */
+  private offMemory: string[] = [];
+  private notRecording(): string[] { return this.get<string[]>(this.key + ':not-recording') ?? this.offMemory; }
+  private setRecording(id: string, on: boolean) {
+    const off = this.notRecording().filter((x) => x !== id);
+    this.offMemory = on ? off : [...off, id];
+    this.put(this.key + ':not-recording', this.offMemory);
   }
 
   private rename(id: string, name: string) {
@@ -190,9 +204,10 @@ export class BrowserStore implements Store {
     // Read what's stored now, not this tab's copy: another tab may have saved since.
     const stored = this.current(id);
     checkExpectations(stored, c.expect);
-    const { expect: _e, ...rest } = c;
+    const { expect: _e, recording: _r, ...rest } = c;
     this.write(id, applyCommit(stored, rest));
     if (c.workspace) this.rename(id, c.workspace.name);
+    if (c.recording !== undefined) this.setRecording(id, c.recording);
   }
 
   async createWorkspace(ws: Workspace, data: Snapshot) {

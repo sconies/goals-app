@@ -309,6 +309,18 @@ export function renameWorkspace(x: ActionContext, ws: { id: string; name: string
   return { workspace: { name: clean }, changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited', summary: `Renamed the workspace to “${clean}”`, diffs: [{ field: 'Workspace name', from: ws.name, to: clean }] }] };
 }
 
+/**
+ * Admins: turn on or off recording of how the app is used in this workspace (src/telemetry; what it records is in the
+ * guide's "What the app records"). Off, nothing is recorded or sent for the workspace. Null when it already is.
+ */
+export function setRecording(x: ActionContext, ws: { id: string; recording?: boolean }, on: boolean): Commit | null {
+  if (!x.actor.admin) no('Only admins can turn recording on or off.');
+  if (typeof on !== 'boolean') no('Say whether to record: on or off.');
+  const was = ws.recording !== false;
+  if (was === on) return null;
+  return { recording: on, changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited', summary: on ? 'Turned recording back on' : 'Turned recording off', diffs: [{ field: 'Recording', from: was ? 'On' : 'Off', to: on ? 'On' : 'Off' }] }] };
+}
+
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
 export function saveTeam(x: ActionContext, t: { id?: string; name: string; leadId?: string | null }): { commit: Commit | null; id: string } {
   if (!x.actor.admin) no('Only admins can add or change teams.');

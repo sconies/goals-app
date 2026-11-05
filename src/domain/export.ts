@@ -127,8 +127,8 @@ const README: Cell[][] = [
   ['Check-ins', 'Cause, Why, Path to green, Back on plan by week, Needs', 'Why it’s ahead or behind, and how it gets back', 'Required when behind, as in the app'],
   ['Check-ins', 'Calculated, Plan that week, Posted at, Posted by, Backfilled', 'Recorded by the app', 'Ignored'],
   ['Requests', 'All columns', 'Requests for a decision or help: who asked whom, for which goals, and whether it was answered', 'Not loaded back; requests are raised in check-ins'],
-  ['People', 'ID', 'The person’s own identity. It never changes.', 'Matches the person (in the data tables)'],
-  ['People', 'Name, Job title, Team, Admin, Team objective', 'Who’s who', 'Changed in the data tables; not loaded back from a file yet'],
+  ['People', 'ID', 'The person’s own identity. It never changes.', 'Matches the person (in Data)'],
+  ['People', 'Name, Job title, Team, Admin, Team objective', 'Who’s who', 'Changed in Data; not loaded back from a file yet'],
 ];
 
 /** Requests for a decision or help on the exported goals: open, answered or withdrawn, with every goal waiting on each. */

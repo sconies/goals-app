@@ -10,19 +10,27 @@ import type { Level } from '../domain/types';
 import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
 import { AttentionCard, Chip, Empty, EmptyResult, StatusShape } from '../ui/bits';
-import { TreeCard, TreeRow, TreeRows, worstFirst } from './Inspect';
-import { HandledGroup, WatchingBody } from './Watching';
+import { GoalRow, TreeCard, TreeRows } from '../ui/goalRows';
+import { worstFirst } from '../domain/order';
+import { HandledGroup } from '../ui/HandledGroup';
+import { WatchingBody } from './Watching';
 import { useNavMode } from '../app/navMode';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { GoalBoard, GoalCards, GoalTable, HistoryGrid, LayoutSwitch, StatusLegend, useLayout, type ViewGroup } from './GoalViews';
+import { LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
+import { GoalTable } from './GoalTable';
+import { GoalBoard } from './GoalBoard';
+import { HistoryGrid } from './GoalHistory';
+import { GoalCards } from './GoalCards';
+import { StatusLegend } from '../ui/StatusLegend';
 import { ExportButton, ExportSheet } from './Export';
-import { FilterBar, MenuButton, useGoalQuery, useViews, viewParams } from './GoalFilters';
+import { FilterBar, useGoalQuery, useViews, viewParams } from './GoalFilters';
+import { MenuButton } from '../ui/MenuButton';
 import { applyQuery, filters } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
-import { firstReports } from '../domain/progress';
+import { FirstReports } from '../ui/FirstReports';
 
 /** The map's "Only what needs attention": the statuses a leader acts on, as an ordinary status filter. */
 const ATTENTION = ['off', 'risk', 'stale'] as const;
@@ -172,7 +180,7 @@ export function GoalsScreen() {
       {!alt && refined && groups.map((g) => (
         <section key={g.key} className="block" aria-label={g.title}>
           <h2 className="block-title">{g.title} <span className="hint">· {g.rows.length}</span></h2>
-          <ul className="tree">{g.rows.map((r) => <li key={r.goal.id}><TreeRow g={r.goal} /></li>)}</ul>
+          <ul className="tree">{g.rows.map((r) => <li key={r.goal.id}><GoalRow g={r.goal} /></li>)}</ul>
         </section>
       ))}
 
@@ -210,7 +218,7 @@ export function GoalsScreen() {
               <h2 className="block-title">{LEVEL_LABEL[l]} <span className="hint">· {list.length}</span></h2>
               <Chip k={worst(list.map((g) => app.statusOf(g).status))} />
             </div>
-            <ul className="tree">{list.map((g) => <li key={g.id}><TreeRow g={g} /></li>)}</ul>
+            <ul className="tree">{list.map((g) => <li key={g.id}><GoalRow g={g} /></li>)}</ul>
           </section>
         );
       })}
@@ -229,31 +237,16 @@ export function GoalsScreen() {
               <Chip k={st} />
             </div>
             {/* The same row as every other tab: shape and word, the title and reason, the number over its gap. */}
-            <ul className="tree">{list.map((g) => <li key={g.id}><TreeRow g={g} /></li>)}</ul>
+            <ul className="tree">{list.map((g) => <li key={g.id}><GoalRow g={g} /></li>)}</ul>
           </section>
         );
       })}
 
       {!alt && !refined && show === 'watching' && <WatchingBody />}
 
-      {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><TreeRow g={g} showOwner={false} /></li>)}</ul>}
+      {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><GoalRow g={g} showOwner={false} /></li>)}</ul>}
       {/* The key sits after the goals: every row already shows its status in words. */}
       {app.snapshot.goals.length > 0 && shown.length > 0 && layout !== 'map' && <StatusLegend />}
     </div>
-  );
-}
-
-/** While goals are still waiting for their first check-in: how many are in, and who hasn't reported yet. */
-export function FirstReports() {
-  const app = useApp();
-  const f = firstReports(app.snapshot, app.cycle, app.week);
-  if (!f) return null;
-  const names = f.waiting.map((w) => app.person(w.ownerId)?.name.split(' ')[0] ?? 'someone');
-  const date = new Date(f.due + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-  return (
-    <p className="first-reports small" role="status">
-      <strong>{f.reported} of {f.total} goals have had their first check-in.</strong> Until they have, “nothing needs attention” only means nobody has reported.
-      {' '}Waiting on {names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(names.length === 2 ? ' and ' : ', ')}; this week’s are due {date}.
-    </p>
   );
 }

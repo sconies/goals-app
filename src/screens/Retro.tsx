@@ -6,7 +6,7 @@ import { useApp } from '../app/state';
 import { periodLabel, periodWord } from '../domain/year';
 import { RESULT_LABEL, suggestedResult, wrapUpOpen } from '../domain/cycle';
 import { MIN_LEARNED } from '../domain/actions';
-import { fmt, gapText } from '../domain/format';
+import { fmt, gapBeside, NO_VALUE } from '../domain/format';
 import { assessPosted } from '../domain/status';
 import type { Goal, Retro } from '../domain/types';
 import { newId } from '../data/store';
@@ -17,7 +17,7 @@ const RESULTS: Retro['result'][] = ['hit', 'partly', 'missed'];
 
 function nowText(g: Goal, app: ReturnType<typeof useApp>) {
   const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
-  return a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? 'No value yet' : `${fmt(a.actual, g)}${g.kind === 'metric' ? ` of ${fmt(g.plan.target, g)}` : ''}`;
+  return a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? NO_VALUE : `${fmt(a.actual, g)}${g.kind === 'metric' ? ` of ${fmt(g.plan.target, g)}` : ''}`;
 }
 
 export function WrapUp() {
@@ -139,7 +139,7 @@ function RetroForm({ goal }: { goal: Goal }) {
   const [busy, setBusy] = useState(false);
   const st = app.statusOf(goal);
   const a = assessPosted(goal, app.cycle, app.snapshot.checkIns, app.week);
-  const gap = gapText(goal, a);
+  const gap = gapBeside(goal, a);
   const ok = learned.trim().length >= MIN_LEARNED;
   const mineLeft = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id && g.id !== goal.id && !app.snapshot.retros.some((r) => r.goalId === g.id));
   const save = async () => {
@@ -162,7 +162,7 @@ function RetroForm({ goal }: { goal: Goal }) {
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="stack" style={{ gap: 'var(--s2)' }}>
           <h1 className="qtitle big">{goal.title}</h1>
-          <span className="row" style={{ gap: 'var(--s2)' }}><Chip k={st.status} /><span className="strong">{nowText(goal, app)}</span>{st.status !== 'stale' && <span className={'small tone-' + gap.tone}>{gap.short}</span>}</span>
+          <span className="row" style={{ gap: 'var(--s2)' }}><Chip k={st.status} /><span className="strong">{nowText(goal, app)}</span>{st.status !== 'stale' && gap && <span className={'small tone-' + gap.tone}>{gap.short}</span>}</span>
         </div>
         <div className="field"><span className="field-label" id="res-l">How did it land?</span>
           <div className="seg full" role="group" aria-labelledby="res-l">{RESULTS.map((r) => <button key={r} type="button" aria-pressed={result === r} onClick={() => setResult(r)}>{RESULT_LABEL[r]}</button>)}</div>

@@ -148,3 +148,36 @@ describe('bulk changes', () => {
     expect(rows.length).toBe(wb[0]!.rows.length);
   });
 });
+
+describe('changing a goal’s owner', () => {
+  // Two people with the same name: a second Maya Chen in another team.
+  const maya = person('maya');
+  const twin = { ...maya, id: 'maya2', teamId: s.teams.find((t) => t.id !== maya.teamId)!.id };
+  const withTwin = { ...s, people: [...s.people, twin] };
+  const goal = s.goals.find((g) => g.ownerId !== 'maya')!;
+  const ownerAfter = (cs: ReturnType<typeof planChanges>) => cs.commit?.goals?.find((g) => g.id === goal.id)?.ownerId;
+
+  it('goes by the person’s ID, so two people with the same name are never confused', () => {
+    const cs = planChanges(base('elena', { goals: [rec({ id: goal.id, 'owner id': 'maya2' })] }, { snapshot: withTwin, via: 'bulk' }));
+    expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    expect(ownerAfter(cs)).toBe('maya2');
+    expect(ownerAfter(planChanges(base('elena', { goals: [rec({ id: goal.id, 'owner id': 'maya' })] }, { snapshot: withTwin, via: 'bulk' })))).toBe('maya');
+  });
+
+  it('refuses a name two people share, rather than guessing, and says to use the ID', () => {
+    const cs = planChanges(base('elena', { goals: [rec({ id: goal.id, owner: 'Maya Chen' })] }, { snapshot: withTwin }));
+    expect(cs.commit).toBeNull();
+    expect(cs.issues[0]?.message).toMatch(/2 people are called “Maya Chen”.*Owner ID.*maya or maya2/);
+  });
+
+  it('still takes a name only one person has, or an ID typed in Owner', () => {
+    expect(ownerAfter(planChanges(base('elena', { goals: [rec({ id: goal.id, owner: 'Maya Chen' })] })))).toBe('maya');
+    expect(ownerAfter(planChanges(base('elena', { goals: [rec({ id: goal.id, owner: 'maya2' })] }, { snapshot: withTwin })))).toBe('maya2');
+  });
+
+  it('says so when an Owner ID matches no one', () => {
+    const cs = planChanges(base('elena', { goals: [rec({ id: goal.id, 'owner id': 'nobody' })] }));
+    expect(cs.commit).toBeNull();
+    expect(cs.issues[0]?.message).toBe('There’s no person with ID nobody.');
+  });
+});

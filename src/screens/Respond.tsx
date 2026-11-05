@@ -1,13 +1,14 @@
 /* Answering a request for a decision or help (product review, 3 Nov): the exact ask, who raised it and when, every goal
    waiting on it, and a focused place to answer. Answering closes the request for every linked goal; asking the owner a
    question instead leaves it open. Review coverage ("Reviewed & next") is separate and never answers a request. */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { canAnswer } from '../domain/requests';
 import type { HelpRequest } from '../domain/types';
 import { Sheet, timeAgo } from '../ui/bits';
 import { Icon } from '../ui/Icon';
+import { mark } from '../telemetry';
 
 export function RespondSheet({ request: r, onClose }: { request: HelpRequest; onClose: () => void }) {
   const app = useApp();
@@ -19,6 +20,8 @@ export function RespondSheet({ request: r, onClose }: { request: HelpRequest; on
   const goals = r.goalIds.map((id) => app.goal(id)).filter((g) => !!g);
   const allowed = canAnswer(r, app.viewer);
   const inFlight = useRef(false);
+  // The answer-a-request flow (src/help/flows.ts): opened here, and closed when the sheet goes, answered or not.
+  useEffect(() => { mark('respond.open'); return () => mark('respond.close'); }, []);
   const save = async () => {
     setTried(true);
     if (text.trim().length < 3 || busy || inFlight.current) return;

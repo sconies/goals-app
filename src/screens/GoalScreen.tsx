@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'rea
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { causeLabel } from '../domain/checkin';
-import { directionLabel, fmt, gapText, kindLabel, LEVEL_LABEL } from '../domain/format';
+import { directionLabel, fmt, gapBeside, kindLabel, LEVEL_LABEL, NO_VALUE } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import { answeredSince, askText, canAnswer, openFor } from '../domain/requests';
-import type { Change, CheckIn, DisplayStatus, Goal, HelpRequest, MetricGoal } from '../domain/types';
+import type { CheckIn, DisplayStatus, Goal, HelpRequest, MetricGoal } from '../domain/types';
 import { summaryFacts } from '../domain/summaryFacts';
 import { storyOf } from '../domain/story';
 import { planHistoryOf } from '../domain/goal';
@@ -16,7 +16,10 @@ import { PlanTable } from '../ui/PlanTable';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { openUpdateAsk } from '../domain/updateAsks';
 import { weekDates } from '../domain/plan';
-import { ReviewBar, ReviewCallBar, TreeRow, TreeRows, useReview, WatchButton, worstFirst } from './Inspect';
+import { ReviewBar, ReviewCallBar, useReview } from './Inspect';
+import { GoalRow, TreeRows, WatchButton } from '../ui/goalRows';
+import { ChangeItem, whenText } from '../ui/ChangeItem';
+import { worstFirst } from '../domain/order';
 import { RespondSheet } from './Respond';
 import { criticalPath } from '../domain/map';
 import { ancestors, outcomeTrees, type TreeNode } from '../domain/tree';
@@ -32,57 +35,6 @@ export function GoalScreen() {
   return <GoalView key={goal.id} goal={goal} />;
 }
 
-/** "3 h ago (30 Oct, 18:02)" for recent changes; just the date and time for older ones. */
-function whenText(iso: string, now: Date) {
-  const abs = new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const rel = timeAgo(iso, now);
-  return /ago|now|yesterday/.test(rel) ? `${rel} (${abs})` : abs;
-}
-
-export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
-  const app = useApp();
-  const who = app.person(c.actorId);
-  const [open, setOpen] = useState(false);
-  const goal = c.goalId ? app.goal(c.goalId) : undefined;
-  const diffs = c.diffs.filter((d) => d.field !== 'Note' || c.entity === 'decision');
-  return (
-    <li className={'change change-' + c.entity}>
-      <Avatar p={who ?? { name: c.actorId, initials: '?' }} size="sm" />
-      <div className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
-        <span className="small"><strong>{who?.name ?? c.actorId}</strong> {c.summary.charAt(0).toLowerCase() + c.summary.slice(1)}{showGoal && goal ? <> on <Link className="linkish" to={'/goals/' + goal.id}>{goal.title}</Link></> : null}</span>
-        {c.entity === 'note' && <p className="note-text">{c.diffs[0]?.to}</p>}
-        {/* What was said in a review, said in place: the action, question or note, with who and by when (visual review 2). */}
-        {c.entity === 'decision' && (() => {
-          const said = c.diffs.find((d) => d.field === 'Action' || d.field === 'Question' || d.field === 'Note')?.to;
-          const who = c.diffs.find((d) => d.field === 'Who')?.to;
-          const due = c.diffs.find((d) => d.field === 'Due')?.to;
-          return said ? <p className="note-text">{said}{who ? <span className="hint"> · {who}{due ? `, by ${due}` : ''}</span> : null}</p> : null;
-        })()}
-        <span className="tiny muted">{whenText(c.at, app.today)}</span>
-        {diffs.length > 0 && c.entity !== 'note' && (
-          <>
-            <button className="linkish tiny" style={{ alignSelf: 'flex-start' }} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? 'Hide changes' : `Show ${diffs.length === 1 ? 'the change' : diffs.length + ' changes'}`}</button>
-            {open && (
-              <dl className="diffs">
-                {diffs.map((d) => (
-                  <div key={d.field} className="diff">
-                    <dt>{d.field}</dt>
-                    <dd>{d.from !== '—' && <del>{d.from}</del>}{d.from !== '—' && <span aria-hidden="true"> → </span>}{(() => {
-                      // A status call is a status: its shape and word, in its own colour (design rules).
-                      const k = d.field === 'Status call' ? (Object.keys(LABEL) as (keyof typeof LABEL)[]).find((x) => LABEL[x] === d.to) : undefined;
-                      return k ? <ins className={'diff-status tone-' + k}><StatusShape k={k} />{d.to}</ins> : <ins>{d.to}</ins>;
-                    })()}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </>
-        )}
-      </div>
-    </li>
-  );
-}
-
 function GoalView({ goal }: { goal: Goal }) {
   const app = useApp();
   const { cycle, week } = app;
@@ -91,7 +43,8 @@ function GoalView({ goal }: { goal: Goal }) {
   const own = app.checkInsOf(goal);
   const latest = st.latest;
   const a = assessPosted(goal, cycle, app.snapshot.checkIns, week);
-  const gap = gapText(goal, a);
+  // The gap beside the number, left out when it would only say "No value yet" again.
+  const gap = gapBeside(goal, a);
   const owner = app.person(goal.ownerId);
   const team = app.team(goal.teamId);
   const parent = goal.parentId ? app.goal(goal.parentId) : undefined;
@@ -153,7 +106,7 @@ function GoalView({ goal }: { goal: Goal }) {
   const ownerFirst = owner?.name.split(' ')[0] ?? 'the owner';
   // In a review, the page is compact: result, what changed, what's needed; the rest folds away.
   const compact = rv.active;
-  const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? 'No value yet' : fmt(a.actual, goal);
+  const headlineNumber = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages done` : a.actual == null || goal.kind === 'milestone' ? NO_VALUE : fmt(a.actual, goal);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const ownerSays = latest?.why && latest.why !== 'On plan.' ? latest : null;
 
@@ -221,7 +174,7 @@ function GoalView({ goal }: { goal: Goal }) {
         <div className="statusline">
           <Chip k={st.status} />
           {stale ? <span className="big">Current performance unknown</span> : <span className="big">{a.kind !== 'milestone' && a.actual != null && goal.kind !== 'milestone' ? <CountNumber value={a.actual} from={own.at(-2)?.value} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} /> : headlineNumber}</span>}
-          {!stale && <span className={'strong tone-' + gap.tone}>{gap.short}</span>}
+          {!stale && gap && <span className={'strong tone-' + gap.tone}>{gap.short}</span>}
         </div>
         {stale && <span className="small">{latest ? `Last reported: ${headlineNumber} in week ${latest.week} (${dateText(latest.postedAt)}), ${st.daysSinceCheckIn} days ago.` : 'Nothing reported yet.'} Without a newer check-in, the status and any projection can’t be trusted.</span>}
         {stale && !isOwner && (asked
@@ -311,7 +264,7 @@ function GoalView({ goal }: { goal: Goal }) {
         <section className="block threats" aria-label="Most likely to make it miss">
           <div className="row between"><h2 className="block-title">Most likely to make it miss</h2><span className="hint">{needy.length} of {children.length} contributing {children.length === 1 ? 'goal needs' : 'goals need'} attention</span></div>
           {/* The row already says what's wrong; the line under it says only why it's on this list. */}
-          <ul className="tree">{threats.map((g) => <li key={g.id} className="threat"><TreeRow g={g} /><span className="hint threat-why">Why it’s here: {threatWhy(g)}</span></li>)}</ul>
+          <ul className="tree">{threats.map((g) => <li key={g.id} className="threat"><GoalRow g={g} /><span className="hint threat-why">Why it’s here: {threatWhy(g)}</span></li>)}</ul>
           {children.length > threats.length && <Link className="linkish small" to={`/goals?feeds=${goal.id}`}>See all {children.length} contributing goals</Link>}
         </section>
       )}
@@ -338,7 +291,7 @@ function GoalView({ goal }: { goal: Goal }) {
           </div>
           {/* The ones already listed as most likely to make it miss are marked, not described twice. */}
           <ul className="tree">
-            {subtree.children.map((n) => <li key={n.goal.id} className={threatIds.has(n.goal.id) ? 'listed-above' : undefined}><TreeRow g={n.goal} />{n.children.length > 0 && <TreeRows nodes={n.children} depth={1} />}</li>)}
+            {subtree.children.map((n) => <li key={n.goal.id} className={threatIds.has(n.goal.id) ? 'listed-above' : undefined}><GoalRow g={n.goal} />{n.children.length > 0 && <TreeRows nodes={n.children} depth={1} />}</li>)}
           </ul>
         </section>
       )}

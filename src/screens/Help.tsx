@@ -7,9 +7,9 @@ import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import { ARTICLES, GROUPS, articleById, articleForPath, searchGuide, type Article } from '../help/guide';
 import { WHATS_NEW, latestNews, newsDate } from '../help/whatsNew';
 import { markWhatsNewSeen, useUnreadNews } from '../help/seen';
-import { LABEL } from '../domain/status';
 import { BackLink } from '../ui/BackLink';
-import { EmptyResult, StatusShape } from '../ui/bits';
+import { EmptyResult } from '../ui/bits';
+import { StatusLegend } from '../ui/StatusLegend';
 import { Icon } from '../ui/Icon';
 
 function ArticleRow({ a }: { a: Article }) {
@@ -63,15 +63,6 @@ export function HelpHome() {
   );
 }
 
-/** The status words with their shapes, as they appear everywhere else. */
-function StatusKey() {
-  return (
-    <ul className="help-key" aria-label="Status shapes">
-      {(['on', 'risk', 'off', 'stale', 'done'] as const).map((k) => <li key={k} className={'tone-' + k}><StatusShape k={k} /><span className="strong">{LABEL[k]}</span></li>)}
-    </ul>
-  );
-}
-
 export function HelpArticle() {
   const { id = '' } = useParams();
   const a = articleById(id);
@@ -93,7 +84,7 @@ export function HelpArticle() {
         <h1 className="title-xl">{a.title}</h1>
         <p className="help-lead">{a.summary}</p>
       </div>
-      {a.id === 'status' && <StatusKey />}
+      {a.id === 'status' && <StatusLegend kind="key" statuses={['on', 'risk', 'off', 'stale', 'done']} className="help-key" wordClass="strong" label="Status shapes" />}
       {a.sections.map((s) => (
         <section key={s.heading} className="help-section">
           <h2 className="h2">{s.heading}</h2>

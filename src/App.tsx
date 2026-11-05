@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router';
 import { AppProvider, useApp } from './app/state';
 import type { Mode, Store } from './data/store';
 import { Activity } from './screens/Activity';
@@ -24,13 +24,17 @@ import { Settings } from './screens/Settings';
 import { GoalPrint, ReviewPrint } from './screens/Print';
 import { MotionLayer } from './ui/Count';
 import { HelpArticle, HelpHome, WhatsNew } from './screens/Help';
+import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 
 export function Routed() {
   const app = useApp();
+  const { pathname } = useLocation();
   if (!app.viewerChosen) return <WhoAreYou />;
   return (
     <Shell>
       <MotionLayer />
+      {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
+      <ErrorBoundary at={pathname}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
@@ -64,6 +68,7 @@ export function Routed() {
         <Route path="/ready" element={<Ready />} />
         <Route path="*" element={<div className="page narrow"><Empty title="Page not found" /></div>} />
       </Routes>
+      </ErrorBoundary>
     </Shell>
   );
 }
@@ -72,6 +77,7 @@ export function App({ store, mode = 'demo', today }: { store: Store; mode?: Mode
   return (
     <BrowserRouter basename={mode === 'demo' ? '/demo' : undefined}>
       <AppProvider store={store} mode={mode} today={today} empty={() => <Welcome />}>
+        <TelemetryRoutes />
         <Routed />
       </AppProvider>
     </BrowserRouter>

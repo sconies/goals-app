@@ -1,7 +1,7 @@
 /* The four facts a goal's page leads with (Lane's notes, 5 Nov): where it stands against its plan, the trend over the
    last check-ins, what changed since the last update, and where the app projects it lands by its due date.
    For number goals, ranges and dated stages alike. Pure: the goal page and anything else asks here, never restates it. */
-import { fmt, fmtDiff } from './format';
+import { fmt, fmtDiff, NO_VALUE } from './format';
 import { forecast, goalAsOf, planEnd } from './plan';
 import { assessMetric, assessMilestone, assessPosted, checkInsFor, LABEL } from './status';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
@@ -62,7 +62,7 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
   const out: SummaryFact[] = [];
 
   // Against plan: the gap to the plan for the week of the latest number, in the goal's own units.
-  if (a.actual == null) out.push({ key: 'plan', label: 'Against plan', value: 'No number yet', detail: `Plan for week ${a.week}: ${fmt(a.plan, goal)}`, tone: 'flat' });
+  if (a.actual == null) out.push({ key: 'plan', label: 'Against plan', value: NO_VALUE, detail: `Plan for week ${a.week}: ${fmt(a.plan, goal)}`, tone: 'flat' });
   else {
     const diff = round(a.actual - a.plan, goal.decimals);
     const ahead = diff * dir > 0;
@@ -130,7 +130,7 @@ function rangeFacts(goal: RangeGoal, cycle: Cycle, own: CheckIn[], stale: boolea
   const out: SummaryFact[] = [];
   const lim = `${bound === 'atMost' ? 'at most' : 'at least'} ${fmt(limit, goal)}`;
 
-  if (!last) out.push({ key: 'plan', label: 'Against the limit', value: 'No number yet', detail: `Must stay ${lim}`, tone: 'flat' });
+  if (!last) out.push({ key: 'plan', label: 'Against the limit', value: NO_VALUE, detail: `Must stay ${lim}`, tone: 'flat' });
   else {
     const room = round((limit - last.value!) * -safe, goal.decimals);
     out.push({

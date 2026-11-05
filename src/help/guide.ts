@@ -150,12 +150,12 @@ export const ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, quarter results and exports all read from them.'] },
       { heading: 'How to use it', list: [
-        'Start check-in on Home walks through every goal due this week. From a goal’s page, Check in (or Post an update) does just that goal.',
+        'Start check-in on Home walks through every goal due this week. From a goal’s page, Check in does just that goal.',
         'Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type.',
         `On plan, that’s it: post. Behind (under ${pct(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
         `Causes when behind: ${causes(CAUSES_BEHIND)}. When ahead: ${causes(CAUSES_AHEAD)}. Something else lets you say it in your own words.`,
         'At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.',
-        'If last week’s note still holds, Still true posts it again, with any request still open. It’s changed opens it for editing.',
+        'If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing.',
         'Milestone goals ask where each stage stands: done, on schedule, or late with a new week.',
         'The status is your call. Change it if the numbers don’t tell the whole story; a call greener than the numbers needs a reason.',
       ] },
@@ -257,7 +257,7 @@ export const ARTICLES: Article[] = [
       { heading: 'Who can', text: ['Everyone sees every goal. Owners change their own goals from the Table; admins can change any.'] },
     ],
     routes: ['/goals', '/goals?view=list', '/goals?view=table', '/goals?view=board', '/goals?view=cards'],
-    screens: ['GoalsScreen', 'GoalViews'],
+    screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'GoalCards', 'BulkEdit'],
     reqs: ['VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
     keywords: ['list', 'table', 'board', 'cards', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story'],
     related: ['goals-filters', 'history', 'goal-map', 'needs-attention'],
@@ -318,7 +318,7 @@ export const ARTICLES: Article[] = [
       ] },
     ],
     routes: ['/goals?view=history'],
-    screens: [],
+    screens: ['GoalHistory'],
     reqs: ['QUARTER-RESULTS', 'WEEK-INSPECTOR', 'YEAR', 'CALENDAR-WEEKS'],
     keywords: ['quarters', 'results', 'met', 'missed', 'weekly status', 'grid', 'year', 'Q1', 'Q2', 'Q3', 'Q4'],
     related: ['goals', 'wrap-up'],
@@ -375,9 +375,9 @@ export const ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Keys are given in the order goals are created, per workspace, and are never reused. A goal carried into the next year keeps its key.',
-        'You’ll see the key on the goal’s page, in the Goals table, the data tables and exports.',
+        'You’ll see the key on the goal’s page, in the Goals table, in Data and in exports.',
         'Open a goal straight from its key: /goals/G-12.',
-        'Imports and AI assistants accept a key wherever a goal’s ID goes. Check-ins, plans and people have IDs that never change, shown first in the data tables.',
+        'Imports and AI assistants accept a key wherever a goal’s ID goes. Check-ins, plans and people have IDs that never change, shown first in Data.',
       ] },
     ],
     routes: [],
@@ -447,7 +447,7 @@ export const ARTICLES: Article[] = [
         'Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open.',
         'Open a review to see its agenda: one line per goal, the ones to discuss first. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.',
         'The walk opens each goal’s page in turn. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.',
-        'The summary shows everything said, and owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.',
+        'Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.',
       ] },
       { heading: 'Who can', text: ['Anyone can set up a review or join one. Someone in the review, whoever set it up, or an admin can change it. Whoever said something, or an admin, can correct it.'] },
     ],
@@ -500,24 +500,24 @@ export const ARTICLES: Article[] = [
   /* ---------- Data in and out ---------- */
   {
     id: 'data',
-    title: 'Data tables',
+    title: 'Data',
     summary: 'Every person, goal, check-in, plan and request as a table you can search, sort, filter, arrange and export.',
     group: 'data',
     sections: [
       { heading: 'How to use it', list: [
         'Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.',
         'Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too.',
-        'Save this layout keeps it as a table view you can reopen from Views. Back to the usual columns resets it.',
+        'Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.',
         'Export saves CSV or Excel of exactly what is shown: the visible columns, in order, filtered and sorted.',
         'IDs and keys come first and never change.',
       ] },
       { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values.'] },
-      { heading: 'Who can', text: ['Anyone reads the tables. Admins change them; admins can also pin a table view for everyone.'] },
+      { heading: 'Who can', text: ['Anyone reads the tables. Admins change them; admins can also pin a saved layout for everyone.'] },
     ],
     routes: ['/data'],
-    screens: ['DataTables'],
+    screens: ['DataTables', 'DataFilters', 'DataLayout'],
     reqs: ['DATA-TABLES', 'TABLE-LAYOUTS'],
-    keywords: ['tables', 'spreadsheet', 'columns', 'layout', 'resize', 'reorder', 'export', 'csv', 'xlsx', 'edit cells', 'people', 'check-ins', 'plans'],
+    keywords: ['tables', 'data tables', 'spreadsheet', 'columns', 'layout', 'saved layouts', 'resize', 'reorder', 'export', 'csv', 'xlsx', 'edit cells', 'people', 'check-ins', 'plans'],
     related: ['import', 'export', 'keys'],
   },
   {
@@ -548,14 +548,15 @@ export const ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Choose Export on Goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).',
-        'Excel workbook: goals, plan by week, check-ins, notes and actions, requests, people and a README.',
+        'Excel workbook: goals, plan by week, check-ins, review notes and actions, requests, people and a README.',
         'CSV: one table per file. JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.',
         'Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.',
+        'Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx.',
       ] },
     ],
     routes: [],
     screens: ['Export'],
-    reqs: ['EXPORT'],
+    reqs: ['EXPORT', 'SHARED-DOWNLOADS'],
     keywords: ['export', 'download', 'excel', 'xlsx', 'csv', 'json', 'markdown', 'brief', 'ai chat'],
     related: ['import', 'print', 'data'],
   },
@@ -591,20 +592,21 @@ export const ARTICLES: Article[] = [
         'Admins add a person, change their details, or make them an admin. There is always at least one admin.',
         'Rename the workspace; add, rename and remove teams. A team with people or goals moves them to another team in the same save.',
         'AI assistants: make a personal token for someone (shown once) and revoke tokens. Feedback: read what people sent with the feedback button.',
+        'What the app records: recording of how the app is used is on for everyone. Untick it to turn it off for the whole workspace; while it’s off, nothing is recorded or sent.',
         'Delete the workspace, after typing its name. It can’t be undone; an example can only be reset.',
       ] },
-      { heading: 'Who can', list: ['Everyone can see the people and teams.', 'Only admins add or change people and teams, make tokens, rename or delete the workspace. Whoever sets up a workspace is its first admin.'] },
+      { heading: 'Who can', list: ['Everyone can see the people and teams.', 'Only admins add or change people and teams, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.'] },
     ],
     routes: ['/workspace'],
     screens: ['Workspace'],
-    reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'PROFILES', 'WORKSPACES'],
-    keywords: ['admin', 'people', 'teams', 'add person', 'rename', 'delete workspace', 'directory', 'feedback', 'tokens'],
-    related: ['ai-assistants', 'set-up', 'settings'],
+    reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'PROFILES', 'WORKSPACES', 'TELEMETRY-SWITCH'],
+    keywords: ['admin', 'people', 'teams', 'add person', 'rename', 'delete workspace', 'directory', 'feedback', 'tokens', 'recording'],
+    related: ['ai-assistants', 'set-up', 'settings', 'recording'],
   },
   {
     id: 'settings',
     title: 'Settings',
-    summary: 'Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens.',
+    summary: 'Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens. It also says what the app records.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
@@ -612,6 +614,7 @@ export const ARTICLES: Article[] = [
         'Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.',
         'Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.',
         'You: your name, job title and team. An admin changes these.',
+        'What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.',
         'Your AI assistants: the tokens that act as you, which you can revoke.',
         'Detail pages have a Back link to where you came from.',
       ] },
@@ -621,7 +624,41 @@ export const ARTICLES: Article[] = [
     screens: ['Settings'],
     reqs: ['SETTINGS', 'MOTION', 'MOTION-ALIVE'],
     keywords: ['theme', 'dark mode', 'light mode', 'accent', 'colour', 'sidebar', 'collapse', 'appearance', 'back link'],
-    related: ['ai-assistants', 'any-device'],
+    related: ['ai-assistants', 'any-device', 'recording'],
+  },
+  {
+    id: 'recording',
+    title: 'What the app records',
+    summary: 'The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use.',
+    group: 'you',
+    sections: [
+      { heading: 'What is recorded', list: [
+        'The pages you open, and how long each takes to show.',
+        'The buttons you press that do something, such as posting a check-in, saving a goal or answering a request, and whether it worked.',
+        'How far you get in a task: a check-in, a new goal, changing a goal, a review, answering a request, an import, the wrap-up or setting up a workspace. Where you start, each step you reach, and whether you finish or stop.',
+        'Errors, saves that didn’t go through (and whether a rule said no or the connection failed), and how long loading took.',
+        'With each: an id for this browser tab, your id in the workspace and the workspace’s id. Not your name.',
+      ] },
+      { heading: 'What is never recorded', list: [
+        'Anything you type: notes, numbers, names, goal titles, comments, answers or searches.',
+        'What a page shows you.',
+        'The app only sends things it names itself, from a fixed list. Anything else is dropped in your browser before it is sent.',
+      ] },
+      { heading: 'How long, and who can see it', list: [
+        'Each record is kept for 90 days. After that only daily totals are kept: how many, how many failed, how long they took and where people stopped, with nothing about any one visit.',
+        'Only the people who build and run the app, and the AI that helps them, can read it. No one in your workspace can, admins included.',
+        'It is kept in the app’s own database, in a standard format (OpenTelemetry), so it could later go to your company’s own monitoring tool.',
+      ] },
+      { heading: 'Turning it off', list: [
+        'Everyone is recorded by default. Settings says whether it is on where you are.',
+        'An admin can turn it off for the whole workspace on Workspace, under What the app records. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['TELEMETRY-SIGNALS', 'TELEMETRY-PRIVACY', 'TELEMETRY-FLOWS', 'TELEMETRY-RETENTION', 'TELEMETRY-SWITCH'],
+    keywords: ['recording', 'privacy', 'telemetry', 'analytics', 'tracking', 'observability', 'what is recorded', 'turn off recording', 'errors', 'slow'],
+    related: ['settings', 'workspace', 'ai-assistants'],
   },
   {
     id: 'ai-assistants',
@@ -631,7 +668,7 @@ export const ARTICLES: Article[] = [
     sections: [
       { heading: 'What it can do', list: [
         'Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.',
-        'Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams.',
+        'Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.',
         'It meets the same rules as you, with exactly your rights, and every change is logged as you, via the AI assistant.',
       ] },
       { heading: 'How to connect', list: [
@@ -685,7 +722,7 @@ export const ARTICLES: Article[] = [
     ],
     routes: ['/help', '/help/:id', '/whats-new'],
     screens: ['Help'],
-    reqs: ['HELP-GUIDE', 'WHATS-NEW'],
+    reqs: ['HELP-GUIDE', 'WHATS-NEW', 'CONSISTENT-WORDS'],
     keywords: ['help', 'guide', 'docs', 'documentation', 'how to', 'whats new', 'release notes', 'changelog', 'updates'],
     related: ['home', 'any-device'],
   },
@@ -725,24 +762,41 @@ function parseRoute(r: string): { segs: string[]; query: [string, string][] } {
 }
 
 /**
- * The article for a page: the one whose route matches the address most closely. Fixed path segments beat
- * parameters (/goals/new over /goals/:goalId), and a route that needs a query value beats one that doesn't.
+ * How closely a route (as App.tsx and the guide write it) matches an address: null when it doesn't. Fixed path
+ * segments beat parameters (/goals/new over /goals/:goalId), and a route that needs a query value beats one that
+ * doesn't. Shared by the Help link on every page and by the named flows (src/help/flows.ts).
  */
-export function articleForPath(pathname: string, search = ''): Article | undefined {
+export function routeScore(route: string, pathname: string, search = ''): number | null {
   const segs = pathname.split('/').filter(Boolean);
+  const p = parseRoute(route);
+  if (p.segs.length !== segs.length) return null;
+  if (!p.segs.every((s, i) => s.startsWith(':') || s === segs[i])) return null;
   const q = new URLSearchParams(search);
+  if (!p.query.every(([k, v]) => (v === '*' ? q.has(k) && q.get(k) !== '' : q.get(k) === v))) return null;
+  return p.segs.filter((s) => !s.startsWith(':')).length * 10 + p.query.length * 100;
+}
+
+/** The article for a page: the one whose route matches the address most closely. */
+export function articleForPath(pathname: string, search = ''): Article | undefined {
   let best: { a: Article; score: number } | undefined;
   for (const a of ARTICLES) {
     for (const r of a.routes) {
-      const p = parseRoute(r);
-      if (p.segs.length !== segs.length) continue;
-      if (!p.segs.every((s, i) => s.startsWith(':') || s === segs[i])) continue;
-      if (!p.query.every(([k, v]) => (v === '*' ? q.has(k) && q.get(k) !== '' : q.get(k) === v))) continue;
-      const score = p.segs.filter((s) => !s.startsWith(':')).length * 10 + p.query.length * 100;
-      if (!best || score > best.score) best = { a, score };
+      const score = routeScore(r, pathname, search);
+      if (score !== null && (!best || score > best.score)) best = { a, score };
     }
   }
   return best?.a;
+}
+
+/** The App.tsx route an address is on, e.g. /goals/:goalId for /goals/G-12: what telemetry records instead of ids. */
+let appRoutes: string[] | null = null;
+export function appRouteFor(pathname: string): string | undefined {
+  let best: { r: string; score: number } | undefined;
+  for (const r of (appRoutes ??= guideRoutes())) {
+    const score = routeScore(r, pathname);
+    if (score !== null && (!best || score > best.score)) best = { r, score };
+  }
+  return best?.r;
 }
 
 /** The route paths the guide explains, without their queries: for the checks that every route has an article. */

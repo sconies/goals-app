@@ -16,6 +16,8 @@ import { PlanTable } from '../ui/PlanTable';
 import { DateRange, DueField, FieldError, LevelField, StageFields } from '../ui/GoalFields';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { Icon } from '../ui/Icon';
+import type { Mark } from '../help/flows';
+import { useMark } from '../telemetry/react';
 
 const KINDS: [GoalKind, string, string, string][] = [
   ['metric', 'Move a number', 'From where it is to where it should be', 'e.g. Lead time from 4.2 to 2 days'],
@@ -29,6 +31,8 @@ const SHAPES: [PlanShape, string, string][] = [
 ];
 const STEP_FIELDS: (keyof GoalErrors)[][] = [['title'], ['start', 'target', 'limit', 'margin', 'decimals', 'stages', 'points'], ['teamId', 'ownerId', 'effect'], []];
 const STEP_LABELS = ['What', 'Measure', 'Where it fits', 'Check and publish'];
+/** Each step after the first, for the named flow (src/help/flows.ts). */
+const STEP_MARKS: (Mark | null)[] = [null, 'newGoal.step-2', 'newGoal.step-3', 'newGoal.step-4'];
 
 export function GoalWizard() {
   const app = useApp();
@@ -80,6 +84,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const step = d.step;
+  useMark(existing ? null : STEP_MARKS[step] ?? null);
   const endOptions = dueOptions(cycle, week, yearEnd);
   const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
   const errors = validateGoal(d, cycle);
