@@ -3,7 +3,7 @@
    (validateGoal, buildGoal, evaluate, toCheckIn), and nothing is saved until the whole set is valid. */
 import type { Commit } from '../data/store';
 import { goalChange, checkInChange, type Lookup } from './changes';
-import { CAUSES_AHEAD, CAUSES_BEHIND, evaluate, parseNumber, toCheckIn, type Draft } from './checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, type Draft, type Missing } from './checkin';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, replanned, validateGoal, type GoalDraft } from './goal';
 import { levelOf, parseTable, shapeOf } from './importer';
 import { planAt, planEnd, weekDate } from './plan';
@@ -151,7 +151,23 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const problems = personProblems(after, [...people.values()], t.before);
     if (problems.length) err('People', t.row, t.before.name, problems.join(' '));
   }
-  const person = (name: string) => [...people.values()].find((p) => norm(p.name) === norm(name));
+  /**
+   * The person a row names as owner: by ID (an Owner ID column, or an ID typed in Owner), or by a name only one person
+   * has. Two people can share a name, so a name that fits several is a problem to fix, never a guess.
+   */
+  const ownerOf = (r: Rec): { person: Person | null; ref: string; problem?: string } => {
+    const id = val(r, 'owner id');
+    if (id) {
+      const p = people.get(id);
+      return p ? { person: p, ref: id } : { person: null, ref: id, problem: `There’s no person with ID ${id}.` };
+    }
+    const name = val(r, 'owner');
+    if (!name) return { person: null, ref: '' };
+    const named = [...people.values()].filter((p) => norm(p.name) === norm(name));
+    if (named.length > 1) return { person: null, ref: name, problem: `${named.length} people are called “${named[0]!.name}”. Put the owner’s ID in an Owner ID column instead (${named.map((p) => p.id).join(' or ')}).` };
+    const p = named[0] ?? people.get(name);
+    return p ? { person: p, ref: name } : { person: null, ref: name, problem: `“${name}” isn’t in this workspace. Add them under Workspace first, or check the spelling.` };
+  };
   const team = (name: string) => s.teams.find((t) => norm(t.name) === norm(name));
 
   // The working set: goals as they will be after this change, by id. Wherever a goal's ID is asked for, its key will do.
@@ -181,9 +197,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
       const same = [...work.values()].find((g) => norm(g.title) === norm(title));
       if (same) return err('Goals', row, title, `A goal called “${same.title}” already exists. Put its ID in the ID column to change it, or give this one another name.`);
     }
-    const ownerName = val(r, 'owner');
-    const owner = ownerName ? person(ownerName) : null;
-    if (ownerName && !owner) return err('Goals', row, title || existing?.title || '', `“${ownerName}” isn’t in this workspace. Add them under Workspace first, or check the spelling.`);
+    const { person: owner, problem: ownerProblem } = ownerOf(r);
+    if (ownerProblem) return err('Goals', row, title || existing?.title || '', ownerProblem);
     if (!existing && !owner) return err('Goals', row, title, 'A new goal needs an Owner.');
     if (!existing && owner && !actor.admin && owner.id !== actor.id) return err('Goals', row, title, 'You can add goals you own. Ask an admin to add goals for other people.');
     const teamName = val(r, 'team');
@@ -395,13 +410,15 @@ export function planChanges(input: ChangeInput): ChangeSet {
     };
     const e = evaluate(asOf, cycle, w, draft, ctx);
     if (!e.canPost) {
-      const hint: Record<string, string> = {
-        'this week’s value': 'a Value', 'a number for this week’s value': 'a number in Value', 'a possible value': 'a possible Value',
-        'why your call is greener': 'Why greener (the call is greener than the numbers)',
-        'why it’s behind': 'a Cause and a Why of 10 characters or more (it’s behind plan)', 'why it’s ahead': 'a Cause and a Why of 10 characters or more (it’s ahead of plan)',
-        'path to green': `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
+      // The same codes the check-in screens read, said in the spreadsheet's own column names.
+      const hint: Record<Missing, string> = {
+        value: 'a Value', 'value-not-number': 'a number in Value', 'value-impossible': 'a possible Value',
+        'greener-why': 'Why greener (the call is greener than the numbers)',
+        'reason-behind': `a Cause and a Why of ${MIN_REASON} characters or more (it’s behind plan)`, 'reason-ahead': `a Cause and a Why of ${MIN_REASON} characters or more (it’s ahead of plan)`,
+        path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
+        target: MISSING_TEXT.target,
       };
-      err('Check-ins', row, g.title, `Week ${w} needs ${e.missing.map((m) => hint[m] ?? m).join('; ')}.`);
+      err('Check-ins', row, g.title, `Week ${w} needs ${e.codes.map((c) => hint[c]).join('; ')}.`);
       continue;
     }
     const backfilled = w < week;

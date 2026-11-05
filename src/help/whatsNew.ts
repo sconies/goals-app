@@ -19,6 +19,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'tidier-and-more-consistent',
+    date: '2026-11-05',
+    title: 'Tidier and more consistent',
+    points: [
+      'A held review’s page now opens with what was said and the goals reviewed. The separate summary page has gone; its old link opens the review.',
+      'One name for each thing: Data (not Data tables), Import, “All your numbers in one table”, and comments on a goal.',
+      'In Data, named arrangements of a table are now Saved layouts, so they’re not confused with saved views on Goals.',
+      'A goal with no number says “No value yet” everywhere, once.',
+      'Every file you save is named the same way: workspace, what it holds, which goals, and the date.',
+      'Changing the owner of several goals at once now works when two people share a name.',
+    ],
+    articles: ['reviews', 'data', 'export'],
+  },
+  {
     id: 'help-and-whats-new',
     date: '2026-11-05',
     title: 'Help and what’s new',

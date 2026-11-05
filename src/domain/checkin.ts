@@ -92,6 +92,28 @@ export function valueProblem(raw: string, last: number | null, unit: string, goa
   return null;
 }
 
+/**
+ * What a check-in can still be missing, as a stable code. Screens and the import read the codes; the words for each are
+ * in MISSING_TEXT, so a change of wording never changes what a screen checks.
+ */
+export type Missing = 'value' | 'value-not-number' | 'value-impossible' | 'greener-why' | 'reason-behind' | 'reason-ahead' | 'path' | 'target';
+
+export const MISSING_TEXT: Record<Missing, string> = {
+  value: 'this week’s value',
+  'value-not-number': 'a number for this week’s value',
+  'value-impossible': 'a possible value',
+  'greener-why': 'why your call is greener',
+  'reason-behind': 'why it’s behind',
+  'reason-ahead': 'why it’s ahead',
+  path: 'path to green',
+  target: 'a proposed target beyond the current one',
+};
+
+/** The codes that mean this week's number itself isn't usable yet. */
+export const VALUE_CODES: readonly Missing[] = ['value', 'value-not-number', 'value-impossible'];
+/** The codes that mean the reason (a cause and a sentence) is still needed. */
+export const REASON_CODES: readonly Missing[] = ['reason-behind', 'reason-ahead'];
+
 export interface Evaluation {
   assessment: Assessment;
   /** The calculated status, as a call the owner can make. */
@@ -101,6 +123,9 @@ export interface Evaluation {
   reason: 'ahead' | 'behind' | null;
   asksTarget: boolean;
   needsPath: boolean;
+  /** What's still missing, as codes, in the order the check-in asks for them. */
+  codes: Missing[];
+  /** The same, in words (MISSING_TEXT). */
   missing: string[];
   canPost: boolean;
 }
@@ -128,19 +153,19 @@ export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, a
   const asksTarget = a.kind === 'metric' && a.ahead;
   const needsPath = status === 'risk' || status === 'off';
 
-  const missing: string[] = [];
-  if (goal.kind !== 'milestone' && value == null) missing.push(draft.value.trim() ? 'a number for this week’s value' : 'this week’s value');
-  else if (goal.kind !== 'milestone' && valueProblem(draft.value, null, goal.unit, goal)?.block) missing.push('a possible value');
-  if (greener && draft.greenerWhy.trim().length < MIN_REASON) missing.push('why your call is greener');
-  if (reason && (!draft.cause || draft.why.trim().length < MIN_REASON)) missing.push(reason === 'ahead' ? 'why it’s ahead' : 'why it’s behind');
+  const codes: Missing[] = [];
+  if (goal.kind !== 'milestone' && value == null) codes.push(draft.value.trim() ? 'value-not-number' : 'value');
+  else if (goal.kind !== 'milestone' && valueProblem(draft.value, null, goal.unit, goal)?.block) codes.push('value-impossible');
+  if (greener && draft.greenerWhy.trim().length < MIN_REASON) codes.push('greener-why');
+  if (reason && (!draft.cause || draft.why.trim().length < MIN_REASON)) codes.push(reason === 'ahead' ? 'reason-ahead' : 'reason-behind');
   const planned = (draft.ptgState ?? 'plan') === 'plan';
-  if (needsPath && (draft.ptgWhat.trim().length < MIN_PATH || (planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks)))) missing.push('path to green');
+  if (needsPath && (draft.ptgWhat.trim().length < MIN_PATH || (planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks)))) codes.push('path');
   if (asksTarget && draft.proposeTarget.trim()) {
     const t = parseNumber(draft.proposeTarget);
     const better = goal.kind === 'metric' && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target);
-    if (!better) missing.push('a proposed target beyond the current one');
+    if (!better) codes.push('target');
   }
-  return { assessment, calc, status, greener, reason, asksTarget, needsPath, missing, canPost: missing.length === 0 };
+  return { assessment, calc, status, greener, reason, asksTarget, needsPath, codes, missing: codes.map((c) => MISSING_TEXT[c]), canPost: codes.length === 0 };
 }
 
 /** Turn a valid draft into a check-in record. Throws if the draft cannot be posted. */

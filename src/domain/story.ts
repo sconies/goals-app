@@ -3,7 +3,7 @@
    (a date that has slipped, no recovery plan, a call greener than the numbers, a goal gone quiet).
    Also the result once a goal is due: Completed, Completed late or Did not meet. */
 import { causeLabel } from './checkin';
-import { fmt, fmtDiff, LEVEL_LABEL } from './format';
+import { fmt, fmtDiff, LEVEL_LABEL, NO_VALUE } from './format';
 import { planAt, planEnd, weekDates } from './plan';
 import { assessPosted, checkInsFor, goalStatus, LABEL, RULES } from './status';
 import { answeredSince, askText, openFor } from './requests';
@@ -150,7 +150,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   const due = dueWeekOf(g, cycle);
   let where = '';
   if (g.kind === 'metric' && a.kind === 'metric') {
-    if (a.actual == null) where = `No number yet. Target ${fmt(g.plan.target, g)} by week ${due}.`;
+    if (a.actual == null) where = `${NO_VALUE}. Target ${fmt(g.plan.target, g)} by week ${due}.`;
     else {
       const diff = Number((a.actual - a.plan).toFixed(g.decimals));
       where = `${fmt(a.actual, g)} in week ${a.week}, against a plan of ${fmt(a.plan, g)}${diff ? ` (${fmtDiff(diff, g)} ${diff > 0 ? 'above' : 'below'})` : ''}. Target ${fmt(g.plan.target, g)} by week ${due} (${weekDates(cycle, due)}).`;
@@ -158,7 +158,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
     }
   } else if (g.kind === 'range' && a.kind === 'range') {
     const lim = (g.range.bound === 'atMost' ? 'at most ' : 'at least ') + fmt(g.range.limit, g);
-    where = a.actual == null ? `No number yet. Must stay ${lim}.` : `${fmt(a.actual, g)} in week ${a.week}; must stay ${lim}${a.out ? ', and it isn’t' : a.near ? ', and it’s close' : ''}.`;
+    where = a.actual == null ? `${NO_VALUE}. Must stay ${lim}.` : `${fmt(a.actual, g)} in week ${a.week}; must stay ${lim}${a.out ? ', and it isn’t' : a.near ? ', and it’s close' : ''}.`;
   } else if (g.kind === 'milestone' && a.kind === 'milestone') {
     const late = a.late.map((x) => `${x.name} (due week ${x.dueWeek}, now expected week ${x.expectedWeek})`);
     where = `${a.doneCount} of ${a.stages.length} stages done.${late.length ? ` Late: ${late.join('; ')}.` : ''}`;

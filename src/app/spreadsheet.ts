@@ -1,5 +1,7 @@
-/* Spreadsheets in and out. The libraries load only when someone uploads or downloads, so the app stays small. */
+/* Spreadsheets in: reading what people upload. The library loads only when someone uploads, so the app stays small.
+   Files going out are saved by app/files (saveFile). */
 import { GOALS_TEMPLATE, parseTable, PEOPLE_TEMPLATE } from '../domain/importer';
+import type { SheetOut } from './files';
 
 const toTsv = (rows: unknown[][]) =>
   rows
@@ -27,45 +29,13 @@ export async function readSpreadsheet(file: File): Promise<{ people?: string; go
   return out;
 }
 
-/** Downloads a workbook with a People sheet and a Goals sheet, each with example rows. */
-export async function downloadTemplate() {
-  const { default: writeXlsxFile } = await import('write-excel-file/browser');
-  const sheet = (tsv: string, name: string) => {
+/** The set-up template: a People sheet and a Goals sheet, each with example rows, ready for saveFile (app/files). */
+export function templateSheets(): SheetOut[] {
+  const sheet = (tsv: string, name: string): SheetOut => {
     const [head, ...rows] = parseTable(tsv);
-    return {
-      sheet: name,
-      data: [
-        (head ?? []).map((h) => ({ value: h, fontWeight: 'bold' as const })),
-        ...rows.map((r) => r.map((c) => (c === '' ? null : { value: /^-?\d+(\.\d+)?$/.test(c) ? Number(c) : c }))),
-      ],
-    };
+    return { name, rows: [head ?? [], ...rows.map((r) => r.map((c) => (c === '' ? null : /^-?\d+(\.\d+)?$/.test(c) ? Number(c) : c)))] };
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (writeXlsxFile as any)([sheet(PEOPLE_TEMPLATE, 'People'), sheet(GOALS_TEMPLATE, 'Goals')]).toFile('goals-template.xlsx');
-}
-
-/** Downloads tables as one workbook, a sheet per table, with a bold header row. */
-export async function downloadWorkbook(tables: { name: string; rows: (string | number | null)[][] }[], filename: string) {
-  const { default: writeXlsxFile } = await import('write-excel-file/browser');
-  const sheets = tables.map((t) => ({
-    sheet: t.name.slice(0, 31),
-    data: t.rows.map((r, i) => r.map((c) => (c == null || c === '' ? null : { value: c, ...(i === 0 && t.name !== 'README' ? { fontWeight: 'bold' as const } : {}) }))),
-  }));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (writeXlsxFile as any)(sheets).toFile(filename);
-}
-
-/** Saves text as a file (CSV, JSON, Markdown). */
-export function downloadText(text: string, filename: string, type: string) {
-  const blob = new Blob([type.startsWith('text/csv') ? '﻿' + text : text], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return [sheet(PEOPLE_TEMPLATE, 'People'), sheet(GOALS_TEMPLATE, 'Goals')];
 }
 
 /** Reads a workbook or CSV of changes: its Goals, Plan and Check-ins sheets, by name or by header. */

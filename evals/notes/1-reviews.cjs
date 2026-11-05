@@ -1,6 +1,6 @@
 /* N1: Lane's review notes (5 Nov), reviews. run({ open, url, browser }) returns a list of failures.
-   The Reviews list says where each session stands; a review's agenda is one line per goal with nothing cut off; a
-   session ends on a summary of what was said that leads back to the review. */
+   The Reviews list says where each session stands; a review's agenda is one line per goal with nothing cut off; once a
+   session is held, the review's own page leads with what was said (the old /summary page redirects there). */
 const STATE = /^(Not started|In progress · \d+ of \d+ reviewed|Held (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2})$/;
 const n = (x) => (x == null ? 'none' : Math.round(x));
 
@@ -121,7 +121,7 @@ module.exports = {
       await c.close();
     }
 
-    // ---------- A whole session: say things, finish, the summary, back to the review, and the list after ----------
+    // ---------- A whole session: say things, finish, the held review leading with what was said, and the list after ----------
     {
       const [c, p] = await open(1280, 900, 'elena', '/reviews/security');
       await p.getByRole('button', { name: /^Start review/ }).click();
@@ -151,27 +151,31 @@ module.exports = {
       fail(st.trim() === 'In progress · 1 of 2 reviewed', `List mid-session: Security monthly says "${st}"`);
       await p.goto(url('/reviews/security'));
       await p.getByRole('button', { name: /^Mark 1 goal on track reviewed/ }).click();
-      await p.waitForURL(/\/reviews\/security\/summary/, { timeout: 5000 }).catch(() => fail(false, `Finishing: landed on ${p.url()}, not the summary`));
-      await p.locator('.review-summary h1').waitFor();
+      await p.locator('.review-home .session-record').waitFor({ timeout: 5000 }).catch(() => fail(false, `Finishing: ${p.url()} does not lead with what was said`));
+      fail(/\/reviews\/security(\?|$)/.test(p.url()), `Finishing: landed on ${p.url()}, not the review`);
       const s = await p.evaluate(() => {
-        const t = document.querySelector('.review-summary').innerText;
+        const page = document.querySelector('.review-home');
+        const blocks = [...page.children].filter((e) => e.getClientRects().length).map((e) => e.className);
         const prim = [...document.querySelectorAll('.btn.primary')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim());
         return {
-          h1: document.querySelector('h1').textContent, t, prim,
-          state: document.querySelector('.hero .session-state')?.innerText.trim(),
+          h1: document.querySelector('h1').textContent, t: page.innerText, prim, blocks,
+          line: document.querySelector('.hero .review-line')?.innerText.trim(),
+          record: document.querySelector('.session-record .block-title')?.innerText.trim(),
           reviewed: document.querySelectorAll('.session-record .agenda-row').length,
-          reviewsLink: [...document.querySelectorAll('.review-summary a')].some((a) => /\/reviews(\?|$)/.test(a.getAttribute('href')) && a.getClientRects().length),
+          print: [...page.querySelectorAll('a')].some((a) => /\/reviews\/security\/print$/.test(a.getAttribute('href')) && a.getClientRects().length),
+          reviewsLink: [...page.querySelectorAll('a')].some((a) => /\/reviews(\?|$)/.test(a.getAttribute('href')) && a.getClientRects().length),
         };
       });
-      fail(s.h1 === 'Review complete' && /^Held Fri 30 Oct$/.test(s.state || ''), `Summary: "${s.h1}", state "${s.state}"`);
-      fail(/Access review slipped/.test(s.t) && /Can SEC-88 land/.test(s.t) && /Agree the export scope/.test(s.t), 'Summary: what was said is missing');
-      fail(/Aisha Rahman · by week \d+, \d/.test(s.t), 'Summary: the action does not say who and by when');
-      fail(s.reviewed === 2, `Summary: ${s.reviewed} goals listed as reviewed, expected 2`);
-      fail(s.prim.length === 1 && s.prim[0] === 'Back to the review' && s.reviewsLink, `Summary: primary actions ${s.prim.join(' / ')}, link to Reviews ${s.reviewsLink}`);
-      await p.getByRole('link', { name: 'Back to the review' }).click();
-      await p.waitForURL(/\/reviews\/security(\?|$)/);
-      const back = await p.locator('.review-line').innerText();
-      fail(/^Held Fri 30 Oct · next /.test(back), `Back to the review: it says "${back}"`);
+      fail(s.h1 === 'Security monthly' && /^Held Fri 30 Oct · next /.test(s.line || ''), `Held review: "${s.h1}", line "${s.line}"`);
+      // What was said comes straight after the review's heading.
+      fail(s.record === 'What was said' && s.blocks.indexOf('block session-record') === s.blocks.indexOf('hero') + 1, `Held review: the record is "${s.record}", page order ${s.blocks.join(' / ')}`);
+      fail(/Access review slipped/.test(s.t) && /Can SEC-88 land/.test(s.t) && /Agree the export scope/.test(s.t), 'Held review: what was said is missing');
+      fail(/Aisha Rahman · by week \d+, \d/.test(s.t), 'Held review: the action does not say who and by when');
+      fail(s.reviewed === 2, `Held review: ${s.reviewed} goals listed as reviewed, expected 2`);
+      fail(s.prim.length === 0 && s.print && s.reviewsLink, `Held review: primary actions ${s.prim.join(' / ')}, Print ${s.print}, link to Reviews ${s.reviewsLink}`);
+      // The old summary address still works: it opens the review.
+      await p.goto(url('/reviews/security/summary'));
+      await p.waitForURL(/\/reviews\/security(\?|$)/, { timeout: 5000 }).catch(() => fail(false, `/summary: landed on ${p.url()}, not the review`));
       await p.goto(url('/reviews'));
       await p.locator('.rv-line').first().waitFor();
       const row = await p.evaluate(() => { const r = [...document.querySelectorAll('.rv-line')].find((x) => /Security monthly/.test(x.textContent)); return { state: r.querySelector('.session-state').innerText.trim(), text: r.innerText }; });
@@ -181,7 +185,7 @@ module.exports = {
       await c.close();
     }
 
-    // ---------- Walking every goal: "Reviewed & finish" goes straight to the summary; in progress shows on the list ----------
+    // ---------- Walking every goal: "Reviewed & finish" goes straight to the held review and what was said ----------
     {
       const [c, p] = await open(390, 844, 'elena', '/reviews/security', true);
       await p.locator('.healthy-group summary').click();
@@ -189,11 +193,12 @@ module.exports = {
       await p.getByRole('button', { name: /^Start review · 2 goals/ }).click();
       await p.locator('.decide').getByRole('button', { name: 'Reviewed & next' }).click();
       await p.locator('.decide').getByRole('button', { name: 'Reviewed & finish' }).click();
-      await p.waitForURL(/\/reviews\/security\/summary/, { timeout: 5000 }).catch(() => fail(false, `Reviewed & finish: landed on ${p.url()}`));
+      await p.waitForURL(/\/reviews\/security(\?|$)/, { timeout: 5000 }).catch(() => fail(false, `Reviewed & finish: landed on ${p.url()}`));
+      await p.locator('.review-home .session-record').waitFor({ timeout: 5000 }).catch(() => fail(false, 'Reviewed & finish: the review does not lead with what was said'));
       const m = await agendaReport(p);
-      fail(m.rows === 2 && !m.clipped.length && !m.outside.length && m.sideways <= 1, `Summary at 390: ${m.rows} rows, clipped ${m.clipped.length}, sideways ${m.sideways}`);
-      const btn = await p.getByRole('link', { name: 'Back to the review' }).boundingBox();
-      fail(!!btn && btn.height >= 44, `Summary at 390: Back to the review is ${n(btn?.height)}px tall`);
+      fail(m.rows === 2 && !m.clipped.length && !m.outside.length && m.sideways <= 1, `Held review at 390: ${m.rows} rows, clipped ${m.clipped.length}, sideways ${m.sideways}`);
+      const btn = await p.getByRole('link', { name: 'Edit review setup' }).boundingBox();
+      fail(!!btn && btn.height >= 44, `Held review at 390: Edit review setup is ${n(btn?.height)}px tall`);
       await c.close();
     }
     return fails;

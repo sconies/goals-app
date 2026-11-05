@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, REASON_CODES, VALUE_CODES, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
 import { answeredSince, askText, openFor } from '../domain/requests';
 import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
@@ -192,7 +192,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const e = evaluate(goal, cycle, week, draft, app.snapshot.checkIns);
   const team = app.team(goal.teamId);
 
-  const valueOk = goal.kind === 'milestone' || !e.missing.some((m) => m.includes('value'));
+  const valueOk = goal.kind === 'milestone' || !e.codes.some((c) => VALUE_CODES.includes(c));
   const needsWhy = valueOk && !!e.reason;
   const needsWay = valueOk && e.needsPath;
   // Last week's story, offered back when this week still needs a reason or a path.
@@ -241,13 +241,14 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   };
 
   // What the current step still needs, in plain words, shown under the field once they've tried.
-  const whyOk = !needsWhy || (!!draft.cause && draft.why.trim().length >= MIN_REASON);
-  const targetOk = !e.missing.some((m) => m.includes('target'));
+  // Read from the rules' own codes, so the screen never asks for less (or more) than posting needs.
+  const whyOk = !needsWhy || !e.codes.some((c) => REASON_CODES.includes(c));
+  const targetOk = !e.codes.includes('target');
   const planned = (draft.ptgState ?? 'plan') === 'plan';
-  const wayOk = !needsWay || (draft.ptgWhat.trim().length >= MIN_PATH && (!planned || (draft.ptgBy != null && draft.ptgBy > week)) && (draft.ptgState !== 'help' || !!helpFrom));
+  const wayOk = !needsWay || (!e.codes.includes('path') && (draft.ptgState !== 'help' || !!helpFrom));
   const primary = () => {
     if (step === 'measure') {
-      if (!valueOk || e.missing.some((m) => m.startsWith('why your call'))) { setTried(true); return; }
+      if (!valueOk || e.codes.includes('greener-why')) { setTried(true); return; }
       if (needsAccount) go(canCarry ? 'carry' : 'account');
       else void post();
     } else if (step === 'account') {
@@ -334,7 +335,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
                 <span className="muted">{e.status === e.calc ? 'from the numbers' : 'your call'}</span>
                 <button type="button" className="linkish tap" onClick={() => setStatusOpen(true)}>Change</button>
               </div>
-              {tried && e.missing.some((m) => m.startsWith('why your call')) && <span className="hint tone-off" role="alert">Say why it’s better than the numbers: tap Change.</span>}
+              {tried && e.codes.includes('greener-why') && <span className="hint tone-off" role="alert">Say why it’s better than the numbers: tap Change.</span>}
               {last && <NextStepField draft={draft} set={set} open={showNext} onOpen={() => setShowNext(true)} />}
             </>
           )}
@@ -343,8 +344,8 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
       )}
 
       {step === 'carry' && previous && (
-        <section className="qsection" aria-label="Last week’s note">
-          <h2 className="qtitle">Is last week’s note still true?</h2>
+        <section className="qsection" aria-label="What you said last week">
+          <h2 className="qtitle">Is what you said last week still true?</h2>
           <blockquote className="quote">
             {priorWhy && <p><strong>{causeLabel(previous.cause)}.</strong> {previous.why}</p>}
             {priorWay && <p><strong>{previous.pathToGreen!.byWeek != null ? `Back on plan by ${weekLabel(previous.pathToGreen!.byWeek, cycle.weeks)}.` : `${RECOVERY[previous.pathToGreen!.state ?? 'plan'].label}.`}</strong> {previous.pathToGreen!.what}</p>}

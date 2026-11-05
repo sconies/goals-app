@@ -689,6 +689,7 @@ h1[tabindex='-1']:focus { outline: none; }
 .board-card:hover { border-color: var(--line-strong); }
 .board-title { font-weight: 600; font-size: 0.875rem; line-height: 1.25rem; }
 .board-title .level { margin-left: var(--s2); }
+.status-key { list-style: none; margin: 0; padding: 0; }
 .hlegend { display: flex; flex-wrap: wrap; gap: var(--s4); font-size: 0.8125rem; color: var(--muted); }
 .hcell-key { display: inline-flex; align-items: center; gap: 6px; }
 .hcell-key svg { width: 12px; height: 12px; }

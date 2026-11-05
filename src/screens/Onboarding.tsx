@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
-import { downloadTemplate, readSpreadsheet } from '../app/spreadsheet';
+import { readSpreadsheet, templateSheets } from '../app/spreadsheet';
+import { saveAndSay } from '../app/files';
 import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer';
 import type { Cycle } from '../domain/types';
 import { MONTH_NAMES, startMonth, yearStartFor, yearWeeks } from '../domain/year';
@@ -15,6 +16,7 @@ import { Steps } from '../ui/bits';
 import { overHundredHint } from '../domain/goal';
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
+import { StageFields } from '../ui/GoalFields';
 
 interface PersonRow { name: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string }
@@ -283,7 +285,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <div className="actions">
               <button type="button" className="btn sm" onClick={() => set({ people: [...d.people, blankPerson()] })}>Add a person</button>
               <UploadButton onFile={upload} />
-              <button type="button" className="linkish tap" onClick={() => void downloadTemplate()}>Download the Excel template</button>
+              <button type="button" className="linkish tap" onClick={() => void saveAndSay(setup.toast, { workspace: d.name.trim() || 'new workspace', what: 'template', date: setup.today }, { kind: 'xlsx', sheets: templateSheets() }, 'Template saved')}>Download the Excel template</button>
             </div>
             {fileNote && <span className="hint" role="status">{fileNote}</span>}
           </section>
@@ -315,7 +317,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <h1 className="qtitle big">What outcome are you after?</h1>
               <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
             </div>
-            <GoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} titleIssue={tried && !d.outcome.title.trim() ? problem[4] : undefined} headline />
+            <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} titleIssue={tried && !d.outcome.title.trim() ? problem[4] : undefined} headline />
           </section>
         )}
 
@@ -327,7 +329,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </div>
             {d.goals.map((g, i) => (
               <div key={i} className="goalcard">
-                <GoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
+                <SetupGoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
                 <button type="button" className="linkish tap" onClick={() => set({ goals: d.goals.filter((_, k) => k !== i) })}>Remove this goal</button>
               </div>
             ))}
@@ -378,7 +380,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function GoalFields({ g, owners, onChange, issue, titleIssue, headline, week = 0, weeks = 52 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; titleIssue?: string; headline?: boolean; week?: number; weeks?: number }) {
+function SetupGoalFields({ g, owners, onChange, issue, titleIssue, headline, week = 0, weeks = 52 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; titleIssue?: string; headline?: boolean; week?: number; weeks?: number }) {
   return (
     <div className="stack" style={{ gap: 'var(--s3)' }}>
       <div className="field">
@@ -410,7 +412,7 @@ function GoalFields({ g, owners, onChange, issue, titleIssue, headline, week = 0
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, ms" aria-label={(g.title || 'Goal') + ': unit'} /></label>
         </div>
       ) : (
-        <StageRows value={g.stages ?? ''} onChange={(stages) => onChange({ stages })} goalName={g.title || 'Goal'} />
+        <StageRows value={g.stages ?? ''} onChange={(stages) => onChange({ stages })} goalName={g.title || 'Goal'} weeks={weeks} />
       )}
       <label className="field"><span className="field-label">Owner</span>
         <select className="input" value={g.owner} onChange={(e) => onChange({ owner: e.target.value })}>{owners.map((o) => <option key={o} value={o}>{o}</option>)}</select>
@@ -420,25 +422,15 @@ function GoalFields({ g, owners, onChange, issue, titleIssue, headline, week = 0
   );
 }
 
-/** Stages as rows (name and week) instead of typing "Design@3; Pilot@7". Stored in the same text form the importer reads. */
-function StageRows({ value, onChange, goalName }: { value: string; onChange: (v: string) => void; goalName: string }) {
-  const rows = value.split(';').map((x) => x.trim()).filter(Boolean).map((x) => { const [n, w] = x.split('@'); return { name: (n ?? '').trim(), week: (w ?? '').trim() }; });
-  const list = rows.length ? rows : [{ name: '', week: '' }];
-  const save = (next: { name: string; week: string }[]) => onChange(next.map((r) => `${r.name.replace(/[;@]/g, ' ')}@${r.week}`).join('; '));
-  return (
-    <div className="field"><span className="field-label">Stages, and the week each is due</span>
-      <div className="stack" style={{ gap: 'var(--s2)' }}>
-        {list.map((r, i) => (
-          <div key={i} className="row nowrap" style={{ alignItems: 'center' }}>
-            <input className="input" style={{ flex: '3 1 160px' }} value={r.name} placeholder={`Stage ${i + 1}`} aria-label={`${goalName}: stage ${i + 1} name`} onChange={(e) => save(list.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))} />
-            <input className="input" style={{ flex: '0 0 84px' }} inputMode="numeric" value={r.week} placeholder="Week" aria-label={`${goalName}: stage ${i + 1} due week`} onChange={(e) => save(list.map((x, k) => (k === i ? { ...x, week: e.target.value.replace(/\D/g, '') } : x)))} />
-            {list.length > 1 && <button type="button" className="iconbtn" aria-label={`Remove stage ${i + 1}`} onClick={() => save(list.filter((_, k) => k !== i))}><Icon name="close" /></button>}
-          </div>
-        ))}
-        <div><button type="button" className="btn sm" onClick={() => save([...list, { name: '', week: '' }])}>Add a stage</button></div>
-      </div>
-    </div>
-  );
+/**
+ * Stages as rows (name and week), with the same fields as the new-goal wizard and Edit goal. Kept in the text form the
+ * importer reads ("Design@3; Pilot@7").
+ */
+function StageRows({ value, onChange, goalName, weeks }: { value: string; onChange: (v: string) => void; goalName: string; weeks: number }) {
+  const parsed = value.split(';').map((x) => x.trim()).filter(Boolean).map((x, i) => { const [n, w] = x.split('@'); return { id: 's' + i, name: (n ?? '').trim(), dueWeek: (w ?? '').trim() }; });
+  const stages = parsed.length ? parsed : [{ id: 's0', name: '', dueWeek: '' }];
+  const save = (next: { name: string; dueWeek: string }[]) => onChange(next.map((r) => `${r.name.replace(/[;@]/g, ' ')}@${r.dueWeek.replace(/\D/g, '')}`).join('; '));
+  return <StageFields stages={stages} onChange={save} onAdd={() => save([...stages, { name: '', dueWeek: '' }])} error={null} labelClass="field-label" weeks={weeks} goalName={goalName} />;
 }
 
 function UploadButton({ onFile, label = 'Upload a spreadsheet' }: { onFile: (f: File) => void; label?: string }) {

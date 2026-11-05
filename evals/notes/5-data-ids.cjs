@@ -67,13 +67,13 @@ module.exports = {
     await p.locator('.data-views > summary').click();
     await p.getByRole('button', { name: 'Save this layout…' }).click(); await p.waitForTimeout(250);
     await p.getByRole('dialog').getByLabel('Name').fill('Owners first');
-    await p.getByRole('dialog').getByRole('button', { name: 'Save view' }).click(); await p.waitForTimeout(400);
+    await p.getByRole('dialog').getByRole('button', { name: 'Save layout' }).click(); await p.waitForTimeout(400);
     const named = (await p.locator('.data-views > summary').innerText()).trim();
-    if (named !== 'View: Owners first') fails.push(`[TABLE-LAYOUTS] 1280 after saving, the Views button says "${named}"`);
+    if (named !== 'Saved layout: Owners first') fails.push(`[TABLE-LAYOUTS] 1280 after saving, the Saved layouts button says "${named}"`);
     await p.locator('.data-views > summary').click();
     await p.getByRole('button', { name: 'Back to the usual columns' }).click(); await p.waitForTimeout(250);
     const usual = await heads(p);
-    if (usual.indexOf('Owner') < usual.indexOf('Team') || !(await p.locator('.data-views > summary').innerText()).trim().startsWith('Views')) fails.push(`[TABLE-LAYOUTS] 1280 back to the usual columns: ${usual.slice(0, 6).join(', ')}`);
+    if (usual.indexOf('Owner') < usual.indexOf('Team') || !(await p.locator('.data-views > summary').innerText()).trim().startsWith('Saved layouts')) fails.push(`[TABLE-LAYOUTS] 1280 back to the usual columns: ${usual.slice(0, 6).join(', ')}`);
     // A fresh start in this browser: the saved view still opens, from the workspace's data rather than this browser's layout.
     await p.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('goals-data-layout:')) localStorage.removeItem(k); });
     await p.reload(); await p.waitForTimeout(500);

@@ -450,6 +450,16 @@
       "id": "WHATS-NEW",
       "area": "Help",
       "text": "What's new lists each release newest first, with a date, a title, a few plain lines for people and links to the guide. A quiet dot beside Help, and one dismissible line on Home, show a release the person hasn't seen until they open What's new, remembered across reloads. CI refuses a change to the app without an entry, and an AI assistant can read the entries."
+    },
+    {
+      "id": "CONSISTENT-WORDS",
+      "area": "Copy",
+      "text": "One word for each concept: docs/glossary.md names each term, says what it means and lists the words not to use, and the app's copy (screens, components, walkthroughs, the rules' own words and the guide) never uses them, apart from what the glossary keeps on purpose. Data is called Data, its named column arrangements are saved layouts, Import is called Import, the one-table check-in has one name, and a goal with no number says \"No value yet\" everywhere."
+    },
+    {
+      "id": "SHARED-DOWNLOADS",
+      "area": "Export",
+      "text": "Every file the app saves (Export, Import's workbook, Data, Activity, the set-up template, research notes) goes through one saveFile(), named <workspace>-<what>-<scope>-<date>, with one way of saying it saved or what went wrong."
     }
   ],
   "notYetBuilt": [

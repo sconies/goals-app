@@ -1,7 +1,7 @@
 /* One goal in a line of facts: what every view and every export shows about it, worked out once.
    The table, board, cards, history grid, spreadsheet, JSON and AI brief all read from here, so they can't disagree. */
 import { causeLabel } from './checkin';
-import { fmt, gapText, kindLabel, LEVEL_LABEL, targetText } from './format';
+import { fmt, gapText, kindLabel, LEVEL_LABEL, nowText, targetText } from './format';
 import { planAt, planEnd, valueSeries, weekDate, type Point } from './plan';
 import { assessPosted, checkInsFor, goalStatus, LABEL, RANK } from './status';
 import { forecastText } from './tree';
@@ -51,7 +51,7 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
   const owner = s.people.find((p) => p.id === goal.ownerId)?.name ?? '—';
   const team = s.teams.find((t) => t.id === goal.teamId)?.name ?? '—';
   const nowValue = a.kind === 'milestone' ? null : a.actual;
-  const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || goal.kind === 'milestone' ? '—' : fmt(a.actual, goal);
+  const now = nowText(goal, a);
   const planNow = goal.kind === 'metric' ? planAt(goal.plan, week, cycle.weeks) : null;
   const ptg = last?.pathToGreen;
   const behind = st.status === 'off' || st.status === 'risk';

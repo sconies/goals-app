@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-05 11:16 UTC.
+Run 2026-11-05 12:27 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -62,7 +62,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**90 of 90 pass**. Spec scenarios 154/154.
+**92 of 92 pass**. Spec scenarios 164/164.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -156,6 +156,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **MOTION-ALIVE** The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every animation is under 250ms and off when the person asks for reduced motion. | Interface | 3 | N6 |
 | ✅ | **HELP-GUIDE** The app has its own guide: one article per screen or feature saying what it is for, how to use it and who can, reachable from the sidebar, the phone's More sheet and the icon rail, searchable, and opened for the page you are on by a Help link on every page. Every screen, route and requirement has an article (checked by a test), and an AI assistant can read it through the MCP server. | Help | 5 | N7 |
 | ✅ | **WHATS-NEW** What's new lists each release newest first, with a date, a title, a few plain lines for people and links to the guide. A quiet dot beside Help, and one dismissible line on Home, show a release the person hasn't seen until they open What's new, remembered across reloads. CI refuses a change to the app without an entry, and an AI assistant can read the entries. | Help | 4 | N7 |
+| ✅ | **CONSISTENT-WORDS** One word for each concept: docs/glossary.md names each term, says what it means and lists the words not to use, and the app's copy (screens, components, walkthroughs, the rules' own words and the guide) never uses them, apart from what the glossary keeps on purpose. Data is called Data, its named column arrangements are saved layouts, Import is called Import, the one-table check-in has one name, and a goal with no number says "No value yet" everywhere. | Copy | 7 | — |
+| ✅ | **SHARED-DOWNLOADS** Every file the app saves (Export, Import's workbook, Data, Activity, the set-up template, research notes) goes through one saveFile(), named <workspace>-<what>-<scope>-<date>, with one way of saying it saved or what went wrong. | Export | 3 | — |
 
 ## Platform checks
 
