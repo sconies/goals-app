@@ -100,8 +100,8 @@ function harness(device) {
         const small = primaries.filter((x) => x.h < 44);
         set('a11y', !small.length, `${label}: primary button under 44px (${small.map((x) => x.text + ' ' + Math.round(x.h)).join(', ')})`);
       }
-      // Let entrance motion finish first (the goal page's story runs up to 2s): an element caught mid-fade isn't its real contrast.
-      await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 2500))]));
+      // Let entrance motion finish first (the goal page's story runs up to 4s): an element caught mid-fade isn't its real contrast.
+      await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 5000))]));
       await p.addScriptTag({ content: AXE });
       const v = await p.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations
         .filter((x) => x.impact === 'serious' || x.impact === 'critical').map((x) => `${x.id} ${x.nodes[0].target.join(' ')}`));
@@ -1890,8 +1890,8 @@ async function platformChecks() {
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:example', w), who);
       await r.reload();
       await r.waitForTimeout(250);
-      // Let entrance motion finish (the goal page's story runs up to 2s): a tile caught mid-fade isn't its real contrast.
-      await r.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 2500))]));
+      // Let entrance motion finish (the goal page's story runs up to 4s): a tile caught mid-fade isn't its real contrast.
+      await r.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((res) => setTimeout(res, 5000))]));
       const sideways = await r.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       if (sideways > 1) problems.push(`${who} ${route}: ${sideways}px sideways`);
       await r.addScriptTag({ content: AXE });

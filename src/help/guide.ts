@@ -627,19 +627,20 @@ export const ARTICLES: Article[] = [
   {
     id: 'settings',
     title: 'Settings',
-    summary: 'Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens. It also says what the app records.',
+    summary: 'Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your AI assistant tokens. It also says what the app records.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
         'Light or dark: light, dark, or follow your device.',
         'Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.',
+        'How a goal’s page moves: Quick, Steady or Slow (how slowly its chart draws in and its number counts up), and how hard it lands: Gentle, Strong or Big.',
         'Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.',
         'You: your name, job title and team. An admin changes these.',
         'What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.',
         'Your AI assistants: the tokens that act as you, which you can revoke.',
         'Detail pages have a Back link to where you came from.',
       ] },
-      { heading: 'Good to know', text: ['How the app looks is kept in this browser only. On another device, choose again. Motion is subtle and switches off when your device asks for reduced motion.'] },
+      { heading: 'Good to know', text: ['How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion.'] },
     ],
     routes: ['/settings'],
     screens: ['Settings'],

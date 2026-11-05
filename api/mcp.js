@@ -29728,13 +29728,14 @@ var ARTICLES = [
 	{
 		id: "settings",
 		title: "Settings",
-		summary: "Your own choices: light or dark, an accent colour, the sidebar, and your AI assistant tokens. It also says what the app records.",
+		summary: "Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your AI assistant tokens. It also says what the app records.",
 		group: "you",
 		sections: [{
 			heading: "How to use it",
 			list: [
 				"Light or dark: light, dark, or follow your device.",
 				"Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
+				"How a goal’s page moves: Quick, Steady or Slow (how slowly its chart draws in and its number counts up), and how hard it lands: Gentle, Strong or Big.",
 				"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
 				"You: your name, job title and team. An admin changes these.",
 				"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
@@ -29743,7 +29744,7 @@ var ARTICLES = [
 			]
 		}, {
 			heading: "Good to know",
-			text: ["How the app looks is kept in this browser only. On another device, choose again. Motion is subtle and switches off when your device asks for reduced motion."]
+			text: ["How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion."]
 		}],
 		routes: ["/settings"],
 		screens: ["Settings"],
@@ -30021,7 +30022,7 @@ var WHATS_NEW = [
 		points: [
 			"A summary bar reads in two seconds: the status, the number against plan and target, which way it’s heading, why, and whether anyone is on it. It shrinks to one line as you scroll.",
 			"What’s asked of you is answered on the goal, and Home’s Answer, Respond and Reply open it ready to type.",
-			"The chart is near the top and draws itself in until its latest point lands, with the app’s projection as a range worked out from the last eight weeks. Drag along it to read any week.",
+			"The chart is near the top and draws itself in until its latest point lands, with the projection as a range from the last eight weeks. Choose how slowly it moves and how hard it lands in Settings.",
 			"One list of what’s being done, with who, when and whether each is open, done or overdue; and what was said the last time it was discussed.",
 			"Check-ins, comments and changes in one stream, a reason repeated week after week said once, and “Since you looked” when you come back.",
 			"Share image copies a picture of the goal with its link. Linking to a decision already asked for another goal is now in the check-in."

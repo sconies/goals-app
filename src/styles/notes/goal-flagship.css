@@ -54,15 +54,26 @@
 .goal-page .goal-bar.compact .bar-actions .btn:not(.primary), .goal-page .goal-bar.compact .bar-menu { display: none; }
 
 /* A status that changed since you last looked turns in once; a target reached gives the status a soft pulse. */
-.goal-page .bar-status.moved .status-shape { animation: pm-shape-swap .55s .1s ease-out both; transform-box: fill-box; transform-origin: center; }
-.goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse .6s ease-out both; transform-box: fill-box; transform-origin: center; }
-/* The number counts up slowly enough to read, then lands with an impact: a thump (overshoot and settle). Off track adds
-   a short shake to the status shape, a quiet "this is behind". */
-@keyframes gp-num-land { 0% { transform: scale(1); } 35% { transform: scale(1.14); } 65% { transform: scale(.96); } 100% { transform: none; } }
-@keyframes gp-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+.goal-page .bar-status.moved .status-shape { animation: pm-shape-swap calc(.55s * var(--pace)) calc(.1s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+.goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse calc(.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+
+/* How a goal's page moves, set in Settings (src/app/appearance.ts): pace is a multiple of the base timings (Steady, the
+   default, is half the speed of Quick), impact how hard it lands. Defaults first, then the other choices. */
+:root { --pace: 2; --thump-num: 1.32; --thump-dot: 2.6; --ring: 7.5; --shake: 8px; --jolt: 5px; }
+:root[data-pace="quick"] { --pace: 1; }
+:root[data-pace="slow"] { --pace: 3; }
+:root[data-impact="gentle"] { --thump-num: 1.12; --thump-dot: 1.6; --ring: 4; --shake: 3px; --jolt: 0px; }
+:root[data-impact="big"] { --thump-num: 1.55; --thump-dot: 3.4; --ring: 11; --shake: 14px; --jolt: 10px; }
+
+/* The number counts up (STORY_MS × pace), then lands: a thump (overshoot, recoil, settle) and the bar jolts with it.
+   Off track adds a shake to the status shape, a clear "this is behind". */
+@keyframes gp-num-land { 0% { transform: scale(1); } 30% { transform: scale(var(--thump-num)); } 55% { transform: scale(calc(2 - var(--thump-num))); } 78% { transform: scale(calc(1 + (var(--thump-num) - 1) / 4)); } 100% { transform: none; } }
+@keyframes gp-jolt { 0%, 100% { transform: none; } 30% { transform: translateY(var(--jolt)); } 60% { transform: translateY(calc(var(--jolt) * -0.4)); } }
+@keyframes gp-shake { 0%, 100% { transform: none; } 15% { transform: translateX(calc(var(--shake) * -1)); } 30% { transform: translateX(var(--shake)); } 45% { transform: translateX(calc(var(--shake) * -0.7)); } 60% { transform: translateX(calc(var(--shake) * 0.6)); } 75% { transform: translateX(calc(var(--shake) * -0.3)); } }
 .goal-page .bar-now .countup { transform-origin: left center; } /* stays inline-grid: its hidden final text reserves the width */
-.goal-page .bar-now .countup.landed { animation: gp-num-land .42s ease-out both; }
-.goal-page .goal-bar[data-tone="off"] .bar-2:has(.countup.landed) .bar-status .status-shape { animation: gp-shake .45s .1s ease-in-out both; }
+.goal-page .bar-now .countup.landed { animation: gp-num-land calc(.5s * var(--pace)) cubic-bezier(.2, .8, .2, 1) both; }
+.goal-page .goal-bar:has(.bar-now .countup.landed) .bar-2 { animation: gp-jolt calc(.35s * var(--pace)) ease-out both; }
+.goal-page .goal-bar[data-tone="off"] .bar-2:has(.countup.landed) .bar-status .status-shape { animation: gp-shake calc(.5s * var(--pace)) calc(.08s * var(--pace)) ease-in-out both; }
 
 /* ---------- on a phone the bar is the page's header ---------- */
 @container app (max-width: 760px) {
@@ -123,25 +134,26 @@
 .c-scrub-plan { fill: var(--accent); }
 .chart-read { margin: 6px 0 0; min-height: 1.25rem; font-size: 0.8125rem; line-height: 1.25rem; color: var(--fg); font-variant-numeric: tabular-nums; }
 .chart-read.hint { color: var(--muted); }
-/* Drawing itself, slowly enough to watch (Lane, 5 Nov: the 250ms version was over before it could be seen): the plan,
-   then the actual tracing along, then the projection and the path to green. When the line reaches "now" it lands with
-   an impact: the latest point thumps (overshoots and settles) and a ring spreads from it. All of it about 1.6 seconds,
-   never blocking a click, and none of it under reduced motion. */
+/* Drawing itself, slowly enough to watch (Lane, 5 Nov), at the chosen pace: the plan, then the actual tracing along,
+   then the projection and the path to green. When the line reaches "now" it lands hard: the latest point thumps
+   (overshoot, recoil, settle), a ring spreads from it, and the chart card jolts. Never blocks a click; none of it under
+   reduced motion. */
 @keyframes gp-now { 0% { opacity: .2; } 60% { opacity: 1; } 100% { opacity: 1; } }
 @keyframes gp-land { 0% { opacity: 0; transform: translateY(-18px); } 60% { opacity: 1; transform: translateY(2px); } 100% { opacity: 1; transform: none; } }
 @keyframes gp-lit { from { opacity: .3; } to { opacity: 1; } }
-@keyframes gp-thump { 0% { transform: scale(.2); opacity: 0; } 45% { transform: scale(1.7); opacity: 1; } 70% { transform: scale(.85); } 100% { transform: none; opacity: 1; } }
-@keyframes gp-ring { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(4.2); opacity: 0; } }
-.chart.draw .c-plan, .chart.draw .c-orig { animation: pm-draw .5s ease-out both; }
-.chart.draw .c-act { animation: pm-draw .9s .3s cubic-bezier(.45, 0, .55, 1) both; }
-.chart.draw .c-last { animation: gp-thump .45s 1.15s ease-out both; transform-box: fill-box; transform-origin: center; }
-.chart.draw .c-dot-ring { animation: gp-ring .7s 1.25s ease-out both; transform-box: fill-box; transform-origin: center; }
-.chart .c-dot-ring { fill: none; stroke: var(--fg); stroke-width: 1.5; opacity: 0; pointer-events: none; }
-.chart.draw .c-fc, .chart.draw .c-band, .chart.draw .c-ptg { animation: pm-draw .5s 1.25s ease-out both; }
-.chart.draw .c-ptg-dot { animation: pm-dot-in .3s 1.6s ease-out both; transform-box: fill-box; transform-origin: center; }
-.chart.draw .c-today { animation: gp-now .4s 1.1s ease-out both; }
-.chart .c-dot.landed, .chart .c-breach.landed { animation: gp-land .6s ease-out both; transform-box: fill-box; transform-origin: center; }
-.chart.hit .c-target { stroke-dasharray: none; stroke-width: 2.5; animation: gp-lit .6s ease-out both; }
+@keyframes gp-thump { 0% { transform: scale(.2); opacity: 0; } 40% { transform: scale(var(--thump-dot)); opacity: 1; } 65% { transform: scale(.8); } 85% { transform: scale(1.15); } 100% { transform: none; opacity: 1; } }
+@keyframes gp-ring { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(var(--ring)); opacity: 0; } }
+.chart.draw .c-plan, .chart.draw .c-orig { animation: pm-draw calc(.5s * var(--pace)) ease-out both; }
+.chart.draw .c-act { animation: pm-draw calc(.9s * var(--pace)) calc(.3s * var(--pace)) cubic-bezier(.45, 0, .55, 1) both; }
+.chart.draw .c-last { animation: gp-thump calc(.5s * var(--pace)) calc(1.15s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart.draw .c-dot-ring { animation: gp-ring calc(.7s * var(--pace)) calc(1.2s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart .c-dot-ring { fill: none; stroke: var(--fg); stroke-width: 2; opacity: 0; pointer-events: none; }
+.goal-chart:has(.chart.draw) { animation: gp-jolt calc(.35s * var(--pace)) calc(1.18s * var(--pace)) ease-out both; }
+.chart.draw .c-fc, .chart.draw .c-band, .chart.draw .c-ptg { animation: pm-draw calc(.5s * var(--pace)) calc(1.3s * var(--pace)) ease-out both; }
+.chart.draw .c-ptg-dot { animation: pm-dot-in calc(.3s * var(--pace)) calc(1.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart.draw .c-today { animation: gp-now calc(.4s * var(--pace)) calc(1.1s * var(--pace)) ease-out both; }
+.chart .c-dot.landed, .chart .c-breach.landed { animation: gp-land calc(.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart.hit .c-target { stroke-dasharray: none; stroke-width: 2.5; animation: gp-lit calc(.6s * var(--pace)) ease-out both; }
 
 /* ---------- why ---------- */
 .goal-page .why-block p { margin: 0; font-size: 0.9375rem; color: var(--fg-2); max-width: 72ch; }
@@ -178,10 +190,10 @@
 .goal-page .feeds .show-all { align-self: flex-start; }
 
 /* ---------- this year by quarter: the tiles fill in turn ---------- */
-.goal-page .quarters > li { animation: rise .4s ease-out both; }
-.goal-page .quarters > li:nth-child(2) { animation-delay: .15s; }
-.goal-page .quarters > li:nth-child(3) { animation-delay: .3s; }
-.goal-page .quarters > li:nth-child(4) { animation-delay: .45s; }
+.goal-page .quarters > li { animation: rise calc(.4s * var(--pace)) ease-out both; }
+.goal-page .quarters > li:nth-child(2) { animation-delay: calc(.15s * var(--pace)); }
+.goal-page .quarters > li:nth-child(3) { animation-delay: calc(.3s * var(--pace)); }
+.goal-page .quarters > li:nth-child(4) { animation-delay: calc(.45s * var(--pace)); }
 
 /* ---------- activity ---------- */
 .goal-page .activity-filter { align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }

@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
-import { ACCENTS, SIDEBARS, THEMES, setAppearance, useAppearance } from '../app/appearance';
+import { ACCENTS, IMPACTS, PACES, SIDEBARS, THEMES, setAppearance, useAppearance } from '../app/appearance';
 import { Avatar } from '../ui/bits';
 import { BackLink } from '../ui/BackLink';
 import { ProfileSheet } from '../ui/ProfileSheet';
@@ -43,6 +43,20 @@ export function Settings() {
             ))}
           </div>
           <span className="hint">For links, buttons and what’s selected. Status colours stay the same, so on track, at risk and off track always look alike.</span>
+        </div>
+        <div className="field">
+          <span className="field-label" id="set-pace">How a goal’s page moves</span>
+          <div className="seg" role="group" aria-labelledby="set-pace">
+            {PACES.map(([k, l]) => <button key={k} type="button" aria-pressed={look.pace === k} onClick={() => setAppearance({ pace: k })}>{l}</button>)}
+          </div>
+          <span className="hint">How slowly the chart draws in and the number counts up. Steady is half the speed of Quick, Slow a third.</span>
+        </div>
+        <div className="field">
+          <span className="field-label" id="set-impact">How hard it lands</span>
+          <div className="seg" role="group" aria-labelledby="set-impact">
+            {IMPACTS.map(([k, l]) => <button key={k} type="button" aria-pressed={look.impact === k} onClick={() => setAppearance({ impact: k })}>{l}</button>)}
+          </div>
+          <span className="hint">When the number and the chart reach today: a thump, a ring from the latest point, and a shake if it’s off track. All of it switches off when your device asks for reduced motion.</span>
         </div>
       </section>
 

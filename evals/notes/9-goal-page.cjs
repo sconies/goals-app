@@ -11,8 +11,8 @@
 
 const SIZES = [[390, 844, true], [1280, 800, false]];
 const LIMIT = 250;
-// The page's story moves slower so it can be seen (Lane, 5 Nov): up to 2 seconds end to end; everything else 250ms.
-const STORY_LIMIT = 2000;
+// The page's story moves slower so it can be seen (Lane, 5 Nov): up to 4 seconds end to end at the default pace; everything else 250ms.
+const STORY_LIMIT = 4000;
 const story = (a) => /^(gp-|pm-draw|pm-dot-in|pm-shape-swap|pm-pulse|rise\b)|countup/.test(a.name);
 
 /** A page in a fresh browser, in a workspace, as a person. */
@@ -269,7 +269,7 @@ module.exports = {
       }
     }
 
-    /* ---------- motion: the page comes alive slowly enough to see (2s at most), lands with an impact, and not at all under reduced motion ---------- */
+    /* ---------- motion: the page comes alive slowly enough to see (4s at most at the default pace), lands with an impact, and not at all under reduced motion ---------- */
     for (const reduced of [false, true]) {
       const c = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
       await c.addInitScript(() => {
@@ -292,7 +292,7 @@ module.exports = {
       await p.goto(url('/'));
       await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'maya'));
       await p.goto(url('/goals/head'));
-      await p.waitForTimeout(2400);
+      await p.waitForTimeout(4500);
       const m = await p.evaluate(() => ({ anims: [...window.__gp.anims.values()], counts: window.__gp.counts }));
       if (reduced) {
         chk(m.anims.length === 0, `reduced motion: ${m.anims.length} animations ran (${[...new Set(m.anims.map((a) => a.name))].slice(0, 3).join(', ')})`);
@@ -306,6 +306,9 @@ module.exports = {
         const act = m.anims.find((a) => /pm-draw on .*c-act/.test(a.name));
         chk(!!act && act.total >= 600, `motion: the chart draws too fast to see (${act ? act.total + 'ms' : 'no draw'})`);
         // Lands with an impact: the number thumps when it lands and the latest point thumps with a ring.
+        // The default pace (Steady) is half the speed of Quick: the actual line draws over at least 1.6s.
+        chk(!!act && act.total >= 1600, `motion: at the default pace the chart should draw over at least 1.6s (${act ? act.total + 'ms' : 'no draw'})`);
+        chk(/gp-jolt/.test(names), `motion: nothing jolts when it lands (${[...new Set(m.anims.map((a) => a.name.split(' ')[0]))].join(', ')})`);
         chk(/gp-num-land/.test(names) && /gp-thump/.test(names) && /gp-ring/.test(names), `motion: no impact when it lands (${[...new Set(m.anims.map((a) => a.name.split(' ')[0]))].join(', ')})`);
         chk(m.counts.length >= 2, `motion: the number did not count up (${m.counts.join(' → ')})`);
       }

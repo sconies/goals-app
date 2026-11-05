@@ -414,7 +414,7 @@
     {
       "id": "GOAL-PAGE-ALIVE",
       "area": "Goals",
-      "text": "A goal's page moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see (the chart draws over about a second, up to 2 seconds end to end) and lands with an impact: the number and the latest point thump, a ring spreads from the point, and an off-track status gives a short shake. None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys."
+      "text": "A goal's page moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see and lands with an impact, both set in Settings: the pace (Quick, Steady or Slow; Steady, the default, is half the speed of Quick, the chart drawing over about two seconds and everything done within four) and how hard it lands (Gentle, Strong or Big: the number and the latest point thump, a ring spreads from the point, the bar and the chart jolt, and an off-track status shakes). None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys."
     },
     {
       "id": "PROJECTION-RANGE",
@@ -469,7 +469,7 @@
     {
       "id": "MOTION-ALIVE",
       "area": "Interface",
-      "text": "The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; interface motion is under 250ms, the goal page's story (its chart and headline number) up to 2 seconds so it can be seen, and all of it is off when the person asks for reduced motion."
+      "text": "The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; interface motion is under 250ms, the goal page's story (its chart and headline number) up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion."
     },
     {
       "id": "HELP-GUIDE",

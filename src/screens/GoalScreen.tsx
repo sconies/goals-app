@@ -37,6 +37,7 @@ import { MenuButton } from '../ui/MenuButton';
 import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { reducedMotion, STORY_MS } from '../ui/motion';
+import { storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 
 export function GoalScreen() {
@@ -235,7 +236,7 @@ function GoalBar({ goal, status, figures, why, feeds, stale, actions, askedLine,
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
   const num = figures.nowValue != null && goal.kind !== 'milestone'
-    ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={STORY_MS} />
+    ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={STORY_MS * storyPace()} />
     : figures.now;
   const arrow = figures.direction && (
     <span className={'bar-dir dir-' + figures.direction} title={figures.directionText ?? undefined} aria-label={figures.directionText ? `Heading: ${figures.directionText}` : undefined}>
