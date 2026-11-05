@@ -14,6 +14,8 @@ import { setAppearance, useAppearance } from '../app/appearance';
 import { useTrail } from './BackLink';
 import { useViews, viewParams } from '../screens/GoalFilters';
 import { Icon } from './Icon';
+import { PageHelp } from '../screens/Help';
+import { useUnreadNews } from '../help/seen';
 
 type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'data' | 'new' | 'workspace' | 'settings';
 const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
@@ -196,6 +198,8 @@ export function Shell({ children }: { children: ReactNode }) {
   const side = sideFor(ownsGoals);
   const tabs = tabsFor(ownsGoals, navMode);
   const views = useViews();
+  // A release this person hasn't seen: a quiet dot beside Help (and on More, on a phone) until they open What's new.
+  const unread = useUnreadNews().length > 0;
   // Presenting: the demo without its "Viewing as" bar or Demo tag. Start it with /demo?present (and ?present=0 to stop).
   const [present, setPresentState] = useState(() => {
     try {
@@ -215,7 +219,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const moreGoals = [...(ownsGoals ? [{ key: 'mine', to: '/goals?show=mine', label: 'Mine', hint: 'The goals you own' }] : []), ...(!tabs.includes('watching') ? [{ key: 'watching', to: '/watching', label: 'Watching', hint: 'The goals you follow' }] : []), ...views.slice(0, SIDE_VIEWS).map((v) => ({ key: v.id, to: '/goals?' + v.params, label: v.name, hint: v.pinned ? 'Pinned for everyone' : 'Your saved view' }))];
   const work = useRef<HTMLElement>(null);
   const at = goalsAt(pathname, search, views);
-  const title = at === 'watching' ? 'Watching' : at === 'mine' ? 'Mine' : pathname === '/settings' ? 'Settings' : [...side, ...tabs].filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : pathname.startsWith('/research') ? 'Research' : pathname.startsWith('/import') ? 'Import' : pathname.startsWith('/quick-check-in') ? 'Check-in' : 'Goals');
+  const title = at === 'watching' ? 'Watching' : at === 'mine' ? 'Mine' : pathname === '/settings' ? 'Settings' : pathname === '/whats-new' ? 'What’s new' : pathname.startsWith('/help') ? 'Help' : [...side, ...tabs].filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : pathname.startsWith('/research') ? 'Research' : pathname.startsWith('/import') ? 'Import' : pathname.startsWith('/quick-check-in') ? 'Check-in' : 'Goals');
   // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
   useEffect(() => {
     const vv = window.visualViewport;
@@ -280,6 +284,9 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
           {app.mode === 'demo' && !present && <DemoEntry onOpen={() => setSheet('demo')} />}
           <Link to="/settings" className="nav settings-nav" title="Settings" aria-current={pathname === '/settings' ? 'page' : undefined}>{NAV.settings.icon}<span>Settings</span></Link>
+          <Link to="/help" className="nav help-nav" title={unread ? 'Help, and something new in What’s new' : 'Help'} aria-current={/^\/(help|whats-new)(\/|$)/.test(pathname) ? 'page' : undefined}>
+            <Icon name="help" size={18} /><span>Help</span>{unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}
+          </Link>
           <button className="nav feedback-nav" title="Send feedback" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span>Send feedback</span></button>
           {/* Named by its own words (kept for screen readers on the rail, where they're hidden); the tooltip says the same. */}
           <button className="me" onClick={openPeople} title={`${app.mode === 'demo' ? 'Switch person' : 'Not you?'} (${app.viewer.name})`}>
@@ -296,6 +303,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <main className="work" ref={work} id="main">
           {app.mode === 'live' && app.storeKind === 'browser' && <div className="local-banner" role="note">This is a copy kept in this browser only. Nobody else sees changes made here.</div>}
           {children}
+          <PageHelp />
         </main>
       </div>
       <nav className="tabbar" aria-label="Main">
@@ -305,8 +313,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <span>{NAV[id].label}</span>
           </Link>
         ))}
-        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, navAt)) || pathname === '/settings' ? 'page' : undefined}>
-          <span className="tabicon"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg></span>
+        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, navAt)) || /^\/(settings|help|whats-new)(\/|$)/.test(pathname) ? 'page' : undefined}>
+          <span className="tabicon"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>{unread && <i className="help-dot" aria-hidden="true" />}</span>
           <span>More</span>
         </button>
       </nav>
@@ -326,6 +334,7 @@ export function Shell({ children }: { children: ReactNode }) {
           ))}
           <Link className="menuitem" to="/import" onClick={() => setSheet(null)}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 10V2m0 0 3 3M8 2 5 5M3 12.5h10" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Import</span><span className="tiny muted">Goals, plans and past numbers from a spreadsheet</span></span></Link>
           <Link className="menuitem" to="/settings" onClick={() => setSheet(null)}><Icon name="settings" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, your AI assistants</span></span></Link>
+          <Link className="menuitem more-help" to="/help" onClick={() => setSheet(null)}><Icon name="help" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Help{unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}</span><span className="tiny muted">What everything does, and what’s new</span></span></Link>
           {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.5 2" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Demo controls</span><span className="tiny muted">See it as someone else, walkthroughs, research, reset</span></span></button>}
           <button className="menuitem" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span className="strong">Send feedback</span></button>
           <button className="menuitem" onClick={openPeople}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}{app.workspaces.length > 1 ? ', and switch workspace' : ''}</span></span></button>

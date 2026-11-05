@@ -1,0 +1,86 @@
+/* Help and what's new (src/screens/Help.tsx): the guide, its articles, the release list, the quiet unread dot, the
+   Help link at the foot of every page and the one line on Home. Flat, hairline-divided, no tinted boxes. */
+
+/* ---------- The unread dot: small, in the accent, beside Help (and on More) until What's new is opened ---------- */
+.help-dot { display: inline-block; flex: none; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+.side .help-nav .help-dot { margin-left: auto; }
+.tabicon .help-dot { position: absolute; top: -1px; right: -5px; margin: 0; }
+.more-help .help-dot { margin-left: 8px; }
+/* On the rail the word is hidden, so the dot sits on the icon's corner. */
+@container app (max-width: 1100px) and (min-width: 761px) {
+  .side .help-nav .help-dot { position: absolute; top: 9px; right: 11px; margin: 0; }
+}
+@container app (min-width: 1101px) {
+  .app.nav-icons .side .help-nav .help-dot { position: absolute; top: 9px; right: 11px; margin: 0; }
+}
+.side .help-nav { color: var(--muted); }
+.side .help-nav[aria-current="page"] { color: var(--fg); }
+
+/* ---------- /help ---------- */
+.help-search { display: block; }
+.help-search .input { width: 100%; }
+.help-news { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 4px var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--fg); text-decoration: none; }
+.help-news:hover .help-news-title { text-decoration: underline; }
+.help-news-label { font-size: 0.75rem; line-height: 1rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.help-news-title { font-weight: 600; min-width: 0; }
+.help-news-date { font-size: 0.875rem; color: var(--muted); white-space: nowrap; }
+@container app (max-width: 520px) {
+  .help-news { grid-template-columns: minmax(0, 1fr) auto; }
+  .help-news-title { grid-column: 1 / -1; grid-row: 2; }
+}
+.help-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.help-row + .help-row { border-top: 1px solid var(--line-2); }
+.help-row-link { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) 0; min-height: 44px; color: var(--fg); text-decoration: none; }
+.help-row-title { font-weight: 600; color: var(--accent-text); }
+.help-row-link:hover .help-row-title { text-decoration: underline; }
+.help-row-sum { font-size: 0.875rem; line-height: 1.25rem; color: var(--muted); max-width: 68ch; }
+
+/* ---------- /help/:id ---------- */
+.help-article .page-head { gap: var(--s1); }
+.help-lead { font-size: 1.0625rem; line-height: 1.625rem; color: var(--fg-2); margin: var(--s1) 0 0; }
+.help-section { display: flex; flex-direction: column; gap: var(--s2); }
+.help-section p { margin: 0; line-height: 1.5rem; }
+.help-points { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: var(--s2); line-height: 1.5rem; max-width: 68ch; }
+.help-points li::marker { color: var(--muted); }
+.help-key { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
+.help-key li { display: inline-flex; align-items: center; gap: 6px; }
+.help-key .status-shape { width: 14px; height: 14px; }
+
+/* ---------- /whats-new ---------- */
+.news-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.news { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s5) 0; scroll-margin-top: 80px; }
+.news + .news { border-top: 1px solid var(--line-2); }
+.news:first-child { padding-top: 0; }
+.news-date { font-size: 0.75rem; line-height: 1rem; font-weight: 600; color: var(--muted); }
+.news-more { margin: 0; font-size: 0.875rem; }
+
+/* ---------- The Help link at the foot of every page ---------- */
+.page-help { padding: 0 var(--page-pad, 32px) var(--s6); margin-top: calc(-1 * var(--s5)); }
+.focus-mode .page-help { max-width: 600px; margin-top: var(--s3); }
+@container app (min-width: 1600px) { .page-help { padding-left: calc(96px + var(--page-pad, 32px)); } }
+@container app (max-width: 760px) { .page-help { padding: 0 var(--s4) var(--s5); margin-top: calc(-1 * var(--s4)); } }
+.page-help-link { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--muted); font-size: 0.875rem; font-weight: 550; text-decoration: none; border-radius: 6px; }
+.page-help-link:hover { color: var(--fg); text-decoration: underline; }
+@media (pointer: coarse) { .page-help-link { min-height: 44px; } }
+/* The map fills the window down to a 24px band under its canvas: the link sits in that band, so the page never scrolls. */
+main.work:has(.map-canvas) { position: relative; }
+main.work:has(.map-canvas) > .page-help { position: absolute; left: 0; bottom: 0; height: 24px; margin: 0; padding-top: 0; padding-bottom: 0; display: flex; align-items: center; }
+main.work:has(.map-canvas) .page-help-link { min-height: 24px; font-size: 0.8125rem; }
+/* On touch the target still reaches 44px, upwards over the canvas's edge, never below the window. */
+@media (pointer: coarse) { main.work:has(.map-canvas) .page-help-link { min-height: 44px; padding-top: 20px; margin-top: -20px; } }
+
+/* ---------- The line on Home after a release you haven't seen ---------- */
+.home-news { display: flex; align-items: center; gap: var(--s2); margin: 0; font-size: 0.875rem; line-height: 1.25rem; color: var(--fg-2); max-width: none !important; }
+.home-news-text { min-width: 0; }
+.home-news-text a { color: var(--accent-text); font-weight: 550; }
+.home-news-close { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
+.home-news-close:hover { color: var(--fg); background: var(--surface-3); }
+@media (pointer: coarse) { .home-news-close { width: 44px; height: 44px; margin: -12px -8px -12px 0; } }
+
+/* Under the greeting from a tablet up; at the foot of Home on a phone. */
+.home-news-foot { display: none; }
+@container app (max-width: 760px) {
+  .home-news-head { display: none; }
+  .home-news-foot { display: flex; padding-top: var(--s3); border-top: 1px solid var(--line-2); }
+}
+@media print { .page-help, .home-news { display: none !important; } }

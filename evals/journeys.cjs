@@ -1836,7 +1836,7 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['maya', '/'], ['elena', '/'], ['priya', '/'], ['tom', '/'], ['maya', '/goals'], ['elena', '/goals'], ['maya', '/goals/head'], ['maya', '/goals/access'], ['maya', '/activity'], ['maya', '/data'], ['priya', '/data?t=checkIns'], ['maya', '/workspace'], ['elena', '/reviews'], ['elena', '/reviews/weekly'], ['leo', '/reviews/new'], ['maya', '/watching'], ['tom', '/watching'], ['leo', '/watching'], ['maya', '/goals?show=levels'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['sam', '/goals/new'], ['priya', '/workspace/new']]) {
+    for (const [who, route] of [['maya', '/'], ['elena', '/'], ['priya', '/'], ['tom', '/'], ['maya', '/goals'], ['elena', '/goals'], ['maya', '/goals/head'], ['maya', '/goals/access'], ['maya', '/activity'], ['maya', '/data'], ['priya', '/data?t=checkIns'], ['maya', '/workspace'], ['elena', '/reviews'], ['elena', '/reviews/weekly'], ['leo', '/reviews/new'], ['maya', '/watching'], ['tom', '/watching'], ['leo', '/watching'], ['maya', '/goals?show=levels'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['sam', '/goals/new'], ['priya', '/workspace/new'], ['maya', '/help'], ['maya', '/help/status'], ['maya', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:example', w), who);
       await r.reload();
@@ -1865,7 +1865,7 @@ async function platformChecks() {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['maya', '/'], ['elena', '/'], ['maya', '/goals'], ['maya', '/goals?view=table'], ['maya', '/goals?view=board'], ['maya', '/goals?view=history'], ['maya', '/goals?view=cards'], ['maya', '/goals?view=map'],
-      ['maya', '/goals/head'], ['maya', '/goals/access'], ['elena', '/reviews/weekly'], ['maya', '/watching'], ['kofi', '/quick-check-in'], ['kofi', '/import'], ['maya', '/activity'], ['priya', '/data'], ['priya', '/workspace'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['maya', '/retro']]) {
+      ['maya', '/goals/head'], ['maya', '/goals/access'], ['elena', '/reviews/weekly'], ['maya', '/watching'], ['kofi', '/quick-check-in'], ['kofi', '/import'], ['maya', '/activity'], ['priya', '/data'], ['priya', '/workspace'], ['leo', '/check-in'], ['sam', '/goals/lead/edit'], ['maya', '/retro'], ['maya', '/help'], ['maya', '/help/status'], ['maya', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:example', w), who);
       await r.reload();

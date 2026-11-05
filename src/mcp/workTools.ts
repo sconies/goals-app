@@ -17,6 +17,8 @@ import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, 
 import { findGoal, isKey } from '../domain/goalKey';
 import type { Level, Retro, Review, Watch } from '../domain/types';
 import { isUpdateAsk, liveNotes } from '../domain/updateAsks';
+import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
+import { newsDate, newsSince } from '../help/whatsNew';
 import { hashToken, newToken } from './protocol';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 
@@ -288,6 +290,44 @@ export const WORK_TOOLS: ToolDef[] = [
       const list = ctx.snapshot.goals.map((g) => { const r = retros.find((x) => x.goalId === g.id); return { id: g.id, title: g.title, owner: name(ctx, g.ownerId), wrappedUp: !!r, result: r?.result ?? null, learned: r?.learned ?? null, next: r?.next ?? null }; });
       const open = wrapUpOpen(ctx.cycle, ctx.week);
       return { data: { open, opensWeek: ctx.cycle.weeks - 1, goals: list }, text: `${open ? 'Wrap-up is open.' : `Wrap-up opens in week ${ctx.cycle.weeks - 1}.`} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.` };
+    },
+  },
+
+  {
+    name: 'get_help',
+    title: 'Help: what the app does',
+    description: 'The app’s own guide, the same as its Help pages: one article per screen or feature, saying what it is for, how to use it and who can. Give an article’s id for the whole article, or a search for the articles that match; with neither, every article’s id, title and summary.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {
+      id: str('An article’s id, e.g. "check-in", "reviews" or "data".'),
+      search: str('Words to look for, e.g. "plan change reason". Every word must appear.'),
+    } },
+    annotations: READ,
+    async run(a) {
+      const brief = (x: Article) => ({ id: x.id, title: x.title, summary: x.summary, group: GROUPS.find((g) => g.id === x.group)?.title ?? x.group, path: `/help/${x.id}` });
+      if (a.id) {
+        const x = articleById(String(a.id));
+        if (!x) return { isError: true, text: `There’s no help article with id ${String(a.id)}. Articles: ${ARTICLES.map((y) => y.id).join(', ')}.` };
+        return { data: { ...brief(x), sections: x.sections, routes: x.routes, related: x.related.map((r) => brief(articleById(r)!)) }, text: articleText(x) };
+      }
+      const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
+      return { data: { articles: list.map(brief) }, text: lines(list.map((x) => `${x.id} · ${x.title}: ${x.summary}`), `No help article matches “${String(a.search)}”.`) };
+    },
+  },
+  {
+    name: 'whats_new',
+    title: 'What’s new in the app',
+    description: 'The app’s release notes, newest first, as its What’s new page shows them: each entry’s date, title, a few plain lines and the help articles that explain it. Optionally only those since a date.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {
+      since: str('Only entries on or after this date (yyyy-mm-dd).'),
+      limit: int('How many entries, newest first (default all).'),
+    } },
+    annotations: READ,
+    async run(a) {
+      const since = a.since ? String(a.since) : undefined;
+      if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return { isError: true, text: `Give the date as yyyy-mm-dd (not ${since}).` };
+      const n = a.limit ? Math.max(1, Number(a.limit)) : Infinity;
+      const list = newsSince(since).slice(0, n).map((e) => ({ id: e.id, date: e.date, title: e.title, points: e.points, articles: e.articles }));
+      return { data: { entries: list }, text: lines(list.map((e) => `${newsDate(e.date)}: ${e.title}\n${e.points.map((p) => `- ${p}`).join('\n')}`), since ? `Nothing new since ${since}.` : 'Nothing yet.') };
     },
   },
 

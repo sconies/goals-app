@@ -440,6 +440,16 @@
       "id": "MOTION-ALIVE",
       "area": "Interface",
       "text": "The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every animation is under 250ms and off when the person asks for reduced motion."
+    },
+    {
+      "id": "HELP-GUIDE",
+      "area": "Help",
+      "text": "The app has its own guide: one article per screen or feature saying what it is for, how to use it and who can, reachable from the sidebar, the phone's More sheet and the icon rail, searchable, and opened for the page you are on by a Help link on every page. Every screen, route and requirement has an article (checked by a test), and an AI assistant can read it through the MCP server."
+    },
+    {
+      "id": "WHATS-NEW",
+      "area": "Help",
+      "text": "What's new lists each release newest first, with a date, a title, a few plain lines for people and links to the guide. A quiet dot beside Help, and one dismissible line on Home, show a release the person hasn't seen until they open What's new, remembered across reloads. CI refuses a change to the app without an entry, and an AI assistant can read the entries."
     }
   ],
   "notYetBuilt": [

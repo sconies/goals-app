@@ -8,6 +8,7 @@
 
   Status is always a shape plus a word. `npm run evals` enforces these rules (design check P6).
 - **Quality gate:** nothing is pushed until `npm run typecheck`, `npm test` and `npm run evals` all pass with no regressions. New features come with their own evals.
+- **Help and What's new:** every change people can see adds an entry at the top of `src/help/whatsNew.ts` and updates the guide in `src/help/guide.ts` (an article per screen; new screens, routes and requirements need one, checked by `src/help/guide.test.ts`). CI fails a pull request that changes `src/` or `supabase/migrations` without touching What's new; a pure refactor says `[no news]` in a commit message.
 - **Language:** plain British English. The UI is low density and calm, with one primary action per screen.
 - **Rules live once:** status rules, check-in rules and the bulk-change engine are shared by the app, the import and the MCP server. Don't restate them.
 - **Database:** migrations live in `supabase/migrations`. A paste-in script for the ones not yet applied lives in `supabase/manual`. Apply migrations before merging code that needs them.
