@@ -109,7 +109,7 @@ export function withPlanOf(base: Goal, plan: Goal): Goal {
  */
 export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; createdAt: string }, existing: Goal | null, checkInsStarted: boolean, week: number): Goal {
   const common = {
-    id: base.id, cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.io,
+    id: base.id, ...(existing?.key ? { key: existing.key } : {}), cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title.trim(), io: d.io,
     level: d.level, guardrail: d.guardrail, parentId: d.parentId || null,
     effect: d.parentId ? parseNumber(d.effect) : null, ...(d.parentId && d.whyHelps.trim() ? { whyHelps: d.whyHelps.trim() } : {}), ...((d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id).length ? { alsoHelps: (d.alsoHelps ?? []).filter((id) => id !== d.parentId && id !== base.id) } : {}), source: d.source.trim(), definition: d.definition.trim(), createdAt: base.createdAt,
   };

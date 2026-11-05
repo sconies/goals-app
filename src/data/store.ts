@@ -1,3 +1,4 @@
+import { settleKeys, withKeys } from '../domain/goalKey';
 import { requestsOf } from '../domain/requests';
 import type { ApiToken, HelpRequest, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Watch, Workspace } from '../domain/types';
 import { EXAMPLE_PLATFORM, EXAMPLES } from './examples';
@@ -89,7 +90,8 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
   const bump = <T extends { id: string; version?: number }>(list: T[], items: T[] = []) => items.map((x) => { const old = list.find((y) => y.id === x.id); return { ...x, version: old ? (old.version ?? 0) + 1 : 0 }; });
   const byId = new Map(s.goals.map((g, i) => [g.id, i]));
   const goals = [...s.goals];
-  for (const g of bump(s.goals, c.goals)) { const i = byId.get(g.id); if (i == null) { byId.set(g.id, goals.length); goals.push(g); } else goals[i] = g; }
+  // Keys never change, and no two goals in a cycle share one (domain/goalKey).
+  for (const g of bump(s.goals, c.goals && settleKeys(s.goals, c.goals))) { const i = byId.get(g.id); if (i == null) { byId.set(g.id, goals.length); goals.push(g); } else goals[i] = g; }
   // Check-ins are kept, any number a week; one is replaced only when it is saved again with its own id.
   const newIds = new Set((c.checkIns ?? []).map((n) => n.id));
   const replaced = (x: CheckIn) => newIds.has(x.id);
@@ -152,7 +154,8 @@ export class BrowserStore implements Store {
   private current(id: string): Snapshot {
     // What's stored first: another tab may have saved since this one last looked.
     const s = this.get<Snapshot>(`${this.key}:${id}`) ?? this.memory.get(id);
-    if (s) return s;
+    // Data saved before goals had keys gets them once, oldest first, and keeps them.
+    if (s) return s.goals.every((g) => g.key) ? s : this.write(id, { ...s, goals: withKeys(s.goals) });
     const build = this.hasExample ? exampleBuild(id) : undefined;
     if (!build) throw new Error('This workspace no longer exists in this browser.');
     return this.write(id, build(this.today()));
@@ -170,7 +173,7 @@ export class BrowserStore implements Store {
 
   async commit(id: string, c: Commit) {
     // Read what's stored now, not this tab's copy: another tab may have saved since.
-    const stored = this.get<Snapshot>(`${this.key}:${id}`) ?? this.current(id);
+    const stored = this.current(id);
     checkExpectations(stored, c.expect);
     const { expect: _e, ...rest } = c;
     this.write(id, applyCommit(stored, rest));

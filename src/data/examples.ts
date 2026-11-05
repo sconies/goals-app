@@ -4,6 +4,7 @@
    today; all names and numbers are invented. */
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../domain/checkin';
 import { checkInChange, goalChange } from '../domain/changes';
+import { withKeys } from '../domain/goalKey';
 import type { Cause, Change, CheckIn, Cycle, Goal, Level, Person, Review, Snapshot, StageUpdate, Team, Watch, Workspace } from '../domain/types';
 import { seed } from './seed';
 import { demoYear, steadyDraft, storyOffset, storyValue, yearName, yearWeekOf } from './yearStory';
@@ -46,7 +47,7 @@ export function buildExample(spec: ExampleSpec, today: Date): Snapshot {
   const start = Date.parse(startDate + 'T00:00:00Z');
   const cycle: Cycle = { id: 'cycle', name: yearName(startDate, year.weeks), startDate, weeks: year.weeks, reviewDay: spec.reviewDay };
   const people: Person[] = spec.people.map((p) => ({ ...p, initials: initials(p.name), admin: !!p.admin }));
-  const goals: Goal[] = spec.goals.map((g, i): Goal => {
+  const goals: Goal[] = withKeys(spec.goals.map((g, i): Goal => {
     const base = {
       id: g.id, cycleId: cycle.id, teamId: g.team, ownerId: g.owner, title: g.title, source: g.source, definition: g.definition ?? '',
       io: (g.parent ? 'input' : 'output') as Goal['io'], level: g.level ?? 'team', guardrail: !!g.guardrail, parentId: g.parent ?? null, effect: null,
@@ -55,7 +56,7 @@ export function buildExample(spec: ExampleSpec, today: Date): Snapshot {
     if (g.metric) return { ...base, kind: 'metric', unit: g.metric.unit, decimals: g.metric.decimals ?? 0, plan: { start: g.metric.start, target: g.metric.target, shape: g.metric.shape ?? 'straight' }, originalPlan: null, rebaselinedWeek: null };
     if (g.range) return { ...base, kind: 'range', unit: g.range.unit, decimals: g.range.decimals ?? 0, range: { bound: g.range.bound, limit: g.range.limit, margin: g.range.margin } };
     return { ...base, kind: 'milestone', stages: (g.stages ?? []).map(([name, due], k) => ({ id: `${g.id}_s${k}`, name, dueWeek: toYear(due) })) };
-  });
+  }));
   const postedAt = (week: number) => new Date(Math.max(start + week * 7 * DAY, Math.min(start + week * 7 * DAY + 2 * DAY + 10 * 3_600_000, today.getTime() - 60_000)));
 
   const checkIns: CheckIn[] = [];

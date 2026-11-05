@@ -9,7 +9,7 @@ export interface PersonRow extends W { id: string; name: string; role: string; i
 export interface CycleRow extends W { id: string; name: string; start_date: string; weeks: number; review_day: number }
 export interface StageRow extends W { id: string; goal_id: string; name: string; due_week: number }
 export interface GoalRow extends W {
-  id: string; cycle_id: string; team_id: string; owner_id: string; parent_id: string | null; title: string;
+  id: string; key?: string | null; cycle_id: string; team_id: string; owner_id: string; parent_id: string | null; title: string;
   kind: Goal['kind']; io: Goal['io']; headline: boolean; level: Level; guardrail: boolean; effect: number | null; why_helps?: string | null; source: string; definition: string;
   unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null; plan_end_week?: number | null; plan_points?: MetricPlan['points'] | null;
   original_plan: MetricPlan | null; rebaselined_week: number | null; range_bound: 'atMost' | 'atLeast' | null; range_limit: number | null;
@@ -43,7 +43,8 @@ export const cycleFromRow = (r: CycleRow): Cycle => ({ id: r.id, name: r.name, s
 export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageRow[] } {
   const goal: GoalRow = {
     workspace_id: ws,
-    id: g.id, cycle_id: g.cycleId, team_id: g.teamId, owner_id: g.ownerId, parent_id: g.parentId, title: g.title, kind: g.kind, io: g.io,
+    // The key arrives with migration 0021; the database gives one to a goal that comes without (okr_goal_key).
+    id: g.id, key: g.key ?? null, cycle_id: g.cycleId, team_id: g.teamId, owner_id: g.ownerId, parent_id: g.parentId, title: g.title, kind: g.kind, io: g.io,
     headline: false, level: g.level, guardrail: g.guardrail, effect: g.effect, why_helps: g.whyHelps ?? null, source: g.source, definition: g.definition,
     unit: g.kind === 'milestone' ? null : g.unit, decimals: g.kind === 'milestone' ? null : g.decimals,
     plan_start: g.kind === 'metric' ? g.plan.start : null, plan_target: g.kind === 'metric' ? g.plan.target : null, plan_shape: g.kind === 'metric' ? g.plan.shape : null, plan_from_week: g.kind === 'metric' ? g.plan.fromWeek ?? 0 : 0, plan_end_week: g.kind === 'metric' ? g.plan.endWeek ?? null : null, plan_points: g.kind === 'metric' && g.plan.points?.length ? g.plan.points : null,
@@ -66,7 +67,7 @@ const planOf = (op: MetricPlan): MetricPlan => ({
 
 export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
   const common = {
-    id: r.id, cycleId: r.cycle_id, teamId: r.team_id, ownerId: r.owner_id, parentId: r.parent_id, title: r.title, io: r.io,
+    id: r.id, ...(r.key ? { key: r.key } : {}), cycleId: r.cycle_id, teamId: r.team_id, ownerId: r.owner_id, parentId: r.parent_id, title: r.title, io: r.io,
     level: r.level ?? (r.headline ? 'north-star' : 'team'), guardrail: r.guardrail, effect: num(r.effect), ...(r.why_helps ? { whyHelps: r.why_helps } : {}), source: r.source, definition: r.definition, createdAt: iso(r.created_at),
     ...(r.pending ? { pending: r.pending } : {}),
     ...(r.version != null ? { version: Number(r.version) } : {}),

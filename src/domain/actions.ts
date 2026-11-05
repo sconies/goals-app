@@ -9,6 +9,7 @@ import { personChange, personProblems } from './people';
 import { answerRequest as answered, canAnswer, linkRequest as linked } from './requests';
 import { sessionWeek } from './review';
 import { checkInsFor } from './status';
+import { clampWidth, isTableView, layoutParams, layoutProblems, parseLayout, type TableLayout } from './tableLayout';
 import type { ApiToken, Cycle, Decision, Goal, HelpRequest, Level, Person, Retro, Review, SavedView, Snapshot, Watch } from './types';
 import { askChange, openUpdateAsk, undoAskChange, updateAskText } from './updateAsks';
 
@@ -227,10 +228,26 @@ export function saveView(x: ActionContext, v: { id?: string; name: string; param
   if (!clean) no('Give the view a name.');
   const old = v.id ? liveView(x, v.id) : undefined;
   if (v.id && !old) no('There’s no view with that ID.');
+  // A view of a data table stays one, and a view of the Goals screen stays one.
+  if (isTableView(v)) { const problems = layoutProblems(parseLayout(v.params)); if (problems.length) no(problems.join(' ')); }
+  if (old && isTableView(old) !== isTableView(v)) no(isTableView(old) ? 'That view is of a data table; save a table layout to it.' : 'That view is of the Goals screen, not a data table.');
   if (old && old.personId !== x.actor.id && !x.actor.admin) no('Only its owner or an admin can change this view.');
   const view: SavedView = old ? { ...old, name: clean, params: v.params, updatedAt: x.now } : { id: x.newId('view'), personId: x.actor.id, name: clean, params: v.params, pinned: false, createdAt: x.now, updatedAt: x.now, deletedAt: null };
   // A personal view changes no goal, so it isn't logged; a pinned one changes what everyone sees, so it is.
   return { id: view.id, commit: { views: [view], changes: old?.pinned ? [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: view.id, action: 'edited', summary: `Changed the pinned view “${clean}”`, diffs: [{ field: 'Pinned view', from: old.name, to: clean }] }] : [] } };
+}
+
+/**
+ * Save the layout of a data table (its columns in order, their widths, and its search, filters and sort) as a named
+ * table view, or change one of yours. Given the table's columns, a column it doesn't have is refused. It's a saved view
+ * like any other: yours, an admin can pin it for everyone, and it's deleted the same way.
+ */
+export function saveTableView(x: ActionContext, v: { id?: string; name: string; layout: TableLayout }, head?: readonly string[]): { commit: Commit; id: string } {
+  const problems = layoutProblems(v.layout, head);
+  if (problems.length) no(problems.join(' '));
+  if (v.layout.cols && !v.layout.cols.length) no('Show at least one column.');
+  const widths = Object.fromEntries(Object.entries(v.layout.widths).map(([c, w]) => [c, clampWidth(v.layout.table, c, w)]));
+  return saveView(x, { id: v.id, name: v.name, params: layoutParams({ ...v.layout, widths }) });
 }
 
 /** Delete one of your views; an admin can also delete a pinned one. Null when it's already gone. */

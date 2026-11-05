@@ -1,5 +1,5 @@
 /* The app's own icons: 16px line drawings in the nav's style (design rule 3: no glyph characters as icons). */
-export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'arrow-up' | 'arrow-down' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch' | 'check-circle' | 'alert' | 'chevron-up' | 'more' | 'check';
+export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'arrow-up' | 'arrow-down' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch' | 'check-circle' | 'alert' | 'chevron-up' | 'more' | 'check' | 'grip' | 'download';
 
 const PATHS: Record<IconName, string> = {
   check: 'M3.5 8.5l3 3 6-7',
@@ -19,6 +19,9 @@ const PATHS: Record<IconName, string> = {
   switch: 'M3 5.5h9l-2.5-2.5M13 10.5H4l2.5 2.5',
   'check-circle': 'M8 1.75a6.25 6.25 0 1 0 0 12.5 6.25 6.25 0 0 0 0-12.5zM5.4 8.2l1.8 1.8 3.4-3.8',
   alert: 'M8 1.75a6.25 6.25 0 1 0 0 12.5 6.25 6.25 0 0 0 0-12.5zM8 4.9v3.6M8 10.9v.2',
+  // Something you can pick up and move: two columns of three dots.
+  grip: 'M6 4v.1M10 4v.1M6 8v.1M10 8v.1M6 12v.1M10 12v.1',
+  download: 'M8 2.5v7.5M4.75 6.75 8 10l3.25-3.25M3 13.25h10',
 };
 
 /** A decorative icon (hidden from screen readers): the button or text beside it says what it does. */

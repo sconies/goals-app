@@ -144,7 +144,7 @@ describe('bulk changes', () => {
   it('round-trips through CSV', () => {
     const wb = workbook({ ws: { id: 'ws', name: 'P' }, snapshot: s, cycle, week, today });
     const rows = parseTable(toCsv(wb[0]!.rows));
-    expect(rows[0]![0]).toBe('ID');
+    expect(rows[0]!.slice(0, 2)).toEqual(['Key', 'ID']);
     expect(rows.length).toBe(wb[0]!.rows.length);
   });
 });

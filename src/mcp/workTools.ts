@@ -10,6 +10,9 @@ import { wrapUpOpen } from '../domain/cycle';
 import { askText, openForPerson, requestsOf } from '../domain/requests';
 import { agendaOf, answerOf, openQuestions, reviewSession, watchedGoals } from '../domain/review';
 import { checkInsFor } from '../domain/status';
+import { toCsv, workbook } from '../domain/export';
+import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, shownTable, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
+import { findGoal, isKey } from '../domain/goalKey';
 import type { Level, Retro, Review, Watch } from '../domain/types';
 import { isUpdateAsk, liveNotes } from '../domain/updateAsks';
 import { hashToken, newToken } from './protocol';
@@ -34,11 +37,13 @@ async function save(ctx: McpContext, c: Commit | null, done: string, nothing: st
 }
 
 const name = (ctx: McpContext, id: string | null | undefined) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? '—';
+/** A goal by its ID or its key (G-12). */
 const goalOf = (ctx: McpContext, id: unknown) => {
-  const g = ctx.snapshot.goals.find((x) => x.id === id);
-  if (!g) throw new Error(`There’s no goal with ID ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs.`);
+  const g = findGoal(ctx.snapshot.goals, String(id ?? ''));
+  if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? '')) ? 'key' : 'ID'} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
   return g;
 };
+const goalIds = (ctx: McpContext, v: unknown) => (v as string[] | undefined)?.map((id) => goalOf(ctx, id).id);
 const requestOf = (ctx: McpContext, id: unknown) => {
   const r = requestsOf(ctx.snapshot).find((x) => x.id === id);
   if (!r) throw new Error(`There’s no request with ID ${String(id)}. Use list_requests to get IDs.`);
@@ -71,10 +76,30 @@ const levelsOf = (v: unknown): Level[] => {
 };
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
   id: r.id, ask: askText(r, ctx.snapshot.people), status: r.status, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
-  goals: r.goalIds.map((g) => ({ id: g, title: ctx.snapshot.goals.find((x) => x.id === g)?.title ?? g })), raisedAt: r.createdAt,
+  goals: r.goalIds.map((g) => { const x = ctx.snapshot.goals.find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
   answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && (!r.recipientId || r.recipientId === ctx.actor.id || ctx.actor.admin),
 });
 const lines = (l: string[], none: string) => (l.length ? l.join('\n') : none);
+
+/** A data table's sheet, from the same workbook the Data screen and the exports use. */
+const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today }).find((x) => x.name === TABLES[t].sheet)!;
+const headOf = (ctx: McpContext, t: DataTable) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ''));
+/** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
+function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLayout {
+  if (a.view != null) {
+    const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+    const l = v ? parseLayout(v.params) : null;
+    if (!l) throw new Error(`There’s no table view called “${String(a.view)}” that you can see. Use list_views.`);
+    return l;
+  }
+  if (!isDataTable(a.table)) throw new Error(`Say which table: ${TABLE_ORDER.join(', ')}.`);
+  const parsed = parseLayout(`table=${a.table}&${String(a.query ?? '').replace(/^.*\?/, '')}`)!;
+  const widths = (a.widths ?? {}) as Record<string, number>;
+  const layout: TableLayout = { ...parsed, cols: (a.columns as string[] | undefined)?.length ? (a.columns as string[]) : null, widths: Object.fromEntries(Object.entries(widths).map(([c, w]) => [c, Number(w)])) };
+  const problems = layoutProblems(layout, headOf(ctx, layout.table));
+  if (problems.length) throw new Error(`${problems.join(' ')} Its columns: ${choosableColumns(layout.table, headOf(ctx, layout.table)).join(', ')}.`);
+  return layout;
+}
 
 export const WORK_TOOLS: ToolDef[] = [
   /* ---------- Reading ---------- */
@@ -115,7 +140,7 @@ export const WORK_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       status: str('Which requests.', { enum: ['open', 'answered', 'withdrawn', 'all'] }),
       for_me: bool('Only requests asked of you (or of anyone).'),
-      goal_id: str('Only requests a goal is waiting on.'),
+      goal_id: str('Only requests a goal is waiting on (its ID or key).'),
     } },
     annotations: READ,
     async run(a, ctx) {
@@ -123,7 +148,7 @@ export const WORK_TOOLS: ToolDef[] = [
       const list = requestsOf(ctx.snapshot)
         .filter((r) => st === 'all' || r.status === st)
         .filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id)
-        .filter((r) => !a.goal_id || r.goalIds.includes(String(a.goal_id)))
+        .filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id))
         .map((r) => requestData(ctx, r));
       return { data: { requests: list }, text: lines(list.map((r) => `${r.id} · ${r.status} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(', ')}${r.answer ? ` · answer: ${r.answer}` : ''}`), 'No requests match.') };
     },
@@ -186,11 +211,12 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'get_activity',
     title: 'The activity log',
-    description: 'Every saved change, newest first: who made it, when, and what changed. Filter with the same query as the Activity page, e.g. "who=maya&kind=checkins,plans&when=this-week". Keys: q (words), who (person IDs), goal (a goal ID; add tree=1 for what feeds it), team (IDs), level (north-star, svp, team), kind (checkins, plans, goals, reviews, comments, people, imports, ai, cycle), when (this-week, last-week, quarter, custom with from and to as yyyy-mm-dd).',
+    description: 'Every saved change, newest first: who made it, when, and what changed. Filter with the same query as the Activity page, e.g. "who=maya&kind=checkins,plans&when=this-week". Keys: q (words), who (person IDs), goal (a goal’s ID or key; add tree=1 for what feeds it), team (IDs), level (north-star, svp, team), kind (checkins, plans, goals, reviews, comments, people, imports, ai, cycle), when (this-week, last-week, quarter, custom with from and to as yyyy-mm-dd).',
     inputSchema: { type: 'object', additionalProperties: false, properties: { query: str('An Activity link’s query string.'), limit: int('How many changes, newest first (default 50, at most 500).') } },
     annotations: READ,
     async run(a, ctx) {
       const q = parseActivity(new URLSearchParams(String(a.query ?? '').replace(/^.*\?/, '')));
+      if (q.goal) q.goal = goalOf(ctx, q.goal).id;
       const keep = activityFilter(q, { snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, watched: null });
       const n = Math.min(500, Math.max(1, Number(a.limit ?? 50)));
       const list = ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n)
@@ -201,12 +227,15 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'list_views',
     title: 'Saved views',
-    description: 'Your saved views of the goals and the ones pinned for everyone, with each one’s query (use it with find_goals).',
+    description: 'Your saved views and the ones pinned for everyone: views of the Goals screen, with each one’s query (use it with find_goals), and table views of the data tables, with their columns in order and widths (use them with export_table).',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
     async run(_a, ctx) {
-      const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => ({ id: v.id, name: v.name, query: v.params, pinned: v.pinned, owner: name(ctx, v.personId) }));
-      return { data: { views: list }, text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? ' (pinned)' : ''} · ${v.query}`), 'No saved views.') };
+      const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
+        const l = isTableView(v) ? parseLayout(v.params) : null;
+        return { id: v.id, name: v.name, of: l ? `the ${TABLES[l.table].label} data table` : 'the Goals screen', ...(l ? { table: l.table, columns: l.cols, widths: l.widths } : {}), query: v.params, pinned: v.pinned, owner: name(ctx, v.personId) };
+      });
+      return { data: { views: list }, text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? ' (pinned)' : ''} · of ${v.of} · ${v.query}`), 'No saved views.') };
     },
   },
   {
@@ -259,7 +288,7 @@ export const WORK_TOOLS: ToolDef[] = [
     name: 'link_request',
     title: 'Wait on the same request',
     description: 'Say a goal waits on a request already raised for another goal, so the person asked sees it once. Its own open request to the same person is withdrawn. The goal’s owner or an admin.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id', 'goal_id'], properties: { request_id: str('The request’s ID.'), goal_id: str('The goal that waits on it.') } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id', 'goal_id'], properties: { request_id: str('The request’s ID.'), goal_id: str('The goal that waits on it (its ID or key).') } },
     annotations: WRITE,
     async run(a, ctx) { return save(ctx, A.linkRequest(ax(ctx), requestOf(ctx, a.request_id), goalOf(ctx, a.goal_id)), 'Linked the goal to the request', ''); },
   },
@@ -267,7 +296,7 @@ export const WORK_TOOLS: ToolDef[] = [
     name: 'withdraw_request',
     title: 'Withdraw a request',
     description: 'Withdraw a goal’s request between check-ins, or stop the goal waiting on a request raised for another goal. The goal’s owner or an admin.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id', 'goal_id'], properties: { request_id: str('The request’s ID.'), goal_id: str('The goal withdrawing it.') } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['request_id', 'goal_id'], properties: { request_id: str('The request’s ID.'), goal_id: str('The goal withdrawing it (its ID or key).') } },
     annotations: WRITE,
     async run(a, ctx) { return save(ctx, A.withdrawRequest(ax(ctx), requestOf(ctx, a.request_id), goalOf(ctx, a.goal_id)), 'Withdrew the request', ''); },
   },
@@ -275,7 +304,7 @@ export const WORK_TOOLS: ToolDef[] = [
     name: 'ask_for_update',
     title: 'Ask the owner for an update',
     description: 'Ask a goal’s owner to post an update: it shows on their Home until they check in. Asking twice before they do does nothing more.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID.') } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.') } },
     annotations: { ...WRITE, idempotentHint: true },
     async run(a, ctx) { const g = goalOf(ctx, a.goal_id); return save(ctx, A.askForUpdate(ax(ctx), g), `Asked ${name(ctx, g.ownerId)} for an update on ${g.title}`, 'Already asked: it’s on their Home until they check in.'); },
   },
@@ -283,7 +312,7 @@ export const WORK_TOOLS: ToolDef[] = [
     name: 'undo_update_ask',
     title: 'Undo an ask for an update',
     description: 'Take back an ask for an update: whoever asked, or an admin. It drops off the owner’s Home; the log keeps both.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID.') } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.') } },
     annotations: WRITE,
     async run(a, ctx) { return save(ctx, A.undoUpdateAsk(ax(ctx), goalOf(ctx, a.goal_id)), 'Undid the ask for an update', 'There’s no open ask for an update on that goal.'); },
   },
@@ -294,7 +323,7 @@ export const WORK_TOOLS: ToolDef[] = [
     title: 'Say something in a review',
     description: 'In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, or agree an action (who and by when). Logged in this session of the review.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['review_id', 'goal_id', 'kind'], properties: {
-      review_id: str('The review’s ID.'), goal_id: str('The goal’s ID.'),
+      review_id: str('The review’s ID.'), goal_id: str('The goal’s ID or its key, e.g. G-12.'),
       kind: str('What it is.', { enum: ['acknowledge', 'note', 'ask', 'action'] }),
       text: str('The note, question or action. Optional when acknowledging.'),
       who: str('Actions: who does it (name or ID). Defaults to the goal’s owner.'),
@@ -331,7 +360,7 @@ export const WORK_TOOLS: ToolDef[] = [
       name: str('Its name, e.g. "Platform weekly review".'),
       every_weeks: int('Held every 1, 2 or 4 weeks.'),
       weekday: str('The weekday.', { enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }),
-      goals: ids('Goal IDs it walks.'), trees: ids('Goal IDs it walks with everything feeding them.'), levels: ids('Levels it walks: north-star, svp, team.'),
+      goals: ids('Goal IDs or keys it walks.'), trees: ids('Goal IDs or keys it walks with everything feeding them.'), levels: ids('Levels it walks: north-star, svp, team.'),
       people: ids('Who’s in it (names or IDs). New reviews include you.'),
     } },
     annotations: WRITE,
@@ -342,11 +371,11 @@ export const WORK_TOOLS: ToolDef[] = [
       const people = a.people ? [...new Set([...(a.people as string[]).map((p) => personOf(ctx, p).id)])] : undefined;
       if (a.review_id) {
         const before = reviewOf(ctx, a.review_id);
-        const scope = { goals: (a.goals as string[] | undefined) ?? before.scope.goals, trees: (a.trees as string[] | undefined) ?? before.scope.trees, levels: a.levels ? levelsOf(a.levels) : before.scope.levels };
+        const scope = { goals: goalIds(ctx, a.goals) ?? before.scope.goals, trees: goalIds(ctx, a.trees) ?? before.scope.trees, levels: a.levels ? levelsOf(a.levels) : before.scope.levels };
         const after: Review = { ...before, name: a.name !== undefined ? String(a.name).trim() : before.name, everyWeeks: a.every_weeks !== undefined ? Number(a.every_weeks) : before.everyWeeks, weekday: day ?? before.weekday, scope, people: people ?? before.people };
         return save(ctx, A.saveReview(ax(ctx), after, before), `Changed the review “${after.name}”`, '');
       }
-      const r = A.newReview(ax(ctx), { name: String(a.name ?? ''), everyWeeks: Number(a.every_weeks ?? 1), weekday: day ?? ctx.cycle.reviewDay, goals: a.goals as string[] | undefined, trees: a.trees as string[] | undefined, levels: levelsOf(a.levels), people: people ? [...new Set([ctx.actor.id, ...people])] : undefined });
+      const r = A.newReview(ax(ctx), { name: String(a.name ?? ''), everyWeeks: Number(a.every_weeks ?? 1), weekday: day ?? ctx.cycle.reviewDay, goals: goalIds(ctx, a.goals), trees: goalIds(ctx, a.trees), levels: levelsOf(a.levels), people: people ? [...new Set([ctx.actor.id, ...people])] : undefined });
       const out = await save(ctx, A.saveReview(ax(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, '');
       return { ...out, data: { id: r.id } };
     },
@@ -357,9 +386,12 @@ export const WORK_TOOLS: ToolDef[] = [
     name: 'watch',
     title: 'Watch goals',
     description: 'Watch a goal, a goal and everything feeding it, or every goal at a level. Watched goals are on the Watching page and in get_my_work.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['kind', 'ref'], properties: { kind: str('What to watch.', { enum: ['goal', 'tree', 'level'] }), ref: str('A goal ID, or a level (north-star, svp, team).') } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['kind', 'ref'], properties: { kind: str('What to watch.', { enum: ['goal', 'tree', 'level'] }), ref: str('A goal’s ID or key (G-12), or a level (north-star, svp, team).') } },
     annotations: { ...WRITE, idempotentHint: true },
-    async run(a, ctx) { return save(ctx, A.watch(ax(ctx), a.kind as Watch['kind'], String(a.ref ?? '')), `Watching ${a.kind === 'level' ? `every ${String(a.ref)} goal` : goalOf(ctx, a.ref).title}`, 'Already watching that.'); },
+    async run(a, ctx) {
+      const ref = a.kind === 'level' ? String(a.ref ?? '') : goalOf(ctx, a.ref).id;
+      return save(ctx, A.watch(ax(ctx), a.kind as Watch['kind'], ref), `Watching ${a.kind === 'level' ? `every ${ref} goal` : goalOf(ctx, ref).title}`, 'Already watching that.');
+    },
   },
   {
     name: 'unwatch',
@@ -395,7 +427,7 @@ export const WORK_TOOLS: ToolDef[] = [
     title: 'Wrap up a goal',
     description: 'In the last two weeks of a cycle, the goal’s owner (or an admin) says how it landed, what was learned, and whether it carries on into the next cycle. Can be changed until the next cycle starts.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'result', 'learned', 'next'], properties: {
-      goal_id: str('The goal’s ID.'), result: str('How it landed.', { enum: ['hit', 'partly', 'missed'] }), learned: str('One thing worth knowing next time (a sentence).'), next: str('Next cycle.', { enum: ['carry', 'stop'] }),
+      goal_id: str('The goal’s ID or its key, e.g. G-12.'), result: str('How it landed.', { enum: ['hit', 'partly', 'missed'] }), learned: str('One thing worth knowing next time (a sentence).'), next: str('Next cycle.', { enum: ['carry', 'stop'] }),
     } },
     annotations: { ...WRITE, idempotentHint: true },
     async run(a, ctx) {
@@ -423,13 +455,52 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'save_view',
     title: 'Save a view of the goals',
-    description: 'Save a search, filters and sort of the Goals screen under a name (the same query find_goals takes), or rename or change one of yours. Without view_id it saves a new one.',
+    description: 'Save a search, filters and sort of the Goals screen under a name (the same query find_goals takes), or rename or change one of yours. Without view_id it saves a new one. For a data table’s layout, use save_table_view.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['name', 'query'], properties: { view_id: str('The view to change.'), name: str('Its name.'), query: str('The Goals query, e.g. "status=off,risk&sort=gap".') } },
     annotations: WRITE,
     async run(a, ctx) {
       const out = A.saveView(ax(ctx), { id: a.view_id as string | undefined, name: String(a.name ?? ''), params: String(a.query ?? '').replace(/^.*\?/, '') });
       const r = await save(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, '');
       return { ...r, data: { id: out.id } };
+    },
+  },
+  {
+    name: 'save_table_view',
+    title: 'Save a data table’s layout',
+    description: 'Save a layout of one of the data tables (goals, checkIns, plan, requests, people) as a named table view, as the Data screen does: the columns to show, in order (the table’s name column always comes first), their widths in pixels, and its search, filters and sort. Without view_id it saves a new one; with it, it changes one of yours. Open it in the app from Data, or export it with export_table.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['name', 'table'], properties: {
+      view_id: str('The table view to change.'), name: str('Its name.'), table: str('Which data table.', { enum: TABLE_ORDER }),
+      columns: ids('The columns to show, in order, by their names as the table heads them (e.g. "Key", "Owner", "Status"). Leave out for the usual columns.'),
+      widths: { type: 'object', additionalProperties: { type: 'number' }, description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and ${MAX_WIDTH}.` },
+      query: str('Search, filters and sort as the Data link carries them, e.g. "q=pipeline&f=Owner~is~Maya Chen&s=Week~desc". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.'),
+    } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      const layout = layoutFrom(ctx, a);
+      const out = A.saveTableView(ax(ctx), { id: a.view_id as string | undefined, name: String(a.name ?? ''), layout }, headOf(ctx, layout.table));
+      const r = await save(ctx, out.commit, `Saved the table view “${String(a.name).trim()}” (ID ${out.id})`, '');
+      return { ...r, data: { id: out.id } };
+    },
+  },
+  {
+    name: 'export_table',
+    title: 'Export a data table as shown',
+    description: 'One of the data tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted. Give a saved table view by name, or the table with columns and a query. CSV by default, or rows as JSON.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {
+      view: str('The name of a saved table view: one of yours, or one pinned for everyone.'),
+      table: str('Which data table, when not using a view.', { enum: TABLE_ORDER }),
+      columns: ids('The columns, in order. Leave out for the usual columns.'),
+      query: str('Search, filters and sort, as for save_table_view.'),
+      format: str('CSV text, or rows as JSON.', { enum: ['csv', 'json'] }),
+    } },
+    annotations: READ,
+    async run(a, ctx) {
+      const layout = layoutFrom(ctx, a);
+      const rows = shownTable(sheetOf(ctx, layout.table), layout);
+      const [head = [], ...body] = rows;
+      const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? 'row' : 'rows'}, ${head.length} columns`;
+      if (a.format === 'json') return { data: { table: layout.table, columns: head, rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null]))) }, text: what };
+      return { data: { table: layout.table, columns: head, count: body.length }, text: toCsv(rows) };
     },
   },
   {
