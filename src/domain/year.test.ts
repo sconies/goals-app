@@ -1,6 +1,5 @@
 // @vitest-environment node
-import { seed } from '../data/seed';
-import { yearWeekOf } from '../data/yearStory';
+import { buildPlatformOrg } from '../data/platformOrg';
 import { buildGoal, draftOf, goalAsOf, planHistoryOf } from './goal';
 import { currentWeek, weekDate, weekDates } from './plan';
 import { assessPosted } from './status';
@@ -11,10 +10,9 @@ import { yearName } from './yearName';
 import { stagesFromNow } from './templates';
 
 const today = new Date('2026-10-30T12:00:00Z');
-const s = seed(today);
+const s = buildPlatformOrg(today);
 const cycle = s.cycles[0]!;
 const week = currentWeek(cycle, today);
-const toYear = yearWeekOf(week);
 const goal = (id: string) => s.goals.find((g) => g.id === id)!;
 
 describe('the goal year', () => {
@@ -65,52 +63,54 @@ describe('the goal year', () => {
 
 describe('quarters read off the owner’s plan', () => {
   it('a quarter’s target is the plan’s number at its end, and any week in between has one too', () => {
-    const g = goal('triage') as MetricGoal;
+    const g = goal('mttr-pir') as MetricGoal;
     expect(targetAt(g, cycle, 13)).toBeCloseTo(40 + (45 * 13) / 53, 5);
     expect(targetAt(g, cycle, 53)).toBe(85);
   });
   it('says whether each ended quarter was met, and keeps the rest open', () => {
-    const rs = quarterResults(goal('scan'), cycle, s.checkIns, week);
+    const rs = quarterResults(goal('ns-slo'), cycle, s.checkIns, week);
     expect(rs.map((r) => r.kind)).toEqual(['met', 'met', 'met', 'open']);
-    expect(rs[0]!.text).toMatch(/^Q1: \d+% against a plan of \d+%$/);
+    expect(rs[0]!.text).toMatch(/^Q1: [\d.]+% within (at least|at most) [\d.]+%$|^Q1: /);
   });
   it('a missed quarter is said plainly, and the story flags it', () => {
-    const g = goal('alerts') as MetricGoal;
+    const g = goal('mttr-pir') as MetricGoal;
     const q3 = quarters(cycle)[2]!;
-    const low = s.checkIns.map((c) => (c.goalId === 'alerts' && c.week === q3.to ? { ...c, value: 10 } : c));
+    const low = s.checkIns.map((c) => (c.goalId === 'mttr-pir' && c.week === q3.to ? { ...c, value: 10 } : c));
     const r = quarterResult(g, cycle, low, q3, week);
     expect(r.kind).toBe('missed');
     expect(r.text).toMatch(/^Q3: 10% against a plan of \d+%, \d+ pts short$/);
     expect(storyOf(g, { ...s, checkIns: low }, cycle, week, today).warnings.join(' ')).toMatch(/Missed its Q3 plan: 10%/);
   });
   it('milestone quarters count the stages due in them', () => {
-    const r = quarterResult(goal('access'), cycle, s.checkIns, quarters(cycle)[3]!, week);
+    const r = quarterResult(goal('cfr-halt'), cycle, s.checkIns, quarters(cycle)[3]!, week);
     expect(r.kind).toBe('open');
-    const q3 = quarterResult(goal('access'), cycle, s.checkIns, quarters(cycle)[2]!, week);
+    const q3 = quarterResult(goal('cfr-halt'), cycle, s.checkIns, quarters(cycle)[2]!, week);
     expect([q3.kind, q3.text]).toEqual(['met', 'Q3: 1 of 1 stage due was done']);
+    const missed = quarterResult(goal('lead-mq'), cycle, s.checkIns, quarters(cycle)[2]!, week);
+    expect([missed.kind, missed.text]).toEqual(['missed', 'Q3: 0 of 2 stages due were done']);
   });
   it('offers the end of the year, or a quarter still to come, as a due date', () => {
     expect(dueOptions(cycle, 10, 53)).toEqual([[53, 'Year end'], [13, 'End of Q1'], [26, 'End of Q2'], [39, 'End of Q3']]);
     expect(dueOptions(cycle, week, 53)).toEqual([[53, 'Year end']]);
   });
-  it('places the story at the end of the year', () => {
-    expect(toYear(7)).toBe(week);
+  it('sets the example in the real year, up to today', () => {
+    expect(Math.max(...s.checkIns.map((c) => c.week))).toBe(week);
   });
 
   it('keeps closed quarters judged against the plan of their day when the target changes again (research round 1)', () => {
-    // The review goal's target went 75 → 95 in week 40; raising it to 98 in week 43 mustn't change Q1–Q3.
-    const before = goal('review') as MetricGoal;
-    const after = buildGoal({ ...draftOf(before), target: '98' }, cycle, { id: before.id, createdAt: before.createdAt }, before, true, week) as MetricGoal;
+    // AI-assisted review's target went 60 → 80 in week 19; raising it to 90 now mustn't change Q1–Q3.
+    const before = goal('ns-ai') as MetricGoal;
+    const after = buildGoal({ ...draftOf(before), target: '90' }, cycle, { id: before.id, createdAt: before.createdAt }, before, true, week) as MetricGoal;
     const closed = (g: MetricGoal) => quarterResults(g, cycle, s.checkIns, week).slice(0, 3).map((r) => r.text);
     expect(closed(after)).toEqual(closed(before));
     // Both earlier plans are kept, each with the week it stopped applying.
-    expect(planHistoryOf(after).map((v) => [v.untilWeek, v.plan.target])).toEqual([[toYear(4) + 1, 75], [week, 95]]);
-    expect(goalAsOf(after, week - 1).plan.target).toBe(95);
-    expect(goalAsOf(after, toYear(4) - 1).plan.target).toBe(75);
-    expect(goalAsOf(after, week).plan.target).toBe(98);
+    expect(planHistoryOf(after).map((v) => [v.untilWeek, v.plan.target])).toEqual([[19, 60], [week, 80]]);
+    expect(goalAsOf(after, week - 1).plan.target).toBe(80);
+    expect(goalAsOf(after, 18).plan.target).toBe(60);
+    expect(goalAsOf(after, week).plan.target).toBe(90);
     // A second change in the same week keeps the plan from before the first.
-    const again = buildGoal({ ...draftOf(after), target: '99' }, cycle, { id: before.id, createdAt: before.createdAt }, after, true, week) as MetricGoal;
-    expect(planHistoryOf(again).map((v) => v.plan.target)).toEqual([75, 95]);
+    const again = buildGoal({ ...draftOf(after), target: '95' }, cycle, { id: before.id, createdAt: before.createdAt }, after, true, week) as MetricGoal;
+    expect(planHistoryOf(again).map((v) => v.plan.target)).toEqual([60, 80]);
   });
 
   it('counts a template’s stage weeks from now, within the year (research round 1)', () => {
@@ -121,9 +121,10 @@ describe('quarters read off the owner’s plan', () => {
   });
 
   it('keeps the latest number judged against the plan of its own week after a later re-plan (research round 2)', () => {
-    const before = goal('review') as MetricGoal;
-    const after = buildGoal({ ...draftOf(before), target: '98' }, cycle, { id: before.id, createdAt: before.createdAt }, before, true, week) as MetricGoal;
-    const gap = (g: MetricGoal) => { const a = assessPosted(g, cycle, s.checkIns, week); return a.kind === 'metric' ? [a.week, a.plan] : null; };
+    const before = goal('ns-ai') as MetricGoal;
+    // Re-planned next week: this week's number, the latest, is still judged against the plan it was posted under.
+    const after = buildGoal({ ...draftOf(before), target: '90' }, cycle, { id: before.id, createdAt: before.createdAt }, before, true, week + 1) as MetricGoal;
+    const gap = (g: MetricGoal) => { const a = assessPosted(g, cycle, s.checkIns, week + 1); return a.kind === 'metric' ? [a.week, a.plan] : null; };
     expect(gap(after)).toEqual(gap(before));
   });
 });

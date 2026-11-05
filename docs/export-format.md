@@ -11,7 +11,8 @@ Week numbers count from the cycle's start: week 0 is the start date. A check-in 
 | Goals | goal | Columns from **ID** to **Definition** describe the goal and use the import's names. **Status**, **Now**, **Plan this week**, **Gap**, **Last check-in week** and **Forecast** are worked out by the app and ignored when the file is loaded back. |
 | Plan | number goal | **Week 1** to the last due week: the planned number each week. Empty before the plan starts and after the target's due week. |
 | Check-ins | goal and week | **Call** is the owner's status call and **Calculated** is what the rules said. **Backfilled** is "yes" for history loaded later rather than posted in its week. |
-| Notes and actions | note, question or action from a review | Questions include the owner's answer when there is one. |
+| Notes and actions | note, question or action from a review | Questions and actions include their answer, or the note they were marked done with, once they have one. |
+| Asks | ask | Every ask on the exported goals: **Kind** (Decision or help, Update, Question, Action), who asked and who must respond, **Status** (Open, Answered, Done, Withdrawn), **Due week**, the review it was raised in, and the answer. Not loaded back. |
 | People | person | |
 | README | column | What each column means and what happens to it when loaded back. |
 

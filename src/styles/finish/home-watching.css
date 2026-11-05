@@ -62,6 +62,10 @@
   .arow-action { grid-column: 2; margin-left: 0; align-self: start; }
   .arow-why { display: block; -webkit-line-clamp: unset; overflow: visible; }
 }
+/* On Home, two lines of the reason on a phone; the whole of it is on the goal's page, a tap away (U2, 5 Nov). */
+@container app (max-width: 600px) {
+  .page.home .arow-why { display: -webkit-box; -webkit-line-clamp: 2; overflow: hidden; }
+}
 
 /* ---------- Home ---------- */
 /* One width for the heading and the grid: 1200px with the side column, 1040px without; pinned left like every page
@@ -208,3 +212,23 @@
 /* ---------- Avatars in the dark: the grey one keeps 3:1 on the page ([WA] 23) ---------- */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .avatar[data-hue="5"] { background: #667085; color: #fff; } }
 :root[data-theme="dark"] .avatar[data-hue="5"] { background: #667085; color: #fff; }
+
+/* Stacked (a phone or narrow window): each ask is one compact row, the action beside it, so your own goals that need
+   attention still start in the first screen (U2). */
+@container page (max-width: 959px) {
+  .needs-you .need { align-items: center; padding: 10px 12px 10px 16px; }
+  .needs-you .need > .avatar { margin-top: 0; }
+  .needs-you .need-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; align-items: center; }
+  .needs-you .need-what, .needs-you .need-quote, .needs-you .need-meta { grid-column: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .needs-you .need-action { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; }
+}
+/* The hero's list of what's due is one line on a phone; the check-in names each goal as you go. */
+@container app (max-width: 600px) {
+  .page.home .home-hero .hero-body > .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+/* A phone: Home's blocks sit 16px apart and the hero's second link close under its button, so the first goal that
+   needs attention starts on the first screen (U2). */
+@container app (max-width: 600px) {
+  .page.home .split, .page.home .split > div { gap: var(--s4); }
+  .page.home .home-hero .hero-body > .linkish { margin-top: 0; }
+}

@@ -51,7 +51,7 @@ module.exports = {
       await c.addInitScript(SAMPLER);
       const p = await c.newPage();
       await p.goto(url('/'));
-      await p.evaluate((v) => localStorage.setItem('goals-app-viewer:example', v), who);
+      await p.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await p.goto(url(route));
       await p.waitForTimeout(opts.wait ?? 700);
       return [c, p];
@@ -59,7 +59,7 @@ module.exports = {
 
     // ---------- [Print] a goal's page: every section, at phone, tablet and desktop ----------
     for (const [w, h] of [[390, 844], [768, 1024], [1280, 800]]) {
-      const [c, p] = await open(w, h, 'elena', '/goals/head/print');
+      const [c, p] = await open(w, h, 'amara', '/goals/ns-lead/print');
       await p.locator('.print-sheet').waitFor();
       const m = await p.evaluate(() => {
         const sheet = document.querySelector('.print-sheet');
@@ -71,14 +71,14 @@ module.exports = {
           now: document.querySelector('.ps-now')?.textContent,
           sections: ['Where it stands', 'Path to green', 'What it needs', 'Latest check-in', 'Decisions or help needed', 'From reviews', 'This year by quarter', 'Contributing goals', 'Target', 'Plan'].filter((s) => !text.includes(s)),
           chart: !!sheet.querySelector('svg.chart .c-act'),
-          said: /Brain and GPU quota/.test(text),
+          said: /Runner budget/.test(text),
           sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           primaries: [...document.querySelectorAll('.btn.primary')].filter((b) => b.getClientRects().length).map((b) => b.textContent.trim()),
         };
       });
-      fail(m.title === 'Intake-to-delivery time', `[Print] ${w}: goal page title is “${m.title}”`);
+      fail(m.title === 'Lead time for changes', `[Print] ${w}: goal page title is “${m.title}”`);
       fail(m.chip, `[Print] ${w}: the goal's status is not a shape and a word`);
-      fail(m.now === '23.3 days', `[Print] ${w}: the number is “${m.now}”`);
+      fail(m.now === '37 hours', `[Print] ${w}: the number is “${m.now}”`);
       fail(!m.sections.length, `[Print] ${w}: goal page lacks ${m.sections.join(', ')}`);
       fail(m.chart, `[Print] ${w}: no chart with the actual line`);
       fail(m.said, `[Print] ${w}: the note from last week's review is missing`);
@@ -88,11 +88,12 @@ module.exports = {
     }
 
     // ---------- [Print] print media at A4 width, in light and dark: no nav, nothing wider than the page, black on white ----------
-    for (const [route, scheme] of [['/goals/head/print', 'dark'], ['/reviews/weekly/print', 'light'], ['/goals/access/print', 'light']]) {
+    // (The page-count rule for a review, one to three pages, is checked on the quarterly review: the leadership weekly walks 56 goals.)
+    for (const [route, scheme] of [['/goals/ns-lead/print', 'dark'], ['/reviews/qbr/print', 'light'], ['/goals/lead-mq/print', 'light']]) {
       const c = await browser.newContext({ viewport: { width: A4_CONTENT, height: 1000 }, colorScheme: scheme });
       const p = await c.newPage();
       await p.goto(url('/'));
-      await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'elena'));
+      await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'amara'));
       await p.goto(url(route));
       await p.locator('.print-sheet').waitFor();
       await p.emulateMedia({ media: 'print', colorScheme: scheme });
@@ -115,7 +116,7 @@ module.exports = {
       fail(!m.wide.length, `[Print] ${route}: wider than A4: ${m.wide.join(', ')}`);
       fail(m.body === 'rgb(255, 255, 255)' && m.title === 'rgb(0, 0, 0)' && m.chipColour === 'rgb(0, 0, 0)', `[Print] ${route} (${scheme}): not black on white (page ${m.body}, title ${m.title}, status ${m.chipColour})`);
       fail(m.shapes > 0 && m.words, `[Print] ${route}: ${m.shapes} status shapes in print, all with words ${m.words}`);
-      if (route === '/goals/access/print') fail(/Feeds Intake-to-delivery time|Feeds /.test(await p.locator('.ps-head').innerText()), '[Print] a contributing goal does not say what it feeds');
+      if (route === '/goals/lead-mq/print') fail(/Feeds Lead time for changes|Feeds /.test(await p.locator('.ps-head').innerText()), '[Print] a contributing goal does not say what it feeds');
       const pdf = await p.pdf({ format: 'A4', preferCSSPageSize: true });
       const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
       fail(route.startsWith('/goals') ? pages === 1 : pages >= 1 && pages <= 3, `[Print] ${route}: prints on ${pages} A4 pages`);
@@ -124,31 +125,37 @@ module.exports = {
 
     // ---------- [Print] a review's session: every goal, worst first, what was said ----------
     for (const [w, h] of [[390, 844], [1024, 768]]) {
-      const [c, p] = await open(w, h, 'elena', '/reviews/weekly/print');
+      const [c, p] = await open(w, h, 'amara', '/reviews/weekly/print');
       await p.locator('.print-sheet').waitFor();
       const m = await p.evaluate(() => {
-        const rank = { off: 3, risk: 2, stale: 2, on: 1, done: 0, planned: 0 };
-        const blocks = [...document.querySelectorAll('.ps-goal')].map((b) => ['off', 'risk', 'stale', 'on', 'done', 'planned'].find((k) => b.querySelector('.ps-goal-head .chip.' + k)));
+        // (Goals that are on track or done have the same weight, so they sit in one rank: the order among them isn't worst first.)
+        const rank = { off: 3, risk: 2, stale: 2, on: 1, done: 1, planned: 1 };
+        // A goal being handled (here, the vulnerability north star: an action agreed for it) comes after the ones that need
+        // attention, so it is left out of the worst-first run and must come after it.
+        const HANDLED = ['Critical and high vulnerabilities fixed within SLA'];
+        const all = [...document.querySelectorAll('.ps-goal')];
+        const kind = (b) => ['off', 'risk', 'stale', 'on', 'done', 'planned'].find((k) => b.querySelector('.ps-goal-head .chip.' + k));
+        const blocks = all.filter((b) => !HANDLED.includes(b.getAttribute('aria-label'))).map(kind);
         const rows = document.querySelectorAll('.ps-rows li').length;
         return {
           title: document.querySelector('.print-sheet h1')?.textContent,
-          first: blocks[0], count: blocks.length + rows,
+          first: blocks[0], count: all.length + rows,
           worstFirst: blocks.every((k, i) => !i || rank[k] <= rank[blocks[i - 1]] || k === 'stale' || blocks[i - 1] === 'stale'),
-          head: (document.querySelector('.ps-goal[aria-label="Intake-to-delivery time"]')?.innerText || ''),
+          head: (document.querySelector('.ps-goal[aria-label="Lead time for changes"]')?.innerText || ''),
           meta: document.querySelector('.ps-meta')?.textContent || '',
         };
       });
-      fail(m.title === 'Platform weekly review', `[Print] review ${w}: title “${m.title}”`);
+      fail(m.title === 'Platform leadership weekly', `[Print] review ${w}: title “${m.title}”`);
       fail(m.first === 'off' && m.worstFirst, `[Print] review ${w}: goals not worst first (first ${m.first})`);
       const total = Number((m.meta.match(/of (\d+) goals/) || [])[1]);
       fail(total > 0 && m.count === total, `[Print] review ${w}: ${m.count} goals on the page, ${total} in the session`);
-      fail(/Said last time/.test(m.head) && /Brain and GPU quota/.test(m.head) && /Path to green/.test(m.head), '[Print] review: a goal block lacks its path to green or what was said');
+      fail(/Said last time/.test(m.head) && /Runner budget/.test(m.head) && /Path to green/.test(m.head), '[Print] review: a goal block lacks its path to green or what was said');
       await c.close();
     }
 
     // ---------- [Print] the entry points: small, secondary, and they lead to the page ----------
-    for (const [route, to] of [['/goals/head', '/goals/head/print'], ['/reviews/weekly', '/reviews/weekly/print']]) {
-      const [c, p] = await open(1280, 800, 'elena', route);
+    for (const [route, to] of [['/goals/ns-lead', '/goals/ns-lead/print'], ['/reviews/weekly', '/reviews/weekly/print']]) {
+      const [c, p] = await open(1280, 800, 'amara', route);
       // On a goal it's in the summary bar's "…" menu since the flagship page (5 Nov): still small and secondary.
       if (route.startsWith('/goals/')) { await p.locator('.goal-bar summary[aria-label="More about this goal"]').click(); await p.waitForTimeout(150); }
       const link = p.getByRole('link', { name: 'Print or save as PDF' });
@@ -157,8 +164,9 @@ module.exports = {
       await c.close();
     }
 
+    // (The goal whose number counts is Pull requests with AI-assisted review: 72% to 73% this week. Lead time for changes was 37 hours both weeks, so it has nothing to count.)
     // ---------- [Motion] durations: animations happen, each 250ms at most, at phone and desktop ----------
-    for (const [w, h, who, route] of [[390, 844, 'maya', '/'], [1440, 900, 'elena', '/goals/head'], [1440, 900, 'elena', '/reviews/weekly'], [768, 1024, 'elena', '/goals?view=board']]) {
+    for (const [w, h, who, route] of [[390, 844, 'rhea', '/'], [1440, 900, 'amara', '/goals/ns-ai'], [1440, 900, 'amara', '/reviews/weekly'], [768, 1024, 'amara', '/goals?view=board']]) {
       const [c, p] = await at(w, h, who, route);
       // The goal page's story runs up to 4 seconds at the default pace: watch it to the end.
       if (/^\/goals\/[^/?]+$/.test(route)) await p.waitForTimeout(4200);
@@ -169,9 +177,9 @@ module.exports = {
       fail(!long.length, `[Motion] ${route} at ${w}: longer than ${LIMIT}ms: ${[...new Set(long.map((a) => a.name + ' ' + a.total + 'ms'))].slice(0, 3).join(', ')}`);
       fail(s.shift < 0.02, `[Motion] ${route} at ${w}: layout shifted by ${s.shift.toFixed(3)} after load`);
       if (route === '/') fail(s.anims.some((a) => /ring-fill/.test(a.name)), '[Motion] Home: the progress ring does not fill');
-      if (route === '/goals/head') {
+      if (route === '/goals/ns-ai') {
         fail(s.anims.some((a) => /c-act/.test(a.name)), '[Motion] the goal chart does not draw its line');
-        fail(s.counts.length >= 2 && s.counts[s.counts.length - 1] === '23.3 days', `[Motion] the goal's number did not count to 23.3 days (${s.counts.join(' → ')})`);
+        fail(s.counts.length >= 2 && s.counts[s.counts.length - 1] === '73%', `[Motion] the goal's number did not count to 73% (${s.counts.join(' → ')})`);
       }
       // The ring's count lands on what its label says.
       const ring = await p.evaluate(() => { const r = document.querySelector('.ring'); return r ? { text: r.querySelector('.ring-text').textContent, label: r.getAttribute('aria-label') } : null; });
@@ -180,17 +188,17 @@ module.exports = {
     }
 
     // ---------- [Motion] reduced motion: nothing moves, numbers show their value at once ----------
-    for (const [w, h, who, route] of [[390, 844, 'maya', '/'], [1280, 800, 'elena', '/goals/head']]) {
+    for (const [w, h, who, route] of [[390, 844, 'rhea', '/'], [1280, 800, 'amara', '/goals/ns-ai']]) {
       const [c, p] = await at(w, h, who, route, { reduced: true });
       const s = await sampled(p);
       fail(s.maxRunning === 0, `[Motion] reduced, ${route}: ${s.maxRunning} animations ran (${[...new Set(s.anims.map((a) => a.name))].slice(0, 3).join(', ')})`);
-      if (route === '/goals/head') fail(s.counts.length === 1 && s.counts[0] === '23.3 days', `[Motion] reduced: the number counted (${s.counts.join(' → ')})`);
+      if (route === '/goals/ns-ai') fail(s.counts.length === 1 && s.counts[0] === '73%', `[Motion] reduced: the number counted (${s.counts.join(' → ')})`);
       await c.close();
     }
 
     // ---------- [Motion] FLIP: sorting the table slides rows, which end where they belong; none under reduced motion ----------
     for (const [w, h, reduced] of [[1280, 800, false], [1024, 768, false], [1280, 800, true]]) {
-      const [c, p] = await at(w, h, 'elena', '/goals?view=table', { reduced });
+      const [c, p] = await at(w, h, 'amara', '/goals?view=table', { reduced });
       await p.locator('.gtable tbody tr').first().waitFor();
       const order = () => p.$$eval('.gtable', (ts) => [...ts[0].querySelectorAll('tbody > tr:not(.story-row) .gt-name a')].map((a) => a.textContent));
       const before = await order();
@@ -217,7 +225,7 @@ module.exports = {
 
     // ---------- [Motion] FLIP on a phone list: from By level to By team, the goals slide to their new places and stay there ----------
     {
-      const [c, p] = await at(390, 844, 'elena', '/goals?show=levels');
+      const [c, p] = await at(390, 844, 'amara', '/goals?show=levels');
       await p.locator('.tree > li').first().waitFor();
       await p.getByRole('tab', { name: 'By team' }).click();
       await p.waitForTimeout(40);

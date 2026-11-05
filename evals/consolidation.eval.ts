@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { fileName } from '../src/app/files';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { gapBeside, NO_VALUE, nowText } from '../src/domain/format';
 import { assessPosted } from '../src/domain/status';
 import { summarise } from '../src/domain/summary';

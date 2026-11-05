@@ -4,8 +4,8 @@
 import { causeLabel } from './checkin';
 import { fmt, NO_VALUE } from './format';
 import { WEEKDAY } from './progress';
-import { answeredSince, askText, openFor } from './requests';
-import { answerOf, DECISION_LABEL, isHealthy, reviewSession } from './review';
+import { answeredSince, askText, openFor } from './asks';
+import { answerOf, DECISION_LABEL, isHealthy, reviewSession, saidIn, type Said as SaidInReview } from './review';
 import { LABEL, RANK } from './status';
 import { summarise, type GoalSummary } from './summary';
 import { attentionFor } from './attention';
@@ -33,14 +33,14 @@ export interface GoalSheet {
 
 const name = (s: Snapshot, id: string | null | undefined) => (id ? s.people.find((p) => p.id === id)?.name ?? 'someone' : 'anyone');
 
-function saidOf(d: Decision, s: Snapshot): Said {
+function saidOf(d: SaidInReview, s: Snapshot): Said {
   const g = s.goals.find((x) => x.id === d.goalId);
   return {
     id: d.id, kind: d.kind, label: DECISION_LABEL[d.kind], note: d.note, by: name(s, d.byId), week: d.week,
     review: s.reviews.find((r) => r.id === d.reviewId)?.name ?? null,
     who: d.kind === 'action' ? name(s, d.assigneeId ?? g?.ownerId) : null,
     dueWeek: d.kind === 'action' ? d.dueWeek ?? null : null,
-    answer: d.kind === 'ask' ? answerOf(d, s)?.text ?? null : null,
+    answer: d.ask ? answerOf(d)?.text ?? null : null,
   };
 }
 
@@ -79,7 +79,7 @@ export function goalSheet(goal: Goal, s: Snapshot, cycle: Cycle, week: number, t
     latest,
     open,
     answered: ans ? { ask: askText(ans, s.people), answer: ans.answer ?? '', by: name(s, ans.answeredBy), at: ans.answeredAt ?? '' } : null,
-    said: s.decisions.filter((d) => d.goalId === goal.id && said(d)).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5).map((d) => saidOf(d, s)),
+    said: saidIn(s).filter((d) => d.goalId === goal.id && said(d)).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5).map((d) => saidOf(d, s)),
     quarters: isYear(cycle) && !st.quarters.every((q) => q.kind === 'none') ? st.quarters : [],
     contributing: children,
   };
@@ -126,7 +126,7 @@ export function reviewSheet(r: Review, s: Snapshot, cycle: Cycle, week: number, 
       st.warnings.forEach((w) => facts.push({ label: 'Watch for', text: w }));
     }
     const now = ses.said.filter((d) => d.goalId === a.goal.id && said(d));
-    const before = now.length ? [] : s.decisions.filter((d) => d.goalId === a.goal.id && d.reviewId === r.id && d.week < ses.week && said(d)).sort((x, y) => y.at.localeCompare(x.at));
+    const before = now.length ? [] : saidIn(s).filter((d) => d.goalId === a.goal.id && d.reviewId === r.id && d.week < ses.week && said(d)).sort((x, y) => y.at.localeCompare(x.at));
     const lastWeek = before[0]?.week;
     return {
       goal: a.goal, owner: sum.owner, status: sum.status, statusLabel: st.label ?? LABEL[sum.status], healthy, covered: ses.covered.has(a.goal.id), facts,

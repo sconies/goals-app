@@ -33,7 +33,7 @@ async function capture(base, dir) {
   for (const [device, viewport] of Object.entries(DEVICES)) {
     for (const [name, who, route] of SCREENS) {
       const ctx = await browser.newContext({ viewport, reducedMotion: 'reduce', colorScheme: 'light' });
-      await ctx.addInitScript((v) => { if (!sessionStorage.getItem('visual')) { localStorage.clear(); localStorage.setItem('goals-app-viewer:example', v); sessionStorage.setItem('visual', '1'); } }, who);
+      await ctx.addInitScript((v) => { if (!sessionStorage.getItem('visual')) { localStorage.clear(); localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('visual', '1'); } }, who);
       const page = await ctx.newPage();
       await page.clock.setFixedTime(FROZEN);
       await page.goto(base + route);

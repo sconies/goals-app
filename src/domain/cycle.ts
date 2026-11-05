@@ -1,7 +1,7 @@
 /* Closing a cycle: which cycle is current, the retro on each goal, and starting the next cycle
    with the goals that carry on. */
 import { lastKey } from './goalKey';
-import { requestsFromCheckIns } from './requests';
+import { requestsFromCheckIns } from './asks';
 import { isYear, yearWeeks } from './year';
 import { yearName } from './yearName';
 import { assessMilestone, checkInsFor, goalStatus } from './status';

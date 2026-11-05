@@ -1,6 +1,6 @@
 /* The flagship goal page (approved by Lane, 5 Nov): what each part of it says, worked out once. Pure, so the page, its
-   shared image and the tests read the same words. Status, check-in, request and review rules are not restated here:
-   each part asks the module that owns its rule (status, attention, requests, review, summaryFacts, plan).
+   shared image and the tests read the same words. Status, check-in, ask and review rules are not restated here:
+   each part asks the module that owns its rule (status, attention, asks, review, summaryFacts, plan).
 
    The page answers, in order: what is this goal and who owns it; how is it doing; if badly, why; what is being done and
    how those actions are going; where it is heading; what has happened, and what was said the last time it was discussed.
@@ -8,14 +8,13 @@
 import type { GoalAttention } from './attention';
 import { isShare } from './checkin';
 import { fmt, NO_VALUE, rangeText } from './format';
-import { daysSince, goalAsOf, planAt, planEnd, projection, valueSeries } from './plan';
+import { currentWeek, daysSince, goalAsOf, planAt, planEnd, projection, valueSeries } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
-import { answeredSince, openFor } from './requests';
-import { answerOf, goalsIn, sessionDate, sessionWeek } from './review';
+import { asksOf, canAnswer, canMarkDone, isOverdue, isResolved, liveNotes, openAsksFor } from './asks';
+import { goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
 import { assessPosted, checkInsFor, LABEL, RANK } from './status';
 import { countWord, summaryFacts, type Direction } from './summaryFacts';
-import { liveNotes, openUpdateAsk } from './updateAsks';
-import type { Change, CheckIn, Cycle, Decision, DisplayStatus, Goal, Person, Snapshot } from './types';
+import type { Ask, AskKind, Change, CheckIn, Cycle, Decision, DisplayStatus, Goal, Person, Snapshot } from './types';
 
 const first = (s: Snapshot, id: string | null | undefined) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
 const said = (why: string | null | undefined) => !!why && why.trim() !== '' && why !== 'On plan.';
@@ -117,7 +116,7 @@ export function feedsLine(children: Goal[], statusOf: (g: Goal) => DisplayStatus
 }
 
 /** What goes on the bar's one main button, by who's looking and what's waiting (approved plan, "Final page" 1). */
-export type PrimaryKind = 'answer' | 'respond' | 'check-in' | 'first-check-in' | 'ask-update' | 'watch' | null;
+export type PrimaryKind = 'answer' | 'respond' | 'done' | 'check-in' | 'first-check-in' | 'ask-update' | 'watch' | null;
 export interface Primary { kind: PrimaryKind; label: string; targetId: string | null }
 
 export function primaryAction(o: {
@@ -128,10 +127,12 @@ export function primaryAction(o: {
   const isOwner = o.viewer.id === o.goal.ownerId;
   // Something waiting on you comes first: answering it is the one thing to do here.
   const question = o.asked.find((x) => x.kind === 'question');
-  const request = o.asked.find((x) => x.kind === 'request');
-  if (isOwner && question) return { kind: 'answer', label: `Answer ${question.fromFirst}’s question`, targetId: question.id };
+  const request = o.asked.find((x) => x.kind === 'decision');
+  const action = o.asked.find((x) => x.kind === 'action');
+  if (question) return { kind: 'answer', label: `Answer ${question.fromFirst}’s question`, targetId: question.id };
   if (request) return { kind: 'respond', label: request.fromId === o.viewer.id ? 'Answer your own request' : `Answer ${request.fromFirst}’s request`, targetId: request.id };
   if (isOwner && o.week > 0 && o.due) return { kind: 'check-in', label: `Check in for week ${o.week}`, targetId: null };
+  if (action) return { kind: 'done', label: 'Mark your action done', targetId: action.id };
   if (!isOwner && o.status === 'stale' && !o.updateAsked) return { kind: 'ask-update', label: `Ask ${ownerFirst} for an update`, targetId: null };
   if (!isOwner && !o.watching) return { kind: 'watch', label: 'Watch', targetId: null };
   return { kind: null, label: '', targetId: null };
@@ -139,38 +140,35 @@ export function primaryAction(o: {
 
 /* ---------- 2. asked of you ---------- */
 
-/** Something on this goal waiting on the person looking: a request, a review question, an ask for an update, or (only
- *  when they arrived to reply to it) a comment. Each answered in place. */
+/** An ask on this goal waiting on the person looking (any kind: one way to ask), or, only when they arrived to reply
+ *  to it, a comment. Each answered in place, in the one Respond panel. */
 export interface AskedItem {
-  /** What a link opens it by (`?respond=<id>`): the request's, the decision's or the comment's id. */
+  /** What a link opens it by (`?respond=<id>`): the ask's id, or the comment's. */
   id: string;
-  kind: 'request' | 'question' | 'update' | 'comment';
+  kind: AskKind | 'comment';
   fromId: string;
   fromFirst: string;
   /** What was asked, in their words. */
   text: string;
   at: string;
-  /** Where it was asked: "Support weekly". */
+  /** Where it was asked: "Platform leadership weekly". */
   where: string | null;
+  /** The week it's due by, if it has one. */
+  due: number | null;
 }
 
-export function askedOf(goal: Goal, s: Snapshot, viewer: Person, latestAt: string | null, replyTo: string | null): AskedItem[] {
+export function askedOf(goal: Goal, s: Snapshot, viewer: Person, replyTo: string | null): AskedItem[] {
   const out: AskedItem[] = [];
-  const isOwner = viewer.id === goal.ownerId;
-  for (const r of openFor(goal.id, s)) {
-    if (r.recipientId !== viewer.id && !(replyTo === r.id && (viewer.admin || !r.recipientId))) continue;
-    out.push({ id: r.id, kind: 'request', fromId: r.askedBy, fromFirst: first(s, r.askedBy), text: r.ask, at: r.createdAt, where: null });
-  }
-  if (isOwner) {
-    for (const d of s.decisions.filter((x) => x.goalId === goal.id && x.kind === 'ask' && !answerOf(x, s))) {
-      out.push({ id: d.id, kind: 'question', fromId: d.byId, fromFirst: first(s, d.byId), text: d.note, at: d.at, where: s.reviews.find((r) => r.id === d.reviewId)?.name ?? null });
-    }
-    const ask = openUpdateAsk(goal.id, s, latestAt);
-    if (ask && ask.actorId !== viewer.id) out.push({ id: ask.id, kind: 'update', fromId: ask.actorId, fromFirst: first(s, ask.actorId), text: ask.diffs[0]?.to ?? '', at: ask.at, where: null });
+  for (const r of openAsksFor(goal.id, s)) {
+    // Yours to respond to; or, when you came to it by its link, one you may answer (an admin, or an ask to anyone).
+    const yours = r.recipientId === viewer.id;
+    const allowed = replyTo === r.id && (r.kind === 'action' ? canMarkDone(r, viewer) : canAnswer(r, viewer));
+    if (!yours && !allowed) continue;
+    out.push({ id: r.id, kind: r.kind, fromId: r.askedBy, fromFirst: first(s, r.askedBy), text: r.ask, at: r.createdAt, where: s.reviews.find((v) => v.id === r.reviewId)?.name ?? null, due: r.dueWeek });
   }
   // A comment is no obligation: it's here only when you came to reply to it.
   const c = replyTo ? liveNotes(s.changes).find((x) => x.id === replyTo && x.goalId === goal.id && x.actorId !== viewer.id) : undefined;
-  if (c && !out.some((x) => x.id === c.id)) out.push({ id: c.id, kind: 'comment', fromId: c.actorId, fromFirst: first(s, c.actorId), text: c.diffs[0]?.to ?? '', at: c.at, where: null });
+  if (c && !out.some((x) => x.id === c.id)) out.push({ id: c.id, kind: 'comment', fromId: c.actorId, fromFirst: first(s, c.actorId), text: c.diffs[0]?.to ?? '', at: c.at, where: null, due: null });
   return out.sort((a, b) => a.at.localeCompare(b.at));
 }
 
@@ -282,56 +280,49 @@ export function pathCheck(goal: Goal, s: Snapshot, cycle: Cycle, week: number, l
 }
 
 export type ActionState = 'open' | 'done' | 'overdue';
-/** One thing being done about the goal: what its path to green needs, a review's action or question, or a request. */
+/** One thing being done about the goal: what its path to green needs, or an ask on it (a decision or help, an update, a question, an action). */
 export interface ActionItem {
   id: string;
-  kind: 'path' | 'request' | 'action' | 'question';
+  kind: 'path' | AskKind;
   /** What's to be done, in the words it was given. */
   what: string;
-  /** Who does it (a person's id), or null for anyone. */
+  /** Who does it, or must respond (a person's id), or null for anyone. */
   who: string | null;
   /** The week it's due by. */
   due: number | null;
   state: ActionState;
-  /** Where it came from and where it has got to: "Asked by Hana", "Answered by Elena: Approved …". */
+  /** Where it came from and where it has got to: "Asked by Amara", "Answered by Amara: Approved …". */
   note: string;
   at: string;
 }
 
 const STATE_ORDER: Record<ActionState, number> = { overdue: 0, open: 1, done: 2 };
 
+/** An ask's state as the action list shows it: open, overdue (open past its week), or done (answered, or marked done). */
+export const askState = (r: Ask, week: number): ActionState => (isResolved(r) ? 'done' : isOverdue(r, week) ? 'overdue' : 'open');
+
 /**
- * One list of what's being done: the owner's path to green, the requests it's waiting on, and the actions and questions
- * reviews agreed, each with who, when and where it has got to. Requests are done once answered (requests.ts). Questions
- * are done once the owner has replied (review.ts). A review action carries no done mark (review.ts's openActions): past
- * its week it reads as overdue while the goal is still behind, and done once it isn't.
+ * One list of what's being done: the owner's path to green, and every ask on the goal, each with who, when and where it
+ * has got to. An ask's state is its own (asks.ts): open until it's answered or marked done, overdue when it's open past
+ * its week, and gone once withdrawn. What's settled stays for eight weeks, so the last answers are still in view.
  */
-export function actionList(goal: Goal, s: Snapshot, week: number, status: DisplayStatus, latest: CheckIn | null): ActionItem[] {
+export function actionList(goal: Goal, s: Snapshot, week: number, status: DisplayStatus, latest: CheckIn | null, cycle?: Cycle): ActionItem[] {
   const out: ActionItem[] = [];
   const behind = status === 'off' || status === 'risk';
   const ptg = latest?.pathToGreen;
   if (behind && latest && ptg && ptg.what.trim()) {
     out.push({ id: 'path-' + latest.id, kind: 'path', what: ptg.what, who: goal.ownerId, due: ptg.byWeek ?? null, state: ptg.byWeek != null && ptg.byWeek < week ? 'overdue' : 'open', note: `Path to green, week ${latest.week} check-in`, at: latest.postedAt });
   }
-  for (const r of openFor(goal.id, s)) {
-    const other = r.goalIds[0] !== goal.id ? s.goals.find((g) => g.id === r.goalIds[0])?.title : null;
-    out.push({ id: r.id, kind: 'request', what: r.ask, who: r.recipientId, due: null, state: 'open', note: `Asked by ${first(s, r.askedBy)}${other ? `, the same request as ${other}` : ''}`, at: r.createdAt });
-  }
-  const answered = answeredSince(goal.id, latest?.postedAt ?? null, s);
-  if (answered) out.push({ id: answered.id, kind: 'request', what: answered.ask, who: answered.recipientId, due: null, state: 'done', note: `Answered by ${s.people.find((p) => p.id === answered.answeredBy)?.name ?? 'someone'}: ${answered.answer ?? ''}`, at: answered.answeredAt ?? answered.updatedAt });
-  // Reviews' actions and questions from the last eight weeks, and any still open.
-  const recent = (d: Decision) => d.week >= week - 8;
-  for (const d of s.decisions.filter((x) => x.goalId === goal.id && (x.kind === 'action' || x.kind === 'ask'))) {
-    const where = s.reviews.find((r) => r.id === d.reviewId)?.name;
-    if (d.kind === 'action') {
-      const past = d.dueWeek != null && d.dueWeek < week;
-      if (past && !recent(d)) continue;
-      out.push({ id: d.id, kind: 'action', what: d.note, who: d.assigneeId ?? goal.ownerId, due: d.dueWeek ?? null, state: past ? (behind ? 'overdue' : 'done') : 'open', note: `Agreed${where ? ` in ${where}` : ''}, week ${d.week}`, at: d.at });
-    } else {
-      const ans = answerOf(d, s);
-      if (ans && !recent(d)) continue;
-      out.push({ id: d.id, kind: 'question', what: d.note, who: goal.ownerId, due: null, state: ans ? 'done' : 'open', note: ans ? `Asked by ${first(s, d.byId)}; ${first(s, ans.byId)} replied: ${ans.text}` : `Asked by ${first(s, d.byId)}${where ? ` in ${where}` : ''}, week ${d.week}`, at: d.at });
-    }
+  // Weeks since a date: a cycle gives the week it fell in; without one, eight weeks is 56 days.
+  const weekOf = (iso: string) => (cycle ? currentWeek(cycle, new Date(iso)) : week - Math.floor(daysSince(iso, new Date()) / 7));
+  for (const r of asksOf(s).filter((x) => x.goalIds.includes(goal.id) && x.status !== 'withdrawn')) {
+    const state = askState(r, week);
+    if (state === 'done' && weekOf(r.answeredAt ?? r.updatedAt) < week - 8) continue;
+    const where = s.reviews.find((v) => v.id === r.reviewId)?.name;
+    const other = r.kind === 'decision' && r.goalIds[0] !== goal.id ? s.goals.find((g) => g.id === r.goalIds[0])?.title : null;
+    const raised = r.kind === 'action' ? `Agreed by ${first(s, r.askedBy)}${where ? ` in ${where}` : ''}${r.week ? `, week ${r.week}` : ''}` : `Asked by ${first(s, r.askedBy)}${where ? ` in ${where}` : ''}${other ? `, the same request as ${other}` : ''}`;
+    const settled = r.status === 'done' ? `Done${r.answeredBy ? `, marked by ${first(s, r.answeredBy)}` : ''}${r.answer ? `: ${r.answer}` : ''}` : r.status === 'answered' ? `Answered by ${s.people.find((p) => p.id === r.answeredBy)?.name ?? 'someone'}: ${r.answer ?? ''}` : '';
+    out.push({ id: r.id, kind: r.kind, what: r.ask, who: r.recipientId, due: r.dueWeek, state, note: settled ? `${raised}. ${settled}` : raised, at: r.createdAt });
   }
   return out.sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || (a.due ?? 999) - (b.due ?? 999) || b.at.localeCompare(a.at));
 }
@@ -345,20 +336,19 @@ export interface Talked {
   next: { review: string; weekday: string; date: string; week: number } | null;
 }
 
-export function lastTalked(goal: Goal, s: Snapshot, cycle: Cycle, week: number, today: Date, status: DisplayStatus): Talked {
-  const inReview = s.decisions.filter((d) => d.goalId === goal.id && d.reviewId);
+export function lastTalked(goal: Goal, s: Snapshot, cycle: Cycle, week: number, today: Date): Talked {
+  const inReview = saidIn(s).filter((d) => d.goalId === goal.id && d.reviewId);
   let held: Talked['held'] = null;
-  const last = inReview.reduce<Decision | null>((m, d) => (!m || d.week > m.week || (d.week === m.week && d.at > m.at) ? d : m), null);
+  const last = inReview.reduce<Said | null>((m, d) => (!m || d.week > m.week || (d.week === m.week && d.at > m.at) ? d : m), null);
   if (last) {
     const session = inReview.filter((d) => d.reviewId === last.reviewId && d.week === last.week).sort((a, b) => a.at.localeCompare(b.at));
-    const behind = status === 'off' || status === 'risk';
     held = {
       review: s.reviews.find((r) => r.id === last.reviewId)?.name ?? 'A review',
       week: last.week,
       on: session.map((d) => d.at).sort().at(-1)!.slice(0, 10),
       said: session.filter((d) => d.kind !== 'acknowledge').map((d) => ({
         id: d.id, kind: d.kind, by: first(s, d.byId), note: d.note,
-        state: d.kind === 'action' ? (d.dueWeek != null && d.dueWeek < week ? (behind ? 'overdue' : 'done') : 'open') : d.kind === 'ask' ? (answerOf(d, s) ? 'done' : 'open') : null,
+        state: d.ask ? askState(d.ask, week) : null,
         who: d.kind === 'action' ? d.assigneeId ?? goal.ownerId : null,
         due: d.dueWeek ?? null,
       })),

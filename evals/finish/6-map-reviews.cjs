@@ -14,7 +14,7 @@ module.exports = {
 
     // ---------- the map, 1280×800: no page scroll, zoom top right, the walkthrough beside what it points at ----------
     {
-      const [c, p] = await open(1280, 800, 'elena', MAP);
+      const [c, p] = await open(1280, 800, 'amara', MAP);
       await p.locator('.react-flow__node').first().waitFor();
       await p.waitForTimeout(300);
       const m = await p.evaluate(() => {
@@ -72,7 +72,7 @@ module.exports = {
     }
     // ---------- 768: the story is a sheet over a full-width map ----------
     {
-      const [c, p] = await open(768, 1024, 'elena', MAP);
+      const [c, p] = await open(768, 1024, 'amara', MAP);
       await p.locator('.map-node.critical').first().waitFor();
       const before = await rect(p, '.map-canvas');
       await p.locator('.map-node.critical').first().click();
@@ -85,7 +85,7 @@ module.exports = {
     }
     // ---------- 853×533 (150%): the critical goal is scrolled into view, the card beside it ----------
     {
-      const [c, p] = await open(853, 533, 'elena', MAP);
+      const [c, p] = await open(853, 533, 'amara', MAP);
       await p.locator('.react-flow__node').first().waitFor();
       await tour(p, 1);
       await p.waitForTimeout(1200);
@@ -96,7 +96,7 @@ module.exports = {
     }
     // ---------- phones ----------
     for (const [w, h] of [[360, 740], [390, 844]]) {
-      const [c, p] = await open(w, h, 'elena', MAP, true);
+      const [c, p] = await open(w, h, 'amara', MAP, true);
       await p.locator('.map-node.critical').first().waitFor();
       const m = await p.evaluate(() => {
         const cv = document.querySelector('.map-canvas').getBoundingClientRect(), ct = document.querySelector('.react-flow__controls').getBoundingClientRect();
@@ -122,7 +122,7 @@ module.exports = {
     }
     // Fit all never goes below 75%.
     for (const w of [360, 1440]) {
-      const [c, p] = await open(w, 900, 'elena', MAP);
+      const [c, p] = await open(w, 900, 'amara', MAP);
       await p.locator('.react-flow__node').first().waitFor();
       await p.getByRole('button', { name: 'Fit all' }).click();
       await p.waitForTimeout(400);
@@ -131,12 +131,14 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(1920, 1080, 'elena', MAP);
+      const [c, p] = await open(1920, 1080, 'amara', MAP);
       await p.locator('.react-flow__node').first().waitFor();
       await p.waitForTimeout(300);
       const ok = await p.evaluate(() => {
         const cv = document.querySelector('.map-canvas').getBoundingClientRect();
-        return [...document.querySelectorAll('.react-flow__node')].filter((e) => /North star/.test(e.textContent)).every((e) => { const b = e.getBoundingClientRect(); return b.left >= cv.left && b.right <= cv.right; });
+        // Twelve north stars now, so they can't all be in view at once: the first, on the critical path (Lead time for changes), is.
+        const crit = [...document.querySelectorAll('.react-flow__node[data-id="ns-lead"]')];
+        return crit.length > 0 && crit.every((e) => { const b = e.getBoundingClientRect(); return b.left >= cv.left && b.right <= cv.right; });
       });
       fail(ok, 'Map 16: at 1920 the map does not open with both north stars in view');
       await c.close();
@@ -144,7 +146,7 @@ module.exports = {
 
     // ---------- reviews ----------
     {
-      const [c, p] = await open(1280, 800, 'elena', '/goals/access?review=weekly');
+      const [c, p] = await open(1280, 800, 'amara', '/goals/ns-lead?review=weekly');
       await p.locator('.decide').waitFor();
       const m = await p.evaluate(() => {
         // The head is the summary bar since the flagship page (5 Nov); the evidence is the chart and recent check-ins.
@@ -160,14 +162,14 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(1920, 1080, 'elena', '/goals/brain?review=weekly');
+      const [c, p] = await open(1920, 1080, 'amara', '/goals/lead-review?review=weekly');
       await p.locator('.decide').waitFor();
       const b = await rect(p, '.decide');
       fail(Math.abs(b.b - 1080) <= 1, `RV 17: on a short goal the decide bar ends at ${n(b.b)}, not the window's bottom`);
       await c.close();
     }
     for (const w of [360, 390]) {
-      const [c, p] = await open(w, 800, 'elena', '/goals/access?review=weekly', true);
+      const [c, p] = await open(w, 800, 'amara', '/goals/ns-lead?review=weekly', true);
       await p.locator('.decide').waitFor();
       const m = await p.evaluate(() => {
         const d = document.querySelector('.decide').getBoundingClientRect();
@@ -184,7 +186,7 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(390, 844, 'elena', '/reviews/weekly');
+      const [c, p] = await open(390, 844, 'amara', '/reviews/weekly');
       await p.locator('.hero').waitFor();
       const m = await p.evaluate(() => {
         const a = [...document.querySelectorAll('.hero .actions .btn')].map((b) => b.getBoundingClientRect().width);
@@ -207,7 +209,7 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(1280, 800, 'elena', '/reviews/weekly');
+      const [c, p] = await open(1280, 800, 'amara', '/reviews/weekly');
       await p.locator('.agenda .agenda-row').first().waitFor();
       const cols = await p.evaluate(() => getComputedStyle(document.querySelector('.agenda .agenda-row')).gridTemplateColumns.split(' '));
       // The agenda's own rows (Lane, 5 Nov): one fixed status column so the names line up, the name taking the room.
@@ -219,7 +221,7 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(390, 844, 'elena', '/reviews/new');
+      const [c, p] = await open(390, 844, 'amara', '/reviews/new');
       await p.locator('.focus-top').waitFor();
       const h1 = await p.evaluate(() => { const h = document.querySelector('.focus-top h1'); return h ? [getComputedStyle(h).fontSize, h.textContent] : null; });
       fail(!!h1 && h1[0] === '22px', `RV 14: set-up title ${h1 ? h1.join(' ') : 'is not a heading'}`);
@@ -235,7 +237,7 @@ module.exports = {
     }
     {
       // Below 1024: the review's text links are 44px targets.
-      const [c, p] = await open(768, 1024, 'elena', '/reviews/weekly');
+      const [c, p] = await open(768, 1024, 'amara', '/reviews/weekly');
       await p.locator('.hero').waitFor();
       await p.locator('.healthy-group summary').click(); // the choice to walk them sits inside the folded group (Lane, 5 Nov)
       await p.locator('.healthy-group .linkish').first().waitFor();

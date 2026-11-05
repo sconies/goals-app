@@ -5,11 +5,11 @@ import { checkInChange, goalChange, type Lookup } from '../domain/changes';
 import { toCheckIn, type Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
-import type { CheckIn, Cycle, Decision, Goal, HelpRequest, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
 import { currentCycle, scopeToCycle } from '../domain/cycle';
 import { findGoal, nextKey, withKeys } from '../domain/goalKey';
-import { requestsAfterCheckIn } from '../domain/requests';
+import { requestsAfterCheckIn } from '../domain/asks';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
@@ -73,19 +73,23 @@ export interface AppState {
   lookup: Lookup;
   /** Posts (or replaces) this week's check-in and logs it. */
   postCheckIn(goal: Goal, draft: Draft, existing: CheckIn | null): Promise<CheckIn>;
-  /** Answer a request for a decision or help: one answer for every goal it applies to. */
-  answerRequest(r: HelpRequest, answer: string): Promise<void>;
-  /** Link a goal to a request raised for another goal: waiting on the same decision. */
-  linkRequest(r: HelpRequest, goal: Goal): Promise<void>;
-  /** The owner withdraws their request between check-ins. */
-  withdrawRequest(r: HelpRequest, goal: Goal): Promise<void>;
+  /** Answer an ask (a decision or help, an update, a question): one answer for every goal it applies to. */
+  answerRequest(r: Ask, answer: string): Promise<void>;
+  /** Mark an action done, with an optional note. */
+  markActionDone(r: Ask, note?: string): Promise<void>;
+  /** Link a goal to a decision or help raised for another goal: waiting on the same decision. */
+  linkRequest(r: Ask, goal: Goal): Promise<void>;
+  /** Withdraw an ask; on a goal linked to another goal's request, stop waiting on it. */
+  withdrawRequest(r: Ask, goal?: Goal): Promise<void>;
   /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. */
   saveGoal(after: Goal, before: Goal | null, why?: string): Promise<void>;
-  /** A logged comment on a goal. Anyone can comment; it doesn't change the status. */
+  /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it asks nothing of anyone. */
   addNote(goal: Goal, text: string): Promise<void>;
-  /** Ask a goal's owner for an update: shown on their Home until they check in, or until it's undone. */
+  /** Ask a goal's owner for an update: open on their Home until they check in or answer it, or it's withdrawn. */
   askForUpdate(goal: Goal): Promise<void>;
   undoUpdateAsk(goal: Goal): Promise<void>;
+  /** Ask a goal's owner a question: open until they answer it. */
+  askQuestion(goal: Goal, text: string): Promise<void>;
   /** What someone says about a goal in a review: seen, a note, a question for the owner, or an action. */
   reviewCall(goal: Goal, review: Review, week: number, kind: 'acknowledge' | 'note' | 'ask' | 'action', note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Promise<void>;
   /** Correct a note, question or action someone said; the change log keeps the before and after. */
@@ -123,6 +127,8 @@ export interface AppState {
   stamp(): string;
   toast(text: string, kind?: Toast['kind']): void;
   storeKind: Store['kind'];
+  /** When this browser isn't keeping saves (full, or blocked): why, in words to show. Changes still apply for this visit. */
+  saveNote: string | null;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -188,6 +194,14 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     setToasts((t) => [...(kind === 'success' ? t.filter((x) => x.kind === 'error') : t), { id, kind, text }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), kind === 'error' ? 7000 : 3200);
   }, []);
+
+  // Saves this browser won't keep (full, or blocked): said once as it happens, and shown for as long as it lasts.
+  const [saveNote, setSaveNote] = useState<string | null>(() => store.saveProblem?.() ?? null);
+  useEffect(() => store.onSaveProblem?.(() => {
+    const note = store.saveProblem?.() ?? null;
+    setSaveNote(note);
+    if (note) toast('Saved for this visit only: ' + note.charAt(0).toLowerCase() + note.slice(1), 'error');
+  }), [store, toast]);
 
   useEffect(() => {
     let live = true;
@@ -303,7 +317,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     const week = currentWeek(cycle, now);
     const people = new Map(sc.people.map((p) => [p.id, p]));
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
-    const fallback = sc.people.find((p) => p.id === 'maya') ?? sc.people.find((p) => sc.goals.some((g) => g.ownerId === p.id)) ?? sc.people[0]!;
+    const fallback = sc.people.find((p) => p.id === 'rhea') ?? sc.people.find((p) => sc.goals.some((g) => g.ownerId === p.id)) ?? sc.people[0]!;
     const chosen = !!viewerId && people.has(viewerId);
     const viewer = (chosen && people.get(viewerId!)) || fallback;
     const statuses = new Map<string, GoalStatus>();
@@ -329,7 +343,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
     return traced({
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot: sc, allGoals: snapshot.goals, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind,
+      ws, workspaces, snapshot: sc, allGoals: snapshot.goals, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
@@ -385,7 +399,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         const change = checkInChange(existing, c, goal, viewer.id, newId('chg'));
         // Another check-in in the same week is kept alongside the first; the latest is the week's status.
         if (change && !existing && sc.checkIns.some((x) => x.goalId === goal.id && x.week === week)) change.summary = change.summary.replace('Checked in for week', 'Checked in again for week');
-        // The ask in a check-in raises, continues or withdraws a request (domain/requests).
+        // The ask in a check-in raises, continues or withdraws a request (domain/asks).
         const req = requestsAfterCheckIn(goal, c, sc, viewer.id, c.postedAt, newId);
         await commit({ checkIns: [c], requests: req.requests, changes: [...(change ? [change] : []), ...req.changes] });
         return c;
@@ -395,6 +409,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         return run;
       },
       answerRequest: async (r, answer) => { await act(() => A.answerRequest(ax(), r, answer)); },
+      markActionDone: async (r, note) => { await act(() => A.markActionDone(ax(), r, note ?? '')); },
+      askQuestion: async (goal, text) => { await act(() => A.askQuestion(ax(), goal, text)); },
       linkRequest: async (r, goal) => { await act(() => A.linkRequest(ax(), r, goal)); },
       withdrawRequest: async (r, goal) => { await act(() => A.withdrawRequest(ax(), r, goal)); },
       saveGoal: async (after, before, why) => {
@@ -441,7 +457,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },
       startNextCycle: async () => { const out = await act(() => A.startNextCycle(ax())); return out.name; },
     });
-  }, [loaded, viewerId, store, today, workspaces, commit, toast, createWorkspace, mode]);
+  }, [loaded, viewerId, store, today, workspaces, commit, toast, createWorkspace, mode, saveNote]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 

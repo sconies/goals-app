@@ -6,7 +6,7 @@ import { blankGoal, buildGoal, draftOf, goalAsOf, overHundredHint, validateGoal 
 import { currentWeek, forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { applyQuery, EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../src/domain/query';
 import { summariseAll } from '../src/domain/summary';
 import { goalYear, goalYearFor } from '../src/domain/year';
@@ -165,17 +165,18 @@ describe('goals', () => {
 });
 
 describe('the demo story holds on any day', () => {
-  for (const d of ['2026-10-30', '2026-12-07', '2027-03-14']) {
-    it(R('HIERARCHY', `headline with inputs from six teams, effects set (${d})`), () => {
+  for (const d of ['2026-11-05', '2026-12-07', '2027-03-14']) {
+    // The headline here is lead time for changes: four inputs from three teams, three of them with an effect on it.
+    it(R('HIERARCHY', `headline with inputs from three teams, effects set (${d})`), () => {
       const s = seed(day(d));
-      const inputs = s.goals.filter((g) => g.parentId === 'head');
-      expect(new Set(inputs.map((g) => g.teamId)).size).toBe(6);
-      expect(inputs.filter((g) => g.effect != null).length).toBeGreaterThanOrEqual(6);
+      const inputs = s.goals.filter((g) => g.parentId === 'ns-lead');
+      expect(new Set(inputs.map((g) => g.teamId)).size).toBe(3);
+      expect(inputs.filter((g) => g.effect != null).length).toBeGreaterThanOrEqual(3);
     });
-    it(R('STALE', `Infrastructure’s quiet goal is stale and the rest are not (${d})`), () => {
+    it(R('STALE', `the two quiet goals (Developer Portal’s and Infrastructure’s) are stale and the rest are not (${d})`), () => {
       const s = seed(day(d));
       const stale = s.goals.filter((g) => goalStatus(g, s.cycles[0]!, s.checkIns, day(d)).status === 'stale').map((g) => g.id);
-      expect(stale).toEqual(['env']);
+      expect(stale.sort()).toEqual(['cost-storage', 'env-search']);
     });
   }
 });
@@ -210,14 +211,14 @@ describe('numbers people can trust (research round 2)', () => {
 function draftOfUp() { return draftOf(up); }
 
 describe('search, filters and saved views', () => {
-  const day0 = new Date('2026-10-30T12:00:00Z');
+  const day0 = new Date('2026-11-05T12:00:00Z');
   const s0 = seed(day0);
   const c0 = s0.cycles[0]!;
   const w0 = currentWeek(c0, day0);
   const sums = summariseAll(s0.goals, s0, c0, day0, w0);
   const ids = (q: Partial<GoalQuery>) => applyQuery(sums, { ...EMPTY_QUERY, ...q }, { goals: s0.goals, cycle: c0, week: w0 }).map((x) => x.goal.id).sort();
-  it(R('SAVED-VIEWS', 'every word of a search must appear somewhere in the goal or its story'), () => expect(ids({ q: 'vendor brain' })).toEqual(['access']));
-  it(R('SAVED-VIEWS', 'a slipped recovery date is a filter of its own'), () => expect(ids({ needs: ['slipped'] })).toEqual(['cfr', 'idle']));
+  it(R('SAVED-VIEWS', 'every word of a search must appear somewhere in the goal or its story'), () => expect(ids({ q: 'runner budget' })).toEqual(['lead-ci-time', 'lead-runners', 'ns-lead']));
+  it(R('SAVED-VIEWS', 'a slipped recovery date is a filter of its own'), () => expect(ids({ needs: ['slipped'] })).toEqual(['cfr-contract', 'cfr-halt', 'dep-jenkins', 'devsat-docs', 'devsat-toil', 'env-templates', 'fresh-lakehouse', 'fresh-streaming', 'lead-flaky', 'lead-merge', 'lead-mq', 'lead-review-rota', 'ml-gpu', 'mttr-gamedays', 'mttr-noise', 'mttr-runbooks', 'net-mtls', 'ns-cfr', 'ns-devsat', 'ns-env', 'ns-vuln', 'slo-multiregion', 'vuln-autofix', 'vuln-containers', 'vuln-distroless']));
   it(R('SAVED-VIEWS', 'a link carries the whole query, and reads back the same'), () => {
     const q: GoalQuery = { ...EMPTY_QUERY, status: ['off'], due: 'quarter', sort: 'due', dir: -1 };
     expect(parseQuery(new URLSearchParams(queryEntries(q)))).toEqual(q);

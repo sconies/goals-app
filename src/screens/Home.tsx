@@ -5,16 +5,15 @@ import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
 import { dashboard, groupWatched, type Dashboard } from '../domain/home';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
-import { agendaOf, openQuestions, reviewSession, watchedGoals } from '../domain/review';
-import { daysSince, weekDates } from '../domain/plan';
+import { agendaOf, reviewSession, watchedGoals } from '../domain/review';
+import { weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
-import { isUpdateAsk, liveNotes } from '../domain/updateAsks';
+import { isOverdue, openForPerson } from '../domain/asks';
 import { periodWord, shortPeriod } from '../domain/year';
 import { LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
-import { openForPerson } from '../domain/requests';
-import type { Change } from '../domain/types';
-import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo } from '../ui/bits';
+import type { AskKind } from '../domain/types';
+import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo, WarnMark } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { saveReviewOrder } from './Inspect';
 import { GoalRow } from '../ui/goalRows';
@@ -132,7 +131,6 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
       </section>
       <aside className="home-side split-side" aria-label="For you">{side}</aside>
       <div className="home-main split-b">
-        <FirstReports />
         {mine.length > 0 && (
           <section className="block home-mine">
             <div className="row between">
@@ -154,55 +152,50 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
             )}
           </section>
         )}
+        {/* After your own goals, so what needs you comes first on a phone (U2); it qualifies an empty attention list. */}
+        <FirstReports />
         {after}
       </div>
     </>
   );
 }
 
-type AskKind = 'question' | 'request' | 'action' | 'comment';
-type Ask = { key: string; kind: AskKind; who: string; what: string; quote?: string; meta: string; to: string; action: string; at: string };
 /** Each kind of ask is named once, in its group's heading, so every item leads with the goal it's about. */
-const ASK_GROUP: Record<AskKind, string> = { question: 'Questions for you', request: 'Decisions or help needed', action: 'Actions for you', comment: 'On your goals' };
+const ASK_GROUP: Record<AskKind, string> = { question: 'Questions for you', decision: 'Decisions or help needed', update: 'Updates asked for', action: 'Actions for you' };
+const ASK_BUTTON: Record<AskKind, string> = { question: 'Answer', decision: 'Respond', update: 'Check in', action: 'Mark done' };
+const GROUP_ORDER: AskKind[] = ['decision', 'question', 'update', 'action'];
 
 /**
- * Needs your response: things addressed to you. Each says what it's about, what's needed, who asked and by when, and has
- * one specific action.
+ * Needs your response: every open ask waiting on you (one way to ask), once each however many goals it covers, grouped
+ * by kind. Each says what it's about, what was asked, who asked and by when, and has one action that opens it in the
+ * goal's Respond panel. Asks stay until they're answered, done or withdrawn; comments ask nothing, so they aren't here.
  */
 function NeedsYou() {
   const app = useApp();
   const me = app.viewer;
   const first = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
   const reviewDay = WEEKDAY[app.cycle.reviewDay];
-  const items: Ask[] = [];
-  for (const d of openQuestions(me.id, app.snapshot)) {
-    const r = app.snapshot.reviews.find((x) => x.id === d.reviewId);
-    items.push({ key: d.id, kind: 'question', who: d.byId, what: app.goal(d.goalId)?.title ?? '', quote: d.note, meta: `${first(d.byId)} asked you${r ? ` in ${r.name}` : ''}. Before ${reviewDay}’s review.`, to: `/goals/${d.goalId}?respond=${d.id}`, action: 'Answer', at: d.at });
-  }
-  // Open requests for a decision or help addressed to you: once each, however many goals are waiting on it.
-  for (const r of openForPerson(me.id, app.snapshot)) {
+  const items = openForPerson(me.id, app.snapshot).flatMap((r) => {
     const goals = r.goalIds.map((id) => app.goal(id)).filter((g) => !!g);
-    if (!goals.length) continue;
-    items.push({ key: 'req-' + r.id, kind: 'request', who: r.askedBy, what: goals.length > 1 ? `${goals[0]!.title}, and ${goals.length - 1} more ${goals.length === 2 ? 'goal' : 'goals'} waiting on it` : goals[0]!.title, quote: r.ask, meta: `Asked by ${first(r.askedBy)} ${timeAgo(r.createdAt, app.today)}; open until you answer`, to: `/goals/${goals[0]!.id}?respond=${r.id}`, action: 'Respond', at: r.createdAt });
-  }
-  // Actions from reviews assigned to you that are due from this week on (or undated and recent).
-  for (const d of app.snapshot.decisions) {
-    if (d.kind !== 'action' || (d.assigneeId ?? app.goal(d.goalId)?.ownerId) !== me.id || d.byId === me.id && !d.assigneeId) continue;
-    const due = d.dueWeek;
-    if (due != null ? due < app.week : daysSince(d.at, app.today) > 14) continue;
-    const from = app.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? 'a review';
-    items.push({ key: d.id, kind: 'action', who: d.byId, what: app.goal(d.goalId)?.title ?? '', quote: d.note, meta: `From ${from}. ${due != null ? (due === app.week ? `Due this week (${weekDates(app.cycle, due)})` : `Due week ${due} (${weekDates(app.cycle, due)})`) : 'No date set'}`, to: `/goals/${d.goalId}`, action: 'Open the goal', at: d.at });
-  }
-  const mine = new Set(app.snapshot.goals.filter((g) => g.ownerId === me.id).map((g) => g.id));
-  // An ask for an update is done once they've checked in since.
-  const answeredAsk = (c: Change) => isUpdateAsk(c) && app.snapshot.checkIns.some((x) => x.goalId === c.goalId && x.postedAt > c.at);
-  for (const c of liveNotes(app.snapshot.changes).filter((c) => c.goalId && mine.has(c.goalId) && c.actorId !== me.id && daysSince(c.at, app.today) <= 7 && !answeredAsk(c)).slice(-3)) {
-    items.push({ key: c.id, kind: 'comment', who: c.actorId, what: app.goal(c.goalId!)?.title ?? '', quote: c.diffs[0]?.to, meta: `${isUpdateAsk(c) ? `${first(c.actorId)} asked for an update` : `${first(c.actorId)} commented`} ${timeAgo(c.at, app.today)}`, ...(isUpdateAsk(c) ? { to: `/check-in/${c.goalId}`, action: 'Check in' } : { to: `/goals/${c.goalId}?respond=${c.id}`, action: 'Reply' }), at: c.at });
-  }
+    if (!goals.length) return [];
+    const where = app.snapshot.reviews.find((v) => v.id === r.reviewId)?.name;
+    const due = r.dueWeek != null
+      ? isOverdue(r, app.week) ? `Was due week ${r.dueWeek} (${weekDates(app.cycle, r.dueWeek)})` : r.dueWeek === app.week ? `Due this week (${weekDates(app.cycle, r.dueWeek)})` : `Due week ${r.dueWeek} (${weekDates(app.cycle, r.dueWeek)})`
+      : r.kind === 'question' ? `Before ${reviewDay}’s review` : r.kind === 'action' ? 'No date set' : 'Open until you answer';
+    const who = r.askedBy === me.id ? 'You agreed it' : `${first(r.askedBy)} ${r.kind === 'action' ? 'agreed it' : 'asked'}`;
+    const goal = r.kind === 'update' ? goals[0]!.id : null;
+    return [{
+      key: r.id, kind: r.kind, who: r.askedBy, overdue: isOverdue(r, app.week),
+      what: goals.length > 1 ? `${goals[0]!.title}, and ${goals.length - 1} more ${goals.length === 2 ? 'goal' : 'goals'} waiting on it` : goals[0]!.title,
+      quote: r.ask, meta: `${who}${where ? ` in ${where}` : ''} ${timeAgo(r.createdAt, app.today)}. ${due}.`,
+      // An ask for an update is answered by checking in; everything else opens in the goal's Respond panel.
+      to: goal ? `/check-in/${goal}` : `/goals/${goals[0]!.id}?respond=${r.id}`, at: r.createdAt,
+    }];
+  });
   if (!items.length) return null;
-  items.sort((a, b) => b.at.localeCompare(a.at));
-  const shown = items.slice(0, 5);
-  const groups = [...new Set(shown.map((x) => x.kind))].map((k) => [k, shown.filter((x) => x.kind === k)] as const);
+  // Overdue first, then newest first, within each kind.
+  items.sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.at.localeCompare(a.at));
+  const groups = GROUP_ORDER.map((k) => [k, items.filter((x) => x.kind === k)] as const).filter(([, l]) => l.length);
   return (
     <section className="block needs-you">
       <h2 className="block-title">Needs your response <span className="count-pill">{items.length}</span></h2>
@@ -216,10 +209,10 @@ function NeedsYou() {
                 <span className="need-body">
                   <span className="need-what">{x.what}</span>
                   {x.quote && <span className="need-quote">“{x.quote}”</span>}
-                  <span className="need-meta">{x.meta}</span>
+                  <span className="need-meta">{x.overdue && <WarnMark />}{x.meta}</span>
                   <span className="need-action">
-                    {/* Each opens the goal with this item open and its box ready (the flagship goal page, 5 Nov). */}
-                    <Link className="btn sm" to={x.to}>{x.action}</Link>
+                    {/* Each opens the goal with this ask open and its box ready (the flagship goal page, 5 Nov). */}
+                    <Link className="btn sm" to={x.to}>{ASK_BUTTON[x.kind]}</Link>
                   </span>
                 </span>
               </li>
@@ -254,7 +247,7 @@ function WatchedGoals() {
     <section className="block home-watch">
       <div className="row between">
         <h2 className="block-title">Goals you watch <span className="count-pill">{watched.length}</span></h2>
-        <Link className="small linkish" to="/watching">All you’re watching</Link>
+        <Link className="small linkish" to="/goals?show=watching">All you’re watching</Link>
       </div>
       <p className="hint">{parts.join(' · ')}.{worse ? ` ${worse} got worse this week.` : ''}</p>
       {shown.length > 0 && (
@@ -263,7 +256,7 @@ function WatchedGoals() {
           {shown.map((a) => <li key={a.goal.id}><GoalRow g={a.goal} /></li>)}
         </ul>
       )}
-      {exceptions.length > shown.length && <Link className="small linkish" to="/watching">{exceptions.length - shown.length} more in Watching</Link>}
+      {exceptions.length > shown.length && <Link className="small linkish" to="/goals?show=watching">{exceptions.length - shown.length} more in Watching</Link>}
       <HandledGroup list={groups.handled} folded />
     </section>
   );
@@ -319,12 +312,11 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
 
 /**
  * The week at a glance, above everything else (Lane's notes, 5 Nov): your goals by status (shape and word), your
- * on-time streak, the goals you watch that need attention, and your next review. One row on a desktop, two by two on a
+ * on-time streak and your next review (the goals you watch have one block of their own, below). One row on a desktop, two by two on a
  * phone; plain cells divided by hairlines, no tinted tiles.
  */
 function DashStrip({ d }: { d: Dashboard }) {
   const when = d.next ? (d.next.days === 0 ? 'today' : d.next.days === 1 ? 'tomorrow' : `in ${d.next.days} days`) : '';
-  const w = d.watching;
   return (
     <section className="dash" aria-label="Your week at a glance">
       <Link className="dash-cell dash-goals" to={d.scope === 'mine' ? '/goals?show=mine' : '/goals'}>
@@ -340,11 +332,6 @@ function DashStrip({ d }: { d: Dashboard }) {
           <span className="dash-sub">{d.streak ? 'All in before the review' : 'Check in before the review to start one'}</span>
         </div>
       )}
-      <Link className="dash-cell dash-watch" to="/watching">
-        <span className="dash-label">Watching{w ? ` · ${w.all.length}` : ''}</span>
-        <span className="dash-value">{!w ? 'Nothing yet' : w.needs.length ? `${w.needs.length} need${w.needs.length === 1 ? 's' : ''} attention` : 'Nothing new'}</span>
-        <span className="dash-sub">{!w ? 'Follow the goals you care about' : [w.handled.length ? `${w.handled.length} being handled` : '', w.quiet.length ? `${w.quiet.length} gone quiet` : ''].filter(Boolean).join(' · ') || 'Nothing behind or quiet'}</span>
-      </Link>
       <Link className="dash-cell dash-review" to={d.next ? `/reviews/${d.next.id}` : '/reviews'}>
         <span className="dash-label">Next review{d.next && <span className="dash-label-when"> · {d.next.weekday}</span>}</span>
         <span className="dash-value" title={d.next ? `${d.next.name}, ${d.next.weekday} ${when}` : undefined}>{d.next ? d.next.name : 'None you’re in'}</span>

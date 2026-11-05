@@ -1,7 +1,7 @@
 /* Lane's review notes (5 Nov), print-motion: the one-page views gather everything critical from the domain, and the
    motion layer's arithmetic lands exactly where it should. Each case is tagged with its requirement ID. */
 import { describe, expect, it } from 'vitest';
-import { seed } from '../src/data/seed';
+import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { goalSheet, reviewSheet } from '../src/domain/onePager';
 import { currentWeek } from '../src/domain/plan';
 import { attentionFor } from '../src/domain/attention';
@@ -10,26 +10,26 @@ import { easeOut, flipDeltas, MOTION_MS, STORY_MS, tween, type Pos } from '../sr
 import { EFFECTS, IMPACT, PACE, impactWords, paceWords } from '../src/app/appearance';
 
 const R = (id: string, text: string) => `[${id}] ${text}`;
-const today = new Date('2026-10-30T12:00:00Z');
+const today = new Date('2026-11-05T12:00:00Z');
 const s = seed(today);
 const cycle = s.cycles[0]!;
 const week = currentWeek(cycle, today);
 
 describe('print views', () => {
   it(R('PRINT-EXPORT', 'a goal’s page has its status, numbers against plan and target, facts, latest check-in and review notes'), () => {
-    const g = s.goals.find((x) => x.id === 'head')!;
+    const g = s.goals.find((x) => x.id === 'ns-lead')!;
     const sh = goalSheet(g, s, cycle, week, today);
     const sum = summarise(g, s, cycle, today, week);
     expect(sh.summary.status).toBe(sum.status);
     expect(sh.summary.target).toBe(sum.target);
     expect(sh.facts[0]).toEqual({ label: 'Where it stands', text: sum.story.where });
     expect(sh.latest?.c.id).toBe(sum.checkIns.at(-1)!.id);
-    // Elena's note from last week's review is carried, with who said it.
-    const note = sh.said.find((d) => d.note.startsWith('Brain and GPU'));
+    // Amara's note from last week's leadership weekly is carried, with who said it.
+    const note = sh.said.find((d) => d.note.startsWith('Runner budget'));
     expect(note?.kind).toBe('note');
-    expect(note?.by).toMatch(/^Elena/);
-    expect(note?.review).toBe('Platform weekly review');
-    expect(sh.contributing.length).toBe(s.goals.filter((x) => x.parentId === 'head').length);
+    expect(note?.by).toMatch(/^Amara/);
+    expect(note?.review).toBe('Platform leadership weekly');
+    expect(sh.contributing.length).toBe(s.goals.filter((x) => x.parentId === 'ns-lead').length);
   });
 
   it(R('PRINT-EXPORT', 'a goal behind plan carries its path to green and its open requests'), () => {
@@ -41,7 +41,7 @@ describe('print views', () => {
   });
 
   it(R('PRINT-EXPORT', 'contributing goals are worst first'), () => {
-    const sh = goalSheet(s.goals.find((x) => x.id === 'head')!, s, cycle, week, today);
+    const sh = goalSheet(s.goals.find((x) => x.id === 'ns-lead')!, s, cycle, week, today);
     const w = sh.contributing.map((c) => attentionFor(c.goal, s, cycle, today).weight);
     expect(w).toEqual([...w].sort((a, b) => b - a));
   });
@@ -50,10 +50,16 @@ describe('print views', () => {
     const r = s.reviews.find((x) => x.id === 'weekly')!;
     const sh = reviewSheet(r, s, cycle, week, today);
     expect(sh.items.length).toBe(sh.total);
-    const weights = sh.items.map((i) => attentionFor(i.goal, s, cycle, today).weight);
-    expect(weights).toEqual([...weights].sort((a, b) => b - a));
-    const head = sh.items.find((i) => i.goal.id === 'head')!;
-    expect(head.earlier.map((d) => d.note).join(' ')).toMatch(/Brain and GPU quota/);
+    // The agenda's order: worst first among the goals that need attention, then worst first among those already being handled, then the healthy ones.
+    const att = sh.items.map((i) => ({ ...attentionFor(i.goal, s, cycle, today), healthy: i.healthy }));
+    const rank = (a: (typeof att)[number]) => (a.healthy ? 2 : a.handled ? 1 : 0);
+    expect(att.map(rank)).toEqual(att.map(rank).sort());
+    for (const r of [0, 1, 2]) {
+      const weights = att.filter((a) => rank(a) === r).map((a) => a.weight);
+      expect(weights).toEqual([...weights].sort((a, b) => b - a));
+    }
+    const head = sh.items.find((i) => i.goal.id === 'ns-lead')!;
+    expect(head.earlier.map((d) => d.note).join(' ')).toMatch(/Runner budget/);
     expect(sh.items.filter((i) => !i.healthy).every((i) => i.facts.length >= 1)).toBe(true);
   });
 });

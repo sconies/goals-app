@@ -48,7 +48,9 @@ export function SessionStateWord({ st }: { st: SessionState }) {
 export function Reviews() {
   const app = useApp();
   const sessions = app.snapshot.reviews.map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week));
-  const mine = sessions.filter((s) => s.review.people.includes(app.viewer.id));
+  // A session under way comes first: it's the one to pick up.
+  const underWay = (s: ReviewSession) => (sessionState(s).kind === 'in-progress' ? 0 : 1);
+  const mine = sessions.filter((s) => s.review.people.includes(app.viewer.id)).sort((a, b) => underWay(a) - underWay(b));
   const others = sessions.filter((s) => !s.review.people.includes(app.viewer.id));
   return (
     <div className="page narrow reviews-list">
@@ -71,7 +73,7 @@ function ReviewLine({ s }: { s: ReviewSession }) {
   const app = useApp();
   const st = sessionState(s);
   const last = lastHeld(s.review, app.snapshot, s.week);
-  const actions = openActions(s.review, app.snapshot, app.week).length;
+  const actions = openActions(s.review, app.snapshot).length;
   const people = s.review.people.map((id) => app.person(id)).filter((p) => !!p);
   const facts: [string, string][] = st.kind === 'held'
     ? [['Next', dayText(sessionDate(s.review, app.cycle, nextSessionWeek(s.review, s.week)))], ['Open actions', String(actions)]]
@@ -107,15 +109,15 @@ function SessionRecord({ s, title, reviewed }: { s: ReviewSession; title: string
         <div className="stack" style={{ gap: 'var(--s1)' }}>
           <h3 className="field-label">Actions · {actions.length}</h3>
           <ul className="record">{actions.map((d) => (
-            <li key={d.id}><span className="strong">{d.note}</span><span className="hint">{app.person(d.assigneeId ?? app.goal(d.goalId)?.ownerId ?? '')?.name ?? 'Someone'} · {d.dueWeek ? `by week ${d.dueWeek}, ${weekDates(app.cycle, d.dueWeek)}` : 'no date'} · {goalLink(d.goalId)}</span></li>
+            <li key={d.id}><span className="strong">{d.note}</span><span className="hint">{app.person(d.assigneeId ?? app.goal(d.goalId)?.ownerId ?? '')?.name ?? 'Someone'} · {d.dueWeek ? `by week ${d.dueWeek}, ${weekDates(app.cycle, d.dueWeek)}` : 'no date'} · {goalLink(d.goalId)}</span>{d.ask && <span className={'small' + (d.ask.status === 'open' && d.ask.dueWeek != null && d.ask.dueWeek < app.week ? ' tone-risk' : '')}>{d.ask.status === 'done' ? <><strong>Done</strong>{d.ask.answer ? `: ${d.ask.answer}` : ''}</> : d.ask.dueWeek != null && d.ask.dueWeek < app.week ? 'Open, past its week' : 'Open'}</span>}</li>
           ))}</ul>
         </div>
       )}
       {asks.length > 0 && (
         <div className="stack" style={{ gap: 'var(--s1)' }}>
-          <h3 className="field-label">Questions for owners · {asks.filter((d) => !answerOf(d, app.snapshot)).length} waiting</h3>
+          <h3 className="field-label">Questions for owners · {asks.filter((d) => !answerOf(d)).length} waiting</h3>
           <ul className="record">{asks.map((d) => {
-            const ans = answerOf(d, app.snapshot);
+            const ans = answerOf(d);
             const g = app.goal(d.goalId);
             return (
               <li key={d.id}>

@@ -520,6 +520,21 @@
       "id": "SHARED-DOWNLOADS",
       "area": "Export",
       "text": "Every file the app saves (Export, Import's workbook, Data, Activity, the set-up template, research notes) goes through one saveFile(), named <workspace>-<what>-<scope>-<date>, with one way of saying it saved or what went wrong."
+    },
+    {
+      "id": "ONE-ASK",
+      "area": "Asking",
+      "text": "One ask model: a decision or help, an update, a question and an action are each one record with who asked, who must respond, an optional due week and the goals it covers. Each is open until it is explicitly answered (an action: marked done) or withdrawn; a comment never closes one. Every kind is answered in one Respond panel, appears once in Home’s Needs your response and on the goal page, and the goal page’s action list shows its real state (open, overdue, done)."
+    },
+    {
+      "id": "DEMO-STORAGE",
+      "area": "Demo",
+      "text": "The demo keeps only the visitor’s own saves on top of the example rebuilt from its description, so a change survives a reload at the example’s full size. When the browser refuses to store (full, or blocked in a private window), the changes still apply for the visit and the page says plainly that they will be lost on reload; starting over clears the saves."
+    },
+    {
+      "id": "ONE-WATCHING",
+      "area": "Watching",
+      "text": "Watching is one place: a Goals scope (/goals?show=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block."
     }
   ],
   "notYetBuilt": [
