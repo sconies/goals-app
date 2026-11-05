@@ -49,12 +49,12 @@ module.exports = {
     // at every width, light and dark.
     for (const [w, h, touch] of [[390, 844, true], [1100, 900, false], [1280, 800, false], [1440, 900, false]]) {
       for (const scheme of ['light', 'dark']) {
-        [c, p] = await open(w, h, 'kofi', '/goals/alerts', touch);
+        [c, p] = await open(w, h, 'yasmin', '/goals/vuln-containers', touch);
         await p.emulateMedia({ colorScheme: scheme });
         await p.locator('.goal-bar').waitFor();
         await p.waitForTimeout(300);
         const f = await bar(p);
-        const at = `alerts ${w} ${scheme}`;
+        const at = `vuln-containers ${w} ${scheme}`;
         chk(/^(At risk|Off track)$/.test(f.status) && f.shape, `${at}: bar status “${f.status}”`);
         chk(/^\d+%$/.test(f.now), `${at}: bar number “${f.now}”`);
         chk(/plan \d+%/.test(f.against.join(' ')) && /target \d+%/.test(f.against.join(' ')), `${at}: bar says “${f.against.join(' / ')}”`);
@@ -71,46 +71,47 @@ module.exports = {
         chk(!filled.length, `${at}: text with a fill behind it: ${filled.join(', ')}`);
         if (scheme === 'light' && w === 1280) {
           // On track: no path to green, and line 3 has no "being handled".
-          await p.goto(p.url().replace('/goals/alerts', '/goals/lead')); await p.locator('.goal-bar').waitFor();
+          await p.goto(p.url().replace('/goals/vuln-containers', '/goals/lead-review-small')); await p.locator('.goal-bar').waitFor();
           const on = await bar(p);
-          chk(!on.ptg && !on.handled, `lead 1280: on track shows path to green ${!!on.ptg}, handled “${on.handled}”`);
+          chk(!on.ptg && !on.handled, `lead-review-small 1280: on track shows path to green ${!!on.ptg}, handled “${on.handled}”`);
         }
         await c.close();
       }
     }
 
     // (a) A range and dated stages, in their own terms.
-    [c, p] = await open(1280, 800, 'elena', '/goals/cfr');
+    [c, p] = await open(1280, 800, 'daniel', '/goals/ns-cfr');
     await p.locator('.goal-bar').waitFor();
     let f = await bar(p);
-    chk(/at most \d/.test(f.against.join(' ')) && /(inside|outside) the limit/.test(f.against.join(' ')), `cfr: bar says ${f.against.join(' / ')}`);
-    await p.goto(p.url().replace('/goals/cfr', '/goals/access')); await p.locator('.goal-bar').waitFor();
+    chk(/at most \d/.test(f.against.join(' ')) && /(inside|outside) the limit/.test(f.against.join(' ')), `ns-cfr: bar says ${f.against.join(' / ')}`);
+    await p.goto(p.url().replace('/goals/ns-cfr', '/goals/lead-mq')); await p.locator('.goal-bar').waitFor();
     f = await bar(p);
-    chk(/^\d of \d stages done$/.test(f.now) && /stages? slipping/.test(f.against.join(' ')), `access: bar says ${f.now} / ${f.against.join(' / ')}`);
-    chk(f.heads[0] === 'Asked of you', `access as Elena: first side heading “${f.heads[0]}”`);
+    chk(/^\d of \d stages done$/.test(f.now) && /stages? slipping/.test(f.against.join(' ')), `lead-mq: bar says ${f.now} / ${f.against.join(' / ')}`);
+    chk(f.heads[0] === 'Asked of you', `lead-mq as Daniel (the decision is asked of him): first side heading “${f.heads[0]}”`);
     // (e) Arriving from outside on a goal that feeds another, Back names that goal; About says what it feeds.
     const back = (await p.locator('.goal-page > .backlink').innerText()).trim();
-    chk(back === 'Back to Intake-to-delivery time', `access from outside: “${back}”`);
+    chk(back === 'Back to Merge-to-deploy time (median)', `lead-mq from outside: “${back}”`);
     const feeds = await p.evaluate(() => { const dt = [...document.querySelectorAll('.about dt')].find((d) => d.textContent === 'Feeds into'); const a = dt?.nextElementSibling?.querySelector('a'); return a ? a.getAttribute('href') : null; });
-    chk(/\/goals\/head$/.test(feeds || ''), `access: About's Feeds into links to ${feeds}`);
+    chk(/\/goals\/lead-merge$/.test(feeds || ''), `lead-mq: About's Feeds into links to ${feeds}`);
     await c.close();
 
     // (e) How it's measured, in About (open on a first visit); only the owner (or an admin) is offered to change it.
-    [c, p] = await open(390, 844, 'maya', '/goals/head', true);
+    [c, p] = await open(390, 844, 'rhea', '/goals/ns-lead', true);
     await p.locator('details.about[open]').waitFor();
     const about = await p.evaluate(() => { const dt = [...document.querySelectorAll('.about dt')].find((d) => d.textContent === 'How it’s measured'); return dt?.nextElementSibling?.innerText.replace(/\s+/g, ' ') || ''; });
     chk(/Source: .+\.$/.test(about) && about.length > 20, `head: How it’s measured “${about}”`);
     await c.close();
-    for (const [who, want] of [['kofi', true], ['maya', false]]) {
-      [c, p] = await open(1280, 800, who, '/goals/alerts');
+    for (const [who, want] of [['yasmin', true], ['rhea', false]]) {
+      [c, p] = await open(1280, 800, who, '/goals/vuln-containers');
       await p.locator('.goal-bar').waitFor();
       const n = await p.locator('#change-goal a').count();
-      chk(!!n === want, `alerts as ${who}: ${n} ways to change the goal`);
+      chk(!!n === want, `vuln-containers as ${who}: ${n} ways to change the goal`);
       await c.close();
     }
 
     // (d) The bar stays on screen: in place at the top, then one line once scrolled, under the review bar in a review.
-    for (const [w, h, touch, who, route] of [[390, 844, true, 'elena', '/goals/head'], [1280, 800, false, 'elena', '/goals/cfr'], [1440, 900, false, 'maya', '/goals/head'], [1100, 800, false, 'elena', '/goals/access?review=weekly']]) {
+    for (const [w, h, touch, who, route] of // (Rhea has checked in on the north star, so its check-in is in the … menu; her goal still to post, Base image build time, has the button.)
+    [[390, 844, true, 'amara', '/goals/ns-lead'], [1280, 800, false, 'amara', '/goals/lead-mq'], [1440, 900, false, 'rhea', '/goals/ci-docker'], [1100, 800, false, 'amara', '/goals/ns-lead?review=weekly']]) {
       [c, p] = await open(w, h, who, route, touch);
       await p.locator('.goal-bar').waitFor();
       const before = await p.locator('.goal-bar.compact').count();
@@ -137,7 +138,7 @@ module.exports = {
     // (f) The review walk: the chart and recent check-ins open, full width when the columns stack (1024–1200), and each
     // check-in opens to the whole check-in.
     for (const [w, h, touch] of [[390, 844, true], [1024, 768, false], [1100, 900, false], [1200, 900, false], [1280, 800, false]]) {
-      [c, p] = await open(w, h, 'elena', '/goals/access?review=weekly', touch);
+      [c, p] = await open(w, h, 'amara', '/goals/ns-lead?review=weekly', touch);
       await p.locator('.decide').waitFor();
       const m = await p.evaluate(() => {
         const ev = document.querySelector('.review-evidence'), split = document.querySelector('.goal-page .split');
@@ -157,17 +158,17 @@ module.exports = {
       await c.close();
     }
     // The same rows in the Activity stream, a number goal, dark.
-    [c, p] = await open(1440, 900, 'elena', '/goals/alerts');
+    [c, p] = await open(1440, 900, 'amara', '/goals/vuln-containers');
     await p.emulateMedia({ colorScheme: 'dark' });
     await p.locator('#activity').getByRole('button', { name: 'Check-ins', exact: true }).click();
     await p.locator('#activity .ci-row').first().click();
     const row = await p.evaluate(() => { const b = document.querySelector('#activity .ci-row'); const d = document.querySelector('#activity .ci-full'); return { exp: b?.getAttribute('aria-expanded'), text: d?.innerText.replace(/\s+/g, ' ') || '' }; });
-    chk(row.exp === 'true' && /Cause/.test(row.text) && /Path to green/.test(row.text) && /Checked in Kofi Boateng/.test(row.text), `alerts activity: opened check-in ${JSON.stringify(row)}`);
+    chk(row.exp === 'true' && /Cause/.test(row.text) && /Path to green/.test(row.text) && /Checked in Yasmin El-Amin/.test(row.text), `vuln-containers activity: opened check-in ${JSON.stringify(row)}`);
     await c.close();
 
     // What feeds it: no part of a row draws over another (status over the number, 5 Nov).
     for (const w of [1280, 1440, 390]) {
-      [c, p] = await open(w, 900, 'maya', '/goals/head');
+      [c, p] = await open(w, 900, 'rhea', '/goals/ns-lead');
       const clash = await p.evaluate(() => {
         let n = 0;
         for (const row of document.querySelectorAll('.goal-page .tree .trow')) {

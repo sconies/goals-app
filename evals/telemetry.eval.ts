@@ -22,11 +22,11 @@ import { newSpanId, newTraceId, traceparent } from '../src/telemetry/ids';
 import { logProblems, metricRow, spanProblems, type LogRow, type SpanRow } from '../src/telemetry/model';
 import { tracedStore } from '../src/telemetry/store';
 
-const OCT = new Date('2026-10-30T12:00:00Z');
+const OCT = new Date('2026-11-05T12:00:00Z');
 const SECRET = 'Zebra-pancake 7319 do not record';
 const ctx = (personId: string, s: Snapshot = seed(OCT)): A.ActionContext => {
   const cycle = currentCycle(s.cycles, OCT)!;
-  return { snapshot: scopeToCycle(s, cycle), cycle, week: 44, actor: s.people.find((p) => p.id === personId)!, now: OCT.toISOString(), newId, allGoals: s.goals };
+  return { snapshot: scopeToCycle(s, cycle), cycle, week: 45, actor: s.people.find((p) => p.id === personId)!, now: OCT.toISOString(), newId, allGoals: s.goals };
 };
 
 /** The browser's telemetry with a fake network that keeps every request body. */
@@ -36,7 +36,7 @@ function browser(status = 201, recording: boolean | null = true) {
   const exporter = new Exporter({ url: 'https://db.example', key: 'k' }, { fetch, setTimer: () => 1, clearTimer: () => undefined });
   const paints: (() => void)[] = [];
   const tel = new Telemetry({ sessionId: 'b'.repeat(32), exporter, resource: { 'service.name': 'goals-app', 'service.version': 'eval', 'deployment.environment': 'demo' }, afterPaint: (f) => paints.push(f), flows: new FlowTracker() });
-  tel.setContext({ workspaceId: 'example', userId: 'maya', store: 'browser', recording });
+  tel.setContext({ workspaceId: 'platform-org', userId: 'rhea', store: 'browser', recording });
   const store = tracedStore(new BrowserStore(() => OCT), tel);
   const rows = <T,>(table: string) => bodies.filter((b) => b.url.endsWith(table)).flatMap((b) => JSON.parse(b.body) as T[]);
   return { tel, exporter, store, bodies, paint: () => paints.splice(0).forEach((f) => f()), spans: () => rows<SpanRow>('okr_telemetry_spans'), logs: () => rows<LogRow>('okr_telemetry_logs') };
@@ -48,7 +48,7 @@ async function assistant(personId: string, sinkFails = false) {
   let recording = true;
   const stored: SpanRow[] = [];
   const token = newToken();
-  const t: ApiToken = { id: 'tok-' + personId, personId, name: 'Eval', tokenHash: await hashToken(token), createdBy: 'elena', createdAt: OCT.toISOString(), lastUsedAt: null, revokedAt: null };
+  const t: ApiToken = { id: 'tok-' + personId, personId, name: 'Eval', tokenHash: await hashToken(token), createdBy: 'amara', createdAt: OCT.toISOString(), lastUsedAt: null, revokedAt: null };
   data = { ...data, tokens: [t] };
   const deps: Deps = {
     findToken: async (h) => (h === t.tokenHash ? { token: t, workspaceId: 'acme' } : null),
@@ -72,9 +72,9 @@ async function assistant(personId: string, sinkFails = false) {
 describe('Signals: traces, logs and metrics in OpenTelemetry’s shape', () => {
   it('[TELEMETRY-SIGNALS] an action is one trace: the action, its save timed as a CLIENT span, its flow step and the page showing the result, all valid OpenTelemetry', async () => {
     const b = browser();
-    b.tel.page('/check-in/alerts', '', 'push').end();
-    const goal = ctx('kofi').snapshot.goals.find((g) => g.id === 'alerts')!;
-    await b.tel.action('postCheckIn', async () => { await b.store.commit('example', A.addNote(ctx('kofi'), goal, 'On plan this week.')); });
+    b.tel.page('/check-in/mttr-pir', '', 'push').end();
+    const goal = ctx('mateo').snapshot.goals.find((g) => g.id === 'mttr-pir')!;
+    await b.tel.action('postCheckIn', async () => { await b.store.commit('platform-org', A.addNote(ctx('mateo'), goal, 'On plan this week.')); });
     b.paint();
     b.tel.metric('browser.lcp', 812);
     await b.exporter.flush();
@@ -87,7 +87,7 @@ describe('Signals: traces, logs and metrics in OpenTelemetry’s shape', () => {
     expect(trace.some((s) => s.name === 'flow.finish' && s.parent_span_id === action.span_id)).toBe(true);
     expect(trace.some((s) => s.name === 'page /check-in/:goalId' && s.parent_span_id === action.span_id)).toBe(true);
     expect(action.resource).toMatchObject({ 'service.name': 'goals-app', 'deployment.environment': 'demo' });
-    expect(action.attributes).toMatchObject({ 'session.id': 'b'.repeat(32), 'user.id': 'maya', 'app.workspace.id': 'example', 'http.route': '/check-in/:goalId' });
+    expect(action.attributes).toMatchObject({ 'session.id': 'b'.repeat(32), 'user.id': 'rhea', 'app.workspace.id': 'platform-org', 'http.route': '/check-in/:goalId' });
     const m = b.bodies.find((x) => x.url.endsWith('okr_telemetry_metrics'));
     expect(JSON.parse(m!.body)[0]).toMatchObject({ name: 'browser.lcp', value: 812, unit: 'ms' });
     expect(metricRow({ atMs: 0, name: 'x', value: 1 }).kind).toBe('gauge');
@@ -95,10 +95,10 @@ describe('Signals: traces, logs and metrics in OpenTelemetry’s shape', () => {
 
   it('[TELEMETRY-SIGNALS] a failed save is a log in its trace that tells a rule saying no from a network or database fault', async () => {
     const b = browser();
-    const refused = () => b.tel.action('saveTeam', () => A.saveTeam(ctx('maya'), { name: 'Data' }));
+    const refused = () => b.tel.action('saveTeam', () => A.saveTeam(ctx('rhea'), { name: 'Data' }));
     expect(refused).toThrow(A.NotAllowed);
     const broken = { ...b.store, commit: async () => { throw new TypeError('Failed to fetch'); } };
-    await expect(b.tel.action('addNote', () => tracedStore(broken, b.tel).commit('example', { changes: [] }))).rejects.toThrow();
+    await expect(b.tel.action('addNote', () => tracedStore(broken, b.tel).commit('platform-org', { changes: [] }))).rejects.toThrow();
     await b.exporter.flush();
     const logs = b.logs();
     expect(logs.flatMap(logProblems)).toEqual([]);
@@ -109,14 +109,14 @@ describe('Signals: traces, logs and metrics in OpenTelemetry’s shape', () => {
   });
 
   it('[TELEMETRY-SIGNALS] the MCP server records a SERVER span per tool call in the caller’s trace, with its save as a CLIENT span inside', async () => {
-    const as = await assistant('kofi');
+    const as = await assistant('mateo');
     const caller = { traceId: newTraceId(), spanId: newSpanId() };
-    const r = await as.call('add_comment', { goal_id: 'alerts', text: 'Looks fine.' }, { traceparent: traceparent(caller) });
+    const r = await as.call('add_comment', { goal_id: 'mttr-pir', text: 'Looks fine.' }, { traceparent: traceparent(caller) });
     expect(r.error).toBe(false);
     expect(as.stored.flatMap((s) => spanProblems(s))).toEqual([]);
     const server = as.stored.find((s) => s.kind === 'SERVER')!;
     expect(server).toMatchObject({ name: 'tools/call add_comment', trace_id: caller.traceId, parent_span_id: caller.spanId, status_code: 'OK',
-      attributes: { 'mcp.method.name': 'tools/call', 'gen_ai.tool.name': 'add_comment', 'user.id': 'kofi', 'app.workspace.id': 'acme', 'app.via': 'mcp' }, resource: { 'service.name': 'goals-mcp' } });
+      attributes: { 'mcp.method.name': 'tools/call', 'gen_ai.tool.name': 'add_comment', 'user.id': 'mateo', 'app.workspace.id': 'acme', 'app.via': 'mcp' }, resource: { 'service.name': 'goals-mcp' } });
     const db = as.stored.filter((s) => s.kind === 'CLIENT');
     expect(db.map((s) => s.attributes['db.operation']).sort()).toEqual(['okr_commit', 'select']);
     expect(db.every((s) => s.trace_id === caller.traceId && s.parent_span_id === server.span_id && s.attributes['db.system'] === 'postgresql')).toBe(true);
@@ -132,7 +132,7 @@ describe('Signals: traces, logs and metrics in OpenTelemetry’s shape', () => {
       const b = browser(status);
       for (let i = 0; i < 5; i++) {
         b.tel.page('/', '', 'push').end();
-        await expect(b.tel.action('watch', async () => { await b.store.commit('example', { changes: [] }); return 'ok'; })).resolves.toBe('ok');
+        await expect(b.tel.action('watch', async () => { await b.store.commit('platform-org', { changes: [] }); return 'ok'; })).resolves.toBe('ok');
         await b.exporter.flush();
       }
       // One refusal stops it; a network or server fault backs off: never a request per record.
@@ -142,9 +142,9 @@ describe('Signals: traces, logs and metrics in OpenTelemetry’s shape', () => {
     none.setContext({ recording: true });
     expect(none.action('setViewer', () => 'still works')).toBe('still works');
     // The MCP server answers the same when its telemetry table isn't there.
-    const as = await assistant('kofi', true);
-    expect((await as.call('get_goal', { goal_id: 'alerts' })).error).toBe(false);
-    const posted = await as.call('add_comment', { goal_id: 'alerts', text: 'Still fine.' });
+    const as = await assistant('mateo', true);
+    expect((await as.call('get_goal', { goal_id: 'mttr-pir' })).error).toBe(false);
+    const posted = await as.call('add_comment', { goal_id: 'mttr-pir', text: 'Still fine.' });
     expect(posted.error).toBe(false);
     expect(as.data().changes.at(-1)!.summary).toBe('Commented');
   });
@@ -153,10 +153,10 @@ describe('Signals: traces, logs and metrics in OpenTelemetry’s shape', () => {
 describe('Privacy: nothing anyone types', () => {
   it('[TELEMETRY-PRIVACY] a comment, a team name and a number someone typed never reach a request, from the app or the MCP server', async () => {
     const b = browser();
-    const goal = ctx('maya').snapshot.goals.find((g) => g.id === 'head')!;
-    b.tel.page('/goals/head', `?q=${encodeURIComponent(SECRET)}`, 'push').end();
-    await b.tel.action('addNote', async () => { await b.store.commit('example', A.addNote(ctx('maya'), goal, SECRET)); });
-    expect(() => b.tel.action('saveTeam', () => A.saveTeam(ctx('priya'), { name: 'DevEx' }))).toThrow();
+    const goal = ctx('rhea').snapshot.goals.find((g) => g.id === 'ns-lead')!;
+    b.tel.page('/goals/ns-lead', `?q=${encodeURIComponent(SECRET)}`, 'push').end();
+    await b.tel.action('addNote', async () => { await b.store.commit('platform-org', A.addNote(ctx('rhea'), goal, SECRET)); });
+    expect(() => b.tel.action('saveTeam', () => A.saveTeam(ctx('grace'), { name: 'Developer Experience' }))).toThrow();
     b.tel.exception(new Error(`Could not parse “${SECRET}” as 7319`), 'window');
     b.paint();
     await b.exporter.flush();
@@ -165,8 +165,8 @@ describe('Privacy: nothing anyone types', () => {
     expect(all).not.toContain('Zebra');
     expect(all).not.toContain('7319');
     expect(all).not.toContain('DevEx');
-    const as = await assistant('maya');
-    await as.call('add_comment', { goal_id: 'head', text: SECRET });
+    const as = await assistant('rhea');
+    await as.call('add_comment', { goal_id: 'ns-lead', text: SECRET });
     await as.call('save_team', { name: SECRET });
     expect(as.stored.length).toBeGreaterThan(1);
     expect(JSON.stringify(as.stored)).not.toContain('Zebra');
@@ -187,7 +187,7 @@ describe('Named flows', () => {
   it('[TELEMETRY-FLOWS] each flow has its guide article, and a check-in is recorded as started, step 2 of 3, finished', async () => {
     for (const f of FLOWS) expect(articleById(f.article), f.id).toBeDefined();
     const b = browser();
-    b.tel.page('/check-in/alerts', '', 'push').end();
+    b.tel.page('/check-in/mttr-pir', '', 'push').end();
     b.tel.mark('checkIn.account');
     expect(b.tel.flowsNow()).toEqual([{ flow: 'check-in', step: 'explain', index: 2, count: 3 }]);
     await b.tel.action('postCheckIn', async () => undefined);
@@ -231,20 +231,20 @@ describe('Retention', () => {
 
 describe('The recording switch', () => {
   it('[TELEMETRY-SWITCH] only an admin turns recording off; it is logged, and then nothing is sent for the workspace', async () => {
-    expect(() => A.setRecording(ctx('maya'), { id: 'example' }, false)).toThrow(/Only admins/);
-    expect(A.setRecording(ctx('priya'), { id: 'example' }, true)).toBeNull();
-    const c = A.setRecording(ctx('priya'), { id: 'example' }, false)!;
+    expect(() => A.setRecording(ctx('rhea'), { id: 'platform-org' }, false)).toThrow(/Only admins/);
+    expect(A.setRecording(ctx('grace'), { id: 'platform-org' }, true)).toBeNull();
+    const c = A.setRecording(ctx('grace'), { id: 'platform-org' }, false)!;
     expect(c.recording).toBe(false);
-    expect(c.changes[0]).toMatchObject({ entity: 'workspace', action: 'edited', actorId: 'priya', summary: 'Turned recording off', diffs: [{ field: 'Recording', from: 'On', to: 'Off' }] });
+    expect(c.changes[0]).toMatchObject({ entity: 'workspace', action: 'edited', actorId: 'grace', summary: 'Turned recording off', diffs: [{ field: 'Recording', from: 'On', to: 'Off' }] });
     // The browser store keeps the switch with the workspace.
     const store = new BrowserStore(() => OCT);
-    await store.commit('example', c);
-    expect((await store.workspaces()).find((w) => w.id === 'example')!.recording).toBe(false);
+    await store.commit('platform-org', c);
+    expect((await store.workspaces()).find((w) => w.id === 'platform-org')!.recording).toBe(false);
     // Off: nothing is sent, whatever happens next.
     const b = browser();
     b.tel.page('/', '', 'push').end();
     b.tel.setContext({ recording: false });
-    b.tel.page('/check-in/alerts', '', 'push').end();
+    b.tel.page('/check-in/mttr-pir', '', 'push').end();
     await b.tel.action('postCheckIn', async () => undefined);
     b.tel.exception(new Error('x'), 'window');
     await b.exporter.flush(true);
@@ -260,21 +260,21 @@ describe('The recording switch', () => {
   });
 
   it('[TELEMETRY-SWITCH] an admin’s assistant can turn it off with set_recording: that call and every later one store nothing', async () => {
-    const maya = await assistant('maya');
-    expect((await maya.call('set_recording', { on: false })).error).toBe(true);
-    const as = await assistant('priya');
-    await as.call('get_goal', { goal_id: 'head' });
+    const rhea = await assistant('rhea');
+    expect((await rhea.call('set_recording', { on: false })).error).toBe(true);
+    const as = await assistant('grace');
+    await as.call('get_goal', { goal_id: 'ns-lead' });
     const before = as.stored.length;
     expect(before).toBeGreaterThan(0);
     const r = await as.call('set_recording', { on: false });
     expect(r).toMatchObject({ error: false, data: { recording: false } });
     expect(as.recording()).toBe(false);
     expect(as.data().changes.at(-1)).toMatchObject({ summary: 'Turned recording off', diffs: [{ field: 'Recording', from: 'On', to: 'Off' }, { field: 'Via', to: 'AI assistant (MCP)' }] });
-    await as.call('get_goal', { goal_id: 'head' });
+    await as.call('get_goal', { goal_id: 'ns-lead' });
     expect(as.stored.length).toBe(before);
     expect((await as.call('set_recording', { on: false })).text).toMatch(/already off/);
     await as.call('set_recording', { on: true });
-    await as.call('get_goal', { goal_id: 'head' });
+    await as.call('get_goal', { goal_id: 'ns-lead' });
     expect(as.stored.length).toBeGreaterThan(before);
   });
 });

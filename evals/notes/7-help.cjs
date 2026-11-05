@@ -26,7 +26,7 @@ module.exports = {
     for (const [w, h, touch] of SIZES) {
       // ---------- [WHATS-NEW] a fresh browser: the dot and the Home line, then What's new clears them for good ----------
       {
-        const [c, p] = await open(w, h, 'maya', '/', touch);
+        const [c, p] = await open(w, h, 'rhea', '/', touch);
         await p.locator('.home-hero').waitFor();
         const where = w < 761 ? '.tabbar .tabicon .help-dot' : '.side .help-nav .help-dot';
         fail(await dot(p, where), `[WHATS-NEW] ${w}: no unread dot (${where})`);
@@ -64,7 +64,7 @@ module.exports = {
       }
       // ---------- [WHATS-NEW] dismissing the Home line counts as seen ----------
       {
-        const [c, p] = await open(w, h, 'elena', '/', touch);
+        const [c, p] = await open(w, h, 'amara', '/', touch);
         await p.locator('.home-news:visible').waitFor({ timeout: 3000 }).catch(() => {});
         const close = p.getByRole('button', { name: 'Dismiss what’s new' });
         if (await close.count()) {
@@ -80,7 +80,7 @@ module.exports = {
 
       // ---------- [HELP-GUIDE] reaching Help: sidebar, rail with a name on hover, or More ----------
       {
-        const [c, p] = await open(w, h, 'maya', '/goals', touch);
+        const [c, p] = await open(w, h, 'rhea', '/goals', touch);
         if (w < 761) {
           await p.locator('.tabbar').getByRole('button', { name: 'More' }).click();
           await p.getByRole('dialog', { name: 'More' }).getByRole('link', { name: /^Help/ }).click();
@@ -120,9 +120,9 @@ module.exports = {
 
       // ---------- [HELP-GUIDE] the Help link at the foot of a page opens that page's article ----------
       const pages = w < 761
-        ? [['maya', '/', 'Home and your week at a glance'], ['maya', '/goals/head', 'A goal’s page'], ['priya', '/data', 'Data']]
-        : [['maya', '/', 'Home and your week at a glance'], ['elena', '/goals?view=table', 'Goals and its layouts'], ['elena', '/goals?view=map', 'The goal map'], ['elena', '/goals?view=history', 'History: quarter results and weekly status'],
-          ['maya', '/goals/head', 'A goal’s page'], ['elena', '/reviews/weekly', 'Reviews'], ['kofi', '/check-in/alerts', 'Checking in on a goal'], ['priya', '/data', 'Data'], ['maya', '/settings', 'Settings'], ['priya', '/workspace', 'Running the workspace']];
+        ? [['rhea', '/', 'Home and your week at a glance'], ['rhea', '/goals/ns-lead', 'A goal’s page'], ['grace', '/data', 'Data']]
+        : [['rhea', '/', 'Home and your week at a glance'], ['amara', '/goals?view=table', 'Goals and its layouts'], ['amara', '/goals?view=map', 'The goal map'], ['amara', '/goals?view=history', 'History: quarter results and weekly status'],
+          ['rhea', '/goals/ns-lead', 'A goal’s page'], ['amara', '/reviews/weekly', 'Reviews'], ['mateo', '/check-in/mttr-pir', 'Checking in on a goal'], ['grace', '/data', 'Data'], ['rhea', '/settings', 'Settings'], ['grace', '/workspace', 'Running the workspace']];
       if (w === 768) pages.splice(3);
       for (const [who, route, title] of pages) {
         const [c, p] = await open(w, h, who, route, touch);
@@ -140,7 +140,7 @@ module.exports = {
 
       // ---------- [HELP-GUIDE] the pages themselves: no sideways scroll, a readable width, no serious a11y issues ----------
       for (const route of ['/help', '/help/status', '/help/check-in', '/whats-new', '/help?q=review']) {
-        const [c, p] = await open(w, h, 'maya', route, touch);
+        const [c, p] = await open(w, h, 'rhea', route, touch);
         await p.locator('main h1').first().waitFor();
         const m = await p.evaluate(() => {
           const prose = [...document.querySelectorAll('.help-page p, .help-points li, .help-row-sum')].filter((e) => e.getClientRects().length);
@@ -159,7 +159,7 @@ module.exports = {
 
     // ---------- [HELP-GUIDE] an unknown article says so and leads back ----------
     {
-      const [c, p] = await open(1280, 800, 'maya', '/help/no-such-thing');
+      const [c, p] = await open(1280, 800, 'rhea', '/help/no-such-thing');
       fail(await p.getByText('There’s no help article here').isVisible(), '[HELP-GUIDE] an unknown article does not say so');
       await c.close();
     }

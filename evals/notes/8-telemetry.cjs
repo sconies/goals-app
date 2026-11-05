@@ -11,7 +11,7 @@
    (the browser's own "Failed to load resource" network line is not the app's) and sends at most a request or two. */
 const SIZES = [[390, 844, true], [1280, 800, false]];
 const SECRET = 'Quokka-marmalade-5521';
-const TODAY = '2026-10-30';
+const TODAY = '2026-11-05';
 const HEX32 = /^[0-9a-f]{32}$/, HEX16 = /^[0-9a-f]{16}$/;
 
 module.exports = {
@@ -58,14 +58,14 @@ module.exports = {
     const waitFor = async (p, test, ms = 4000) => { const end = Date.now() + ms; while (Date.now() < end) { if (test()) return true; await p.waitForTimeout(150); } return test(); };
 
     async function checkIn(p) {
-      await p.goto(url('/check-in/alerts'));
-      const g = await p.evaluate(async () => (await window.__goalsStore.load('platform-org')).goals.find((x) => x.id === 'alerts'));
+      await p.goto(url('/check-in/dep-jenkins'));
+      const g = await p.evaluate(async () => (await window.__goalsStore.load('platform-org')).goals.find((x) => x.id === 'dep-jenkins'));
       await p.getByLabel('This week’s value').fill(String(g.plan.start));
       await p.getByRole('button', { name: 'Continue' }).click();
       const changed = p.getByRole('button', { name: 'Something changed', exact: true });
       if (await changed.count()) await changed.click();
       await p.getByRole('group', { name: 'Main cause' }).getByRole('button', { name: 'Something else' }).click();
-      await p.getByLabel('What happened').fill(SECRET + ' moved the alert owners');
+      await p.getByLabel('What happened').fill(SECRET + ' moved the Jenkins job owners');
       await p.getByRole('button', { name: 'Post check-in' }).click();
       await p.getByText('Check-in saved').first().waitFor({ timeout: 5000 });
     }
@@ -73,10 +73,10 @@ module.exports = {
     for (const [w, h, touch] of SIZES) {
       // ---------- On: one trace from the action to its save to the result, and nothing typed ----------
       {
-        const { c, p, sent } = await open(w, h, touch, 'kofi');
+        const { c, p, sent } = await open(w, h, touch, 'chen');
         try {
           await checkIn(p);
-          await go(p, '/goals/alerts');
+          await go(p, '/goals/dep-jenkins');
           await p.getByLabel('Add a comment').fill(SECRET + ' said the vendor');
           await p.getByRole('button', { name: 'Post comment' }).click();
           await p.getByText(SECRET + ' said the vendor').first().waitFor({ timeout: 3000 });
@@ -100,7 +100,7 @@ module.exports = {
           const flow = spans.filter((s) => s.attributes['app.flow.name'] === 'check-in').map((s) => `${s.attributes['app.flow.event']} ${s.attributes['app.flow.step']} ${s.attributes['app.flow.step.index']}/${s.attributes['app.flow.step.count']}`);
           fail(['start open 1/3', 'step explain 2/3', 'finish post 3/3'].every((x) => flow.includes(x)), `[TELEMETRY-FLOWS] ${w}: the check-in flow recorded ${flow.join(', ') || 'nothing'}`);
           const page = spans.find((s) => s.attributes['http.route'] === '/goals/:goalId' && /^page /.test(s.name));
-          fail(!!page && page.attributes['url.path'] === '/goals/alerts' && page.attributes['session.id'] && page.attributes['user.id'] === 'kofi', `[TELEMETRY-SIGNALS] ${w}: no page span for /goals/:goalId with its path, session and person`);
+          fail(!!page && page.attributes['url.path'] === '/goals/dep-jenkins' && page.attributes['session.id'] && page.attributes['user.id'] === 'chen', `[TELEMETRY-SIGNALS] ${w}: no page span for /goals/:goalId with its path, session and person`);
           const leaked = sent.filter((s) => s.body.includes('Quokka') || s.url.includes('Quokka') || s.body.includes('marmalade'));
           fail(!leaked.length, `[TELEMETRY-PRIVACY] ${w}: what was typed appears in ${leaked.length} requests (${leaked.map((s) => s.url.split('/').pop()).join(', ')})`);
         } catch (e) { fail(false, `[TELEMETRY-SIGNALS] ${w}: ${String(e.message || e).split('\n')[0]}`); }
@@ -109,7 +109,7 @@ module.exports = {
 
       // ---------- Off: an admin turns recording off on Workspace, and nothing more is sent ----------
       {
-        const { c, p, sent } = await open(w, h, touch, 'priya');
+        const { c, p, sent } = await open(w, h, touch, 'grace');
         try {
           await p.goto(url('/workspace'));
           const box = p.getByRole('checkbox', { name: /Record how the app is used/ });
@@ -120,7 +120,7 @@ module.exports = {
           await p.getByText(/Recording is off in/).first().waitFor({ timeout: 3000 });
           await p.waitForTimeout(150);
           const off = Date.now();
-          await p.goto(url('/goals/head'));
+          await p.goto(url('/goals/ns-lead'));
           await p.getByLabel('Add a comment').fill('Checked with the team');
           await p.getByRole('button', { name: 'Post comment' }).click();
           await p.goto(url('/settings'));
@@ -142,10 +142,10 @@ module.exports = {
 
       // ---------- The tables aren't there (404): the app carries on, quietly ----------
       {
-        const { c, p, sent, errors } = await open(w, h, touch, 'kofi', 404);
+        const { c, p, sent, errors } = await open(w, h, touch, 'chen', 404);
         try {
           await checkIn(p);
-          for (const route of ['/', '/goals', '/goals/alerts', '/settings']) { await p.goto(url(route)); await p.locator('main h1, main .home-hero').first().waitFor(); await hide(p); }
+          for (const route of ['/', '/goals', '/goals/dep-jenkins', '/settings']) { await p.goto(url(route)); await p.locator('main h1, main .home-hero').first().waitFor(); await hide(p); }
           await p.waitForTimeout(600);
           const own = errors.filter((t) => !/^Failed to load resource/.test(t));
           fail(!own.length, `[TELEMETRY-SIGNALS] ${w}: console errors when the telemetry tables answer 404: ${own.slice(0, 2).join(' | ')}`);

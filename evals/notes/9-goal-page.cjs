@@ -1,6 +1,6 @@
 /* N9: the flagship goal page (approved by Lane, 5 Nov). run({ url, browser }) returns a list of failures.
    Five journeys from the plan, each at 390 and 1280:
-   J1 a leader scans an off-track north star (the Support example's CSAT, as Hana);
+   J1 a leader scans an off-track north star (Lead time for changes, as Amara);
    J3 an owner answers a review question from Home without scrolling;
    J5 an owner posts a check-in and sees it land;
    J6 drilling into the goal most likely to make it miss, and back to the parent by name;
@@ -74,9 +74,9 @@ module.exports = {
     for (const [w, h, touch] of SIZES) {
       const dev = w < 500 ? 'phone' : 'laptop';
 
-      /* ---------- J1: a leader scans an off-track north star (CSAT, Support example, as Hana) ---------- */
+      /* ---------- J1: a leader scans an off-track north star (Lead time for changes, as Amara) ---------- */
       {
-        const [c, p] = await at(browser, url, { w, h, touch, ws: 'example-support', who: 'hana', route: '/goals/csat' });
+        const [c, p] = await at(browser, url, { w, h, touch, who: 'amara', route: '/goals/ns-lead' });
         const s = await firstScreen(p);
         const bar = await p.evaluate(() => ({
           title: document.querySelector('.goal-bar .bar-title')?.innerText, owner: document.querySelector('.goal-bar .bar-who')?.innerText,
@@ -88,18 +88,18 @@ module.exports = {
           band: !!document.querySelector('.goal-chart .c-band'),
         }));
         const at1 = `J1 ${dev}`;
-        chk(bar.title === 'Customer satisfaction (CSAT)' && /Hana Okafor/.test(bar.owner || '') && /NORTH STAR|North star/i.test(bar.owner || '') && /G-\d+/.test(bar.owner || ''), `${at1}: line 1 “${bar.title}” / “${bar.owner}”`);
-        chk(/Off track/.test(bar.two) && /\d+% · plan \d+% · target \d+%/.test(bar.two) && /(worsening|flat|recovering)/.test(bar.two), `${at1}: line 2 “${bar.two}”`);
-        chk(/Billing questions doubled/.test(bar.three || '') && /(being handled|no response yet)/.test(bar.three || ''), `${at1}: line 3 “${bar.three}”`);
-        chk(/^Fed by three goals: .*1 off track/.test(bar.feeds || ''), `${at1}: north star feeds line “${bar.feeds}”`);
+        chk(bar.title === 'Lead time for changes' && /Rhea Kapoor/.test(bar.owner || '') && /NORTH STAR|North star/i.test(bar.owner || '') && /G-\d+/.test(bar.owner || ''), `${at1}: line 1 “${bar.title}” / “${bar.owner}”`);
+        chk(/Off track/.test(bar.two) && /\d+ hours · plan \d+ hours · target \d+ hours/.test(bar.two) && /(worsening|flat|recovering)/.test(bar.two), `${at1}: line 2 “${bar.two}”`);
+        chk(/Lead time is well above plan/.test(bar.three || '') && /(being handled|no response yet)/.test(bar.three || ''), `${at1}: line 3 “${bar.three}”`);
+        chk(/^Fed by four goals: .*2 off track/.test(bar.feeds || ''), `${at1}: north star feeds line “${bar.feeds}”`);
         chk(s.status === 1, `${at1}: the goal's status “${s.label}” appears ${s.status} times in the first screen`);
         chk(s.chartTop != null && s.chartTop < s.fold - 60, `${at1}: the chart starts at ${s.chartTop}px, fold ${Math.round(s.fold)}px`);
         if (dev === 'laptop') chk(s.chartBottom != null && s.chartBottom <= s.fold + 120, `${at1}: the chart ends at ${s.chartBottom}px, fold ${Math.round(s.fold)}`);
         chk(s.primaries.length <= 1, `${at1}: ${s.primaries.length} primary actions in the first screen (${s.primaries.join(' | ')})`);
         // The projection is a range on the chart, in words under it (approved: least squares over the recent weeks).
-        chk(bar.band && /Heading for \d+–\d+% by week \d+/.test(bar.caption), `${at1}: projection range on the chart: band ${bar.band}, “${bar.caption.slice(0, 120)}”`);
+        chk(bar.band && /Heading for \d+–\d+ hours by week \d+/.test(bar.caption), `${at1}: projection range on the chart: band ${bar.band}, “${bar.caption.slice(0, 120)}”`);
         // The reason is said once near the top; weeks that repeated it are one group in the activity.
-        const said = await sayings(p, 'Billing questions doubled after the price change');
+        const said = await sayings(p, 'Lead time is well above plan and the gap grew again this week');
         chk(said.top === 1 && said.all <= 2, `${at1}: the reason is said ${said.top} times in the first two screens, ${said.all} in all`);
         // On a phone the bar is the header: no app header above it, the person button at its right.
         if (dev === 'phone') chk(!bar.mtop && bar.me, `${at1}: phone header still shown (${bar.mtop}) or no person button in the bar (${bar.me})`);
@@ -124,17 +124,17 @@ module.exports = {
 
       /* ---------- J3: an owner answers a review question from Home without scrolling ---------- */
       {
-        // Elena asks Aisha a question in the weekly review.
-        const [c, p] = await at(browser, url, { w, h, touch, who: 'elena', route: '/goals/access?review=weekly' });
+        // Amara asks Pavel a question about Merge-to-deploy time in the leadership weekly.
+        const [c, p] = await at(browser, url, { w, h, touch, who: 'amara', route: '/goals/lead-merge?review=weekly' });
         await p.locator('.decide').waitFor();
-        await p.getByRole('button', { name: 'Ask Aisha a question' }).click();
-        await p.getByRole('dialog').getByRole('textbox').fill('Can the interim scope land by week 46?');
+        await p.getByRole('button', { name: 'Ask Pavel a question' }).click();
+        await p.getByRole('dialog').getByRole('textbox').fill('Can the batching workaround land by week 49?');
         await p.getByRole('dialog').getByRole('button', { name: 'Save question' }).click();
         await p.waitForTimeout(400);
-        // Aisha, on Home: Answer opens the goal with the question open and the box focused, in the first screen.
-        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'aisha'));
+        // Pavel, on Home: Answer opens the goal with the question open and the box focused, in the first screen.
+        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'pavel'));
         await p.goto(url('/'));
-        const need = p.locator('.need').filter({ hasText: 'Can the interim scope land' });
+        const need = p.locator('.need').filter({ hasText: 'Can the batching workaround land' });
         await need.getByRole('link', { name: 'Answer' }).click();
         await p.locator('.asked').waitFor();
         await p.waitForTimeout(400);
@@ -142,29 +142,29 @@ module.exports = {
           const bar = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);
           const fold = bar ? bar.getBoundingClientRect().top : innerHeight;
           const box = document.activeElement;
-          const post = [...document.querySelectorAll('.asked button')].find((b) => /Post your answer/.test(b.textContent));
+          const post = [...document.querySelectorAll('.asked button')].find((b) => /Record the answer/.test(b.textContent));
           const r = (e) => e?.getBoundingClientRect();
           return { url: location.search, focused: box?.tagName === 'TEXTAREA' && !!box.closest('.asked'), boxIn: box ? r(box).top >= 0 && r(box).bottom <= fold : false, postIn: post ? r(post).bottom <= fold && r(post).top >= 0 : false, scrolled: Math.round(scrollY) };
         });
         const at3 = `J3 ${dev}`;
         chk(/respond=/.test(a.url), `${at3}: Answer opened ${a.url}`);
         chk(a.focused && a.boxIn && a.postIn, `${at3}: the answer box focused ${a.focused}, in view ${a.boxIn}, Post in view ${a.postIn}`);
-        await p.keyboard.type('Yes: Leo and Jonas pair on it from Monday.');
-        await p.getByRole('button', { name: 'Post your answer' }).click();
+        await p.keyboard.type('Yes: Diego and Pavel pair on it from Monday.');
+        await p.getByRole('button', { name: 'Record the answer' }).click();
         await p.waitForTimeout(400);
         await p.goto(url('/'));
         await p.locator('main').waitFor(); await p.waitForTimeout(300);
-        chk(await p.locator('.need').filter({ hasText: 'Can the interim scope land' }).count() === 0, `${at3}: the answered question is still on Home`);
+        chk(await p.locator('.need').filter({ hasText: 'Can the batching workaround land' }).count() === 0, `${at3}: the answered question is still on Home`);
         // The old link (?tab=comments) still opens the question.
-        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'elena'));
-        await p.goto(url('/goals/access?review=weekly'));
+        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'amara'));
+        await p.goto(url('/goals/lead-merge?review=weekly'));
         await p.locator('.decide').waitFor();
-        await p.getByRole('button', { name: 'Ask Aisha a question' }).click();
-        await p.getByRole('dialog').getByRole('textbox').fill('Who signs off the vendor fix?');
+        await p.getByRole('button', { name: 'Ask Pavel a question' }).click();
+        await p.getByRole('dialog').getByRole('textbox').fill('Who signs off the vendor’s fix?');
         await p.getByRole('dialog').getByRole('button', { name: 'Save question' }).click();
         await p.waitForTimeout(400);
-        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'aisha'));
-        await p.goto(url('/goals/access?tab=comments'));
+        await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'pavel'));
+        await p.goto(url('/goals/lead-merge?tab=comments'));
         await p.locator('.asked').waitFor(); await p.waitForTimeout(300);
         chk(await p.evaluate(() => document.activeElement?.tagName === 'TEXTAREA' && !!document.activeElement.closest('.asked')), `${at3}: ?tab=comments does not open the question`);
         await c.close();
@@ -172,17 +172,20 @@ module.exports = {
 
       /* ---------- J5: an owner posts a check-in and sees it land ---------- */
       {
-        const [c, p] = await at(browser, url, { w, h, touch, who: 'kofi', route: '/goals/alerts' });
+        const [c, p] = await at(browser, url, { w, h, touch, who: 'rhea', route: '/goals/ci-docker' }); // Rhea's Base image build time is due; ten minutes is on plan, so it posts without a reason
         const before = await p.locator('.goal-bar .bar-status').innerText();
         await p.locator('.goal-bar').getByRole('link', { name: /^Check in for week \d+$/ }).click();
-        await p.getByLabel('This week’s value').fill('40');
-        await p.getByRole('button', { name: 'Continue' }).click();
+        await p.getByLabel('This week’s value').fill('10');
+        const cont = p.getByRole('button', { name: 'Continue' });
+        if (await cont.isVisible().catch(() => false)) await cont.click();
         const still = p.getByRole('button', { name: /^Still true/ });
         if (await still.isVisible().catch(() => false)) await still.click();
         if (await p.getByRole('group', { name: 'Back on plan by' }).isVisible().catch(() => false)) {
           await p.getByRole('group', { name: 'Back on plan by' }).getByRole('button').first().click();
           await p.getByRole('button', { name: 'Post check-in' }).click();
         }
+        const post = p.getByRole('button', { name: 'Post check-in' });
+        if (await post.isVisible().catch(() => false)) await post.click();
         await p.getByText('Check-in saved').waitFor();
         await p.getByRole('link', { name: 'View the goal' }).click();
         await p.locator('.context-line.posted').waitFor();
@@ -203,7 +206,7 @@ module.exports = {
 
       /* ---------- J6: drill into what most threatens the north star, and back by name ---------- */
       {
-        const [c, p] = await at(browser, url, { w, h, touch, who: 'maya', route: '/goals/head' });
+        const [c, p] = await at(browser, url, { w, h, touch, who: 'rhea', route: '/goals/ns-lead' });
         const pinned = p.locator('#feeds .pinned');
         const why = (await pinned.innerText()).replace(/\s+/g, ' ');
         const child = (await pinned.locator('.trow-title').first().innerText()).split('\n')[0].trim();
@@ -214,15 +217,15 @@ module.exports = {
         await pinned.locator('a').first().click();
         await p.locator('.goal-bar .bar-title').filter({ hasText: child }).waitFor();
         const back = p.locator('.goal-page > .backlink');
-        chk((await back.innerText()).trim() === 'Back to Intake-to-delivery time', `${at6}: back from ${child} says “${(await back.innerText()).trim()}”`);
+        chk((await back.innerText()).trim() === 'Back to Lead time for changes', `${at6}: back from ${child} says “${(await back.innerText()).trim()}”`);
         await back.click();
-        await p.locator('.goal-bar .bar-title').filter({ hasText: 'Intake-to-delivery time' }).waitFor({ timeout: 3000 }).catch(() => fails.push(`${at6}: Back did not return to the north star`));
+        await p.locator('.goal-bar .bar-title').filter({ hasText: 'Lead time for changes' }).waitFor({ timeout: 3000 }).catch(() => fails.push(`${at6}: Back did not return to the north star`));
         await c.close();
       }
 
       /* ---------- J8: a first-time viewer from a shared key link, then back again ---------- */
       {
-        const [c, p] = await at(browser, url, { w, h, touch, who: 'tom', route: '/goals/G-1', perms: ['clipboard-read', 'clipboard-write'] });
+        const [c, p] = await at(browser, url, { w, h, touch, who: 'oskar', route: '/goals/G-1', perms: ['clipboard-read', 'clipboard-write'] });
         const s = await firstScreen(p);
         const f = await p.evaluate(() => ({
           about: !!document.querySelector('details.about[open]'),
@@ -283,8 +286,9 @@ module.exports = {
       });
       const p = await c.newPage();
       await p.goto(url('/'));
-      await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'maya'));
-      await p.goto(url('/goals/head'));
+      await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+      // (Pull requests with AI-assisted review: 72% to 73% this week, so its number counts; lead time was 37 hours both weeks.)
+      await p.goto(url('/goals/ns-ai'));
       await p.waitForTimeout(800);
       const m = await p.evaluate(() => ({ anims: [...window.__gp.anims.values()], counts: window.__gp.counts }));
       if (reduced) {
@@ -304,11 +308,11 @@ module.exports = {
       const c = await browser.newContext({ viewport: { width: 390, height: 844 } });
       const p = await c.newPage();
       await p.goto(url('/'));
-      await p.evaluate(() => { localStorage.setItem('goals-app-viewer:platform-org', 'maya'); localStorage.setItem('goals-seen:platform-org:maya:access', JSON.stringify({ at: '2026-10-27T09:00:00.000Z', status: 'risk' })); });
-      await p.goto(url('/goals/access'));
+      await p.evaluate(() => { localStorage.setItem('goals-app-viewer:platform-org', 'rhea'); localStorage.setItem('goals-seen:platform-org:rhea:lead-mq', JSON.stringify({ at: '2026-11-02T09:00:00.000Z', status: 'risk' })); });
+      await p.goto(url('/goals/lead-mq'));
       await p.locator('.goal-bar').waitFor(); await p.waitForTimeout(60);
       const m = await p.evaluate(() => ({ line: document.querySelector('.context-line')?.innerText ?? '', moved: !!document.querySelector('.goal-bar .bar-status.moved'), about: !!document.querySelector('details.about[open]') }));
-      chk(/^Since you looked on Tuesday: .*at risk → off track\./.test(m.line) && m.moved && !m.about, `since you looked: “${m.line}”, shape turns ${m.moved}, About open ${m.about}`);
+      chk(/^Since you looked on Monday: .*at risk → off track\./.test(m.line) && m.moved && !m.about, `since you looked: “${m.line}”, shape turns ${m.moved}, About open ${m.about}`);
       await c.close();
     }
 

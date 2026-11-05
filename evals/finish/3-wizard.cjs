@@ -27,7 +27,7 @@ module.exports = {
 
     // Step 2 at 1280: header (9), chart (2), number grid (22), single due date (8), plan table (15, 16), legend (6), figures (11).
     {
-      const [c, p] = await open(1280, 900, 'kofi', '/goals/new');
+      const [c, p] = await open(1280, 900, 'mateo', '/goals/new');
       const k = p.locator('.kindcard');
       const [sel, other] = [await box(k.nth(0)), await box(k.nth(1))];
       if (!near(sel.h, other.h, 0.5) || (await css(k.nth(0), 'paddingTop')) !== (await css(k.nth(1), 'paddingTop'))) f(`(7) the chosen type card is a different size (${sel.h} vs ${other.h})`);
@@ -84,7 +84,7 @@ module.exports = {
 
     // Step 2 at 390 and 360: chart every other week, number grid, plan table on one line, no sideways scroll.
     for (const w of [390, 360]) {
-      const [c, p] = await open(w, 800, 'kofi', '/goals/new');
+      const [c, p] = await open(w, 800, 'mateo', '/goals/new');
       await toNumbers(p);
       const xt = await p.locator('.chart .c-axis').evaluateAll((es) => es.map((e) => [Number(e.getAttribute('x')), e.textContent]).filter((t) => /^(Now|Wk)/.test(t[1])));
       if (xt[0]?.[1] !== 'Now' || xt[xt.length - 1]?.[1] !== 'Wk 53' || xt.length < 4) f(`(2) at ${w} the x-axis is ${xt.map((t) => t[1]).join(', ')}`);
@@ -109,7 +109,7 @@ module.exports = {
 
     // Touch at 390 (3): plan inputs 44 in 52px rows; the review's Change rows 44px; disclosures 44px.
     {
-      const [c, p] = await open(390, 844, 'kofi', '/goals/new', true);
+      const [c, p] = await open(390, 844, 'mateo', '/goals/new', true);
       await toNumbers(p);
       const pi = await box(p.getByLabel(/^Plan for week \d+/));
       const row = await box(p.locator('.plantable tbody tr').nth(1));
@@ -137,7 +137,7 @@ module.exports = {
 
     // Limits (5) at 1280 and 390.
     for (const w of [1280, 390]) {
-      const [c, p] = await open(w, 900, 'kofi', '/goals/new');
+      const [c, p] = await open(w, 900, 'mateo', '/goals/new');
       await name(p); await p.getByRole('button', { name: /Keep a number in range/ }).click(); await cont(p);
       const [seg, lim, warn] = [await box(p.locator('.limits .seg')), await box(p.getByLabel('Limit')), await box(p.getByLabel('Warn this close'))];
       if (w > 600 && (!near(seg.b, lim.b) || !near(lim.b, warn.b))) f(`(5) at ${w} limit row bottoms ${seg.b}/${lim.b}/${warn.b}`);
@@ -152,7 +152,7 @@ module.exports = {
 
     // Stages (12, 13, 14) at 1280 and 390.
     for (const w of [1280, 390]) {
-      const [c, p] = await open(w, 900, 'kofi', '/goals/new');
+      const [c, p] = await open(w, 900, 'mateo', '/goals/new');
       await name(p); await p.getByRole('button', { name: /Hit dated stages/ }).click(); await cont(p); await cont(p);
       const err = p.locator('.stage .field-error');
       if (!(await err.count())) f(`(13) at ${w} the stage error is not under Stage 1`);
@@ -177,7 +177,7 @@ module.exports = {
 
     // Resume prompt (24) at 360.
     {
-      const [c, p] = await open(360, 780, 'kofi', '/goals/new');
+      const [c, p] = await open(360, 780, 'mateo', '/goals/new');
       await name(p, 'Half-written');
       await p.goto(p.url().replace('/goals/new', '/goals')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
       const b = await p.locator('.resume-actions .btn').evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.top, r.bottom]; }));
@@ -189,22 +189,23 @@ module.exports = {
 
     // Edit goal at 1280: heading (18), level (17), reason under the numbers (19), focus never under the footer (1).
     {
-      const [c, p] = await open(1280, 900, 'sam', '/goals/lead/edit');
+      const [c, p] = await open(1280, 900, 'tariq', '/goals/ns-ai/edit');
       const h1 = p.locator('h1');
-      if (((await h1.textContent()) || '') !== 'Edit Lead time for changes' || (await css(h1, 'fontSize')) !== '22px') f('(18) Edit goal has no 22px h1 with the goal name');
+      if (((await h1.textContent()) || '') !== 'Edit Pull requests with AI-assisted review' || (await css(h1, 'fontSize')) !== '22px') f('(18) Edit goal has no 22px h1 with the goal name');
       const lv = p.locator('.seg[aria-labelledby="level-l"] button[aria-pressed]');
       if ((await lv.count()) !== 3 || (await p.locator('.optlist').count())) f('(17) Level is not the wizard\'s segmented control');
-      await p.getByLabel(/^Target/).fill('1.5'); await p.waitForTimeout(150);
+      await p.getByLabel(/^Target/).fill('85'); await p.waitForTimeout(150);
       const [pair, reason] = [await box(p.locator('.pair').first()), await box(p.locator('.reason-field'))];
       if (!near(reason.y - pair.b, 16, 1)) f(`(19) "Why change it?" is ${reason.y - pair.b}px under the numbers`);
       const help = p.locator('.reason-field > .hint'); const ta = await box(p.getByLabel('Why change it?'));
       if (!near((await box(help)).y - ta.b, 4, 1)) f('(19) the reason helper is not 4px under the box');
       await p.locator('summary', { hasText: 'Plan by week' }).click();
       const vals = await p.getByLabel(/^Plan for week \d+/).evaluateAll((es) => es.map((e) => e.value));
-      if (!vals.length || vals.some((v) => !/^\d+\.\d$/.test(v))) f(`(15) Edit plan numbers are not to the goal's decimals (${vals.slice(0, 3).join(', ')})`);
+      if (!vals.length || vals.some((v) => !/^\d+$/.test(v))) f(`(15) Edit plan numbers are not to the goal's decimals (${vals.slice(0, 3).join(', ')})`);
       await p.locator('summary', { hasText: 'More details' }).click();
       for (const lab of ['Data source', 'Definition']) {
-        const el = p.getByLabel(lab, { exact: true });
+        // (A label that wraps its field is named with the field's text too, so a goal with a definition reads “Definition Share of…”.)
+        const el = p.getByRole('textbox', { name: new RegExp('^' + lab) });
         await p.evaluate(() => window.scrollTo(0, 0));
         await el.focus(); await p.waitForTimeout(150);
         const [e, ft] = [await box(el), await box(p.locator('.focus-foot'))];
@@ -215,11 +216,12 @@ module.exports = {
 
     // Wizard step 3 at 390 with the data source open (1).
     {
-      const [c, p] = await open(390, 700, 'kofi', '/goals/new');
+      const [c, p] = await open(390, 700, 'mateo', '/goals/new');
       await toNumbers(p); await cont(p);
       await p.getByText('Data source and definition').click();
       for (const lab of ['Data source', 'Definition']) {
-        const el = p.getByLabel(lab, { exact: true });
+        // (A label that wraps its field is named with the field's text too, so a goal with a definition reads “Definition Share of…”.)
+        const el = p.getByRole('textbox', { name: new RegExp('^' + lab) });
         await p.evaluate(() => window.scrollTo(0, 0));
         await el.focus(); await p.waitForTimeout(150);
         const [e, ft] = [await box(el), await box(p.locator('.focus-foot'))];
@@ -230,7 +232,7 @@ module.exports = {
 
     // Dark segmented (25).
     {
-      const [c, p] = await open(1280, 900, 'kofi', '/goals/new');
+      const [c, p] = await open(1280, 900, 'mateo', '/goals/new');
       await p.emulateMedia({ colorScheme: 'dark' });
       await toNumbers(p);
       const bg = await css(p.locator('.seg button[aria-pressed="true"]'), 'backgroundColor');
@@ -240,17 +242,17 @@ module.exports = {
 
     // Wide (28) and short (30) screens.
     {
-      const [c, p] = await open(2560, 1300, 'kofi', '/goals/new');
+      const [c, p] = await open(2560, 1300, 'mateo', '/goals/new');
       if ((await col(p)).w < 639) f(`(28) at 2560 the wizard column is ${(await col(p)).w}px`);
       await c.close();
-      const [c2, p2] = await open(853, 533, 'kofi', '/goals/new');
+      const [c2, p2] = await open(853, 533, 'mateo', '/goals/new');
       if ((await css(p2.locator('.focus-foot'), 'position')) !== 'static') f('(30) the footer still sticks on a short screen');
       await c2.close();
     }
 
     // Edit's plan table at 360 (16): "Target 2.0 days" and the dates on one line, nothing past the screen.
     {
-      const [c, p] = await open(360, 780, 'sam', '/goals/lead/edit');
+      const [c, p] = await open(360, 780, 'tariq', '/goals/ns-ai/edit');
       await p.locator('summary', { hasText: 'Plan by week' }).click();
       const lines = await p.locator('.plantable td.pt-date, .plantable .pt-week, .plantable tbody tr:last-child td.num').evaluateAll((es) => Math.max(...es.map((e) => {
         const r = document.createRange(); r.selectNodeContents(e);
@@ -263,7 +265,7 @@ module.exports = {
 
     // The plan table on the goal page at 360 stays inside the screen.
     {
-      const [c, p] = await open(360, 780, 'maya', '/goals/lead');
+      const [c, p] = await open(360, 780, 'rhea', '/goals/ns-lead');
       // The plan table is in About this goal, open on a first visit (the flagship page, 5 Nov; it was the Details tab).
       const about = p.locator('details.about');
       if (await about.count() && !(await about.evaluate((d) => d.open))) { await about.locator('summary').click(); await p.waitForTimeout(200); }

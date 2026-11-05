@@ -45,14 +45,14 @@ module.exports = {
 
     // #1 (and Watching/Activity #3, List #3): the footer at every scroll position, on a phone, in both filter sheets.
     await step('Activity filters 390', async () => {
-      const [c, p] = await open(390, 844, 'maya', '/activity', true);
+      const [c, p] = await open(390, 844, 'rhea', '/activity', true);
       await p.getByRole('button', { name: /^Filters/ }).click();
       await p.getByRole('dialog', { name: 'Filter activity' }).waitFor();
       checkFooter(fails, 'Activity Filters 390×844', await footerEverywhere(p));
       await c.close();
     });
     await step('Goals filters 390', async () => {
-      const [c, p] = await open(390, 844, 'maya', '/goals', true);
+      const [c, p] = await open(390, 844, 'rhea', '/goals', true);
       await p.getByRole('button', { name: /^Filters/ }).click();
       await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
       const m = await footerEverywhere(p);
@@ -64,7 +64,7 @@ module.exports = {
       await c.close();
     });
     await step('Goals filters 360', async () => {
-      const [c, p] = await open(360, 740, 'maya', '/goals', true);
+      const [c, p] = await open(360, 740, 'rhea', '/goals', true);
       await p.getByRole('button', { name: /^Filters/ }).click();
       await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
       checkFooter(fails, 'Filter goals 360×740', await footerEverywhere(p));
@@ -74,7 +74,7 @@ module.exports = {
     // #2: tall sheets on a desktop end 24px above the window, and start 48px down on a short one.
     for (const [w, h, top] of [[1280, 800, 72], [1440, 700, 48], [1024, 768, 48]]) {
       await step(`tall sheet ${w}×${h}`, async () => {
-        const [c, p] = await open(w, h, 'maya', '/goals');
+        const [c, p] = await open(w, h, 'rhea', '/goals');
         await p.getByRole('button', { name: /^Filters/ }).click();
         await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
         await p.waitForTimeout(250);
@@ -99,7 +99,7 @@ module.exports = {
     // #4: a message raised with a sheet open shows inside the sheet, below its content, never over it.
     for (const [w, h] of [[1440, 700], [390, 844]]) {
       await step(`toast in sheet ${w}`, async () => {
-        const [c, p] = await open(w, h, 'elena', '/goals', w < 800);
+        const [c, p] = await open(w, h, 'amara', '/goals', w < 800);
         // On the smallest phones Export sits in the Import or export menu.
         const direct = p.locator('button:visible', { hasText: /^Export/ }).first();
         if (await direct.isVisible().catch(() => false)) await direct.click();
@@ -124,7 +124,7 @@ module.exports = {
 
     // #18: with no sheet open, a desktop message is centred on the work area, 24px up.
     await step('toast centring', async () => {
-      const [c, p] = await open(1440, 900, 'maya', '/goals');
+      const [c, p] = await open(1440, 900, 'rhea', '/goals');
       await p.getByRole('button', { name: 'Send feedback' }).click();
       const sheet = p.getByRole('dialog', { name: 'How is the app working for you?' });
       // #27: Send is enabled and reachable; pressed with no answer, it says what's missing.
@@ -143,7 +143,7 @@ module.exports = {
 
     // #5: the Chase walkthrough scrolls its target into view; the ring is at least 16px inside the window.
     await step('Chase step 1', async () => {
-      const [c, p] = await open(1280, 700, 'maya', '/watching');
+      const [c, p] = await open(1280, 700, 'rhea', '/watching');
       await setTour(p, { id: 'quiet', step: 0 });
       await p.locator('.coach-ring').waitFor({ timeout: 3000 });
       await p.waitForTimeout(1200);
@@ -163,7 +163,7 @@ module.exports = {
     // #7: a closing step with nothing to point at sits 16px above the bottom, measured from its real height.
     for (const [w, h] of [[768, 1024], [1440, 900], [2560, 1440]]) {
       await step(`closing step ${w}`, async () => {
-        const [c, p] = await open(w, h, 'maya', '/watching');
+        const [c, p] = await open(w, h, 'rhea', '/watching');
         await setTour(p, { id: 'quiet', step: 0 });
         await p.locator('.coach').waitFor();
         await p.waitForTimeout(400);
@@ -177,7 +177,7 @@ module.exports = {
 
     // #6: the Brief walkthrough waits for the brief to be copied or saved, and rings the Brief row.
     await step('Brief walkthrough', async () => {
-      const [c, p] = await open(1280, 800, 'elena', '/goals');
+      const [c, p] = await open(1280, 800, 'amara', '/goals');
       await setTour(p, { id: 'brief', step: 0 });
       await p.locator('.coach').waitFor();
       await p.getByRole('button', { name: 'Export' }).first().click();
@@ -199,7 +199,7 @@ module.exports = {
 
     // #8: the ring round the full-bleed review bar stays inside the window; the coach never covers the sidebar.
     await step('review ring', async () => {
-      const [c, p] = await open(1440, 900, 'elena', '/reviews/weekly');
+      const [c, p] = await open(1440, 900, 'amara', '/reviews/weekly');
       await p.locator('button.btn.primary', { hasText: /review/i }).first().click();
       await p.locator('.decide').first().waitFor({ timeout: 4000 });
       await setTour(p, { id: 'review', step: 2 });
@@ -216,7 +216,7 @@ module.exports = {
 
     // #12, #13, #20: the Demo menu.
     await step('Demo menu', async () => {
-      const [c, p] = await open(1280, 800, 'maya', '/');
+      const [c, p] = await open(1280, 800, 'rhea', '/');
       await p.locator('.demo-entry:visible').first().click();
       const sheet = p.getByRole('dialog', { name: 'Demo' });
       await sheet.waitFor();
@@ -242,13 +242,13 @@ module.exports = {
 
     // #16: the rail's person button is named, and opens a sheet titled for what you came to do.
     await step('rail person', async () => {
-      const [c, p] = await open(1024, 768, 'maya', '/');
+      const [c, p] = await open(1024, 768, 'rhea', '/');
       const me = p.locator('.side .me');
       // Its name comes from its own words, still there for screen readers when the rail hides them.
       const name = (await me.innerText().catch(() => '')) || (await me.textContent());
       const shown = await me.evaluate((b) => { const s = b.querySelector('.stack'); return s ? getComputedStyle(s).display !== 'none' : false; });
-      if (!/Maya Chen/.test(name || '') || !/Switch person/.test(name || '') || !shown) fails.push(`rail at 1024: the person button is named "${(name || '').replace(/\s+/g, ' ').trim()}"`);
-      if (!/^Switch person \(Maya Chen\)$/.test((await me.getAttribute('title')) || '')) fails.push('rail at 1024: the person button has no "Switch person" tooltip');
+      if (!/Rhea Kapoor/.test(name || '') || !/Switch person/.test(name || '') || !shown) fails.push(`rail at 1024: the person button is named "${(name || '').replace(/\s+/g, ' ').trim()}"`);
+      if (!/^Switch person \(Rhea Kapoor\)$/.test((await me.getAttribute('title')) || '')) fails.push('rail at 1024: the person button has no "Switch person" tooltip');
       await me.click();
       if (!(await p.getByRole('dialog', { name: 'Switch person' }).isVisible().catch(() => false))) fails.push('rail at 1024: the person button does not open "Switch person"');
       await c.close();
@@ -258,9 +258,9 @@ module.exports = {
     // Since the flagship goal page (5 Nov) Respond opens the goal with the request open in place, not a sheet; the same
     // promises hold there, and its button is on screen when it opens.
     await step('Respond', async () => {
-      const [c, p] = await open(390, 844, 'elena', '/', true);
+      const [c, p] = await open(390, 844, 'amara', '/', true);
       await p.locator('.need').getByRole('link', { name: 'Respond' }).first().click();
-      const sheet = p.getByRole('region', { name: 'Respond to the request' });
+      const sheet = p.getByRole('region', { name: 'Respond' });
       await sheet.waitFor();
       await p.waitForTimeout(250);
       const tag = await p.evaluate(() => document.activeElement && document.activeElement.tagName);
@@ -277,7 +277,7 @@ module.exports = {
 
     // #21: the Status sheet shows its choice with a dot and a wash, not a focus-like outline.
     await step('Status sheet', async () => {
-      const [c, p] = await open(390, 844, 'maya', '/check-in/head', true);
+      const [c, p] = await open(390, 844, 'rhea', '/check-in/ns-lead', true);
       await p.getByLabel('This week’s value').fill('31');
       await p.locator('.callline').getByRole('button', { name: 'Change' }).click();
       await p.getByRole('dialog', { name: 'Status' }).waitFor();
@@ -289,7 +289,7 @@ module.exports = {
 
     // #23: the More sheet: no grey fill at rest on a phone, and the labels line up.
     await step('More sheet', async () => {
-      const [c, p] = await open(390, 844, 'maya', '/', true);
+      const [c, p] = await open(390, 844, 'rhea', '/', true);
       await p.locator('.tabbar').getByRole('button', { name: 'More' }).tap();
       const sheet = p.getByRole('dialog', { name: 'More' });
       await sheet.waitFor();
@@ -307,7 +307,7 @@ module.exports = {
 
     // #10: nothing matches: a card with a heading, a line and the way out; no legend under it.
     await step('empty state', async () => {
-      const [c, p] = await open(1280, 800, 'maya', '/goals?q=zzzzqq');
+      const [c, p] = await open(1280, 800, 'rhea', '/goals?q=zzzzqq');
       await p.locator('.empty-state').waitFor({ timeout: 3000 });
       const r = await p.evaluate(() => {
         const e = document.querySelector('.empty-state'), cs = getComputedStyle(e), t = getComputedStyle(e.querySelector('.empty-state-title'));
@@ -323,7 +323,7 @@ module.exports = {
 
     // #11: a slow first load shows the app's name and "Loading…" before any script runs; the skeleton is a solid card.
     await step('first load', async () => {
-      const [c, p] = await open(390, 844, 'maya', '/');
+      const [c, p] = await open(390, 844, 'rhea', '/');
       const html = await (await p.request.get(url('/'))).text();
       if (!/class="preboot"[^>]*>Goals<span>Loading…<\/span>/.test(html)) fails.push('first load: index.html has no static "Loading…" placeholder');
       const s = await p.evaluate(() => {
