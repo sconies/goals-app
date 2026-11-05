@@ -202,9 +202,20 @@ end $$;
 
 -- None of these are for the public key. Supabase grants new functions to anon and authenticated by default, so
 -- revoking from public alone would leave them callable (and prune(0) would wipe the raw rows).
-revoke execute on function okr_telemetry_rollup(date) from public, anon, authenticated;
-revoke execute on function okr_telemetry_prune(int) from public, anon, authenticated;
-revoke execute on function okr_telemetry_nightly() from public, anon, authenticated;
+revoke execute on function okr_telemetry_rollup(date) from public;
+revoke execute on function okr_telemetry_prune(int) from public;
+revoke execute on function okr_telemetry_nightly() from public;
+do $$
+declare r text;
+begin
+  foreach r in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = r) then
+      execute format('revoke execute on function okr_telemetry_rollup(date) from %I', r);
+      execute format('revoke execute on function okr_telemetry_prune(int) from %I', r);
+      execute format('revoke execute on function okr_telemetry_nightly() from %I', r);
+    end if;
+  end loop;
+end $$;
 
 -- Every night at 03:17 UTC (pg_cron, where the database has it; a local test database doesn't). Scheduling by name
 -- replaces the job if it's already there.
