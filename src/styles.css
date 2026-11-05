@@ -367,7 +367,11 @@ svg.chart { display: block; overflow: visible; }
 .c-act.thin { stroke-width: 1.75; }
 .c-dot { fill: var(--fg); }
 .c-breach { fill: var(--off-mark); }
-.c-plan { stroke: var(--accent); fill: none; stroke-width: 2.5; }
+/* The plan is a broad pale track and the actual a thin solid dark line on it (Lane, 5 Nov: they looked the same), so
+   they differ in weight and colour whatever the accent or theme. */
+.c-plan { stroke: var(--accent); stroke-opacity: .3; fill: none; stroke-width: 8; stroke-linejoin: round; stroke-linecap: round; }
+.c-better-arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.c-better-t { fill: var(--muted); font-size: 0.75rem; }
 .c-plan-faint { stroke: var(--faint); fill: none; stroke-width: 1.5; stroke-dasharray: 3 3; }
 .c-orig { stroke: var(--faint); fill: none; stroke-width: 2; stroke-dasharray: 2 4; }
 .c-fc { stroke: var(--off-mark); fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
@@ -380,7 +384,7 @@ svg.chart { display: block; overflow: visible; }
 .spark { display: block; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 8px; font-size: 0.75rem; color: var(--fg-2); }
 .legend i { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid; vertical-align: middle; margin-right: 6px; }
-.l-act { border-color: var(--fg) !important; } .l-plan { border-color: var(--accent) !important; } .l-orig { border-color: var(--faint) !important; border-top-style: dotted !important; }
+.l-act { border-color: var(--fg) !important; } .l-plan { border-color: color-mix(in srgb, var(--accent) 30%, transparent) !important; border-top-width: 8px !important; border-radius: 4px; } .l-orig { border-color: var(--faint) !important; border-top-style: dotted !important; }
 .l-fc { border-color: var(--off-mark) !important; border-top-style: dashed !important; } .l-ptg { border-color: var(--on-mark) !important; border-top-style: dashed !important; }
 
 /* ---------- sheet, menus, toasts ---------- */

@@ -365,7 +365,7 @@ export const ARTICLES: Article[] = [
       { heading: 'Below the bar', list: [
         'Asked of you: requests, review questions and asks for an update waiting on you, each answered right there. Home’s Answer, Respond and Reply open the goal with the item open and the box ready.',
         'One line for you: what happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”), what you just posted (“Posted: at risk → off track · 6 weeks on time”), or, the first time, what the number measures.',
-        'The chart: the plan, the actual, the app’s projection as a shaded range, and the owner’s path to green. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given.',
+        'The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. Its top-left corner says which way is better, higher or lower. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given.',
         'Why: where the reason came from and since when, and anything the numbers would otherwise hide, as small tags.',
         'What’s being done: the path to green, the owner’s date checked against the trend, and one list of actions, requests and review questions with who, by when, and whether each is open, done or overdue.',
         'Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.',
@@ -384,7 +384,7 @@ export const ARTICLES: Article[] = [
     ],
     routes: ['/goals/:goalId'],
     screens: ['GoalScreen'],
-    reqs: ['GOAL-PAGE', 'GOAL-PAGE-BAR', 'GOAL-PAGE-ONCE', 'GOAL-PAGE-INTENT', 'GOAL-PAGE-ALIVE', 'GOAL-SHARE', 'PROJECTION-RANGE', 'GOAL-SUMMARY', 'NOTES', 'FORECAST', 'STORY', 'ASK-UNDO'],
+    reqs: ['GOAL-PAGE', 'CHART-READ', 'GOAL-PAGE-BAR', 'GOAL-PAGE-ONCE', 'GOAL-PAGE-INTENT', 'GOAL-PAGE-ALIVE', 'GOAL-SHARE', 'PROJECTION-RANGE', 'GOAL-SUMMARY', 'NOTES', 'FORECAST', 'STORY', 'ASK-UNDO'],
     keywords: ['goal', 'chart', 'summary', 'projection', 'forecast', 'range', 'comments', 'activity', 'path to green', 'feeds', 'trend', 'owner', 'share', 'image', 'since you looked', 'asked of you', 'about'],
     related: ['check-in', 'edit-goal', 'keys', 'print'],
   },

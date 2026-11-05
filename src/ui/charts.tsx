@@ -93,6 +93,18 @@ const TargetLabel = ({ f, y, left, children }: { f: Frame; y: number; left?: boo
   <text className="c-target-t" x={left ? f.padL + 4 : f.W - f.padR} y={Math.max(12, y - 6)} textAnchor={left ? 'start' : 'end'}>{children}</text>
 );
 
+/**
+ * Which way is good, in the plot's top-left corner (Lane, 5 Nov: "show on the chart if up or down is better"): an arrow
+ * and the words, so nobody has to work out from the target whether a falling line is good news.
+ */
+export const betterUp = (goal: MetricGoal | RangeGoal) => (goal.kind === 'metric' ? goal.plan.target >= goal.plan.start : goal.range.bound === 'atLeast');
+const Better = ({ up, x }: { up: boolean; x: number }) => (
+  <g className="c-better" data-better={up ? 'up' : 'down'}>
+    <path className="c-better-arrow" d={up ? `M${x + 4} 15V4M${x} 8l4-4 4 4` : `M${x + 4} 4v11M${x} 11l4 4 4-4`} aria-hidden="true" />
+    <text className="c-better-t" x={x + 13} y={13}>{up ? 'Higher is better' : 'Lower is better'}</text>
+  </g>
+);
+
 interface KeyItem { k: 'plan' | 'act' | 'fc' | 'orig' | 'ptg'; label: string }
 
 /**
@@ -189,7 +201,8 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
   const X = (w: number) => X0(w - x0);
   const planPts = (pl: MetricGoal['plan']) => Array.from({ length: weeks - x0 + 1 }, (_, i) => [X(x0 + i), Y(planAt(pl, x0 + i, weeks))] as [number, number]);
   const last = series[series.length - 1];
-  const label = `${goal.title}: ${last ? 'latest ' + fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, plan for week ${week} ${fmt(planAt(plan, week, weeks), goal)}, target ${fmt(plan.target, goal)}`;
+  const up = betterUp(goal);
+  const label = `${goal.title}: ${last ? 'latest ' + fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, plan for week ${week} ${fmt(planAt(plan, week, weeks), goal)}, target ${fmt(plan.target, goal)}, ${up ? 'higher' : 'lower'} is better`;
   // The trend if nothing changes. On a share it stops where it would reach 100% (or 0%); a stub too short to read is left out.
   // The range: a band widening from the latest number to the low and high ends at the due week.
   const band = (() => {
@@ -240,6 +253,7 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
         {last && draw && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4.5} aria-hidden="true" />}
         {last && <circle className={'c-dot c-last' + (landed ? ' landed' : '')} cx={X(last.week)} cy={Y(last.value)} r={4.5} />}
         <TargetLabel f={f} y={Y(plan.target)} left={plan.target < plan.start}>Target {fmt(plan.target, goal)}</TargetLabel>
+        <Better up={up} x={f.padL} />
         {sc.at != null && (
           <g className="c-scrub" aria-hidden="true">
             <line x1={X(sc.at)} x2={X(sc.at)} y1={f.padT - 6} y2={H - f.padB} />
@@ -276,7 +290,7 @@ function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: Rang
   const sc = useScrub(weeks, 0, (px) => (px - f.padL) * weeks / (W - f.padL - f.padR), scrub, week);
   const atPoint = sc.at != null ? series.find((p) => p.week === sc.at) : undefined;
   const svg = (
-    <svg className={'chart' + (draw ? ' draw' : '') + (scrub ? ' scrubbable' : '')} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${goal.title}: ${last ? fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, limit ${fmt(limit, goal)}`} {...sc.svg}>
+    <svg className={'chart' + (draw ? ' draw' : '') + (scrub ? ' scrubbable' : '')} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${goal.title}: ${last ? fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, limit ${fmt(limit, goal)}, ${bound === 'atMost' ? 'lower' : 'higher'} is better`} {...sc.svg}>
       <rect className="c-area" x={f.padL} y={Math.min(Y(limit), Y(inner))} width={W - f.padL - f.padR} height={Math.abs(Y(inner) - Y(limit))} />
       <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(limit)} y2={Y(limit)} />
       <WeekLabels f={f} weeks={weeks} week={week} X={X} wide={!compact} />
@@ -284,6 +298,7 @@ function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: Rang
       {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={(out(p.value) ? 'c-breach' : 'c-dot') + (p === last ? ' c-last' : '') + (landed && p === last ? ' landed' : '')} />)}
       {draw && last && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4} aria-hidden="true" />}
       <TargetLabel f={f} y={Y(limit)}>Limit {fmt(limit, goal)}{compact ? '' : ' · shaded: warning margin'}</TargetLabel>
+      <Better up={bound === 'atLeast'} x={f.padL} />
       {sc.at != null && (
         <g className="c-scrub" aria-hidden="true">
           <line x1={X(sc.at)} x2={X(sc.at)} y1={f.padT - 6} y2={H - f.padB} />
