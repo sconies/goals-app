@@ -80,7 +80,7 @@ module.exports = {
       if (sheetHint !== 'from the numbers') fail(`check-in 19: the sheet says “${sheetHint}”`);
       // Check-in 5: option rows are 56px with a regular-weight hint.
       const opt = await p.getByRole('dialog').locator('.opt').first().evaluate((el) => ({ h: el.getBoundingClientRect().height, hw: getComputedStyle(el.querySelector('.hint')).fontWeight }));
-      if (opt.h < 56 || opt.hw !== '400') fail(`check-in 5: status rows ${Math.round(opt.h)}px, hint weight ${opt.hw}`);
+      if (Math.round(opt.h) < 56 || opt.hw !== '400') fail(`check-in 5: status rows ${Math.round(opt.h)}px, hint weight ${opt.hw}`);
       await c.close();
     }
 
@@ -91,7 +91,8 @@ module.exports = {
       await p.getByRole('button', { name: 'Something changed' }).click();
       const rows = p.getByRole('radiogroup', { name: 'Where you are' }).locator('.opt');
       const r = await rows.first().evaluate((el) => ({ h: el.getBoundingClientRect().height, pt: getComputedStyle(el).paddingTop, lw: getComputedStyle(el.firstElementChild).fontWeight, hw: getComputedStyle(el.querySelector('.hint')).fontWeight, hs: getComputedStyle(el.querySelector('.hint')).fontSize }));
-      if (r.h < 56 || r.pt !== '12px' || r.hw !== '400' || r.hs !== '14px' || r.lw !== '600') fail(`check-in 5: option row ${Math.round(r.h)}px, padding ${r.pt}, label ${r.lw}, hint ${r.hs}/${r.hw} at ${w}`);
+      // Rounded like the message: a 56px row can measure 55.99 after sub-pixel layout on the CI runner.
+      if (Math.round(r.h) < 56 || r.pt !== '12px' || r.hw !== '400' || r.hs !== '14px' || r.lw !== '600') fail(`check-in 5: option row ${Math.round(r.h)}px, padding ${r.pt}, label ${r.lw}, hint ${r.hs}/${r.hw} at ${w}`);
       // Check-in 6: the focus ring sits inside the row, so the list's clip can't cut it.
       await p.keyboard.press('Shift');
       const ring = await rows.nth(1).evaluate((el) => { el.focus(); return { fv: el.matches(':focus-visible'), off: getComputedStyle(el).outlineOffset, ow: getComputedStyle(el).outlineWidth }; });
