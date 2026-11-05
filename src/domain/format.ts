@@ -9,6 +9,14 @@ export function fmt(v: number, g: Numeric): string {
   return g.unit === '%' ? n + '%' : n + ' ' + g.unit;
 }
 
+/** The words for a goal with no number yet: the same in every list, card, headline and export. */
+export const NO_VALUE = 'No value yet';
+
+/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
+export function nowText(g: Goal, a: Assessment): string {
+  return a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? NO_VALUE : fmt(a.actual, g);
+}
+
 /** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
 export function fmtDiff(v: number, g: Numeric): string {
   const n = Math.abs(v).toFixed(g.decimals);
@@ -37,10 +45,16 @@ export function targetText(g: Goal): string {
   return last ? 'All by week ' + last.dueWeek : 'No stages';
 }
 
+/** The gap shown beside a goal's number, or null when it would only say "No value yet" a second time. */
+export function gapBeside(g: Goal, a: Assessment): ReturnType<typeof gapText> | null {
+  const gap = gapText(g, a);
+  return gap.short === nowText(g, a) ? null : gap;
+}
+
 /** Short words for the gap against plan, and its tone for colour. */
 export function gapText(g: Goal, a: Assessment): { short: string; long: string; tone: 'on' | 'risk' | 'off' | 'ahead' | 'stale' } {
   if (a.calc === 'planned') return { short: 'Not started', long: 'It starts this week', tone: 'stale' };
-  if (a.calc === 'none') return { short: g.kind === 'milestone' ? 'No check-in yet' : 'No value yet', long: 'Waiting for the first check-in', tone: 'stale' };
+  if (a.calc === 'none') return { short: g.kind === 'milestone' ? 'No check-in yet' : NO_VALUE, long: 'Waiting for the first check-in', tone: 'stale' };
   if (a.kind === 'metric' && g.kind === 'metric') {
     const actual = a.actual as number;
     if (a.ratio == null) return { short: a.behind ? 'Going backwards' : 'On plan', long: 'No change planned yet', tone: a.behind ? 'risk' : 'on' };

@@ -39,6 +39,21 @@ export function Chip({ k, label, className }: { k: DisplayStatus; label?: string
   );
 }
 
+/**
+ * A status as it leads a row, card or node: its shape, then its word, in the status's colour. Every list's status slot
+ * is this, so the shape never appears without its word. `className` names the slot (it comes first, then the tone);
+ * `wordClass` styles the word; anything after the word (a result, say) goes in `children`.
+ */
+export function StatusWord({ k, className, wordClass, children, as: Tag = 'span' }: { k: DisplayStatus; className?: string; wordClass?: string; children?: ReactNode; as?: 'span' | 'li' }) {
+  return (
+    <Tag className={(className ? className + ' ' : '') + 'tone-' + k}>
+      <StatusShape k={k} />
+      <span className={wordClass}>{LABEL[k]}</span>
+      {children}
+    </Tag>
+  );
+}
+
 /** A neutral label, not a status. */
 export const Tag = ({ children }: { children: ReactNode }) => <span className="chip tag">{children}</span>;
 

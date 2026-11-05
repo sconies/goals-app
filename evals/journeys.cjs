@@ -221,7 +221,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await h.fill(p.getByLabel('This week’s value'), valueAt(sm.goals.find((g) => g.id === 'head'), NOW, 0.5));
   h.set('attention', await p.locator('.verdict[data-tone=off]').isVisible(), 'behind plan is not flagged in the verdict');
   await h.click(p.getByRole('button', { name: 'Continue' }));
-  await see(p, 'Is last week’s note still true?', 'last week’s reason and path are offered back');
+  await see(p, 'Is what you said last week still true?', 'last week’s reason and path are offered back');
   await h.progressShown('carry');
   await h.checkpoint('carry');
   // What "Still true" will carry, the open request included, is shown before posting (product review, 3 Nov).
@@ -325,8 +325,8 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   h.set('finish', healthyN > 0 && items + healthyN <= 14, `expected the healthy goals as one acknowledgement, saw ${healthyN} after walking ${items}`);
   await h.checkpoint('healthy group');
   await h.click(ack);
-  await see(p, 'Review complete', 'the review ends on its record');
-  await see(p, 'Can the golden path ship', 'what was said is kept in the summary');
+  await see(p, 'What was said', 'the held review leads with its record');
+  await see(p, 'Can the golden path ship', 'what was said is kept on the review');
   h.set('finish', await p.getByRole('link', { name: 'Reviews' }).first().isVisible(), 'no way on from the review record');
   const s = await h.snapshot();
   const calls = s.changes.filter((c) => c.actorId === 'elena' && c.entity === 'decision' && c.id !== 'chg_dec_weekly_6');
@@ -910,7 +910,7 @@ journey('U20', ['BULK-IMPORT'], 'Load a spreadsheet: a new goal, then its past w
   await p.goto(url('/goals'));
   await h.inView(p.getByRole('link', { name: 'Import' }), 'entry', 'Import on the Goals screen');
   await h.click(p.getByRole('link', { name: 'Import' }));
-  await see(p, 'Load changes from a spreadsheet');
+  await see(p, 'Import from a spreadsheet');
   await h.checkpoint('import');
   const csv = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
   const input = p.getByLabel('Choose a spreadsheet');

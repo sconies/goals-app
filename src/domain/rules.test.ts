@@ -1,8 +1,8 @@
 import { currentWeek, forecast, planAt, shapeProgress, valueSeries } from './plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus, worst } from './status';
-import { emptyDraft, evaluate, toCheckIn, type Draft } from './checkin';
+import { emptyDraft, evaluate, MISSING_TEXT, REASON_CODES, toCheckIn, VALUE_CODES, type Draft } from './checkin';
 import { blankGoal, buildGoal, validateGoal } from './goal';
-import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from './types';
+import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 
 const cycle: Cycle = { id: 'c1', name: 'Q4', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
 const base = { cycleId: 'c1', teamId: 't', ownerId: 'p', io: 'input' as const, level: 'team' as const, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '2026-09-01T00:00:00Z' };
@@ -229,5 +229,35 @@ describe('typed numbers', () => {
     expect(valueProblem('120', 60, '%')?.block).toBe(false);
     expect(valueProblem('294', 29.4, 'days')?.text).toMatch(/Last week was 29.4/);
     expect(valueProblem('29.6', 29.4, 'days')).toBeNull();
+  });
+});
+
+describe('what a check-in still needs, as stable codes', () => {
+  const g = metric(30, 75);
+  const fill = (d: Partial<Draft>): Draft => ({ ...emptyDraft(g, null), ...d });
+  const codes = (d: Partial<Draft>, goal: Goal = g) => evaluate(goal, cycle, 4, goal === g ? fill(d) : { ...emptyDraft(goal, null), ...d }, []).codes;
+  it('names each missing thing with a code, in the order the check-in asks for them', () => {
+    expect(codes({})).toEqual(['value']);
+    expect(codes({ value: 'abc' })).toEqual(['value-not-number']);
+    expect(codes({ value: '140' })[0]).toBe('value-impossible');
+    expect(codes({ value: '40' })).toEqual(['reason-behind', 'path']);
+    expect(codes({ value: '58' })).toEqual(['reason-ahead']);
+    expect(codes({ value: '58', cause: 'early', why: 'The bot shipped two weeks early', proposeTarget: '70' })).toEqual(['target']);
+    expect(codes({ value: '40', status: 'on', cause: 'slower', why: 'Rollout paused for a week' })).toEqual(['greener-why']);
+    expect(codes({ value: '44' })).toEqual([]);
+  });
+  it('says each code in words, the same words the import and the check-in show', () => {
+    const e = evaluate(g, cycle, 4, fill({ value: '40' }), []);
+    expect(e.missing).toEqual(e.codes.map((c) => MISSING_TEXT[c]));
+    expect(e.canPost).toBe(e.codes.length === 0);
+  });
+  it('groups the codes the screens read: the number itself, and the reason', () => {
+    expect(VALUE_CODES).toEqual(['value', 'value-not-number', 'value-impossible']);
+    expect(REASON_CODES).toEqual(['reason-behind', 'reason-ahead']);
+    // A path back by a week past the end of the cycle is still missing: the screen reads this, it doesn't recompute it.
+    expect(codes({ value: '40', cause: 'slower', why: 'Rollout paused for a week', ptgWhat: 'Restart the rollout', ptgBy: 14 })).toEqual(['path']);
+  });
+  it('gives a milestone goal no value codes', () => {
+    expect(codes({}, milestone).some((c) => VALUE_CODES.includes(c))).toBe(false);
   });
 });

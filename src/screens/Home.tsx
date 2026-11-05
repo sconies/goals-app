@@ -4,24 +4,22 @@ import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
 import { dashboard, groupWatched, type Dashboard } from '../domain/home';
-import { fmt, gapText } from '../domain/format';
-import { valueSeries } from '../domain/plan';
 import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
 import { agendaOf, openQuestions, reviewSession, watchedGoals } from '../domain/review';
 import { daysSince, weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { isUpdateAsk, liveNotes } from '../domain/updateAsks';
 import { periodWord, shortPeriod } from '../domain/year';
-import { assessPosted, LABEL } from '../domain/status';
+import { LABEL } from '../domain/status';
 import { statusChange } from '../domain/tree';
 import { openForPerson } from '../domain/requests';
-import type { Change, Goal, HelpRequest } from '../domain/types';
+import type { Change, HelpRequest } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo } from '../ui/bits';
-import { Spark, StageSpark } from '../ui/charts';
 import { Icon } from '../ui/Icon';
-import { saveReviewOrder, TreeRow } from './Inspect';
-import { HandledGroup } from './Watching';
-import { FirstReports } from './GoalsScreen';
+import { saveReviewOrder } from './Inspect';
+import { GoalRow } from '../ui/goalRows';
+import { HandledGroup } from '../ui/HandledGroup';
+import { FirstReports } from '../ui/FirstReports';
 import { RespondSheet } from './Respond';
 import { HomeNews } from './Help';
 
@@ -40,25 +38,6 @@ function reviewWhen(app: AppState, late = false) {
 function Streak({ weeks }: { weeks: number }) {
   if (weeks < 2) return null;
   return <span className="streak" title="Weeks in a row with every check-in in before the review"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8.5 1.5c.4 2.2-1.6 3.4-2.6 5C5 8 5.3 10 6.6 10.6 5.8 8.7 7.6 7.8 8 6.5c1.4 1.4 2.9 3 2.4 5.2-.3 1.6-1.7 2.8-3.4 2.8A4.4 4.4 0 0 1 2.6 10c0-3.6 3.7-5.2 5.9-8.5z" fill="currentColor" /></svg>{weeks}-week on-time streak</span>;
-}
-
-/** One line per goal: status, name, the number that matters. Low density on purpose. */
-export function GoalLine({ g }: { g: Goal }) {
-  const app = useApp();
-  const st = app.statusOf(g);
-  const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
-  const gap = gapText(g, a);
-  const now = a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? 'No value yet' : fmt(a.actual, g);
-  return (
-    <Link to={'/goals/' + g.id} className="gline">
-      <span className={'gline-status tone-' + st.status}><StatusShape k={st.status} />{LABEL[st.status]}</span>
-      <span className="gline-title">{g.title}</span>
-      <span className="gline-now">{now}<span className={'tone-' + gap.tone}> · {st.status === 'stale' ? 'no recent update' : gap.short}</span></span>
-      <span className="gline-spark">
-        {g.kind !== 'milestone' ? <Spark goal={g} weeks={app.cycle.weeks} series={valueSeries(app.checkInsOf(g))} /> : a.kind === 'milestone' ? <StageSpark a={a} /> : null}
-      </span>
-    </Link>
-  );
 }
 
 /**
@@ -171,7 +150,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
             {rest.length > 0 && (
               <div className="home-sub">
                 {att.length > 0 && <h3 className="need-group-title">Nothing flagged <span className="count-pill">· {rest.length}</span></h3>}
-                <div className="glist">{rest.map((g) => <GoalLine key={g.id} g={g} />)}</div>
+                <div className="glist">{rest.map((g) => <GoalRow key={g.id} g={g} density="line" />)}</div>
               </div>
             )}
           </section>
@@ -284,7 +263,7 @@ function WatchedGoals() {
       {shown.length > 0 && (
         <ul className="tree">
           {/* Each row says itself when it got worse ("Was on track in week 43") or went quiet. */}
-          {shown.map((a) => <li key={a.goal.id}><TreeRow g={a.goal} /></li>)}
+          {shown.map((a) => <li key={a.goal.id}><GoalRow g={a.goal} /></li>)}
         </ul>
       )}
       {exceptions.length > shown.length && <Link className="small linkish" to="/watching">{exceptions.length - shown.length} more in Watching</Link>}

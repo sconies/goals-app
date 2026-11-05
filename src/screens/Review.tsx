@@ -1,19 +1,21 @@
-/* Goal reviews: the list, setting one up, a review's session (its agenda, start or continue, what was said) and the
-   summary a session ends on. Walking the goals happens on the goal pages themselves (see Inspect). */
+/* Goal reviews: the list, setting one up, and a review's session: its agenda, start or continue, and what was said.
+   Once a session is held, its page leads with what was said. Walking the goals happens on the goal pages themselves
+   (see Inspect). */
 import { useMemo, useState } from 'react';
 import { useDraft } from '../app/drafts';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
-import { gapText, LEVEL_LABEL } from '../domain/format';
+import { LEVEL_LABEL } from '../domain/format';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
 import { answerOf, dayText, goalsIn, isHealthy, lastHeld, nextSessionWeek, openActions, reviewSession, sessionDate, sessionState, sessionStateText, type ReviewSession, type SessionState } from '../domain/review';
-import { assessPosted, LABEL } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
 import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
-import { Avatar, Chip, Empty, LevelTag, ProgressRing, StatusShape } from '../ui/bits';
-import { goalNow, saveReviewOrder, worstFirst } from './Inspect';
+import { Avatar, Chip, Empty, ProgressRing } from '../ui/bits';
+import { saveReviewOrder } from './Inspect';
+import { GoalRow } from '../ui/goalRows';
+import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
 
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
@@ -84,32 +86,9 @@ function ReviewLine({ s }: { s: ReviewSession }) {
   );
 }
 
-/**
- * A goal on a review's agenda: one line with its status, name and level, its number and how it stands against the
- * plan. No reasons: the walk shows them on the goal's own page. Its own layout, not the shared goal row, so the name
- * keeps its room at every width and nothing is cut off.
- */
-function AgendaRow({ g }: { g: Goal }) {
-  const app = useApp();
-  const st = app.statusOf(g);
-  const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
-  const gap = gapText(g, a);
-  return (
-    <Link to={'/goals/' + g.id} className="agenda-row" data-tone={st.status}>
-      <span className={'agenda-status tone-' + st.status}><StatusShape k={st.status} /><span>{LABEL[st.status]}</span></span>
-      <span className="agenda-name"><span className="agenda-title">{g.title}</span><LevelTag level={g.level} /></span>
-      <span className="agenda-now">
-        <span className="agenda-num">{goalNow(g, a)}</span>
-        {st.status === 'stale'
-          ? (st.latest ? <span className="agenda-gap muted">as of week {st.latest.week}</span> : null)
-          : <span className={'agenda-gap tone-' + gap.tone}>{gap.short}</span>}
-      </span>
-    </Link>
-  );
-}
-
 function Agenda({ goals }: { goals: Goal[] }) {
-  return <ul className="agenda">{goals.map((g) => <li key={g.id}><AgendaRow g={g} /></li>)}</ul>;
+  // A review's agenda: the shared goal row at its briefest. No reasons: the walk shows them on each goal's page.
+  return <ul className="agenda">{goals.map((g) => <li key={g.id}><GoalRow g={g} density="brief" /></li>)}</ul>;
 }
 
 /** What was said in a session: actions (who, by when), questions for owners (with any answer), notes, and the goals reviewed. */
@@ -169,7 +148,7 @@ function SessionRecord({ s, title, reviewed }: { s: ReviewSession; title: string
   );
 }
 
-/** A review: this session's agenda, start or continue, and what was said so far. */
+/** A review: this session's agenda, start or continue, and what was said so far. Once held, it leads with what was said. */
 export function ReviewHome() {
   const app = useApp();
   const nav = useNavigate();
@@ -193,12 +172,10 @@ export function ReviewHome() {
   const healthyLeft = healthy.filter((a) => !s.covered.has(a.goal.id));
   const ackHealthy = async () => {
     setBusy(true);
-    // Marking these finishes the session when they're all that's left: then it ends on its summary.
-    const finishes = s.items.every((a) => s.covered.has(a.goal.id) || healthyLeft.includes(a));
+    // Marking these finishes the session when they're all that's left: then this page leads with what was said.
     try {
       for (const a of healthyLeft) await app.reviewCall(a.goal, review, s.week, 'acknowledge', '');
       app.toast(`${goalsN(healthyLeft.length)} on track marked reviewed`);
-      if (finishes) nav(`/reviews/${review.id}/summary`);
     } catch { /* the save already said what went wrong */ }
     setBusy(false);
   };
@@ -231,12 +208,13 @@ export function ReviewHome() {
             {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(walk.length)}`}</button>}
             {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} on track reviewed</button>}
             {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
-            {done && <Link className="btn" to={`/reviews/${review.id}/summary`}>Summary</Link>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
             <Link className="btn ghost print-link" to={`/reviews/${review.id}/print`}><Icon name="print" /><span className="print-link-label">Print or save as PDF</span></Link>
           </div>
         </div>
       </section>
+      {/* Held: what was said comes first, with every goal reviewed. */}
+      {done && <SessionRecord s={s} title="What was said" reviewed="open" />}
       {!done && remaining.length > 0 && (
         <section className="block">
           <h2 className="block-title">Still to review · {remaining.length}</h2>
@@ -260,8 +238,8 @@ export function ReviewHome() {
           </details>
         </section>
       )}
-      <SessionRecord s={s} title={done ? 'What was said' : 'Said so far'} reviewed="none" />
-      {reviewedItems.length > 0 && (
+      {!done && <SessionRecord s={s} title="Said so far" reviewed="none" />}
+      {!done && reviewedItems.length > 0 && (
         <details className="disclose"><summary>Reviewed · {reviewedItems.length}</summary><Agenda goals={reviewedItems.map((a) => a.goal)} /></details>
       )}
       {!s.items.length && <p className="hint">No goals match this review yet. <Link className="linkish" to={`/reviews/${review.id}/edit`}>Pick some</Link></p>}
@@ -273,34 +251,10 @@ export function ReviewHome() {
   );
 }
 
-/** Where a review's session ends: what was said in it, and the way back to the review. */
+/** The old end-of-session summary: a held review's own page now leads with what was said, so this goes there. */
 export function ReviewSummary() {
-  const app = useApp();
   const { reviewId } = useParams();
-  const review = app.snapshot.reviews.find((r) => r.id === reviewId);
-  if (!review) return <div className="page narrow"><Empty title="That review doesn’t exist"><Link className="btn" to="/reviews">All reviews</Link></Empty></div>;
-  const s = reviewSession(review, app.snapshot, app.cycle, app.today, app.week);
-  const st = sessionState(s);
-  const done = st.kind === 'held';
-  return (
-    <div className="page narrow review-summary">
-      <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link><span aria-hidden="true">/</span><Link to={`/reviews/${review.id}`}>{review.name}</Link></nav>
-      <section className="hero">
-        <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals reviewed`} />
-        <div className="hero-body">
-          <span className="eyebrow">{review.name}</span>
-          <h1 className="title-xl">{done ? 'Review complete' : 'The session so far'}</h1>
-          <SessionStateWord st={st} />
-          <div className="actions" style={{ marginTop: 'var(--s2)' }}>
-            <Link className="btn primary big-btn" to={`/reviews/${review.id}`}>Back to the review</Link>
-            <Link className="linkish" to="/reviews">All reviews</Link>
-          </div>
-        </div>
-      </section>
-      <SessionRecord s={s} title="What was said" reviewed="open" />
-      {!s.said.length && <p className="hint">Nothing has been said in this session yet.</p>}
-    </div>
-  );
+  return <Navigate to={`/reviews/${reviewId ?? ''}`} replace />;
 }
 
 const WEEKS = [1, 2, 4] as const;

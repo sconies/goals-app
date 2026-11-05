@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { addNote, notesMarkdown, readNotes, readSession, REPORT_TEMPLATE, startSession, TASKS, writeSession, type ResearchSession } from '../app/research';
-import { downloadText } from '../app/spreadsheet';
+import { saveAndSay } from '../app/files';
 import { personaOf } from '../ui/Demo';
 
 export function useResearch(): ResearchSession | null {
@@ -114,7 +114,7 @@ export function Research() {
                 <textarea className="input mono-ish" rows={16} value={report} onChange={(e) => setReport(e.target.value)} aria-label="Your report" />
                 <span className="row">
                   <label className="btn sm">Load a file<input type="file" accept=".md,.txt,text/markdown,text/plain" className="sr" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setReport(await f.text()); }} /></label>
-                  <button type="button" className="btn sm" onClick={() => downloadText(notesMarkdown(s), `research-notes-${s.id}.md`, 'text/markdown;charset=utf-8')}>Download my notes</button>
+                  <button type="button" className="btn sm" onClick={() => void saveAndSay(app.toast, { workspace: app.ws.name, what: 'research-notes', scope: s.id, date: app.today }, { kind: 'md', text: notesMarkdown(s) }, 'Notes saved')}>Download my notes</button>
                 </span>
                 <div><button type="button" className="btn primary big-btn" disabled={report.trim().length < 40 || report.trim() === REPORT_TEMPLATE.trim()} onClick={() => void submit()}>Send the report</button></div>
               </>

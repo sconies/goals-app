@@ -27,7 +27,7 @@ export const TASKS: ResearchTask[] = [
 
 /** Every screen worth a first glance, by route. */
 export const SCREENS: [RegExp, string][] = [
-  [/^\/$/, 'Home'], [/^\/check-in/, 'Check-in'], [/^\/quick-check-in/, 'Numbers in one table'], [/^\/watching/, 'Watching'],
+  [/^\/$/, 'Home'], [/^\/check-in/, 'Check-in'], [/^\/quick-check-in/, 'All your numbers in one table'], [/^\/watching/, 'Watching'],
   [/^\/reviews\/(new|[^/]+\/edit)$/, 'Setting up a review'], [/^\/reviews\/[^/]+$/, 'A review'], [/^\/reviews$/, 'Reviews'],
   [/^\/goals\/new/, 'New goal'], [/^\/goals\/[^/]+\/edit/, 'Changing a goal'], [/^\/goals\/[^/]+/, 'A goal'], [/^\/goals/, 'Goals'],
   [/^\/activity/, 'Activity'], [/^\/workspace\/new/, 'Setting up a workspace'], [/^\/workspace/, 'Workspace'], [/^\/import/, 'Import'], [/^\/retro/, 'Wrap-up'],

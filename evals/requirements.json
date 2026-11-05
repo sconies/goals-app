@@ -475,6 +475,16 @@
       "id": "TELEMETRY-SWITCH",
       "area": "Observability",
       "text": "Recording is on for everyone by default. An admin (and only an admin, in the app or through the MCP set_recording tool) can turn it off for a workspace; the switch is saved with the workspace and logged. While it is off nothing is sent for that workspace, from the browser or the MCP server, and the database refuses rows for it."
+    },
+    {
+      "id": "CONSISTENT-WORDS",
+      "area": "Copy",
+      "text": "One word for each concept: docs/glossary.md names each term, says what it means and lists the words not to use, and the app's copy (screens, components, walkthroughs, the rules' own words and the guide) never uses them, apart from what the glossary keeps on purpose. Data is called Data, its named column arrangements are saved layouts, Import is called Import, the one-table check-in has one name, and a goal with no number says \"No value yet\" everywhere."
+    },
+    {
+      "id": "SHARED-DOWNLOADS",
+      "area": "Export",
+      "text": "Every file the app saves (Export, Import's workbook, Data, Activity, the set-up template, research notes) goes through one saveFile(), named <workspace>-<what>-<scope>-<date>, with one way of saying it saved or what went wrong."
     }
   ],
   "notYetBuilt": [

@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-05 12:24 UTC.
+Run 2026-11-05 12:27 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -62,7 +62,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**95 of 95 pass**. Spec scenarios 165/165.
+**92 of 92 pass**. Spec scenarios 164/164.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -156,11 +156,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **MOTION-ALIVE** The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every animation is under 250ms and off when the person asks for reduced motion. | Interface | 3 | N6 |
 | ✅ | **HELP-GUIDE** The app has its own guide: one article per screen or feature saying what it is for, how to use it and who can, reachable from the sidebar, the phone's More sheet and the icon rail, searchable, and opened for the page you are on by a Help link on every page. Every screen, route and requirement has an article (checked by a test), and an AI assistant can read it through the MCP server. | Help | 5 | N7 |
 | ✅ | **WHATS-NEW** What's new lists each release newest first, with a date, a title, a few plain lines for people and links to the guide. A quiet dot beside Help, and one dismissible line on Home, show a release the person hasn't seen until they open What's new, remembered across reloads. CI refuses a change to the app without an entry, and an AI assistant can read the entries. | Help | 4 | N7 |
-| ✅ | **TELEMETRY-SIGNALS** The app records traces, logs and metrics in its own database in OpenTelemetry's shape (32-hex trace ids, 16-hex span ids, parent, kind, start and end, status, attributes and resource; logs with timestamp, severity and body), using semantic-convention names. One trace per thing a person does: the action, the save's RPC timed from the client as a CLIENT span (db.system, db.operation), and the page that shows the result. Pages, errors, failed saves (a rule saying no told apart from a network or database fault) and slow loads are recorded. The MCP server records a SERVER span per tool call and joins the caller's trace from a W3C traceparent header. When the tables are missing, the database is down or there is none, the app works exactly as before, with no console errors and no retry storm. | Observability | 4 | N8 |
-| ✅ | **TELEMETRY-PRIVACY** Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, in Settings and a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them. | Observability | 2 | N8 |
-| ✅ | **TELEMETRY-FLOWS** The named flows (check-in, quick check-in, review, new goal, change a goal, answer a request, import, wrap-up, set up a workspace) are defined once beside the guide, each with its article and ordered steps reached by App routes, named actions or a screen's own marks. Telemetry records when a flow starts, each step it reaches (step n of m), and whether it finishes or stops (left without finishing). The last 20 steps of a tab's session are kept in memory for a later markup. | Observability | 2 | N8 |
-| ✅ | **TELEMETRY-RETENTION** Raw spans, logs and metrics are kept 90 days. A nightly pg_cron job rolls each day up into daily totals (counts, errors, p50 and p95 durations by name, route and flow step; flow starts, finishes and stops by step), kept indefinitely, and rolls a day up again before pruning it. | Observability | 1 | — |
-| ✅ | **TELEMETRY-SWITCH** Recording is on for everyone by default. An admin (and only an admin, in the app or through the MCP set_recording tool) can turn it off for a workspace; the switch is saved with the workspace and logged. While it is off nothing is sent for that workspace, from the browser or the MCP server, and the database refuses rows for it. | Observability | 2 | N8 |
+| ✅ | **CONSISTENT-WORDS** One word for each concept: docs/glossary.md names each term, says what it means and lists the words not to use, and the app's copy (screens, components, walkthroughs, the rules' own words and the guide) never uses them, apart from what the glossary keeps on purpose. Data is called Data, its named column arrangements are saved layouts, Import is called Import, the one-table check-in has one name, and a goal with no number says "No value yet" everywhere. | Copy | 7 | — |
+| ✅ | **SHARED-DOWNLOADS** Every file the app saves (Export, Import's workbook, Data, Activity, the set-up template, research notes) goes through one saveFile(), named <workspace>-<what>-<scope>-<date>, with one way of saying it saved or what went wrong. | Export | 3 | — |
 
 ## Platform checks
 
@@ -186,7 +183,6 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **N5** Review notes, data-ids
 - ✅ **N6** Review notes, print-motion
 - ✅ **N7** Help and what’s new: reachable everywhere, searchable, opened for the page you’re on, and an unread dot that clears
-- ✅ **N8** Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send
 - ✅ **P8** The goals start in the first screen: the Goals header stays short on a phone and a desktop
 - ✅ **P7** Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold
 - ✅ **P5** No console or page errors across every journey

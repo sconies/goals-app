@@ -7,8 +7,8 @@ import { useApp } from '../app/state';
 import { ACCENTS, SIDEBARS, THEMES, setAppearance, useAppearance } from '../app/appearance';
 import { Avatar } from '../ui/bits';
 import { BackLink } from '../ui/BackLink';
-import { ProfileSheet } from '../ui/Shell';
-import { AiAssistants } from './Workspace';
+import { ProfileSheet } from '../ui/ProfileSheet';
+import { AiAssistants } from '../ui/AiAssistants';
 
 export function Settings() {
   const app = useApp();

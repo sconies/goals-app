@@ -1,12 +1,10 @@
 /* Export: the goals as a workbook, CSV, JSON or a brief for an AI chat. Everything in the cycle, or just what's shown. */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useApp } from '../app/state';
-import { downloadText, downloadWorkbook } from '../app/spreadsheet';
+import { saveFile, saveFailed, type FileContent } from '../app/files';
 import { aiBrief, toCsv, toJson, workbook, type ExportInput } from '../domain/export';
 import type { Goal } from '../domain/types';
 import { Sheet } from '../ui/bits';
-
-const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'goals';
 
 export function ExportButton({ goals, viewName }: { goals: Goal[]; viewName: string }) {
   const [open, setOpen] = useState(false);
@@ -28,10 +26,12 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   const [scope, setScope] = useState<'all' | 'view'>(partial ? 'view' : 'all');
   const [busy, setBusy] = useState<string | null>(null);
   const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined };
-  const base = `${slug(app.ws.name)}-${slug(app.cycle.name)}${scope === 'view' ? '-' + slug(viewName) : ''}-${app.today.toISOString().slice(0, 10)}`;
+  // Every file is named the same way: workspace, what it holds, which goals (the view, or the whole cycle), the day.
+  const name = (what: string) => ({ workspace: app.ws.name, what, scope: scope === 'view' ? viewName : app.cycle.name, date: app.today });
+  const save = (what: string, content: FileContent) => saveFile(name(what), content).then(() => undefined);
   const run = async (key: string, f: () => Promise<void> | void, done: string) => {
     setBusy(key);
-    try { await f(); app.toast(done); } catch (e) { app.toast('Couldn’t export: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
+    try { await f(); app.toast(done); } catch (e) { app.toast(key === 'md-copy' ? 'Couldn’t copy: ' + (e instanceof Error ? e.message : String(e)) : saveFailed(e), 'error'); }
     setBusy(null);
   };
   const n = scope === 'view' ? goals.length : all.length;
@@ -61,29 +61,29 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
         {/* Every format the same way: what it is on the left, its buttons in one column on the right. */}
         <div className="optlist export-list">
           <div className="opt static">
-            <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Goals, the plan by week, every check-in, notes and actions, and people. You can edit it and load it back.</span></span>
+            <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Goals, the plan by week, every check-in, review notes and actions, and people. You can edit it and load it back.</span></span>
             <span className="export-actions">
-              <button type="button" className="btn sm" aria-label="Save .xlsx: Excel workbook" disabled={!!busy} onClick={() => void run('xlsx', () => downloadWorkbook(workbook(input), base + '.xlsx'), 'Workbook saved')}>{busy === 'xlsx' ? 'Saving…' : 'Save .xlsx'}</button>
+              <button type="button" className="btn sm" aria-label="Save .xlsx: Excel workbook" disabled={!!busy} onClick={() => void run('xlsx', () => save('goals', { kind: 'xlsx', sheets: workbook(input) }), 'Workbook saved')}>{busy === 'xlsx' ? 'Saving…' : 'Save .xlsx'}</button>
             </span>
           </div>
           <div className="opt static">
             <span className="stack" style={{ gap: 2 }}><span className="strong">CSV</span><span className="hint">One table per file, for other tools.</span></span>
             <span className="export-actions">
-              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('csv-g', () => downloadText(toCsv(workbook(input)[0]!.rows), base + '-goals.csv', 'text/csv;charset=utf-8'), 'Goals saved as CSV')}>Goals</button>
-              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('csv-c', () => downloadText(toCsv(workbook(input)[2]!.rows), base + '-check-ins.csv', 'text/csv;charset=utf-8'), 'Check-ins saved as CSV')}>Check-ins</button>
+              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('csv-g', () => save('goals', { kind: 'csv', text: toCsv(workbook(input)[0]!.rows) }), 'Goals saved as CSV')}>Goals</button>
+              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('csv-c', () => save('check-ins', { kind: 'csv', text: toCsv(workbook(input)[2]!.rows) }), 'Check-ins saved as CSV')}>Check-ins</button>
             </span>
           </div>
           <div className="opt static">
             <span className="stack" style={{ gap: 2 }}><span className="strong">JSON</span><span className="hint">Everything, with each goal’s plan and check-ins inside it. For scripts and AI tools.</span></span>
             <span className="export-actions">
-              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('json', () => downloadText(JSON.stringify(toJson(input), null, 2), base + '.json', 'application/json'), 'JSON saved')}>Save .json</button>
+              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('json', () => save('goals', { kind: 'json', text: JSON.stringify(toJson(input), null, 2) }), 'JSON saved')}>Save .json</button>
             </span>
           </div>
           <div className="opt static">
             <span className="stack" style={{ gap: 2 }}><span className="strong">Brief for an AI chat</span><span className="hint">A short summary: what’s off and why, every goal by what it feeds, open questions and the weekly numbers.</span></span>
             <span className="export-actions">
               <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('md-copy', () => navigator.clipboard.writeText(aiBrief(input)), 'Brief copied. Paste it into any AI chat')}>Copy</button>
-              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('md', () => downloadText(aiBrief(input), base + '.md', 'text/markdown;charset=utf-8'), 'Brief saved')}>Save .md</button>
+              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('md', () => save('ai-brief', { kind: 'md', text: aiBrief(input) }), 'Brief saved')}>Save .md</button>
             </span>
           </div>
         </div>

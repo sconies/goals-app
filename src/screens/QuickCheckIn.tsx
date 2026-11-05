@@ -5,7 +5,7 @@ import { useDraft } from '../app/drafts';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { describe, type Rec } from '../domain/changeset';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, valueProblem, type Draft } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, MISSING_TEXT, REASON_CODES, valueProblem, type Draft, type Missing } from '../domain/checkin';
 import { fmt } from '../domain/format';
 import { planAt, weekDates } from '../domain/plan';
 import { checkInsFor } from '../domain/status';
@@ -24,7 +24,7 @@ function Select({ invalid, children, ...rest }: SelectHTMLAttributes<HTMLSelectE
 }
 
 /** The words a missing item is shown with here: the same words as the field it points at. */
-const missingWords = (m: string) => (m === 'path to green' ? 'how it gets back on plan' : m);
+const missingWords = (c: Missing) => (c === 'path' ? 'how it gets back on plan' : MISSING_TEXT[c]);
 
 type Row = { value: string; cause: Cause | null; why: string; path: string; by: number | null };
 const blank: Row = { value: '', cause: null, why: '', path: '', by: null };
@@ -88,7 +88,7 @@ export function QuickCheckIn() {
   return (
     <div className="page narrow quick">
       <div className="page-head">
-        <h1 className="title-xl">Type this week’s numbers</h1>
+        <h1 className="title-xl">Type all your numbers in one table</h1>
         <span className="hint">Week {app.week}, {weekDates(app.cycle, app.week)}. Leave a row empty to skip it. A row that’s off plan asks why.</span>
       </div>
       {!goals.length && <Empty title="No number goals to update"><Link className="btn" to="/check-in">Use the normal check-in</Link></Empty>}
@@ -105,8 +105,8 @@ export function QuickCheckIn() {
               const showWhy = !!e?.reason;
               const showPath = !!e?.needsPath;
               // Once they've pressed Post, outline exactly the fields the row still needs, the empty selects included.
-              const missWhy = tried && !!e && e.missing.some((m) => m.startsWith('why it’s'));
-              const missPath = tried && !!e && e.missing.includes('path to green');
+              const missWhy = tried && !!e && e.codes.some((c) => REASON_CODES.includes(c));
+              const missPath = tried && !!e && e.codes.includes('path');
               const bad = invalidNumber || (tried && !!e && !e.canPost);
               return (
                 <div key={g.id} className={'qrow' + (bad ? ' invalid' : '')}>
@@ -157,7 +157,7 @@ export function QuickCheckIn() {
                           </label>
                         </div>
                       )}
-                      {bad && e && <span className="hint tone-off" role="alert">Still needed: {e.missing.map(missingWords).join(', ')}.</span>}
+                      {bad && e && <span className="hint tone-off" role="alert">Still needed: {e.codes.map(missingWords).join(', ')}.</span>}
                     </div>
                   )}
                 </div>

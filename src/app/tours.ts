@@ -29,7 +29,7 @@ export const TOURS: Tour[] = [
         ifMissing: { say: 'Maya’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' } } },
       { say: 'Type this week’s number. The verdict says at once whether it’s on plan, and against which week.', target: { selector: 'input[aria-label="This week’s value"], #value' }, doneWhen: { selector: '.verdict' },
         ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Maya’s goals to check in again.', target: { selector: '.again-links a' } } },
-      { say: 'Off plan, it asks why and how it gets back on track. Keep last week’s note if it still holds, or say what changed, then post.', target: { selector: '.focus-foot button[type=submit]' }, doneWhen: { text: 'Check-in saved' } },
+      { say: 'Off plan, it asks why and how it gets back on track. Keep what you said last week if it still holds, or say what changed, then post.', target: { selector: '.focus-foot button[type=submit]' }, doneWhen: { text: 'Check-in saved' } },
       { say: 'Saved, and in the change log. Anyone watching the goal sees it, and the review picks it up. You can check in again any time; every check-in is kept.' },
     ],
   },
@@ -68,7 +68,7 @@ export const TOURS: Tour[] = [
     ],
   },
   {
-    id: 'import', title: 'Load changes from a spreadsheet', role: 'Goal owner', personId: 'kofi', start: '/goals',
+    id: 'import', title: 'Import from a spreadsheet', role: 'Goal owner', personId: 'kofi', start: '/goals',
     steps: [
       { say: 'Goals, plan numbers and past weeks can come from a spreadsheet. Open Import.', target: { selector: 'a', text: 'Import' }, doneWhen: { route: /^\/import/ } },
       { say: 'Download the workbook, change it in Excel, then choose it here. Every change is shown before anything is saved, and checked with the app’s own rules.', target: { selector: '.steps-list' } },

@@ -55,13 +55,3 @@
 .session-record h3.field-label { margin: 0; }
 .session-record .record { margin-bottom: 0; }
 .session-record .record .hint { overflow-wrap: anywhere; }
-
-/* ---------- The summary a session ends on ---------- */
-.review-summary .crumbs { flex-wrap: wrap; align-items: center; }
-.review-summary .hero .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
-@container app (max-width: 600px) {
-  .review-summary .hero-body { align-self: stretch; }
-  .review-summary .hero .actions { flex-direction: column; align-items: stretch; width: 100%; }
-  .review-summary .hero .actions .btn { width: 100%; }
-  .review-summary .hero .actions .linkish { min-height: 44px; justify-content: center; }
-}

@@ -8,8 +8,8 @@
 const fs = require('fs');
 const AXE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 const SIZES = [[390, 844, true], [768, 1024, true], [1280, 800, false]];
-// The newest release's title, read from What's new itself, so a new release doesn't need this check changed.
-const LATEST = /title: '([^']+)'/.exec(fs.readFileSync(require('path').join(__dirname, '../../src/help/whatsNew.ts'), 'utf8'))[1];
+// The newest entry's title, read from What's new itself, so a new release doesn't need this check changed.
+const LATEST = (require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'src', 'help', 'whatsNew.ts'), 'utf8').match(/title: '([^']+)'/) || [])[1];
 
 module.exports = {
   id: 'N7',
@@ -120,9 +120,9 @@ module.exports = {
 
       // ---------- [HELP-GUIDE] the Help link at the foot of a page opens that page's article ----------
       const pages = w < 761
-        ? [['maya', '/', 'Home and your week at a glance'], ['maya', '/goals/head', 'A goal’s page'], ['priya', '/data', 'Data tables']]
+        ? [['maya', '/', 'Home and your week at a glance'], ['maya', '/goals/head', 'A goal’s page'], ['priya', '/data', 'Data']]
         : [['maya', '/', 'Home and your week at a glance'], ['elena', '/goals?view=table', 'Goals and its layouts'], ['elena', '/goals?view=map', 'The goal map'], ['elena', '/goals?view=history', 'History: quarter results and weekly status'],
-          ['maya', '/goals/head', 'A goal’s page'], ['elena', '/reviews/weekly', 'Reviews'], ['kofi', '/check-in/alerts', 'Checking in on a goal'], ['priya', '/data', 'Data tables'], ['maya', '/settings', 'Settings'], ['priya', '/workspace', 'Running the workspace']];
+          ['maya', '/goals/head', 'A goal’s page'], ['elena', '/reviews/weekly', 'Reviews'], ['kofi', '/check-in/alerts', 'Checking in on a goal'], ['priya', '/data', 'Data'], ['maya', '/settings', 'Settings'], ['priya', '/workspace', 'Running the workspace']];
       if (w === 768) pages.splice(3);
       for (const [who, route, title] of pages) {
         const [c, p] = await open(w, h, who, route, touch);
