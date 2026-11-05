@@ -1,4 +1,4 @@
-// ../../../node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -6,7 +6,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// ../../../node_modules/tslib/tslib.es6.mjs
+// node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -42,12 +42,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// ../../../node_modules/@supabase/functions-js/dist/module/helper.js
+// node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// ../../../node_modules/@supabase/functions-js/dist/module/types.js
+// node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -137,7 +137,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// ../../../node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -390,7 +390,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// ../../../node_modules/@supabase/postgrest-js/dist/index.mjs
+// node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -4364,7 +4364,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -4457,7 +4457,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -4491,7 +4491,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -4633,7 +4633,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -4819,7 +4819,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// ../../../node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -6514,7 +6514,7 @@ var Socket = class {
 		}
 	}
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -6601,7 +6601,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -6634,7 +6634,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -6656,7 +6656,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -6758,7 +6758,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -6893,7 +6893,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -7584,7 +7584,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -7695,7 +7695,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -8307,7 +8307,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// ../../../node_modules/iceberg-js/dist/index.mjs
+// node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -8803,7 +8803,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// ../../../node_modules/@supabase/storage-js/dist/index.mjs
+// node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -11990,9 +11990,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/version.js
+// node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -12021,7 +12021,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -12307,7 +12307,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -12510,7 +12510,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -12908,7 +12908,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -13067,13 +13067,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/types.js
+// node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// ../../../node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -14219,7 +14219,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -14251,7 +14251,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -14270,7 +14270,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -14310,7 +14310,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -14500,7 +14500,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// ../../../node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -15106,7 +15106,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// ../../../node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -20607,9 +20607,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// ../../../node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// ../../../node_modules/@supabase/supabase-js/dist/index.mjs
+// node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
@@ -21467,6 +21467,95 @@ function shouldShowDeprecationWarning() {
 	return parseInt(versionMatch[1], 10) <= 20;
 }
 if (shouldShowDeprecationWarning()) console.warn("⚠️  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
+/** "G-12" → 12; anything else → null. Lower case and a missing dash are forgiven ("g12"). */
+function keyNumber(ref) {
+	const m = /^\s*g-?(\d{1,9})\s*$/i.exec(ref ?? "");
+	return m ? Number(m[1]) : null;
+}
+var formatKey = (n) => `G-${n}`;
+/** Does this look like a goal key rather than an ID? */
+var isKey = (ref) => keyNumber(ref) != null;
+/** "g12" → "G-12"; not a key → null. */
+var normalKey = (ref) => {
+	const n = keyNumber(ref);
+	return n == null ? null : formatKey(n);
+};
+/** The highest key number among these goals (0 when none has one). */
+function lastKey(goals, floor = 0) {
+	let max = floor;
+	for (const g of goals) {
+		const n = keyNumber(g.key);
+		if (n != null && n > max) max = n;
+	}
+	return max;
+}
+/** A goal by its ID, or else by its key. The goals are one cycle's, so a key names one goal. */
+function findGoal(goals, ref) {
+	if (!ref) return void 0;
+	const byId = goals.find((g) => g.id === ref);
+	if (byId) return byId;
+	const k = normalKey(ref);
+	return k ? goals.find((g) => g.key === k) : void 0;
+}
+/** The oldest first, as the goals were created; ties keep the order they're listed in. */
+var creationOrder = (goals) => goals.map((g, i) => ({
+	g,
+	i
+})).sort((a, b) => (a.g.createdAt || "").localeCompare(b.g.createdAt || "") || a.i - b.i).map((x) => x.g);
+/**
+* Every goal with a key: goals that have one keep it; the rest get the next numbers, oldest first. Stable, so data from
+* before keys existed gets the same keys every time it's read. A goal carried into a later cycle with no key takes
+* the key of the goal it continues when there is one (same title, the cycle before).
+*/
+function withKeys(goals, floor = 0) {
+	if (goals.every((g) => g.key)) return goals;
+	let next = lastKey(goals, floor);
+	const keyOf = new Map(goals.filter((g) => g.key).map((g) => [g.id, g.key]));
+	const taken = new Set(goals.filter((g) => g.key).map((g) => g.cycleId + ":" + g.key));
+	const ordered = creationOrder(goals);
+	for (const g of ordered) {
+		if (keyOf.has(g.id)) continue;
+		const same = ordered.find((x) => x.cycleId !== g.cycleId && x.title === g.title && keyOf.has(x.id) && !taken.has(g.cycleId + ":" + keyOf.get(x.id)));
+		const key = same ? keyOf.get(same.id) : formatKey(++next);
+		keyOf.set(g.id, key);
+		taken.add(g.cycleId + ":" + key);
+	}
+	return goals.map((g) => g.key ? g : {
+		...g,
+		key: keyOf.get(g.id)
+	});
+}
+/**
+* Goals about to be saved, settled against what's stored: a goal already stored keeps its stored key (keys never
+* change); a new goal keeps the key it came with unless another goal in its cycle already has it, or it has none, and
+* then takes the next number. Run by every store on save, so two people adding goals at once can't share a key.
+*/
+function settleKeys(stored, incoming) {
+	let next = lastKey(stored);
+	const byId = new Map(stored.map((g) => [g.id, g]));
+	const taken = new Set(stored.filter((g) => g.key).map((g) => g.cycleId + ":" + g.key));
+	const out = [];
+	const brought = lastKey(incoming.filter((g) => !byId.get(g.id)?.key));
+	for (const g of incoming) {
+		const old = byId.get(g.id);
+		if (old?.key) {
+			out.push(g.key === old.key ? g : {
+				...g,
+				key: old.key
+			});
+			continue;
+		}
+		const k = normalKey(g.key);
+		const key = k && !taken.has(g.cycleId + ":" + k) ? k : formatKey(Math.max(next, brought) + 1);
+		next = Math.max(next, keyNumber(key));
+		taken.add(g.cycleId + ":" + key);
+		out.push(g.key === key ? g : {
+			...g,
+			key
+		});
+	}
+	return out;
+}
 // src/data/rows.ts
 /** Postgres numerics can arrive as strings; timestamps in any ISO form. Normalise both. */
 var num$1 = (v) => v == null ? null : Number(v);
@@ -21533,6 +21622,7 @@ function goalToRows(ws, g) {
 		goal: {
 			workspace_id: ws,
 			id: g.id,
+			key: g.key ?? null,
 			cycle_id: g.cycleId,
 			team_id: g.teamId,
 			owner_id: g.ownerId,
@@ -21588,6 +21678,7 @@ var planOf = (op) => ({
 function goalFromRows(r, stageRows) {
 	const common = {
 		id: r.id,
+		...r.key ? { key: r.key } : {},
 		cycleId: r.cycle_id,
 		teamId: r.team_id,
 		ownerId: r.owner_id,
@@ -22987,6 +23078,7 @@ function planChanged(a, b) {
 function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 	const common = {
 		id: base.id,
+		...existing?.key ? { key: existing.key } : {},
 		cycleId: cycle.id,
 		teamId: d.teamId,
 		ownerId: d.ownerId,
@@ -23370,7 +23462,7 @@ function buildExample(spec, today) {
 		initials: initials$1(p.name),
 		admin: !!p.admin
 	}));
-	const goals = spec.goals.map((g, i) => {
+	const goals = withKeys(spec.goals.map((g, i) => {
 		const base = {
 			id: g.id,
 			cycleId: cycle.id,
@@ -23420,7 +23512,7 @@ function buildExample(spec, today) {
 				dueWeek: toYear(due)
 			}))
 		};
-	});
+	}));
 	const postedAt = (week) => new Date(Math.max(start + week * 7 * DAY$1, Math.min(start + week * 7 * DAY$1 + 2 * DAY$1 + 36e6, today.getTime() - 6e4)));
 	const checkIns = [];
 	for (const g of goals) {
@@ -24342,7 +24434,7 @@ function applyCommit(s, c) {
 	});
 	const byId = new Map(s.goals.map((g, i) => [g.id, i]));
 	const goals = [...s.goals];
-	for (const g of bump(s.goals, c.goals)) {
+	for (const g of bump(s.goals, c.goals && settleKeys(s.goals, c.goals))) {
 		const i = byId.get(g.id);
 		if (i == null) {
 			byId.set(g.id, goals.length);
@@ -24442,7 +24534,7 @@ var SupabaseStore = class {
 			teams: teams.map(teamFromRow),
 			people: people.map(personFromRow),
 			cycles: cycles.map(cycleFromRow),
-			goals: goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages)),
+			goals: withKeys(goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages))),
 			checkIns: checkIns.map(checkInFromRow),
 			decisions: decisions.map(decisionFromRow),
 			changes: changes.map(changeFromRow).sort((a, b) => a.at.localeCompare(b.at)),
@@ -24588,6 +24680,7 @@ function scopeToCycle(s, cycle) {
 	return {
 		...s,
 		goals,
+		keysIssued: lastKey(s.goals, s.keysIssued),
 		checkIns: s.checkIns.filter((c) => ids.has(c.goalId)),
 		decisions: s.decisions.filter((d) => ids.has(d.goalId)),
 		retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
@@ -25065,6 +25158,254 @@ function openQuestions(personId, s) {
 	const mine = new Set(s.goals.filter((g) => g.ownerId === personId).map((g) => g.id));
 	return s.decisions.filter((d) => d.kind === "ask" && mine.has(d.goalId) && !answerOf(d, s));
 }
+// src/domain/tableFilter.ts
+var OP_LABEL = {
+	is: "is any of",
+	isNot: "is none of",
+	contains: "contains",
+	notContains: "doesn’t contain",
+	eq: "=",
+	ne: "≠",
+	gt: ">",
+	gte: "≥",
+	lt: "<",
+	lte: "≤",
+	empty: "is empty",
+	notEmpty: "is not empty"
+};
+/** Conditions that need no value. */
+var NO_VALUE = ["empty", "notEmpty"];
+var isNum = (v) => v.trim() !== "" && !isNaN(Number(v));
+/** Does one cell value pass the filter? */
+function passes(cell, f) {
+	const v = cell.trim();
+	const want = f.value.trim();
+	switch (f.op) {
+		case "empty": return v === "";
+		case "notEmpty": return v !== "";
+		case "is": return want.split("|").some((w) => w.toLowerCase() === v.toLowerCase());
+		case "isNot": return !want.split("|").some((w) => w.toLowerCase() === v.toLowerCase());
+		case "contains": return v.toLowerCase().includes(want.toLowerCase());
+		case "notContains": return !v.toLowerCase().includes(want.toLowerCase());
+		default: {
+			if (!isNum(v) || !isNum(want)) return false;
+			const a = Number(v), b = Number(want);
+			return f.op === "eq" ? a === b : f.op === "ne" ? a !== b : f.op === "gt" ? a > b : f.op === "gte" ? a >= b : f.op === "lt" ? a < b : a <= b;
+		}
+	}
+}
+/** Rows (as header → value) that pass every filter and contain every search word, sorted. */
+function applyTable(rows, head, q, filters, sort) {
+	const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+	const idx = (c) => head.indexOf(c);
+	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
+	const out = rows.filter((r) => words.every((w) => r.cells.some((c) => c.toLowerCase().includes(w))) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
+	const si = sort ? idx(sort.col) : -1;
+	if (sort && si >= 0) out.sort((a, b) => {
+		const x = a.cells[si] ?? "", y = b.cells[si] ?? "";
+		if (!x.trim() || !y.trim()) return (x.trim() ? 0 : 1) - (y.trim() ? 0 : 1);
+		return (isNum(x) && isNum(y) ? Number(x) - Number(y) : x.localeCompare(y, void 0, { numeric: true })) * sort.dir;
+	});
+	return out;
+}
+function parseFilters(p) {
+	return p.getAll("f").map((x) => {
+		const [col = "", op = "", ...rest] = x.split("~");
+		return {
+			col,
+			op,
+			value: rest.join("~")
+		};
+	}).filter((f) => f.col && f.op in OP_LABEL);
+}
+function parseSort(p) {
+	const v = p.get("s");
+	if (!v) return null;
+	const i = v.lastIndexOf("~");
+	return i > 0 ? {
+		col: v.slice(0, i),
+		dir: v.slice(i + 1) === "desc" ? -1 : 1
+	} : null;
+}
+function filterEntries(filters, sort) {
+	return [...filters.map((f) => ["f", `${f.col}~${f.op}~${f.value}`]), ...sort ? [["s", `${sort.col}~${sort.dir === 1 ? "asc" : "desc"}`]] : []];
+}
+// src/domain/tableLayout.ts
+var TABLES = {
+	goals: {
+		sheet: "Goals",
+		label: "Goals",
+		name: "Goal",
+		always: ["Key"],
+		hidden: [],
+		defaults: [
+			"Key",
+			"Goal",
+			"Level",
+			"Team",
+			"Owner",
+			"Type",
+			"Unit",
+			"Start",
+			"Target",
+			"Status",
+			"Now",
+			"Gap",
+			"Last check-in week",
+			"Feeds into"
+		]
+	},
+	checkIns: {
+		sheet: "Check-ins",
+		label: "Check-ins",
+		name: "Goal",
+		always: ["ID"],
+		hidden: [],
+		defaults: [
+			"ID",
+			"Goal key",
+			"Goal",
+			"Week",
+			"Value",
+			"Stages",
+			"Call",
+			"Calculated",
+			"Plan that week",
+			"Why",
+			"Recovery",
+			"Back on plan by week",
+			"Needs",
+			"Posted by"
+		]
+	},
+	plan: {
+		sheet: "Plan",
+		label: "Plans",
+		name: "Goal",
+		always: ["Key"],
+		hidden: [],
+		defaults: null
+	},
+	requests: {
+		sheet: "Requests",
+		label: "Requests",
+		name: "Request",
+		always: ["ID"],
+		hidden: [],
+		defaults: [
+			"ID",
+			"Request",
+			"Goals",
+			"Goal keys",
+			"Asked by",
+			"Asked of",
+			"Status",
+			"Asked at",
+			"Answer",
+			"Answered by"
+		]
+	},
+	people: {
+		sheet: "People",
+		label: "People",
+		name: "Name",
+		always: ["ID"],
+		hidden: ["Team objective"],
+		defaults: null
+	}
+};
+/** The tables, in the order the Data screen lists them. */
+var TABLE_ORDER = [
+	"goals",
+	"checkIns",
+	"plan",
+	"requests",
+	"people"
+];
+var isDataTable = (t) => typeof t === "string" && t in TABLES;
+function minWidth(table, col) {
+	if (col === TABLES[table].name) return 120;
+	if (/^(Week \d+|Week|Key|Goal key|Decimals|Q[1-4])$/.test(col)) return 56;
+	return 72;
+}
+var clampWidth = (table, col, w) => Math.round(Math.min(640, Math.max(minWidth(table, col), w)));
+/** The columns a table shows, in order: its name column, then the chosen columns (or the usual ones) that it has. */
+function visibleColumns(table, head, cols) {
+	const t = TABLES[table];
+	const has = (c) => head.includes(c) && !t.hidden.includes(c) && c !== t.name;
+	const always = t.always.filter(has);
+	let rest;
+	if (cols) {
+		rest = cols.filter(has);
+		for (const c of always) if (!rest.includes(c)) rest.splice(Math.min(rest.length, Math.max(0, head.indexOf(c) - 1)), 0, c);
+	} else {
+		const pick = t.defaults;
+		rest = head.filter((c) => has(c) && (!pick || pick.includes(c) || always.includes(c)));
+	}
+	return [...head.includes(t.name) ? [t.name] : [], ...new Set(rest)];
+}
+/** Every column a table can show, besides its name column. */
+var choosableColumns = (table, head) => head.filter((c) => !TABLES[table].hidden.includes(c) && c !== TABLES[table].name);
+function layoutParams(l) {
+	const p = new URLSearchParams([["table", l.table]]);
+	for (const c of l.cols ?? []) p.append("c", c);
+	for (const [c, w] of Object.entries(l.widths)) p.append("w", `${c}~${Math.round(w)}`);
+	if (l.q.trim()) p.append("q", l.q.trim());
+	for (const [k, v] of filterEntries(l.filters, l.sort)) p.append(k, v);
+	return p.toString();
+}
+function parseLayout(params) {
+	const p = new URLSearchParams(params.replace(/^.*\?/, ""));
+	const table = p.get("table");
+	if (!isDataTable(table)) return null;
+	const cols = p.getAll("c").filter(Boolean);
+	const widths = {};
+	for (const w of p.getAll("w")) {
+		const i = w.lastIndexOf("~");
+		const n = Number(w.slice(i + 1));
+		if (i > 0 && Number.isFinite(n)) widths[w.slice(0, i)] = clampWidth(table, w.slice(0, i), n);
+	}
+	return {
+		table,
+		cols: cols.length ? cols : null,
+		widths,
+		q: p.get("q") ?? "",
+		filters: parseFilters(p),
+		sort: parseSort(p)
+	};
+}
+/** A saved view of a data table, rather than of the Goals screen. */
+var isTableView = (v) => /^table=/.test(v.params);
+/** What's wrong with a layout, in words: an unknown table, or (given the table's columns) a column it doesn't have. */
+function layoutProblems(l, head) {
+	if (!l) return [`The table should be one of ${TABLE_ORDER.join(", ")}.`];
+	const out = [];
+	if (head) {
+		const unknown = [
+			...l.cols ?? [],
+			...Object.keys(l.widths),
+			...l.filters.map((f) => f.col),
+			...l.sort ? [l.sort.col] : []
+		].filter((c) => !head.includes(c));
+		if (unknown.length) out.push(`The ${TABLES[l.table].label} table has no ${unknown.length === 1 ? "column" : "columns"} called ${[...new Set(unknown)].map((c) => `“${c}”`).join(", ")}.`);
+	}
+	if ((l.cols ?? []).length > 400) out.push("That’s more columns than any table has.");
+	return out;
+}
+/**
+* The table as it shows: the visible columns in order, and the rows that pass the search and filters, sorted. Values
+* stay as they are (numbers as numbers), so a spreadsheet can work with them. Header row first.
+*/
+function shownTable(sheet, l) {
+	const [head0, ...body] = sheet.rows;
+	const head = (head0 ?? []).map((c) => c == null ? "" : String(c));
+	const cols = visibleColumns(l.table, head, l.cols).map((c) => head.indexOf(c));
+	const shown = applyTable(body.map((raw) => ({
+		raw,
+		cells: raw.map((c) => c == null ? "" : String(c))
+	})), head, l.q, l.filters, l.sort);
+	return [cols.map((i) => head[i]), ...shown.map((r) => cols.map((i) => r.raw[i] ?? null))];
+}
 // src/domain/updateAsks.ts
 var UPDATE_ASK = "Asked for an update";
 /** Comments marked withdrawn, by the comment's id. */
@@ -25537,6 +25878,11 @@ function saveView(x, v) {
 	if (!clean) no("Give the view a name.");
 	const old = v.id ? liveView(x, v.id) : void 0;
 	if (v.id && !old) no("There’s no view with that ID.");
+	if (isTableView(v)) {
+		const problems = layoutProblems(parseLayout(v.params));
+		if (problems.length) no(problems.join(" "));
+	}
+	if (old && isTableView(old) !== isTableView(v)) no(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
 	if (old && old.personId !== x.actor.id && !x.actor.admin) no("Only its owner or an admin can change this view.");
 	const view = old ? {
 		...old,
@@ -25574,6 +25920,25 @@ function saveView(x, v) {
 			}] : []
 		}
 	};
+}
+/**
+* Save the layout of a data table (its columns in order, their widths, and its search, filters and sort) as a named
+* table view, or change one of yours. Given the table's columns, a column it doesn't have is refused. It's a saved view
+* like any other: yours, an admin can pin it for everyone, and it's deleted the same way.
+*/
+function saveTableView(x, v, head) {
+	const problems = layoutProblems(v.layout, head);
+	if (problems.length) no(problems.join(" "));
+	if (v.layout.cols && !v.layout.cols.length) no("Show at least one column.");
+	const widths = Object.fromEntries(Object.entries(v.layout.widths).map(([c, w]) => [c, clampWidth(v.layout.table, c, w)]));
+	return saveView(x, {
+		id: v.id,
+		name: v.name,
+		params: layoutParams({
+			...v.layout,
+			widths
+		})
+	});
 }
 /** Delete one of your views; an admin can also delete a pinned one. Null when it's already gone. */
 function deleteView(x, id) {
@@ -26223,6 +26588,8 @@ function planChanges(input) {
 	const person = (name) => [...people.values()].find((p) => norm(p.name) === norm(name));
 	const team = (name) => s.teams.find((t) => norm(t.name) === norm(name));
 	const work = new Map(s.goals.map((g) => [g.id, g]));
+	const goalByRef = (ref) => ref ? work.get(ref) ?? findGoal([...work.values()], ref) : void 0;
+	let lastKeyGiven = lastKey(s.goals, s.keysIssued);
 	const touched = /* @__PURE__ */ new Map();
 	const started = (id) => s.checkIns.some((c) => c.goalId === id);
 	const canChange = (g) => actor.admin || g.ownerId === actor.id;
@@ -26231,10 +26598,13 @@ function planChanges(input) {
 	(input.tables.goals ?? []).forEach((r, i) => {
 		const row = rowOf(r, i);
 		const id = val(r, "id");
+		const keyRef = val(r, "key");
 		const title = val(r, "goal");
-		if (!id && !title && Object.entries(r).every(([k, v]) => k === "__row" || !v)) return;
-		const existing = id ? work.get(id) ?? null : null;
+		if (!id && !keyRef && !title && Object.entries(r).every(([k, v]) => k === "__row" || !v)) return;
+		const existing = goalByRef(id || keyRef) ?? null;
 		if (id && !existing) return err("Goals", row, title || id, `There’s no goal with ID ${id} in ${cycle.name}. Leave ID empty to add a new goal.`);
+		if (!id && keyRef && !existing) return err("Goals", row, title || keyRef, `There’s no goal with key ${keyRef} in ${cycle.name}. Leave Key and ID empty to add a new goal.`);
+		if (existing && keyRef && normalKey(keyRef) !== existing.key) return err("Goals", row, existing.title, `Key ${keyRef} isn’t this goal’s key (${existing.key ?? "none"}). A goal’s key never changes.`);
 		if (!existing) {
 			if (!title) return err("Goals", row, "", "Name the goal in the Goal column.");
 			const same = [...work.values()].find((g) => norm(g.title) === norm(title));
@@ -26303,6 +26673,7 @@ function planChanges(input) {
 		const errs = Object.values(validateGoal(d, cycle));
 		if (errs.length) return err("Goals", row, d.title, errs.join(" "));
 		const gid = existing?.id ?? newId("goal");
+		const key = existing ? existing.key : formatKey(++lastKeyGiven);
 		if (has(r, "feeds into id") || has(r, "feeds into")) parentLinks.push({
 			id: gid,
 			row,
@@ -26320,6 +26691,10 @@ function planChanges(input) {
 			...existing,
 			...built
 		};
+		if (key) built = {
+			...built,
+			key
+		};
 		if (existing && d.whyHelps === "" && "whyHelps" in built) delete built.whyHelps;
 		work.set(gid, built);
 		touched.set(gid, {
@@ -26334,11 +26709,12 @@ function planChanges(input) {
 		const g = work.get(l.id);
 		let parentId = null;
 		if (l.byId) {
-			if (!work.has(l.byId)) {
+			const p = goalByRef(l.byId);
+			if (!p) {
 				err("Goals", l.row, g.title, `Feeds into ID ${l.byId} isn’t a goal in ${cycle.name}.`);
 				continue;
 			}
-			parentId = l.byId;
+			parentId = p.id;
 		} else if (l.byTitle) {
 			const p = [...work.values()].find((x) => norm(x.title) === norm(l.byTitle));
 			if (!p) {
@@ -26367,13 +26743,14 @@ function planChanges(input) {
 	}
 	(input.tables.plan ?? []).forEach((r, i) => {
 		const row = rowOf(r, i);
-		const id = val(r, "id");
-		if (!id) {
-			if (val(r, "goal")) err("Plan", row, val(r, "goal"), "Add the goal’s ID so the plan can be matched to it.");
+		const ref = val(r, "id") || val(r, "key");
+		if (!ref) {
+			if (val(r, "goal")) err("Plan", row, val(r, "goal"), "Add the goal’s ID or key so the plan can be matched to it.");
 			return;
 		}
-		const g = work.get(id);
-		if (!g) return err("Plan", row, val(r, "goal") || id, `There’s no goal with ID ${id}.`);
+		const g = goalByRef(ref);
+		if (!g) return err("Plan", row, val(r, "goal") || ref, `There’s no goal with ${isKey(ref) && !work.has(ref) ? "key" : "ID"} ${ref}.`);
+		const id = g.id;
 		if (g.kind !== "metric") return err("Plan", row, g.title, "Only number goals have plan numbers.");
 		const from = g.plan.fromWeek ?? 0, end = planEnd(g.plan, cycle.weeks);
 		const typed = /* @__PURE__ */ new Map();
@@ -26465,15 +26842,16 @@ function planChanges(input) {
 		row: rowOf(r, i)
 	}));
 	const byTitle = new Map([...work.values()].map((g) => [norm(g.title), g]));
-	const goalFor = (r) => val(r, "goal id") ? work.get(val(r, "goal id")) : byTitle.get(norm(val(r, "goal")));
+	const goalRefOf = (r) => val(r, "goal id") || val(r, "goal key");
+	const goalFor = (r) => goalRefOf(r) ? goalByRef(goalRefOf(r)) : byTitle.get(norm(val(r, "goal")));
 	const imported = /* @__PURE__ */ new Map();
 	rows.sort((a, b) => (goalFor(a.r)?.id ?? "").localeCompare(goalFor(b.r)?.id ?? "") || (parseNumber(val(a.r, "week")) ?? 0) - (parseNumber(val(b.r, "week")) ?? 0));
 	for (const { r, row } of rows) {
 		if (Object.entries(r).every(([k, v]) => k === "__row" || !v)) continue;
 		const g = goalFor(r);
-		const name = val(r, "goal") || val(r, "goal id");
+		const name = val(r, "goal") || goalRefOf(r);
 		if (!g) {
-			err("Check-ins", row, name, val(r, "goal id") ? `There’s no goal with ID ${val(r, "goal id")}.` : `There’s no goal called “${val(r, "goal")}”. Add the Goal ID column to be exact.`);
+			err("Check-ins", row, name, goalRefOf(r) ? `There’s no goal with ${isKey(goalRefOf(r)) ? "key" : "ID"} ${goalRefOf(r)}.` : `There’s no goal called “${val(r, "goal")}”. Add the Goal ID or Goal key column to be exact.`);
 			continue;
 		}
 		const w = parseNumber(val(r, "week"));
@@ -26967,7 +27345,9 @@ function stagesText(g, c) {
 	if (g.kind !== "milestone" || !c.stages) return "";
 	return assessMilestone(g, c.week, c.stages).stages.map((s) => `${s.name}: ${s.kind === "done" ? "done week " + s.doneWeek : s.weeksLate > 0 ? "expected week " + s.expectedWeek : "due week " + s.dueWeek}`).join("; ");
 }
+/** The goal's readable key comes first (G-12); its ID, the identity the app keeps, next. Either matches it on the way back. */
 var GOAL_EXPORT_COLUMNS = [
+	"Key",
 	"ID",
 	"Goal",
 	"Level",
@@ -27014,6 +27394,7 @@ var GOAL_DERIVED_COLUMNS = [
 ];
 var CHECKIN_EXPORT_COLUMNS = [
 	"ID",
+	"Goal key",
 	"Goal ID",
 	"Goal",
 	"Week",
@@ -27040,6 +27421,7 @@ function goalRow(s, all) {
 	const parent = g.parentId ? all.find((x) => x.id === g.parentId) : null;
 	const m = g.kind === "metric" ? g : null, r = g.kind === "range" ? g : null;
 	return [
+		g.key ?? null,
 		g.id,
 		g.title,
 		levelWord[g.level],
@@ -27096,6 +27478,7 @@ function checkInRows(x, sums, name) {
 			const ptg = c.pathToGreen;
 			rows.push([
 				c.id,
+				g.key ?? null,
 				g.id,
 				g.title,
 				c.week,
@@ -27119,7 +27502,12 @@ function checkInRows(x, sums, name) {
 			]);
 		}
 	}
-	return rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])) || Number(a[3]) - Number(b[3]) || String(a[18]).localeCompare(String(b[18])));
+	const [gi, wi, pi] = [
+		"Goal",
+		"Week",
+		"Posted at"
+	].map((c) => CHECKIN_EXPORT_COLUMNS.indexOf(c));
+	return rows.sort((a, b) => String(a[gi]).localeCompare(String(b[gi])) || Number(a[wi]) - Number(b[wi]) || String(a[pi]).localeCompare(String(b[pi])));
 }
 /** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
 function planRows(x, sums) {
@@ -27127,6 +27515,7 @@ function planRows(x, sums) {
 	const last = Math.max(x.cycle.weeks, ...metric.map((g) => planEnd(g.plan, x.cycle.weeks)));
 	const weeks = Array.from({ length: last }, (_, i) => i + 1);
 	return [[
+		"Key",
 		"ID",
 		"Goal",
 		"Unit",
@@ -27136,6 +27525,7 @@ function planRows(x, sums) {
 		const end = planEnd(g.plan, x.cycle.weeks);
 		const from = g.plan.fromWeek ?? 0;
 		return [
+			g.key ?? null,
 			g.id,
 			g.title,
 			g.unit,
@@ -27150,6 +27540,12 @@ var README = [
 		"Column",
 		"What it means",
 		"When loaded back"
+	],
+	[
+		"Goals",
+		"Key",
+		"The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal: it gets the next one.",
+		"Matches the goal, like ID"
 	],
 	[
 		"Goals",
@@ -27231,7 +27627,7 @@ var README = [
 	],
 	[
 		"Check-ins",
-		"Goal ID, Week, Value or Stages",
+		"Goal key or Goal ID, Week, Value or Stages",
 		"One row per check-in: a goal and week, and what was reported",
 		"Adds a check-in, or corrects the one with that ID (or that week’s latest when there’s no ID)"
 	],
@@ -27278,6 +27674,7 @@ function requestRows(x, ids, name) {
 	return [[
 		"ID",
 		"Goals",
+		"Goal keys",
 		"Goal IDs",
 		"Asked by",
 		"Asked of",
@@ -27290,6 +27687,7 @@ function requestRows(x, ids, name) {
 	], ...requestsOf(x.snapshot).filter((r) => r.goalIds.some((id) => ids.has(id))).map((r) => [
 		r.id,
 		r.goalIds.map(title).join("; "),
+		r.goalIds.map((id) => x.snapshot.goals.find((g) => g.id === id)?.key ?? "").filter(Boolean).join("; ") || null,
 		r.goalIds.join("; "),
 		name(r.askedBy) || null,
 		r.recipientId ? name(r.recipientId) || null : "Anyone",
@@ -27326,6 +27724,7 @@ function workbook(x) {
 		{
 			name: "Notes and actions",
 			rows: [[
+				"Goal key",
 				"Goal ID",
 				"Goal",
 				"Week",
@@ -27338,6 +27737,7 @@ function workbook(x) {
 				"Answer",
 				"At"
 			], ...notes.map((d) => [
+				goals.find((g) => g.id === d.goalId)?.key ?? null,
 				d.goalId,
 				goalTitle(d.goalId),
 				d.week,
@@ -27440,6 +27840,7 @@ function toJson(x) {
 			const g = s.goal;
 			return {
 				id: g.id,
+				key: g.key ?? null,
 				title: g.title,
 				level: g.level,
 				type: g.kind,
@@ -27553,6 +27954,7 @@ function toJson(x) {
 			"action"
 		].includes(d.kind)).map((d) => ({
 			goalId: d.goalId,
+			goalKey: sums.find((s) => s.goal.id === d.goalId)?.goal.key ?? null,
 			week: d.week,
 			kind: d.kind === "ask" ? "question" : d.kind,
 			by: name(d.byId),
@@ -27572,7 +27974,7 @@ function storyBlock(sm, cycleWeeks, handled) {
 	const g = sm.goal;
 	const out = [];
 	const tags = [st.since, st.result ? st.result.text : null].filter(Boolean).join(" · ");
-	out.push(`### ${g.title}`);
+	out.push(`### ${g.title}${g.key ? ` (${g.key})` : ""}`);
 	out.push(`**${LABEL[sm.status]}**${tags ? ` · ${tags}` : ""} · ${sm.owner}, ${sm.team}${st.feeds ? ` · ${st.feeds}` : ""}`);
 	out.push("");
 	if (handled) out.push(`- **Being handled:** ${handled.text}${handled.said ? `: ${handled.said}` : "."}`);
@@ -27706,7 +28108,7 @@ function aiBrief(x) {
 	out.push("## Every goal, by what it feeds");
 	const line = (s, depth) => {
 		const lvl = s.goal.level !== "team" ? ` [${LEVEL_LABEL[s.goal.level]}]` : "";
-		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
+		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${s.goal.key ? ` (${s.goal.key})` : ""}${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
 	};
 	const seen = /* @__PURE__ */ new Set();
 	const walk = (g, depth) => {
@@ -28025,11 +28427,13 @@ async function save(ctx, c, done, nothing) {
 	return { text: `${done} (as ${ctx.actor.name}).` };
 }
 var name = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
+/** A goal by its ID or its key (G-12). */
 var goalOf = (ctx, id) => {
-	const g = ctx.snapshot.goals.find((x) => x.id === id);
-	if (!g) throw new Error(`There’s no goal with ID ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs.`);
+	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
+var goalIds = (ctx, v) => v?.map((id) => goalOf(ctx, id).id);
 var requestOf = (ctx, id) => {
 	const r = requestsOf(ctx.snapshot).find((x) => x.id === id);
 	if (!r) throw new Error(`There’s no request with ID ${String(id)}. Use list_requests to get IDs.`);
@@ -28066,16 +28470,49 @@ var requestData = (ctx, r) => ({
 	status: r.status,
 	askedBy: name(ctx, r.askedBy),
 	askedOf: r.recipientId ? name(ctx, r.recipientId) : "anyone",
-	goals: r.goalIds.map((g) => ({
-		id: g,
-		title: ctx.snapshot.goals.find((x) => x.id === g)?.title ?? g
-	})),
+	goals: r.goalIds.map((g) => {
+		const x = ctx.snapshot.goals.find((y) => y.id === g);
+		return {
+			id: g,
+			key: x?.key ?? null,
+			title: x?.title ?? g
+		};
+	}),
 	raisedAt: r.createdAt,
 	answer: r.answer,
 	answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null,
 	youCanAnswer: r.status === "open" && (!r.recipientId || r.recipientId === ctx.actor.id || ctx.actor.admin)
 });
 var lines = (l, none) => l.length ? l.join("\n") : none;
+/** A data table's sheet, from the same workbook the Data screen and the exports use. */
+var sheetOf = (ctx, t) => workbook({
+	ws: ctx.ws,
+	snapshot: ctx.snapshot,
+	cycle: ctx.cycle,
+	week: ctx.week,
+	today: ctx.today
+}).find((x) => x.name === TABLES[t].sheet);
+var headOf = (ctx, t) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ""));
+/** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
+function layoutFrom(ctx, a) {
+	if (a.view != null) {
+		const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+		const l = v ? parseLayout(v.params) : null;
+		if (!l) throw new Error(`There’s no table view called “${String(a.view)}” that you can see. Use list_views.`);
+		return l;
+	}
+	if (!isDataTable(a.table)) throw new Error(`Say which table: ${TABLE_ORDER.join(", ")}.`);
+	const parsed = parseLayout(`table=${a.table}&${String(a.query ?? "").replace(/^.*\?/, "")}`);
+	const widths = a.widths ?? {};
+	const layout = {
+		...parsed,
+		cols: a.columns?.length ? a.columns : null,
+		widths: Object.fromEntries(Object.entries(widths).map(([c, w]) => [c, Number(w)]))
+	};
+	const problems = layoutProblems(layout, headOf(ctx, layout.table));
+	if (problems.length) throw new Error(`${problems.join(" ")} Its columns: ${choosableColumns(layout.table, headOf(ctx, layout.table)).join(", ")}.`);
+	return layout;
+}
 var WORK_TOOLS = [
 	{
 		name: "get_my_work",
@@ -28211,13 +28648,13 @@ var WORK_TOOLS = [
 					"all"
 				] }),
 				for_me: bool$1("Only requests asked of you (or of anyone)."),
-				goal_id: str$1("Only requests a goal is waiting on.")
+				goal_id: str$1("Only requests a goal is waiting on (its ID or key).")
 			}
 		},
 		annotations: READ,
 		async run(a, ctx) {
 			const st = a.status ?? "open";
-			const list = requestsOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(String(a.goal_id))).map((r) => requestData(ctx, r));
+			const list = requestsOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
 			return {
 				data: { requests: list },
 				text: lines(list.map((r) => `${r.id} · ${r.status} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(", ")}${r.answer ? ` · answer: ${r.answer}` : ""}`), "No requests match.")
@@ -28384,7 +28821,7 @@ var WORK_TOOLS = [
 	{
 		name: "get_activity",
 		title: "The activity log",
-		description: "Every saved change, newest first: who made it, when, and what changed. Filter with the same query as the Activity page, e.g. \"who=maya&kind=checkins,plans&when=this-week\". Keys: q (words), who (person IDs), goal (a goal ID; add tree=1 for what feeds it), team (IDs), level (north-star, svp, team), kind (checkins, plans, goals, reviews, comments, people, imports, ai, cycle), when (this-week, last-week, quarter, custom with from and to as yyyy-mm-dd).",
+		description: "Every saved change, newest first: who made it, when, and what changed. Filter with the same query as the Activity page, e.g. \"who=maya&kind=checkins,plans&when=this-week\". Keys: q (words), who (person IDs), goal (a goal’s ID or key; add tree=1 for what feeds it), team (IDs), level (north-star, svp, team), kind (checkins, plans, goals, reviews, comments, people, imports, ai, cycle), when (this-week, last-week, quarter, custom with from and to as yyyy-mm-dd).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -28395,7 +28832,9 @@ var WORK_TOOLS = [
 		},
 		annotations: READ,
 		async run(a, ctx) {
-			const keep = activityFilter(parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, ""))), {
+			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
+			if (q.goal) q.goal = goalOf(ctx, q.goal).id;
+			const keep = activityFilter(q, {
 				snapshot: ctx.snapshot,
 				cycle: ctx.cycle,
 				week: ctx.week,
@@ -28422,7 +28861,7 @@ var WORK_TOOLS = [
 	{
 		name: "list_views",
 		title: "Saved views",
-		description: "Your saved views of the goals and the ones pinned for everyone, with each one’s query (use it with find_goals).",
+		description: "Your saved views and the ones pinned for everyone: views of the Goals screen, with each one’s query (use it with find_goals), and table views of the data tables, with their columns in order and widths (use them with export_table).",
 		inputSchema: {
 			type: "object",
 			properties: {},
@@ -28430,16 +28869,25 @@ var WORK_TOOLS = [
 		},
 		annotations: READ,
 		async run(_a, ctx) {
-			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => ({
-				id: v.id,
-				name: v.name,
-				query: v.params,
-				pinned: v.pinned,
-				owner: name(ctx, v.personId)
-			}));
+			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
+				const l = isTableView(v) ? parseLayout(v.params) : null;
+				return {
+					id: v.id,
+					name: v.name,
+					of: l ? `the ${TABLES[l.table].label} data table` : "the Goals screen",
+					...l ? {
+						table: l.table,
+						columns: l.cols,
+						widths: l.widths
+					} : {},
+					query: v.params,
+					pinned: v.pinned,
+					owner: name(ctx, v.personId)
+				};
+			});
 			return {
 				data: { views: list },
-				text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? " (pinned)" : ""} · ${v.query}`), "No saved views.")
+				text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? " (pinned)" : ""} · of ${v.of} · ${v.query}`), "No saved views.")
 			};
 		}
 	},
@@ -28558,7 +29006,7 @@ var WORK_TOOLS = [
 			required: ["request_id", "goal_id"],
 			properties: {
 				request_id: str$1("The request’s ID."),
-				goal_id: str$1("The goal that waits on it.")
+				goal_id: str$1("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE,
@@ -28576,7 +29024,7 @@ var WORK_TOOLS = [
 			required: ["request_id", "goal_id"],
 			properties: {
 				request_id: str$1("The request’s ID."),
-				goal_id: str$1("The goal withdrawing it.")
+				goal_id: str$1("The goal withdrawing it (its ID or key).")
 			}
 		},
 		annotations: WRITE,
@@ -28592,7 +29040,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID.") }
+			properties: { goal_id: str$1("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE,
@@ -28611,7 +29059,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID.") }
+			properties: { goal_id: str$1("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE,
 		async run(a, ctx) {
@@ -28632,7 +29080,7 @@ var WORK_TOOLS = [
 			],
 			properties: {
 				review_id: str$1("The review’s ID."),
-				goal_id: str$1("The goal’s ID."),
+				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
 				kind: str$1("What it is.", { enum: [
 					"acknowledge",
 					"note",
@@ -28710,8 +29158,8 @@ var WORK_TOOLS = [
 					"Thursday",
 					"Friday"
 				] }),
-				goals: ids("Goal IDs it walks."),
-				trees: ids("Goal IDs it walks with everything feeding them."),
+				goals: ids("Goal IDs or keys it walks."),
+				trees: ids("Goal IDs or keys it walks with everything feeding them."),
 				levels: ids("Levels it walks: north-star, svp, team."),
 				people: ids("Who’s in it (names or IDs). New reviews include you.")
 			}
@@ -28730,8 +29178,8 @@ var WORK_TOOLS = [
 			if (a.review_id) {
 				const before = reviewOf(ctx, a.review_id);
 				const scope = {
-					goals: a.goals ?? before.scope.goals,
-					trees: a.trees ?? before.scope.trees,
+					goals: goalIds(ctx, a.goals) ?? before.scope.goals,
+					trees: goalIds(ctx, a.trees) ?? before.scope.trees,
 					levels: a.levels ? levelsOf(a.levels) : before.scope.levels
 				};
 				const after = {
@@ -28748,8 +29196,8 @@ var WORK_TOOLS = [
 				name: String(a.name ?? ""),
 				everyWeeks: Number(a.every_weeks ?? 1),
 				weekday: day ?? ctx.cycle.reviewDay,
-				goals: a.goals,
-				trees: a.trees,
+				goals: goalIds(ctx, a.goals),
+				trees: goalIds(ctx, a.trees),
 				levels: levelsOf(a.levels),
 				people: people ? [.../* @__PURE__ */ new Set([ctx.actor.id, ...people])] : void 0
 			});
@@ -28773,7 +29221,7 @@ var WORK_TOOLS = [
 					"tree",
 					"level"
 				] }),
-				ref: str$1("A goal ID, or a level (north-star, svp, team).")
+				ref: str$1("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
 			}
 		},
 		annotations: {
@@ -28781,7 +29229,8 @@ var WORK_TOOLS = [
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save(ctx, watch(ax(ctx), a.kind, String(a.ref ?? "")), `Watching ${a.kind === "level" ? `every ${String(a.ref)} goal` : goalOf(ctx, a.ref).title}`, "Already watching that.");
+			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf(ctx, a.ref).id;
+			return save(ctx, watch(ax(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf(ctx, ref).title}`, "Already watching that.");
 		}
 	},
 	{
@@ -28846,7 +29295,7 @@ var WORK_TOOLS = [
 				"next"
 			],
 			properties: {
-				goal_id: str$1("The goal’s ID."),
+				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
 				result: str$1("How it landed.", { enum: [
 					"hit",
 					"partly",
@@ -28904,7 +29353,7 @@ var WORK_TOOLS = [
 	{
 		name: "save_view",
 		title: "Save a view of the goals",
-		description: "Save a search, filters and sort of the Goals screen under a name (the same query find_goals takes), or rename or change one of yours. Without view_id it saves a new one.",
+		description: "Save a search, filters and sort of the Goals screen under a name (the same query find_goals takes), or rename or change one of yours. Without view_id it saves a new one. For a data table’s layout, use save_table_view.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -28925,6 +29374,80 @@ var WORK_TOOLS = [
 			return {
 				...await save(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
+			};
+		}
+	},
+	{
+		name: "save_table_view",
+		title: "Save a data table’s layout",
+		description: "Save a layout of one of the data tables (goals, checkIns, plan, requests, people) as a named table view, as the Data screen does: the columns to show, in order (the table’s name column always comes first), their widths in pixels, and its search, filters and sort. Without view_id it saves a new one; with it, it changes one of yours. Open it in the app from Data, or export it with export_table.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["name", "table"],
+			properties: {
+				view_id: str$1("The table view to change."),
+				name: str$1("Its name."),
+				table: str$1("Which data table.", { enum: TABLE_ORDER }),
+				columns: ids("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
+				widths: {
+					type: "object",
+					additionalProperties: { type: "number" },
+					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
+				},
+				query: str$1("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			const layout = layoutFrom(ctx, a);
+			const out = saveTableView(ax(ctx), {
+				id: a.view_id,
+				name: String(a.name ?? ""),
+				layout
+			}, headOf(ctx, layout.table));
+			return {
+				...await save(ctx, out.commit, `Saved the table view “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				data: { id: out.id }
+			};
+		}
+	},
+	{
+		name: "export_table",
+		title: "Export a data table as shown",
+		description: "One of the data tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted. Give a saved table view by name, or the table with columns and a query. CSV by default, or rows as JSON.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				view: str$1("The name of a saved table view: one of yours, or one pinned for everyone."),
+				table: str$1("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+				columns: ids("The columns, in order. Leave out for the usual columns."),
+				query: str$1("Search, filters and sort, as for save_table_view."),
+				format: str$1("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+			}
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			const layout = layoutFrom(ctx, a);
+			const rows = shownTable(sheetOf(ctx, layout.table), layout);
+			const [head = [], ...body] = rows;
+			const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? "row" : "rows"}, ${head.length} columns`;
+			if (a.format === "json") return {
+				data: {
+					table: layout.table,
+					columns: head,
+					rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null])))
+				},
+				text: what
+			};
+			return {
+				data: {
+					table: layout.table,
+					columns: head,
+					count: body.length
+				},
+				text: toCsv(rows)
 			};
 		}
 	},
@@ -29261,9 +29784,10 @@ async function change(ctx, tables, opts) {
 		text: `Saved as ${ctx.actor.name}: ${what}`
 	};
 }
+/** A goal by its ID or its key (G-12). */
 var goalRef = (ctx, id) => {
-	const g = ctx.snapshot.goals.find((x) => x.id === id);
-	if (!g) throw new Error(`There's no goal with ID ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs.`);
+	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	if (!g) throw new Error(`There's no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
 var GOAL_FIELDS = {
@@ -29293,7 +29817,7 @@ var GOAL_FIELDS = {
 		items: { type: "string" },
 		description: "Milestone goals: each stage as \"Name@week\", e.g. \"Pilot@6\"."
 	},
-	feeds_into_id: str("The ID of the goal this one feeds. Empty string to unlink."),
+	feeds_into_id: str("The ID or key (G-12) of the goal this one feeds. Empty string to unlink."),
 	why_it_helps: str("Why we expect it to help the goal it feeds."),
 	source: str("Where the number comes from."),
 	definition: str("Exactly what is counted.")
@@ -29349,12 +29873,12 @@ var TOOLS = [...[
 	{
 		name: "find_goals",
 		title: "Find goals",
-		description: "List goals in the current cycle with their status, latest number, this week’s plan, target and gap. Filter by words in the name, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has.",
+		description: "List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				text: str("Words in the goal’s name."),
+				text: str("Words in the goal’s name, or its key (G-12)."),
 				owner: str("Part of the owner’s name."),
 				status: str("Only goals with this status.", { enum: STATUSES }),
 				level: str("Only goals at this level.", { enum: LEVELS }),
@@ -29369,19 +29893,21 @@ var TOOLS = [...[
 		},
 		async run(a, ctx) {
 			const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
+			const byKey = normalKey(a.text);
 			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
 			if (a.view) {
-				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
 				if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
 				query = parseQuery(new URLSearchParams(v.params));
 			}
-			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => has(s.goal.title, a.text) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
 			if (query) list = applyQuery(list, query, {
 				goals: ctx.snapshot.goals,
 				cycle: ctx.cycle,
 				week: ctx.week
 			});
 			const data = list.map((s) => ({
+				key: s.goal.key ?? null,
 				id: s.goal.id,
 				title: s.goal.title,
 				type: s.goal.kind,
@@ -29403,7 +29929,7 @@ var TOOLS = [...[
 					weeks: ctx.cycle.weeks,
 					goals: data
 				},
-				text: data.length ? data.map((g) => `${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
+				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
 			};
 		}
 	},
@@ -29415,7 +29941,7 @@ var TOOLS = [...[
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str("The goal’s ID, from find_goals.") }
+			properties: { goal_id: str("The goal’s ID or its key (e.g. G-12), from find_goals.") }
 		},
 		annotations: {
 			readOnlyHint: true,
@@ -29451,7 +29977,7 @@ var TOOLS = [...[
 			additionalProperties: false,
 			required: ["goal_id"],
 			properties: {
-				goal_id: str("The goal’s ID."),
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
 				value: num("Number goals: the value for the week."),
 				stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
@@ -29493,9 +30019,10 @@ var TOOLS = [...[
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			goalRef(ctx, a.goal_id);
+			const g = goalRef(ctx, a.goal_id);
 			return change(ctx, { checkIns: [row({
 				...a,
+				goal_id: g.id,
 				week: a.week ?? ctx.week
 			}, {
 				goal_id: "goal id",
@@ -29523,7 +30050,7 @@ var TOOLS = [...[
 			additionalProperties: false,
 			required: ["goal_id"],
 			properties: {
-				goal_id: str("The goal’s ID."),
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				...GOAL_FIELDS,
 				reason: str("Why the plan is changing."),
 				dry_run: DRY
@@ -29536,8 +30063,11 @@ var TOOLS = [...[
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			goalRef(ctx, a.goal_id);
-			return change(ctx, { goals: [row(a, {
+			const g = goalRef(ctx, a.goal_id);
+			return change(ctx, { goals: [row({
+				...a,
+				goal_id: g.id
+			}, {
 				goal_id: "id",
 				...GOAL_COLS
 			})] }, {
@@ -29589,7 +30119,7 @@ var TOOLS = [...[
 			additionalProperties: false,
 			required: ["goal_id", "numbers"],
 			properties: {
-				goal_id: str("The goal’s ID."),
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				numbers: {
 					type: "array",
 					description: "Planned values by week.",
@@ -29613,10 +30143,9 @@ var TOOLS = [...[
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			goalRef(ctx, a.goal_id);
 			const r = {
 				__row: "1",
-				id: String(a.goal_id)
+				id: goalRef(ctx, a.goal_id).id
 			};
 			for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
 			return change(ctx, { plan: [r] }, {
@@ -29634,7 +30163,7 @@ var TOOLS = [...[
 			additionalProperties: false,
 			required: ["goal_id", "text"],
 			properties: {
-				goal_id: str("The goal’s ID."),
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				text: str("The comment.")
 			}
 		},
@@ -29671,7 +30200,7 @@ var TOOLS = [...[
 	{
 		name: "bulk_change",
 		title: "Change many goals at once",
-		description: "Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{\"ID\": \"...\", \"Target\": 90}], check_ins: [{\"Goal ID\": \"...\", \"Week\": 3, \"Value\": 41}], plan: [{\"ID\": \"...\", \"Week 5\": 45}]). Checks every row and returns what would change; nothing is saved unless \"apply\" is true and every row is valid.",
+		description: "Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{\"ID\": \"...\", \"Target\": 90}], check_ins: [{\"Goal ID\": \"...\", \"Week\": 3, \"Value\": 41}], plan: [{\"ID\": \"...\", \"Week 5\": 45}]). A goal’s key (G-12) works wherever its ID does: in ID, Key, Goal ID, Goal key and Feeds into ID. Checks every row and returns what would change; nothing is saved unless \"apply\" is true and every row is valid.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,

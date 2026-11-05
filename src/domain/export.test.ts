@@ -25,7 +25,8 @@ describe('exports', () => {
     const wb = workbook(input);
     const head = wb[0]!.rows[0]!;
     for (const row of wb[0]!.rows.slice(1)) {
-      const g = s.goals.find((x) => x.id === row[0])!;
+      const g = s.goals.find((x) => x.id === row[head.indexOf('ID')])!;
+      expect(row[0]).toBe(g.key);
       const sum = summarise(g, s, cycle, today, week);
       expect(row[head.indexOf('Status')]).toBe(sum.statusLabel);
       expect(row[head.indexOf('Gap')]).toBe(sum.gap);
@@ -35,7 +36,8 @@ describe('exports', () => {
   it('puts every week of a number goal’s plan on the Plan sheet, ending at the target', () => {
     const plan = workbook(input)[1]!.rows;
     const g = s.goals.find((x) => x.kind === 'metric')!;
-    const row = plan.find((r) => r[0] === g.id)!;
+    const row = plan.find((r) => r[plan[0]!.indexOf('ID')] === g.id)!;
+    expect(row[0]).toBe(g.key);
     expect(row[plan[0]!.indexOf(`Week ${cycle.weeks}`)]).toBe(g.kind === 'metric' ? g.plan.target : null);
   });
 

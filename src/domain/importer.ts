@@ -1,5 +1,6 @@
 /* Load your own data: people and goals pasted from a spreadsheet (tab-separated) or a CSV file.
    Every row is checked with the same rules as the app's own forms before anything is saved. */
+import { withKeys } from './goalKey';
 import { blankGoal, buildGoal, validateGoal, type GoalDraft } from './goal';
 import { currentWeek } from './plan';
 import { yearWeeks } from './year';
@@ -160,7 +161,8 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
     else goal.parentId = parent.id;
   }
 
-  return { snapshot: { people, teams, cycles: [cycle], goals, checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [] }, issues };
+  // Keys G-1, G-2 … in the order of the rows.
+  return { snapshot: { people, teams, cycles: [cycle], goals: withKeys(goals), checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [] }, issues };
 }
 
 /** Today's Monday, as an ISO date: the default start of a new cycle. */

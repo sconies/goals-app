@@ -49,16 +49,17 @@ function stagesText(g: Goal, c: CheckIn): string {
 
 /* ---------- workbook ---------- */
 
-export const GOAL_EXPORT_COLUMNS = ['ID', 'Goal', 'Level', 'Team', 'Owner', 'Type', 'Unit', 'Decimals', 'Start', 'Target', 'Plan', 'Plan from week', 'Due week', 'Limit', 'Must stay', 'Margin', 'Stages', 'Feeds into', 'Feeds into ID', 'Why it helps', 'Effect', 'Source', 'Definition'] as const;
+/** The goal's readable key comes first (G-12); its ID, the identity the app keeps, next. Either matches it on the way back. */
+export const GOAL_EXPORT_COLUMNS = ['Key', 'ID', 'Goal', 'Level', 'Team', 'Owner', 'Type', 'Unit', 'Decimals', 'Start', 'Target', 'Plan', 'Plan from week', 'Due week', 'Limit', 'Must stay', 'Margin', 'Stages', 'Feeds into', 'Feeds into ID', 'Why it helps', 'Effect', 'Source', 'Definition'] as const;
 export const GOAL_DERIVED_COLUMNS = ['Status', 'Result', 'Since', 'Now', 'Plan this week', 'Gap', 'Last check-in week', 'Forecast', 'Why it’s off', 'Recovery plan', 'By when', 'Needs', 'Next step', 'Warnings', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
-export const CHECKIN_EXPORT_COLUMNS = ['ID', 'Goal ID', 'Goal', 'Week', 'Week starting', 'Value', 'Stages', 'Call', 'Calculated', 'Plan that week', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step', 'Posted at', 'Posted by', 'Backfilled'] as const;
+export const CHECKIN_EXPORT_COLUMNS = ['ID', 'Goal key', 'Goal ID', 'Goal', 'Week', 'Week starting', 'Value', 'Stages', 'Call', 'Calculated', 'Plan that week', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step', 'Posted at', 'Posted by', 'Backfilled'] as const;
 
 function goalRow(s: GoalSummary, all: Goal[]): Cell[] {
   const g = s.goal;
   const parent = g.parentId ? all.find((x) => x.id === g.parentId) : null;
   const m = g.kind === 'metric' ? g : null, r = g.kind === 'range' ? g : null;
   return [
-    g.id, g.title, levelWord[g.level], s.team, s.owner, kindWord[g.kind],
+    g.key ?? null, g.id, g.title, levelWord[g.level], s.team, s.owner, kindWord[g.kind],
     g.kind === 'milestone' ? null : g.unit, g.kind === 'milestone' ? null : g.decimals,
     m ? m.plan.start : null, m ? m.plan.target : null, m ? shapeWord[m.plan.shape] : null, m ? m.plan.fromWeek ?? 0 : null, m ? m.plan.endWeek ?? null : null,
     r ? r.range.limit : null, r ? (r.range.bound === 'atMost' ? 'at most' : 'at least') : null, r ? r.range.margin : null,
@@ -77,7 +78,7 @@ function checkInRows(x: ExportInput, sums: GoalSummary[], name: (id: string) => 
     for (const c of s.checkIns) {
       const ptg = c.pathToGreen;
       rows.push([
-        c.id, g.id, g.title, c.week, weekDate(x.cycle, c.week), c.value, stagesText(g, c) || null,
+        c.id, g.key ?? null, g.id, g.title, c.week, weekDate(x.cycle, c.week), c.value, stagesText(g, c) || null,
         LABEL[c.status], LABEL[c.calculated], g.kind === 'metric' ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
         c.cause ? causeLabel(c.cause) : null, c.why || null, c.greenerWhy || null,
         ptg?.what || null, ptg ? RECOVERY[ptg.state ?? 'plan'] : null, ptg?.byWeek ?? null, ptg?.needs || null,
@@ -85,7 +86,9 @@ function checkInRows(x: ExportInput, sums: GoalSummary[], name: (id: string) => 
       ]);
     }
   }
-  return rows.sort((a, b) => String(a[2]).localeCompare(String(b[2])) || Number(a[3]) - Number(b[3]) || String(a[18]).localeCompare(String(b[18])));
+  // By goal, then week, then when it was posted.
+  const [gi, wi, pi] = (['Goal', 'Week', 'Posted at'] as const).map((c) => CHECKIN_EXPORT_COLUMNS.indexOf(c)) as [number, number, number];
+  return rows.sort((a, b) => String(a[gi]).localeCompare(String(b[gi])) || Number(a[wi]) - Number(b[wi]) || String(a[pi]).localeCompare(String(b[pi])));
 }
 
 /** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
@@ -94,17 +97,18 @@ function planRows(x: ExportInput, sums: GoalSummary[]): Cell[][] {
   const last = Math.max(x.cycle.weeks, ...metric.map((g) => planEnd(g.plan, x.cycle.weeks)));
   const weeks = Array.from({ length: last }, (_, i) => i + 1);
   return [
-    ['ID', 'Goal', 'Unit', 'Start', ...weeks.map((w) => `Week ${w}`)],
+    ['Key', 'ID', 'Goal', 'Unit', 'Start', ...weeks.map((w) => `Week ${w}`)],
     ...metric.map((g) => {
       const end = planEnd(g.plan, x.cycle.weeks);
       const from = g.plan.fromWeek ?? 0;
-      return [g.id, g.title, g.unit, g.plan.start, ...weeks.map((w) => (w <= from || w > end ? null : Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals))))];
+      return [g.key ?? null, g.id, g.title, g.unit, g.plan.start, ...weeks.map((w) => (w <= from || w > end ? null : Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals))))];
     }),
   ];
 }
 
 const README: Cell[][] = [
   ['Sheet', 'Column', 'What it means', 'When loaded back'],
+  ['Goals', 'Key', 'The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal: it gets the next one.', 'Matches the goal, like ID'],
   ['Goals', 'ID', 'The goal’s identity. Keep it to update the goal; leave it empty for a new goal.', 'Matches the goal'],
   ['Goals', 'Level', 'north star, svp or team', 'Changes the level'],
   ['Goals', 'Type', 'metric (move a number), range (keep a number in range) or milestone (hit dated stages)', 'Can’t change on an existing goal'],
@@ -118,7 +122,7 @@ const README: Cell[][] = [
   ['Goals', 'Q1, Q2, Q3, Q4', 'Each quarter against the owner’s plan: Met, Missed, or Open while it runs. A quarter’s target is the plan’s number at its end.', 'Ignored'],
   ['Plan', 'Week N', 'The current plan for each week. If the plan changed, earlier check-ins were judged against the plan of their day: see Plan that week on Check-ins. Type over any week to set the plan by hand', 'Sets the plan numbers'],
   ['Check-ins', 'ID', 'The check-in’s own identity. It never changes. Keep it to correct that check-in; leave it empty to add one.', 'Matches the check-in'],
-  ['Check-ins', 'Goal ID, Week, Value or Stages', 'One row per check-in: a goal and week, and what was reported', 'Adds a check-in, or corrects the one with that ID (or that week’s latest when there’s no ID)'],
+  ['Check-ins', 'Goal key or Goal ID, Week, Value or Stages', 'One row per check-in: a goal and week, and what was reported', 'Adds a check-in, or corrects the one with that ID (or that week’s latest when there’s no ID)'],
   ['Check-ins', 'Call', 'The owner’s status call: On track, At risk, Off track or Done. Empty: the rules decide', 'Used as the call; a call greener than the numbers needs Why greener'],
   ['Check-ins', 'Cause, Why, Path to green, Back on plan by week, Needs', 'Why it’s ahead or behind, and how it gets back', 'Required when behind, as in the app'],
   ['Check-ins', 'Calculated, Plan that week, Posted at, Posted by, Backfilled', 'Recorded by the app', 'Ignored'],
@@ -132,8 +136,8 @@ function requestRows(x: ExportInput, ids: Set<string>, name: (id: string) => str
   const title = (id: string) => x.snapshot.goals.find((g) => g.id === id)?.title ?? id;
   const list = requestsOf(x.snapshot).filter((r) => r.goalIds.some((id) => ids.has(id)));
   return [
-    ['ID', 'Goals', 'Goal IDs', 'Asked by', 'Asked of', 'Request', 'Status', 'Asked at', 'Answer', 'Answered by', 'Answered at'],
-    ...list.map((r) => [r.id, r.goalIds.map(title).join('; '), r.goalIds.join('; '), name(r.askedBy) || null, r.recipientId ? name(r.recipientId) || null : 'Anyone', r.ask, r.status === 'open' ? 'Open' : r.status === 'answered' ? 'Answered' : 'Withdrawn', r.createdAt, r.answer, r.answeredBy ? name(r.answeredBy) || null : null, r.answeredAt]),
+    ['ID', 'Goals', 'Goal keys', 'Goal IDs', 'Asked by', 'Asked of', 'Request', 'Status', 'Asked at', 'Answer', 'Answered by', 'Answered at'],
+    ...list.map((r) => [r.id, r.goalIds.map(title).join('; '), r.goalIds.map((id) => x.snapshot.goals.find((g) => g.id === id)?.key ?? '').filter(Boolean).join('; ') || null, r.goalIds.join('; '), name(r.askedBy) || null, r.recipientId ? name(r.recipientId) || null : 'Anyone', r.ask, r.status === 'open' ? 'Open' : r.status === 'answered' ? 'Answered' : 'Withdrawn', r.createdAt, r.answer, r.answeredBy ? name(r.answeredBy) || null : null, r.answeredAt]),
   ];
 }
 
@@ -146,7 +150,7 @@ export function workbook(x: ExportInput): Table[] {
     { name: 'Goals', rows: [[...GOAL_EXPORT_COLUMNS, ...GOAL_DERIVED_COLUMNS], ...sums.map((s) => goalRow(s, x.snapshot.goals))] },
     { name: 'Plan', rows: planRows(x, sums) },
     { name: 'Check-ins', rows: [[...CHECKIN_EXPORT_COLUMNS], ...checkInRows(x, sums, name)] },
-    { name: 'Notes and actions', rows: [['Goal ID', 'Goal', 'Week', 'Kind', 'Said by', 'Text', 'Who', 'Due week', 'Review', 'Answer', 'At'], ...notes.map((d) => [d.goalId, goalTitle(d.goalId), d.week, d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note', name(d.byId), d.note, d.kind === 'action' ? name(d.assigneeId ?? '') || null : null, d.dueWeek ?? null, x.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? null, d.kind === 'ask' ? answerOf(d, x.snapshot)?.text ?? null : null, d.at])] },
+    { name: 'Notes and actions', rows: [['Goal key', 'Goal ID', 'Goal', 'Week', 'Kind', 'Said by', 'Text', 'Who', 'Due week', 'Review', 'Answer', 'At'], ...notes.map((d) => [goals.find((g) => g.id === d.goalId)?.key ?? null, d.goalId, goalTitle(d.goalId), d.week, d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note', name(d.byId), d.note, d.kind === 'action' ? name(d.assigneeId ?? '') || null : null, d.dueWeek ?? null, x.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? null, d.kind === 'ask' ? answerOf(d, x.snapshot)?.text ?? null : null, d.at])] },
     { name: 'Requests', rows: requestRows(x, ids, name) },
     { name: 'People', rows: [['ID', 'Name', 'Job title', 'Team', 'Admin', 'Team objective'], ...x.snapshot.people.map((p) => { const t = x.snapshot.teams.find((t) => t.id === p.teamId); return [p.id, p.name, p.role || null, t?.name ?? null, p.admin ? 'yes' : null, t && t.leadId === p.id ? t.objective || null : null]; })] },
     { name: 'README', rows: [[`${x.ws.name}, ${x.cycle.name}. Exported ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`], [], ...README] },
@@ -183,7 +187,7 @@ export function toJson(x: ExportInput) {
     goals: sums.map((s) => {
       const g = s.goal;
       return {
-        id: g.id, title: g.title, level: g.level, type: g.kind, team: s.team, owner: s.owner, ownerId: g.ownerId,
+        id: g.id, key: g.key ?? null, title: g.title, level: g.level, type: g.kind, team: s.team, owner: s.owner, ownerId: g.ownerId,
         feedsIntoId: g.parentId, whyItHelps: g.whyHelps || null, source: g.source || null, definition: g.definition || null,
         ...(g.kind === 'metric' ? {
           unit: g.unit, decimals: g.decimals,
@@ -207,7 +211,7 @@ export function toJson(x: ExportInput) {
       };
     }),
     notes: x.snapshot.decisions.filter((d) => sums.some((s) => s.goal.id === d.goalId) && ['note', 'ask', 'action'].includes(d.kind)).map((d) => ({
-      goalId: d.goalId, week: d.week, kind: d.kind === 'ask' ? 'question' : d.kind, by: name(d.byId), text: d.note,
+      goalId: d.goalId, goalKey: sums.find((s) => s.goal.id === d.goalId)?.goal.key ?? null, week: d.week, kind: d.kind === 'ask' ? 'question' : d.kind, by: name(d.byId), text: d.note,
       ...(d.kind === 'action' ? { who: name(d.assigneeId ?? '') || null, dueWeek: d.dueWeek ?? null } : {}),
       ...(d.kind === 'ask' ? { answer: answerOf(d, x.snapshot)?.text ?? null } : {}),
       at: d.at,
@@ -223,7 +227,7 @@ function storyBlock(sm: GoalSummary, cycleWeeks: number, handled?: Handled): str
   const g = sm.goal;
   const out: string[] = [];
   const tags = [st.since, st.result ? st.result.text : null].filter(Boolean).join(' · ');
-  out.push(`### ${g.title}`);
+  out.push(`### ${g.title}${g.key ? ` (${g.key})` : ''}`);
   out.push(`**${LABEL[sm.status]}**${tags ? ` · ${tags}` : ''} · ${sm.owner}, ${sm.team}${st.feeds ? ` · ${st.feeds}` : ''}`);
   out.push('');
   if (handled) out.push(`- **Being handled:** ${handled.text}${handled.said ? `: ${handled.said}` : '.'}`);
@@ -339,7 +343,7 @@ export function aiBrief(x: ExportInput): string {
   out.push('## Every goal, by what it feeds');
   const line = (s: GoalSummary, depth: number) => {
     const lvl = s.goal.level !== 'team' ? ` [${LEVEL_LABEL[s.goal.level]}]` : '';
-    out.push(`${'  '.repeat(depth)}- **${s.goal.title}**${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ''}; ${s.gap}. Owner ${s.owner}.${s.forecast ? ' ' + s.forecast : ''}`);
+    out.push(`${'  '.repeat(depth)}- **${s.goal.title}**${s.goal.key ? ` (${s.goal.key})` : ''}${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ''}; ${s.gap}. Owner ${s.owner}.${s.forecast ? ' ' + s.forecast : ''}`);
   };
   const seen = new Set<string>();
   const walk = (g: Goal, depth: number) => {

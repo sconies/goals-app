@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { withKeys } from '../domain/goalKey';
 import type { Snapshot, Workspace } from '../domain/types';
 import {
   changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows, requestFromRow, requestToRow, type RequestRow,
@@ -76,7 +77,8 @@ export class SupabaseStore implements Store {
       teams: teams.map(teamFromRow),
       people: people.map(personFromRow),
       cycles: cycles.map(cycleFromRow),
-      goals: goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages)),
+      // Until migration 0021 gives every goal its key, keys are worked out the same way on each read.
+      goals: withKeys(goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages))),
       checkIns: checkIns.map(checkInFromRow),
       decisions: decisions.map(decisionFromRow),
       changes: changes.map(changeFromRow).sort((a, b) => a.at.localeCompare(b.at)),

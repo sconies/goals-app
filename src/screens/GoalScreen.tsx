@@ -187,6 +187,7 @@ function GoalView({ goal }: { goal: Goal }) {
           <span className="row hint" style={{ gap: 'var(--s2)' }}>
             <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" />{owner?.name}{team ? `, ${team.name}` : ''}
             <LevelTag level={goal.level} />
+            {goal.key && <span className="gkey" title={`This goal’s key: it never changes, and /goals/${goal.key} opens it`}>{goal.key}</span>}
           </span>
         </span>
         {!compact && <div className="actions">

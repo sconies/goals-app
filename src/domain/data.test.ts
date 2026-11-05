@@ -75,9 +75,10 @@ describe('every record keeps its own ID', () => {
   const rows = book.find((t) => t.name === 'Check-ins')!.rows;
   const head = rows[0]!.map(String);
   const recOf = (r: (string | number | null)[]): Rec => { const o: Rec = { __row: '2' }; head.forEach((h, i) => { o[h.toLowerCase()] = r[i] == null ? '' : String(r[i]); }); return o; };
-  it('exports each check-in with its own ID first, as goals, plans and people have', () => {
+  it('exports each check-in with its own ID first, as people have; goals and plans start with the goal’s key, then its ID', () => {
     expect(head[0]).toBe('ID');
-    for (const t of ['Goals', 'Plan', 'People']) expect(book.find((x) => x.name === t)!.rows[0]![0]).toBe('ID');
+    expect(book.find((x) => x.name === 'People')!.rows[0]![0]).toBe('ID');
+    for (const t of ['Goals', 'Plan']) expect(book.find((x) => x.name === t)!.rows[0]!.slice(0, 2)).toEqual(['Key', 'ID']);
     expect(new Set(rows.slice(1).map((r) => r[0])).size).toBe(rows.length - 1);
   });
   it('corrects exactly the check-in its ID names, and refuses an unknown ID or a changed week', () => {

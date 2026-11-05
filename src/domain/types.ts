@@ -67,6 +67,9 @@ export interface Stage {
 
 interface GoalBase {
   id: Id;
+  /** The goal's short, readable key in its workspace (G-1, G-2 …): given when it's created, never changed or used for
+      another goal, and kept when the goal carries into the next cycle. The stores make sure every goal has one. */
+  key?: string;
   cycleId: Id;
   teamId: Id;
   ownerId: Id;
@@ -270,6 +273,9 @@ export interface Snapshot {
   views?: SavedView[];
   /** Requests for a decision or help, raised in check-ins: open until answered or withdrawn. */
   requests?: HelpRequest[];
+  /** The highest goal key given in the workspace so far, across every cycle (set when a snapshot is scoped to one
+      cycle), so a new goal's key is never one an earlier cycle used. */
+  keysIssued?: number;
 }
 
 export type RequestStatus = 'open' | 'answered' | 'withdrawn';

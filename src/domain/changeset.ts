@@ -9,6 +9,7 @@ import { levelOf, parseTable, shapeOf } from './importer';
 import { planAt, planEnd, weekDate } from './plan';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
+import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { personChange, personProblems } from './people';
 import { requestsAfterCheckIn } from './requests';
 import { initials } from './importer';
@@ -153,8 +154,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const person = (name: string) => [...people.values()].find((p) => norm(p.name) === norm(name));
   const team = (name: string) => s.teams.find((t) => norm(t.name) === norm(name));
 
-  // The working set: goals as they will be after this change, by id.
+  // The working set: goals as they will be after this change, by id. Wherever a goal's ID is asked for, its key will do.
   const work = new Map<string, Goal>(s.goals.map((g) => [g.id, g]));
+  const goalByRef = (ref: string) => (ref ? work.get(ref) ?? findGoal([...work.values()], ref) : undefined);
+  // New goals take the next keys, in the order of their rows; no key is used twice in a workspace.
+  let lastKeyGiven = lastKey(s.goals, s.keysIssued);
   const touched = new Map<string, { before: Goal | null; row: number; sheet: Issue['sheet']; reason: string; plan: boolean }>();
   const started = (id: string) => s.checkIns.some((c) => c.goalId === id);
   const canChange = (g: Goal) => actor.admin || g.ownerId === actor.id;
@@ -165,10 +169,13 @@ export function planChanges(input: ChangeInput): ChangeSet {
   (input.tables.goals ?? []).forEach((r, i) => {
     const row = rowOf(r, i);
     const id = val(r, 'id');
+    const keyRef = val(r, 'key');
     const title = val(r, 'goal');
-    if (!id && !title && Object.entries(r).every(([k, v]) => k === '__row' || !v)) return;
-    const existing = id ? work.get(id) ?? null : null;
+    if (!id && !keyRef && !title && Object.entries(r).every(([k, v]) => k === '__row' || !v)) return;
+    const existing = goalByRef(id || keyRef) ?? null;
     if (id && !existing) return err('Goals', row, title || id, `There’s no goal with ID ${id} in ${cycle.name}. Leave ID empty to add a new goal.`);
+    if (!id && keyRef && !existing) return err('Goals', row, title || keyRef, `There’s no goal with key ${keyRef} in ${cycle.name}. Leave Key and ID empty to add a new goal.`);
+    if (existing && keyRef && normalKey(keyRef) !== existing.key) return err('Goals', row, existing.title, `Key ${keyRef} isn’t this goal’s key (${existing.key ?? 'none'}). A goal’s key never changes.`);
     if (!existing) {
       if (!title) return err('Goals', row, '', 'Name the goal in the Goal column.');
       const same = [...work.values()].find((g) => norm(g.title) === norm(title));
@@ -231,9 +238,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (errs.length) return err('Goals', row, d.title, errs.join(' '));
 
     const gid = existing?.id ?? newId('goal');
+    const key = existing ? existing.key : formatKey(++lastKeyGiven);
     if (has(r, 'feeds into id') || has(r, 'feeds into')) parentLinks.push({ id: gid, row, byId: val(r, 'feeds into id'), byTitle: val(r, 'feeds into') });
     let built = buildGoal({ ...d, parentId: existing?.parentId ?? '' }, cycle, { id: gid, createdAt: existing?.createdAt ?? now }, existing, started(gid), week);
     if (existing) built = { ...existing, ...built } as Goal;
+    if (key) built = { ...built, key };
     if (existing && d.whyHelps === '' && 'whyHelps' in built) delete (built as { whyHelps?: string }).whyHelps;
     work.set(gid, built);
     touched.set(gid, { before: existing, row, sheet: 'Goals', reason: val(r, 'reason') || val(r, 'reason for change'), plan: !!existing && planChanged(existing, built) });
@@ -244,8 +253,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const g = work.get(l.id)!;
     let parentId: string | null = null;
     if (l.byId) {
-      if (!work.has(l.byId)) { err('Goals', l.row, g.title, `Feeds into ID ${l.byId} isn’t a goal in ${cycle.name}.`); continue; }
-      parentId = l.byId;
+      const p = goalByRef(l.byId);
+      if (!p) { err('Goals', l.row, g.title, `Feeds into ID ${l.byId} isn’t a goal in ${cycle.name}.`); continue; }
+      parentId = p.id;
     } else if (l.byTitle) {
       const p = [...work.values()].find((x) => norm(x.title) === norm(l.byTitle));
       if (!p) { err('Goals', l.row, g.title, `“${g.title}” feeds into “${l.byTitle}”, which isn’t a goal in ${cycle.name}.`); continue; }
@@ -261,10 +271,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
   /* Plan numbers */
   (input.tables.plan ?? []).forEach((r, i) => {
     const row = rowOf(r, i);
-    const id = val(r, 'id');
-    if (!id) { if (val(r, 'goal')) err('Plan', row, val(r, 'goal'), 'Add the goal’s ID so the plan can be matched to it.'); return; }
-    const g = work.get(id);
-    if (!g) return err('Plan', row, val(r, 'goal') || id, `There’s no goal with ID ${id}.`);
+    const ref = val(r, 'id') || val(r, 'key');
+    if (!ref) { if (val(r, 'goal')) err('Plan', row, val(r, 'goal'), 'Add the goal’s ID or key so the plan can be matched to it.'); return; }
+    const g = goalByRef(ref);
+    if (!g) return err('Plan', row, val(r, 'goal') || ref, `There’s no goal with ${isKey(ref) && !work.has(ref) ? 'key' : 'ID'} ${ref}.`);
+    const id = g.id;
     if (g.kind !== 'metric') return err('Plan', row, g.title, 'Only number goals have plan numbers.');
     const from = g.plan.fromWeek ?? 0, end = planEnd(g.plan, cycle.weeks);
     const typed = new Map<number, number>();
@@ -320,7 +331,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const seen = new Set<string>();
   const rows = (input.tables.checkIns ?? []).map((r, i) => ({ r, row: rowOf(r, i) }));
   const byTitle = new Map([...work.values()].map((g) => [norm(g.title), g]));
-  const goalFor = (r: Rec) => (val(r, 'goal id') ? work.get(val(r, 'goal id')) : byTitle.get(norm(val(r, 'goal'))));
+  const goalRefOf = (r: Rec) => val(r, 'goal id') || val(r, 'goal key');
+  const goalFor = (r: Rec) => (goalRefOf(r) ? goalByRef(goalRefOf(r)) : byTitle.get(norm(val(r, 'goal'))));
   // This file's check-ins so far, by goal: later weeks are judged with the earlier ones.
   const imported = new Map<string, CheckIn[]>();
   // Oldest first, so each week is judged with the weeks before it.
@@ -328,8 +340,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
   for (const { r, row } of rows) {
     if (Object.entries(r).every(([k, v]) => k === '__row' || !v)) continue;
     const g = goalFor(r);
-    const name = val(r, 'goal') || val(r, 'goal id');
-    if (!g) { err('Check-ins', row, name, val(r, 'goal id') ? `There’s no goal with ID ${val(r, 'goal id')}.` : `There’s no goal called “${val(r, 'goal')}”. Add the Goal ID column to be exact.`); continue; }
+    const name = val(r, 'goal') || goalRefOf(r);
+    if (!g) { err('Check-ins', row, name, goalRefOf(r) ? `There’s no goal with ${isKey(goalRefOf(r)) ? 'key' : 'ID'} ${goalRefOf(r)}.` : `There’s no goal called “${val(r, 'goal')}”. Add the Goal ID or Goal key column to be exact.`); continue; }
     const w = parseNumber(val(r, 'week'));
     if (w == null || !Number.isInteger(w) || w < 1) { err('Check-ins', row, g.title, w === 0 ? 'Check-ins start in week 1; week 0 is the start of the year.' : 'Week should be a whole number from 1, counted from the start of the year.'); continue; }
     if (w > week) { err('Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
