@@ -233,6 +233,7 @@ export function ReviewHome() {
             {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
             {done && <Link className="btn" to={`/reviews/${review.id}/summary`}>Summary</Link>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
+            <Link className="btn ghost print-link" to={`/reviews/${review.id}/print`}><Icon name="print" /><span className="print-link-label">Print or save as PDF</span></Link>
           </div>
         </div>
       </section>

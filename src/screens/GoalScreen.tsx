@@ -22,6 +22,7 @@ import { criticalPath } from '../domain/map';
 import { ancestors, outcomeTrees, type TreeNode } from '../domain/tree';
 import { Icon } from '../ui/Icon';
 import { GoalBack } from '../ui/BackLink';
+import { CountNumber } from '../ui/Count';
 
 export function GoalScreen() {
   const app = useApp();
@@ -192,6 +193,7 @@ function GoalView({ goal }: { goal: Goal }) {
           {isOwner && week > 0 && <Link className={'btn' + (due && !(published && own.length === 0) ? ' primary' : '')} to={'/check-in/' + goal.id}>{due ? `Check in for week ${week}` : 'Check in now'}</Link>}
           {canEdit && <Link className="btn" to={`/goals/${goal.id}/edit`}>Edit</Link>}
           {!isOwner && <WatchButton goal={goal} />}
+          <Link className="btn ghost print-link" to={`/goals/${goal.id}/print`}><Icon name="print" /><span className="print-link-label">Print or save as PDF</span></Link>
         </div>}
       </div>
 
@@ -217,7 +219,7 @@ function GoalView({ goal }: { goal: Goal }) {
       <section className="story" data-tone={st.status} aria-label="Where it stands">
         <div className="statusline">
           <Chip k={st.status} />
-          {stale ? <span className="big">Current performance unknown</span> : <span className="big">{headlineNumber}</span>}
+          {stale ? <span className="big">Current performance unknown</span> : <span className="big">{a.kind !== 'milestone' && a.actual != null && goal.kind !== 'milestone' ? <CountNumber value={a.actual} from={own.at(-2)?.value} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} /> : headlineNumber}</span>}
           {!stale && <span className={'strong tone-' + gap.tone}>{gap.short}</span>}
         </div>
         {stale && <span className="small">{latest ? `Last reported: ${headlineNumber} in week ${latest.week} (${dateText(latest.postedAt)}), ${st.daysSinceCheckIn} days ago.` : 'Nothing reported yet.'} Without a newer check-in, the status and any projection can’t be trusted.</span>}
