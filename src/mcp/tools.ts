@@ -13,7 +13,8 @@ import { isTableView } from '../domain/tableLayout';
 import type { Cycle, DisplayStatus, Level, Person, Snapshot } from '../domain/types';
 
 export interface McpContext {
-  ws: { id: string; name: string; kind?: 'own' | 'example' };
+  /** The workspace; `recording` is its recording switch (on unless false). */
+  ws: { id: string; name: string; kind?: 'own' | 'example'; recording?: boolean };
   /** The current cycle only. */
   snapshot: Snapshot;
   cycle: Cycle;
@@ -29,7 +30,8 @@ export interface McpContext {
   deleteWorkspace?: () => Promise<void>;
 }
 
-export interface ToolResult { text: string; data?: unknown; isError?: boolean }
+/** `cause`: what a failed tool threw, for the server's own telemetry (its class only); never sent to the assistant. */
+export interface ToolResult { text: string; data?: unknown; isError?: boolean; cause?: unknown }
 type Schema = { type: 'object'; properties: Record<string, unknown>; required?: string[]; additionalProperties?: boolean };
 export interface ToolDef {
   name: string;
@@ -299,6 +301,6 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   try {
     return await t.run(args ?? {}, ctx);
   } catch (e) {
-    return { isError: true, text: e instanceof Error ? e.message : String(e) };
+    return { isError: true, text: e instanceof Error ? e.message : String(e), cause: e };
   }
 }

@@ -1801,7 +1801,7 @@ async function finishChecks(add) {
       const m = require(f);
       if (pick.length && !pick.includes(m.id)) continue;
       let fails;
-      try { fails = await m.run({ open, url, browser }); } catch (e) { fails = [`check crashed: ${String(e.message || e).split('\n')[0]}`]; }
+      try { fails = await m.run({ open, url, browser, down: DOWN }); } catch (e) { fails = [`check crashed: ${String(e.message || e).split('\n')[0]}`]; }
       add(m.id, m.reqs ?? ['FIT-AND-FINISH-AREAS'], m.title ?? `Fit and finish, ${m.area}`, !fails.length, fails.slice(0, 8).join(' | '));
     }
   }

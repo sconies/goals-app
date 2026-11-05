@@ -9,6 +9,7 @@ import { workbook } from '../domain/export';
 import { fmt } from '../domain/format';
 import { planAt } from '../domain/plan';
 import type { Diff, Goal } from '../domain/types';
+import { useMark } from '../telemetry/react';
 import { Icon } from '../ui/Icon';
 
 export function Import() {
@@ -22,6 +23,8 @@ export function Import() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const cs = useMemo(() => (tables ? app.previewChanges(tables, 'spreadsheet', reason) : null), [tables, reason, app]);
+  // A file read and its changes shown: the import flow's middle step (src/help/flows.ts).
+  useMark(tables ? 'import.read' : null);
 
   const pick = async (f: File | undefined) => {
     if (!f) return;

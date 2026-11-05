@@ -13,6 +13,7 @@ import type { CheckIn, Goal, MilestoneGoal, Status, RecoveryState } from '../dom
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
+import { useMark } from '../telemetry/react';
 
 /** The focused weekly check-in: every due goal, one at a time, then done. */
 export function CheckInFlow() {
@@ -189,6 +190,9 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   });
   const setStep = (to: Step) => { setStepState(to); try { if (to === 'measure') localStorage.removeItem(stepKey); else localStorage.setItem(stepKey, to); } catch { /* private mode */ } };
   const [trail, setTrail] = useState<Step[]>([]);
+  // Where this check-in is, for the named flow (src/help/flows.ts): opened, then saying why or carrying last week's over.
+  useMark('checkIn.open');
+  useMark(step === 'account' ? 'checkIn.account' : step === 'carry' ? 'checkIn.carry' : null);
   const e = evaluate(goal, cycle, week, draft, app.snapshot.checkIns);
   const team = app.team(goal.teamId);
 
