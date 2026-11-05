@@ -1,10 +1,13 @@
 /* The motion layer's logic: numbers that count to their new value, and rows that slide to their new place (FLIP).
-   Everything is short (250ms at most), eases out, never blocks a click, and is off when the person asks for reduced
+   Interface motion is short (250ms at most) and the goal page's story slower (STORY_MS); all of it eases out, never blocks a click, and is off when the person asks for reduced
    motion. The CSS half lives in styles/notes/print-motion.css. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-/** The longest anything moves, in ms. */
+/** The longest everyday interface motion takes (rows sliding, menus, counts in lists), in ms. */
 export const MOTION_MS = 240;
+/** The goal page's storytelling motion (its headline number counting up, its chart drawing in) runs slower, so it can be
+   seen (Lane, 5 Nov). Still never blocking a click, and off under reduced motion. */
+export const STORY_MS = 900;
 
 export const easeOut = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 /** Where a count is at time t (0..1): eased, and exactly the final value at the end. */
@@ -22,7 +25,8 @@ const lastSeen = new Map<string, number>();
  * A number that counts to its value: from what was last shown under `memo` (or `from` the first time), and from where
  * it is whenever the value changes. Returns the number to show this frame; it always lands on the value exactly.
  */
-export function useCountUp(value: number, opts: { from?: number | null; memo?: string } = {}): number {
+export function useCountUp(value: number, opts: { from?: number | null; memo?: string; duration?: number } = {}): number {
+  const ms = opts.duration ?? MOTION_MS;
   const start = () => {
     if (reducedMotion()) return value;
     const prev = opts.memo != null ? lastSeen.get(opts.memo) : undefined;
@@ -38,13 +42,13 @@ export function useCountUp(value: number, opts: { from?: number | null; memo?: s
     let raf = 0;
     const t0 = performance.now();
     const step = (now: number) => {
-      const t = (now - t0) / MOTION_MS;
+      const t = (now - t0) / ms;
       setShown(tween(from, value, t));
       if (t < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     // A hidden tab can hold frames back: the final value lands regardless.
-    const done = setTimeout(() => { cancelAnimationFrame(raf); setShown(value); }, MOTION_MS + 60);
+    const done = setTimeout(() => { cancelAnimationFrame(raf); setShown(value); }, ms + 60);
     return () => { cancelAnimationFrame(raf); clearTimeout(done); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);

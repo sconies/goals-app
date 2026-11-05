@@ -5,6 +5,10 @@
 
 const A4_CONTENT = 695; // 210mm less 13mm margins each side, at 96dpi
 const LIMIT = 250;
+// The goal page's story (chart drawing in, the headline number counting and landing, quarters filling, a status turning)
+// is slower on purpose so it can be seen (Lane, 5 Nov): up to 2 seconds end to end. Everything else stays at 250ms.
+const STORY_LIMIT = 2000;
+const story = (a) => /^(gp-|pm-draw|pm-dot-in|pm-shape-swap|pm-pulse|rise on li)|countup/.test(a.name);
 
 /** Samples every animation and every counter on the page, every frame from the first paint. */
 const SAMPLER = () => {
@@ -156,8 +160,11 @@ module.exports = {
     // ---------- [Motion] durations: animations happen, each 250ms at most, at phone and desktop ----------
     for (const [w, h, who, route] of [[390, 844, 'maya', '/'], [1440, 900, 'elena', '/goals/head'], [1440, 900, 'elena', '/reviews/weekly'], [768, 1024, 'elena', '/goals?view=board']]) {
       const [c, p] = await at(w, h, who, route);
+      // The goal page's story runs up to 2 seconds: watch it to the end.
+      if (/^\/goals\/[^/?]+$/.test(route)) await p.waitForTimeout(2000);
       const s = await sampled(p);
-      const long = s.anims.filter((a) => a.total > LIMIT);
+      const goalPage = /^\/goals\/[^/?]+$/.test(route);
+      const long = s.anims.filter((a) => a.total > (goalPage && story(a) ? STORY_LIMIT : LIMIT));
       fail(s.anims.length > 0, `[Motion] ${route} at ${w}: nothing moves`);
       fail(!long.length, `[Motion] ${route} at ${w}: longer than ${LIMIT}ms: ${[...new Set(long.map((a) => a.name + ' ' + a.total + 'ms'))].slice(0, 3).join(', ')}`);
       fail(s.shift < 0.02, `[Motion] ${route} at ${w}: layout shifted by ${s.shift.toFixed(3)} after load`);

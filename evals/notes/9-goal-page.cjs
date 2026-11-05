@@ -11,6 +11,9 @@
 
 const SIZES = [[390, 844, true], [1280, 800, false]];
 const LIMIT = 250;
+// The page's story moves slower so it can be seen (Lane, 5 Nov): up to 2 seconds end to end; everything else 250ms.
+const STORY_LIMIT = 2000;
+const story = (a) => /^(gp-|pm-draw|pm-dot-in|pm-shape-swap|pm-pulse|rise\b)|countup/.test(a.name);
 
 /** A page in a fresh browser, in a workspace, as a person. */
 async function at(browser, url, { w, h, touch, ws = 'example', who, route, reduced = false, perms = [] }) {
@@ -197,7 +200,8 @@ module.exports = {
         chk(/^Posted: (.+ → .+|still .+|first check-in, .+)( · \d+ weeks on time)?$/.test(l.line), `${at5}: posted line “${l.line}” (was “${before}”)`);
         chk(l.landed, `${at5}: the new point does not land on the chart`);
         chk(!l.primary.some((x) => /^Check in for week/.test(x)), `${at5}: still offered “${l.primary.join(', ')}” after checking in`);
-        chk(l.anims.every((x) => x.total <= LIMIT), `${at5}: an animation runs longer than ${LIMIT}ms: ${l.anims.filter((x) => x.total > LIMIT).map((x) => x.name + ' ' + x.total).join(', ')}`);
+        const tooLong5 = l.anims.filter((x) => x.total > (story(x) ? STORY_LIMIT : LIMIT));
+        chk(!tooLong5.length, `${at5}: an animation runs too long: ${tooLong5.map((x) => x.name + ' ' + x.total).join(', ')}`);
         await c.close();
       }
 
@@ -238,6 +242,9 @@ module.exports = {
         // Share: an image and the link.
         const download = p.waitForEvent('download', { timeout: 4000 }).catch(() => null);
         await p.locator('.goal-bar summary[aria-label="More about this goal"]').click();
+        // The menu opens fully on screen (on a phone it once ran off the left edge, anchored to the button's right).
+        const menu = await p.getByRole('group', { name: 'More about this goal' }).boundingBox();
+        chk(!!menu && menu.x >= 0 && menu.x + menu.width <= w, `${at8}: the "…" menu runs off the screen (${menu ? Math.round(menu.x) + '–' + Math.round(menu.x + menu.width) : 'missing'} of ${w}px)`);
         await p.getByRole('group', { name: 'More about this goal' }).getByRole('button', { name: 'Share image' }).click();
         await p.waitForTimeout(800);
         const clip = await p.evaluate(async () => {
@@ -262,7 +269,7 @@ module.exports = {
       }
     }
 
-    /* ---------- motion: the page comes alive within 250ms a piece, and not at all under reduced motion ---------- */
+    /* ---------- motion: the page comes alive slowly enough to see (2s at most), lands with an impact, and not at all under reduced motion ---------- */
     for (const reduced of [false, true]) {
       const c = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
       await c.addInitScript(() => {
@@ -285,7 +292,7 @@ module.exports = {
       await p.goto(url('/'));
       await p.evaluate(() => localStorage.setItem('goals-app-viewer:example', 'maya'));
       await p.goto(url('/goals/head'));
-      await p.waitForTimeout(800);
+      await p.waitForTimeout(2400);
       const m = await p.evaluate(() => ({ anims: [...window.__gp.anims.values()], counts: window.__gp.counts }));
       if (reduced) {
         chk(m.anims.length === 0, `reduced motion: ${m.anims.length} animations ran (${[...new Set(m.anims.map((a) => a.name))].slice(0, 3).join(', ')})`);
@@ -293,7 +300,13 @@ module.exports = {
       } else {
         const names = m.anims.map((a) => a.name).join(' | ');
         chk(/c-plan/.test(names) && /c-act/.test(names) && /c-fc|c-band/.test(names) && /c-today/.test(names), `motion: the chart doesn't draw itself in turn (${names.slice(0, 200)})`);
-        chk(m.anims.every((a) => a.total <= LIMIT), `motion: longer than ${LIMIT}ms: ${m.anims.filter((a) => a.total > LIMIT).map((a) => a.name + ' ' + a.total).slice(0, 3).join(', ')}`);
+        const over = m.anims.filter((a) => a.total > (story(a) ? STORY_LIMIT : LIMIT));
+        chk(!over.length, `motion: too long: ${over.map((a) => a.name + ' ' + a.total).slice(0, 3).join(', ')}`);
+        // Slow enough to see: the actual line takes at least 600ms to draw.
+        const act = m.anims.find((a) => /pm-draw on .*c-act/.test(a.name));
+        chk(!!act && act.total >= 600, `motion: the chart draws too fast to see (${act ? act.total + 'ms' : 'no draw'})`);
+        // Lands with an impact: the number thumps when it lands and the latest point thumps with a ring.
+        chk(/gp-num-land/.test(names) && /gp-thump/.test(names) && /gp-ring/.test(names), `motion: no impact when it lands (${[...new Set(m.anims.map((a) => a.name.split(' ')[0]))].join(', ')})`);
         chk(m.counts.length >= 2, `motion: the number did not count up (${m.counts.join(' → ')})`);
       }
       await c.close();

@@ -54,8 +54,15 @@
 .goal-page .goal-bar.compact .bar-actions .btn:not(.primary), .goal-page .goal-bar.compact .bar-menu { display: none; }
 
 /* A status that changed since you last looked turns in once; a target reached gives the status a soft pulse. */
-.goal-page .bar-status.moved .status-shape { animation: pm-shape-swap .22s .02s ease-out both; transform-box: fill-box; transform-origin: center; }
-.goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse .24s ease-out both; transform-box: fill-box; transform-origin: center; }
+.goal-page .bar-status.moved .status-shape { animation: pm-shape-swap .55s .1s ease-out both; transform-box: fill-box; transform-origin: center; }
+.goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse .6s ease-out both; transform-box: fill-box; transform-origin: center; }
+/* The number counts up slowly enough to read, then lands with an impact: a thump (overshoot and settle). Off track adds
+   a short shake to the status shape, a quiet "this is behind". */
+@keyframes gp-num-land { 0% { transform: scale(1); } 35% { transform: scale(1.14); } 65% { transform: scale(.96); } 100% { transform: none; } }
+@keyframes gp-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+.goal-page .bar-now .countup { transform-origin: left center; } /* stays inline-grid: its hidden final text reserves the width */
+.goal-page .bar-now .countup.landed { animation: gp-num-land .42s ease-out both; }
+.goal-page .goal-bar[data-tone="off"] .bar-2:has(.countup.landed) .bar-status .status-shape { animation: gp-shake .45s .1s ease-in-out both; }
 
 /* ---------- on a phone the bar is the page's header ---------- */
 @container app (max-width: 760px) {
@@ -74,6 +81,11 @@
   .goal-page .bar-me .profilebtn { min-width: 44px; min-height: 44px; border: 0; background: transparent; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
   .goal-page .bar-me .demo-entry.compact { min-height: 44px; padding: 0 8px; align-items: center; }
   .goal-page .bar-actions { justify-content: flex-start; margin-top: 6px; }
+  /* On a phone the actions sit at the left, so the "…" menu opens from the row's left edge (anchored to the button's
+     right edge it ran off the screen). */
+  .goal-page .bar-actions { position: relative; }
+  .goal-page .bar-actions .bar-menu { position: static; }
+  .goal-page .bar-actions .bar-menu .view-menu-list { left: 0; right: auto; max-width: calc(100vw - 2 * var(--s3)); }
   .goal-page .bar-actions { flex-wrap: nowrap; }
   .goal-page .bar-actions .btn.primary { flex: 1 1 auto; min-width: 0; white-space: normal; text-align: center; }
   .goal-page .bar-actions .btn:not(.primary) { flex: none; }
@@ -110,17 +122,25 @@
 .c-scrub-plan { fill: var(--accent); }
 .chart-read { margin: 6px 0 0; min-height: 1.25rem; font-size: 0.8125rem; line-height: 1.25rem; color: var(--fg); font-variant-numeric: tabular-nums; }
 .chart-read.hint { color: var(--muted); }
-/* Drawing itself, in turn: the plan, then the actual, then the projection and the path to green; "now" pulses once. */
+/* Drawing itself, slowly enough to watch (Lane, 5 Nov: the 250ms version was over before it could be seen): the plan,
+   then the actual tracing along, then the projection and the path to green. When the line reaches "now" it lands with
+   an impact: the latest point thumps (overshoots and settles) and a ring spreads from it. All of it about 1.6 seconds,
+   never blocking a click, and none of it under reduced motion. */
 @keyframes gp-now { 0% { opacity: .2; } 60% { opacity: 1; } 100% { opacity: 1; } }
-@keyframes gp-land { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+@keyframes gp-land { 0% { opacity: 0; transform: translateY(-18px); } 60% { opacity: 1; transform: translateY(2px); } 100% { opacity: 1; transform: none; } }
 @keyframes gp-lit { from { opacity: .3; } to { opacity: 1; } }
-.chart.draw .c-plan, .chart.draw .c-orig { animation: pm-draw .16s ease-out both; }
-.chart.draw .c-act { animation: pm-draw .2s .04s ease-out both; }
-.chart.draw .c-fc, .chart.draw .c-band, .chart.draw .c-ptg { animation: pm-draw .12s .12s ease-out both; }
-.chart.draw .c-ptg-dot { animation: pm-dot-in .12s .12s ease-out both; transform-box: fill-box; transform-origin: center; }
-.chart.draw .c-today { animation: gp-now .24s ease-out both; }
-.chart .c-dot.landed, .chart .c-breach.landed { animation: gp-land .24s ease-out both; transform-box: fill-box; transform-origin: center; }
-.chart.hit .c-target { stroke-dasharray: none; stroke-width: 2.5; animation: gp-lit .24s ease-out both; }
+@keyframes gp-thump { 0% { transform: scale(.2); opacity: 0; } 45% { transform: scale(1.7); opacity: 1; } 70% { transform: scale(.85); } 100% { transform: none; opacity: 1; } }
+@keyframes gp-ring { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(4.2); opacity: 0; } }
+.chart.draw .c-plan, .chart.draw .c-orig { animation: pm-draw .5s ease-out both; }
+.chart.draw .c-act { animation: pm-draw .9s .3s cubic-bezier(.45, 0, .55, 1) both; }
+.chart.draw .c-last { animation: gp-thump .45s 1.15s ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart.draw .c-dot-ring { animation: gp-ring .7s 1.25s ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart .c-dot-ring { fill: none; stroke: var(--fg); stroke-width: 1.5; opacity: 0; pointer-events: none; }
+.chart.draw .c-fc, .chart.draw .c-band, .chart.draw .c-ptg { animation: pm-draw .5s 1.25s ease-out both; }
+.chart.draw .c-ptg-dot { animation: pm-dot-in .3s 1.6s ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart.draw .c-today { animation: gp-now .4s 1.1s ease-out both; }
+.chart .c-dot.landed, .chart .c-breach.landed { animation: gp-land .6s ease-out both; transform-box: fill-box; transform-origin: center; }
+.chart.hit .c-target { stroke-dasharray: none; stroke-width: 2.5; animation: gp-lit .6s ease-out both; }
 
 /* ---------- why ---------- */
 .goal-page .why-block p { margin: 0; font-size: 0.9375rem; color: var(--fg-2); max-width: 72ch; }
@@ -157,10 +177,10 @@
 .goal-page .feeds .show-all { align-self: flex-start; }
 
 /* ---------- this year by quarter: the tiles fill in turn ---------- */
-.goal-page .quarters > li { animation: rise .12s ease-out both; }
-.goal-page .quarters > li:nth-child(2) { animation-delay: .04s; }
-.goal-page .quarters > li:nth-child(3) { animation-delay: .08s; }
-.goal-page .quarters > li:nth-child(4) { animation-delay: .12s; }
+.goal-page .quarters > li { animation: rise .4s ease-out both; }
+.goal-page .quarters > li:nth-child(2) { animation-delay: .15s; }
+.goal-page .quarters > li:nth-child(3) { animation-delay: .3s; }
+.goal-page .quarters > li:nth-child(4) { animation-delay: .45s; }
 
 /* ---------- activity ---------- */
 .goal-page .activity-filter { align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }

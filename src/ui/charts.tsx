@@ -237,7 +237,8 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
           </>
         )}
         {series.length > 0 && <polyline className="c-act" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
-        {last && <circle className={'c-dot' + (landed ? ' landed' : '')} cx={X(last.week)} cy={Y(last.value)} r={4.5} />}
+        {last && draw && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4.5} aria-hidden="true" />}
+        {last && <circle className={'c-dot c-last' + (landed ? ' landed' : '')} cx={X(last.week)} cy={Y(last.value)} r={4.5} />}
         <TargetLabel f={f} y={Y(plan.target)} left={plan.target < plan.start}>Target {fmt(plan.target, goal)}</TargetLabel>
         {sc.at != null && (
           <g className="c-scrub" aria-hidden="true">
@@ -280,7 +281,8 @@ function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: Rang
       <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(limit)} y2={Y(limit)} />
       <WeekLabels f={f} weeks={weeks} week={week} X={X} wide={!compact} />
       {series.length > 0 && <polyline className="c-act" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
-      {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={(out(p.value) ? 'c-breach' : 'c-dot') + (landed && p === last ? ' landed' : '')} />)}
+      {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={(out(p.value) ? 'c-breach' : 'c-dot') + (p === last ? ' c-last' : '') + (landed && p === last ? ' landed' : '')} />)}
+      {draw && last && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4} aria-hidden="true" />}
       <TargetLabel f={f} y={Y(limit)}>Limit {fmt(limit, goal)}{compact ? '' : ' · shaded: warning margin'}</TargetLabel>
       {sc.at != null && (
         <g className="c-scrub" aria-hidden="true">

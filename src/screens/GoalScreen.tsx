@@ -36,7 +36,7 @@ import { CountNumber } from '../ui/Count';
 import { MenuButton } from '../ui/MenuButton';
 import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
-import { reducedMotion } from '../ui/motion';
+import { reducedMotion, STORY_MS } from '../ui/motion';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 
 export function GoalScreen() {
@@ -167,7 +167,7 @@ function GoalView({ goal }: { goal: Goal }) {
     <p key="context" className={'context-line' + (postedText ? ' posted' : '')} role={postedText ? 'status' : undefined}>
       {postedText ? <>
         {postedText.text.replace(/ · \d+ weeks on time$/, '')}
-        {postedText.streak >= 2 && <> · <CountNumber value={postedText.streak} from={postedText.streak - 1} format={(n) => `${Math.round(n)} weeks on time`} className="streak-count" /></>}
+        {postedText.streak >= 2 && <> · <CountNumber value={postedText.streak} from={postedText.streak - 1} format={(n) => `${Math.round(n)} weeks on time`} className="streak-count" duration={600} /></>}
       </> : since ? <>{since.text}{(since.checkIns + since.comments + since.changes) > 0 && <> <a className="linkish" href="#activity">See them</a></>}</> : firstLook(goal)}
     </p>
   );
@@ -193,7 +193,7 @@ function GoalView({ goal }: { goal: Goal }) {
       <ReviewBar goalId={goal.id} />
       <GoalBack />
       <GoalBar goal={goal} status={status} figures={figures} why={why} feeds={feeds} stale={stale} actions={actions} askedLine={askedLine}
-        statusMoved={statusMoved} hit={hit} countFrom={own.at(-2)?.value ?? null} />
+        statusMoved={statusMoved} hit={hit} countFrom={own[0]?.value ?? null} />
 
       {published && (
         <section className="first-checkin" aria-label="First check-in">
@@ -235,7 +235,7 @@ function GoalBar({ goal, status, figures, why, feeds, stale, actions, askedLine,
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
   const num = figures.nowValue != null && goal.kind !== 'milestone'
-    ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} />
+    ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={STORY_MS} />
     : figures.now;
   const arrow = figures.direction && (
     <span className={'bar-dir dir-' + figures.direction} title={figures.directionText ?? undefined} aria-label={figures.directionText ? `Heading: ${figures.directionText}` : undefined}>
