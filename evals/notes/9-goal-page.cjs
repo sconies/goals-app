@@ -90,7 +90,7 @@ module.exports = {
         const at1 = `J1 ${dev}`;
         chk(bar.title === 'Customer satisfaction (CSAT)' && /Hana Okafor/.test(bar.owner || '') && /NORTH STAR|North star/i.test(bar.owner || '') && /G-\d+/.test(bar.owner || ''), `${at1}: line 1 “${bar.title}” / “${bar.owner}”`);
         chk(/Off track/.test(bar.two) && /\d+% · plan \d+% · target \d+%/.test(bar.two) && /(worsening|flat|recovering)/.test(bar.two), `${at1}: line 2 “${bar.two}”`);
-        chk(/Billing questions doubled/.test(bar.three || '') && /(being handled|nobody on it yet)/.test(bar.three || ''), `${at1}: line 3 “${bar.three}”`);
+        chk(/Billing questions doubled/.test(bar.three || '') && /(being handled|no response yet)/.test(bar.three || ''), `${at1}: line 3 “${bar.three}”`);
         chk(/^Fed by three goals: .*1 off track/.test(bar.feeds || ''), `${at1}: north star feeds line “${bar.feeds}”`);
         chk(s.status === 1, `${at1}: the goal's status “${s.label}” appears ${s.status} times in the first screen`);
         chk(s.chartTop != null && s.chartTop < s.fold - 60, `${at1}: the chart starts at ${s.chartTop}px, fold ${Math.round(s.fold)}px`);

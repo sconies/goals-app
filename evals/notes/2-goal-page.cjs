@@ -59,7 +59,7 @@ module.exports = {
         chk(/^\d+%$/.test(f.now), `${at}: bar number “${f.now}”`);
         chk(/plan \d+%/.test(f.against.join(' ')) && /target \d+%/.test(f.against.join(' ')), `${at}: bar says “${f.against.join(' / ')}”`);
         chk(/^(worsening|flat|recovering)$/.test(f.dir), `${at}: bar direction “${f.dir}”`);
-        chk(f.why.length > 20 && /^· (being handled|nobody on it yet)/.test(f.handled), `${at}: line 3 “${f.why}” “${f.handled}”`);
+        chk(f.why.length > 20 && /^· (being handled|no response yet)/.test(f.handled), `${at}: line 3 “${f.why}” “${f.handled}”`);
         chk(f.ptg && f.ptg.inMain && !f.ptg.inSide && /Path to green/.test(f.ptg.text) && /Owner’s date: back on plan by/.test(f.ptg.text), `${at}: path to green not in the main column (${JSON.stringify(f.ptg)})`);
         if (w >= 1100) chk(f.heads.length >= 1 && f.heads.every((x) => ['Asked of you', 'Actions', 'Last time we talked'].includes(x)), `${at}: side headings ${f.heads.join(' / ')}`);
         chk(f.sideways <= 1, `${at}: ${f.sideways}px sideways`);

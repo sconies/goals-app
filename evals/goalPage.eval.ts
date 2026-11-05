@@ -35,7 +35,7 @@ describe('the summary bar', () => {
     expect(f.directionText).not.toMatch(/of plan/);
     const why = whyLine(g, support, attentionFor(g, support, sCycle, today));
     expect(why.text).toMatch(/^Billing questions doubled/);
-    expect(why.handledText).toMatch(/^(being handled: |nobody on it yet$)/);
+    expect(why.handledText).toMatch(/^(being handled: |no response yet$)/);
     const feeds = feedsLine(support.goals.filter((x) => x.parentId === 'csat'), (x) => status(x.id, support));
     expect(feeds?.text).toMatch(/^Fed by three goals: 1 off track/);
   });

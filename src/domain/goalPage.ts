@@ -74,7 +74,7 @@ export interface WhyLine {
   by: string | null;
   /** For a goal behind plan: whether someone has picked it up since its latest check-in (attention.ts's rule). */
   handled: 'handled' | 'nobody' | null;
-  /** "being handled: Action: Maya, due week 47" or "nobody on it yet". */
+  /** "being handled: Action: Maya, due week 47" or "no response yet". */
   handledText: string | null;
 }
 
@@ -90,7 +90,7 @@ export function whyLine(goal: Goal, s: Snapshot, att: GoalAttention): WhyLine {
       text: said(latest.why) ? latest.why : 'No reason given yet',
       by: said(latest.why) ? by : null,
       handled,
-      handledText: att.handled ? `being handled: ${att.handled.text}` : 'nobody on it yet',
+      handledText: att.handled ? `being handled: ${att.handled.text}` : 'no response yet',
     };
   }
   if (latest.next) return { text: `Next: ${latest.next}`, by, handled: null, handledText: null };
