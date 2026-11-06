@@ -9,8 +9,9 @@ const fs = require('fs');
 const path = require('path');
 
 const JOURNEY_SECONDS = 9.5; // a journey on a phone and a desktop, on average
-/** Journeys that take noticeably longer than that (measured, seconds for a phone and a desktop). */
-const JOURNEY_WEIGHTS = { U41: 16, U42: 18 };
+/** Journeys measured as well above the average (a phone and a desktop together, seconds): they still go round-robin,
+    but count for what they take when the platform checks are placed. */
+const JOURNEY_WEIGHTS = { U41: 16, U42: 18, U43: 30, U44: 48, U45: 27 };
 const DEFAULT = 30;
 const WEIGHTS = {
   P1: 3, P2: 22, P3: 28, P4: 20, P6: 21, P7: 14, P8: 3, P9: 41, P10: 6, P15: 8,

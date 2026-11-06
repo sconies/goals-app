@@ -17,6 +17,7 @@ import { saveReviewOrder } from './Inspect';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
+import { EndedReview, EndReview } from '../ui/RemoveControls';
 
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
 const goalsN = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
@@ -159,6 +160,9 @@ export function ReviewHome() {
   const [walkAll, setWalkAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [listHealthy, setListHealthy] = useState(false);
+  // An ended review keeps its page: what it was, that it ended, and (for its owner or an admin) Reopen.
+  const ended = !review ? app.snapshot.archive?.reviews.find((r) => r.id === reviewId) : undefined;
+  if (ended) return <EndedReview review={ended} />;
   if (!review) return <div className="page narrow"><Empty title="That review doesn’t exist"><Link className="btn" to="/reviews">All reviews</Link></Empty></div>;
   const s = reviewSession(review, app.snapshot, app.cycle, app.today, app.week);
   const st = sessionState(s);
@@ -249,6 +253,7 @@ export function ReviewHome() {
         <h2 className="block-title">People</h2>
         <div className="people">{people.map((p) => <span key={p.id} className="person"><Avatar p={p} size="sm" />{p.name}</span>)}</div>
       </section>
+      <EndReview review={review} />
     </div>
   );
 }

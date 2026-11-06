@@ -207,7 +207,7 @@ export function SaveLayoutSheet({ tab, layout, head, views, active, onClose }: {
             <span className="label">Your saved {TABLES[tab].label.toLowerCase()} layouts</span>
             <ul className="table-views">{mine.map((v) => (
               <li key={v.id}><span>{v.name}{v.pinned ? <span className="hint"> · pinned for everyone</span> : null}</span>
-                <button type="button" className="linkish small" onClick={() => void app.deleteView(v.id).then(() => app.toast(`Deleted “${v.name}”`))}>Delete<span className="sr"> {v.name}</span></button></li>
+                <button type="button" className="linkish small" onClick={() => void app.deleteView(v.id)}>Delete<span className="sr"> {v.name}</span></button></li>
             ))}</ul>
           </div>
         )}

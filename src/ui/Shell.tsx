@@ -347,7 +347,12 @@ export function Shell({ children }: { children: ReactNode }) {
       {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} onMarkup={() => { setSheet(null); setMarking(true); }} path={pathname} />}
       {marking && <Suspense fallback={null}><MarkupFlow onClose={() => setMarking(false)} /></Suspense>}
       <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.text}</div>)}
+        {toasts.map((t) => (
+          <div key={t.id} className={'toast ' + t.kind + (t.action ? ' with-action' : '')}>
+            <span className="toast-text">{t.text}</span>
+            {t.action && <button type="button" className="toast-action" onClick={t.action.run}>{t.action.label}</button>}
+          </div>
+        ))}
       </div>
     </div>
   );

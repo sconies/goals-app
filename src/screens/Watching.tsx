@@ -114,7 +114,7 @@ function WatchList({ watches, managing }: { watches: Watch[]; managing: boolean 
         <div key={w.id} className="opt static">
           {w.kind === 'level' ? <span>{label(w)}</span> : <Link className="linkish" to={'/goals/' + w.ref}>{label(w)}</Link>}
           {managing
-            ? <button className="btn sm" onClick={async () => { await app.unwatch(w.id); app.toast('Stopped watching'); }} aria-label={`Stop watching ${label(w)}`}>Stop</button>
+            ? <button className="btn sm" onClick={() => void app.unwatch(w.id)} aria-label={`Stop watching ${label(w)}`}>Stop</button>
             : <span className="hint">{w.kind === 'level' ? 'Level' : w.kind === 'tree' ? 'Tree' : 'Goal'}</span>}
         </div>
       ))}

@@ -16,24 +16,68 @@ const addDays = (iso: string, n: number) => new Date(Date.parse(iso + 'T00:00:00
  */
 export function currentCycle(cycles: Cycle[], today: Date): Cycle | undefined {
   const soon = new Date(today.getTime() + 7 * DAY).toISOString().slice(0, 10);
-  const sorted = [...cycles].sort((a, b) => a.startDate.localeCompare(b.startDate));
+  // A deleted cycle is never current (domain/removal); one that's all there is still opens, rather than nothing.
+  const kept = cycles.filter((c) => !c.removedAt);
+  const sorted = [...(kept.length ? kept : cycles)].sort((a, b) => a.startDate.localeCompare(b.startDate));
   return [...sorted].reverse().find((c) => c.startDate <= soon) ?? sorted[0];
 }
 
-/** Only what belongs to one cycle: its goals, and the check-ins, calls and retros on them. */
+/**
+ * Only what belongs to one cycle, and only what's live: the one place removed and archived records leave the lists,
+ * stats, pickers, attention lists and reviews (domain/removal says what each removal does). Deleted records (goals,
+ * check-ins, notes, reviews, cycles, watches, views, people with no history) are left out altogether. Stopped goals,
+ * with their check-ins and notes, people who left and ended reviews move to `archive`, so a goal's page, its history,
+ * the exports and Activity can still show them.
+ */
 export function scopeToCycle(s: Snapshot, cycle: Cycle): Snapshot {
-  const goals = s.goals.filter((g) => g.cycleId === cycle.id);
+  const inCycle = s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt);
+  const goals = inCycle.filter((g) => !g.stoppedAt);
+  const stopped = inCycle.filter((g) => g.stoppedAt);
   const ids = new Set(goals.map((g) => g.id));
+  const stoppedIds = new Set(stopped.map((g) => g.id));
+  const checkIns = s.checkIns.filter((c) => !c.removedAt);
+  const decisions = s.decisions.filter((d) => !d.removedAt);
+  const people = s.people.filter((p) => !p.leftAt && !p.removedAt);
+  const here = new Set(people.map((p) => p.id));
+  const reviews = (s.reviews ?? []).filter((r) => !r.removedAt);
   return {
     ...s,
+    people,
+    cycles: s.cycles.filter((c) => !c.removedAt),
     goals,
     keysIssued: lastKey(s.goals, s.keysIssued),
-    checkIns: s.checkIns.filter((c) => ids.has(c.goalId)),
-    decisions: s.decisions.filter((d) => ids.has(d.goalId)),
+    checkIns: checkIns.filter((c) => ids.has(c.goalId)),
+    decisions: decisions.filter((d) => ids.has(d.goalId)),
+    reviews: reviews.filter((r) => !r.endedAt),
+    watches: (s.watches ?? []).filter((w) => !w.removedAt && here.has(w.personId)),
+    views: (s.views ?? []).filter((v) => !v.deletedAt),
     retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
     // Data from before requests existed: each goal's open request is read from its latest check-in.
     requests: (s.requests ?? requestsFromCheckIns({ ...s, goals }, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id))),
+    archive: {
+      goals: stopped,
+      checkIns: checkIns.filter((c) => stoppedIds.has(c.goalId)),
+      decisions: decisions.filter((d) => stoppedIds.has(d.goalId)),
+      people: s.people.filter((p) => p.leftAt && !p.removedAt),
+      reviews: reviews.filter((r) => r.endedAt),
+    },
   };
+}
+
+/** The whole workspace without deleted check-ins, notes, reviews or people: for the rules that read across cycles. */
+export function withoutRemoved(s: Snapshot): Snapshot {
+  return { ...s, checkIns: s.checkIns.filter((c) => !c.removedAt), decisions: s.decisions.filter((d) => !d.removedAt), reviews: (s.reviews ?? []).filter((r) => !r.removedAt && !r.endedAt), people: s.people.filter((p) => !p.removedAt) };
+}
+
+/**
+ * A snapshot with one stopped goal put back among the live ones, with its check-ins and notes: what its own page and
+ * print view read, so a stopped goal shows as it stood (marked Stopped) without coming back into any list.
+ */
+export function withArchivedGoal(s: Snapshot, goalId: string): Snapshot {
+  const a = s.archive;
+  const g = a?.goals.find((x) => x.id === goalId);
+  if (!a || !g) return s;
+  return { ...s, goals: [...s.goals, g], checkIns: [...s.checkIns, ...a.checkIns.filter((c) => c.goalId === goalId)], decisions: [...s.decisions, ...a.decisions.filter((d) => d.goalId === goalId)] };
 }
 
 /** From the last two weeks of a cycle, owners wrap up their goals. */

@@ -12,6 +12,7 @@ import { answerOf, saidIn } from './review';
 import { handledFor, type Handled } from './attention';
 import { LABEL } from './status';
 import { summariseAll, type GoalSummary } from './summary';
+import { leftName, STOPPED } from './words';
 import type { CheckIn, Cycle, Goal, Snapshot, Workspace } from './types';
 
 export type Cell = string | number | null;
@@ -35,11 +36,18 @@ const shapeWord = { straight: 'straight', back: 'back-loaded', stepped: 'stepped
 const kindWord = { metric: 'metric', range: 'range', milestone: 'milestone' } as const;
 const RECOVERY = { plan: 'Plan', investigating: 'Still investigating', help: 'Needs a decision or help', target: 'Target should change' } as const;
 
-function prepare(x: ExportInput) {
-  const goals = x.goals ?? x.snapshot.goals;
-  const sums = summariseAll(goals, x.snapshot, x.cycle, x.today, x.week);
-  const name = (id: string) => x.snapshot.people.find((p) => p.id === id)?.name ?? '';
-  return { goals, sums, name };
+/**
+ * The goals an export carries and their summaries. A whole-cycle export (the workbook, CSV, JSON) keeps stopped goals,
+ * with their check-ins, marked Stopped (domain/removal); the brief, like every list, leaves them out.
+ */
+function prepare(x: ExportInput, withStopped = false) {
+  const a = withStopped && !x.goals ? x.snapshot.archive : undefined;
+  const s: Snapshot = a?.goals.length ? { ...x.snapshot, goals: [...x.snapshot.goals, ...a.goals], checkIns: [...x.snapshot.checkIns, ...a.checkIns], decisions: [...x.snapshot.decisions, ...a.decisions] } : x.snapshot;
+  const goals = x.goals ?? s.goals;
+  const sums = summariseAll(goals, s, x.cycle, x.today, x.week);
+  // People who left are still named in what they did, as "Name (left)".
+  const name = (id: string) => x.snapshot.people.find((p) => p.id === id)?.name ?? (() => { const p = x.snapshot.archive?.people.find((v) => v.id === id); return p ? leftName(p.name) : ''; })();
+  return { goals, sums, name, s };
 }
 
 /** A check-in's stages as the owner gave them (done, expected or on its due week), so loading the file back changes
@@ -70,7 +78,7 @@ function goalRow(s: GoalSummary, all: Goal[]): Cell[] {
     r ? r.range.limit : null, r ? (r.range.bound === 'atMost' ? 'at most' : 'at least') : null, r ? r.range.margin : null,
     g.kind === 'milestone' ? g.stages.map((x) => `${x.name}@${x.dueWeek}`).join('; ') : null,
     parent?.title ?? null, parent?.id ?? null, g.whyHelps || null, g.effect, g.source || null, g.definition || null,
-    s.statusLabel, s.story.result?.text ?? null, s.story.since, s.now, s.planNow != null ? s.planNowText : null, s.gap, s.lastWeek, s.forecast,
+    g.stoppedAt ? STOPPED : s.statusLabel, s.story.result?.text ?? null, s.story.since, s.now, s.planNow != null ? s.planNowText : null, s.gap, s.lastWeek, s.forecast,
     s.story.why, s.story.doing, s.story.byWhen, s.story.needs, s.story.next, s.story.warnings.join(' ') || null,
     ...[1, 2, 3, 4].map((n) => { const q = s.story.quarters.find((y) => y.quarter.n === n); return !q || q.kind === 'none' ? null : `${q.kind === 'met' ? 'Met' : q.kind === 'missed' ? 'Missed' : 'Open'}: ${q.text.replace(/^Q\d: /, '')}`; }),
   ];
@@ -147,12 +155,12 @@ function askRows(x: ExportInput, ids: Set<string>, name: (id: string) => string)
 }
 
 export function workbook(x: ExportInput): Table[] {
-  const { goals, sums, name } = prepare(x);
+  const { goals, sums, name, s } = prepare(x, true);
   const ids = new Set(goals.map((g) => g.id));
-  const notes = saidIn(x.snapshot).filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));
+  const notes = saidIn(s).filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));
   const goalTitle = (id: string) => goals.find((g) => g.id === id)?.title ?? '';
   return [
-    { name: 'Goals', rows: [[...GOAL_EXPORT_COLUMNS, ...GOAL_DERIVED_COLUMNS], ...sums.map((s) => goalRow(s, x.snapshot.goals))] },
+    { name: 'Goals', rows: [[...GOAL_EXPORT_COLUMNS, ...GOAL_DERIVED_COLUMNS], ...sums.map((v) => goalRow(v, s.goals))] },
     { name: 'Plan', rows: planRows(x, sums) },
     { name: 'Check-ins', rows: [[...CHECKIN_EXPORT_COLUMNS], ...checkInRows(x, sums, name)] },
     { name: 'Notes and actions', rows: [['Goal key', 'Goal ID', 'Goal', 'Week', 'Kind', 'Said by', 'Text', 'Who', 'Due week', 'Review', 'Answer', 'At'], ...notes.map((d) => [goals.find((g) => g.id === d.goalId)?.key ?? null, d.goalId, goalTitle(d.goalId), d.week, d.kind === 'ask' ? 'Question' : d.kind === 'action' ? 'Action' : 'Note', name(d.byId), d.note, d.kind === 'action' ? name(d.assigneeId ?? '') || null : null, d.dueWeek ?? null, x.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? null, d.ask ? answerOf(d)?.text ?? null : null, d.at])] },
@@ -178,7 +186,7 @@ export function toCsv(rows: Cell[][]): string {
 /* ---------- JSON ---------- */
 
 export function toJson(x: ExportInput) {
-  const { sums, name } = prepare(x);
+  const { sums, name } = prepare(x, true);
   const team = (id: string | null) => x.snapshot.teams.find((t) => t.id === id)?.name ?? null;
   return {
     format: EXPORT_FORMAT,
@@ -202,7 +210,8 @@ export function toJson(x: ExportInput) {
         } : {}),
         ...(g.kind === 'range' ? { unit: g.unit, decimals: g.decimals, range: { mustStay: g.range.bound === 'atMost' ? 'atMost' : 'atLeast', limit: g.range.limit, margin: g.range.margin } } : {}),
         ...(g.kind === 'milestone' ? { stages: g.stages.map((st) => ({ id: st.id, name: st.name, dueWeek: st.dueWeek })) } : {}),
-        now: { status: s.status, statusLabel: s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast,
+        ...(g.stoppedAt ? { stopped: { at: g.stoppedAt, by: name(g.stoppedBy ?? '') || null, reason: g.stopReason ?? null } } : {}),
+        now: { status: s.status, statusLabel: g.stoppedAt ? STOPPED : s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast,
           projection: s.projection && g.kind === 'metric' ? { likeliest: Number(s.projection.value.toFixed(g.decimals)), low: Number(s.projection.low.toFixed(g.decimals)), high: Number(s.projection.high.toFixed(g.decimals)), byWeek: s.projection.week, fittedWeeks: [s.projection.from, s.projection.to] } : null },
         story: { since: s.story.since, where: s.story.where, outlook: s.story.outlook, whyItsOff: s.story.why, recoveryPlan: s.story.doing, byWhen: s.story.byWhen, needs: s.story.needs, nextStep: s.story.next, warnings: s.story.warnings, feeds: s.story.feeds },
         quarters: s.story.quarters.filter((q) => q.kind !== 'none').map((q) => ({ quarter: q.quarter.label, months: q.quarter.months, weeks: [q.quarter.from, q.quarter.to], result: q.kind, text: q.text })),

@@ -560,6 +560,31 @@
       "id": "TOKENS-SERVER-ONLY",
       "area": "AI assistants",
       "text": "AI assistant tokens are made and revoked only by security-definer functions (okr_token_create, okr_token_revoke) that make the secret in the database, store only its SHA-256 hash and return it once. The public key can't read, add or change okr_api_tokens; the app lists token metadata (never the hash) with okr_token_list, and the MCP server finds a token with okr_token_find. The public key can't read okr_feedback; Workspace reads a workspace's with okr_feedback_list. AI assistants and Workspace's feedback keep working."
+    },
+    {
+      "id": "REMOVE-ANYTHING",
+      "area": "Removing",
+      "text": "Every kind of record that can be made can be removed, archived or ended: a person (marked as left, or deleted with no history), a goal (stopped with a reason, or deleted with no check-ins), a check-in (until a newer one exists), a review (ended, or deleted if never held), a comment or review note (edited, or removed leaving its place), a saved view, a watch and a cycle with no check-ins. Who may is the same in the app, the import and the AI assistant (one set of rules, domain/removal). Nothing is erased: a removed record keeps its row with when and by whom, and leaves every list, count, picker, attention list, review and Home through one place (the scoped snapshot). Every removal is logged in Activity, unwatching and deleting a personal view included."
+    },
+    {
+      "id": "UNDO-REMOVE",
+      "area": "Removing",
+      "text": "Every removal shows a message with an Undo button for 10 seconds, which puts back every record it changed (what it handed over or moved included). Admins restore anything removed, stopped, ended or marked as left in the last 30 days from Recently removed on Workspace, which shows the kind, the name, who removed it, when, and Restore; after 30 days it leaves the list but the row stays. The AI assistant has list_removed and restore_removed."
+    },
+    {
+      "id": "PERSON-LEFT",
+      "area": "Removing",
+      "text": "An admin marks someone as left from a dialog that first asks who takes over their goals and their open asks (as asker and as responder); they vanish from pickers, counts, review people and Home, their token no longer works, and history keeps their name as “Name (left)”. Someone with no goals, check-ins, notes or asks is deleted outright instead."
+    },
+    {
+      "id": "GOAL-STOP",
+      "area": "Removing",
+      "text": "The owner or an admin stops a goal with check-ins, with a required reason: it leaves stats, reviews, Home, Watching and attention lists but stays on its page (marked Stopped, a shape and a word), in its history, in exports and in Activity; the goals feeding it move up to its parent and its open asks are withdrawn with a note. A goal with no check-ins is deleted instead."
+    },
+    {
+      "id": "IMPORT-UNDO",
+      "area": "Removing",
+      "text": "Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed."
     }
   ],
   "notYetBuilt": [
@@ -704,6 +729,24 @@
       "title": "A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed",
       "who": "A builder",
       "budget": 18
+    },
+    {
+      "id": "U43",
+      "title": "An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name",
+      "who": "An admin",
+      "budget": 10
+    },
+    {
+      "id": "U44",
+      "title": "An owner stops a goal with history, then deletes a goal set up by mistake and undoes it",
+      "who": "A goal owner",
+      "budget": 11
+    },
+    {
+      "id": "U45",
+      "title": "Undo an import: every row back as it was, and a row changed since skipped and listed",
+      "who": "A goal owner",
+      "budget": 8
     }
   ],
   "easeCriteria": [

@@ -40,6 +40,11 @@ import { useWidth } from '../ui/useWidth';
 import { reducedMotion, STORY_MS } from '../ui/motion';
 import { effectOn, landedMoment, openMotionLab, storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
+import { ArchivedGoalScope } from '../app/state';
+import { canDeleteCheckIn } from '../domain/removal';
+import { DeleteCheckIn, StoppedNote } from '../ui/RemoveControls';
+import { goalRemoveLabel, RemoveGoalSheet } from '../ui/RemoveSheets';
+import { LifeMark } from '../ui/LifeMark';
 
 export function GoalScreen() {
   const app = useApp();
@@ -49,6 +54,8 @@ export function GoalScreen() {
   const [replay, setReplay] = useState(0);
   useEffect(() => { const on = () => setReplay((n) => n + 1); window.addEventListener('goals-replay', on); return () => window.removeEventListener('goals-replay', on); }, []);
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn sm" to="/goals">All goals</Link></Empty></div>;
+  // A stopped goal keeps its page, as it stood, marked Stopped (domain/removal).
+  if (goal.stoppedAt) return <ArchivedGoalScope goalId={goal.id}><GoalView key={goal.id + ':' + app.viewer.id + ':' + replay} goal={goal} /></ArchivedGoalScope>;
   return <GoalView key={goal.id + ':' + app.viewer.id + ':' + replay} goal={goal} />;
 }
 
@@ -144,6 +151,8 @@ function GoalView({ goal }: { goal: Goal }) {
   };
 
   /* ---------- the bar's one main action, Watch beside it, and the "…" menu ---------- */
+  const stopped = !!goal.stoppedAt;
+  const [removing, setRemoving] = useState(false);
   const [aboutOpen, setAboutOpen] = useState<boolean | null>(null);
   const aboutRef = useRef<HTMLDetailsElement>(null);
   const share = useShare(goal, figures.now, figures.against, why.text ?? '', status);
@@ -154,11 +163,13 @@ function GoalView({ goal }: { goal: Goal }) {
         { label: 'Share image', onClick: () => void share.image() },
         { label: 'Copy link', onClick: () => void share.link() },
         { label: 'Print or save as PDF', to: `/goals/${goal.id}/print` },
-        ...(isOwner && week > 0 && primary.kind !== 'check-in' ? [{ label: due ? `Check in for week ${week}` : 'Check in again', to: '/check-in/' + goal.id }] : []),
-        ...(canEdit ? [{ label: 'Change this goal', onClick: changeThis }] : []),
+        ...(!stopped && isOwner && week > 0 && primary.kind !== 'check-in' ? [{ label: due ? `Check in for week ${week}` : 'Check in again', to: '/check-in/' + goal.id }] : []),
+        ...(!stopped && canEdit ? [{ label: 'Change this goal', onClick: changeThis }] : []),
+        // Stop a goal with history (with a reason), or delete one set up by mistake: its owner or an admin.
+        ...(!stopped && canEdit ? [{ label: goalRemoveLabel(own.length > 0), onClick: () => setRemoving(true) }] : []),
       ]} />
   );
-  const showPrimary = !review && !published && !(primary.targetId && openAsk === primary.targetId);
+  const showPrimary = !stopped && !review && !published && !(primary.targetId && openAsk === primary.targetId);
   const mainAction: ReactNode = !showPrimary || !primary.kind ? null
     : primary.kind === 'check-in' ? <Link className="btn primary" to={'/check-in/' + goal.id}>{primary.label}</Link>
     : primary.kind === 'watch' ? <WatchButton goal={goal} primary />
@@ -167,11 +178,11 @@ function GoalView({ goal }: { goal: Goal }) {
   const actions = review ? null : (
     <>
       {mainAction}
-      {!isOwner && primary.kind !== 'watch' && <WatchButton goal={goal} />}
+      {!stopped && !isOwner && primary.kind !== 'watch' && <WatchButton goal={goal} />}
       {menu}
     </>
   );
-  const askedLine = !isOwner && stale && !review && (updateAsk
+  const askedLine = stopped ? <StoppedNote goal={goal} /> : !isOwner && stale && !review && (updateAsk
     ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(updateAsk.createdAt, app.today)}{updateAsk.askedBy !== app.viewer.id ? ` (${app.person(updateAsk.askedBy)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s open on their Home until they check in or answer it.{canWithdraw(updateAsk, app.viewer, goal) && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
     : undone ? <span className="small" role="status">Withdrawn. It’s off their Home.</span> : null);
 
@@ -230,6 +241,7 @@ function GoalView({ goal }: { goal: Goal }) {
         ? <div className="goal-grid split"><div className="split-a goal-main">{main}</div><aside className="split-side goal-side" aria-label="For you">{side}</aside></div>
         : <div className="goal-col">{phone}</div>}
       {review && <ReviewCallBar goal={goal} />}
+      {removing && <RemoveGoalSheet goal={goal} onClose={() => setRemoving(false)} />}
     </div>
   );
 }
@@ -259,7 +271,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
     : figures.now;
   return (
     <div className="goal-bar-slot" ref={slot} style={c.on ? { height: c.height } : undefined}>
-      <header className={'goal-bar' + (c.on ? ' compact' : '') + (hit ? ' hit' : '')} data-part="Summary bar" data-tone={status} style={c.on ? { position: 'fixed', top: c.top, left: c.left, width: c.width } : undefined} aria-label="This goal">
+      <header className={'goal-bar' + (c.on ? ' compact' : '') + (hit ? ' hit' : '') + (goal.stoppedAt ? ' stopped' : '')} data-part="Summary bar" data-tone={goal.stoppedAt ? 'stopped' : status} style={c.on ? { position: 'fixed', top: c.top, left: c.left, width: c.width } : undefined} aria-label="This goal">
         <div className="bar-1">
           <h1 className="bar-title">{goal.title}</h1>
           {me && <span className="bar-me">{me}</span>}
@@ -270,7 +282,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           {goal.key && <span className="gkey" title={`This goal’s key: it never changes, and /goals/${goal.key} opens it`}>{goal.key}</span>}
         </div>
         <div className="bar-2">
-          <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>
+          {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
           <span className="bar-dot" aria-hidden="true">·</span>
           <span className="bar-now">{num}</span>
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}
@@ -679,7 +691,8 @@ const dayOf = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('
 function TalkedSection({ goal }: { goal: Goal }) {
   const app = useApp();
   const t = lastTalked(goal, app.snapshot, app.cycle, app.week, app.today);
-  const nextText = t.next ? `${t.next.review}, ${t.next.date === app.today.toISOString().slice(0, 10) ? 'today' : `${t.next.weekday} ${dayOf(t.next.date).replace(/^\w+ /, '')}`}` : null;
+  // A stopped goal isn't in any review now.
+  const nextText = t.next && !goal.stoppedAt ? `${t.next.review}, ${t.next.date === app.today.toISOString().slice(0, 10) ? 'today' : `${t.next.weekday} ${dayOf(t.next.date).replace(/^\w+ /, '')}`}` : null;
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
   return (
     <section className="block talked goal-section" aria-labelledby="g-talked" data-part="Review notes">
@@ -786,7 +799,8 @@ function ActivitySection({ goal, focusComposer }: { goal: Goal; focusComposer: b
 
 function StreamRow({ goal, x }: { goal: Goal; x: StreamItem }) {
   const [open, setOpen] = useState(false);
-  if (x.kind === 'comment' || x.kind === 'change') return <ChangeItem c={x.change} />;
+  if (x.kind === 'comment') return <ChangeItem c={x.change} manage />;
+  if (x.kind === 'change') return <ChangeItem c={x.change} />;
   if (x.kind === 'checkin') return <li className="stream-ci"><ol className="cilist ci-open"><CheckInRow goal={goal} c={x.checkIn} sameAs={x.sameAs} /></ol></li>;
   return (
     <li className="stream-group">
@@ -892,6 +906,7 @@ function CheckInFull({ goal, c, id }: { goal: Goal; c: CheckIn; id: string }) {
       {c.next && <><dt>Next step</dt><dd>{c.next}</dd></>}
       <dt>Checked in</dt>
       <dd>{who?.name ?? 'Someone'}, {whenText(c.postedAt, app.today)}{c.backfilled ? ' (loaded later)' : ''}</dd>
+      {!goal.stoppedAt && canDeleteCheckIn(app.snapshot, goal, c, app.viewer) && <dd className="ci-remove"><DeleteCheckIn c={c} /></dd>}
     </dl>
   );
 }

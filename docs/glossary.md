@@ -32,6 +32,12 @@ Decided in release 1 of the consolidation (5 Nov 2026). Routes and AI assistant 
 | Export | Saving goals as a workbook, CSV, JSON or a brief for an AI chat. | download (as the name of the action) |
 | Markup | A picture of a screen with marks drawn on it and a line saying what should change, sent to the people building Faro from Send feedback (Mark up this screen). Its status is New, In hand, Fixed or Won't fix. | screenshot, annotation, bug report, ticket |
 | Builder | One of the people building Faro, whose email is on the builders list; signs in to the inbox on Workspace. | developer, staff |
+| Left | A person who has left the workspace: out of pickers, counts, reviews and Home, named in history as "Name (left)". Shown as a shape and the word. | departed, deactivated, archived (for a person) |
+| Stopped | A goal stopped before the end of its year, with a reason: out of every list, still on its page, in exports and in Activity. Shown as a shape and the word. Not a status. | `Cancelled`, abandoned, archived (for a goal) |
+| Ended | A review that has ended: it keeps its notes and actions and is no longer due. | closed (for a review), archived |
+| Delete, Remove | Taking something away. Delete for a record (a goal with no check-ins, a check-in, a review, a view, a cycle); Remove for a comment or a note, whose place stays ("Comment removed", "Note removed"). Nothing is erased: it can be undone, and restored for 30 days. | erase, purge, trash |
+| Recently removed | The admins' list on Workspace of everything removed, stopped, ended or marked as left in the last 30 days, each with Restore. | trash, bin, archive |
+| Undo | The button on a removal's message, for 10 seconds; and "Undo this import" on an import's Activity entry. | revert, roll back |
 | File names | Every file the app saves is named `<workspace>-<what>-<scope>-<date>`, for example `platform-engineering-goals-year-2026-2026-11-05.xlsx`, and goes through `saveFile` in `src/app/files.ts` (requirement SHARED-DOWNLOADS). | |
 
 ## Kept for now

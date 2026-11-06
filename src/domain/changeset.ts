@@ -11,7 +11,7 @@ import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { personChange, personProblems } from './people';
-import { requestsAfterCheckIn } from './asks';
+import { asksOf, requestsAfterCheckIn } from './asks';
 import { initials } from './importer';
 import type { Change, CheckIn, Cycle, Diff, Goal, Ask, MetricGoal, MetricPlan, Person, RecoveryState, Snapshot, StageUpdate, Status } from './types';
 
@@ -173,6 +173,13 @@ export function planChanges(input: ChangeInput): ChangeSet {
   // The working set: goals as they will be after this change, by id. Wherever a goal's ID is asked for, its key will do.
   const work = new Map<string, Goal>(s.goals.map((g) => [g.id, g]));
   const goalByRef = (ref: string) => (ref ? work.get(ref) ?? findGoal([...work.values()], ref) : undefined);
+  // A stopped goal (domain/removal) is in a whole-cycle export, marked Stopped; loaded back, its rows are left alone.
+  const stoppedByRef = (ref: string) => (ref && !goalByRef(ref) ? findGoal(s.archive?.goals ?? [], ref) : undefined);
+  const warnedStopped = new Set<string>();
+  const leftAlone = (sheet: Issue['sheet'], row: number, g: Goal) => {
+    unchanged++;
+    if (!warnedStopped.has(g.id)) { warnedStopped.add(g.id); warn(sheet, row, g.title, `“${g.title}” is stopped, so its rows are left as they are.`); }
+  };
   // New goals take the next keys, in the order of their rows; no key is used twice in a workspace.
   let lastKeyGiven = lastKey(s.goals, s.keysIssued);
   const touched = new Map<string, { before: Goal | null; row: number; sheet: Issue['sheet']; reason: string; plan: boolean }>();
@@ -188,6 +195,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const keyRef = val(r, 'key');
     const title = val(r, 'goal');
     if (!id && !keyRef && !title && Object.entries(r).every(([k, v]) => k === '__row' || !v)) return;
+    const stopped = stoppedByRef(id || keyRef);
+    if (stopped) return leftAlone('Goals', row, stopped);
     const existing = goalByRef(id || keyRef) ?? null;
     if (id && !existing) return err('Goals', row, title || id, `There’s no goal with ID ${id} in ${cycle.name}. Leave ID empty to add a new goal.`);
     if (!id && keyRef && !existing) return err('Goals', row, title || keyRef, `There’s no goal with key ${keyRef} in ${cycle.name}. Leave Key and ID empty to add a new goal.`);
@@ -288,6 +297,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const row = rowOf(r, i);
     const ref = val(r, 'id') || val(r, 'key');
     if (!ref) { if (val(r, 'goal')) err('Plan', row, val(r, 'goal'), 'Add the goal’s ID or key so the plan can be matched to it.'); return; }
+    const stopped = stoppedByRef(ref);
+    if (stopped) return leftAlone('Plan', row, stopped);
     const g = goalByRef(ref);
     if (!g) return err('Plan', row, val(r, 'goal') || ref, `There’s no goal with ${isKey(ref) && !work.has(ref) ? 'key' : 'ID'} ${ref}.`);
     const id = g.id;
@@ -343,6 +354,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
 
   /* Check-ins */
   const ciOut: CheckIn[] = [];
+  // What each check-in written replaced (null: it's new), so the import can be undone (domain/removal undoImport).
+  const ciBefore = new Map<string, CheckIn | null>();
   const seen = new Set<string>();
   const rows = (input.tables.checkIns ?? []).map((r, i) => ({ r, row: rowOf(r, i) }));
   const byTitle = new Map([...work.values()].map((g) => [norm(g.title), g]));
@@ -356,6 +369,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (Object.entries(r).every(([k, v]) => k === '__row' || !v)) continue;
     const g = goalFor(r);
     const name = val(r, 'goal') || goalRefOf(r);
+    const stopped = !g ? stoppedByRef(goalRefOf(r)) ?? (s.archive?.goals ?? []).find((x) => norm(x.title) === norm(val(r, 'goal'))) : undefined;
+    if (stopped) { leftAlone('Check-ins', row, stopped); continue; }
     if (!g) { err('Check-ins', row, name, goalRefOf(r) ? `There’s no goal with ${isKey(goalRefOf(r)) ? 'key' : 'ID'} ${goalRefOf(r)}.` : `There’s no goal called “${val(r, 'goal')}”. Add the Goal ID or Goal key column to be exact.`); continue; }
     const w = parseNumber(val(r, 'week'));
     if (w == null || !Number.isInteger(w) || w < 1) { err('Check-ins', row, g.title, w === 0 ? 'Check-ins start in week 1; week 0 is the start of the year.' : 'Week should be a whole number from 1, counted from the start of the year.'); continue; }
@@ -430,6 +445,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!ch) { unchanged++; continue; }
     ch.at = now;
     if (backfilled) ch.summary += ' (loaded later)';
+    ciBefore.set(c.id, existing);
     ciOut.push(c);
     imported.set(g.id, [...(imported.get(g.id) ?? []), c]);
     changes.push(ch);
@@ -472,9 +488,21 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const ok = !issues.some((x) => x.severity === 'error') && !needsReason && items.length > 0;
   const result: ChangeSet = { items, unchanged, issues, needsReason, commit: null, counts };
   if (ok) {
+    const sumId = newId('chg');
+    const importId = newId('imp');
+    // Every row's change carries the import's id, and the summary keeps what each record was before, so "Undo this
+    // import" can put every row back (domain/removal undoImport).
+    for (const ch of changes) ch.importId = importId;
+    const requestsBefore = asksOf(s);
     const summary: Change = {
-      id: newId('chg'), at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: newId('imp'), action: 'imported',
+      id: sumId, at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: importId, action: 'imported', importId,
       summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes from an AI assistant' : via === 'table' ? 'Edited the data tables' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
+      undo: {
+        goals: goalOut.map((g) => ({ id: g.id, before: touched.get(g.id)?.before ?? null })),
+        checkIns: ciOut.map((c) => ({ id: c.id, before: ciBefore.get(c.id) ?? null })),
+        people: peopleOut.map((p) => ({ id: p.id, before: s.people.find((x) => x.id === p.id) ?? null })),
+        requests: [...reqOut.values()].map((r) => ({ id: r.id, before: requestsBefore.find((x) => x.id === r.id) ?? null })),
+      },
     };
     // New goals before the goals that feed into them, so each link points at a goal that's already saved.
     const ordered: Goal[] = [];

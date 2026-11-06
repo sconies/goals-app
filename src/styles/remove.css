@@ -1,0 +1,49 @@
+/* Removing, archiving and undoing (release 1b): the Undo message, a record's life mark (Stopped, Ended, Left), the
+   removal dialogs, Recently removed, and the small in-place controls. Flat, hairline-divided, no edge stripes. */
+
+/* ---------- a message with one thing to do about it (Undo) ---------- */
+.toast.with-action { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding-top: 6px; padding-bottom: 6px; pointer-events: auto; }
+.toast-text { min-width: 0; }
+.toast-action { flex: none; min-height: 44px; min-width: 44px; padding: 0 14px; border: 1px solid currentColor; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-weight: 650; cursor: pointer; }
+.toast-action:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.toast-action:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* ---------- where a record is in its life: a shape and a word ---------- */
+.life-mark { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-2); font-weight: 600; }
+.life-shape { width: 16px; height: 16px; flex: none; }
+.goal-bar.stopped .bar-life { font-size: var(--t-md, 1rem); }
+.stopped-note { display: block; color: var(--fg-2); }
+.review-life { margin-top: var(--s1); }
+
+/* ---------- the dialogs ---------- */
+.remove-sheet .strong { overflow-wrap: anywhere; }
+.remove-effects { margin: 0; padding-left: 1.2em; display: grid; gap: var(--s1); color: var(--fg-2); }
+.person-leave { display: flex; justify-content: flex-start; padding-top: var(--s3); border-top: 1px solid var(--line); }
+
+/* ---------- Recently removed and Cycles: hairline-divided rows ---------- */
+.removed-list { list-style: none; margin: 0; padding: 0; }
+.removed-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+.removed-row:last-child { border-bottom: 0; }
+.removed-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.removed-kind { font-size: var(--t-xs, 0.75rem); font-weight: 650; color: var(--fg-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.removed-name { font-weight: 550; overflow-wrap: anywhere; }
+.removed-row .btn { flex: none; }
+
+/* ---------- comments and notes: edited, removed, and their tools ---------- */
+.comment-removed { color: var(--fg-2); }
+.edited-mark { white-space: nowrap; }
+.comment-tools { display: inline-flex; gap: var(--s3); margin-top: 2px; }
+.comment-edit { display: grid; gap: var(--s2); margin-top: var(--s1); }
+.ci-remove { grid-column: 1 / -1; margin-top: var(--s2); }
+
+/* ---------- Undo this import, on its Activity entry ---------- */
+.import-undo { align-self: flex-start; margin-top: var(--s1); }
+.import-undone { align-self: flex-start; }
+.import-undo-ask { display: grid; gap: var(--s2); margin-top: var(--s1); }
+
+/* ---------- ending a review ---------- */
+.end-review .btn { margin-top: var(--s2); }
+
+@media (pointer: coarse), (max-width: 1023px) {
+  .comment-tools .linkish, .ci-remove .linkish { min-height: 44px; display: inline-flex; align-items: center; }
+}

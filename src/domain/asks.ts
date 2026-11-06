@@ -263,10 +263,21 @@ function legacyAnswer(d: Decision, s: Snapshot): { text: string; at: string; byI
   return { text: said?.to ?? c.summary, at: c.at, byId: c.actorId };
 }
 
-/** Comments: written, and not taken back. (Before one ask model, an ask for an update was a comment; those are asks now.) */
-export function liveNotes(changes: Change[]): Change[] {
+/** Every comment ever written and not taken back, removed ones included. (Before one ask model, an ask for an update was a comment; those are asks now.) */
+export function writtenNotes(changes: Change[]): Change[] {
   const gone = new Set(changes.filter((c) => c.entity === 'note' && c.action === 'withdrawn').map((c) => c.entityId));
   return changes.filter((c) => c.entity === 'note' && c.action === 'noted' && !gone.has(c.entityId) && !isLegacyUpdateAsk(c));
+}
+
+/** Comments that stand: written, not taken back, and not removed now (a later 'removed' entry with no 'restored' after it). */
+export function liveNotes(changes: Change[]): Change[] {
+  const removed = new Set<string>();
+  for (const c of changes) {
+    if (c.entity !== 'note') continue;
+    if (c.action === 'removed') removed.add(c.entityId);
+    else if (c.action === 'restored') removed.delete(c.entityId);
+  }
+  return writtenNotes(changes).filter((c) => !removed.has(c.entityId));
 }
 
 /** The words of an ask for an update. */
