@@ -1,6 +1,6 @@
 /* The Platform Engineering example is a believable organisation, and every record in it follows the app's own rules. */
 import { describe, expect, it } from 'vitest';
-import { draftFrom, evaluate } from '../../domain/checkin';
+import { draftFrom, emptyDraft, evaluate } from '../../domain/checkin';
 import { goalAsOf } from '../../domain/plan';
 import { goalsIn } from '../../domain/review';
 import { checkInsFor, goalStatus } from '../../domain/status';
@@ -69,6 +69,14 @@ describe('the Platform Engineering example', () => {
     // Reasons change from week to week.
     const why = s.checkIns.filter((c) => c.goalId === 'ns-lead' && c.cause).map((c) => c.why);
     expect(new Set(why).size).toBeGreaterThan(3);
+  });
+
+  it('lets the CI cost goal be checked in on plan: its week-45 plan, 0.4067 USD, written to the cent', () => {
+    const g = goals.get('ci-cost')!;
+    const week = 45;
+    const own = checkInsFor(g, s.checkIns);
+    const e = evaluate(goalAsOf(g, week), cycle, week, { ...emptyDraft(g, own.at(-1) ?? null), value: '0.41' }, own);
+    expect(e).toMatchObject({ calc: 'on', reason: null, needsPath: false, canPost: true });
   });
 
   it('looks like a real organisation: mostly on track, a real minority behind, a north star off track', () => {

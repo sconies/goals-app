@@ -35,7 +35,25 @@ module.exports = {
       const [c, p] = await open(360, 740, 'rhea', '/', true);
       const m = await box(p, '.arow-main'), a = await box(p, '.arow');
       check(m && a && m.w >= a.w - 32 - 26 - 1, `[Home] 1: attention row text is ${m && Math.round(m.w)}px of ${a && Math.round(a.w)}`);
-      check(await css(p, '.arow-why', '-webkit-line-clamp') === 'none', '[Home] 1: attention reason is clamped on a phone');
+      // Lane (5 Nov): on a phone, Home keeps each attention reason to two lines, so the cards are shorter and the first
+      // one's title starts on screen. That holds only while the whole reason is a tap away: every reason cut short here
+      // is said in full on its goal's page (a missed or missing path to green, under What's being done).
+      const clamp = await css(p, '.page.home .arow-why', '-webkit-line-clamp');
+      check(clamp === 'none' || clamp === '2', `[Home] 1: attention reason is clamped to ${clamp} lines on a phone, not 2`);
+      const cut = await p.$$eval('.page.home .arow', (els) => els.map((e) => {
+        const why = e.querySelector('.arow-why');
+        return { href: e.querySelector('a.arow-main')?.getAttribute('href') || '', flag: (why.querySelector('.arow-flags')?.textContent || '').split(' · ')[0], full: why.getAttribute('title') || '', cut: why.scrollHeight > why.clientHeight + 1 };
+      }).filter((x) => x.cut));
+      for (const x of cut) {
+        const q = await c.newPage();
+        await q.goto(url(x.href.replace(/^\/demo/, '')));
+        await q.locator('.goal-bar').waitFor();
+        const page = (await q.locator('main').innerText()).replace(/\s+/g, ' ');
+        const path = /path to green/i.test(x.flag);
+        const said = path ? await q.locator('.doing .ptg, .doing .ptg-none').count() > 0 : !!x.full && page.includes(x.full.replace(/\s+/g, ' '));
+        check(said, `[Home] 1: the reason cut short on a phone (“${x.full.slice(0, 50)}…”) is not in full on ${x.href.replace(/^\/demo/, '')}`);
+        await q.close();
+      }
       check(await noSideways(p), '[Home] sideways scroll at 360');
       await c.close();
       const [c2, q] = await open(360, 740, 'oskar', '/', true);

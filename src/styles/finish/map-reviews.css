@@ -130,6 +130,9 @@
   .decide .quiet-links .linkish, .healthy-group .linkish, .sheet .request-card .linkish, .sheet-foot > .linkish { display: inline-flex; align-items: center; min-height: 44px; }
   .sheet .seg.full button { min-height: 44px; }
 }
+/* The review's name wraps rather than losing its end, at every width: beside three 44px buttons on a 360px phone it
+   can't fit one line (RV 19). */
+.reviewbar > .stack > .ellipsis { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 /* The narrowest phones: the progress on its own thin line under the name, so the name has room (RV 19). */
 @container app (max-width: 400px) {
   .reviewbar { flex-wrap: wrap; row-gap: 6px; }

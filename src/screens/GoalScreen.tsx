@@ -542,12 +542,16 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const att = app.attentionOf(goal);
   const latest = att.status.latest;
   const status = att.status.status;
-  const signals = att.flags.filter((f) => !['due', 'off', 'risk', 'stale', 'trend'].includes(f.kind));
   const behind = status === 'off' || status === 'risk';
   const stale = status === 'stale';
+  // What else flags it, in full: Home and Watching show a flag's reason in two lines on a phone, and the whole of it is
+  // here, a tap away. The status's own reason is the text above; a worsening trend is said here only while the status
+  // doesn't already say it's behind. A missed or missing path to green is said in full under What's being done.
+  const signals = att.flags.filter((f) => !['due', 'off', 'risk', 'stale'].includes(f.kind) && !(f.kind === 'trend' && (behind || stale)));
   const reason = !!latest && !!latest.why && latest.why !== 'On plan.';
   // On plan with nothing said, there's nothing to explain.
   if (!behind && !stale && !reason && !latest?.next && !signals.length) return null;
+  const onlySignals = !behind && !stale && !reason && !latest?.next;
   const own = app.checkInsOf(goal);
   let k = own.length - 1;
   while (k > 0 && latest && own[k - 1]!.why === latest.why && own[k - 1]!.cause === latest.cause) k--;
@@ -556,6 +560,7 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const when = latest ? (latest.week === app.week ? 'this week’s check-in' : `the week ${latest.week} check-in`) : null;
   const [title, purpose] = stale ? ['Why it’s gone quiet', 'When the owner last said where it stands.']
     : behind ? ['Why it’s behind', `The owner’s reason, from ${when ?? 'their check-in'}.`]
+    : onlySignals ? ['Worth knowing', 'What the numbers flag that the status doesn’t say.']
     : ['The latest word', when ? `What the owner said in ${when}.` : 'What the owner has said so far.'];
   return (
     <section className="block why-block goal-section" aria-labelledby="g-why">
@@ -569,7 +574,11 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
       )}
       {signals.length > 0 && (
         <ul className="signal-tags" aria-label="Also worth knowing">
-          {signals.map((f) => <li key={f.kind} className="signal-tag" title={f.detail}><WarnMark />{f.label}</li>)}
+          {signals.map((f) => (
+            <li key={f.kind} className="signal-tag">
+              <WarnMark /><span><span className="signal-label">{f.label}</span>{/path/.test(f.kind) ? null : <>: <span className="signal-detail">{f.detail}</span></>}</span>
+            </li>
+          ))}
         </ul>
       )}
     </section>

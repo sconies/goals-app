@@ -135,6 +135,14 @@ describe('MCP server', () => {
     expect(JSON.parse(j.content[0]!.text).format).toBe('goals-app.export');
   });
 
+  it('says what needs someone in plain sentences, each ending in one full stop', async () => {
+    for (const who of ['rhea', 'amara', 'daniel']) {
+      const text = (await (await setup(who)).call('get_my_work')).content[0]!.text;
+      expect(text, who).toMatch(/Your goals needing attention: /);
+      expect(text, who).not.toMatch(/\.\.|\.;|\. \./);
+    }
+  });
+
   it('[ONE-ASK] reads and answers every kind of ask, under the same rules as the app', async () => {
     const amara = await setup('amara');
     const work = await amara.call('get_my_work');

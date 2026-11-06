@@ -104,6 +104,9 @@ function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLayout {
   return layout;
 }
 
+/** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
+const clause = (t: string) => t.trim().replace(/\.+$/, '');
+
 export const WORK_TOOLS: ToolDef[] = [
   /* ---------- Reading ---------- */
   {
@@ -146,8 +149,9 @@ export const WORK_TOOLS: ToolDef[] = [
         `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question} (${q.id})`).join('; ') : 'none'}.`,
         `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by} (${x.id})`).join('; ') : 'none'}.`,
         `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? ', overdue' : ''}` : ''} (${x.id})`).join('; ') : 'none'}.`,
-        `Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.join(' ')}`).join('; ') : 'none'}.`,
-        `Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === 'off' ? 'off track' : 'at risk'}): ${g.inHand}`).join('; ') : 'none'}.`,
+        // Each reason is a sentence with its own full stop: joined into one line, only the line's last one stays.
+        `Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.map(clause).join('. ')}`).join('; ') : 'none'}.`,
+        `Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === 'off' ? 'off track' : 'at risk'}): ${clause(g.inHand)}`).join('; ') : 'none'}.`,
       ].join('\n');
       return { data, text };
     },

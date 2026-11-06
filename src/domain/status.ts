@@ -1,5 +1,5 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
-import { daysSince, currentWeek, goalAsOf, planAt, projection, type Point, type Projection, planEnd } from './plan';
+import { daysSince, currentWeek, goalAsOf, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
 
 export const RANK: Record<DisplayStatus, number> = { done: 0, planned: 0, none: 0, on: 1, risk: 2, stale: 2, off: 3 };
@@ -36,6 +36,11 @@ export interface MetricAssessment {
   forecastMisses: boolean;
   ahead: boolean;
   behind: boolean;
+  /**
+   * Set when the number is on plan only as written at the goal's decimals (the plan moved less than they can show):
+   * the share of the planned move it is, unrounded (0.75 for 0.41 against 0.4067).
+   */
+  asWritten?: number;
 }
 
 export interface RangeAssessment {
@@ -78,7 +83,7 @@ export function assessMetric(goal: MetricGoal, weeks: number, week: number, actu
   const plan = planAt(goal.plan, week, weeks);
   const series = actual == null ? history : [...history.filter((p) => p.week < week), { week, value: actual }];
   // Project to when the target is due: the cycle's end, or later for a goal that runs to the end of the year.
-  const pr = projection(series, planEnd(goal.plan, weeks));
+  const pr = projectionFor(goal, series, planEnd(goal.plan, weeks));
   const fc = pr?.value ?? null;
   const dir = Math.sign(target - start);
   const base = { kind: 'metric' as const, week, plan, target, actual, forecast: fc, projection: pr, forecastMisses: fc != null && (fc - target) * dir < 0 };
@@ -91,9 +96,29 @@ export function assessMetric(goal: MetricGoal, weeks: number, week: number, actu
     return { ...base, calc: backwards ? 'risk' : 'on', ratio: null, ahead: false, behind: backwards };
   }
   // Rounded, so 95% of the plan is 95%, not 94.99999…% from floating point.
-  const ratio = Math.round(((actual - start) / planned) * 1e9) / 1e9;
+  const ratioOf = (v: number) => Math.round(((v - start) / planned) * 1e9) / 1e9;
+  // A number is typed to the goal's decimals. When the plan has moved less than they can show (a new goal's first
+  // week: 0.42 to 0.4067 USD, with two decimals), no number they can write is on track: 0.41 reads as behind, 0.40 as
+  // well ahead. Then the plan as written at those decimals (0.41) is on plan, as the gap beside it already says.
+  if (Math.abs(actual - Number(plan.toFixed(goal.decimals ?? 0))) < 1e-9 && !onTrackTypeable(start, planned, goal.decimals ?? 0, ratioOf)) {
+    return { ...base, calc: 'on', ratio: 1, ahead: false, behind: false, asWritten: ratioOf(actual) };
+  }
+  const ratio = ratioOf(actual);
   const calc: Status = ratio >= RULES.onTrack ? 'on' : ratio >= RULES.atRisk ? 'risk' : 'off';
   return { ...base, calc, ratio, ahead: ratio >= RULES.wellAhead, behind: ratio < RULES.onTrack };
+}
+
+/** Can any number written to `decimals` places be on track (95% of the planned move or more, short of well ahead)? */
+function onTrackTypeable(start: number, planned: number, decimals: number, ratioOf: (v: number) => number): boolean {
+  const step = 10 ** -decimals;
+  const a = start + planned * RULES.onTrack, b = start + planned * RULES.wellAhead;
+  // A band as wide as one step always holds a number; only a narrower one needs looking at, a step or two.
+  if (Math.abs(b - a) >= step) return true;
+  for (let k = Math.floor(Math.min(a, b) / step) - 1, end = Math.ceil(Math.max(a, b) / step) + 1; k <= end; k++) {
+    const r = ratioOf(Number((k * step).toFixed(decimals)));
+    if (r >= RULES.onTrack && r < RULES.wellAhead) return true;
+  }
+  return false;
 }
 
 export function assessRange(goal: RangeGoal, week: number, actual: number | null, previous: number | null): RangeAssessment {

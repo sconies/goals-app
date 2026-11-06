@@ -1,4 +1,4 @@
-import { currentWeek, forecast, planAt, projection, shapeProgress, valueSeries } from './plan';
+import { currentWeek, forecast, isCount, planAt, projection, projectionFor, shapeProgress, valueSeries } from './plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus, worst } from './status';
 import { emptyDraft, evaluate, MISSING_TEXT, REASON_CODES, toCheckIn, VALUE_CODES, type Draft } from './checkin';
 import { blankGoal, buildGoal, validateGoal } from './goal';
@@ -69,6 +69,23 @@ describe('plan', () => {
     expect(rise.high - rise.low).toBeCloseTo(0);
   });
 
+  it('never projects a count below zero, or a share outside 0–100%', () => {
+    const incidents: MetricGoal = { ...metric(12, 0), unit: 'incidents' };
+    const falling = [{ week: 1, value: 12 }, { week: 3, value: 8 }, { week: 5, value: 3 }, { week: 6, value: 2 }];
+    // The line itself heads well below zero by week 13; a count stops at zero, its range too.
+    expect(projection(falling, 13)!.low).toBeLessThan(0);
+    const p = projectionFor(incidents, falling, 13)!;
+    expect(isCount(incidents)).toBe(true);
+    expect(p.value).toBe(0);
+    expect(p.low).toBe(0);
+    expect(p.high).toBeGreaterThanOrEqual(0);
+    // A share stays within 0–100%; a time, money or a score isn't a count, and keeps its line.
+    const share = metric(80, 99);
+    expect(projectionFor(share, [{ week: 1, value: 80 }, { week: 3, value: 90 }, { week: 6, value: 99 }], 13)!.high).toBe(100);
+    for (const unit of ['hours', 'USD', 'pts', '%']) expect(isCount({ ...incidents, unit }), unit).toBe(false);
+    expect(isCount({ ...incidents, decimals: 1 })).toBe(false);
+  });
+
   it('keeps the latest check-in for each week', () => {
     const s = valueSeries([ci('m', 2, 5, { postedAt: '2026-09-21T10:00:00Z' }), ci('m', 2, 7, { postedAt: '2026-09-22T10:00:00Z' }), ci('m', 1, 3)]);
     expect(s).toEqual([{ week: 1, value: 3 }, { week: 2, value: 7 }]);
@@ -76,6 +93,21 @@ describe('plan', () => {
 });
 
 describe('metric status', () => {
+  it('is on plan when the number is the plan at the goal’s decimals (CI cost: 0.41 against 0.4067)', () => {
+    // 0.42 USD to 0.30 over 13 weeks: week 1's plan is 0.4108, 0.41 to the cent, and 0.41 is on plan, not behind.
+    const cost: MetricGoal = { ...metric(0.42, 0.3), unit: 'USD', decimals: 2 };
+    const c13: Cycle = { ...cycle, weeks: 13 };
+    const plan1 = planAt(cost.plan, 1, 13);
+    expect(plan1).not.toBe(0.41);
+    const on = assessMetric(cost, c13.weeks, 1, 0.41, []);
+    expect(on).toMatchObject({ calc: 'on', ahead: false, behind: false });
+    const draft: Draft = { ...emptyDraft(cost, null), value: '0.41' };
+    expect(evaluate(cost, c13, 1, draft, [])).toMatchObject({ reason: null, canPost: true });
+    // A cent either side is a real difference, as before.
+    expect(assessMetric(cost, 13, 1, 0.42, []).behind).toBe(true);
+    expect(assessMetric(cost, 13, 1, 0.40, []).ahead).toBe(true);
+  });
+
   const g = metric(30, 75); // straight: plan at week 4 is 30 + 45 * 4/13 ≈ 43.85
   it('is on track at 95% of planned progress or more', () => {
     const plan = planAt(g.plan, 4, 13);

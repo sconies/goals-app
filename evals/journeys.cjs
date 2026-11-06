@@ -169,6 +169,10 @@ const goalMenu = async (h, p, item) => {
 };
 
 const navTo = async (h, p, label) => {
+  // Wait for the app's navigation first. Right after p.goto a slow machine can still be showing "Loading goals…", and
+  // the instant visibility checks below would then take the phone's way (the tab bar's More) on a desktop, where it
+  // never appears (U8 timed out on the CI runners that way).
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
   const side = p.locator('.side').getByRole('link', { name: label });
   if (await side.isVisible().catch(() => false)) return h.click(side);
   const tab = p.locator('.tabbar').getByRole('link', { name: label });
@@ -182,8 +186,8 @@ const J = [];
 const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
 
 journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
-  // Rhea: two goals due. Image slimming is on plan (number, post, next: three interactions); the new CI cost goal can't
-  // be posted on plan to the penny (0.41 is behind, 0.40 well ahead of 0.4067), so it asks why, and she says.
+  // Rhea: two goals due. Image slimming is on plan (number, post, next: three interactions); the new CI cost goal comes
+  // in a cent better than its plan (0.40 against 0.41, well ahead of a small first step), so it asks why, and she says.
   let p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
   await see(p, '2 check-ins to do');
@@ -1252,22 +1256,16 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
   for (const row of await p.locator('.qrow').all()) {
     const title = (await row.locator('a').first().innerText()).trim();
     const g = s0.goals.find((x) => x.title === title);
-    // A number to keep in range sits comfortably inside its limit; a number to move is on plan, rounded towards the
-    // target (a goal one week into its plan is behind at the rounded plan: 0.41 against 0.4067 is 75% of the move).
-    const towards = (x) => { const f = 10 ** g.decimals; return ((g.plan.target >= g.plan.start ? Math.ceil(x * f - 1e-9) : Math.floor(x * f + 1e-9)) / f).toFixed(g.decimals); };
-    const v = g.kind === 'range' ? (g.range.bound === 'atMost' ? g.range.limit - 2 * g.range.margin : g.range.limit + 2 * g.range.margin).toFixed(g.decimals) : towards(planAt(g.plan, NOW));
+    // A number to keep in range sits comfortably inside its limit; a number to move is its plan as written at the
+    // goal's decimals, which is on plan (the CI cost's 0.4067 is typed as 0.41, and is on plan, not behind).
+    const v = g.kind === 'range' ? (g.range.bound === 'atMost' ? g.range.limit - 2 * g.range.margin : g.range.limit + 2 * g.range.margin).toFixed(g.decimals) : planAt(g.plan, NOW).toFixed(g.decimals);
     await h.fill(row.getByRole('textbox').first(), v);
   }
-  // A two-decimal goal one week into its plan can't land on plan exactly (0.41 is behind, 0.40 well ahead): the row
-  // asks why, and she says.
+  // Every number is on plan, so no row asks why (a two-decimal goal one week into its plan once did: 0.41 against
+  // 0.4067 read as behind).
   for (const row of await p.locator('.qrow').all()) {
-    for (const sel of await row.locator('select').all()) {
-      if (await sel.inputValue()) continue;
-      const first = await sel.locator('option').nth(1).getAttribute('value');
-      await sel.selectOption(first);
-    }
-    const boxes = await row.getByRole('textbox').all();
-    for (const box of boxes.slice(1)) if (!(await box.inputValue())) await h.fill(box, 'The runner budget came through a week early.');
+    const asks = (await row.getByRole('textbox').count()) > 1 || (await row.locator('select').evaluateAll((els) => els.some((e) => !e.value)));
+    if (asks) fail(`a number on plan asks why: ${(await row.innerText()).split('\n')[0]}`);
   }
   await h.click(p.getByRole('button', { name: /^Post/ }));
   await see(p, 'Saved', 'posting the table did not confirm').catch(async (e) => {
@@ -1917,7 +1915,15 @@ async function finishChecks(add) {
       const r = await c.newPage();
       await r.goto(url('/')); if (who) await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.goto(url(route)); await r.waitForTimeout(400);
-      // The example is built as the page opens: measure once the fade-in has finished, not part-way through it.
+      // The example is built as the page opens: wait for the page itself first. On a slower machine (the CI runners) the
+      // shell can still be empty here, with nothing moving yet, so the wait below ended at once and the measuring
+      // landed part-way through the page's entrance: WA 10 read 27px for a 24px gap, the rows still 3px into their rise.
+      await r.waitForFunction(() => {
+        if (document.querySelector('.preboot, .boot')) return false;
+        const main = document.querySelector('main');
+        return !main || [...main.children].some((e) => !e.matches('.page-help'));
+      }, null, { timeout: 15000 }).catch(() => {});
+      // Then measure once the fade-in has finished, not part-way through it.
       await r.waitForFunction(() => document.getAnimations().every((x) => x.playState !== 'running'), null, { timeout: 3000 }).catch(() => {});
       return [c, r];
     };

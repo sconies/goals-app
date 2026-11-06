@@ -4,7 +4,7 @@
    ranges and dated stages alike. Pure: the goal page, its shared image and anything else asks here, never restates it. */
 import { isShare } from './checkin';
 import { fmt, fmtDiff, NO_VALUE, rangeText } from './format';
-import { goalAsOf, planAt, planEnd, projection, type Projection } from './plan';
+import { goalAsOf, planAt, planEnd, projectionFor, type Projection } from './plan';
 import { assessMetric, assessMilestone, assessPosted, checkInsFor, LABEL } from './status';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 
@@ -196,7 +196,7 @@ function rangeFacts(goal: RangeGoal, cycle: Cycle, own: CheckIn[], stale: boolea
   out.push(sinceFact(goal, own, safe));
 
   const due = cycle.weeks;
-  const pr = stale ? null : projection(valued.map((c) => ({ week: c.week, value: c.value! })), due);
+  const pr = stale ? null : projectionFor(goal, valued.map((c) => ({ week: c.week, value: c.value! })), due);
   if (stale) out.push({ key: 'projection', label: 'Projection', value: 'Not projected', detail: 'The last check-in is too old to project from', tone: 'flat' });
   else if (!pr) out.push({ key: 'projection', label: 'Projection', value: 'Not enough check-ins yet', detail: 'Projected by the app once there are three weeks of numbers', tone: 'flat' });
   else {
