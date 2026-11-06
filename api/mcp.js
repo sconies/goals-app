@@ -29805,28 +29805,36 @@ var ARTICLES = [
 		title: "Settings",
 		summary: "Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your AI assistant tokens. It also says what the app records.",
 		group: "you",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"Light or dark: light, dark, or follow your device.",
-				"Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
-				"Motion lab, at the bottom: play with how a goal’s page moves. Speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.",
-				"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
-				"You: your name, job title and team. An admin changes these.",
-				"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
-				"Your AI assistants: the tokens that act as you, which you can revoke.",
-				"Detail pages have a Back link to where you came from."
-			]
-		}, {
-			heading: "Good to know",
-			text: ["How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion."]
-		}],
+		sections: [
+			{
+				heading: "How to use it",
+				list: [
+					"Light or dark: light, dark, or follow your device.",
+					"Accent colour: Faro’s teal (the default), or the earlier cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
+					"Motion lab, at the bottom: play with how a goal’s page moves. Speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.",
+					"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
+					"You: your name, job title and team. An admin changes these.",
+					"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
+					"Your AI assistants: the tokens that act as you, which you can revoke.",
+					"Detail pages have a Back link to where you came from."
+				]
+			},
+			{
+				heading: "Good to know",
+				text: ["How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion."]
+			},
+			{
+				heading: "Faro’s look",
+				text: ["The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), on the welcome page and in the browser tab.", "Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk."]
+			}
+		],
 		routes: ["/settings"],
 		screens: ["Settings"],
 		reqs: [
 			"SETTINGS",
 			"MOTION",
-			"MOTION-ALIVE"
+			"MOTION-ALIVE",
+			"BRAND"
 		],
 		keywords: [
 			"theme",
@@ -29837,7 +29845,12 @@ var ARTICLES = [
 			"sidebar",
 			"collapse",
 			"appearance",
-			"back link"
+			"back link",
+			"faro",
+			"logo",
+			"name",
+			"teal",
+			"cobalt"
 		],
 		related: [
 			"ai-assistants",
@@ -30007,7 +30020,7 @@ var ARTICLES = [
 	{
 		id: "help",
 		title: "Help and what’s new",
-		summary: "This guide says what everything does. What’s new lists each release, newest first.",
+		summary: "This guide says what everything in Faro does. What’s new lists each release, newest first.",
 		group: "you",
 		sections: [{
 			heading: "How to use it",
@@ -30103,6 +30116,18 @@ var WHATS_NEW = [
 			"On paper, a goal fits one A4 page again, and on a 360px phone nothing runs off the side."
 		],
 		articles: ["goal-page", "print"]
+	},
+	{
+		id: "faro",
+		date: "2026-11-06",
+		title: "Goals is now Faro",
+		points: [
+			"The app has a name: Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar, on the welcome page and in your browser tab.",
+			"A new look to match: warm paper, dark ink and the lighthouse’s teal, in light and in dark.",
+			"Status colours haven’t changed, except that Done is now a calm slate teal instead of blue. The logo’s amber is used nowhere else, so amber still only ever means At risk.",
+			"Prefer the earlier colours? Cobalt, violet, petrol and graphite are still in Settings → Appearance. If you had chosen violet, petrol or graphite, you keep it."
+		],
+		articles: ["settings", "help"]
 	},
 	{
 		id: "one-ask-one-watching",
@@ -32656,9 +32681,10 @@ async function callTool(name, args, ctx) {
 	}
 }
 // src/mcp/protocol.ts
+/** The name stays 'goals' (assistants already have it saved); the title is the product's. */
 var SERVER_INFO = {
 	name: "goals",
-	title: "Goals",
+	title: "Faro",
 	version: "1.0.0"
 };
 var PROTOCOL_VERSIONS = [
@@ -32666,7 +32692,7 @@ var PROTOCOL_VERSIONS = [
 	"2025-03-26",
 	"2024-11-05"
 ];
-var INSTRUCTIONS = "Goals and weekly check-ins for one workspace, acting as the person whose token this is. Start with get_overview or find_goals. Writes follow the app’s rules and are logged as that person; use dry_run (or bulk_change without apply) to check first. Weeks count from the cycle start.";
+var INSTRUCTIONS = "Faro: goals and weekly check-ins for one workspace, acting as the person whose token this is. Start with get_overview or find_goals. Writes follow the app’s rules and are logged as that person; use dry_run (or bulk_change without apply) to check first. Weeks count from the cycle start.";
 var ok = (id, result) => ({
 	jsonrpc: "2.0",
 	id: id ?? null,

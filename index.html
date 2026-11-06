@@ -3,27 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Goals</title>
+    <title>Faro</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#F6F5F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F1B1C" media="(prefers-color-scheme: dark)" />
     <!-- A pasted link shows this preview. It names no goal and no numbers: a goal's own preview would need a server that can
          read it without the viewer's sign-in, which the static hosting doesn't have (the flagship goal page, 5 Nov). -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Goals" />
+    <meta property="og:title" content="Faro" />
     <meta property="og:description" content="A goal, who owns it and how it’s doing. Sign in to see it." />
     <!-- The theme and accent chosen in Settings (src/app/appearance.ts), on the page before anything is drawn: no flash. -->
-    <script>try{var d=document.documentElement,t=localStorage.getItem('goals-theme'),a=localStorage.getItem('goals-accent');if(t==='light'||t==='dark')d.setAttribute('data-theme',t);if(a==='violet'||a==='petrol'||a==='graphite')d.setAttribute('data-accent',a);var m=localStorage.getItem('goals-pace'),i=localStorage.getItem('goals-impact'),o=localStorage.getItem('goals-motion-off'),P={quick:1,steady:2,slow:3},I={gentle:.5,strong:1,big:1.6};m=P[m]!=null?P[m]:parseFloat(m);i=I[i]!=null?I[i]:parseFloat(i);if(m>=1&&m<=4)d.style.setProperty('--pace',m);if(i>=0&&i<=2)d.style.setProperty('--impact',i);if(o)d.setAttribute('data-motion-off',o.split(',').join(' '));var l=localStorage.getItem('goals-landing');if(l==='spring'||l==='wobble'||l==='drop')d.setAttribute('data-landing',l)}catch(e){}</script>
+    <script>try{var d=document.documentElement,t=localStorage.getItem('goals-theme'),a=localStorage.getItem('goals-accent');if(t==='light'||t==='dark')d.setAttribute('data-theme',t);if(a==='cobalt'||a==='violet'||a==='petrol'||a==='graphite')d.setAttribute('data-accent',a);var m=localStorage.getItem('goals-pace'),i=localStorage.getItem('goals-impact'),o=localStorage.getItem('goals-motion-off'),P={quick:1,steady:2,slow:3},I={gentle:.5,strong:1,big:1.6};m=P[m]!=null?P[m]:parseFloat(m);i=I[i]!=null?I[i]:parseFloat(i);if(m>=1&&m<=4)d.style.setProperty('--pace',m);if(i>=0&&i<=2)d.style.setProperty('--impact',i);if(o)d.setAttribute('data-motion-off',o.split(',').join(' '));var l=localStorage.getItem('goals-landing');if(l==='spring'||l==='wobble'||l==='drop')d.setAttribute('data-landing',l)}catch(e){}</script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
     <!-- Shown until the app's own code has loaded, so a slow connection never sees a blank page. -->
     <style>
-      body { margin: 0; background: #F5F6F8; }
-      .preboot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px; font: 600 15px/22px Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color: #101828; }
-      .preboot span { font-size: 14px; font-weight: 400; line-height: 20px; color: #475467; }
-      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { background: #0E1116; } :root:not([data-theme="light"]) .preboot { color: #E8EBF0; } :root:not([data-theme="light"]) .preboot span { color: #9AA3B2; } }
-      :root[data-theme="dark"] body { background: #0E1116; } :root[data-theme="dark"] .preboot { color: #E8EBF0; } :root[data-theme="dark"] .preboot span { color: #9AA3B2; }
+      body { margin: 0; background: #F6F5F1; }
+      .preboot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px; font: 600 15px/22px Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color: #183638; }
+      .preboot span { font-size: 14px; font-weight: 400; line-height: 20px; color: #465759; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { background: #0F1B1C; } :root:not([data-theme="light"]) .preboot { color: #E6EEED; } :root:not([data-theme="light"]) .preboot span { color: #94A8A8; } }
+      :root[data-theme="dark"] body { background: #0F1B1C; } :root[data-theme="dark"] .preboot { color: #E6EEED; } :root[data-theme="dark"] .preboot span { color: #94A8A8; }
     </style>
   </head>
   <body>
-    <div id="root"><div class="preboot" aria-busy="true">Goals<span>Loading…</span></div></div>
+    <div id="root"><div class="preboot" aria-busy="true">Faro<span>Loading…</span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

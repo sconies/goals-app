@@ -43,7 +43,7 @@ module.exports = {
       const segs = await p.locator('.steps-bar i').evaluateAll((es) => es.map((e) => [e.getBoundingClientRect().width, getComputedStyle(e).backgroundColor]));
       if (Math.max(...segs.map((s) => s[0])) - Math.min(...segs.map((s) => s[0])) > 1) f('(9) the step bar segments are uneven');
       if (segs[0][1] !== segs[1][1]) f('(9) done and current steps are different colours');
-      if (segs[3][1] !== 'rgb(208, 213, 221)') f(`(9) steps to come are ${segs[3][1]}`);
+      if (segs[3][1] !== 'rgb(210, 206, 196)') f(`(9) steps to come are ${segs[3][1]}`);
       // (22) unit and decimals line up with today and target
       const [u, dd, t, g] = [await box(p.getByLabel('Unit')), await box(p.getByLabel('Decimals')), await box(p.getByLabel(/^Today \(week/)), await box(p.getByLabel(/^Target \(week/))];
       if (!near(u.x, t.x) || !near(dd.x, g.x) || !near(dd.r, g.r)) f(`(22) Unit/Decimals (${u.x}, ${dd.x}) don't line up with Today/Target (${t.x}, ${g.x})`);
@@ -67,7 +67,7 @@ module.exports = {
       if (!(await p.locator('.chart .c-target').count()) || !(await p.locator('.chart .c-today').count())) f('(2) the target line or the Now marker is gone');
       // (15) real numbers in the text colour, not placeholders
       const pi = p.getByLabel(/^Plan for week \d+/).first();
-      if (!(await pi.inputValue()) || (await pi.getAttribute('placeholder')) || (await css(pi, 'color')) !== 'rgb(16, 24, 40)') f('(15) plan numbers are placeholders, not real values');
+      if (!(await pi.inputValue()) || (await pi.getAttribute('placeholder')) || (await css(pi, 'color')) !== 'rgb(24, 54, 56)') f('(15) plan numbers are placeholders, not real values');
       await pi.fill('30'); await p.waitForTimeout(100);
       if (!(await p.getByText('· set by you').count())) f('(15) a hand-set week is not marked "set by you"');
       const endRow = p.locator('.plantable tbody tr').last();
@@ -236,7 +236,7 @@ module.exports = {
       await p.emulateMedia({ colorScheme: 'dark' });
       await toNumbers(p);
       const bg = await css(p.locator('.seg button[aria-pressed="true"]'), 'backgroundColor');
-      if (bg !== 'rgb(52, 60, 75)') f(`(25) the chosen segment in dark is ${bg}`);
+      if (bg !== 'rgb(44, 68, 71)') f(`(25) the chosen segment in dark is ${bg}`);
       await c.close();
     }
 

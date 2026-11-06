@@ -640,7 +640,7 @@ export const ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Light or dark: light, dark, or follow your device.',
-        'Accent colour: cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.',
+        'Accent colour: Faro’s teal (the default), or the earlier cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.',
         'Motion lab, at the bottom: play with how a goal’s page moves. Speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.',
         'Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.',
         'You: your name, job title and team. An admin changes these.',
@@ -649,11 +649,12 @@ export const ARTICLES: Article[] = [
         'Detail pages have a Back link to where you came from.',
       ] },
       { heading: 'Good to know', text: ['How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion.'] },
+      { heading: 'Faro’s look', text: ['The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), on the welcome page and in the browser tab.', 'Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk.'] },
     ],
     routes: ['/settings'],
     screens: ['Settings'],
-    reqs: ['SETTINGS', 'MOTION', 'MOTION-ALIVE'],
-    keywords: ['theme', 'dark mode', 'light mode', 'accent', 'colour', 'sidebar', 'collapse', 'appearance', 'back link'],
+    reqs: ['SETTINGS', 'MOTION', 'MOTION-ALIVE', 'BRAND'],
+    keywords: ['theme', 'dark mode', 'light mode', 'accent', 'colour', 'sidebar', 'collapse', 'appearance', 'back link', 'faro', 'logo', 'name', 'teal', 'cobalt'],
     related: ['ai-assistants', 'any-device', 'recording'],
   },
   {
@@ -740,7 +741,7 @@ export const ARTICLES: Article[] = [
   {
     id: 'help',
     title: 'Help and what’s new',
-    summary: 'This guide says what everything does. What’s new lists each release, newest first.',
+    summary: 'This guide says what everything in Faro does. What’s new lists each release, newest first.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [

@@ -237,10 +237,10 @@
 /* Dark: the lane recedes and the cards sit on it (17). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .board-col { background: var(--surface); }
-  :root:not([data-theme="light"]) .board-card { background: #1D232C; border-color: var(--line); }
+  :root:not([data-theme="light"]) .board-card { background: #1C2E30; border-color: var(--line); }
 }
 :root[data-theme="dark"] .board-col { background: var(--surface); }
-:root[data-theme="dark"] .board-card { background: #1D232C; border-color: var(--line); }
+:root[data-theme="dark"] .board-card { background: #1C2E30; border-color: var(--line); }
 /* The reason: three lines on the Board, two on Cards; the whole of it is the tooltip (3). */
 .board-card .story.brief dd { -webkit-line-clamp: 3; }
 .gcard .story.brief dd { -webkit-line-clamp: 2; }

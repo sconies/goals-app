@@ -8,9 +8,9 @@
 .ci .title-xl, .ci .qtitle, .quick .title-xl { font-weight: 700; }
 
 /* Step dots: the dots still to do are visible (at least 3:1 on the page) (Check-in 4). */
-:root { --ci-todo: #858FA0; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ci-todo: #667085; } }
-:root[data-theme="dark"] { --ci-todo: #667085; }
+:root { --ci-todo: #7D8785; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ci-todo: #627676; } }
+:root[data-theme="dark"] { --ci-todo: #627676; }
 .ci .dots i { background: var(--ci-todo); }
 .ci .dots i.done { background: var(--on-mark); }
 .ci .dots i.now { background: var(--accent); }

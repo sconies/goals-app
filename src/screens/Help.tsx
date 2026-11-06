@@ -33,7 +33,7 @@ export function HelpHome() {
     <div className="page narrow help-page">
       <div className="page-head">
         <h1 className="title-xl">Help</h1>
-        <span className="hint">What each page does, and how to use it.</span>
+        <span className="hint">What each page in Faro does, and how to use it.</span>
       </div>
       <label className="help-search">
         <span className="sr">Search help</span>

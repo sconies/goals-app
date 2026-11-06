@@ -395,10 +395,10 @@ module.exports = {
     /* ---------- plan and actual never alike; which way is better (Lane, 5 Nov) ---------- */
     for (const [ws, who, route, way] of [['platform-org', 'rhea', '/goals/ns-ai', 'Higher'], ['platform-org', 'amara', '/goals/ns-lead', 'Lower']]) {
       const [c, p] = await at(browser, url, { w: 1280, h: 800, ws, who, route });
-      for (const theme of ['light', 'dark']) for (const accent of ['cobalt', 'violet', 'petrol', 'graphite']) {
+      for (const theme of ['light', 'dark']) for (const accent of ['faro', 'cobalt', 'violet', 'petrol', 'graphite']) {
         const r = await p.evaluate(([theme, accent]) => {
           const d = document.documentElement;
-          d.setAttribute('data-theme', theme); if (accent === 'cobalt') d.removeAttribute('data-accent'); else d.setAttribute('data-accent', accent);
+          d.setAttribute('data-theme', theme); if (accent === 'faro') d.removeAttribute('data-accent'); else d.setAttribute('data-accent', accent);
           const st = (q) => { const e = document.querySelector('.goal-chart ' + q); if (!e) return null; const s = getComputedStyle(e); return { c: s.stroke, w: parseFloat(s.strokeWidth), o: Number(s.strokeOpacity) }; };
           return { plan: st('.c-plan'), act: st('.c-act'), better: document.querySelector('.goal-chart .c-better-t')?.textContent ?? '' };
         }, [theme, accent]);

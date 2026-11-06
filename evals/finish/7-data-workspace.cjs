@@ -35,7 +35,7 @@ module.exports = {
       const cs = getComputedStyle(td), dot = getComputedStyle(td, '::after');
       return { bg: cs.backgroundColor, sh: cs.boxShadow, pos: cs.position, w: td.getBoundingClientRect().width, dot: [dot.width, dot.height, dot.top, dot.right].join(' '), weight: getComputedStyle(td.querySelector('input')).fontWeight, inputH: td.querySelector('input').getBoundingClientRect().height, tdH: td.getBoundingClientRect().height };
     });
-    if (ed.bg !== 'rgb(238, 241, 253)' || !/1px inset/.test(ed.sh) || ed.dot !== '6px 6px 6px 6px' || ed.weight !== '400') fails.push(`[D4] an edited name cell: fill ${ed.bg}, outline ${ed.sh}, dot ${ed.dot}, weight ${ed.weight}`);
+    if (ed.bg !== 'rgb(226, 241, 239)' || !/1px inset/.test(ed.sh) || ed.dot !== '6px 6px 6px 6px' || ed.weight !== '400') fails.push(`[D4] an edited name cell: fill ${ed.bg}, outline ${ed.sh}, dot ${ed.dot}, weight ${ed.weight}`);
     if (ed.pos !== 'sticky' || !near(ed.w, 160)) fails.push(`[D3, D10] 360 name column is ${ed.pos}, ${Math.round(ed.w)}px (want sticky, 160)`);
     if (!near(ed.inputH, ed.tdH - 1)) fails.push(`[D11] an input is ${Math.round(ed.inputH)}px in a ${Math.round(ed.tdH)}px cell`);
     const tabW2 = await r.evaluate(() => document.querySelector('[role="tab"][aria-selected="true"]').getBoundingClientRect().width);
@@ -82,7 +82,7 @@ module.exports = {
     // Nothing matches: inside the box, quiet.
     await r.getByPlaceholder('Search goals').fill('zzzz'); await r.waitForTimeout(250);
     const em = await r.evaluate(() => { const e = document.querySelector('.data-wrap .data-empty'); if (!e) return null; const cs = getComputedStyle(e); return { c: cs.color, w: cs.fontWeight, link: !!e.querySelector('button.linkish') }; });
-    if (!em || em.c !== 'rgb(71, 84, 103)' || em.w !== '400' || !em.link) fails.push(`[D18] no rows: ${JSON.stringify(em)}`);
+    if (!em || em.c !== 'rgb(70, 87, 89)' || em.w !== '400' || !em.link) fails.push(`[D18] no rows: ${JSON.stringify(em)}`);
     await c.close();
 
     // Plans: week columns 72px. Columns: a grouped chooser in two columns.
@@ -105,11 +105,11 @@ module.exports = {
     });
     if (rv.gaps.some((g) => g < 8)) fails.push(`[D5] review parts ${rv.gaps.join('/')}px apart`);
     if (/rgba\(0, 0, 0, 0\)/.test(rv.border)) fails.push('[D5] Keep editing has no border');
-    if (rv.ta && rv.ta !== 'rgb(208, 213, 221)') fails.push(`[D8] the reason opens with a ${rv.ta} border`);
+    if (rv.ta && rv.ta !== 'rgb(210, 206, 196)') fails.push(`[D8] the reason opens with a ${rv.ta} border`);
     if (rv.ta) {
       await r.getByRole('dialog').getByRole('button', { name: /^Save/ }).click({ force: true }); await r.waitForTimeout(200);
       const t2 = await r.evaluate(() => getComputedStyle(document.querySelector('[role="dialog"] textarea')).borderTopColor);
-      if (t2 === 'rgb(208, 213, 221)') fails.push('[D8] pressing Save without a reason does not mark the field');
+      if (t2 === 'rgb(210, 206, 196)') fails.push('[D8] pressing Save without a reason does not mark the field');
     }
     await c.close();
 
@@ -159,7 +159,7 @@ module.exports = {
       return { cols: cs.gridTemplateColumns, align: cs.alignItems, avTop: av.top, nameTop: name.top, nameLeft: name.left, avRight: av.right, hint: hint ? [getComputedStyle(hint).fontWeight, getComputedStyle(hint).color].join(' ') : '', nameW: getComputedStyle(opt.querySelector('.person-name')).fontWeight, cntGap: cnt.left - words.right, cntTop: Math.abs(cnt.top - words.top), addBelow: add ? add.top >= h2.getBoundingClientRect().bottom - 1 : true, marks: [...document.querySelectorAll('.ws-line .wsmark')].map((m) => m.innerText.trim()).join('') };
     });
     if (!/^24px /.test(ws.cols) || ws.align !== 'start' || !near(ws.nameLeft - ws.avRight, 12)) fails.push(`[W1] a person row: ${ws.cols}, align ${ws.align}, name ${Math.round(ws.nameLeft - ws.avRight)}px from the avatar`);
-    if (ws.hint !== '400 rgb(71, 84, 103)' || ws.nameW !== '550') fails.push(`[W14] job title ${ws.hint}, name weight ${ws.nameW}`);
+    if (ws.hint !== '400 rgb(70, 87, 89)' || ws.nameW !== '550') fails.push(`[W14] job title ${ws.hint}, name weight ${ws.nameW}`);
     if (ws.cntGap > 12 || ws.cntTop > 6 || !ws.addBelow) fails.push(`[W19] 360 heading count ${Math.round(ws.cntGap)}px after the last word; Add a person below: ${ws.addBelow}`);
     if (new Set(ws.marks).size < 2) fails.push(`[W21] every workspace mark is "${ws.marks[0]}"`);
     await r.getByRole('button', { name: 'Add a person' }).click(); await r.waitForTimeout(300);
@@ -184,7 +184,7 @@ module.exports = {
     const e0 = await r.evaluate(() => { const al = [...document.querySelectorAll('[role="alert"]')].filter((x) => x.getClientRects().length); const inp = document.querySelector('.qsection input').getBoundingClientRect(); return { n: al.length, inFoot: al.some((a) => a.closest('.focus-foot')), gap: al[0] ? al[0].getBoundingClientRect().top - inp.bottom : -1, color: al[0] ? getComputedStyle(al[0]).color : '', focused: document.activeElement === document.querySelector('.qsection input') }; });
     if (e0.inFoot || !near(e0.gap, 8, 2) || e0.color !== 'rgb(180, 35, 24)' || !e0.focused) fails.push(`[W7] step 1 problem: in footer ${e0.inFoot}, ${Math.round(e0.gap)}px under the field, ${e0.color}, focused ${e0.focused}`);
     const bar = await r.evaluate(() => [...document.querySelectorAll('.steps-bar i')].map((i) => `${getComputedStyle(i).backgroundColor}/${i.getBoundingClientRect().height}`));
-    if (bar[0] !== 'rgb(52, 81, 209)/6' || bar[1] !== 'rgb(208, 213, 221)/4') fails.push(`[W5] progress: ${bar.slice(0, 2).join(', ')}`);
+    if (bar[0] !== 'rgb(33, 150, 142)/6' || bar[1] !== 'rgb(210, 206, 196)/4') fails.push(`[W5] progress: ${bar.slice(0, 2).join(', ')}`);
     await r.getByLabel('Name').first().fill('Test space');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(200);
     await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform');
@@ -218,13 +218,13 @@ module.exports = {
     await r.getByLabel('Choose a spreadsheet').setInputFiles({ name: 'plan.csv', mimeType: 'text/csv', buffer: Buffer.from('ID,Goal,Week 45,Week 46,Week 47\nmttr-pir,Post-incident actions closed within 30 days,30,31,32\n') });
     await r.waitForTimeout(500);
     const ta = await r.evaluate(() => { const t = document.querySelector('textarea'); return t ? getComputedStyle(t).borderTopColor : null; });
-    if (ta && ta !== 'rgb(208, 213, 221)') fails.push(`[W8] the plan reason opens with a ${ta} border`);
+    if (ta && ta !== 'rgb(210, 206, 196)') fails.push(`[W8] the plan reason opens with a ${ta} border`);
     const chev0 = await box(r, '.change-goal .change-chev');
     await r.locator('.change-goal summary').first().click(); await r.waitForTimeout(300);
     const pv = await r.evaluate(() => { const g = document.querySelector('.change-goal'); const title = g.querySelector('summary .strong').getBoundingClientRect(); const det = g.querySelector('.changes li').getBoundingClientRect(); const ch = g.querySelector('.change-chev').getBoundingClientRect(); const save = [...document.querySelectorAll('.import-foot .btn.primary')].pop(); const cs = getComputedStyle(save); return { off: det.left - title.left, chev: ch.left, chevRight: ch.right, title: title.left, table: !!g.querySelector('.plan-diff-table'), save: `${cs.opacity} ${cs.backgroundColor} ${cs.whiteSpace}` }; });
     if (!chev0 || Math.abs(pv.chev - chev0.left) > 1 || pv.chevRight > pv.title) fails.push(`[W3] the chevron moves ${chev0 ? Math.round(pv.chev - chev0.left) : '?'}px when opened`);
     if (Math.abs(pv.off) > 1 || !pv.table) fails.push(`[W9] plan details ${Math.round(pv.off)}px off the title; week table ${pv.table}`);
-    if (pv.save !== '1 rgb(208, 213, 221) nowrap') fails.push(`[W16] Save not ready: ${pv.save}`);
+    if (pv.save !== '1 rgb(210, 206, 196) nowrap') fails.push(`[W16] Save not ready: ${pv.save}`);
     await c.close();
     [c, r] = await open(1280, 800, 'rhea', '/goals');
     await r.locator('button.btn:visible', { hasText: /^Export$/ }).first().click(); await r.waitForTimeout(400);

@@ -4,6 +4,10 @@
    admin renaming the workspace and adding, renaming and removing teams. Measured in the built app at phone, tablet and
    desktop widths. */
 const round = (n) => Math.round(n * 10) / 10;
+/* Faro's page colours (src/styles.css): warm paper in light, deep ink-teal in dark. */
+const LIGHT_BG = 'rgb(246, 245, 241)';
+const DARK_BG = 'rgb(15, 27, 28)';
+const DARK_SURFACE = 'rgb(21, 36, 38)';
 
 /** WCAG contrast of two CSS colours (rgb() or #hex), worked out in the page. */
 const CONTRAST = `(a, b) => {
@@ -15,8 +19,8 @@ const CONTRAST = `(a, b) => {
 module.exports = {
   id: 'N4',
   area: 'shell-settings',
-  title: 'Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin',
-  reqs: ['SETTINGS', 'NAV-GOALS', 'WORKSPACE-ADMIN'],
+  title: 'Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours',
+  reqs: ['SETTINGS', 'NAV-GOALS', 'WORKSPACE-ADMIN', 'BRAND'],
   async run({ open, url, browser }) {
     const fails = [];
     const fail = (ok, msg) => { if (!ok) fails.push(msg); };
@@ -58,21 +62,21 @@ module.exports = {
       const bg = () => p.evaluate(() => getComputedStyle(document.body).backgroundColor);
       const look = p.getByRole('group', { name: 'Light or dark' });
       await look.getByRole('button', { name: 'Dark' }).click();
-      fail(await bg() === 'rgb(14, 17, 22)', `[SETTINGS] Dark: the page is ${await bg()}`);
+      fail(await bg() === DARK_BG, `[SETTINGS] Dark: the page is ${await bg()}`);
       const card = await p.evaluate(() => getComputedStyle(document.querySelector('.accent-opt')).backgroundColor);
-      fail(card === 'rgb(22, 26, 33)', `[SETTINGS] Dark: a surface is ${card}`);
+      fail(card === DARK_SURFACE, `[SETTINGS] Dark: a surface is ${card}`);
       await p.reload(); await p.waitForTimeout(300);
-      fail(await bg() === 'rgb(14, 17, 22)' && await look.getByRole('button', { name: 'Dark' }).getAttribute('aria-pressed') === 'true', '[SETTINGS] Dark is not kept after a reload');
+      fail(await bg() === DARK_BG && await look.getByRole('button', { name: 'Dark' }).getAttribute('aria-pressed') === 'true', '[SETTINGS] Dark is not kept after a reload');
       // No flash: hold the app's code back and look at the page that's drawn before it.
       await p.route('**/assets/*.js', async (r) => { await new Promise((ok) => setTimeout(ok, 1200)); await r.continue(); });
       await p.goto(url('/'), { waitUntil: 'commit' });
       await p.locator('.preboot').waitFor({ state: 'attached', timeout: 3000 });
       const early = await p.evaluate(() => ({ theme: document.documentElement.getAttribute('data-theme'), bg: getComputedStyle(document.body).backgroundColor, preboot: !!document.querySelector('.preboot') }));
-      fail(early.preboot && early.theme === 'dark' && early.bg === 'rgb(14, 17, 22)', `[SETTINGS] before the app's code runs: ${JSON.stringify(early)} (want dark, no flash of light)`);
+      fail(early.preboot && early.theme === 'dark' && early.bg === DARK_BG, `[SETTINGS] before the app's code runs: ${JSON.stringify(early)} (want dark, no flash of light)`);
       await p.unroute('**/assets/*.js');
       await p.goto(url('/settings')); await p.waitForTimeout(300);
       await look.getByRole('button', { name: 'Light' }).click();
-      fail(await bg() === 'rgb(245, 246, 248)', `[SETTINGS] Light: the page is ${await bg()}`);
+      fail(await bg() === LIGHT_BG, `[SETTINGS] Light: the page is ${await bg()}`);
       await look.getByRole('button', { name: 'System' }).click();
       fail(await p.evaluate(() => !document.documentElement.hasAttribute('data-theme')), '[SETTINGS] System still forces a theme');
       await c.close();
@@ -81,7 +85,7 @@ module.exports = {
       const q = await c2.newPage();
       await q.goto(url('/settings')); await q.waitForTimeout(400);
       const sys = await q.evaluate(() => getComputedStyle(document.body).backgroundColor);
-      fail(sys === 'rgb(14, 17, 22)', `[SETTINGS] System on a dark device: the page is ${sys}`);
+      fail(sys === DARK_BG, `[SETTINGS] System on a dark device: the page is ${sys}`);
       await c2.close();
     });
 
@@ -90,7 +94,7 @@ module.exports = {
       const [c, p] = await open(1280, 800, 'rhea', '/settings');
       const radios = p.getByRole('radiogroup', { name: 'Accent colour' }).getByRole('radio');
       const n = await radios.count();
-      fail(n >= 3 && n <= 4, `[SETTINGS] ${n} accent colours (want 3 or 4)`);
+      fail(n === 5 && /^Faro/.test(await radios.nth(0).textContent()), `[SETTINGS] ${n} accent colours, first “${await radios.nth(0).textContent()}” (want 5, Faro first)`);
       const seen = new Set();
       for (const theme of ['Light', 'Dark']) {
         await p.getByRole('group', { name: 'Light or dark' }).getByRole('button', { name: theme }).click();
@@ -320,6 +324,59 @@ module.exports = {
       fail(!(await p.getByRole('button', { name: /^Rename|Add a team|^Remove/ }).count()) && await p.locator('.team-opt').count() >= 6, '[WORKSPACE-ADMIN] someone who isn’t an admin is offered rename, add or remove, or can’t see the teams');
       fail(await p.getByRole('link', { name: 'Settings' }).first().isVisible(), '[SETTINGS] a non-admin on Workspace is not pointed to Settings for their tokens');
       await c.close();
+    });
+
+    /* ---------- [BRAND] Faro: the name in the title, the favicon, the logo, readable colours in light and dark ---------- */
+    await step('brand', async () => {
+      // The welcome page (the real app, no workspace yet): the logo, named “Faro”, above the promise.
+      const c = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      const p = await c.newPage();
+      await p.goto(live('/'));
+      await p.getByRole('heading', { name: 'Weekly goals that stay on track' }).waitFor({ timeout: 5000 });
+      const logo = p.locator('.welcome').getByRole('img', { name: 'Faro', exact: true });
+      fail(await logo.count() === 1 && await logo.isVisible(), '[BRAND] the welcome page has no logo named “Faro”');
+      const order = await p.evaluate(() => { const l = document.querySelector('.welcome .faro-logo'), h = document.querySelector('.welcome h1'); return !!l && !!h && !!(l.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING); });
+      fail(order, '[BRAND] the logo is not above “Weekly goals that stay on track”');
+      fail(/Faro$/.test(await p.title()), `[BRAND] the welcome page's title is “${await p.title()}”`);
+      // The favicon: linked from the page, and an SVG that is really served, from the demo too.
+      for (const at of [live('/'), url('/')]) {
+        await p.goto(at); await p.waitForTimeout(300);
+        const href = await p.evaluate(() => { const l = document.querySelector('link[rel="icon"]'); return l && l.getAttribute('type') === 'image/svg+xml' ? l.href : null; });
+        const r = href ? await p.request.get(href) : null;
+        const body = r ? await r.text() : '';
+        fail(!!r && r.ok() && /image\/svg\+xml/.test(r.headers()['content-type'] || '') && /<svg[\s\S]*#F7AE2E/i.test(body), `[BRAND] ${at}: favicon ${href || 'not linked'} → ${r ? r.status() + ' ' + r.headers()['content-type'] : 'none'}`);
+      }
+      fail(!!(await p.locator('meta[name="theme-color"]').count()), '[BRAND] no theme-color');
+      await c.close();
+      // In the app: the title ends “Faro”; the sidebar has the logo, and the mark alone on the rail; key colours are readable.
+      for (const theme of ['light', 'dark']) {
+        const [c2, q] = await open(1280, 800, 'rhea', '/');
+        if (theme === 'dark') { await q.evaluate(() => localStorage.setItem('goals-theme', 'dark')); await q.reload(); await q.waitForTimeout(400); }
+        const t = await q.title();
+        fail(/ · Faro$/.test(t), `[BRAND] ${theme}: the page title is “${t}”`);
+        const m = await q.evaluate((src) => {
+          const contrast = eval(src);
+          const v = (k) => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+          const shown = (sel) => { const e = document.querySelector(sel); return !!e && !!e.getClientRects().length; };
+          const btn = document.querySelector('.btn.primary');
+          const ink = getComputedStyle(document.querySelector('.side-brand .faro-logo')).color;
+          return {
+            logo: shown('.side .side-brand .faro-logo'), body: Math.min(contrast(v('--fg'), v('--bg')), contrast(v('--fg'), v('--surface'))),
+            link: Math.min(contrast(v('--accent-text'), v('--bg')), contrast(v('--accent-text'), v('--surface'))),
+            button: btn ? contrast(getComputedStyle(btn).color, getComputedStyle(btn).backgroundColor) : 0, ink: contrast(ink, getComputedStyle(document.querySelector('.side')).backgroundColor),
+          };
+        }, CONTRAST);
+        fail(m.logo, `[BRAND] ${theme}: no logo at the top of the sidebar`);
+        fail(m.body >= 7 && m.link >= 4.5 && m.button >= 4.5, `[BRAND] ${theme}: body text ${round(m.body)}:1 (want 7), links ${round(m.link)}:1, primary button ${round(m.button)}:1 (want 4.5)`);
+        fail(m.ink >= 3, `[BRAND] ${theme}: the logo's ink is ${round(m.ink)}:1 on the sidebar (want 3)`);
+        if (theme === 'light') {
+          await q.locator('.side').getByRole('button', { name: /Collapse sidebar/ }).click();
+          const rail = await q.evaluate(() => ({ mark: !!document.querySelector('.side .side-brand .faro-mark')?.getClientRects().length, logo: !!document.querySelector('.side .side-brand .faro-logo')?.getClientRects().length }));
+          fail(rail.mark && !rail.logo, `[BRAND] icon rail: mark shown ${rail.mark}, wordmark shown ${rail.logo} (want the mark alone)`);
+          await q.locator('.side').getByRole('button', { name: /full sidebar/ }).click();
+        }
+        await c2.close();
+      }
     });
 
     return fails;

@@ -110,7 +110,7 @@ module.exports = {
       const card = p.locator('.watch-empty');
       if (await card.count()) {
         const r = await card.evaluate((e) => ({ w: e.getBoundingClientRect().width, bg: getComputedStyle(e).backgroundColor, bc: getComputedStyle(e).borderTopColor, prim: e.querySelectorAll('.btn.primary').length }));
-        check(r.w <= 640 && r.bg === 'rgb(255, 255, 255)' && r.bc === 'rgb(228, 231, 236)' && r.prim === 1, `[WA] 19: empty card ${Math.round(r.w)}px, ${r.bg}, border ${r.bc}, ${r.prim} primary`);
+        check(r.w <= 640 && r.bg === 'rgb(255, 255, 255)' && r.bc === 'rgb(228, 225, 217)' && r.prim === 1, `[WA] 19: empty card ${Math.round(r.w)}px, ${r.bg}, border ${r.bc}, ${r.prim} primary`);
       }
       await c.close();
     }
@@ -162,7 +162,7 @@ module.exports = {
     {
       const [c, p] = await open(1280, 800, 'amara', '/activity?q=zzqqxxnothing');
       const t = p.locator('.activity-none-title');
-      check(await t.count() === 1 && await t.evaluate((e) => getComputedStyle(e).color) === 'rgb(16, 24, 40)' && await p.locator('.activity-none .btn').count() === 1, '[WA] 18: no results is not a plain message with Clear filters');
+      check(await t.count() === 1 && await t.evaluate((e) => getComputedStyle(e).color) === 'rgb(24, 54, 56)' && await p.locator('.activity-none .btn').count() === 1, '[WA] 18: no results is not a plain message with Clear filters');
       await p.goto(p.url().replace(/\?q=[^&]*&?/, '?'));
       await p.locator('.change-check-in .linkish.tiny').first().click();
       check(await p.locator('.diff-status .status-shape').count() > 0, '[WA] 17: "Status call" has no status shape');
