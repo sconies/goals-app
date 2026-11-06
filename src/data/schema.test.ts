@@ -50,7 +50,8 @@ describe('database schema', () => {
     await db.query(`insert into okr_workspaces (id, name, kind) values ('example', 'Example', 'example') on conflict do nothing`);
     for (const w of s.watches) await db.query('insert into okr_watches (id, workspace_id, person_id, kind, ref) values ($1,$2,$3,$4,$5)', [w.id, 'example', w.personId, w.kind, w.ref]);
     for (const r of s.reviews) await db.query('insert into okr_reviews (id, workspace_id, name, every_weeks, weekday, scope, people, created_by, created_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [r.id, 'example', r.name, r.everyWeeks, r.weekday, JSON.stringify(r.scope), JSON.stringify(r.people), r.createdBy, r.createdAt]);
-  });
+    // Thousands of rows, one query each: a busy machine (the suite in parallel, an eval run beside it) takes longer than 5s.
+  }, 30_000);
 
   const reject = (q: string) => expect(db.query(q)).rejects.toThrow();
   it('keeps several check-ins in a week (ad hoc), each by its own id', async () => {

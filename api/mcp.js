@@ -1,4 +1,5 @@
 // \0rolldown/runtime.js
+var __defProp = Object.defineProperty;
 var __esmMin = (fn, res, err) => () => {
 	if (err) throw err[0];
 	try {
@@ -6,6 +7,15 @@ var __esmMin = (fn, res, err) => () => {
 	} catch (e) {
 		throw err = [e], e;
 	}
+};
+var __exportAll = (all, no_symbols) => {
+	let target = {};
+	for (var name in all) __defProp(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
+	return target;
 };
 // node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
@@ -22310,6 +22320,21 @@ function legacyAnswer(d, s) {
 		byId: c.actorId
 	};
 }
+/** Every comment ever written and not taken back, removed ones included. (Before one ask model, an ask for an update was a comment; those are asks now.) */
+function writtenNotes(changes) {
+	const gone = new Set(changes.filter((c) => c.entity === "note" && c.action === "withdrawn").map((c) => c.entityId));
+	return changes.filter((c) => c.entity === "note" && c.action === "noted" && !gone.has(c.entityId) && !isLegacyUpdateAsk(c));
+}
+/** Comments that stand: written, not taken back, and not removed now (a later 'removed' entry with no 'restored' after it). */
+function liveNotes(changes) {
+	const removed = /* @__PURE__ */ new Set();
+	for (const c of changes) {
+		if (c.entity !== "note") continue;
+		if (c.action === "removed") removed.add(c.entityId);
+		else if (c.action === "restored") removed.delete(c.entityId);
+	}
+	return writtenNotes(changes).filter((c) => !removed.has(c.entityId));
+}
 var norm$3, ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf, openAsksFor, openFor, openForPerson, openUpdateAsk, isOverdue, isResolved, canAnswer, canMarkDone, change$1, FIELD, UPDATE_ASK, normaliseAsk, isLegacyUpdateAsk, updateAskText;
 var init_asks = __esmMin((() => {
 	init_status();
@@ -22462,6 +22487,10 @@ var init_goalKey = __esmMin((() => {
 // src/data/rows.ts
 init_asks();
 init_goalKey();
+var set = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
+/** A removal timestamp read back: only when there is one, so records never removed read exactly as before. */
+var when$1 = (k, v) => v ? { [k]: new Date(v).toISOString() } : {};
+var who = (k, v) => v ? { [k]: v } : {};
 /** Postgres numerics can arrive as strings; timestamps in any ISO form. Normalise both. */
 var num$1 = (v) => v == null ? null : Number(v);
 var iso$1 = (v) => new Date(v).toISOString();
@@ -22498,7 +22527,13 @@ var personToRow = (ws, p) => ({
 	role: p.role,
 	initials: p.initials,
 	team_id: p.teamId,
-	is_admin: p.admin
+	is_admin: p.admin,
+	...set({
+		left_at: p.leftAt,
+		left_by: p.leftBy,
+		removed_at: p.removedAt,
+		removed_by: p.removedBy
+	})
 });
 var personFromRow = (r) => ({
 	id: r.id,
@@ -22506,7 +22541,11 @@ var personFromRow = (r) => ({
 	role: r.role,
 	initials: r.initials,
 	teamId: r.team_id,
-	admin: !!r.is_admin
+	admin: !!r.is_admin,
+	...when$1("leftAt", r.left_at),
+	...who("leftBy", r.left_by),
+	...when$1("removedAt", r.removed_at),
+	...who("removedBy", r.removed_by)
 });
 var cycleToRow = (ws, c) => ({
 	workspace_id: ws,
@@ -22514,14 +22553,20 @@ var cycleToRow = (ws, c) => ({
 	name: c.name,
 	start_date: c.startDate,
 	weeks: c.weeks,
-	review_day: c.reviewDay
+	review_day: c.reviewDay,
+	...set({
+		removed_at: c.removedAt,
+		removed_by: c.removedBy
+	})
 });
 var cycleFromRow = (r) => ({
 	id: r.id,
 	name: r.name,
 	startDate: r.start_date.slice(0, 10),
 	weeks: Number(r.weeks),
-	reviewDay: Number(r.review_day ?? 3)
+	reviewDay: Number(r.review_day ?? 3),
+	...when$1("removedAt", r.removed_at),
+	...who("removedBy", r.removed_by)
 });
 function goalToRows(ws, g) {
 	return {
@@ -22559,7 +22604,14 @@ function goalToRows(ws, g) {
 			range_margin: g.kind === "range" ? g.range.margin : null,
 			created_at: g.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
 			pending: g.pending ?? null,
-			also_helps: g.alsoHelps?.length ? g.alsoHelps : null
+			also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
+			...set({
+				removed_at: g.removedAt,
+				removed_by: g.removedBy,
+				stopped_at: g.stoppedAt,
+				stopped_by: g.stoppedBy,
+				stop_reason: g.stopReason
+			})
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
 			workspace_id: ws,
@@ -22600,7 +22652,12 @@ function goalFromRows(r, stageRows) {
 		createdAt: iso$1(r.created_at),
 		...r.pending ? { pending: r.pending } : {},
 		...r.version != null ? { version: Number(r.version) } : {},
-		...r.also_helps?.length ? { alsoHelps: r.also_helps } : {}
+		...r.also_helps?.length ? { alsoHelps: r.also_helps } : {},
+		...when$1("removedAt", r.removed_at),
+		...who("removedBy", r.removed_by),
+		...when$1("stoppedAt", r.stopped_at),
+		...who("stoppedBy", r.stopped_by),
+		...who("stopReason", r.stop_reason)
 	};
 	if (r.kind === "metric") {
 		const op = r.original_plan;
@@ -22671,7 +22728,11 @@ var checkInToRow = (ws, c) => ({
 	ptg_state: c.pathToGreen?.state ?? null,
 	next: c.next,
 	data_flagged: c.dataFlagged,
-	backfilled: !!c.backfilled
+	backfilled: !!c.backfilled,
+	...set({
+		removed_at: c.removedAt,
+		removed_by: c.removedBy
+	})
 });
 var checkInFromRow = (r) => ({
 	id: r.id,
@@ -22695,7 +22756,9 @@ var checkInFromRow = (r) => ({
 	} : null,
 	next: r.next,
 	dataFlagged: r.data_flagged,
-	...r.backfilled ? { backfilled: true } : {}
+	...r.backfilled ? { backfilled: true } : {},
+	...when$1("removedAt", r.removed_at),
+	...who("removedBy", r.removed_by)
 });
 var decisionToRow = (ws, d) => ({
 	workspace_id: ws,
@@ -22709,7 +22772,12 @@ var decisionToRow = (ws, d) => ({
 	at: d.at,
 	note: d.note,
 	assignee_id: d.assigneeId ?? null,
-	due_week: d.dueWeek ?? null
+	due_week: d.dueWeek ?? null,
+	...set({
+		edited_at: d.editedAt,
+		removed_at: d.removedAt,
+		removed_by: d.removedBy
+	})
 });
 var decisionFromRow = (r) => ({
 	id: r.id,
@@ -22722,7 +22790,10 @@ var decisionFromRow = (r) => ({
 	at: iso$1(r.at),
 	note: r.note,
 	...r.assignee_id ? { assigneeId: r.assignee_id } : {},
-	...r.due_week != null ? { dueWeek: Number(r.due_week) } : {}
+	...r.due_week != null ? { dueWeek: Number(r.due_week) } : {},
+	...when$1("editedAt", r.edited_at),
+	...when$1("removedAt", r.removed_at),
+	...who("removedBy", r.removed_by)
 });
 var changeToRow = (ws, c) => ({
 	workspace_id: ws,
@@ -22734,7 +22805,11 @@ var changeToRow = (ws, c) => ({
 	entity_id: c.entityId,
 	action: c.action,
 	summary: c.summary,
-	diffs: c.diffs
+	diffs: c.diffs,
+	...set({
+		import_id: c.importId,
+		undo: c.undo
+	})
 });
 var changeFromRow = (r) => ({
 	id: r.id,
@@ -22745,20 +22820,28 @@ var changeFromRow = (r) => ({
 	entityId: r.entity_id,
 	action: r.action,
 	summary: r.summary,
-	diffs: r.diffs ?? []
+	diffs: r.diffs ?? [],
+	...who("importId", r.import_id),
+	...r.undo ? { undo: r.undo } : {}
 });
 var watchToRow = (ws, w) => ({
 	workspace_id: ws,
 	id: w.id,
 	person_id: w.personId,
 	kind: w.kind,
-	ref: w.ref
+	ref: w.ref,
+	...set({
+		removed_at: w.removedAt,
+		removed_by: w.removedBy
+	})
 });
 var watchFromRow = (r) => ({
 	id: r.id,
 	personId: r.person_id,
 	kind: r.kind,
-	ref: r.ref
+	ref: r.ref,
+	...when$1("removedAt", r.removed_at),
+	...who("removedBy", r.removed_by)
 });
 var reviewToRow = (ws, r) => ({
 	workspace_id: ws,
@@ -22769,7 +22852,13 @@ var reviewToRow = (ws, r) => ({
 	scope: r.scope,
 	people: r.people,
 	created_by: r.createdBy,
-	created_at: r.createdAt
+	created_at: r.createdAt,
+	...set({
+		ended_at: r.endedAt,
+		ended_by: r.endedBy,
+		removed_at: r.removedAt,
+		removed_by: r.removedBy
+	})
 });
 var reviewFromRow = (r) => ({
 	id: r.id,
@@ -22784,7 +22873,11 @@ var reviewFromRow = (r) => ({
 	people: r.people ?? [],
 	createdBy: r.created_by,
 	createdAt: iso$1(r.created_at),
-	...r.version != null ? { version: Number(r.version) } : {}
+	...r.version != null ? { version: Number(r.version) } : {},
+	...when$1("endedAt", r.ended_at),
+	...who("endedBy", r.ended_by),
+	...when$1("removedAt", r.removed_at),
+	...who("removedBy", r.removed_by)
 });
 var retroToRow = (ws, r) => ({
 	workspace_id: ws,
@@ -22829,7 +22922,7 @@ var tokenToRow = (ws, t) => ({
 	id: t.id,
 	person_id: t.personId,
 	name: t.name,
-	token_hash: t.tokenHash,
+	token_hash: t.tokenHash ?? "",
 	created_by: t.createdBy,
 	created_at: t.createdAt,
 	last_used_at: t.lastUsedAt,
@@ -22844,7 +22937,8 @@ var viewToRow = (ws, v) => ({
 	pinned: v.pinned,
 	created_at: v.createdAt,
 	updated_at: v.updatedAt,
-	deleted_at: v.deletedAt
+	deleted_at: v.deletedAt,
+	...set({ deleted_by: v.deletedBy })
 });
 var viewFromRow = (r) => ({
 	id: r.id,
@@ -22854,7 +22948,8 @@ var viewFromRow = (r) => ({
 	pinned: !!r.pinned,
 	createdAt: iso$1(r.created_at),
 	updatedAt: iso$1(r.updated_at),
-	deletedAt: r.deleted_at ? iso$1(r.deleted_at) : null
+	deletedAt: r.deleted_at ? iso$1(r.deleted_at) : null,
+	...who("deletedBy", r.deleted_by)
 });
 var requestToRow = (ws, r) => ({
 	workspace_id: ws,
@@ -22897,7 +22992,7 @@ var tokenFromRow = (r) => ({
 	id: r.id,
 	personId: r.person_id,
 	name: r.name,
-	tokenHash: r.token_hash,
+	...r.token_hash ? { tokenHash: r.token_hash } : {},
 	createdBy: r.created_by,
 	createdAt: iso$1(r.created_at),
 	lastUsedAt: r.last_used_at ? iso$1(r.last_used_at) : null,
@@ -22944,6 +23039,22 @@ function commitPayload(ws, c) {
 		} : null
 	};
 }
+// src/mcp/token.ts
+var token_exports = /* @__PURE__ */ __exportAll({
+	hashToken: () => hashToken,
+	newToken: () => newToken
+});
+/** SHA-256 of a token, as hex: what's stored, and what a presented token is checked against. */
+async function hashToken(token) {
+	const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+	return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+/** A new token: "gk_" and 40 random letters and digits. */
+function newToken() {
+	const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
+}
+var init_token = __esmMin((() => {}));
 // src/domain/format.ts
 /** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
 function unitFor(n, unit) {
@@ -23596,24 +23707,51 @@ var init_yearName = __esmMin((() => {}));
 */
 function currentCycle(cycles, today) {
 	const soon = new Date(today.getTime() + 7 * DAY).toISOString().slice(0, 10);
-	const sorted = [...cycles].sort((a, b) => a.startDate.localeCompare(b.startDate));
+	const kept = cycles.filter((c) => !c.removedAt);
+	const sorted = [...kept.length ? kept : cycles].sort((a, b) => a.startDate.localeCompare(b.startDate));
 	return [...sorted].reverse().find((c) => c.startDate <= soon) ?? sorted[0];
 }
-/** Only what belongs to one cycle: its goals, and the check-ins, calls and retros on them. */
+/**
+* Only what belongs to one cycle, and only what's live: the one place removed and archived records leave the lists,
+* stats, pickers, attention lists and reviews (domain/removal says what each removal does). Deleted records (goals,
+* check-ins, notes, reviews, cycles, watches, views, people with no history) are left out altogether. Stopped goals,
+* with their check-ins and notes, people who left and ended reviews move to `archive`, so a goal's page, its history,
+* the exports and Activity can still show them.
+*/
 function scopeToCycle(s, cycle) {
-	const goals = s.goals.filter((g) => g.cycleId === cycle.id);
+	const inCycle = s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt);
+	const goals = inCycle.filter((g) => !g.stoppedAt);
+	const stopped = inCycle.filter((g) => g.stoppedAt);
 	const ids = new Set(goals.map((g) => g.id));
+	const stoppedIds = new Set(stopped.map((g) => g.id));
+	const checkIns = s.checkIns.filter((c) => !c.removedAt);
+	const decisions = s.decisions.filter((d) => !d.removedAt);
+	const people = s.people.filter((p) => !p.leftAt && !p.removedAt);
+	const here = new Set(people.map((p) => p.id));
+	const reviews = (s.reviews ?? []).filter((r) => !r.removedAt);
 	return {
 		...s,
+		people,
+		cycles: s.cycles.filter((c) => !c.removedAt),
 		goals,
 		keysIssued: lastKey(s.goals, s.keysIssued),
-		checkIns: s.checkIns.filter((c) => ids.has(c.goalId)),
-		decisions: s.decisions.filter((d) => ids.has(d.goalId)),
+		checkIns: checkIns.filter((c) => ids.has(c.goalId)),
+		decisions: decisions.filter((d) => ids.has(d.goalId)),
+		reviews: reviews.filter((r) => !r.endedAt),
+		watches: (s.watches ?? []).filter((w) => !w.removedAt && here.has(w.personId)),
+		views: (s.views ?? []).filter((v) => !v.deletedAt),
 		retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
 		requests: (s.requests ?? requestsFromCheckIns({
 			...s,
 			goals
-		}, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id)))
+		}, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id))),
+		archive: {
+			goals: stopped,
+			checkIns: checkIns.filter((c) => stoppedIds.has(c.goalId)),
+			decisions: decisions.filter((d) => stoppedIds.has(d.goalId)),
+			people: s.people.filter((p) => p.leftAt && !p.removedAt),
+			reviews: reviews.filter((r) => r.endedAt)
+		}
 	};
 }
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
@@ -24377,7 +24515,7 @@ var init_tableLayout = __esmMin((() => {
 /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it isn't an ask: it asks nothing of anyone. */
 function addNote(x, goal, text) {
 	const t = text.trim();
-	if (t.length < 2) no("Write the comment.");
+	if (t.length < 2) no$1("Write the comment.");
 	return { changes: [{
 		id: x.newId("chg"),
 		at: x.now,
@@ -24396,7 +24534,7 @@ function addNote(x, goal, text) {
 }
 /** Ask a goal's owner for an update: open on their Home until they check in (or answer it), or it's withdrawn. Null when it's already asked. */
 function askForUpdate(x, goal) {
-	if (goal.ownerId === x.actor.id) no("It’s your own goal: post a check-in instead.");
+	if (goal.ownerId === x.actor.id) no$1("It’s your own goal: post a check-in instead.");
 	if (openUpdateAsk(goal.id, x.snapshot)) return null;
 	const latest = latestOf(x, goal);
 	const { ask, change } = raiseAsk({
@@ -24416,7 +24554,7 @@ function askForUpdate(x, goal) {
 function undoUpdateAsk(x, goal) {
 	const ask = openUpdateAsk(goal.id, x.snapshot);
 	if (!ask) return null;
-	if (ask.askedBy !== x.actor.id && !x.actor.admin) no("Only whoever asked, or an admin, can undo the ask.");
+	if (ask.askedBy !== x.actor.id && !x.actor.admin) no$1("Only whoever asked, or an admin, can undo the ask.");
 	const w = withdrawAsk(ask, goal.id, x.actor.id, x.now, x.newId);
 	return {
 		requests: [w.request],
@@ -24426,8 +24564,8 @@ function undoUpdateAsk(x, goal) {
 /** Ask a goal's owner a question, outside a review (a review's questions come through reviewCall). Open until they answer it. */
 function askQuestion(x, goal, text, opts = {}) {
 	const t = text.trim();
-	if (t.length < 2) no("Write the question.");
-	if (goal.ownerId === x.actor.id) no("It’s your own goal: there’s no one to ask. Comment instead.");
+	if (t.length < 2) no$1("Write the question.");
+	if (goal.ownerId === x.actor.id) no$1("It’s your own goal: there’s no one to ask. Comment instead.");
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
 	const { ask, change } = raiseAsk({
 		kind: "question",
@@ -24447,10 +24585,10 @@ function askQuestion(x, goal, text, opts = {}) {
 /** Agree an action on a goal: someone (the owner, unless named) does it, by a week if one is given. */
 function addAction(x, goal, text, opts = {}) {
 	const t = text.trim();
-	if (t.length < 2) no("Write the action.");
+	if (t.length < 2) no$1("Write the action.");
 	const who = opts.assigneeId ?? goal.ownerId;
-	if (!x.snapshot.people.some((p) => p.id === who)) no("The person for the action isn’t in this workspace.");
-	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no(`The due week is between 1 and ${x.cycle.weeks}.`);
+	if (!x.snapshot.people.some((p) => p.id === who)) no$1("The person for the action isn’t in this workspace.");
+	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$1(`The due week is between 1 and ${x.cycle.weeks}.`);
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
 	const { ask, change } = raiseAsk({
 		kind: "action",
@@ -24475,10 +24613,10 @@ function addAction(x, goal, text, opts = {}) {
 }
 /** Answer a decision or help, an ask for an update or a question: the person asked, or an admin (anyone, for an ask to no one in particular). */
 function answerRequest(x, r, answer) {
-	if (r.status !== "open") no("That ask isn’t open any more.");
-	if (r.kind === "action") no("An action is marked done, not answered.");
-	if (!canAnswer(r, x.actor)) no(`Only ${nameOf(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
-	if (answer.trim().length < 2) no("Write the answer.");
+	if (r.status !== "open") no$1("That ask isn’t open any more.");
+	if (r.kind === "action") no$1("An action is marked done, not answered.");
+	if (!canAnswer(r, x.actor)) no$1(`Only ${nameOf(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
+	if (answer.trim().length < 2) no$1("Write the answer.");
 	const { request, changes } = answerAsk(r, answer, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -24487,9 +24625,9 @@ function answerRequest(x, r, answer) {
 }
 /** Mark an action done, with an optional note: whoever does it, whoever asked for it, or an admin. */
 function markActionDone(x, r, note = "") {
-	if (r.status !== "open") no("That action isn’t open any more.");
-	if (r.kind !== "action") no("Only an action is marked done; answer the others.");
-	if (!canMarkDone(r, x.actor)) no(`Only ${nameOf(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
+	if (r.status !== "open") no$1("That action isn’t open any more.");
+	if (r.kind !== "action") no$1("Only an action is marked done; answer the others.");
+	if (!canMarkDone(r, x.actor)) no$1(`Only ${nameOf(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
 	const { request, changes } = markDone(r, note, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -24498,10 +24636,10 @@ function markActionDone(x, r, note = "") {
 }
 /** A goal's owner (or an admin) says the goal waits on a decision or help raised for another goal. */
 function linkRequest(x, r, goal) {
-	if (r.status !== "open") no("That request isn’t open any more.");
-	if (r.kind !== "decision") no("Only a decision or help can be shared by several goals.");
-	if (!ownsOrAdmin(x, goal)) no("Only the goal’s owner or an admin can link it to a request.");
-	if (r.goalIds.includes(goal.id)) no("That goal is already waiting on this request.");
+	if (r.status !== "open") no$1("That request isn’t open any more.");
+	if (r.kind !== "decision") no$1("Only a decision or help can be shared by several goals.");
+	if (!ownsOrAdmin$1(x, goal)) no$1("Only the goal’s owner or an admin can link it to a request.");
+	if (r.goalIds.includes(goal.id)) no$1("That goal is already waiting on this request.");
 	const { requests, changes } = linkRequest$1(r, goal, x.snapshot, x.actor.id, x.now, x.newId);
 	return {
 		requests,
@@ -24513,10 +24651,10 @@ function linkRequest(x, r, goal) {
 * goal linked to someone else's decision or help, its owner stops waiting on it (the ask stays open for the others).
 */
 function withdrawRequest(x, r, goal) {
-	if (r.status !== "open") no("That ask isn’t open any more.");
+	if (r.status !== "open") no$1("That ask isn’t open any more.");
 	const g = goal ?? x.snapshot.goals.find((v) => v.id === r.goalIds[0]);
-	if (!g || !r.goalIds.includes(g.id)) no("That goal isn’t waiting on this ask.");
-	if (!canWithdraw(r, x.actor, g)) no(r.kind === "decision" ? "Only the goal’s owner, whoever asked, or an admin can withdraw it." : "Only whoever asked, or an admin, can withdraw it.");
+	if (!g || !r.goalIds.includes(g.id)) no$1("That goal isn’t waiting on this ask.");
+	if (!canWithdraw(r, x.actor, g)) no$1(r.kind === "decision" ? "Only the goal’s owner, whoever asked, or an admin can withdraw it." : "Only whoever asked, or an admin, can withdraw it.");
 	const { request, changes } = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -24532,7 +24670,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 	const text = note.trim();
 	const week = extra.week ?? sessionWeek(review, x.week);
 	if (kind === "ask") {
-		if (goal.ownerId === x.actor.id) no("It’s your own goal: add a note instead.");
+		if (goal.ownerId === x.actor.id) no$1("It’s your own goal: add a note instead.");
 		return askQuestion(x, goal, text, {
 			reviewId: review.id,
 			week
@@ -24544,7 +24682,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 		reviewId: review.id,
 		week
 	});
-	if (kind === "note" && text.length < 2) no("Write the note.");
+	if (kind === "note" && text.length < 2) no$1("Write the note.");
 	const d = {
 		id: x.newId("dec"),
 		goalId: goal.id,
@@ -24582,10 +24720,10 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 function editCall(x, d, note, extra) {
 	const ask = "goalIds" in d ? d : askById(x, d.id);
 	if (ask) {
-		if (ask.askedBy !== x.actor.id && !x.actor.admin) no("Only whoever asked, or an admin, can correct it.");
-		if (ask.status !== "open") no("It’s been answered or closed: comment instead.");
-		if (note.trim().length < 2) no("Write the new wording.");
-		if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no("The person for the action isn’t in this workspace.");
+		if (ask.askedBy !== x.actor.id && !x.actor.admin) no$1("Only whoever asked, or an admin, can correct it.");
+		if (ask.status !== "open") no$1("It’s been answered or closed: comment instead.");
+		if (note.trim().length < 2) no$1("Write the new wording.");
+		if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no$1("The person for the action isn’t in this workspace.");
 		const out = editAsk(ask, {
 			ask: note,
 			...ask.kind === "action" && extra ? {
@@ -24599,11 +24737,12 @@ function editCall(x, d, note, extra) {
 		};
 	}
 	const dec = d;
-	if (dec.byId !== x.actor.id && !x.actor.admin) no("Only whoever said it, or an admin, can correct it.");
-	if (dec.kind !== "acknowledge" && note.trim().length < 2) no("Write the new wording.");
+	if (dec.byId !== x.actor.id && !x.actor.admin) no$1("Only whoever said it, or an admin, can correct it.");
+	if (dec.kind !== "acknowledge" && note.trim().length < 2) no$1("Write the new wording.");
 	const after = {
 		...dec,
-		note: note.trim()
+		note: note.trim(),
+		editedAt: x.now
 	};
 	if (after.note === dec.note) return null;
 	return {
@@ -24627,14 +24766,14 @@ function editCall(x, d, note, extra) {
 }
 /** Set up a review (anyone), or change one (someone in it, whoever set it up, or an admin). */
 function saveReview(x, review, before) {
-	if (!review.name.trim()) no("Give the review a name.");
-	if (!(review.everyWeeks >= 1 && review.everyWeeks <= 13)) no("Hold it every 1 to 13 weeks.");
-	if (!(review.weekday >= 0 && review.weekday <= 4)) no("Pick a weekday, Monday to Friday.");
-	if (!review.scope.goals.length && !review.scope.trees.length && !review.scope.levels.length) no("Pick the goals it walks: goals, a goal and what feeds it, or a level.");
+	if (!review.name.trim()) no$1("Give the review a name.");
+	if (!(review.everyWeeks >= 1 && review.everyWeeks <= 13)) no$1("Hold it every 1 to 13 weeks.");
+	if (!(review.weekday >= 0 && review.weekday <= 4)) no$1("Pick a weekday, Monday to Friday.");
+	if (!review.scope.goals.length && !review.scope.trees.length && !review.scope.levels.length) no$1("Pick the goals it walks: goals, a goal and what feeds it, or a level.");
 	const ids = new Set(x.snapshot.goals.map((g) => g.id));
-	if ([...review.scope.goals, ...review.scope.trees].some((g) => !ids.has(g))) no("One of the goals isn’t in this cycle.");
-	if (review.people.some((p) => !x.snapshot.people.some((q) => q.id === p))) no("One of the people isn’t in this workspace.");
-	if (before && !x.actor.admin && !before.people.includes(x.actor.id) && before.createdBy !== x.actor.id) no("Only someone in the review, whoever set it up, or an admin can change it.");
+	if ([...review.scope.goals, ...review.scope.trees].some((g) => !ids.has(g))) no$1("One of the goals isn’t in this cycle.");
+	if (review.people.some((p) => !x.snapshot.people.some((q) => q.id === p))) no$1("One of the people isn’t in this workspace.");
+	if (before && !x.actor.admin && !before.people.includes(x.actor.id) && before.createdBy !== x.actor.id) no$1("Only someone in the review, whoever set it up, or an admin can change it.");
 	const diffs = before ? [
 		...before.name !== review.name ? [{
 			field: "Name",
@@ -24693,16 +24832,22 @@ function newReview(x, v) {
 		createdAt: x.now
 	};
 }
-/** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. */
+/** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. Watching again what
+you stopped watching brings the same watch back (one watch per person and thing). */
 function watch(x, kind, ref) {
 	if (kind === "level" ? ![
 		"north-star",
 		"svp",
 		"team"
-	].includes(ref) : !x.snapshot.goals.some((g) => g.id === ref)) no(kind === "level" ? "Levels are north-star, svp and team." : "There’s no goal with that ID in this cycle.");
+	].includes(ref) : !x.snapshot.goals.some((g) => g.id === ref)) no$1(kind === "level" ? "Levels are north-star, svp and team." : "There’s no goal with that ID in this cycle.");
 	if (x.snapshot.watches.some((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref)) return null;
+	const old = (x.full?.watches ?? []).find((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref && w.removedAt);
 	return {
-		watches: [{
+		watches: [old ? {
+			...old,
+			removedAt: null,
+			removedBy: null
+		} : {
 			id: x.newId("w"),
 			personId: x.actor.id,
 			kind,
@@ -24711,22 +24856,40 @@ function watch(x, kind, ref) {
 		changes: []
 	};
 }
-/** Stop watching: your own watches only. */
+/** Stop watching: your own watches only. Kept, and logged, so it can be undone. */
 function unwatch(x, watchId) {
 	const w = x.snapshot.watches.find((v) => v.id === watchId);
-	if (!w) no("There’s no watch with that ID.");
-	if (w.personId !== x.actor.id) no("That’s someone else’s watch.");
+	if (!w) no$1("There’s no watch with that ID.");
+	if (w.personId !== x.actor.id) no$1("That’s someone else’s watch.");
 	return {
-		unwatch: [watchId],
-		changes: []
+		watches: [{
+			...w,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}],
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "watch",
+			entityId: w.id,
+			action: "removed",
+			summary: `Stopped watching ${watchWhat(x, w)}`,
+			diffs: [{
+				field: "Watching",
+				from: watchWhat(x, w),
+				to: "—"
+			}]
+		}]
 	};
 }
 /** Admins: add someone, or change their name, job title, team or admin rights. Null when nothing changed. */
 function savePerson(x, p, before) {
-	if (!x.actor.admin) no("Only admins can add people or change them.");
-	if (p.teamId && !x.snapshot.teams.some((t) => t.id === p.teamId)) no("There’s no team with that ID.");
+	if (!x.actor.admin) no$1("Only admins can add people or change them.");
+	if (p.teamId && !x.snapshot.teams.some((t) => t.id === p.teamId)) no$1("There’s no team with that ID.");
 	const problems = personProblems(p, x.snapshot.people, before);
-	if (problems.length) no(problems.join(" "));
+	if (problems.length) no$1(problems.join(" "));
 	const ch = personChange(before, p, lookupOf(x.snapshot).teamName, x.actor.id, x.now, x.newId("chg"));
 	if (before && !ch) return null;
 	return {
@@ -24736,9 +24899,9 @@ function savePerson(x, p, before) {
 }
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 function saveRetro(x, goal, v) {
-	if (!ownsOrAdmin(x, goal)) no("Only the goal’s owner or an admin can wrap it up.");
-	if (!wrapUpOpen(x.cycle, x.week)) no(`Wrap-ups open in the last two weeks of the cycle (from week ${x.cycle.weeks - 1}).`);
-	if (v.learned.trim().length < 10) no("Say what was learned, in a sentence (10 characters or more).");
+	if (!ownsOrAdmin$1(x, goal)) no$1("Only the goal’s owner or an admin can wrap it up.");
+	if (!wrapUpOpen(x.cycle, x.week)) no$1(`Wrap-ups open in the last two weeks of the cycle (from week ${x.cycle.weeks - 1}).`);
+	if (v.learned.trim().length < 10) no$1("Say what was learned, in a sentence (10 characters or more).");
 	const before = (x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === x.cycle.id) ?? null;
 	const retro = {
 		id: before?.id ?? x.newId("retro"),
@@ -24784,8 +24947,8 @@ function saveRetro(x, goal, v) {
 }
 /** Admins: start the next cycle with the goals that carry on. */
 function startNextCycle(x) {
-	if (!x.actor.admin) no("Only admins can start the next cycle.");
-	if (!wrapUpOpen(x.cycle, x.week)) no(`The next cycle can start in the last two weeks of this one (from week ${x.cycle.weeks - 1}).`);
+	if (!x.actor.admin) no$1("Only admins can start the next cycle.");
+	if (!wrapUpOpen(x.cycle, x.week)) no$1(`The next cycle can start in the last two weeks of this one (from week ${x.cycle.weeks - 1}).`);
 	const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], {
 		cycle: x.newId("cycle"),
 		goal: () => x.newId("goal")
@@ -24817,15 +24980,15 @@ function startNextCycle(x) {
 /** Save a view of the goals: a new one, or one of yours (an admin: any) renamed or changed. */
 function saveView(x, v) {
 	const clean = v.name.trim().slice(0, 80);
-	if (!clean) no("Give the view a name.");
+	if (!clean) no$1("Give the view a name.");
 	const old = v.id ? liveView(x, v.id) : void 0;
-	if (v.id && !old) no("There’s no view with that ID.");
+	if (v.id && !old) no$1("There’s no view with that ID.");
 	if (isTableView(v)) {
 		const problems = layoutProblems(parseLayout(v.params));
-		if (problems.length) no(problems.join(" "));
+		if (problems.length) no$1(problems.join(" "));
 	}
-	if (old && isTableView(old) !== isTableView(v)) no(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
-	if (old && old.personId !== x.actor.id && !x.actor.admin) no("Only its owner or an admin can change this view.");
+	if (old && isTableView(old) !== isTableView(v)) no$1(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
+	if (old && old.personId !== x.actor.id && !x.actor.admin) no$1("Only its owner or an admin can change this view.");
 	const view = old ? {
 		...old,
 		name: clean,
@@ -24870,8 +25033,8 @@ function saveView(x, v) {
 */
 function saveTableView(x, v, head) {
 	const problems = layoutProblems(v.layout, head);
-	if (problems.length) no(problems.join(" "));
-	if (v.layout.cols && !v.layout.cols.length) no("Show at least one column.");
+	if (problems.length) no$1(problems.join(" "));
+	if (v.layout.cols && !v.layout.cols.length) no$1("Show at least one column.");
 	const widths = Object.fromEntries(Object.entries(v.layout.widths).map(([c, w]) => [c, clampWidth(v.layout.table, c, w)]));
 	return saveView(x, {
 		id: v.id,
@@ -24882,39 +25045,41 @@ function saveTableView(x, v, head) {
 		})
 	});
 }
-/** Delete one of your views; an admin can also delete a pinned one. Null when it's already gone. */
+/** Delete one of your views; an admin can delete anyone's (pinned or not). Kept, and logged, so it can be undone. Null when it's already gone. */
 function deleteView(x, id) {
 	const v = liveView(x, id);
 	if (!v) return null;
-	if (v.personId !== x.actor.id && !(x.actor.admin && v.pinned)) no("Only its owner, or an admin for a pinned view, can delete this view.");
+	if (v.personId !== x.actor.id && !x.actor.admin) no$1("Only its owner, or an admin, can delete this view.");
+	const what = isTableView(v) ? "saved layout" : v.pinned ? "pinned view" : "view";
 	return {
 		views: [{
 			...v,
 			deletedAt: x.now,
+			deletedBy: x.actor.id,
 			updatedAt: x.now
 		}],
-		changes: v.pinned ? [{
+		changes: [{
 			id: x.newId("chg"),
 			at: x.now,
 			actorId: x.actor.id,
 			goalId: null,
-			entity: "workspace",
+			entity: "view",
 			entityId: v.id,
-			action: "edited",
-			summary: `Removed the pinned view “${v.name}”`,
+			action: "removed",
+			summary: v.pinned && !isTableView(v) ? `Removed the pinned view “${v.name}”` : `Deleted the ${what} “${v.name}”`,
 			diffs: [{
-				field: "Pinned view",
+				field: what.charAt(0).toUpperCase() + what.slice(1),
 				from: v.name,
 				to: "—"
 			}]
-		}] : []
+		}]
 	};
 }
 /** Admins: show a view to everyone in the workspace, or stop. Null when it already is. */
 function pinView(x, id, pinned) {
-	if (!x.actor.admin) no("Only admins can pin a view for everyone.");
+	if (!x.actor.admin) no$1("Only admins can pin a view for everyone.");
 	const v = liveView(x, id);
-	if (!v) no("There’s no view with that ID.");
+	if (!v) no$1("There’s no view with that ID.");
 	if (v.pinned === pinned) return null;
 	return {
 		views: [{
@@ -24939,17 +25104,18 @@ function pinView(x, id, pinned) {
 		}]
 	};
 }
-/** Admins: a personal token for an assistant to act as someone. Only the token's hash is kept; the caller makes both. */
-function createToken(x, personId, name, tokenHash) {
-	if (!x.actor.admin) no("Only admins can make tokens.");
+/** Admins: a personal token for an assistant to act as someone. The store makes the secret and keeps only its hash
+(Store.issueToken): in the shared database, the database does. */
+function createToken(x, personId, name) {
+	if (!x.actor.admin) no$1("Only admins can make tokens.");
 	const who = x.snapshot.people.find((p) => p.id === personId);
-	if (!who) no("There’s no one with that ID in this workspace.");
-	if (!name.trim()) no("Say what the token is for, e.g. “Claude on my laptop”.");
+	if (!who) no$1("There’s no one with that ID in this workspace.");
+	if (!name.trim()) no$1("Say what the token is for, e.g. “Claude on my laptop”.");
+	if (name.trim().length > 120) no$1("Keep what it’s for to 120 characters.");
 	const t = {
 		id: x.newId("tok"),
 		personId,
 		name: name.trim(),
-		tokenHash,
 		createdBy: x.actor.id,
 		createdAt: x.now,
 		lastUsedAt: null,
@@ -24977,9 +25143,9 @@ function createToken(x, personId, name, tokenHash) {
 /** Stop a token working: an admin, or the token's person. Null when it's already revoked. */
 function revokeToken(x, id) {
 	const t = (x.snapshot.tokens ?? []).find((v) => v.id === id);
-	if (!t) no("There’s no token with that ID.");
+	if (!t) no$1("There’s no token with that ID.");
 	if (t.revokedAt) return null;
-	if (!x.actor.admin && t.personId !== x.actor.id) no("Only an admin or the token’s person can revoke it.");
+	if (!x.actor.admin && t.personId !== x.actor.id) no$1("Only an admin or the token’s person can revoke it.");
 	return {
 		tokens: [{
 			...t,
@@ -25007,7 +25173,7 @@ function sendFeedback(x, mood, text, path) {
 		"good",
 		"meh",
 		"bad"
-	].includes(mood)) no("Mood is good, meh or bad.");
+	].includes(mood)) no$1("Mood is good, meh or bad.");
 	return {
 		feedback: [{
 			id: x.newId("fb"),
@@ -25022,10 +25188,10 @@ function sendFeedback(x, mood, text, path) {
 }
 /** Admins: give the workspace a new name. Null when it already has that name. */
 function renameWorkspace(x, ws, name) {
-	if (!x.actor.admin) no("Only admins can rename the workspace.");
+	if (!x.actor.admin) no$1("Only admins can rename the workspace.");
 	const clean = name.trim().replace(/\s+/g, " ");
-	if (!clean) no("Give the workspace a name.");
-	if (clean.length > 80) no("Keep the name to 80 characters or fewer.");
+	if (!clean) no$1("Give the workspace a name.");
+	if (clean.length > 80) no$1("Keep the name to 80 characters or fewer.");
 	if (clean === ws.name) return null;
 	return {
 		workspace: { name: clean },
@@ -25051,8 +25217,8 @@ function renameWorkspace(x, ws, name) {
 * guide's "What the app records"). Off, nothing is recorded or sent for the workspace. Null when it already is.
 */
 function setRecording(x, ws, on) {
-	if (!x.actor.admin) no("Only admins can turn recording on or off.");
-	if (typeof on !== "boolean") no("Say whether to record: on or off.");
+	if (!x.actor.admin) no$1("Only admins can turn recording on or off.");
+	if (typeof on !== "boolean") no$1("Say whether to record: on or off.");
 	const was = ws.recording !== false;
 	if (was === on) return null;
 	return {
@@ -25076,16 +25242,16 @@ function setRecording(x, ws, on) {
 }
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
 function saveTeam(x, t) {
-	if (!x.actor.admin) no("Only admins can add or change teams.");
+	if (!x.actor.admin) no$1("Only admins can add or change teams.");
 	const clean = t.name.trim().replace(/\s+/g, " ");
-	if (!clean) no("Give the team a name.");
-	if (clean.length > 60) no("Keep the team’s name to 60 characters or fewer.");
+	if (!clean) no$1("Give the team a name.");
+	if (clean.length > 60) no$1("Keep the team’s name to 60 characters or fewer.");
 	const before = t.id ? x.snapshot.teams.find((v) => v.id === t.id) : void 0;
-	if (t.id && !before) no("There’s no team with that ID.");
+	if (t.id && !before) no$1("There’s no team with that ID.");
 	const same = x.snapshot.teams.find((v) => v.id !== before?.id && v.name.trim().toLowerCase() === clean.toLowerCase());
-	if (same) no(`There’s already a team called ${same.name}.`);
+	if (same) no$1(`There’s already a team called ${same.name}.`);
 	const leadId = t.leadId === void 0 ? before?.leadId ?? "" : t.leadId ?? "";
-	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no("The team lead isn’t in this workspace.");
+	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no$1("The team lead isn’t in this workspace.");
 	const team = {
 		id: before?.id ?? x.newId("team"),
 		name: clean,
@@ -25137,15 +25303,15 @@ function teamMembers(x, teamId) {
 }
 /** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
 function removeTeam(x, id, moveTo) {
-	if (!x.actor.admin) no("Only admins can remove teams.");
+	if (!x.actor.admin) no$1("Only admins can remove teams.");
 	const team = x.snapshot.teams.find((t) => t.id === id);
-	if (!team) no("There’s no team with that ID.");
+	if (!team) no$1("There’s no team with that ID.");
 	const { people, goals } = teamMembers(x, id);
 	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 	const what = [people.length ? plural(people.length, "person", "people") : "", goals.length ? plural(goals.length, "goal", "goals") : ""].filter(Boolean).join(" and ");
 	const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : void 0;
-	if (moveTo && (!to || moveTo === id)) no("Move them to another team that’s in this workspace.");
-	if (what && !to) no(`${team.name} still has ${what}. Move them to another team first.`);
+	if (moveTo && (!to || moveTo === id)) no$1("Move them to another team that’s in this workspace.");
+	if (what && !to) no$1(`${team.name} still has ${what}. Move them to another team first.`);
 	const movedPeople = people.map((p) => ({
 		...p,
 		teamId: to.id
@@ -25197,11 +25363,11 @@ function removeTeam(x, id, moveTo) {
 }
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */
 function canDeleteWorkspace(actor, kind, name, confirmName) {
-	if (!actor.admin) no("Only admins can delete the workspace.");
-	if (kind === "example") no("Examples can be reset, not deleted.");
-	if (confirmName.trim() !== name) no(`To confirm, give the workspace’s name exactly: “${name}”.`);
+	if (!actor.admin) no$1("Only admins can delete the workspace.");
+	if (kind === "example") no$1("Examples can be reset, not deleted.");
+	if (confirmName.trim() !== name) no$1(`To confirm, give the workspace’s name exactly: “${name}”.`);
 }
-var NotAllowed, no, lookupOf, ownsOrAdmin, latestOf, askById, nameOf, initialsOf, liveView;
+var NotAllowed, no$1, lookupOf, ownsOrAdmin$1, latestOf, askById, nameOf, watchWhat, initialsOf, liveView;
 var init_actions = __esmMin((() => {
 	init_cycle();
 	init_people();
@@ -25210,7 +25376,7 @@ var init_actions = __esmMin((() => {
 	init_status();
 	init_tableLayout();
 	NotAllowed = class extends Error {};
-	no = (msg) => {
+	no$1 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	lookupOf = (s) => ({
@@ -25218,10 +25384,14 @@ var init_actions = __esmMin((() => {
 		goal: (id) => s.goals.find((g) => g.id === id),
 		teamName: (id) => s.teams.find((t) => t.id === id)?.name ?? id
 	});
-	ownsOrAdmin = (x, g) => x.actor.admin || g.ownerId === x.actor.id;
+	ownsOrAdmin$1 = (x, g) => x.actor.admin || g.ownerId === x.actor.id;
 	latestOf = (x, g) => checkInsFor(g, x.snapshot.checkIns).at(-1) ?? null;
 	askById = (x, id) => asksOf(x.snapshot).find((r) => r.id === id);
 	nameOf = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
+	watchWhat = (x, w) => {
+		const title = (x.full ?? x.snapshot).goals.find((g) => g.id === w.ref)?.title ?? "a goal";
+		return w.kind === "level" ? `every ${w.ref.replace("-", " ")} goal` : w.kind === "tree" ? `${title} and what feeds it` : title;
+	};
 	initialsOf = (name) => {
 		const w = name.trim().split(/\s+/);
 		return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase();
@@ -25594,6 +25764,15 @@ function planChanges(input) {
 	const team = (name) => s.teams.find((t) => norm$1(t.name) === norm$1(name));
 	const work = new Map(s.goals.map((g) => [g.id, g]));
 	const goalByRef = (ref) => ref ? work.get(ref) ?? findGoal([...work.values()], ref) : void 0;
+	const stoppedByRef = (ref) => ref && !goalByRef(ref) ? findGoal(s.archive?.goals ?? [], ref) : void 0;
+	const warnedStopped = /* @__PURE__ */ new Set();
+	const leftAlone = (sheet, row, g) => {
+		unchanged++;
+		if (!warnedStopped.has(g.id)) {
+			warnedStopped.add(g.id);
+			warn(sheet, row, g.title, `“${g.title}” is stopped, so its rows are left as they are.`);
+		}
+	};
 	let lastKeyGiven = lastKey(s.goals, s.keysIssued);
 	const touched = /* @__PURE__ */ new Map();
 	const started = (id) => s.checkIns.some((c) => c.goalId === id);
@@ -25606,6 +25785,8 @@ function planChanges(input) {
 		const keyRef = val(r, "key");
 		const title = val(r, "goal");
 		if (!id && !keyRef && !title && Object.entries(r).every(([k, v]) => k === "__row" || !v)) return;
+		const stopped = stoppedByRef(id || keyRef);
+		if (stopped) return leftAlone("Goals", row, stopped);
 		const existing = goalByRef(id || keyRef) ?? null;
 		if (id && !existing) return err("Goals", row, title || id, `There’s no goal with ID ${id} in ${cycle.name}. Leave ID empty to add a new goal.`);
 		if (!id && keyRef && !existing) return err("Goals", row, title || keyRef, `There’s no goal with key ${keyRef} in ${cycle.name}. Leave Key and ID empty to add a new goal.`);
@@ -25752,6 +25933,8 @@ function planChanges(input) {
 			if (val(r, "goal")) err("Plan", row, val(r, "goal"), "Add the goal’s ID or key so the plan can be matched to it.");
 			return;
 		}
+		const stopped = stoppedByRef(ref);
+		if (stopped) return leftAlone("Plan", row, stopped);
 		const g = goalByRef(ref);
 		if (!g) return err("Plan", row, val(r, "goal") || ref, `There’s no goal with ${isKey(ref) && !work.has(ref) ? "key" : "ID"} ${ref}.`);
 		const id = g.id;
@@ -25840,6 +26023,7 @@ function planChanges(input) {
 		});
 	}
 	const ciOut = [];
+	const ciBefore = /* @__PURE__ */ new Map();
 	const seen = /* @__PURE__ */ new Set();
 	const rows = (input.tables.checkIns ?? []).map((r, i) => ({
 		r,
@@ -25854,6 +26038,11 @@ function planChanges(input) {
 		if (Object.entries(r).every(([k, v]) => k === "__row" || !v)) continue;
 		const g = goalFor(r);
 		const name = val(r, "goal") || goalRefOf(r);
+		const stopped = !g ? stoppedByRef(goalRefOf(r)) ?? (s.archive?.goals ?? []).find((x) => norm$1(x.title) === norm$1(val(r, "goal"))) : void 0;
+		if (stopped) {
+			leftAlone("Check-ins", row, stopped);
+			continue;
+		}
 		if (!g) {
 			err("Check-ins", row, name, goalRefOf(r) ? `There’s no goal with ${isKey(goalRefOf(r)) ? "key" : "ID"} ${goalRefOf(r)}.` : `There’s no goal called “${val(r, "goal")}”. Add the Goal ID or Goal key column to be exact.`);
 			continue;
@@ -25990,6 +26179,7 @@ function planChanges(input) {
 		}
 		ch.at = now;
 		if (backfilled) ch.summary += " (loaded later)";
+		ciBefore.set(c.id, existing);
 		ciOut.push(c);
 		imported.set(g.id, [...imported.get(g.id) ?? [], c]);
 		changes.push(ch);
@@ -26058,20 +26248,43 @@ function planChanges(input) {
 		counts
 	};
 	if (ok) {
+		const sumId = newId("chg");
+		const importId = newId("imp");
+		for (const ch of changes) ch.importId = importId;
+		const requestsBefore = asksOf(s);
 		const summary = {
-			id: newId("chg"),
+			id: sumId,
 			at: now,
 			actorId: actor.id,
 			goalId: null,
 			entity: "workspace",
-			entityId: newId("imp"),
+			entityId: importId,
 			action: "imported",
+			importId,
 			summary: `${via === "spreadsheet" ? "Loaded a spreadsheet" : via === "mcp" ? "Changes from an AI assistant" : via === "table" ? "Edited the data tables" : "Bulk edit"}: ${describe(result).toLowerCase()}`,
 			diffs: [{
 				field: "Via",
 				from: "—",
 				to: VIA_LABEL[via]
-			}]
+			}],
+			undo: {
+				goals: goalOut.map((g) => ({
+					id: g.id,
+					before: touched.get(g.id)?.before ?? null
+				})),
+				checkIns: ciOut.map((c) => ({
+					id: c.id,
+					before: ciBefore.get(c.id) ?? null
+				})),
+				people: peopleOut.map((p) => ({
+					id: p.id,
+					before: s.people.find((x) => x.id === p.id) ?? null
+				})),
+				requests: [...reqOut.values()].map((r) => ({
+					id: r.id,
+					before: requestsBefore.find((x) => x.id === r.id) ?? null
+				}))
+			}
 		};
 		const ordered = [];
 		const pending = [...goalOut];
@@ -26225,6 +26438,8 @@ var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) +
 // src/data/supabaseStore.ts
 init_asks();
 init_goalKey();
+/** A database function that isn't there yet: its migration hasn't been applied. */
+var missing = (error) => error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message);
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
 var TIMEOUT_MS = 12e3;
 /** Supabase returns at most 1,000 rows per request; read in pages below that. */
@@ -26246,7 +26461,10 @@ var SupabaseStore = class {
 	db;
 	constructor(url, key, client) {
 		this.db = client ?? createClient(url, key, {
-			auth: { persistSession: false },
+			auth: {
+				persistSession: false,
+				detectSessionInUrl: false
+			},
 			global: { fetch: timedFetch }
 		});
 	}
@@ -26286,8 +26504,8 @@ var SupabaseStore = class {
 			this.all("okr_watches", ws),
 			this.all("okr_reviews", ws),
 			this.all("okr_retros", ws),
-			this.all("okr_feedback", ws),
-			this.all("okr_api_tokens", ws).catch(() => []),
+			this.viaRpc("okr_feedback_list", ws, "okr_feedback").catch(() => []),
+			this.viaRpc("okr_token_list", ws, "okr_api_tokens").catch(() => []),
 			this.all("okr_views", ws).catch(() => []),
 			this.all("okr_requests", ws).catch(() => null)
 		]);
@@ -26309,16 +26527,48 @@ var SupabaseStore = class {
 			...requests ? { requests: requests.map(requestFromRow) } : {}
 		});
 	}
+	/** A workspace's rows from a database function that returns them (migration 0024), or from the table before it. */
+	async viaRpc(fn, ws, table) {
+		const { data, error } = await this.db.rpc(fn, { ws });
+		if (!error) return data ?? [];
+		if (missing(error)) return this.all(table, ws);
+		throw new Error(`${table}: ${error.message}`);
+	}
 	/** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
 	async rpc(fn, args, what) {
 		const { error } = await this.db.rpc(fn, args);
 		if (!error) return;
-		if (error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message)) return "missing";
+		if (missing(error)) return "missing";
 		if (/stale: /.test(error.message)) throw new StaleError(error.message.replace(/^.*stale: /, ""));
 		throw new Error(`${what}: ${error.message}`);
 	}
-	/** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. */
+	/** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. Revoking a
+	token goes through okr_token_revoke (migration 0024), with its change-log entry, in its own transaction. */
 	async commit(ws, c) {
+		if (c.tokens?.length) {
+			const by = c.changes[0]?.actorId ?? "";
+			const done = [];
+			for (const t of c.tokens) {
+				if (!t.revokedAt) continue;
+				const change = c.changes.find((x) => x.entityId === t.personId && x.diffs.some((d) => d.field === "AI assistant token"));
+				if (await this.rpc("okr_token_revoke", {
+					ws,
+					token_id: t.id,
+					by_id: by,
+					change: change ? changeToRow(ws, change) : null
+				}, "Revoking the token") === "missing") break;
+				done.push(t.id);
+				if (change) c = {
+					...c,
+					changes: c.changes.filter((x) => x !== change)
+				};
+			}
+			if (done.length) c = {
+				...c,
+				tokens: c.tokens.filter((t) => !done.includes(t.id))
+			};
+			if (!c.tokens?.length && Object.entries(c).every(([k, v]) => k === "expect" || k === "tokens" || (Array.isArray(v) ? !v.length : v === void 0))) return;
+		}
 		if (await this.rpc("okr_commit", {
 			ws,
 			payload: commitPayload(ws, c)
@@ -26327,6 +26577,35 @@ var SupabaseStore = class {
 			return;
 		}
 		await this.legacyCommit(ws, c);
+	}
+	/** A new AI assistant token: the database makes the secret, keeps only its hash, logs the change and returns it once
+	(okr_token_create, migration 0024). Before that migration, the secret is made here and saved with the rest. */
+	async issueToken(ws, c) {
+		const t = c.tokens?.[0];
+		if (!t || c.tokens.length !== 1) throw new Error("Saving the token: one token at a time.");
+		const change = c.changes[0];
+		const { data, error } = await this.db.rpc("okr_token_create", {
+			ws,
+			token: {
+				id: t.id,
+				person_id: t.personId,
+				name: t.name,
+				created_by: t.createdBy
+			},
+			change: change ? changeToRow(ws, change) : null
+		});
+		if (!error) return data;
+		if (!missing(error)) throw new Error(`Saving the token: ${error.message.replace(/^.*?: /, "")}`);
+		const { hashToken, newToken } = await Promise.resolve().then(() => (init_token(), token_exports));
+		const secret = newToken();
+		await this.commit(ws, {
+			...c,
+			tokens: [{
+				...t,
+				tokenHash: await hashToken(secret)
+			}]
+		});
+		return secret;
 	}
 	async teamsAndName(ws, c) {
 		if (c.removeTeams?.length) await this.must(this.db.from("okr_teams").delete().eq("workspace_id", ws).in("id", c.removeTeams), "Removing the team");
@@ -26470,7 +26749,7 @@ var LEVELS$2 = [
 	"team"
 ];
 var list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
-var int$2 = (v) => {
+var int$3 = (v) => {
 	const n = v == null ? NaN : Number(v);
 	return Number.isInteger(n) && n > 0 ? n : null;
 };
@@ -26487,8 +26766,8 @@ function parseQuery(p) {
 		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
 		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
 		needs: list$1(p.get("needs"), NEED_OPTIONS.map(([k]) => k)),
-		due: due === "quarter" ? "quarter" : int$2(due),
-		quiet: int$2(p.get("quiet")),
+		due: due === "quarter" ? "quarter" : int$3(due),
+		quiet: int$3(p.get("quiet")),
 		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
 		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
 		feeds: p.get("feeds") || null,
@@ -26823,6 +27102,15 @@ var STATUS_ORDER = [
 	"planned",
 	"done"
 ];
+// src/domain/words.ts
+/** A person who has left the workspace. */
+var LEFT = "Left";
+/** A goal stopped before the end of its cycle. */
+var STOPPED = "Stopped";
+/** A review that has ended. */
+var ENDED = "Ended";
+/** A person who left, as history names them: "Maya Patel (left)". */
+var leftName = (name) => `${name} (left)`;
 // src/domain/export.ts
 init_goal();
 init_asks();
@@ -26855,14 +27143,29 @@ var RECOVERY = {
 	help: "Needs a decision or help",
 	target: "Target should change"
 };
-function prepare(x) {
-	const goals = x.goals ?? x.snapshot.goals;
-	const sums = summariseAll(goals, x.snapshot, x.cycle, x.today, x.week);
-	const name = (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? "";
+/**
+* The goals an export carries and their summaries. A whole-cycle export (the workbook, CSV, JSON) keeps stopped goals,
+* with their check-ins, marked Stopped (domain/removal); the brief, like every list, leaves them out.
+*/
+function prepare(x, withStopped = false) {
+	const a = withStopped && !x.goals ? x.snapshot.archive : void 0;
+	const s = a?.goals.length ? {
+		...x.snapshot,
+		goals: [...x.snapshot.goals, ...a.goals],
+		checkIns: [...x.snapshot.checkIns, ...a.checkIns],
+		decisions: [...x.snapshot.decisions, ...a.decisions]
+	} : x.snapshot;
+	const goals = x.goals ?? s.goals;
+	const sums = summariseAll(goals, s, x.cycle, x.today, x.week);
+	const name = (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? (() => {
+		const p = x.snapshot.archive?.people.find((v) => v.id === id);
+		return p ? leftName(p.name) : "";
+	})();
 	return {
 		goals,
 		sums,
-		name
+		name,
+		s
 	};
 }
 /** A check-in's stages as the owner gave them (done, expected or on its due week), so loading the file back changes
@@ -26974,7 +27277,7 @@ function goalRow(s, all) {
 		g.effect,
 		g.source || null,
 		g.definition || null,
-		s.statusLabel,
+		g.stoppedAt ? STOPPED : s.statusLabel,
 		s.story.result?.text ?? null,
 		s.story.since,
 		s.now,
@@ -27235,9 +27538,9 @@ function askRows(x, ids, name) {
 	])];
 }
 function workbook(x) {
-	const { goals, sums, name } = prepare(x);
+	const { goals, sums, name, s } = prepare(x, true);
 	const ids = new Set(goals.map((g) => g.id));
-	const notes = saidIn(x.snapshot).filter((d) => ids.has(d.goalId) && [
+	const notes = saidIn(s).filter((d) => ids.has(d.goalId) && [
 		"note",
 		"ask",
 		"action"
@@ -27246,7 +27549,7 @@ function workbook(x) {
 	return [
 		{
 			name: "Goals",
-			rows: [[...GOAL_EXPORT_COLUMNS, ...GOAL_DERIVED_COLUMNS], ...sums.map((s) => goalRow(s, x.snapshot.goals))]
+			rows: [[...GOAL_EXPORT_COLUMNS, ...GOAL_DERIVED_COLUMNS], ...sums.map((v) => goalRow(v, s.goals))]
 		},
 		{
 			name: "Plan",
@@ -27332,7 +27635,7 @@ function toCsv(rows) {
 	return rows.map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 function toJson(x) {
-	const { sums, name } = prepare(x);
+	const { sums, name } = prepare(x, true);
 	const team = (id) => x.snapshot.teams.find((t) => t.id === id)?.name ?? null;
 	return {
 		format: EXPORT_FORMAT,
@@ -27422,9 +27725,14 @@ function toJson(x) {
 					name: st.name,
 					dueWeek: st.dueWeek
 				})) } : {},
+				...g.stoppedAt ? { stopped: {
+					at: g.stoppedAt,
+					by: name(g.stoppedBy ?? "") || null,
+					reason: g.stopReason ?? null
+				} } : {},
 				now: {
 					status: s.status,
-					statusLabel: s.statusLabel,
+					statusLabel: g.stoppedAt ? STOPPED : s.statusLabel,
 					statusMeaning: MEANING[s.status],
 					value: s.nowValue,
 					text: s.now,
@@ -27714,7 +28022,7 @@ var COUNT_WORDS = [
 ];
 /** "two", "three" … for small counts in a sentence; digits from 11. */
 var countWord = (n) => COUNT_WORDS[n] ?? String(n);
-var plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+var plural$1 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 var pct$1 = (r) => `${Math.round(r * 100)}%`;
 var round$1 = (v, decimals) => Number(v.toFixed(decimals));
 /** "weeks 42–44", or "week 44" for one. */
@@ -27954,8 +28262,8 @@ function milestoneFacts(goal, own, week, stale) {
 	out.push({
 		key: "plan",
 		label: "Against plan",
-		value: m.calc === "done" ? "Every stage done" : m.late.length ? `${plural(m.late.length, "stage")} late` : "On schedule",
-		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done; ${m.dueCount} due by week ${week}`,
+		value: m.calc === "done" ? "Every stage done" : m.late.length ? `${plural$1(m.late.length, "stage")} late` : "On schedule",
+		detail: `${m.doneCount} of ${plural$1(m.stages.length, "stage")} done; ${m.dueCount} due by week ${week}`,
 		tone: m.late.length ? "bad" : "good"
 	});
 	const span = own.filter((c) => c.stages).slice(-3);
@@ -27984,7 +28292,7 @@ function milestoneFacts(goal, own, week, stale) {
 		key: "since",
 		label: "Since last update",
 		value: "First check-in",
-		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done in week ${latest.week}`,
+		detail: `${m.doneCount} of ${plural$1(m.stages.length, "stage")} done in week ${latest.week}`,
 		tone: "flat"
 	});
 	else {
@@ -28000,7 +28308,7 @@ function milestoneFacts(goal, own, week, stale) {
 		out.push({
 			key: "since",
 			label: "Since last update",
-			value: first ? `${first.s.name} slipped ${plural(first.s.expectedWeek - first.b.expectedWeek, "week")}` : done.length ? `${plural(done.length, "stage")} done` : "No change",
+			value: first ? `${first.s.name} slipped ${plural$1(first.s.expectedWeek - first.b.expectedWeek, "week")}` : done.length ? `${plural$1(done.length, "stage")} done` : "No change",
 			detail: parts.length ? `Since week ${prev.week}: ${parts.join("; ")}` : `Same as week ${prev.week}`,
 			tone: slips.length ? "bad" : done.length ? "good" : "flat"
 		});
@@ -28013,7 +28321,7 @@ function milestoneFacts(goal, own, week, stale) {
 		key: "projection",
 		label: "Projection",
 		value: `Finished in week ${finish}`,
-		detail: finish > due ? `${plural(finish - due, "week")} after its week ${due} date` : `By its week ${due} date`,
+		detail: finish > due ? `${plural$1(finish - due, "week")} after its week ${due} date` : `By its week ${due} date`,
 		tone: finish > due ? "bad" : "good"
 	});
 	else if (stale) out.push({
@@ -28026,7 +28334,7 @@ function milestoneFacts(goal, own, week, stale) {
 	else out.push({
 		key: "projection",
 		label: "Projection",
-		value: finish > due ? `Finishes week ${finish}, ${plural(finish - due, "week")} late` : `Finishes by week ${due}`,
+		value: finish > due ? `Finishes week ${finish}, ${plural$1(finish - due, "week")} late` : `Finishes by week ${due}`,
 		detail: nextText,
 		tone: finish > due ? "bad" : "good"
 	});
@@ -28351,11 +28659,20 @@ function milestoneCard(goal, checkIns, week) {
 		marks: null
 	};
 }
-/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected. */
+/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected.
+A stopped goal makes no forecast: its card says how it stood (no "will it hit?" cell and no likely end on the
+chart), and the note under it says when and why it stopped. */
 function goalScorecard(goal, cycle, checkIns, week, stale) {
-	if (goal.kind === "metric") return metricCard(goal, cycle, checkIns, week, stale);
-	if (goal.kind === "range") return rangeCard(goal, cycle, checkIns, week, stale);
-	return milestoneCard(goal, checkIns, week);
+	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale) : milestoneCard(goal, checkIns, week);
+	if (!goal.stoppedAt) return card;
+	return {
+		...card,
+		cells: card.cells.filter((c) => c.key !== "hit"),
+		marks: card.marks && {
+			...card.marks,
+			end: null
+		}
+	};
 }
 // src/domain/activity.ts
 init_format();
@@ -28398,7 +28715,7 @@ function parseActivity(p) {
 		since: date(p.get("since"))
 	};
 }
-var VIA$1 = (c) => c.diffs.find((d) => d.field === "Via")?.to ?? null;
+var VIA$2 = (c) => c.diffs.find((d) => d.field === "Via")?.to ?? null;
 var PLAN_FIELDS = [
 	"Start",
 	"Target",
@@ -28411,13 +28728,13 @@ var PLAN_FIELDS = [
 ];
 /** What kind of change this is. A goal change that touches its plan or target counts as a plan change. */
 function kindOf(c) {
-	if (VIA$1(c) === "AI assistant (MCP)") return "ai";
-	if (c.action === "imported") return "imports";
+	if (VIA$2(c) === "AI assistant (MCP)") return "ai";
+	if (c.action === "imported" || c.action === "undone") return "imports";
 	if (c.entity === "check-in") return "checkins";
 	if (c.entity === "goal") return c.action !== "created" && c.diffs.some((d) => PLAN_FIELDS.includes(d.field)) ? "plans" : "goals";
 	if (c.entity === "decision" || c.entity === "review") return "reviews";
 	if (c.entity === "note") return "comments";
-	if (c.entity === "person" || c.entity === "workspace") return "people";
+	if (c.entity === "person" || c.entity === "workspace" || c.entity === "view" || c.entity === "watch") return "people";
 	return "cycle";
 }
 /** The dates a "when" covers, as YYYY-MM-DD, inclusive. */
@@ -29310,7 +29627,7 @@ var ARTICLES = [
 					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go), and Will it hit the target.",
 					"Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.",
 					"A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages late and Next stage: when it now lands, and the week it was due if it’s late.",
-					"One main button, for what you’d most likely do next: answer something asked of you, check in when it’s due, ask a quiet goal’s owner for an update, or watch it. The “…” menu has Share image, Copy link, Print or save as PDF, and Change this goal.",
+					"One main button, for what you’d most likely do next: answer something asked of you, check in when it’s due, ask a quiet goal’s owner for an update, or watch it. The “…” menu has Share image, Copy link, Print or save as PDF, Change this goal, and Stop this goal (with check-ins, asking why) or Delete this goal (with none).",
 					"As you scroll, the bar shrinks to one line on a solid panel at the top: the status, the number and the gap to plan (“Off track · 37 hours · 9 behind plan”), and the “…” menu. On a phone the bar takes the place of the app’s header."
 				]
 			},
@@ -29331,7 +29648,15 @@ var ARTICLES = [
 			},
 			{
 				heading: "Changing it",
-				list: ["Change this goal (in About, or the “…” menu) offers three: improve the definition, change the plan or target, change the owner or level. Each asks why, and the reason goes in the activity for everyone watching."]
+				list: ["Change this goal (in About, or the “…” menu) offers three: improve the definition, change the plan or target, change the owner or level. Each asks why, and the reason goes in the activity for everyone watching.", "Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for whoever posted it or an admin; after a newer one it can only be corrected."]
+			},
+			{
+				heading: "A stopped goal",
+				list: [
+					"A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.",
+					"A stopped goal makes no forecast: its scorecard keeps Vs plan, Vs last week and To target as they stood, without Will it hit the target, and its chart has no projection.",
+					"It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity."
+				]
 			},
 			{
 				heading: "Sharing it",
@@ -29358,7 +29683,8 @@ var ARTICLES = [
 			"NOTES",
 			"FORECAST",
 			"STORY",
-			"ASK-UNDO"
+			"ASK-UNDO",
+			"GOAL-STOP"
 		],
 		keywords: [
 			"goal",
@@ -29387,7 +29713,8 @@ var ARTICLES = [
 			"check-in",
 			"edit-goal",
 			"keys",
-			"print"
+			"print",
+			"removing"
 		]
 	},
 	{
@@ -29534,8 +29861,12 @@ var ARTICLES = [
 				]
 			},
 			{
+				heading: "Ending one",
+				list: ["End this review, at the foot of its page: it stops showing as due and keeps its notes and actions on each goal and in exports. Its page says Ended, with Reopen. A review that was never held is deleted instead.", "A note said in a review can be removed by whoever said it, or an admin; the goal’s activity then says “Note removed” in its place. A corrected note says edited."]
+			},
+			{
 				heading: "Who can",
-				text: ["Anyone can set up a review or join one. Someone in the review, whoever set it up, or an admin can change it. Whoever said something, or an admin, can correct it."]
+				text: ["Anyone can set up a review or join one. Someone in the review, whoever set it up, or an admin can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
 			}
 		],
 		routes: [
@@ -29587,7 +29918,9 @@ var ARTICLES = [
 				"Every save is logged: goals, plans, check-ins, comments, review calls, people and the workspace. Drafts are not.",
 				"Filter by who, a goal or its whole tree, team, level, kind of change (check-ins, plans and targets, goal details, reviews, comments, people, imports, AI assistant, wrap-ups) and when.",
 				"Search finds names, reasons and numbers. Show the changes opens the before and after.",
-				"The filters are in the link, so a filtered log can be shared. Save .csv exports what is shown."
+				"The filters are in the link, so a filtered log can be shared. Save .csv exports what is shown.",
+				"Every removal is here too: a goal stopped, a person marked as left, a check-in or comment deleted, a view deleted, a watch stopped, and each restore.",
+				"An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone."
 			]
 		}, {
 			heading: "Safe saves",
@@ -29598,7 +29931,8 @@ var ARTICLES = [
 		reqs: [
 			"CHANGE-LOG",
 			"NOTES",
-			"NO-LOST-UPDATES"
+			"NO-LOST-UPDATES",
+			"IMPORT-UNDO"
 		],
 		keywords: [
 			"log",
@@ -29607,9 +29941,14 @@ var ARTICLES = [
 			"changes",
 			"who changed",
 			"before and after",
-			"csv"
+			"csv",
+			"undo import"
 		],
-		related: ["goal-page", "data"]
+		related: [
+			"goal-page",
+			"data",
+			"removing"
+		]
 	},
 	{
 		id: "wrap-up",
@@ -29709,7 +30048,8 @@ var ARTICLES = [
 				"Choose Import (on Goals, or in More on a phone). Download the workbook to start from what is already there.",
 				"Change it in Excel, then drop it in or choose the file: .xlsx, .csv or tab-separated.",
 				"Every row is checked with the app’s own rules and shown before anything is saved. Nothing saves while a row needs fixing; plan changes after check-ins need a reason.",
-				"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone."
+				"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
+				"Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was."
 			]
 		}, {
 			heading: "Who can",
@@ -29730,12 +30070,14 @@ var ARTICLES = [
 			"spreadsheet",
 			"workbook",
 			"load",
-			"bulk"
+			"bulk",
+			"undo"
 		],
 		related: [
 			"export",
 			"data",
-			"keys"
+			"keys",
+			"removing"
 		]
 	},
 	{
@@ -29747,7 +30089,7 @@ var ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Choose Export on Goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).",
-				"Excel workbook: goals, plan by week, check-ins, review notes and actions, asks, people and a README.",
+				"Excel workbook: goals, plan by week, check-ins, review notes and actions, asks, people and a README. A goal stopped this year is in it, with Stopped as its status.",
 				"CSV: one table per file. JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
 				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
 				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx."
@@ -29805,6 +30147,81 @@ var ARTICLES = [
 		]
 	},
 	{
+		id: "removing",
+		title: "Removing, stopping and undoing",
+		summary: "Anything you make can be taken away again: people leave, goals stop, check-ins, reviews, comments and views go, an import can be undone, and nothing is ever lost.",
+		group: "you",
+		sections: [
+			{
+				heading: "What it’s for",
+				text: ["Mistakes and changes of plan. A person leaves, a goal stops mattering mid-year, a check-in went to the wrong goal, a spreadsheet loaded the wrong numbers. Each can be put right without losing history."]
+			},
+			{
+				heading: "What each removal does",
+				list: [
+					"A person who has left: an admin opens them on Workspace and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them). They then disappear from pickers, counts, reviews and Home, and their AI assistant token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.",
+					"A goal with check-ins is stopped, with a reason (“…” menu → Stop this goal). It leaves the numbers, reviews, Home, Watching and the lists of what needs attention, but its page stays, marked Stopped with its reason, and so do its history, its place in exports and Activity. The goals feeding it now feed what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.",
+					"A check-in: Delete this check-in, under the latest one on the goal’s page, by whoever posted it or an admin. Once a newer one is posted it can only be corrected. The status goes back to the one before.",
+					"A review: End this review, at the foot of its page, by whoever set it up or an admin. It keeps its notes and actions and stops showing as due. One that was never held is deleted.",
+					"A comment: its author can edit it (it then says edited), and its author or an admin can remove it; its place in the thread says “Comment removed”, so the conversation still reads. A note said in a review works the same way, leaving “Note removed”.",
+					"A saved view: Delete, from its menu. An admin can delete anyone’s. Stopping watching works the same way.",
+					"A cycle no one has checked in to yet (started by mistake, say): an admin deletes it under Cycles on Workspace, with its goals.",
+					"An import or bulk edit: Undo this import, on its entry in Activity, by whoever made it or an admin. Every row it wrote goes back as it was: goals and check-ins it added are deleted, ones it changed get their earlier version back. A row someone has changed since is skipped and listed."
+				]
+			},
+			{
+				heading: "Undo, and Recently removed",
+				list: [
+					"Every removal shows a message with Undo for 10 seconds. Undo puts everything back as it was a moment before, including what was handed over or moved.",
+					"After that, admins can bring anything back from Recently removed on Workspace: it lists what was removed, stopped, ended or marked as left in the last 30 days, with who did it and when, and Restore. Whoever removed something can restore it too.",
+					"Nothing is ever erased. After 30 days a removed record leaves the list, but it’s still kept, and every removal and restore is in Activity."
+				]
+			},
+			{
+				heading: "Who can",
+				list: [
+					"Admins mark people as left, delete people with no history, delete cycles and restore from Recently removed.",
+					"A goal’s owner or an admin stops or deletes it. Whoever posted a check-in, or an admin, deletes it. Whoever set up a review, or an admin, ends it.",
+					"Only a comment’s author edits it; its author or an admin removes it. Whoever made an import, or an admin, undoes it.",
+					"An AI assistant can do each of these with the same rules, as the person it acts for."
+				]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: [
+			"REMOVE-ANYTHING",
+			"UNDO-REMOVE",
+			"PERSON-LEFT",
+			"GOAL-STOP",
+			"IMPORT-UNDO"
+		],
+		keywords: [
+			"remove",
+			"delete",
+			"undo",
+			"restore",
+			"stop",
+			"stopped",
+			"left",
+			"leaver",
+			"archive",
+			"end review",
+			"recently removed",
+			"deleted",
+			"mistake",
+			"undo import",
+			"edit comment"
+		],
+		related: [
+			"workspace",
+			"goal-page",
+			"activity",
+			"import",
+			"reviews"
+		]
+	},
+	{
 		id: "workspace",
 		title: "Running the workspace",
 		summary: "Workspace is the directory of people and teams, with the settings admins look after.",
@@ -29817,11 +30234,18 @@ var ARTICLES = [
 				"Rename the workspace; add, rename and remove teams. A team with people or goals moves them to another team in the same save.",
 				"AI assistants: make a personal token for someone (shown once) and revoke tokens. Feedback: read what people sent with the feedback button.",
 				"What the app records: recording of how the app is used is on for everyone. Untick it to turn it off for the whole workspace; while it’s off, nothing is recorded or sent.",
-				"Delete the workspace, after typing its name. It can’t be undone; an example can only be reset."
+				"Someone who has left: open them and choose Mark as left. You’re asked who takes over their goals and their open asks first; they then leave every picker and count, and history keeps their name, as “Name (left)”. Someone with no history is deleted instead.",
+				"Recently removed lists everything removed, stopped, ended or marked as left in the last 30 days, with who and when, and Restore. Cycles lists the cycles; one nobody has checked in to can be deleted.",
+				"Delete the workspace, after typing its name. It can’t be undone; an example can only be reset.",
+				"Inbox: for the people building Faro, the markups people send. See The builder inbox."
 			]
 		}, {
 			heading: "Who can",
-			list: ["Everyone can see the people and teams.", "Only admins add or change people and teams, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin."]
+			list: [
+				"Everyone can see the people and teams.",
+				"Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.",
+				"Only builders, signed in to the inbox, read markups. Admins who aren’t builders can’t see them until sign-in comes to the whole app."
+			]
 		}],
 		routes: ["/workspace"],
 		screens: ["Workspace"],
@@ -29830,7 +30254,9 @@ var ARTICLES = [
 			"WORKSPACE-ADMIN",
 			"PROFILES",
 			"WORKSPACES",
-			"TELEMETRY-SWITCH"
+			"TELEMETRY-SWITCH",
+			"PERSON-LEFT",
+			"UNDO-REMOVE"
 		],
 		keywords: [
 			"admin",
@@ -29842,13 +30268,21 @@ var ARTICLES = [
 			"directory",
 			"feedback",
 			"tokens",
-			"recording"
+			"recording",
+			"inbox",
+			"left",
+			"leaver",
+			"recently removed",
+			"restore",
+			"cycles"
 		],
 		related: [
 			"ai-assistants",
 			"set-up",
 			"settings",
-			"recording"
+			"recording",
+			"inbox",
+			"removing"
 		]
 	},
 	{
@@ -29942,6 +30376,14 @@ var ARTICLES = [
 				]
 			},
 			{
+				heading: "When you send a markup",
+				list: [
+					"A markup is sent only when you press Send. It carries the picture of your screen as it was (nothing on it is hidden, and you see it before sending), your marks, your line, your name, the page, your screen size, light or dark, your accent and the app’s version.",
+					"It also carries your last 20 steps on this visit (the pages you opened and the buttons you pressed, never what you typed) unless you untick them, and any errors or saves that didn’t go through on this visit.",
+					"Only the people building Faro read markups."
+				]
+			},
+			{
 				heading: "Turning it off",
 				list: ["Everyone is recorded by default. Settings says whether it is on where you are.", "An admin can turn it off for the whole workspace on Workspace, under What the app records. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
 			}
@@ -29990,19 +30432,23 @@ var ARTICLES = [
 			{
 				heading: "How to connect",
 				list: [
-					"An admin makes a personal token for you under Workspace, AI assistants. It is shown once; only a hash is stored.",
+					"An admin makes a personal token for you under Workspace, AI assistants. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.",
 					"Add the server to your assistant with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header \"Authorization: Bearer gk_…\".",
 					"See and revoke your tokens in Settings. The full list of tools is in docs/mcp.md."
 				]
 			},
 			{
 				heading: "Who can",
-				text: ["Only admins make tokens. An admin or the token’s own person can revoke one."]
+				text: ["Only admins make tokens. An admin or the token’s own person can revoke one. A builder makes a builder token in the inbox, so their assistant can read and triage markups too."]
 			}
 		],
 		routes: [],
 		screens: [],
-		reqs: ["MCP-TOKENS", "MCP-PARITY"],
+		reqs: [
+			"MCP-TOKENS",
+			"MCP-PARITY",
+			"TOKENS-SERVER-ONLY"
+		],
 		keywords: [
 			"ai",
 			"claude",
@@ -30020,6 +30466,118 @@ var ARTICLES = [
 		]
 	},
 	{
+		id: "feedback",
+		title: "Send feedback, and marking up a screen",
+		summary: "Tell the people building Faro what should change: mark up the screen you’re on, or say in a few words how the app is working for you.",
+		group: "you",
+		sections: [
+			{
+				heading: "How to use it",
+				list: [
+					"Choose Send feedback, at the foot of the sidebar or in More on a phone. Its first choice is Mark up this screen. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere.",
+					"The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.",
+					"Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.",
+					"Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.",
+					"Or skip the picture: choose how it’s working and add a few words, as before. It goes to the same inbox as markups, where the people building Faro mark it in hand, fixed or won’t fix."
+				]
+			},
+			{
+				heading: "With the keyboard",
+				list: ["Tab to the drawing area. The arrow keys move a crosshair (with Shift, further), Enter starts and ends a mark, and P, A, B and N choose Pen, Arrow, Box and Note.", "Ctrl+Z takes back the last mark. Escape stops the mark you’re making, or else cancels."]
+			},
+			{
+				heading: "What’s sent",
+				list: [
+					"The picture of your screen, as it was. Nothing on it is hidden, so check it before you send.",
+					"Your marks, your line, your name, which parts of the screen your marks are on (for example Goal page, Scorecard, Will it hit), the page, your screen size, light or dark, your accent and the app’s version.",
+					"Your last 20 steps on this visit, unless you untick them: the pages you opened and the buttons you pressed, never what you typed. And any errors or saves that didn’t go through on this visit.",
+					"In the demo, markups are sent too, marked as from the demo. Only the people building Faro read them, in the builder inbox. Your admins don’t see them yet."
+				]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: ["MARKUP"],
+		keywords: [
+			"feedback",
+			"markup",
+			"mark up",
+			"picture",
+			"draw",
+			"shortcut",
+			"ctrl shift m",
+			"report a problem",
+			"what should change",
+			"you raised this"
+		],
+		related: [
+			"inbox",
+			"recording",
+			"help"
+		]
+	},
+	{
+		id: "inbox",
+		title: "The builder inbox",
+		summary: "For the people building Faro: every markup and piece of feedback people send, to triage, with a markup’s picture, the parts it names and what led up to it.",
+		group: "you",
+		sections: [
+			{
+				heading: "Signing in",
+				list: [
+					"The inbox is on Workspace. Builders sign in with their email: the link in the email brings you back, signed in, in that browser. Sign out there too.",
+					"Only the inbox signs in. The rest of the app is unchanged.",
+					"A builder is someone whose email is on Faro’s builders list. Admins who aren’t builders can’t read markups until sign-in comes to the whole app, when they’ll see their own workspace’s."
+				]
+			},
+			{
+				heading: "How to use it",
+				list: [
+					"Markups are listed newest first, each with a small picture, its line, the part of the page it’s about, who sent it and when, and its status as a shape and a word: New, In hand, Fixed or Won’t fix.",
+					"Markups about the same part of the same page are grouped, with a count.",
+					"Open one to see its picture (hide the drawing to see the screen beneath), the parts its marks are on, its notes, the steps before it as a timeline, any errors, and where it was sent from.",
+					"Mark it in hand. Open GitHub issue opens a new issue on GitHub filled in with the line, the page, the parts, the steps and a link back here: press Submit there, then paste the issue’s address back with Paste issue link.",
+					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.",
+					"Make a builder token, so your AI assistant can list, open and change markups too."
+				]
+			},
+			{
+				heading: "Feedback",
+				list: [
+					"Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.",
+					"It has the same statuses: open it to mark it in hand, fixed in a What’s new entry, or won’t fix with a reason, or new again. It has no picture and no GitHub issue.",
+					"Feedback always arrives as New. Only builders read everyone’s and change its status; a workspace’s admins still read their own on Workspace."
+				]
+			},
+			{
+				heading: "Without a database",
+				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback, without signing in. Statuses you give feedback there stay in that browser."]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: ["MARKUP-INBOX", "FEEDBACK-INBOX"],
+		keywords: [
+			"inbox",
+			"markups",
+			"builders",
+			"triage",
+			"github issue",
+			"sign in",
+			"email link",
+			"fixed",
+			"won’t fix",
+			"in hand",
+			"feedback",
+			"mood"
+		],
+		related: [
+			"feedback",
+			"workspace",
+			"ai-assistants"
+		]
+	},
+	{
 		id: "any-device",
 		title: "On a phone, a tablet or a big screen",
 		summary: "The app works at every size, from a small phone to an ultra-wide monitor, and keeps your work safe as you go.",
@@ -30034,7 +30592,7 @@ var ARTICLES = [
 			]
 		}, {
 			heading: "Your work is safe",
-			list: ["Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.", "Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you."]
+			list: ["Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.", "Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."]
 		}],
 		routes: [],
 		screens: [],
@@ -30154,6 +30712,43 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "remove-and-undo",
+		date: "2026-11-06",
+		title: "Take anything away again, and undo it",
+		points: [
+			"When someone leaves, an admin marks them as left on Workspace: first choosing who takes over their goals and open asks. They leave every list and picker; their history keeps their name, as “Name (left)”.",
+			"A goal can be stopped mid-year, with a reason, from its “…” menu. It leaves the numbers, reviews and Home, but its page, history and exports stay, marked Stopped. A goal set up by mistake, with no check-ins, is deleted instead.",
+			"Delete your latest check-in, end a review, edit or remove your comments (they say edited, or “Comment removed”), and delete saved views.",
+			"Every removal shows Undo for 10 seconds, and admins can restore anything from the last 30 days under Recently removed on Workspace. Nothing is ever erased.",
+			"Loaded the wrong spreadsheet? Undo this import, on its entry in Activity, puts every row back as it was.",
+			"A stopped goal makes no forecast: its page keeps how it stood, without “Will it hit?” or a projection, and stopping it no longer draws the page again under the Undo message."
+		],
+		articles: [
+			"removing",
+			"workspace",
+			"goal-page",
+			"activity"
+		]
+	},
+	{
+		id: "mark-up-a-screen",
+		date: "2026-11-06",
+		title: "Mark up a screen to say what should change",
+		points: [
+			"Send feedback now starts with Mark up this screen: draw on a picture of the screen you’re on with a pen, an arrow, a box or a numbered note, and say in one line what should change. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere; Escape cancels.",
+			"Before you send, you see the exact picture that goes, with your marks. Your last 20 steps on this visit go with it unless you untick them, so the people building Faro can see what led up to it. Never anything you typed.",
+			"When a release fixes something you marked up, its entry here says “You raised this”.",
+			"For the people building Faro, Workspace has an Inbox to read and triage markups, after signing in with an email link. Feedback sent with a mood and a few words is there too, with the same statuses: New, In hand, Fixed and Won’t fix. Your admins can’t see markups yet; they will once sign-in comes to the whole app.",
+			"AI assistant tokens are now made by the database, which keeps only a fingerprint of each and never hands one back; feedback can only be read by its own workspace. Making and revoking tokens works as before."
+		],
+		articles: [
+			"feedback",
+			"inbox",
+			"ai-assistants",
+			"recording"
+		]
+	},
 	{
 		id: "fit-fixes-nov-6",
 		date: "2026-11-06",
@@ -30631,7 +31226,891 @@ function newsDate(date) {
 		"Dec"
 	][m - 1]} ${y}`;
 }
+// src/domain/removal.ts
+init_asks();
+init_status();
+init_tableLayout();
+var no = (msg) => {
+	throw new NotAllowed(msg);
+};
+/** The whole workspace, every cycle and every removed record: what restoring reads. */
+var fullOf = (x) => x.full ?? x.snapshot;
+var plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+var ownsOrAdmin = (x, g) => x.actor.admin || g.ownerId === x.actor.id;
+var log = (x, v) => ({
+	id: x.newId("chg"),
+	at: x.now,
+	actorId: x.actor.id,
+	goalId: null,
+	diffs: [],
+	...v
+});
+var nameIn = (s, id) => s.people.find((p) => p.id === id)?.name ?? "—";
+/**
+* Every comment as it reads now, by id. A comment is its 'noted' entry; later entries for the same comment (entity
+* 'note', the same entityId) edit it, remove it or restore it. Old comments, written before they could change, read as
+* they always did.
+*/
+function commentsOf(changes) {
+	const out = /* @__PURE__ */ new Map();
+	const written = new Set(writtenNotes(changes).map((c) => c.id));
+	for (const c of changes) {
+		if (c.entity !== "note") continue;
+		if (c.action === "noted" && written.has(c.id) && c.goalId) {
+			out.set(c.entityId, {
+				id: c.entityId,
+				goalId: c.goalId,
+				authorId: c.actorId,
+				text: c.diffs.find((d) => d.field === "Comment")?.to ?? c.diffs[0]?.to ?? "",
+				at: c.at,
+				editedAt: null,
+				removedAt: null,
+				removedBy: null
+			});
+			continue;
+		}
+		const k = out.get(c.entityId);
+		if (!k) continue;
+		if (c.action === "edited") out.set(k.id, {
+			...k,
+			text: c.diffs[0]?.to ?? k.text,
+			editedAt: c.at
+		});
+		else if (c.action === "removed") out.set(k.id, {
+			...k,
+			removedAt: c.at,
+			removedBy: c.actorId
+		});
+		else if (c.action === "restored") out.set(k.id, {
+			...k,
+			removedAt: null,
+			removedBy: null
+		});
+	}
+	return out;
+}
+var commentOf = (x, id) => {
+	const k = commentsOf(fullOf(x).changes).get(id);
+	if (!k) no("There’s no comment with that ID.");
+	return k;
+};
+/** Correct a comment: only whoever wrote it. It then shows as edited. Null when the words are the same. */
+function editComment(x, id, text) {
+	const k = commentOf(x, id);
+	if (k.removedAt) no("That comment has been removed.");
+	if (k.authorId !== x.actor.id) no("Only whoever wrote a comment can edit it.");
+	const t = text.trim();
+	if (t.length < 2) no("Write the comment.");
+	if (t === k.text) return null;
+	return { changes: [log(x, {
+		entity: "note",
+		entityId: k.id,
+		goalId: k.goalId,
+		action: "edited",
+		summary: "Edited a comment",
+		diffs: [{
+			field: "Comment",
+			from: k.text,
+			to: t
+		}]
+	})] };
+}
+/** Remove a comment: whoever wrote it, or an admin. Its place in the thread says "Comment removed". */
+function deleteComment(x, id) {
+	const k = commentOf(x, id);
+	if (k.removedAt) no("That comment has already been removed.");
+	if (k.authorId !== x.actor.id && !x.actor.admin) no("Only whoever wrote a comment, or an admin, can remove it.");
+	return { changes: [log(x, {
+		entity: "note",
+		entityId: k.id,
+		goalId: k.goalId,
+		action: "removed",
+		summary: "Removed a comment"
+	})] };
+}
+/** Remove a note said in a review: whoever said it, or an admin. The review's record says "Note removed" in its place. */
+function deleteNote(x, id) {
+	const d = x.snapshot.decisions.find((v) => v.id === id) ?? fullOf(x).decisions.find((v) => v.id === id && !v.removedAt);
+	if (!d || d.removedAt) no("There’s no note with that ID.");
+	if (d.kind !== "note") no("Only a note can be removed; a question or an action is withdrawn.");
+	if (d.byId !== x.actor.id && !x.actor.admin) no("Only whoever said it, or an admin, can remove it.");
+	return {
+		decisions: [{
+			...d,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}],
+		changes: [log(x, {
+			entity: "decision",
+			entityId: d.id,
+			goalId: d.goalId,
+			action: "removed",
+			summary: "Removed a note",
+			diffs: [{
+				field: "Note",
+				from: d.note,
+				to: "—"
+			}]
+		})]
+	};
+}
+/** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
+function personHistory(s, id) {
+	return {
+		goals: s.goals.filter((g) => g.ownerId === id && !g.removedAt).length,
+		checkIns: s.checkIns.filter((c) => c.authorId === id).length,
+		notes: s.decisions.filter((d) => d.byId === id).length + liveNotes(s.changes).filter((c) => c.actorId === id).length,
+		asks: asksOf(s).filter((r) => r.askedBy === id || r.recipientId === id || r.answeredBy === id).length
+	};
+}
+var hasHistory = (h) => h.goals + h.checkIns + h.notes + h.asks > 0;
+/**
+* What marking someone as left hands over: the goals they own in this cycle (and any later one), the open asks they
+* raised and the open asks waiting on them, the reviews they're in, and the teams they lead.
+*/
+function leaving(x, id) {
+	const full = x.full ?? x.snapshot;
+	const later = new Set(full.cycles.filter((c) => !c.removedAt && c.startDate > x.cycle.startDate).map((c) => c.id));
+	const goals = [...x.snapshot.goals.filter((g) => g.ownerId === id), ...full.goals.filter((g) => later.has(g.cycleId) && g.ownerId === id && !g.removedAt && !g.stoppedAt)];
+	const open = asksOf(x.snapshot).filter((r) => r.status === "open");
+	return {
+		goals,
+		asked: open.filter((r) => r.askedBy === id),
+		asking: open.filter((r) => r.recipientId === id),
+		reviews: x.snapshot.reviews.filter((r) => r.people.includes(id)),
+		leads: x.snapshot.teams.filter((t) => t.leadId === id)
+	};
+}
+var livePerson = (x, id) => {
+	const p = x.snapshot.people.find((v) => v.id === id);
+	if (!p) no("There’s no one with that ID in this workspace.");
+	return p;
+};
+var notSelfOrLastAdmin = (x, p, what) => {
+	if (p.id === x.actor.id) no(`You can’t ${what} yourself. Ask another admin.`);
+	if (p.admin && !x.snapshot.people.some((v) => v.admin && v.id !== p.id)) no("They’re the only admin: make someone else an admin first.");
+};
+/**
+* Admins: mark someone as left. Their goals (this cycle's, and any later one's) go to `goalsTo`, the open asks they
+* raised or must answer go to `asksTo`, they leave the reviews they were in, and the teams they led pass to `goalsTo`.
+* They're gone from pickers, counts, reviews and Home; history keeps their name, as "Name (left)".
+*/
+function markPersonLeft(x, id, to = {}) {
+	if (!x.actor.admin) no("Only admins can mark someone as left.");
+	const p = livePerson(x, id);
+	notSelfOrLastAdmin(x, p, "mark");
+	const l = leaving(x, id);
+	const handTo = (ref, what) => {
+		if (!ref) return null;
+		if (ref === id) no(`Choose someone else to take over their ${what}.`);
+		return livePerson(x, ref);
+	};
+	const goalsTo = handTo(to.goalsTo, "goals");
+	const asksTo = handTo(to.asksTo, "asks");
+	if (l.goals.length && !goalsTo) no(`${p.name} owns ${plural(l.goals.length, "goal", "goals")}: choose who takes them over.`);
+	if ((l.asked.length || l.asking.length) && !asksTo) no(`${p.name} has ${plural((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
+	const goals = l.goals.map((g) => ({
+		...g,
+		ownerId: goalsTo.id
+	}));
+	const asks = /* @__PURE__ */ new Map();
+	for (const r of [...l.asked, ...l.asking]) {
+		const cur = asks.get(r.id) ?? r;
+		asks.set(r.id, {
+			...cur,
+			...cur.askedBy === id ? { askedBy: asksTo.id } : {},
+			...cur.recipientId === id ? { recipientId: asksTo.id } : {},
+			updatedAt: x.now
+		});
+	}
+	const reviews = l.reviews.map((r) => {
+		const people = r.people.filter((v) => v !== id);
+		return {
+			...r,
+			people: people.length ? people : [goalsTo?.id ?? asksTo?.id ?? x.actor.id]
+		};
+	});
+	const teams = l.leads.map((t) => ({
+		...t,
+		leadId: goalsTo?.id ?? ""
+	}));
+	const changes = [
+		log(x, {
+			entity: "person",
+			entityId: id,
+			action: "left",
+			summary: `Marked ${p.name} as left`,
+			diffs: [
+				{
+					field: "Status",
+					from: "—",
+					to: LEFT
+				},
+				...goals.length ? [{
+					field: "Goals handed over",
+					from: plural(goals.length, "goal", "goals"),
+					to: goalsTo.name
+				}] : [],
+				...asks.size ? [{
+					field: "Open asks handed over",
+					from: plural(asks.size, "ask", "asks"),
+					to: asksTo.name
+				}] : [],
+				...reviews.length ? [{
+					field: "Reviews left",
+					from: reviews.map((r) => r.name).join(", "),
+					to: "—"
+				}] : [],
+				...teams.length ? [{
+					field: "Team lead",
+					from: teams.map((t) => t.name).join(", "),
+					to: goalsTo?.name ?? "—"
+				}] : []
+			]
+		}),
+		...l.goals.map((g) => log(x, {
+			entity: "goal",
+			entityId: g.id,
+			goalId: g.id,
+			action: "edited",
+			summary: `Handed over to ${goalsTo.name}, as ${p.name} left`,
+			diffs: [{
+				field: "Owner",
+				from: p.name,
+				to: goalsTo.name
+			}]
+		})),
+		...[...asks.values()].map((r) => log(x, {
+			entity: "request",
+			entityId: r.id,
+			goalId: r.goalIds[0] ?? null,
+			action: "edited",
+			summary: `Handed over to ${asksTo.name}, as ${p.name} left`,
+			diffs: [{
+				field: r.recipientId === asksTo.id && l.asking.some((a) => a.id === r.id) ? "Asked of" : "Asked by",
+				from: p.name,
+				to: asksTo.name
+			}]
+		}))
+	];
+	return {
+		people: [{
+			...p,
+			leftAt: x.now,
+			leftBy: x.actor.id
+		}],
+		...goals.length ? { goals } : {},
+		...asks.size ? { requests: [...asks.values()] } : {},
+		...reviews.length ? { reviews } : {},
+		...teams.length ? { teams } : {},
+		changes
+	};
+}
+/** Admins: delete someone with no history at all (no goals, check-ins, notes or asks), say someone added by mistake. */
+function deletePerson(x, id) {
+	if (!x.actor.admin) no("Only admins can delete people.");
+	const p = livePerson(x, id);
+	notSelfOrLastAdmin(x, p, "delete");
+	if (hasHistory(personHistory(fullOf(x), id))) no(`${p.name} has history here (goals, check-ins, notes or asks): mark them as left instead, so it keeps their name.`);
+	const reviews = x.snapshot.reviews.filter((r) => r.people.includes(id)).map((r) => ({
+		...r,
+		people: r.people.filter((v) => v !== id).length ? r.people.filter((v) => v !== id) : [x.actor.id]
+	}));
+	const teams = x.snapshot.teams.filter((t) => t.leadId === id).map((t) => ({
+		...t,
+		leadId: ""
+	}));
+	return {
+		people: [{
+			...p,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}],
+		...reviews.length ? { reviews } : {},
+		...teams.length ? { teams } : {},
+		changes: [log(x, {
+			entity: "person",
+			entityId: id,
+			action: "removed",
+			summary: `Deleted ${p.name}`,
+			diffs: [{
+				field: "Person",
+				from: p.name,
+				to: "—"
+			}]
+		})]
+	};
+}
+var liveGoal = (x, id) => {
+	const g = x.snapshot.goals.find((v) => v.id === id || v.key === id);
+	if (!g) no("There’s no goal with that ID in this cycle.");
+	return g;
+};
+/** Whether a goal has history: any check-in. With none it's deleted; with some it's stopped, with a reason. */
+var goalHasCheckIns = (s, goalId) => s.checkIns.some((c) => c.goalId === goalId && !c.removedAt);
+/** What leaving the tree takes: the goals feeding it move up to what it fed, other goals stop listing it, its open asks are withdrawn. */
+function detach(x, g, how) {
+	const parent = g.parentId ? x.snapshot.goals.find((v) => v.id === g.parentId) : void 0;
+	const goals = [];
+	const changes = [];
+	for (const c of x.snapshot.goals) {
+		if (c.id === g.id) continue;
+		const child = c.parentId === g.id;
+		const helps = c.alsoHelps?.includes(g.id);
+		if (!child && !helps) continue;
+		let next = { ...c };
+		if (child) {
+			next.parentId = parent?.id ?? null;
+			if (!parent) {
+				next.effect = null;
+				delete next.whyHelps;
+			}
+		}
+		if (helps) next.alsoHelps = c.alsoHelps.filter((v) => v !== g.id);
+		if (next.alsoHelps && !next.alsoHelps.length) delete next.alsoHelps;
+		goals.push(next);
+		changes.push(log(x, {
+			entity: "goal",
+			entityId: c.id,
+			goalId: c.id,
+			action: "edited",
+			summary: child ? `Now feeds ${parent ? parent.title : "nothing"}, as ${g.title} was ${how}` : `No longer also helps ${g.title}, as it was ${how}`,
+			diffs: child ? [{
+				field: "Feeds into",
+				from: g.title,
+				to: parent?.title ?? "—"
+			}] : [{
+				field: "Also helps",
+				from: g.title,
+				to: "—"
+			}]
+		}));
+	}
+	const requests = [];
+	for (const r of openAsksFor(g.id, x.snapshot)) {
+		const w = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId, `Withdrawn: the goal was ${how}`);
+		requests.push(w.request);
+		changes.push(...w.changes);
+	}
+	return {
+		goals,
+		requests,
+		changes
+	};
+}
+/**
+* Stop a goal with history mid-cycle: its owner or an admin, with a reason. It leaves stats, reviews, Home, Watching and
+* attention lists, but stays in its history, on its own page (marked Stopped), in exports and in Activity. The goals
+* feeding it move up to what it fed, and its open asks are withdrawn with a note.
+*/
+function stopGoal(x, goalId, reason) {
+	const g = liveGoal(x, goalId);
+	if (!ownsOrAdmin(x, g)) no("Only the goal’s owner or an admin can stop it.");
+	if (!goalHasCheckIns(x.snapshot, g.id)) no("It has no check-ins yet: delete it instead.");
+	const why = reason.trim();
+	if (why.length < 10) no(`Say why it’s stopping, in a sentence (10 characters or more).`);
+	const d = detach(x, g, "stopped");
+	return {
+		goals: [{
+			...g,
+			stoppedAt: x.now,
+			stoppedBy: x.actor.id,
+			stopReason: why
+		}, ...d.goals],
+		...d.requests.length ? { requests: d.requests } : {},
+		changes: [log(x, {
+			entity: "goal",
+			entityId: g.id,
+			goalId: g.id,
+			action: "stopped",
+			summary: `Stopped ${g.title}`,
+			diffs: [{
+				field: "Status",
+				from: "—",
+				to: STOPPED
+			}, {
+				field: "Why",
+				from: "—",
+				to: why
+			}]
+		}), ...d.changes]
+	};
+}
+/** Delete a goal with no check-ins (set up by mistake): its owner or an admin. What fed it moves up; its open asks are withdrawn. */
+function deleteGoal(x, goalId) {
+	const g = liveGoal(x, goalId);
+	if (!ownsOrAdmin(x, g)) no("Only the goal’s owner or an admin can delete it.");
+	if (goalHasCheckIns(x.snapshot, g.id)) no("It has check-ins: stop it instead, with a reason, so its history stays.");
+	const d = detach(x, g, "deleted");
+	return {
+		goals: [{
+			...g,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}, ...d.goals],
+		...d.requests.length ? { requests: d.requests } : {},
+		changes: [log(x, {
+			entity: "goal",
+			entityId: g.id,
+			goalId: g.id,
+			action: "removed",
+			summary: `Deleted ${g.title}`,
+			diffs: [{
+				field: "Goal",
+				from: g.title,
+				to: "—"
+			}]
+		}), ...d.changes]
+	};
+}
+/**
+* Delete a check-in: whoever posted it, or an admin, until a newer check-in exists on the goal (then it can only be
+* corrected). The goal's status is worked out again from the one before. An open ask it raised is withdrawn.
+*/
+function deleteCheckIn(x, id) {
+	const c = x.snapshot.checkIns.find((v) => v.id === id);
+	if (!c) no("There’s no check-in with that ID in this cycle.");
+	const g = x.snapshot.goals.find((v) => v.id === c.goalId);
+	if (!g) no("That check-in’s goal isn’t live in this cycle.");
+	if (c.authorId !== x.actor.id && !x.actor.admin) no("Only whoever posted a check-in, or an admin, can delete it.");
+	if (checkInsFor(g, x.snapshot.checkIns).at(-1)?.id !== c.id) no("A newer check-in has been posted since, so this one can only be corrected.");
+	const requests = [];
+	const changes = [log(x, {
+		entity: "check-in",
+		entityId: c.id,
+		goalId: g.id,
+		action: "removed",
+		summary: `Deleted the check-in for week ${c.week}`,
+		diffs: [{
+			field: "Check-in",
+			from: `Week ${c.week}`,
+			to: "—"
+		}]
+	})];
+	for (const r of asksOf(x.snapshot).filter((v) => v.checkInId === c.id && v.status === "open")) {
+		const w = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId, "Withdrawn: the check-in that raised it was deleted");
+		requests.push(w.request);
+		changes.push(...w.changes);
+	}
+	return {
+		checkIns: [{
+			...c,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}],
+		...requests.length ? { requests } : {},
+		changes
+	};
+}
+/** Whether a review has ever been held: anything said or asked in it, in any cycle. */
+function reviewHeld(s, reviewId) {
+	return s.decisions.some((d) => d.reviewId === reviewId) || asksOf(s).some((a) => a.reviewId === reviewId);
+}
+var liveReview = (x, id) => {
+	const r = x.snapshot.reviews.find((v) => v.id === id);
+	if (!r) no("There’s no review with that ID.");
+	if (r.createdBy !== x.actor.id && !x.actor.admin) no("Only whoever set up the review, or an admin, can end it.");
+	return r;
+};
+/**
+* End a review: whoever set it up, or an admin. It keeps its notes and actions and stops showing as due. A review that
+* was never held is deleted instead (`deleted` says which happened).
+*/
+function endReview(x, id) {
+	const r = liveReview(x, id);
+	if (!reviewHeld(fullOf(x), r.id)) return {
+		commit: deleteReview(x, id),
+		deleted: true
+	};
+	return {
+		deleted: false,
+		commit: {
+			reviews: [{
+				...r,
+				endedAt: x.now,
+				endedBy: x.actor.id
+			}],
+			changes: [log(x, {
+				entity: "review",
+				entityId: r.id,
+				action: "ended",
+				summary: `Ended the review “${r.name}”`,
+				diffs: [{
+					field: "Review",
+					from: r.name,
+					to: ENDED
+				}]
+			})]
+		}
+	};
+}
+/** Delete a review that was never held: whoever set it up, or an admin. One that has been held is ended instead. */
+function deleteReview(x, id) {
+	const r = liveReview(x, id);
+	if (reviewHeld(fullOf(x), r.id)) no("It’s been held: end it instead, so its notes and actions stay.");
+	return {
+		reviews: [{
+			...r,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}],
+		changes: [log(x, {
+			entity: "review",
+			entityId: r.id,
+			action: "removed",
+			summary: `Deleted the review “${r.name}”`,
+			diffs: [{
+				field: "Review",
+				from: r.name,
+				to: "—"
+			}]
+		})]
+	};
+}
+/** Whether a cycle can be deleted: no check-in has been posted on any of its goals, and it isn't the only one. */
+function cycleDeletable(s, cycleId) {
+	const goals = new Set(s.goals.filter((g) => g.cycleId === cycleId).map((g) => g.id));
+	return !s.checkIns.some((c) => goals.has(c.goalId) && !c.removedAt) && s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
+}
+/** Admins: delete a cycle no one has checked in to yet (started by mistake, say). Its goals go with it, and come back with it. */
+function deleteCycle(x, id) {
+	if (!x.actor.admin) no("Only admins can delete a cycle.");
+	const full = fullOf(x);
+	const c = full.cycles.find((v) => v.id === id && !v.removedAt);
+	if (!c) no("There’s no cycle with that ID.");
+	if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no("It’s the only cycle, so it stays.");
+	if (!cycleDeletable(full, id)) no("Check-ins have been posted in it, so it stays.");
+	return {
+		cycles: [{
+			...c,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}],
+		changes: [log(x, {
+			entity: "cycle",
+			entityId: c.id,
+			action: "removed",
+			summary: `Deleted the cycle ${c.name}`,
+			diffs: [{
+				field: "Cycle",
+				from: c.name,
+				to: "—"
+			}]
+		})]
+	};
+}
+/** An import's (or bulk edit's) summary entry, by its import id. */
+var importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
+/** Whether an import has been undone. */
+var importUndone = (s, importId) => s.changes.some((c) => c.action === "undone" && c.entityId === importId);
+/** Whether this person may undo an import now: one that can be undone, not undone yet, and theirs (or they're an admin). */
+var canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin);
+/**
+* Undo an import or bulk edit: whoever made it, or an admin. Every row it wrote is put back as it was: a goal or
+* check-in it added is deleted, one it changed gets its earlier version back, as do people and asks. A row changed by
+* anything since is left alone and listed in `skipped`.
+*/
+function undoImport(x, importId) {
+	const full = fullOf(x);
+	const entry = importEntry(full, importId);
+	if (!entry) no("There’s no import with that ID.");
+	if (!entry.undo) no("That import was saved before imports could be undone.");
+	if (importUndone(full, importId)) no("That import has already been undone.");
+	if (entry.actorId !== x.actor.id && !x.actor.admin) no("Only whoever made the import, or an admin, can undo it.");
+	const u = entry.undo;
+	const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
+	const since = full.changes.filter((c) => c.at > entry.at && !own.has(c.id) && c.id !== entry.id);
+	const touched = (entity, id) => since.some((c) => c.entity === entity && c.entityId === id);
+	const skipped = [];
+	const goals = [], checkIns = [], people = [], requests = [];
+	const changes = [];
+	for (const { id, before } of u.goals) {
+		const cur = full.goals.find((g) => g.id === id);
+		if (!cur || cur.removedAt) continue;
+		if (touched("goal", id) || !before && since.some((c) => c.goalId === id)) {
+			skipped.push(`${cur.title}: changed since`);
+			continue;
+		}
+		goals.push(before ? {
+			...before,
+			...cur.key ? { key: cur.key } : {}
+		} : {
+			...cur,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		});
+		changes.push(log(x, {
+			entity: "goal",
+			entityId: id,
+			goalId: id,
+			action: before ? "edited" : "removed",
+			summary: before ? "Put back as it was before an import" : `Deleted ${cur.title}: an import that added it was undone`,
+			importId
+		}));
+	}
+	for (const { id, before } of u.checkIns) {
+		const cur = full.checkIns.find((c) => c.id === id);
+		if (!cur || cur.removedAt) continue;
+		const goal = full.goals.find((g) => g.id === cur.goalId);
+		if (touched("check-in", id)) {
+			skipped.push(`${goal?.title ?? "A goal"}, week ${cur.week}: changed since`);
+			continue;
+		}
+		checkIns.push(before ?? {
+			...cur,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		});
+		changes.push(log(x, {
+			entity: "check-in",
+			entityId: id,
+			goalId: cur.goalId,
+			action: before ? "edited" : "removed",
+			summary: before ? `Put the check-in for week ${cur.week} back as it was before an import` : `Deleted the check-in for week ${cur.week}: an import that added it was undone`,
+			importId
+		}));
+	}
+	for (const { id, before } of u.people) {
+		const cur = full.people.find((p) => p.id === id);
+		if (!cur || !before) continue;
+		if (touched("person", id)) {
+			skipped.push(`${cur.name}: changed since`);
+			continue;
+		}
+		people.push(before);
+		changes.push(log(x, {
+			entity: "person",
+			entityId: id,
+			action: "edited",
+			summary: `Put ${before.name} back as they were before an import`,
+			importId
+		}));
+	}
+	for (const { id, before } of u.requests) {
+		const cur = asksOf(full).find((r) => r.id === id);
+		if (!cur) continue;
+		if (touched("request", id)) {
+			skipped.push(`An ask on ${full.goals.find((g) => g.id === cur.goalIds[0])?.title ?? "a goal"}: changed since`);
+			continue;
+		}
+		const back = before ?? (cur.status === "open" ? {
+			...cur,
+			status: "withdrawn",
+			updatedAt: x.now
+		} : null);
+		if (back) requests.push(back);
+	}
+	const restored = goals.length + checkIns.length + people.length;
+	changes.unshift(log(x, {
+		entity: "workspace",
+		entityId: importId,
+		action: "undone",
+		importId,
+		summary: `Undid ${entry.summary.replace(/:.*$/, "").toLowerCase()}: ${plural(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
+		diffs: [{
+			field: "Import",
+			from: entry.summary,
+			to: "Undone"
+		}, ...skipped.length ? [{
+			field: "Skipped",
+			from: "—",
+			to: skipped.join("; ")
+		}] : []]
+	}));
+	return {
+		restored,
+		skipped,
+		commit: {
+			...goals.length ? { goals } : {},
+			...checkIns.length ? { checkIns } : {},
+			...people.length ? { people } : {},
+			...requests.length ? { requests } : {},
+			changes
+		}
+	};
+}
+/** How each kind is named on Recently removed. */
+var REMOVED_LABEL = {
+	left: "Person who left",
+	person: "Person",
+	goal: "Goal",
+	stopped: "Stopped goal",
+	"check-in": "Check-in",
+	review: "Review",
+	ended: "Ended review",
+	comment: "Comment",
+	note: "Review note",
+	view: "Saved view",
+	watch: "Watch",
+	cycle: "Cycle"
+};
+var excerpt = (t, n = 60) => t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t;
+/** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
+function recentlyRemoved(full, now, days = 30) {
+	const since = Number.isFinite(days) ? (/* @__PURE__ */ new Date(now.getTime() - days * 864e5)).toISOString() : "";
+	const goalTitle = (id) => full.goals.find((g) => g.id === id)?.title ?? "A goal";
+	const out = [];
+	const add = (kind, id, name, by, at) => {
+		if (at && at >= since) out.push({
+			kind,
+			id,
+			name,
+			by: by ?? null,
+			at
+		});
+	};
+	for (const p of full.people) if (p.removedAt) add("person", p.id, p.name, p.removedBy, p.removedAt);
+	else if (p.leftAt) add("left", p.id, p.name, p.leftBy, p.leftAt);
+	for (const g of full.goals) if (g.removedAt) add("goal", g.id, g.title, g.removedBy, g.removedAt);
+	else if (g.stoppedAt) add("stopped", g.id, g.title, g.stoppedBy, g.stoppedAt);
+	for (const c of full.checkIns) if (c.removedAt) add("check-in", c.id, `${goalTitle(c.goalId)}, week ${c.week}`, c.removedBy, c.removedAt);
+	for (const r of full.reviews ?? []) if (r.removedAt) add("review", r.id, r.name, r.removedBy, r.removedAt);
+	else if (r.endedAt) add("ended", r.id, r.name, r.endedBy, r.endedAt);
+	for (const k of commentsOf(full.changes).values()) if (k.removedAt) add("comment", k.id, `${goalTitle(k.goalId)}: “${excerpt(k.text)}”`, k.removedBy, k.removedAt);
+	for (const d of full.decisions) if (d.removedAt) add("note", d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
+	for (const v of full.views ?? []) if (v.deletedAt) add("view", v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
+	for (const w of full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
+	for (const c of full.cycles) if (c.removedAt) add("cycle", c.id, c.name, c.removedBy, c.removedAt);
+	return out.sort((a, b) => b.at.localeCompare(a.at));
+}
+/**
+* Bring back something removed: an admin, or whoever removed it. It comes back as it was; whatever was handed over or
+* moved when it went stays where it is now (Undo, straight after removing, puts that back too). A goal whose parent has
+* gone comes back at the top of its tree.
+*/
+function restoreRemoved(x, kind, id) {
+	const full = fullOf(x);
+	const item = recentlyRemoved(full, new Date(x.now), Number.POSITIVE_INFINITY).find((r) => r.kind === kind && r.id === id);
+	if (!item) no("There’s nothing removed with that ID.");
+	if (!x.actor.admin && item.by !== x.actor.id) no("Only an admin, or whoever removed it, can restore it.");
+	const restored = (entity, summary, goalId = null, diffs = []) => log(x, {
+		entity,
+		entityId: id,
+		goalId,
+		action: "restored",
+		summary,
+		diffs
+	});
+	const liveParent = (g) => g.parentId && full.goals.some((v) => v.id === g.parentId && !v.removedAt && !v.stoppedAt) ? g.parentId : null;
+	switch (kind) {
+		case "left":
+		case "person": {
+			const p = full.people.find((v) => v.id === id);
+			if (x.snapshot.people.some((v) => v.id !== id && v.name.trim().toLowerCase() === p.name.trim().toLowerCase())) no(`Someone called ${p.name} is already here. Rename them first.`);
+			return {
+				people: [{
+					...p,
+					leftAt: null,
+					leftBy: null,
+					removedAt: null,
+					removedBy: null
+				}],
+				changes: [restored("person", `Restored ${p.name}`, null, [{
+					field: "Status",
+					from: kind === "left" ? LEFT : "Deleted",
+					to: "In the workspace"
+				}])]
+			};
+		}
+		case "goal":
+		case "stopped": {
+			const g = full.goals.find((v) => v.id === id);
+			const parentId = liveParent(g);
+			return {
+				goals: [{
+					...g,
+					removedAt: null,
+					removedBy: null,
+					stoppedAt: null,
+					stoppedBy: null,
+					stopReason: null,
+					parentId,
+					...parentId ? {} : { effect: null }
+				}],
+				changes: [restored("goal", kind === "stopped" ? `Restarted ${g.title}` : `Restored ${g.title}`, g.id, [{
+					field: "Status",
+					from: kind === "stopped" ? STOPPED : "Deleted",
+					to: "Live"
+				}])]
+			};
+		}
+		case "check-in": {
+			const c = full.checkIns.find((v) => v.id === id);
+			return {
+				checkIns: [{
+					...c,
+					removedAt: null,
+					removedBy: null
+				}],
+				changes: [restored("check-in", `Restored the check-in for week ${c.week}`, c.goalId)]
+			};
+		}
+		case "review":
+		case "ended": {
+			const r = (full.reviews ?? []).find((v) => v.id === id);
+			return {
+				reviews: [{
+					...r,
+					removedAt: null,
+					removedBy: null,
+					endedAt: null,
+					endedBy: null
+				}],
+				changes: [restored("review", kind === "ended" ? `Reopened the review “${r.name}”` : `Restored the review “${r.name}”`)]
+			};
+		}
+		case "comment": return { changes: [restored("note", "Restored a comment", commentsOf(full.changes).get(id).goalId)] };
+		case "note": {
+			const d = full.decisions.find((v) => v.id === id);
+			return {
+				decisions: [{
+					...d,
+					removedAt: null,
+					removedBy: null
+				}],
+				changes: [restored("decision", "Restored a note", d.goalId)]
+			};
+		}
+		case "view": {
+			const v = (full.views ?? []).find((y) => y.id === id);
+			return {
+				views: [{
+					...v,
+					deletedAt: null,
+					deletedBy: null,
+					updatedAt: x.now
+				}],
+				changes: [restored("view", `Restored the view “${v.name}”`)]
+			};
+		}
+		case "watch": {
+			const w = (full.watches ?? []).find((y) => y.id === id);
+			if ((full.watches ?? []).some((y) => y.id !== id && !y.removedAt && y.personId === w.personId && y.kind === w.kind && y.ref === w.ref)) no("They already watch it again.");
+			return {
+				watches: [{
+					...w,
+					removedAt: null,
+					removedBy: null
+				}],
+				changes: [restored("watch", `Restored ${item.name}`)]
+			};
+		}
+		case "cycle": {
+			const c = full.cycles.find((v) => v.id === id);
+			if (full.cycles.some((v) => v.id !== id && !v.removedAt && v.startDate === c.startDate)) no(`Another cycle starting ${c.startDate} has been set up since, so this one can’t come back.`);
+			return {
+				cycles: [{
+					...c,
+					removedAt: null,
+					removedBy: null
+				}],
+				changes: [restored("cycle", `Restored the cycle ${c.name}`)]
+			};
+		}
+	}
+}
 // src/mcp/workTools.ts
+init_actions();
 init_attention();
 init_cycle();
 init_status();
@@ -30639,12 +32118,12 @@ init_asks();
 init_review();
 init_tableLayout();
 init_goalKey();
-var str$1 = (description, extra = {}) => ({
+var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var int$1 = (description) => ({
+var int$2 = (description) => ({
 	type: "integer",
 	description
 });
@@ -30662,50 +32141,51 @@ var LEVELS$1 = [
 	"svp",
 	"team"
 ];
-var READ = {
+var READ$1 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
-var WRITE = {
+var WRITE$1 = {
 	readOnlyHint: false,
 	destructiveHint: false,
 	idempotentHint: false,
 	openWorldHint: false
 };
-var VIA = {
+var VIA$1 = {
 	field: "Via",
 	from: "—",
 	to: "AI assistant (MCP)"
 };
-var ax = (ctx) => ({
+var ax$1 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
 	actor: ctx.actor,
 	now: ctx.now,
 	newId: ctx.newId,
-	...ctx.allGoals ? { allGoals: ctx.allGoals } : {}
+	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
+	...ctx.full ? { full: ctx.full } : {}
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
-async function save(ctx, c, done, nothing) {
+async function save$1(ctx, c, done, nothing) {
 	if (!c) return { text: nothing };
 	await ctx.save({
 		...c,
 		changes: c.changes.map((x) => ({
 			...x,
-			diffs: [...x.diffs, VIA]
+			diffs: [...x.diffs, VIA$1]
 		}))
 	});
 	return { text: `${done} (as ${ctx.actor.name}).` };
 }
 var name = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
 /** A goal by its ID or its key (G-12). */
-var goalOf = (ctx, id) => {
+var goalOf$1 = (ctx, id) => {
 	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
 	if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
-var goalIds = (ctx, v) => v?.map((id) => goalOf(ctx, id).id);
+var goalIds = (ctx, v) => v?.map((id) => goalOf$1(ctx, id).id);
 var requestOf = (ctx, id) => {
 	const r = asksOf(ctx.snapshot).find((x) => x.id === id);
 	if (!r) throw new Error(`There’s no ask with ID ${String(id)}. Use list_requests to get IDs.`);
@@ -30717,7 +32197,7 @@ var reviewOf = (ctx, id) => {
 	return r;
 };
 /** A person by ID or by name (whole or the start of it), for tools that name someone. */
-var personOf = (ctx, ref) => {
+var personOf$1 = (ctx, ref) => {
 	const t = String(ref ?? "").trim().toLowerCase();
 	const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
 	if (!t || !p) throw new Error(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
@@ -30802,7 +32282,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const s = ctx.snapshot, me = ctx.actor.id;
 			const mine = s.goals.filter((g) => g.ownerId === me);
@@ -30924,27 +32404,27 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$1("Which asks.", { enum: [
+				status: str$3("Which asks.", { enum: [
 					"open",
 					"answered",
 					"done",
 					"withdrawn",
 					"all"
 				] }),
-				kind: str$1("Only one kind.", { enum: [
+				kind: str$3("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$1("Only asks on a goal (its ID or key).")
+				goal_id: str$3("Only asks on a goal (its ID or key).")
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const st = a.status ?? "open";
-			const list = asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
+			const list = asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$1(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
 			return {
 				data: { requests: list },
 				text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${r.status}${r.overdue ? " (overdue)" : ""} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(", ")}${r.answer ? ` · answer: ${r.answer}` : ""}`), "No asks match.")
@@ -30960,7 +32440,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const list = ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -30996,9 +32476,9 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$1("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$3("The review’s ID, from list_reviews.") }
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const r = reviewOf(ctx, a.review_id);
 			const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -31052,7 +32532,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
 				id: w.id,
@@ -31082,7 +32562,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const team = (id) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
 			const people = ctx.snapshot.people.map((p) => ({
@@ -31097,7 +32577,7 @@ var WORK_TOOLS = [
 				data: {
 					people,
 					teams: ctx.snapshot.teams.map((t) => {
-						const m = teamMembers(ax(ctx), t.id);
+						const m = teamMembers(ax$1(ctx), t.id);
 						return {
 							id: t.id,
 							name: t.name,
@@ -31119,14 +32599,14 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$1("An Activity link’s query string."),
-				limit: int$1("How many changes, newest first (default 50, at most 500).")
+				query: str$3("An Activity link’s query string."),
+				limit: int$2("How many changes, newest first (default 50, at most 500).")
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
-			if (q.goal) q.goal = goalOf(ctx, q.goal).id;
+			if (q.goal) q.goal = goalOf$1(ctx, q.goal).id;
 			const keep = activityFilter(q, {
 				snapshot: ctx.snapshot,
 				cycle: ctx.cycle,
@@ -31143,11 +32623,16 @@ var WORK_TOOLS = [
 					field: d.field,
 					from: d.from,
 					to: d.to
-				}))
+				})),
+				...c.action === "imported" ? {
+					importId: c.entityId,
+					canUndo: canUndoImport(ctx.snapshot, c, ctx.actor),
+					undone: importUndone(ctx.snapshot, c.entityId)
+				} : {}
 			}));
 			return {
 				data: { changes: list },
-				text: lines(list.map((c) => `${c.at.slice(0, 16).replace("T", " ")} · ${c.by} · ${c.goal ? c.goal + ": " : ""}${c.summary}`), "No changes match.")
+				text: lines(list.map((c) => `${c.at.slice(0, 16).replace("T", " ")} · ${c.by} · ${c.goal ? c.goal + ": " : ""}${c.summary}${"importId" in c ? ` · import ${c.importId}${c.undone ? " (undone)" : c.canUndo ? " (can be undone)" : ""}` : ""}`), "No changes match.")
 			};
 		}
 	},
@@ -31160,7 +32645,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
 				const l = isTableView(v) ? parseLayout(v.params) : null;
@@ -31193,7 +32678,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
 				id: t.id,
@@ -31217,7 +32702,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			if (!ctx.actor.admin) return {
 				isError: true,
@@ -31245,7 +32730,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const retros = ctx.snapshot.retros ?? [];
 			const list = ctx.snapshot.goals.map((g) => {
@@ -31279,11 +32764,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$1("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$1("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$3("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$3("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a) {
 			const brief = (x) => ({
 				id: x.id,
@@ -31323,11 +32808,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$1("Only entries on or after this date (yyyy-mm-dd)."),
-				limit: int$1("How many entries, newest first (default all).")
+				since: str$3("Only entries on or after this date (yyyy-mm-dd)."),
+				limit: int$2("How many entries, newest first (default all).")
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a) {
 			const since = a.since ? String(a.since) : void 0;
 			if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return {
@@ -31357,14 +32842,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$1("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$1("The answer, decision or help offered.")
+				request_id: str$3("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$3("The answer, decision or help offered.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
 			const r = requestOf(ctx, a.request_id);
-			return save(ctx, answerRequest(ax(ctx), r, String(a.answer ?? "")), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
+			return save$1(ctx, answerRequest(ax$1(ctx), r, String(a.answer ?? "")), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
 		}
 	},
 	{
@@ -31376,13 +32861,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$1("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$1("Optional: what was done.")
+				request_id: str$3("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$3("Optional: what was done.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return save(ctx, markActionDone(ax(ctx), requestOf(ctx, a.request_id), String(a.note ?? "")), "Marked the action done", "");
+			return save$1(ctx, markActionDone(ax$1(ctx), requestOf(ctx, a.request_id), String(a.note ?? "")), "Marked the action done", "");
 		}
 	},
 	{
@@ -31394,14 +32879,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
-				question: str$1("The question.")
+				goal_id: str$3("The goal’s ID or its key, e.g. G-12."),
+				question: str$3("The question.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			const g = goalOf(ctx, a.goal_id);
-			return save(ctx, askQuestion(ax(ctx), g, String(a.question ?? "")), `Asked ${name(ctx, g.ownerId)} a question on ${g.title}`, "");
+			const g = goalOf$1(ctx, a.goal_id);
+			return save$1(ctx, askQuestion(ax$1(ctx), g, String(a.question ?? "")), `Asked ${name(ctx, g.ownerId)} a question on ${g.title}`, "");
 		}
 	},
 	{
@@ -31413,13 +32898,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$1("The request’s ID."),
-				goal_id: str$1("The goal that waits on it (its ID or key).")
+				request_id: str$3("The request’s ID."),
+				goal_id: str$3("The goal that waits on it (its ID or key).")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return save(ctx, linkRequest(ax(ctx), requestOf(ctx, a.request_id), goalOf(ctx, a.goal_id)), "Linked the goal to the request", "");
+			return save$1(ctx, linkRequest(ax$1(ctx), requestOf(ctx, a.request_id), goalOf$1(ctx, a.goal_id)), "Linked the goal to the request", "");
 		}
 	},
 	{
@@ -31431,14 +32916,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$1("The ask’s ID."),
-				goal_id: str$1("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$3("The ask’s ID."),
+				goal_id: str$3("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
 			const r = requestOf(ctx, a.request_id);
-			return save(ctx, withdrawRequest(ax(ctx), r, a.goal_id ? goalOf(ctx, a.goal_id) : void 0), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
+			return save$1(ctx, withdrawRequest(ax$1(ctx), r, a.goal_id ? goalOf$1(ctx, a.goal_id) : void 0), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
 		}
 	},
 	{
@@ -31449,15 +32934,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$3("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			const g = goalOf(ctx, a.goal_id);
-			return save(ctx, askForUpdate(ax(ctx), g), `Asked ${name(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? "ask"}) until they check in.`);
+			const g = goalOf$1(ctx, a.goal_id);
+			return save$1(ctx, askForUpdate(ax$1(ctx), g), `Asked ${name(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? "ask"}) until they check in.`);
 		}
 	},
 	{
@@ -31468,11 +32953,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$3("The goal’s ID or its key, e.g. G-12.") }
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return save(ctx, undoUpdateAsk(ax(ctx), goalOf(ctx, a.goal_id)), "Withdrew the ask for an update", "There’s no open ask for an update on that goal.");
+			return save$1(ctx, undoUpdateAsk(ax$1(ctx), goalOf$1(ctx, a.goal_id)), "Withdrew the ask for an update", "There’s no open ask for an update on that goal.");
 		}
 	},
 	{
@@ -31488,22 +32973,22 @@ var WORK_TOOLS = [
 				"kind"
 			],
 			properties: {
-				review_id: str$1("The review’s ID."),
-				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
-				kind: str$1("What it is.", { enum: [
+				review_id: str$3("The review’s ID."),
+				goal_id: str$3("The goal’s ID or its key, e.g. G-12."),
+				kind: str$3("What it is.", { enum: [
 					"acknowledge",
 					"note",
 					"ask",
 					"action"
 				] }),
-				text: str$1("The note, question or action. Optional when acknowledging."),
-				who: str$1("Actions: who does it (name or ID). Defaults to the goal’s owner."),
-				due_week: int$1("Actions: the week it’s due by.")
+				text: str$3("The note, question or action. Optional when acknowledging."),
+				who: str$3("Actions: who does it (name or ID). Defaults to the goal’s owner."),
+				due_week: int$2("Actions: the week it’s due by.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			const r = reviewOf(ctx, a.review_id), g = goalOf(ctx, a.goal_id);
+			const r = reviewOf(ctx, a.review_id), g = goalOf$1(ctx, a.goal_id);
 			const kind = a.kind;
 			if (![
 				"acknowledge",
@@ -31511,8 +32996,8 @@ var WORK_TOOLS = [
 				"ask",
 				"action"
 			].includes(kind)) throw new Error("kind is acknowledge, note, ask or action.");
-			const assigneeId = kind === "action" && a.who ? personOf(ctx, a.who).id : void 0;
-			return save(ctx, reviewCall(ax(ctx), g, r, kind, String(a.text ?? ""), {
+			const assigneeId = kind === "action" && a.who ? personOf$1(ctx, a.who).id : void 0;
+			return save$1(ctx, reviewCall(ax$1(ctx), g, r, kind, String(a.text ?? ""), {
 				assigneeId,
 				dueWeek: a.due_week
 			}), `${{
@@ -31532,13 +33017,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$1("Its ID, from get_review."),
-				text: str$1("The new wording."),
-				who: str$1("Actions: who does it."),
-				due_week: int$1("Actions: the week it’s due by (0 for none).")
+				call_id: str$3("Its ID, from get_review."),
+				text: str$3("The new wording."),
+				who: str$3("Actions: who does it."),
+				due_week: int$2("Actions: the week it’s due by (0 for none).")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
 			const d = ctx.snapshot.decisions.find((x) => x.id === a.call_id) ?? asksOf(ctx.snapshot).find((x) => x.id === a.call_id);
 			if (!d) throw new Error(`There’s nothing said with ID ${String(a.call_id)}. Use get_review.`);
@@ -31551,10 +33036,10 @@ var WORK_TOOLS = [
 				due: d.dueWeek ?? null
 			};
 			const extra = action ? {
-				assigneeId: a.who ? personOf(ctx, a.who).id : was.who,
+				assigneeId: a.who ? personOf$1(ctx, a.who).id : was.who,
 				dueWeek: a.due_week === void 0 ? was.due : Number(a.due_week) || null
 			} : void 0;
-			return save(ctx, editCall(ax(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
+			return save$1(ctx, editCall(ax$1(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
 		}
 	},
 	{
@@ -31565,10 +33050,10 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				review_id: str$1("The review to change. Leave out to set up a new one."),
-				name: str$1("Its name, e.g. \"Platform weekly review\"."),
-				every_weeks: int$1("Held every 1, 2 or 4 weeks."),
-				weekday: str$1("The weekday.", { enum: [
+				review_id: str$3("The review to change. Leave out to set up a new one."),
+				name: str$3("Its name, e.g. \"Platform weekly review\"."),
+				every_weeks: int$2("Held every 1, 2 or 4 weeks."),
+				weekday: str$3("The weekday.", { enum: [
 					"Monday",
 					"Tuesday",
 					"Wednesday",
@@ -31581,7 +33066,7 @@ var WORK_TOOLS = [
 				people: ids("Who’s in it (names or IDs). New reviews include you.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
 			const day = a.weekday === void 0 ? void 0 : [
 				"monday",
@@ -31591,7 +33076,7 @@ var WORK_TOOLS = [
 				"friday"
 			].indexOf(String(a.weekday).toLowerCase());
 			if (day === -1) throw new Error("weekday is Monday to Friday.");
-			const people = a.people ? [.../* @__PURE__ */ new Set([...a.people.map((p) => personOf(ctx, p).id)])] : void 0;
+			const people = a.people ? [.../* @__PURE__ */ new Set([...a.people.map((p) => personOf$1(ctx, p).id)])] : void 0;
 			if (a.review_id) {
 				const before = reviewOf(ctx, a.review_id);
 				const scope = {
@@ -31607,9 +33092,9 @@ var WORK_TOOLS = [
 					scope,
 					people: people ?? before.people
 				};
-				return save(ctx, saveReview(ax(ctx), after, before), `Changed the review “${after.name}”`, "");
+				return save$1(ctx, saveReview(ax$1(ctx), after, before), `Changed the review “${after.name}”`, "");
 			}
-			const r = newReview(ax(ctx), {
+			const r = newReview(ax$1(ctx), {
 				name: String(a.name ?? ""),
 				everyWeeks: Number(a.every_weeks ?? 1),
 				weekday: day ?? ctx.cycle.reviewDay,
@@ -31619,7 +33104,7 @@ var WORK_TOOLS = [
 				people: people ? [.../* @__PURE__ */ new Set([ctx.actor.id, ...people])] : void 0
 			});
 			return {
-				...await save(ctx, saveReview(ax(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
+				...await save$1(ctx, saveReview(ax$1(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
 				data: { id: r.id }
 			};
 		}
@@ -31633,21 +33118,21 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "ref"],
 			properties: {
-				kind: str$1("What to watch.", { enum: [
+				kind: str$3("What to watch.", { enum: [
 					"goal",
 					"tree",
 					"level"
 				] }),
-				ref: str$1("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
+				ref: str$3("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
 			}
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf(ctx, a.ref).id;
-			return save(ctx, watch(ax(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf(ctx, ref).title}`, "Already watching that.");
+			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf$1(ctx, a.ref).id;
+			return save$1(ctx, watch(ax$1(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$1(ctx, ref).title}`, "Already watching that.");
 		}
 	},
 	{
@@ -31658,11 +33143,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["watch_id"],
-			properties: { watch_id: str$1("The watch’s ID, from list_watching.") }
+			properties: { watch_id: str$3("The watch’s ID, from list_watching.") }
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return save(ctx, unwatch(ax(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
+			return save$1(ctx, unwatch(ax$1(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
 		}
 	},
 	{
@@ -31673,16 +33158,16 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$1("The person to change. Leave out to add someone."),
-				name: str$1("Their full name."),
-				job_title: str$1("Their job title."),
-				team: str$1("Their team (name or ID); empty string for none."),
+				person_id: str$3("The person to change. Leave out to add someone."),
+				name: str$3("Their full name."),
+				job_title: str$3("Their job title."),
+				team: str$3("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			const before = a.person_id ? personOf(ctx, a.person_id) : null;
+			const before = a.person_id ? personOf$1(ctx, a.person_id) : null;
 			const nm = a.name !== void 0 ? String(a.name).trim() : before?.name ?? "";
 			const p = {
 				id: before?.id ?? ctx.newId("p"),
@@ -31693,7 +33178,7 @@ var WORK_TOOLS = [
 				admin: a.admin !== void 0 ? !!a.admin : before?.admin ?? false
 			};
 			return {
-				...await save(ctx, savePerson(ax(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
+				...await save$1(ctx, savePerson(ax$1(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
 				data: { id: p.id }
 			};
 		}
@@ -31712,29 +33197,29 @@ var WORK_TOOLS = [
 				"next"
 			],
 			properties: {
-				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
-				result: str$1("How it landed.", { enum: [
+				goal_id: str$3("The goal’s ID or its key, e.g. G-12."),
+				result: str$3("How it landed.", { enum: [
 					"hit",
 					"partly",
 					"missed"
 				] }),
-				learned: str$1("One thing worth knowing next time (a sentence)."),
-				next: str$1("Next cycle.", { enum: ["carry", "stop"] })
+				learned: str$3("One thing worth knowing next time (a sentence)."),
+				next: str$3("Next cycle.", { enum: ["carry", "stop"] })
 			}
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			const g = goalOf(ctx, a.goal_id);
+			const g = goalOf$1(ctx, a.goal_id);
 			if (![
 				"hit",
 				"partly",
 				"missed"
 			].includes(String(a.result))) throw new Error("result is hit, partly or missed.");
 			if (!["carry", "stop"].includes(String(a.next))) throw new Error("next is carry or stop.");
-			return save(ctx, saveRetro(ax(ctx), g, {
+			return save$1(ctx, saveRetro(ax$1(ctx), g, {
 				result: a.result,
 				learned: String(a.learned ?? ""),
 				next: a.next
@@ -31752,7 +33237,7 @@ var WORK_TOOLS = [
 			properties: { confirm: bool$1("True, once the person has said to start it.") }
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			destructiveHint: true
 		},
 		async run(a, ctx) {
@@ -31760,9 +33245,9 @@ var WORK_TOOLS = [
 				isError: true,
 				text: "Ask the person first, then call again with confirm: true."
 			};
-			const out = startNextCycle(ax(ctx));
+			const out = startNextCycle(ax$1(ctx));
 			return {
-				...await save(ctx, out.commit, `Started ${out.name}`, ""),
+				...await save$1(ctx, out.commit, `Started ${out.name}`, ""),
 				data: { name: out.name }
 			};
 		}
@@ -31776,20 +33261,20 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$1("The view to change."),
-				name: str$1("Its name."),
-				query: str$1("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$3("The view to change."),
+				name: str$3("Its name."),
+				query: str$3("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			const out = saveView(ax(ctx), {
+			const out = saveView(ax$1(ctx), {
 				id: a.view_id,
 				name: String(a.name ?? ""),
 				params: String(a.query ?? "").replace(/^.*\?/, "")
 			});
 			return {
-				...await save(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$1(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -31803,28 +33288,28 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$1("The table view to change."),
-				name: str$1("Its name."),
-				table: str$1("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$3("The table view to change."),
+				name: str$3("Its name."),
+				table: str$3("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$1("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$3("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
 			const layout = layoutFrom(ctx, a);
-			const out = saveTableView(ax(ctx), {
+			const out = saveTableView(ax$1(ctx), {
 				id: a.view_id,
 				name: String(a.name ?? ""),
 				layout
 			}, headOf(ctx, layout.table));
 			return {
-				...await save(ctx, out.commit, `Saved the table view “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$1(ctx, out.commit, `Saved the table view “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -31837,14 +33322,14 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				view: str$1("The name of a saved table view: one of yours, or one pinned for everyone."),
-				table: str$1("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+				view: str$3("The name of a saved table view: one of yours, or one pinned for everyone."),
+				table: str$3("Which data table, when not using a view.", { enum: TABLE_ORDER }),
 				columns: ids("The columns, in order. Leave out for the usual columns."),
-				query: str$1("Search, filters and sort, as for save_table_view."),
-				format: str$1("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+				query: str$3("Search, filters and sort, as for save_table_view."),
+				format: str$3("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const layout = layoutFrom(ctx, a);
 			const rows = shownTable(sheetOf(ctx, layout.table), layout);
@@ -31876,15 +33361,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$1("The view’s ID, from list_views.") }
+			properties: { view_id: str$3("The view’s ID, from list_views.") }
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			destructiveHint: true,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save(ctx, deleteView(ax(ctx), String(a.view_id ?? "")), "Deleted the view", "That view is already gone.");
+			return save$1(ctx, deleteView(ax$1(ctx), String(a.view_id ?? "")), "Deleted the view", "That view is already gone.");
 		}
 	},
 	{
@@ -31896,16 +33381,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$1("The view’s ID."),
+				view_id: str$3("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save(ctx, pinView(ax(ctx), String(a.view_id ?? ""), !!a.pinned), a.pinned ? "Pinned the view for everyone" : "Unpinned the view", "It already is.");
+			return save$1(ctx, pinView(ax$1(ctx), String(a.view_id ?? ""), !!a.pinned), a.pinned ? "Pinned the view for everyone" : "Unpinned the view", "It already is.");
 		}
 	},
 	{
@@ -31917,18 +33402,23 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$1("Who it acts as (name or ID)."),
-				name: str$1("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$3("Who it acts as (name or ID)."),
+				name: str$3("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			const p = personOf(ctx, a.person);
-			const token = newToken();
-			const r = await save(ctx, createToken(ax(ctx), p.id, String(a.name ?? ""), await hashToken(token)), `Made a token for ${p.name}`, "");
+			const p = personOf$1(ctx, a.person);
+			const c = createToken(ax$1(ctx), p.id, String(a.name ?? ""));
+			const token = await ctx.issueToken({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA$1]
+				}))
+			});
 			return {
-				...r,
-				text: `${r.text} Here it is, shown once: ${token}`,
+				text: `Made a token for ${p.name} (as ${ctx.actor.name}). Here it is, shown once: ${token}`,
 				data: { token }
 			};
 		}
@@ -31941,15 +33431,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$1("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$3("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			destructiveHint: true,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save(ctx, revokeToken(ax(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
+			return save$1(ctx, revokeToken(ax$1(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
 		}
 	},
 	{
@@ -31961,17 +33451,17 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["mood", "text"],
 			properties: {
-				mood: str$1("How it felt.", { enum: [
+				mood: str$3("How it felt.", { enum: [
 					"good",
 					"meh",
 					"bad"
 				] }),
-				text: str$1("What happened, or what would help.")
+				text: str$3("What happened, or what would help.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
-			return save(ctx, sendFeedback(ax(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
+			return save$1(ctx, sendFeedback(ax$1(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
 		}
 	},
 	{
@@ -31982,15 +33472,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$1("The new name.") }
+			properties: { name: str$3("The new name.") }
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			const from = ctx.ws.name;
-			return save(ctx, renameWorkspace(ax(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
+			return save$1(ctx, renameWorkspace(ax$1(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
 		}
 	},
 	{
@@ -32004,14 +33494,14 @@ var WORK_TOOLS = [
 			properties: { on: bool$1("true to record how the app is used here, false to stop.") }
 		},
 		annotations: {
-			...WRITE,
+			...WRITE$1,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			if (typeof a.on !== "boolean") throw new Error("Say on: true to record, or on: false to stop.");
 			const on = a.on;
 			return {
-				...await save(ctx, setRecording(ax(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
+				...await save$1(ctx, setRecording(ax$1(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
 				data: { recording: ctx.ws.recording !== false }
 			};
 		}
@@ -32025,22 +33515,22 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$1("The team to change (name or ID). Leave out to add a team."),
-				name: str$1("The team’s name."),
-				lead: str$1("The team lead (a person’s name or ID); empty string for none.")
+				team: str$3("The team to change (name or ID). Leave out to add a team."),
+				name: str$3("The team’s name."),
+				lead: str$3("The team lead (a person’s name or ID); empty string for none.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
 			const id = a.team !== void 0 ? teamOf(ctx, a.team) ?? void 0 : void 0;
-			const leadId = a.lead === void 0 ? void 0 : a.lead === "" || a.lead === null ? null : personOf(ctx, a.lead).id;
-			const out = saveTeam(ax(ctx), {
+			const leadId = a.lead === void 0 ? void 0 : a.lead === "" || a.lead === null ? null : personOf$1(ctx, a.lead).id;
+			const out = saveTeam(ax$1(ctx), {
 				id,
 				name: String(a.name ?? ""),
 				...leadId !== void 0 ? { leadId } : {}
 			});
 			return {
-				...await save(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
+				...await save$1(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
 				data: { id: out.id }
 			};
 		}
@@ -32054,8 +33544,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$1("The team to remove (name or ID)."),
-				move_to: str$1("Where its people and goals go (a team’s name or ID).")
+				team: str$3("The team to remove (name or ID)."),
+				move_to: str$3("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -32069,7 +33559,7 @@ var WORK_TOOLS = [
 			if (!id) throw new Error("Name the team to remove.");
 			const name = ctx.snapshot.teams.find((t) => t.id === id).name;
 			const to = a.move_to !== void 0 && a.move_to !== "" ? teamOf(ctx, a.move_to) : null;
-			return save(ctx, removeTeam(ax(ctx), id, to), `Removed the team ${name}`, "");
+			return save$1(ctx, removeTeam(ax$1(ctx), id, to), `Removed the team ${name}`, "");
 		}
 	},
 	{
@@ -32080,7 +33570,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$1("The workspace’s exact name.") }
+			properties: { confirm_name: str$3("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -32100,6 +33590,644 @@ var WORK_TOOLS = [
 	}
 ];
 WORK_TOOLS.filter((t) => t.annotations.readOnlyHint).map((t) => t.name);
+// src/markup/model.ts
+/** The words for each status. A status is always shown as its shape and this word together. */
+var STATUS_WORD = {
+	new: "New",
+	"in-hand": "In hand",
+	fixed: "Fixed",
+	"wont-fix": "Won’t fix"
+};
+var STATUSES$1 = [
+	"new",
+	"in-hand",
+	"fixed",
+	"wont-fix"
+];
+var MOOD_WORD = Object.fromEntries([
+	["good", "It helps"],
+	["meh", "It’s OK"],
+	["bad", "It gets in the way"]
+]);
+/** Where markups' GitHub issues go (FARO_GITHUB_REPO on the server can say otherwise). */
+var MARKUP_REPO = "sconies/goals-app";
+var same = (a, b) => a.length === b.length && a.every((x, i) => b[i] === x);
+/** Every part named in a markup once, most mentioned first: what the inbox and the issue list. */
+function namedParts(m) {
+	const seen = [];
+	m.parts.forEach((list, i) => list.forEach((path) => {
+		const had = seen.find((s) => same(s.path, path));
+		if (had) had.n++;
+		else seen.push({
+			path,
+			n: 1,
+			first: i
+		});
+	}));
+	return seen.sort((a, b) => b.n - a.n || a.first - b.first).map((s) => s.path);
+}
+var partText = (path) => path.join(" › ");
+var MarkupError = class extends Error {};
+var markupFromRow = (r) => ({
+	id: r.id,
+	workspaceId: r.workspace_id,
+	workspaceName: r.workspace_name,
+	demo: !!r.demo,
+	personId: r.person_id,
+	personName: r.person_name,
+	line: r.line,
+	mood: r.mood ?? null,
+	route: r.route,
+	path: r.path,
+	goalId: r.goal_id,
+	reviewId: r.review_id,
+	parts: r.parts ?? [],
+	strokes: r.strokes ?? [],
+	context: r.context,
+	steps: r.steps ?? [],
+	errors: r.errors ?? [],
+	pictures: r.pictures ?? [],
+	status: r.status,
+	issueUrl: r.issue_url,
+	fixedIn: r.fixed_in,
+	wontFixReason: r.wont_fix_reason,
+	statusBy: r.status_by,
+	statusAt: r.status_at,
+	createdAt: new Date(r.created_at).toISOString()
+});
+/** Checks a status change and gives the fields it sets. Fixed names the What's new entry; Won't fix needs a reason. */
+function statusPatch(c, now, entries) {
+	if (!STATUSES$1.includes(c.status)) throw new MarkupError("A status is new, in-hand, fixed or wont-fix.");
+	const fixedIn = c.status === "fixed" ? (c.fixedIn ?? "").trim() : "";
+	if (c.status === "fixed" && !fixedIn) throw new MarkupError("Say which What’s new entry has the fix.");
+	if (c.status === "fixed" && entries.length && !entries.includes(fixedIn)) throw new MarkupError(`There’s no What’s new entry “${fixedIn}”.`);
+	const reason = c.status === "wont-fix" ? (c.reason ?? "").trim() : "";
+	if (c.status === "wont-fix" && !reason) throw new MarkupError("Say why it won’t be fixed.");
+	return {
+		status: c.status,
+		fixedIn: fixedIn || null,
+		wontFixReason: reason ? reason.slice(0, 2e3) : null,
+		statusBy: c.by.slice(0, 200),
+		statusAt: now
+	};
+}
+var ISSUE_URL = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+$/;
+/** Where a markup was sent from, in words: the part most drawn on, or the page. */
+function placeOf(m) {
+	const p = namedParts(m)[0];
+	return p ? partText(p) : m.route || "Somewhere in the app";
+}
+var when = (iso) => iso.slice(0, 16).replace("T", " ") + " UTC";
+var esc = (s) => s.replace(/[<>]/g, (c) => c === "<" ? "&lt;" : "&gt;");
+function issueTitle(m) {
+	return `Markup: ${m.line.length > 90 ? m.line.slice(0, 89).trimEnd() + "…" : m.line}`;
+}
+/** The issue's text: the line, a link back to the markup (and its picture) in Faro's inbox, the page, the parts named,
+the notes, the steps and the errors. The picture stays in Faro's private storage, so the issue links to it. */
+function issueBody(m, o = {}) {
+	const out = [];
+	out.push(`> ${esc(m.line)}`, "");
+	out.push(`${m.personName || "Someone"} sent this ${m.demo ? "from the demo" : `from ${m.workspaceName || m.workspaceId}`} on ${when(m.createdAt)}${m.mood ? `, saying “${MOOD_WORD[m.mood]}”` : ""}.`, "");
+	out.push(o.inboxUrl ? `**The picture, with the drawing:** [open markup \`${m.id}\` in Faro’s inbox](${o.inboxUrl}) (builders, signed in).` : `The picture is in Faro’s inbox: markup \`${m.id}\`.`, "");
+	const parts = namedParts(m);
+	out.push("## Parts named", "");
+	out.push(...parts.length ? parts.map((p) => `- ${esc(partText(p))}`) : ["- No named part under the drawing."], "");
+	const notes = m.strokes.filter((s) => s.kind === "note" && !!s.text);
+	if (notes.length) out.push("## Notes on the picture", "", ...notes.map((n) => `${n.n}. ${esc(n.text)}`), "");
+	out.push("## Where", "");
+	out.push(`- Page: \`${m.path || m.route}\` (route \`${m.route}\`)`);
+	if (m.goalId) out.push(`- Goal: \`${m.goalId}\``);
+	if (m.reviewId) out.push(`- Review: \`${m.reviewId}\``);
+	const c = m.context;
+	if (c) out.push(`- Screen: ${c.viewport.w} × ${c.viewport.h} at ${c.viewport.dpr}x, ${c.theme}${c.themeChoice === "system" ? " (following the device)" : ""}, accent ${c.accent}`, `- Version: \`${c.appVersion}\`, session \`${c.sessionId}\``);
+	out.push(`- Markup: \`${m.id}\``, "");
+	out.push("## Steps before it", "");
+	out.push(...m.steps.length ? m.steps.map((s, i) => `${i + 1}. ${stepText(s)}`) : ["Not included."], "");
+	out.push("## Errors and failed saves on this visit", "");
+	out.push(...m.errors.length ? m.errors.map((e) => `- ${problemText(e)}`) : ["None."], "");
+	out.push("When it’s fixed, list this markup’s id in the What’s new entry (`fixes`), so the sender sees “You raised this”.");
+	return out.join("\n");
+}
+/** A step, in words: "Opened /goals/:goalId", "postCheckIn (failed)". */
+function stepText(s) {
+	const at = s.at.slice(11, 19);
+	switch (s.kind) {
+		case "page": return `${at} Opened ${s.name}`;
+		case "action": return `${at} ${s.name}${s.ok === false ? " (failed)" : ""}${s.route ? ` on ${s.route}` : ""}`;
+		case "flow": return `${at} ${s.flow ?? "Task"}: ${s.name}${s.step ? ` at ${s.step}` : ""}`;
+		case "error": return `${at} Error: ${s.name}${s.route ? ` on ${s.route}` : ""}`;
+		default: return `${at} ${s.name}${s.route ? ` on ${s.route}` : ""}`;
+	}
+}
+function problemText(e) {
+	const what = e.kind === "save" ? `A save didn’t go through${e.action ? ` (${e.action})` : ""}: ${e.type}` : `${e.type}${e.message ? `: ${e.message}` : ""}`;
+	return `${e.at.slice(11, 19)} ${what}${e.route ? ` on ${e.route}` : ""}`;
+}
+/** A pre-filled new-issue link: the builder presses Submit on GitHub. GitHub caps the address, so long text is cut. */
+function newIssueLink(repo, m, o = {}) {
+	let body = issueBody(m, o);
+	const make = () => `https://github.com/${repo}/issues/new?${new URLSearchParams({
+		title: issueTitle(m),
+		body
+	}).toString()}`;
+	let url = make();
+	while (url.length > 7500 && body.length > 200) {
+		body = body.slice(0, Math.floor(body.length * .8)) + "\n\n(cut short: the rest is in the inbox)";
+		url = make();
+	}
+	return url;
+}
+// src/mcp/markupTools.ts
+var str$2 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var READ = {
+	readOnlyHint: true,
+	openWorldHint: false
+};
+/** The inbox, when this request may use it; otherwise why not, for the assistant to say. */
+function inbox(ctx) {
+	if (!ctx.markups) throw new Error("Only builders (the people building Faro) can read markups, with a builder token: sign in to the inbox on Workspace and make one there.");
+	return ctx.markups;
+}
+var MARKUP_TOOLS = [
+	{
+		name: "list_markups",
+		title: "List markups",
+		description: "Builders: markups people sent (a picture of a screen with a drawing and a line saying what should change), newest first, from every workspace and the demo. Filter by status or workspace.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				status: str$2("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$2("Only this workspace’s (its id)."),
+				limit: {
+					type: "integer",
+					description: "At most this many (default 50)."
+				}
+			}
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			const rows = (await inbox(ctx).list({
+				...a.workspace ? { workspaceId: String(a.workspace) } : {},
+				...a.status ? { status: a.status } : {},
+				limit: Number(a.limit ?? 50)
+			})).map((m) => ({
+				id: m.id,
+				status: m.status,
+				line: m.line,
+				place: placeOf(m),
+				route: m.route,
+				from: m.demo ? "the demo" : m.workspaceName,
+				by: m.personName,
+				at: m.createdAt,
+				issueUrl: m.issueUrl,
+				fixedIn: m.fixedIn
+			}));
+			return {
+				data: { markups: rows },
+				text: rows.length ? rows.map((r) => `${r.id} · ${STATUS_WORD[r.status]} · “${r.line}” · ${r.place} · ${r.by}, ${r.from}, ${r.at.slice(0, 10)}`).join("\n") : "No markups."
+			};
+		}
+	},
+	{
+		name: "get_markup",
+		title: "Open a markup",
+		description: "Builders: one markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version), the steps before it and the errors on that visit, with links to its pictures that work for ten minutes.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["id"],
+			properties: { id: str$2("The markup’s id (mk_…), from list_markups.") }
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			const m = await inbox(ctx).open(String(a.id ?? ""));
+			const notes = m.strokes.flatMap((s) => s.kind === "note" && s.text ? [`${s.n}. ${s.text}`] : []);
+			const text = [
+				`${m.id} · ${STATUS_WORD[m.status]} · “${m.line}”`,
+				`From ${m.personName || "someone"} in ${m.demo ? "the demo" : m.workspaceName}, ${m.createdAt}${m.mood ? `, saying ${MOOD_WORD[m.mood]}` : ""}.`,
+				`Page ${m.path} (${m.route})${m.goalId ? `, goal ${m.goalId}` : ""}${m.reviewId ? `, review ${m.reviewId}` : ""}. Screen ${m.context.viewport.w}×${m.context.viewport.h}, ${m.context.theme}, accent ${m.context.accent}, version ${m.context.appVersion}.`,
+				`Parts: ${namedParts(m).map(partText).join("; ") || "none named"}.`,
+				...notes.length ? [`Notes: ${notes.join(" ")}`] : [],
+				`Steps: ${m.steps.length ? m.steps.map(stepText).join(" | ") : "not included"}.`,
+				`Errors: ${m.errors.length ? m.errors.map(problemText).join(" | ") : "none"}.`,
+				...m.issueUrl ? [`Issue: ${m.issueUrl}`] : [],
+				...m.fixedIn ? [`Fixed in What’s new entry ${m.fixedIn}.`] : [],
+				...m.wontFixReason ? [`Won’t fix: ${m.wontFixReason}`] : [],
+				m.urls.marked || m.urls.screen ? `Picture (works for ten minutes): ${m.urls.marked ?? m.urls.screen}` : "Picture: open it in Faro’s inbox (Workspace, signed in as a builder). This server can’t sign picture links without the database’s service role key."
+			].join("\n");
+			return {
+				data: { markup: m },
+				text
+			};
+		}
+	},
+	{
+		name: "update_markup",
+		title: "Change a markup",
+		description: "Builders: set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["id"],
+			properties: {
+				id: str$2("The markup’s id (mk_…)."),
+				status: str$2("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$2("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$2("With wont-fix: why it won’t be fixed."),
+				issue_url: str$2("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const ops = inbox(ctx);
+			const id = String(a.id ?? "");
+			if (!a.status && !a.issue_url) return {
+				isError: true,
+				text: "Give a status, an issue_url, or both."
+			};
+			let m = a.issue_url ? await ops.setIssueUrl(id, String(a.issue_url)) : null;
+			if (a.status) m = await ops.setStatus(id, {
+				status: a.status,
+				fixedIn: a.fixed_in,
+				reason: a.reason,
+				by: `${ctx.actor.name} via AI assistant (MCP)`
+			});
+			return {
+				data: { markup: m },
+				text: `${id} is ${STATUS_WORD[m.status]}${m.fixedIn ? `, fixed in ${m.fixedIn}` : ""}${m.issueUrl ? `, issue ${m.issueUrl}` : ""}.`
+			};
+		}
+	}
+];
+// src/mcp/removeTools.ts
+init_actions();
+init_goalKey();
+init_status();
+var str$1 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var int$1 = (description) => ({
+	type: "integer",
+	description
+});
+var REMOVE = {
+	readOnlyHint: false,
+	destructiveHint: true,
+	idempotentHint: false,
+	openWorldHint: false
+};
+var WRITE = {
+	readOnlyHint: false,
+	destructiveHint: false,
+	idempotentHint: false,
+	openWorldHint: false
+};
+var VIA = {
+	field: "Via",
+	from: "—",
+	to: "AI assistant (MCP)"
+};
+var KINDS = Object.keys(REMOVED_LABEL);
+var ax = (ctx) => ({
+	snapshot: ctx.snapshot,
+	cycle: ctx.cycle,
+	week: ctx.week,
+	actor: ctx.actor,
+	now: ctx.now,
+	newId: ctx.newId,
+	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
+	...ctx.full ? { full: ctx.full } : {}
+});
+async function save(ctx, c, done) {
+	await ctx.save({
+		...c,
+		changes: c.changes.map((x) => ({
+			...x,
+			diffs: [...x.diffs, VIA]
+		}))
+	});
+	return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
+}
+var goalOf = (ctx, id) => {
+	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	if (!g) throw new Error(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
+	return g;
+};
+/** A person here now, by ID or by name. */
+var personOf = (ctx, ref) => {
+	const t = String(ref ?? "").trim().toLowerCase();
+	const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
+	if (!t || !p) throw new Error(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
+	return p;
+};
+var optPerson = (ctx, ref) => ref == null || ref === "" ? null : personOf(ctx, ref).id;
+var REMOVE_TOOLS = [
+	{
+		name: "list_removed",
+		title: "Recently removed",
+		description: "Everything removed in the last 30 days, newest first: people who left or were deleted, deleted and stopped goals, deleted check-ins, ended and deleted reviews, removed comments and review notes, deleted saved views, stopped watches and deleted cycles. Admins see everything; anyone else sees what they removed. Each has a kind and an ID for restore_removed.",
+		inputSchema: {
+			type: "object",
+			properties: {},
+			additionalProperties: false
+		},
+		annotations: {
+			readOnlyHint: true,
+			openWorldHint: false
+		},
+		async run(_a, ctx) {
+			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today).filter((r) => ctx.actor.admin || r.by === ctx.actor.id);
+			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
+			const list = all.map((r) => ({
+				kind: r.kind,
+				label: REMOVED_LABEL[r.kind],
+				id: r.id,
+				name: r.name,
+				removedBy: who(r.by),
+				at: r.at
+			}));
+			return {
+				data: { removed: list },
+				text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join("\n") : "Nothing removed in the last 30 days."
+			};
+		}
+	},
+	{
+		name: "restore_removed",
+		title: "Restore something removed",
+		description: "Bring back something from list_removed: an admin, or whoever removed it. It comes back as it was; what was handed over or moved when it went stays where it is now.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["kind", "id"],
+			properties: {
+				kind: str$1("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$1("Its ID, from list_removed.")
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			if (!KINDS.includes(a.kind)) throw new Error(`kind is one of ${KINDS.join(", ")}.`);
+			const c = restoreRemoved(ax(ctx), a.kind, String(a.id ?? ""));
+			await ctx.save({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA]
+				}))
+			});
+			return { text: `${c.changes[0]?.summary ?? "Restored"} (as ${ctx.actor.name}).` };
+		}
+	},
+	{
+		name: "mark_person_left",
+		title: "Mark someone as left",
+		description: "Admins: mark someone as left the workspace. Their goals in this cycle go to goals_to and the open asks they raised or must answer go to asks_to (both required when they have any); they leave their reviews, and teams they led pass to goals_to. They vanish from pickers, counts, reviews and Home; history keeps their name as “Name (left)”. Someone with no history at all is deleted instead: use delete_person.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["person"],
+			properties: {
+				person: str$1("Their ID or full name."),
+				goals_to: str$1("Who takes over their goals: an ID or full name."),
+				asks_to: str$1("Who takes over their open asks: an ID or full name.")
+			}
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const p = personOf(ctx, a.person);
+			return save(ctx, markPersonLeft(ax(ctx), p.id, {
+				goalsTo: optPerson(ctx, a.goals_to),
+				asksTo: optPerson(ctx, a.asks_to)
+			}), `Marked ${p.name} as left`);
+		}
+	},
+	{
+		name: "delete_person",
+		title: "Delete someone with no history",
+		description: "Admins: delete someone who has no history here (no goals, check-ins, notes or asks), say someone added by mistake. Anyone with history is marked as left instead (mark_person_left).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["person"],
+			properties: { person: str$1("Their ID or full name.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const p = personOf(ctx, a.person);
+			return save(ctx, deletePerson(ax(ctx), p.id), `Deleted ${p.name}`);
+		}
+	},
+	{
+		name: "stop_goal",
+		title: "Stop a goal",
+		description: "The goal’s owner or an admin: stop a goal that has check-ins, mid-cycle, with a reason. It leaves stats, reviews, Home, Watching and attention lists, but stays in its history, on its page (marked Stopped), in exports and in Activity. The goals feeding it move up to what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead (delete_goal).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id", "reason"],
+			properties: {
+				goal_id: str$1("The goal’s ID or key, e.g. G-12."),
+				reason: str$1("Why it’s stopping, in a sentence (10 characters or more).")
+			}
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const g = goalOf(ctx, a.goal_id);
+			return save(ctx, stopGoal(ax(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
+		}
+	},
+	{
+		name: "delete_goal",
+		title: "Delete a goal with no check-ins",
+		description: "The goal’s owner or an admin: delete a goal that has no check-ins (set up by mistake). The goals feeding it move up to what it fed; its open asks are withdrawn. A goal with check-ins is stopped instead (stop_goal), so its history stays.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id"],
+			properties: { goal_id: str$1("The goal’s ID or key, e.g. G-12.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const g = goalOf(ctx, a.goal_id);
+			return save(ctx, deleteGoal(ax(ctx), g.id), `Deleted ${g.title}`);
+		}
+	},
+	{
+		name: "delete_check_in",
+		title: "Delete a check-in",
+		description: "Whoever posted it, or an admin: delete a goal’s latest check-in. Once a newer one is posted it can only be corrected (post_check_in for that week). The status is worked out again from the one before. Give the check-in’s ID (from get_goal), or the goal and the week.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				check_in_id: str$1("The check-in’s ID, from get_goal."),
+				goal_id: str$1("Or: the goal’s ID or key…"),
+				week: int$1("…and the week of its latest check-in.")
+			}
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			let id = a.check_in_id ? String(a.check_in_id) : "";
+			if (!id) {
+				const g = goalOf(ctx, a.goal_id);
+				const c = checkInsFor(g, ctx.snapshot.checkIns).filter((x) => a.week == null || x.week === Number(a.week)).at(-1);
+				if (!c) throw new Error(`${g.title} has no check-in${a.week != null ? ` for week ${String(a.week)}` : ""}.`);
+				id = c.id;
+			}
+			const c = ctx.snapshot.checkIns.find((x) => x.id === id);
+			return save(ctx, deleteCheckIn(ax(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
+		}
+	},
+	{
+		name: "end_review",
+		title: "End a review",
+		description: "Whoever set up the review, or an admin: end it. It keeps its notes and actions and stops showing as due. A review that was never held is deleted instead.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["review_id"],
+			properties: { review_id: str$1("The review’s ID, from list_reviews.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
+			const out = endReview(ax(ctx), String(a.review_id ?? ""));
+			return save(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : "Ended"} the review “${r?.name ?? ""}”`);
+		}
+	},
+	{
+		name: "delete_review",
+		title: "Delete a review never held",
+		description: "Whoever set up the review, or an admin: delete a review that has never been held. One that has been held is ended instead (end_review), so its notes and actions stay.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["review_id"],
+			properties: { review_id: str$1("The review’s ID, from list_reviews.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
+			return save(ctx, deleteReview(ax(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
+		}
+	},
+	{
+		name: "edit_comment",
+		title: "Edit a comment or review note",
+		description: "Correct the words of a comment (only whoever wrote it) or of a note said in a review (whoever said it, or an admin). It then shows as edited. Comment IDs are in get_goal’s comments; review notes’ IDs in get_review.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["comment_id", "text"],
+			properties: {
+				comment_id: str$1("The comment’s or note’s ID."),
+				text: str$1("The corrected words.")
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			const id = String(a.comment_id ?? "");
+			const note = ctx.snapshot.decisions.find((d) => d.id === id);
+			if (note) {
+				const c = editCall(ax(ctx), note, String(a.text ?? ""));
+				if (!c) return { text: "Nothing to change: it already says that." };
+				await ctx.save({
+					...c,
+					changes: c.changes.map((x) => ({
+						...x,
+						diffs: [...x.diffs, VIA]
+					}))
+				});
+				return { text: `Corrected the note (as ${ctx.actor.name}).` };
+			}
+			const c = editComment(ax(ctx), id, String(a.text ?? ""));
+			if (!c) return { text: "Nothing to change: it already says that." };
+			await ctx.save({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA]
+				}))
+			});
+			return { text: `Edited the comment (as ${ctx.actor.name}).` };
+		}
+	},
+	{
+		name: "delete_comment",
+		title: "Remove a comment or review note",
+		description: "Remove a comment, or a note said in a review: whoever wrote it, or an admin. Its place in the thread then says “Comment removed” (or “Note removed”), so the thread still reads.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["comment_id"],
+			properties: { comment_id: str$1("The comment’s or note’s ID.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const id = String(a.comment_id ?? "");
+			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save(ctx, deleteNote(ax(ctx), id), "Removed the note");
+			return save(ctx, deleteComment(ax(ctx), id), "Removed the comment");
+		}
+	},
+	{
+		name: "delete_cycle",
+		title: "Delete a cycle",
+		description: "Admins: delete a cycle no one has checked in to yet (started by mistake, say), and with it its goals. Not the only cycle.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["cycle_id"],
+			properties: { cycle_id: str$1("The cycle’s ID.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
+			return save(ctx, deleteCycle(ax(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
+		}
+	},
+	{
+		name: "undo_import",
+		title: "Undo an import or bulk edit",
+		description: "Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since are skipped and listed. Import IDs are in get_activity (kind=imports).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["import_id"],
+			properties: { import_id: str$1("The import’s ID (imp_…), from get_activity.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const out = undoImport(ax(ctx), String(a.import_id ?? ""));
+			await ctx.save({
+				...out.commit,
+				changes: out.commit.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA]
+				}))
+			});
+			return {
+				data: {
+					restored: out.restored,
+					skipped: out.skipped
+				},
+				text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? "row" : "rows"} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.join("; ")}.` : ""}`
+			};
+		}
+	}
+];
 // src/mcp/tools.ts
 init_actions();
 init_status();
@@ -32148,7 +34276,7 @@ function row(args, map) {
 	return r;
 }
 /** Rows given as objects with column names, any case, spaces or underscores. */
-function rows(list, sheet) {
+function rows$1(list, sheet) {
 	if (list == null) return [];
 	if (!Array.isArray(list)) throw new Error(`${sheet} should be a list of rows.`);
 	return list.map((o, i) => {
@@ -32288,455 +34416,469 @@ var GOAL_COLS = {
 };
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
 requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts. */
-var TOOLS = [...[
-	{
-		name: "get_overview",
-		title: "Overview of the goals",
-		description: "A short brief of every goal in the current cycle: what needs attention and why, every goal by what it feeds, open questions and actions, and each goal’s weekly numbers. Start here.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(_a, ctx) {
-			return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}.
+var TOOLS = [
+	...[
+		{
+			name: "get_overview",
+			title: "Overview of the goals",
+			description: "A short brief of every goal in the current cycle: what needs attention and why, every goal by what it feeds, open questions and actions, and each goal’s weekly numbers. Start here.",
+			inputSchema: {
+				type: "object",
+				properties: {},
+				additionalProperties: false
+			},
+			annotations: {
+				readOnlyHint: true,
+				openWorldHint: false
+			},
+			async run(_a, ctx) {
+				return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}.
 
 ` + aiBrief({
-				ws: ctx.ws,
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				today: ctx.today
-			}) };
-		}
-	},
-	{
-		name: "find_goals",
-		title: "Find goals",
-		description: "List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				text: str("Words in the goal’s name, or its key (G-12)."),
-				owner: str("Part of the owner’s name."),
-				status: str("Only goals with this status.", { enum: STATUSES }),
-				level: str("Only goals at this level.", { enum: LEVELS }),
-				mine: bool("Only goals you own."),
-				query: str("A Goals link’s query string, e.g. \"status=off,risk&needs=decision,slipped&due=quarter&sort=gap\". Keys: q, status (off, risk, stale, on, done, planned), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), needs (decision, no-recovery, slipped, missed-date, greener), due (quarter or a week), quiet (weeks), qtr (met, missed), result (completed, late, missed, open), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."),
-				view: str("The name of a saved view: one of yours, or one pinned for everyone.")
-			}
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
-			const byKey = normalKey(a.text);
-			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
-			if (a.view) {
-				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
-				if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
-				query = parseQuery(new URLSearchParams(v.params));
-			}
-			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
-			if (query) list = applyQuery(list, query, {
-				goals: ctx.snapshot.goals,
-				cycle: ctx.cycle,
-				week: ctx.week
-			});
-			const data = list.map((s) => ({
-				key: s.goal.key ?? null,
-				id: s.goal.id,
-				title: s.goal.title,
-				type: s.goal.kind,
-				level: s.goal.level,
-				owner: s.owner,
-				team: s.team,
-				status: s.status,
-				now: s.now,
-				planThisWeek: s.planNow != null ? s.planNowText : null,
-				target: s.target,
-				gap: s.gap,
-				lastCheckInWeek: s.lastWeek,
-				feedsInto: s.feedsInto,
-				youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
-			}));
-			return {
-				data: {
+					ws: ctx.ws,
+					snapshot: ctx.snapshot,
+					cycle: ctx.cycle,
 					week: ctx.week,
-					weeks: ctx.cycle.weeks,
-					goals: data
-				},
-				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
-			};
-		}
-	},
-	{
-		name: "get_goal",
-		title: "One goal in full",
-		description: "Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id"],
-			properties: { goal_id: str("The goal’s ID or its key (e.g. G-12), from find_goals.") }
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const g = goalRef(ctx, a.goal_id);
-			const j = toJson({
-				ws: ctx.ws,
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				today: ctx.today,
-				goals: [g]
-			});
-			const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
-			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
-				label: c.label,
-				value: c.value,
-				detail: c.sub
-			}));
-			const data = {
-				cycle: j.cycle,
-				goal: j.goals[0],
-				scorecard,
-				notes: j.notes
-			};
-			return {
-				data,
-				text: JSON.stringify(data, null, 2)
-			};
-		}
-	},
-	{
-		name: "post_check_in",
-		title: "Post a check-in",
-		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id"],
-			properties: {
-				goal_id: str("The goal’s ID or its key, e.g. G-12."),
-				week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
-				value: num("Number goals: the value for the week."),
-				stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
-				call: str("The owner’s status call. Leave out to let the rules decide.", { enum: [
-					"On track",
-					"At risk",
-					"Off track",
-					"Done"
-				] }),
-				cause: str("Why it’s behind or ahead.", { enum: [
-					"Plan too aggressive",
-					"Delivery slower",
-					"Blocked by a dependency",
-					"External factor",
-					"Data problem",
-					"Plan too cautious",
-					"Change landed early",
-					"One-off, won’t last"
-				] }),
-				why: str("In a sentence (10 characters or more)."),
-				why_greener: str("If the call is greener than the numbers: why."),
-				path_to_green: str("How it gets back on plan."),
-				recovery: str("Where the owner is with recovery.", { enum: [
-					"Plan",
-					"Still investigating",
-					"Needs a decision or help",
-					"Target should change"
-				] }),
-				back_on_plan_by_week: int("With a plan: the week it is back on plan by."),
-				needs: str("A decision or help needed, and from whom."),
-				next_step: str("The next step."),
-				dry_run: DRY
+					today: ctx.today
+				}) };
 			}
 		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const g = goalRef(ctx, a.goal_id);
-			return change(ctx, { checkIns: [row({
-				...a,
-				goal_id: g.id,
-				week: a.week ?? ctx.week
-			}, {
-				goal_id: "goal id",
-				week: "week",
-				value: "value",
-				stages: "stages",
-				call: "call",
-				cause: "cause",
-				why: "why",
-				why_greener: "why greener",
-				path_to_green: "path to green",
-				recovery: "recovery",
-				back_on_plan_by_week: "back on plan by week",
-				needs: "needs",
-				next_step: "next step"
-			})] }, { dry: !!a.dry_run });
-		}
-	},
-	{
-		name: "update_goal",
-		title: "Change a goal",
-		description: "Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id"],
-			properties: {
-				goal_id: str("The goal’s ID or its key, e.g. G-12."),
-				...GOAL_FIELDS,
-				reason: str("Why the plan is changing."),
-				dry_run: DRY
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const g = goalRef(ctx, a.goal_id);
-			return change(ctx, { goals: [row({
-				...a,
-				goal_id: g.id
-			}, {
-				goal_id: "id",
-				...GOAL_COLS
-			})] }, {
-				dry: !!a.dry_run,
-				reason: a.reason
-			});
-		}
-	},
-	{
-		name: "create_goal",
-		title: "Add a goal",
-		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. You can add goals you own; admins can add goals for anyone.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["title", "type"],
-			properties: {
-				type: str("What kind of goal.", { enum: [
-					"metric",
-					"range",
-					"milestone"
-				] }),
-				...GOAL_FIELDS,
-				dry_run: DRY
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: false,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			return change(ctx, { goals: [row({
-				owner: ctx.actor.name,
-				...a
-			}, {
-				type: "type",
-				...GOAL_COLS
-			})] }, { dry: !!a.dry_run });
-		}
-	},
-	{
-		name: "set_plan_numbers",
-		title: "Set plan numbers by hand",
-		description: "Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id", "numbers"],
-			properties: {
-				goal_id: str("The goal’s ID or its key, e.g. G-12."),
-				numbers: {
-					type: "array",
-					description: "Planned values by week.",
-					items: {
-						type: "object",
-						required: ["week", "value"],
-						properties: {
-							week: int("Week from the cycle start."),
-							value: num("Planned value.")
-						}
-					}
-				},
-				reason: str("Why the plan is changing."),
-				dry_run: DRY
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const r = {
-				__row: "1",
-				id: goalRef(ctx, a.goal_id).id
-			};
-			for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
-			return change(ctx, { plan: [r] }, {
-				dry: !!a.dry_run,
-				reason: a.reason
-			});
-		}
-	},
-	{
-		name: "add_comment",
-		title: "Comment on a goal",
-		description: "Add a comment to a goal’s history. Anyone can comment; it doesn’t change the status.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id", "text"],
-			properties: {
-				goal_id: str("The goal’s ID or its key, e.g. G-12."),
-				text: str("The comment.")
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: false,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const g = goalRef(ctx, a.goal_id);
-			const c = addNote({
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				actor: ctx.actor,
-				now: ctx.now,
-				newId: ctx.newId
-			}, g, String(a.text ?? ""));
-			await ctx.save({
-				...c,
-				changes: c.changes.map((x) => ({
-					...x,
-					diffs: [...x.diffs, {
-						field: "Via",
-						from: "—",
-						to: "AI assistant (MCP)"
-					}]
-				}))
-			});
-			return { text: `Comment added to ${g.title} as ${ctx.actor.name}.` };
-		}
-	},
-	{
-		name: "bulk_change",
-		title: "Change many goals at once",
-		description: "Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{\"ID\": \"...\", \"Target\": 90}], check_ins: [{\"Goal ID\": \"...\", \"Week\": 3, \"Value\": 41}], plan: [{\"ID\": \"...\", \"Week 5\": 45}]). A goal’s key (G-12) works wherever its ID does: in ID, Key, Goal ID, Goal key and Feeds into ID. Checks every row and returns what would change; nothing is saved unless \"apply\" is true and every row is valid.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				goals: {
-					type: "array",
-					items: { type: "object" },
-					description: "Rows for the Goals sheet. ID to change a goal; no ID to add one."
-				},
-				plan: {
-					type: "array",
-					items: { type: "object" },
-					description: "Rows for the Plan sheet: ID and \"Week N\" columns."
-				},
-				check_ins: {
-					type: "array",
-					items: { type: "object" },
-					description: "Rows for the Check-ins sheet: Goal ID, Week, Value or Stages, Call, Cause, Why, Path to green, Back on plan by week, Needs, Next step."
-				},
-				reason: str("Why plans are changing, for any plan change that needs one."),
-				apply: bool("Save the changes. Leave out first to check them.")
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			return change(ctx, {
-				goals: rows(a.goals, "goals"),
-				plan: rows(a.plan, "plan"),
-				checkIns: rows(a.check_ins, "check_ins")
-			}, {
-				dry: !a.apply,
-				reason: a.reason
-			});
-		}
-	},
-	{
-		name: "export",
-		title: "Export the goals",
-		description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or CSV of the goals or the check-ins.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["format"],
-			properties: { format: str("Which export.", { enum: [
-				"json",
-				"brief",
-				"goals_csv",
-				"check_ins_csv"
-			] }) }
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const x = {
-				ws: ctx.ws,
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				today: ctx.today
-			};
-			if (a.format === "json") {
-				const j = toJson(x);
+		{
+			name: "find_goals",
+			title: "Find goals",
+			description: "List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				properties: {
+					text: str("Words in the goal’s name, or its key (G-12)."),
+					owner: str("Part of the owner’s name."),
+					status: str("Only goals with this status.", { enum: STATUSES }),
+					level: str("Only goals at this level.", { enum: LEVELS }),
+					mine: bool("Only goals you own."),
+					query: str("A Goals link’s query string, e.g. \"status=off,risk&needs=decision,slipped&due=quarter&sort=gap\". Keys: q, status (off, risk, stale, on, done, planned), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), needs (decision, no-recovery, slipped, missed-date, greener), due (quarter or a week), quiet (weeks), qtr (met, missed), result (completed, late, missed, open), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."),
+					view: str("The name of a saved view: one of yours, or one pinned for everyone.")
+				}
+			},
+			annotations: {
+				readOnlyHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
+				const byKey = normalKey(a.text);
+				let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
+				if (a.view) {
+					const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+					if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
+					query = parseQuery(new URLSearchParams(v.params));
+				}
+				let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+				if (query) list = applyQuery(list, query, {
+					goals: ctx.snapshot.goals,
+					cycle: ctx.cycle,
+					week: ctx.week
+				});
+				const data = list.map((s) => ({
+					key: s.goal.key ?? null,
+					id: s.goal.id,
+					title: s.goal.title,
+					type: s.goal.kind,
+					level: s.goal.level,
+					owner: s.owner,
+					team: s.team,
+					status: s.status,
+					now: s.now,
+					planThisWeek: s.planNow != null ? s.planNowText : null,
+					target: s.target,
+					gap: s.gap,
+					lastCheckInWeek: s.lastWeek,
+					feedsInto: s.feedsInto,
+					youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
+				}));
 				return {
-					data: j,
-					text: JSON.stringify(j)
+					data: {
+						week: ctx.week,
+						weeks: ctx.cycle.weeks,
+						goals: data
+					},
+					text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
 				};
 			}
-			if (a.format === "brief") return { text: aiBrief(x) };
-			const wb = workbook(x);
-			if (a.format === "goals_csv") return { text: toCsv(wb[0].rows) };
-			if (a.format === "check_ins_csv") return { text: toCsv(wb[2].rows) };
-			return {
-				isError: true,
-				text: "format should be json, brief, goals_csv or check_ins_csv."
-			};
+		},
+		{
+			name: "get_goal",
+			title: "One goal in full",
+			description: "Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, notes, questions and actions from reviews, and its comments (with their IDs, for edit_comment and delete_comment).",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id"],
+				properties: { goal_id: str("The goal’s ID or its key (e.g. G-12), from find_goals.") }
+			},
+			annotations: {
+				readOnlyHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const g = goalRef(ctx, a.goal_id);
+				const j = toJson({
+					ws: ctx.ws,
+					snapshot: ctx.snapshot,
+					cycle: ctx.cycle,
+					week: ctx.week,
+					today: ctx.today,
+					goals: [g]
+				});
+				const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
+				const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
+					label: c.label,
+					value: c.value,
+					detail: c.sub
+				}));
+				const comments = [...commentsOf(ctx.snapshot.changes).values()].filter((k) => k.goalId === g.id).map((k) => ({
+					id: k.id,
+					by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? "—",
+					at: k.at,
+					text: k.removedAt ? "Comment removed" : k.text,
+					edited: !!k.editedAt,
+					removed: !!k.removedAt
+				}));
+				const data = {
+					cycle: j.cycle,
+					goal: j.goals[0],
+					scorecard,
+					notes: j.notes,
+					comments
+				};
+				return {
+					data,
+					text: JSON.stringify(data, null, 2)
+				};
+			}
+		},
+		{
+			name: "post_check_in",
+			title: "Post a check-in",
+			description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id"],
+				properties: {
+					goal_id: str("The goal’s ID or its key, e.g. G-12."),
+					week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
+					value: num("Number goals: the value for the week."),
+					stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
+					call: str("The owner’s status call. Leave out to let the rules decide.", { enum: [
+						"On track",
+						"At risk",
+						"Off track",
+						"Done"
+					] }),
+					cause: str("Why it’s behind or ahead.", { enum: [
+						"Plan too aggressive",
+						"Delivery slower",
+						"Blocked by a dependency",
+						"External factor",
+						"Data problem",
+						"Plan too cautious",
+						"Change landed early",
+						"One-off, won’t last"
+					] }),
+					why: str("In a sentence (10 characters or more)."),
+					why_greener: str("If the call is greener than the numbers: why."),
+					path_to_green: str("How it gets back on plan."),
+					recovery: str("Where the owner is with recovery.", { enum: [
+						"Plan",
+						"Still investigating",
+						"Needs a decision or help",
+						"Target should change"
+					] }),
+					back_on_plan_by_week: int("With a plan: the week it is back on plan by."),
+					needs: str("A decision or help needed, and from whom."),
+					next_step: str("The next step."),
+					dry_run: DRY
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const g = goalRef(ctx, a.goal_id);
+				return change(ctx, { checkIns: [row({
+					...a,
+					goal_id: g.id,
+					week: a.week ?? ctx.week
+				}, {
+					goal_id: "goal id",
+					week: "week",
+					value: "value",
+					stages: "stages",
+					call: "call",
+					cause: "cause",
+					why: "why",
+					why_greener: "why greener",
+					path_to_green: "path to green",
+					recovery: "recovery",
+					back_on_plan_by_week: "back on plan by week",
+					needs: "needs",
+					next_step: "next step"
+				})] }, { dry: !!a.dry_run });
+			}
+		},
+		{
+			name: "update_goal",
+			title: "Change a goal",
+			description: "Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id"],
+				properties: {
+					goal_id: str("The goal’s ID or its key, e.g. G-12."),
+					...GOAL_FIELDS,
+					reason: str("Why the plan is changing."),
+					dry_run: DRY
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const g = goalRef(ctx, a.goal_id);
+				return change(ctx, { goals: [row({
+					...a,
+					goal_id: g.id
+				}, {
+					goal_id: "id",
+					...GOAL_COLS
+				})] }, {
+					dry: !!a.dry_run,
+					reason: a.reason
+				});
+			}
+		},
+		{
+			name: "create_goal",
+			title: "Add a goal",
+			description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. You can add goals you own; admins can add goals for anyone.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["title", "type"],
+				properties: {
+					type: str("What kind of goal.", { enum: [
+						"metric",
+						"range",
+						"milestone"
+					] }),
+					...GOAL_FIELDS,
+					dry_run: DRY
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: false,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				return change(ctx, { goals: [row({
+					owner: ctx.actor.name,
+					...a
+				}, {
+					type: "type",
+					...GOAL_COLS
+				})] }, { dry: !!a.dry_run });
+			}
+		},
+		{
+			name: "set_plan_numbers",
+			title: "Set plan numbers by hand",
+			description: "Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id", "numbers"],
+				properties: {
+					goal_id: str("The goal’s ID or its key, e.g. G-12."),
+					numbers: {
+						type: "array",
+						description: "Planned values by week.",
+						items: {
+							type: "object",
+							required: ["week", "value"],
+							properties: {
+								week: int("Week from the cycle start."),
+								value: num("Planned value.")
+							}
+						}
+					},
+					reason: str("Why the plan is changing."),
+					dry_run: DRY
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const r = {
+					__row: "1",
+					id: goalRef(ctx, a.goal_id).id
+				};
+				for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
+				return change(ctx, { plan: [r] }, {
+					dry: !!a.dry_run,
+					reason: a.reason
+				});
+			}
+		},
+		{
+			name: "add_comment",
+			title: "Comment on a goal",
+			description: "Add a comment to a goal’s history. Anyone can comment; it doesn’t change the status.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id", "text"],
+				properties: {
+					goal_id: str("The goal’s ID or its key, e.g. G-12."),
+					text: str("The comment.")
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: false,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const g = goalRef(ctx, a.goal_id);
+				const c = addNote({
+					snapshot: ctx.snapshot,
+					cycle: ctx.cycle,
+					week: ctx.week,
+					actor: ctx.actor,
+					now: ctx.now,
+					newId: ctx.newId
+				}, g, String(a.text ?? ""));
+				await ctx.save({
+					...c,
+					changes: c.changes.map((x) => ({
+						...x,
+						diffs: [...x.diffs, {
+							field: "Via",
+							from: "—",
+							to: "AI assistant (MCP)"
+						}]
+					}))
+				});
+				return { text: `Comment added to ${g.title} as ${ctx.actor.name}.` };
+			}
+		},
+		{
+			name: "bulk_change",
+			title: "Change many goals at once",
+			description: "Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{\"ID\": \"...\", \"Target\": 90}], check_ins: [{\"Goal ID\": \"...\", \"Week\": 3, \"Value\": 41}], plan: [{\"ID\": \"...\", \"Week 5\": 45}]). A goal’s key (G-12) works wherever its ID does: in ID, Key, Goal ID, Goal key and Feeds into ID. Checks every row and returns what would change; nothing is saved unless \"apply\" is true and every row is valid.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				properties: {
+					goals: {
+						type: "array",
+						items: { type: "object" },
+						description: "Rows for the Goals sheet. ID to change a goal; no ID to add one."
+					},
+					plan: {
+						type: "array",
+						items: { type: "object" },
+						description: "Rows for the Plan sheet: ID and \"Week N\" columns."
+					},
+					check_ins: {
+						type: "array",
+						items: { type: "object" },
+						description: "Rows for the Check-ins sheet: Goal ID, Week, Value or Stages, Call, Cause, Why, Path to green, Back on plan by week, Needs, Next step."
+					},
+					reason: str("Why plans are changing, for any plan change that needs one."),
+					apply: bool("Save the changes. Leave out first to check them.")
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				return change(ctx, {
+					goals: rows$1(a.goals, "goals"),
+					plan: rows$1(a.plan, "plan"),
+					checkIns: rows$1(a.check_ins, "check_ins")
+				}, {
+					dry: !a.apply,
+					reason: a.reason
+				});
+			}
+		},
+		{
+			name: "export",
+			title: "Export the goals",
+			description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or CSV of the goals or the check-ins.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["format"],
+				properties: { format: str("Which export.", { enum: [
+					"json",
+					"brief",
+					"goals_csv",
+					"check_ins_csv"
+				] }) }
+			},
+			annotations: {
+				readOnlyHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const x = {
+					ws: ctx.ws,
+					snapshot: ctx.snapshot,
+					cycle: ctx.cycle,
+					week: ctx.week,
+					today: ctx.today
+				};
+				if (a.format === "json") {
+					const j = toJson(x);
+					return {
+						data: j,
+						text: JSON.stringify(j)
+					};
+				}
+				if (a.format === "brief") return { text: aiBrief(x) };
+				const wb = workbook(x);
+				if (a.format === "goals_csv") return { text: toCsv(wb[0].rows) };
+				if (a.format === "check_ins_csv") return { text: toCsv(wb[2].rows) };
+				return {
+					isError: true,
+					text: "format should be json, brief, goals_csv or check_ins_csv."
+				};
+			}
 		}
-	}
-], ...WORK_TOOLS];
+	],
+	...WORK_TOOLS,
+	...REMOVE_TOOLS,
+	...MARKUP_TOOLS
+];
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
 async function callTool(name, args, ctx) {
 	const t = TOOLS.find((x) => x.name === name);
@@ -32755,6 +34897,7 @@ async function callTool(name, args, ctx) {
 	}
 }
 // src/mcp/protocol.ts
+init_token();
 /** The name stays 'goals' (assistants already have it saved); the title is the product's. */
 var SERVER_INFO = {
 	name: "goals",
@@ -32836,16 +34979,6 @@ async function handleBody(body, context, trace) {
 		return out.length ? out : null;
 	}
 	return handle(body, context, trace);
-}
-/** SHA-256 of a token, as hex: what's stored, and what a presented token is checked against. */
-async function hashToken(token) {
-	const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-	return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-/** A new token: "gk_" and 40 random letters and digits. */
-function newToken() {
-	const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
 }
 // src/telemetry/errors.ts
 init_actions();
@@ -33128,7 +35261,8 @@ async function serve(req, deps) {
 	const auth = req.headers.get("authorization") ?? "";
 	const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1] ?? new URL(req.url).searchParams.get("token") ?? "";
 	if (!token) return rpcError(401, "Add your personal token: Authorization: Bearer gk_… An admin makes one under Workspace → AI assistants.", { "WWW-Authenticate": "Bearer" });
-	const found = await deps.findToken(await hashToken(token));
+	const hash = await hashToken(token);
+	const found = await deps.findToken(hash);
 	if (!found) return rpcError(401, "That token isn’t valid or has been revoked. Ask an admin for a new one.", { "WWW-Authenticate": "Bearer error=\"invalid_token\"" });
 	let body;
 	try {
@@ -33200,7 +35334,7 @@ async function serve(req, deps) {
 		const cycle = currentCycle(all.cycles, now);
 		if (!cycle) throw new Error("This workspace has no cycle yet.");
 		const actor = all.people.find((p) => p.id === found.token.personId);
-		if (!actor) throw new Error("The person this token belongs to is no longer in the workspace.");
+		if (!actor || actor.leftAt || actor.removedAt) throw new Error("The person this token belongs to is no longer in the workspace.");
 		ctx = {
 			ws: {
 				id: found.workspaceId,
@@ -33216,11 +35350,13 @@ async function serve(req, deps) {
 			now: now.toISOString(),
 			newId,
 			allGoals: all.goals,
+			full: all,
 			save: async (c) => {
 				await db("okr_commit", () => deps.commit(found.workspaceId, withExpectations(c, all)));
 				all = applyCommit(all, c);
 				ctx.snapshot = scopeToCycle(all, cycle);
 				ctx.allGoals = all.goals;
+				ctx.full = all;
 				if (c.workspace) ctx.ws = {
 					...ctx.ws,
 					name: c.workspace.name
@@ -33230,7 +35366,29 @@ async function serve(req, deps) {
 					recording: c.recording
 				};
 			},
-			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {}
+			issueToken: async (c) => {
+				let saved = c;
+				let secret;
+				if (deps.issueToken) secret = await db("okr_token_create", () => deps.issueToken(found.workspaceId, c));
+				else {
+					secret = newToken();
+					const tokenHash = await hashToken(secret);
+					saved = {
+						...c,
+						tokens: (c.tokens ?? []).map((t) => ({
+							...t,
+							tokenHash
+						}))
+					};
+					await db("okr_commit", () => deps.commit(found.workspaceId, saved));
+				}
+				all = applyCommit(all, saved);
+				ctx.snapshot = scopeToCycle(all, cycle);
+				ctx.full = all;
+				return secret;
+			},
+			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {},
+			...deps.markups && found.builder ? { markups: deps.markups(hash) } : {}
 		};
 		return ctx;
 	};
@@ -33268,22 +35426,125 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 		clearTimeout(timer);
 	} catch {}
 }
+function markupOps(o) {
+	const now = () => (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString();
+	const must = async (id) => {
+		const m = await o.store.get(id);
+		if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+		return m;
+	};
+	const pic = (m, name) => m.pictures.includes(name) ? o.store.pictureUrl(m.id, name, 600).catch(() => null) : Promise.resolve(null);
+	return {
+		async list(q = {}) {
+			const list = await o.store.list({
+				...q,
+				limit: Math.min(Math.max(q.limit ?? 200, 1), 500)
+			});
+			return Promise.all(list.map(async (m) => ({
+				...m,
+				thumbUrl: await pic(m, "thumb.jpg")
+			})));
+		},
+		async open(id) {
+			const m = await must(id);
+			const [screen, ink, marked] = await Promise.all([
+				"screen.png",
+				"ink.png",
+				"marked.jpg"
+			].map((n) => pic(m, n)));
+			return {
+				...m,
+				urls: {
+					screen: screen ?? null,
+					ink: ink ?? null,
+					marked: marked ?? null
+				}
+			};
+		},
+		async setStatus(id, c) {
+			await must(id);
+			const m = await o.store.update(id, statusPatch(c, now(), o.entries));
+			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+			return m;
+		},
+		/** Keeps the address of the issue the builder opened. */
+		async setIssueUrl(id, url) {
+			const u = url.trim().replace(/[?#].*$/, "");
+			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+			await must(id);
+			const m = await o.store.update(id, { issueUrl: u });
+			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+			return m;
+		},
+		/** The pre-filled new-issue link: title, line, page, parts, steps and a link back to the markup in the inbox. The
+		builder presses Submit on GitHub, then pastes the issue's address back. */
+		async issueLink(id) {
+			const m = await must(id);
+			return newIssueLink(o.repo, m, { inboxUrl: o.inboxLink?.(m.id) ?? null });
+		}
+	};
+}
+// src/markup/stores.ts
+var COLUMN = {
+	status: "status",
+	fixedIn: "fixed_in",
+	wontFixReason: "wont_fix_reason",
+	statusBy: "status_by",
+	statusAt: "status_at",
+	issueUrl: "issue_url"
+};
+var toRow = (patch) => Object.fromEntries(Object.entries(patch).map(([k, v]) => [COLUMN[k] ?? k, v]));
+var rows = (data) => (data ?? []).map(markupFromRow);
+function tokenMarkups(db, hash, signer) {
+	const call = async (fn, args, what) => {
+		const { data, error } = await db.rpc(fn, args);
+		if (error) throw new Error(`${what}: ${error.message}`);
+		return rows(data);
+	};
+	return {
+		list: (o) => call("okr_markups_for_token", {
+			hash,
+			ws: o.workspaceId ?? null,
+			st: o.status ?? null,
+			lim: o.limit
+		}, "Markups"),
+		get: async (id) => (await call("okr_markup_for_token", {
+			hash,
+			mid: id
+		}, "Markups"))[0] ?? null,
+		update: async (id, patch) => (await call("okr_markup_triage_for_token", {
+			hash,
+			mid: id,
+			patch: toRow(patch)
+		}, "Saving the markup"))[0] ?? null,
+		async pictureUrl(id, name, seconds) {
+			if (!signer) return null;
+			const { data, error } = await signer.storage.from("markups").createSignedUrl(`${id}/${name}`, seconds);
+			return error ? null : data?.signedUrl ?? null;
+		}
+	};
+}
 // server/vercel.ts
-function deps() {
+function deps(origin) {
 	const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-	const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.VITE_SUPABASE_KEY;
+	const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	const key = service ?? process.env.VITE_SUPABASE_KEY;
 	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and a key).");
 	const db = createClient(url, key, { auth: { persistSession: false } });
 	const store = new SupabaseStore(url, key, db);
+	let seen = null;
 	return {
 		async findToken(hash) {
-			const { data, error } = await db.from("okr_api_tokens").select("*").eq("token_hash", hash).is("revoked_at", null).maybeSingle();
+			let { data, error } = await db.rpc("okr_token_find", { hash });
+			if (error && /okr_token_find|PGRST202|Could not find the function/.test(`${error.code} ${error.message}`)) ({data, error} = await db.from("okr_api_tokens").select("*").eq("token_hash", hash).is("revoked_at", null));
 			if (error) throw new Error("The goals database didn’t answer. Try again in a moment.");
-			if (!data) return null;
-			const row = data;
+			const row = (data ?? [])[0];
+			if (!row) return null;
+			seen = hash;
 			return {
 				token: tokenFromRow(row),
-				workspaceId: row.workspace_id
+				workspaceId: row.workspace_id,
+				builder: !!row.builder
 			};
 		},
 		async workspaceName(id) {
@@ -33293,8 +35554,16 @@ function deps() {
 		load: (ws) => store.load(ws),
 		commit: (ws, c) => store.commit(ws, c),
 		async touch(id, at) {
-			await db.from("okr_api_tokens").update({ last_used_at: at }).eq("id", id);
+			const { error } = seen ? await db.rpc("okr_token_touch", { hash: seen }) : { error: { message: "no hash" } };
+			if (error) await db.from("okr_api_tokens").update({ last_used_at: at }).eq("id", id);
 		},
+		issueToken: (ws, c) => store.issueToken(ws, c),
+		markups: (hash) => markupOps({
+			store: tokenMarkups(db, hash, service ? db : null),
+			entries: WHATS_NEW.map((e) => e.id),
+			repo: MARKUP_REPO,
+			inboxLink: (id) => `${origin}/workspace?markup=${id}`
+		}),
 		deleteWorkspace: (ws) => store.deleteWorkspace(ws),
 		async recording(id) {
 			const { data, error } = await db.from("okr_workspaces").select("recording").eq("id", id).maybeSingle();
@@ -33307,7 +35576,7 @@ function deps() {
 }
 var handler = async (req) => {
 	try {
-		return await serve(req, deps());
+		return await serve(req, deps(new URL(req.url).origin));
 	} catch (e) {
 		return new Response(JSON.stringify({
 			jsonrpc: "2.0",

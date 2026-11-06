@@ -372,9 +372,9 @@ export function buildPlatformOrg(today: Date): Snapshot {
     save(commit);
     save(A.deleteView(ctx('rhea', at(T(30), 1, 16)), id));
   }
-  save(A.createToken(ctx('grace', at(T(36), 1, 10)), 'mateo', 'Claude on my laptop', 'sha256:3f1c9a2e7b'));
+  save(A.createToken(ctx('grace', at(T(36), 1, 10)), 'mateo', 'Claude on my laptop'));
   {
-    const c = A.createToken(ctx('grace', at(T(20), 1, 10)), 'lucia', 'Weekly metrics notebook', 'sha256:8b04d6c1aa');
+    const c = A.createToken(ctx('grace', at(T(20), 1, 10)), 'lucia', 'Weekly metrics notebook');
     save(c);
     save(A.revokeToken(ctx('grace', at(T(38), 3, 16)), c.tokens![0]!.id));
   }

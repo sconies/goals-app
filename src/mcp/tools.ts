@@ -10,6 +10,10 @@ import { summariseAll } from '../domain/summary';
 import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
 import { WORK_TOOLS } from './workTools';
+import { MARKUP_TOOLS } from './markupTools';
+import type { MarkupOps } from '../markup/ops';
+import { REMOVE_TOOLS } from './removeTools';
+import { commentsOf } from '../domain/removal';
 import { findGoal, isKey, normalKey } from '../domain/goalKey';
 import { isTableView } from '../domain/tableLayout';
 import type { Cycle, DisplayStatus, Level, Person, Snapshot } from '../domain/types';
@@ -26,10 +30,16 @@ export interface McpContext {
   now: string;
   newId: (prefix: string) => string;
   save(c: Commit): Promise<void>;
+  /** Saves a new token (createToken's commit) and returns its secret, made where it's kept; only the hash is stored. */
+  issueToken(c: Commit): Promise<string>;
   /** Every goal in the workspace, in every cycle, when the server has them (removing a team reaches past this cycle). */
   allGoals?: Snapshot['goals'];
+  /** The whole workspace, unscoped, with every removed record: for restoring and Recently removed (domain/removal). */
+  full?: Snapshot;
   /** Deletes the whole workspace (admins, confirmed by name); not every server can. */
   deleteWorkspace?: () => Promise<void>;
+  /** The builder inbox (src/markup/ops.ts): only when the request carries the builder passcode and the server can read markups. */
+  markups?: MarkupOps;
 }
 
 /** `cause`: what a failed tool threw, for the server's own telemetry (its class only); never sent to the assistant. */
@@ -171,7 +181,7 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'get_goal',
     title: 'One goal in full',
-    description: 'Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.',
+    description: 'Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, notes, questions and actions from reviews, and its comments (with their IDs, for edit_comment and delete_comment).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key (e.g. G-12), from find_goals.') } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
@@ -180,7 +190,9 @@ const CORE_TOOLS: ToolDef[] = [
       // The goal page's scorecard, in its words: vs plan, vs last week, to target and will it hit (domain/scorecard).
       const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === 'stale';
       const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({ label: c.label, value: c.value, detail: c.sub }));
-      const data = { cycle: j.cycle, goal: j.goals[0], scorecard, notes: j.notes };
+      // Comments as they read now: edited ones say so, and a removed one is only its place in the thread.
+      const comments = [...commentsOf(ctx.snapshot.changes).values()].filter((k) => k.goalId === g.id).map((k) => ({ id: k.id, by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? '—', at: k.at, text: k.removedAt ? 'Comment removed' : k.text, edited: !!k.editedAt, removed: !!k.removedAt }));
+      const data = { cycle: j.cycle, goal: j.goals[0], scorecard, notes: j.notes, comments };
       return { data, text: JSON.stringify(data, null, 2) };
     },
   },
@@ -297,7 +309,7 @@ const CORE_TOOLS: ToolDef[] = [
 
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
     requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts. */
-export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS];
+export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
 export async function callTool(name: string, args: Record<string, unknown>, ctx: McpContext): Promise<ToolResult> {

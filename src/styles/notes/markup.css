@@ -1,0 +1,103 @@
+/* Marking up a screen (src/markup/Markup.tsx) and the builder inbox (src/markup/Inbox.tsx). The frozen picture fills the
+   screen; the toolbar is one slim flat bar (at the top on a desktop, the foot on a phone); the drawing is one ink colour
+   with a white halo. Statuses in the inbox are a shape and a word; rows are hairline-divided, never striped. */
+
+.markup-root { position: fixed; inset: 0; z-index: 90; overflow: hidden; overscroll-behavior: contain; background: var(--bg); }
+.markup-root.taking { background: transparent; pointer-events: none; display: flex; align-items: flex-start; justify-content: center; padding-top: 16px; }
+.mk-taking { padding: 8px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line-strong); color: var(--fg); font-size: var(--t-sm); }
+.mk-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; user-select: none; -webkit-user-drag: none; }
+.mk-ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mk-surface { position: absolute; inset: 0; touch-action: none; cursor: crosshair; outline: none; }
+.mk-surface:focus-visible { box-shadow: 0 0 0 3px var(--accent) inset, 0 0 0 5px var(--surface) inset; }
+.mk-surface.tool-note { cursor: copy; }
+
+.mk-bar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: var(--s2); padding: 6px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--shadow); max-width: calc(100vw - 24px); }
+.mk-group { display: flex; align-items: center; gap: 2px; }
+.mk-group + .mk-group { padding-left: var(--s2); border-left: 1px solid var(--line); }
+.mk-tool { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 52px; min-height: 48px; padding: 4px 6px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--fg); font: inherit; font-size: var(--t-xs); line-height: 1.1; cursor: pointer; }
+.mk-tool:hover { background: var(--surface-3); }
+.mk-tool[aria-pressed="true"] { background: var(--accent-wash); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.mk-tool[aria-disabled="true"] { color: var(--faint); }
+.mk-tool:focus-visible, .mk-next:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mk-end { gap: var(--s2); }
+.mk-next { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+
+.mk-note { position: absolute; z-index: 2; width: 260px; display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); border-radius: 10px; background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
+
+.mk-send-wrap { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; overflow: auto; background: rgba(16, 24, 40, .45); }
+.mk-send { width: min(560px, 100%); display: flex; flex-direction: column; gap: var(--s4); padding: var(--s4) var(--s4) 0; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+.mk-preview { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.mk-preview img { display: block; width: 100%; max-height: 42vh; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-3); }
+.mk-foot { margin-top: 0; }
+
+@media (max-width: 759px) {
+  .mk-bar { top: auto; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); left: 8px; right: 8px; transform: none; max-width: none; justify-content: space-between; gap: 2px; padding: 4px; }
+  .mk-group { gap: 0; }
+  .mk-group + .mk-group { padding-left: 2px; }
+  .mk-tool { min-width: 44px; padding: 4px 2px; }
+  .mk-end { gap: 2px; }
+  .mk-next { padding: 0 10px; }
+  .mk-next svg { display: none; }
+  .mk-send-wrap { padding: 0; align-items: stretch; }
+  .mk-send { border-radius: 0; min-height: 100%; padding-bottom: env(safe-area-inset-bottom, 0px); }
+}
+@media (max-width: 380px) { .mk-tool span { font-size: 0.6875rem; } }
+
+/* The Send feedback sheet's first choice. */
+.markup-choice { border: 1px solid var(--line); }
+
+/* ---------- the inbox ---------- */
+.mk-path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+.mk-path svg { color: var(--faint); flex: none; }
+.mk-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); font-weight: 600; white-space: nowrap; }
+.mk-status svg { flex: none; }
+.mk-status.mk-new { color: var(--accent-text); }
+.mk-status.mk-in-hand { color: var(--fg); }
+.mk-status.mk-fixed { color: var(--done-fg); }
+.mk-status.mk-wont-fix { color: var(--muted); font-weight: 500; }
+
+.mk-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.mk-list li + li { border-top: 1px solid var(--line-2); }
+.mk-row { display: grid; grid-template-columns: 92px 72px minmax(0, 1fr); align-items: center; gap: var(--s3); width: 100%; min-height: 64px; padding: var(--s3) var(--s4); border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mk-row:hover { background: var(--surface-2); }
+.mk-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mk-thumb { width: 72px; height: 48px; object-fit: cover; object-position: top left; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-3); }
+.mk-thumb.empty { display: block; }
+/* Feedback has no picture: a quiet speech mark in the picture's place. */
+.fb-thumb { display: grid; place-items: center; color: var(--muted); background: var(--surface-2); }
+.mk-row-text { gap: 2px; min-width: 0; }
+.mk-line { font-weight: 600; overflow-wrap: anywhere; }
+.mk-count { color: var(--fg-2); font-weight: 600; }
+@media (max-width: 520px) {
+  .mk-row { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "thumb status" "thumb text"; row-gap: 2px; padding: var(--s3); }
+  .mk-row .mk-status { grid-area: status; }
+  .mk-row .mk-thumb { grid-area: thumb; width: 64px; height: 44px; }
+  .mk-row .mk-row-text { grid-area: text; }
+}
+.inbox-signin { max-width: 420px; }
+
+.mk-detail .mk-said { margin: 0; font-size: var(--t-lg); font-weight: 600; overflow-wrap: anywhere; }
+.mk-figure { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.mk-layers { position: relative; display: block; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface-3); }
+.mk-layers img { display: block; width: 100%; height: auto; }
+.mk-layers .mk-ink-layer { position: absolute; inset: 0; height: 100%; }
+.mk-facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
+@media (min-width: 640px) { .mk-facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.mk-facts h3 + * { margin-top: var(--s1); }
+.mk-parts, .mk-errors, .mk-siblings { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--t-sm); }
+.mk-notes, .mk-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; font-size: var(--t-sm); }
+.mk-steps li { font-variant-numeric: tabular-nums; }
+.mk-where { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px var(--s3); margin: 0; font-size: var(--t-sm); }
+.mk-where dt { color: var(--muted); }
+.mk-where dd { margin: 0; overflow-wrap: anywhere; }
+.mk-form { gap: var(--s2); padding: var(--s3); border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+
+/* What's new: an entry that fixed a markup this person sent. */
+.news-raised { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; color: var(--accent-text); font-size: var(--t-sm); }
+.news-raised .muted { color: var(--muted); }
+
+/* On a phone every button in the inbox is big enough to tap. */
+@media (max-width: 759px) { .mk-actions .btn, .mk-form .btn, .inbox-block .btn { min-height: 44px; } }
+
+/* The inbox arrives a moment after Workspace (it loads on its own): no rise of its own, so it never shows half-faded. */
+.inbox-block { animation: none; }

@@ -74,7 +74,7 @@ async function insertNote(row: Record<string, unknown>): Promise<boolean> {
   if (!url || !key) return false;
   try {
     const { createClient } = await import('@supabase/supabase-js');
-    const db = createClient(url, key, { auth: { persistSession: false } });
+    const db = createClient(url, key, { auth: { persistSession: false, detectSessionInUrl: false } });
     const { error } = await db.from('okr_research_notes').insert({ ...row, user_agent: navigator.userAgent.slice(0, 300) });
     return !error;
   } catch { return false; }

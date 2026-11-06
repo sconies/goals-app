@@ -1777,6 +1777,394 @@ journey('U40', ['OTHER-CAUSE', 'DEMO-FEEDBACK', 'RESEARCH'], 'Research notes fol
   await p.context().close();
 }, ['entry', 'one-action', 'errors']);
 
+/* ---------------- markups (Faro's plan, release 1) ---------------- */
+
+/** The markups kept in this browser when there's no database (src/markup/backend.ts): what was sent, and its pictures. */
+const keptMarkups = (p) => p.evaluate(() => new Promise((res) => {
+  const r = indexedDB.open('faro-markups', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('markups', { keyPath: 'markup.id' });
+  r.onsuccess = () => { const q = r.result.transaction('markups').objectStore('markups').getAll(); q.onsuccess = () => res(q.result.map((k) => ({ ...k.markup, pics: Object.keys(k.pictures) }))); q.onerror = () => res([]); };
+  r.onerror = () => res([]);
+}));
+/** Drags the mouse across the frozen screen, as a person draws. */
+const drag = async (p, [x1, y1], [x2, y2]) => { await p.mouse.move(x1, y1); await p.mouse.down(); await p.mouse.move((x1 + x2) / 2, (y1 + y2) / 2, { steps: 4 }); await p.mouse.move(x2, y2, { steps: 4 }); await p.mouse.up(); };
+const markupBar = (p) => p.getByRole('toolbar', { name: 'Mark up this screen' });
+/** The screen as it is now, once its entrance motion has settled: what a markup's picture must match. */
+const settledScreenshot = async (p) => {
+  await p.evaluate(() => Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 5000))]));
+  await p.waitForTimeout(200);
+  return p.screenshot();
+};
+/** How much of the markup's picture differs from a real screenshot of the same screen, as a share of its pixels. The
+    picture is drawn from a copy of the page that keeps each element's size: in any other font the text reflows and
+    lines run into each other, which shows here as about 1% of pixels (measured at 390 and 1280, light and dark), against
+    under 0.05% when it uses the page's fonts. */
+async function pictureDiffers(p, live) {
+  const { PNG } = require('pngjs');
+  const pm = require('pixelmatch');
+  const match = pm.default ?? pm;
+  const a = PNG.sync.read(live);
+  const src = await p.locator('.mk-shot').getAttribute('src');
+  const b = PNG.sync.read(Buffer.from(String(src).split(',')[1] || '', 'base64'));
+  if (a.width !== b.width || a.height !== b.height) return 1;
+  return match(a.data, b.data, null, a.width, a.height, { threshold: 0.2 }) / (a.width * a.height);
+}
+
+journey('U41', ['MARKUP'], 'Mark up a screen on a phone and a desktop: draw, add a note, check the picture, say what should change, send', 14, async (h, device) => {
+  // Rhea, on her north star's page. On a phone she starts from Send feedback in More; on a desktop with Ctrl+Shift+M.
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ns-lead'));
+  await p.locator('.goal-bar').first().waitFor();
+  await p.waitForTimeout(600);
+  const vp = DEVICES[device];
+  const live = await settledScreenshot(p);
+  if (device === 'phone') {
+    await h.click(p.locator('.tabbar').getByRole('button', { name: /More/ }));
+    await h.click(p.getByRole('dialog', { name: 'More' }).getByRole('button', { name: 'Send feedback' }));
+    const sheet = p.getByRole('dialog', { name: 'How is the app working for you?' });
+    await h.inView(sheet.getByRole('button', { name: /Mark up this screen/ }), 'entry', 'Mark up this screen');
+    await h.click(sheet.getByRole('button', { name: /Mark up this screen/ }));
+  } else {
+    // Escape cancels a markup, leaving the page as it was.
+    await p.keyboard.press('Control+Shift+M');
+    await markupBar(p).waitFor({ timeout: 15000 });
+    await p.keyboard.press('Escape');
+    await p.locator('.markup-root').waitFor({ state: 'detached' });
+    h.set('entry', await p.locator('.goal-bar').first().isVisible(), 'Escape did not leave the page as it was');
+    await p.keyboard.press('Control+Shift+M');
+  }
+  await markupBar(p).waitFor({ timeout: 15000 });
+  const sheetGone = await p.getByRole('dialog', { name: 'How is the app working for you?' }).count() === 0;
+  // The picture is the screen as it was, in its own fonts: no text reflowed into other text.
+  const differs = await pictureDiffers(p, live);
+  h.set('attention', differs < 0.003, `the picture differs from the screen in ${(differs * 100).toFixed(2)}% of its pixels (its fonts fell back?)`);
+  // The page is frozen: it doesn't scroll while drawing.
+  const before = await p.evaluate(() => [window.scrollY, document.querySelector('main')?.scrollTop ?? 0]);
+  await p.mouse.wheel(0, 600);
+  await p.waitForTimeout(200);
+  const after = await p.evaluate(() => [window.scrollY, document.querySelector('main')?.scrollTop ?? 0]);
+  h.set('attention', sheetGone && before.join() === after.join(), `the page moved under the drawing (${before} → ${after}) or the sheet is in the picture`);
+  // A box round the scorecard's last cell, with the mouse (or a finger).
+  const cell = await p.evaluate(() => { const r = document.querySelector('.sc-cell:last-child')?.getBoundingClientRect(); return r ? [r.left, r.top, r.right, r.bottom] : null; });
+  if (!cell) fail('no scorecard to mark');
+  await h.click(markupBar(p).getByRole('button', { name: 'Box', exact: true }));
+  await drag(p, [cell[0] - 4, cell[1] - 4], [cell[2] + 4, cell[3] + 4]);
+  // A pen line, then Undo takes it back.
+  await h.click(markupBar(p).getByRole('button', { name: 'Pen', exact: true }));
+  await drag(p, [vp.width * 0.2, vp.height * 0.6], [vp.width * 0.5, vp.height * 0.62]);
+  await h.click(markupBar(p).getByRole('button', { name: 'Undo', exact: true }));
+  // A numbered note, from the keyboard alone: N, Enter where the crosshair is, a few words, Enter.
+  await p.locator('.mk-surface').focus();
+  await p.keyboard.press('n');
+  for (let i = 0; i < 6; i++) await p.keyboard.press('Shift+ArrowDown');
+  await p.keyboard.press('Enter');
+  await h.fill(p.getByLabel('Note 1'), 'Hard to tell which way is better');
+  await p.keyboard.press('Enter');
+  await see(p, 'Note added', 'the note was not announced');
+  await h.checkpoint('drawing');
+  await h.click(markupBar(p).getByRole('button', { name: 'Next', exact: true }));
+  const send = p.getByRole('dialog', { name: 'Send the markup' });
+  await send.locator('.mk-preview img').waitFor();
+  // The line is needed: Send without it says so, in place.
+  await h.click(send.getByRole('button', { name: 'Send', exact: true }));
+  h.set('errors', await send.getByRole('alert').filter({ hasText: 'Say what should change first' }).isVisible(), 'an empty line says nothing');
+  await h.fill(send.getByLabel('What should change?'), 'Say whether it will hit the target in words I can scan');
+  await h.click(send.getByRole('button', { name: 'It’s OK' }));
+  const steps = send.getByLabel(/Include my last 20 steps on this visit/);
+  const ticked = await steps.isChecked();
+  const help = await send.getByRole('link', { name: /What’s sent/ }).getAttribute('href');
+  await h.checkpoint('send');
+  await h.click(send.getByRole('button', { name: 'Send', exact: true }));
+  await see(p, 'Sent. You’ll hear when it’s fixed.', 'no word that it was sent');
+  await p.locator('.markup-root').waitFor({ state: 'detached' });
+  h.set('finish', await p.locator('.goal-bar').first().isVisible() && ticked && /\/help\/feedback$/.test(help || ''), `after sending: steps ticked ${ticked}, help link ${help}`);
+  const kept = (await keptMarkups(p)).pop();
+  const ok = !!kept && kept.line === 'Say whether it will hit the target in words I can scan' && kept.mood === 'meh' && kept.route === '/goals/:goalId' && kept.goalId === 'ns-lead'
+    && kept.strokes.length === 2 && kept.strokes[0].kind === 'box' && kept.strokes[1].kind === 'note' && kept.strokes[1].text === 'Hard to tell which way is better'
+    && kept.parts[0].some((path) => path[0] === 'Goal page' && path.includes('Scorecard')) && kept.steps.length > 0 && kept.steps.length <= 20
+    && ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'].every((x) => kept.pics.includes(x)) && kept.context.viewport.w === vp.width && kept.personId === 'rhea' && kept.demo === true;
+  h.set('logged', ok, `the markup kept was ${JSON.stringify(kept && { line: kept.line, route: kept.route, goal: kept.goalId, strokes: kept.strokes.map((s) => s.kind), parts: kept.parts, steps: kept.steps.length, pics: kept.pics })}`);
+  await p.context().close();
+}, ['progress']);
+
+/** A database for the build whose database never answers (DOWN): just enough of Supabase (REST, Storage and Auth) for
+    markups and feedback in the inbox, answered by Playwright. Keeps what was sent, and says what the inbox asked for. */
+async function fakeSupabase(ctx) {
+  const db = { markups: [], inserted: [], uploads: [], issued: [], patches: [], otp: [], signedOut: 0, fbPatches: [],
+    // Feedback someone sent from another workspace two days ago (migration 0026's okr_feedback_inbox).
+    feedback: [{ id: 'fb_j1', workspace_id: 'acme', workspace_name: 'Acme', person_id: 'mateo', person_name: 'Mateo Silva', path: '/check-in', mood: 'meh', text: 'The reason box is too small on a phone', at: '2026-11-04T10:00:00.000Z', status: 'new', fixed_in: null, wont_fix_reason: null, status_by: null, status_at: null }] };
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS', 'Access-Control-Expose-Headers': '*' };
+  const ok = (route, body, status = 200) => route.fulfill({ status, headers: { ...cors, 'Content-Type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: 'u-lane', email: 'lanehirschfield@gmail.com', role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.c2lnbmF0dXJl`;
+  const user = { id: 'u-lane', aud: 'authenticated', role: 'authenticated', email: 'lanehirschfield@gmail.com', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() };
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  await ctx.route(/127\.0\.0\.1:\d+\//, async (route) => {
+    const r = route.request();
+    const u = new URL(r.url());
+    if (r.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const path = u.pathname;
+    if (path.startsWith('/rest/v1/okr_telemetry_') || path === '/rest/v1/okr_research_notes') return ok(route, undefined, 201);
+    if (path === '/rest/v1/rpc/okr_markup_new_id') { const id = 'mk_' + Math.random().toString(16).slice(2, 10).padEnd(8, '0') + Date.now().toString(16).slice(-8); db.issued.push(id); return ok(route, id); }
+    if (path === '/rest/v1/rpc/okr_is_builder') return ok(route, (r.headers().authorization || '').includes(jwt));
+    if (path === '/rest/v1/rpc/okr_feedback_inbox') return ok(route, (r.headers().authorization || '').includes(jwt) ? db.feedback : []);
+    if (path === '/rest/v1/rpc/okr_feedback_triage') {
+      if (!(r.headers().authorization || '').includes(jwt)) return ok(route, { message: 'Only builders, signed in to the inbox, change feedback.' }, 400);
+      const { fid, patch } = JSON.parse(r.postData() || '{}');
+      db.fbPatches.push(patch);
+      const f = db.feedback.find((x) => x.id === fid);
+      if (f) Object.assign(f, patch);
+      return ok(route, f ? [f] : []);
+    }
+    if (path.startsWith('/storage/v1/object/sign/markups/')) return ok(route, { signedURL: `/object/sign/markups/${path.split('/markups/')[1]}?token=t` });
+    if (path.startsWith('/storage/v1/object/markups/')) { db.uploads.push(path.split('/markups/')[1]); return ok(route, { Key: path.slice(18), Id: 'x' }); }
+    if (path.startsWith('/storage/v1/object/sign/')) return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'image/png' }, body: PNG });
+    if (path === '/rest/v1/okr_markups') {
+      const builder = (r.headers().authorization || '').includes(jwt);
+      if (r.method() === 'POST') { const row = JSON.parse(r.postData()); db.inserted.push(row); db.markups.push({ status: 'new', issue_url: null, fixed_in: null, wont_fix_reason: null, status_by: null, status_at: null, created_at: new Date().toISOString(), ...row }); return ok(route, undefined, 201); }
+      if (!builder) return ok(route, []);
+      const id = (u.searchParams.get('id') || '').replace(/^eq\./, '');
+      if (r.method() === 'PATCH') { const patch = JSON.parse(r.postData()); db.patches.push(patch); const m = db.markups.find((x) => x.id === id); Object.assign(m, patch); return ok(route, [m]); }
+      return ok(route, id ? db.markups.filter((x) => x.id === id) : [...db.markups].reverse());
+    }
+    if (path === '/auth/v1/otp') { db.otp.push({ ...JSON.parse(r.postData() || '{}'), redirect_to: u.searchParams.get('redirect_to') }); return ok(route, {}); }
+    if (path === '/auth/v1/user') return (r.headers().authorization || '').includes(jwt) ? ok(route, user) : ok(route, { message: 'invalid' }, 401);
+    if (path === '/auth/v1/logout') { db.signedOut++; return route.fulfill({ status: 204, headers: cors }); }
+    return ok(route, { message: 'not in the fake' }, 404);
+  });
+  return { db, jwt };
+}
+
+journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand', 21, async (h, device) => {
+  if (!DOWN) fail('U42 needs the build with a database address (DOWN)');
+  const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
+  const p = h.use(await newPage(device, 'rhea'));
+  const { db, jwt } = await fakeSupabase(p.context());
+  // Rhea marks up Home in the demo (her markup goes to the database, marked demo), with the shortcut.
+  await p.goto(down('/'));
+  await p.locator('.page.home').waitFor();
+  await p.waitForTimeout(500);
+  await p.keyboard.press('Control+Shift+M');
+  await markupBar(p).waitFor({ timeout: 15000 });
+  const vp = DEVICES[device];
+  await drag(p, [vp.width * 0.3, vp.height * 0.3], [vp.width * 0.7, vp.height * 0.35]);
+  await markupBar(p).getByRole('button', { name: 'Next', exact: true }).click();
+  const send = p.getByRole('dialog', { name: 'Send the markup' });
+  await send.locator('.mk-preview img').waitFor();
+  await send.getByLabel('What should change?').fill('The week strip should say which week it is');
+  await send.getByRole('button', { name: 'Send', exact: true }).click();
+  await see(p, 'Sent. You’ll hear when it’s fixed.');
+  const sent = db.markups[0];
+  const shared = !!sent && sent.demo === true && db.issued.includes(sent.id) && ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'].every((x) => db.uploads.includes(`${sent.id}/${x}`)) && sent.route === '/' && !('status' in db.inserted[0]);
+  // The builder: the inbox on Workspace asks them to sign in with their email.
+  await p.goto(down('/workspace'));
+  const inbox = p.locator('#inbox');
+  await inbox.getByLabel(/Sign in with your email/).waitFor();
+  h.set('entry', await inbox.getByLabel(/Sign in with your email/).isVisible(), 'no way to sign in to the inbox');
+  await inbox.getByRole('button', { name: 'Email me a sign-in link' }).click();
+  h.set('errors', db.otp.length === 0 && await inbox.getByRole('button', { name: 'Email me a sign-in link' }).isVisible(), 'a sign-in link was asked for with no email');
+  await h.fill(inbox.getByLabel(/Sign in with your email/), 'lanehirschfield@gmail.com');
+  await h.click(inbox.getByRole('button', { name: 'Email me a sign-in link' }));
+  await see(inbox, 'Check your email', 'no word that the link was sent');
+  const asked = db.otp[0] || {};
+  // …and the link in the email brings them back here, signed in.
+  await p.goto(`${DOWN}/demo/workspace?inbox=1&today=${TODAY}#access_token=${jwt}&refresh_token=r1&expires_in=3600&expires_at=${Math.floor(Date.now() / 1000) + 3600}&token_type=bearer&type=magiclink`);
+  const row = inbox.locator('.mk-row').first();
+  await row.waitFor({ timeout: 10000 });
+  h.set('attention', await row.locator('.mk-status').innerText() === 'New' && (await row.innerText()).includes('The week strip should say which week it is') && (await row.innerText()).includes('the demo'), 'the markup is not listed as New, with its line and where it came from');
+  await h.checkpoint('inbox');
+  await h.click(row);
+  const detail = p.getByRole('dialog', { name: /^Markup: / });
+  await detail.locator('.mk-layers img').first().waitFor();
+  const drawn = await detail.locator('.mk-ink-layer').count();
+  await h.click(detail.getByLabel('Show the drawing'));
+  const hidden = await detail.locator('.mk-ink-layer').count();
+  await h.checkpoint('markup');
+  await h.click(detail.getByRole('button', { name: 'Mark in hand' }));
+  await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand');
+  // Open GitHub issue: GitHub opens in a new tab with the issue filled in; the builder pastes its address back.
+  const [tab] = await Promise.all([p.context().waitForEvent('page'), h.click(detail.getByRole('button', { name: 'Open GitHub issue' }))]);
+  const issue = new URL(tab.url());
+  await tab.close();
+  await h.fill(detail.getByLabel('Paste issue link'), 'https://github.com/sconies/goals-app/issues/101');
+  await h.click(detail.getByRole('button', { name: 'Keep the link' }));
+  await see(detail, 'sconies/goals-app/issues/101', 'the issue link is not shown');
+  await h.click(detail.getByRole('button', { name: 'Mark fixed', exact: true }));
+  await h.click(detail.locator('.mk-form').getByRole('button', { name: 'Mark fixed' }));
+  await see(detail.locator('.mk-status').first(), 'Fixed', 'not marked fixed');
+  const m = db.markups[0];
+  const link = issue.origin + issue.pathname === 'https://github.com/sconies/goals-app/issues/new' && /The week strip/.test(issue.searchParams.get('title') || '') && (issue.searchParams.get('body') || '').includes(`markup=${m.id}`);
+  h.set('finish', drawn === 1 && hidden === 0 && link, `drawing layer ${drawn} then ${hidden}; issue link ${tab.url().slice(0, 120)}`);
+  h.set('logged', shared && asked.email === 'lanehirschfield@gmail.com' && /\/demo\/workspace\?inbox=1$/.test(asked.redirect_to || '')
+    && m.status === 'fixed' && m.fixed_in && m.issue_url === 'https://github.com/sconies/goals-app/issues/101' && m.status_by === 'lanehirschfield@gmail.com' && db.patches.length === 3,
+  `sent ${shared}, sign-in ${JSON.stringify(asked)}, stored ${JSON.stringify({ status: m.status, fixed: m.fixed_in, issue: m.issue_url, by: m.status_by, patches: db.patches.length })}`);
+  // Feedback sent with a mood and a few words is in the same inbox, below the newer markup, with the same states.
+  await h.click(detail.getByRole('button', { name: 'Close' }));
+  const fbRow = inbox.locator('.fb-row').first();
+  const fbText = await fbRow.innerText();
+  h.set('attention', await inbox.locator('.mk-list > li').first().locator('.fb-row').count() === 0 && await fbRow.locator('.mk-status').innerText() === 'New'
+    && fbText.includes('The reason box is too small on a phone') && fbText.includes('Feedback') && fbText.includes('Mateo Silva, Acme'), `the feedback is not listed as New, after the newer markup, with its words and who sent it: ${fbText.replace(/\n/g, ' | ')}`);
+  await h.click(fbRow);
+  const fbDetail = p.getByRole('dialog', { name: /^Feedback: / });
+  await h.click(fbDetail.getByRole('button', { name: 'Mark in hand' }));
+  await see(fbDetail.locator('.mk-status').first(), 'In hand', 'the feedback was not marked in hand');
+  await h.click(fbDetail.getByRole('button', { name: 'Close' }));
+  await see(fbRow.locator('.mk-status'), 'In hand', 'the inbox list does not show the feedback in hand');
+  const fp = db.fbPatches[0] || {};
+  h.set('logged', db.fbPatches.length === 1 && fp.status === 'in-hand' && fp.status_by === 'lanehirschfield@gmail.com' && db.feedback[0].status === 'in-hand', `feedback stored ${JSON.stringify(db.fbPatches)}`);
+  // Signing out: the inbox asks to sign in again.
+  await h.click(inbox.getByRole('button', { name: 'Sign out' }));
+  await inbox.getByLabel(/Sign in with your email/).waitFor();
+  await p.context().close();
+}, ['progress']);
+
+/* Release 1b: remove, archive and undo. */
+const liveCycle = (s) => [...s.cycles].filter((c) => !c.removedAt).sort((a, b) => a.startDate.localeCompare(b.startDate)).filter((c) => c.startDate <= '2026-11-12').pop();
+
+journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/workspace'));
+  await p.locator('.page-head').first().waitFor();
+  const s0 = await h.snapshot();
+  const cycle = liveCycle(s0).id;
+  const owned = s0.goals.filter((g) => g.ownerId === 'mateo' && g.cycleId === cycle && !g.removedAt && !g.stoppedAt).map((g) => g.id);
+  await h.fill(p.getByPlaceholder('Find by name, role or team'), 'Mateo');
+  await h.click(p.getByRole('button', { name: /Mateo Fernández/ }).first());
+  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Mark as left…' }));
+  const dlg = p.getByRole('dialog', { name: 'Mark Mateo Fernández as left' });
+  await dlg.waitFor();
+  // It asks who takes over first: marking him as left with no one chosen says what's missing and saves nothing.
+  await see(dlg, `Who takes over Mateo’s ${owned.length} goal`, 'the dialog does not ask who takes over his goals');
+  await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
+  await see(dlg, 'Choose who takes them over.', 'marking him as left with no one chosen did not say what was missing');
+  h.set('errors', !(await h.snapshot()).people.find((x) => x.id === 'mateo').leftAt, 'he was marked as left with no one taking over');
+  await h.checkpoint('mark as left');
+  await dlg.getByLabel(/Who takes over Mateo’s \d+ goals?/).selectOption({ label: 'Marisol Duarte' });
+  await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
+  await see(p, 'Mateo Fernández is marked as left', 'no message that he left');
+  h.set('attention', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'the message has no Undo');
+  // Gone from the directory; on Recently removed, with Restore.
+  await see(p, 'No one matches', 'Mateo is still in the directory');
+  const removed = p.locator('.removed-block');
+  await see(removed, 'Person who left', 'Recently removed does not list him');
+  await see(removed, 'Mateo Fernández');
+  await h.checkpoint('after');
+  const s1 = await h.snapshot();
+  const m = s1.people.find((x) => x.id === 'mateo');
+  const handed = owned.every((id) => s1.goals.find((g) => g.id === id).ownerId === 'marisol');
+  const open = (s1.requests || []).filter((r) => r.status === 'open' && (r.askedBy === 'mateo' || r.recipientId === 'mateo')).length;
+  h.set('finish', !!m.leftAt && m.leftBy === 'grace' && handed && open === 0, `left ${m.leftAt}; goals handed over ${handed}; ${open} open asks still his`);
+  const log = s1.changes.filter((c) => c.at > (s0.changes.at(-1)?.at ?? ''));
+  h.set('logged', log.some((c) => c.entity === 'person' && c.action === 'left' && c.entityId === 'mateo') && log.filter((c) => c.entity === 'goal' && /as Mateo Fernández left/.test(c.summary)).length === owned.length, `logged: ${log.map((c) => c.summary).join(' | ').slice(0, 200)}`);
+  // History keeps his name, as "Name (left)".
+  await p.goto(url('/activity?who=mateo'));
+  await see(p, 'Mateo Fernández (left)', 'Activity does not name him as having left');
+  h.set('progress', true);
+  await p.context().close();
+}, ['entry']);
+
+journey('U44', ['GOAL-STOP', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An owner stops a goal with history, then deletes a goal set up by mistake and undoes it', 11, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-docker'));
+  await p.locator('.goal-bar').first().waitFor();
+  // A goal set up by mistake beside it, with no check-ins.
+  await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    const g = s.goals.find((x) => x.id === 'ci-docker');
+    await window.__goalsStore.commit('platform-org', { goals: [{ ...g, id: 'g-mistake', key: undefined, title: 'Base image build time, again', parentId: g.parentId, version: 0, createdAt: new Date().toISOString() }], changes: [] });
+  });
+  await p.reload();
+  await p.locator('.goal-bar').first().waitFor();
+  const s0 = await h.snapshot();
+  const kids = s0.goals.filter((g) => g.parentId === 'ci-docker' && !g.removedAt).map((g) => g.id);
+  await goalMenu(h, p, 'Stop this goal');
+  const dlg = p.getByRole('dialog', { name: 'Stop this goal' });
+  await dlg.waitFor();
+  // A stop needs its reason.
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  await see(dlg, 'Say why, in a sentence', 'stopping without a reason did not ask for one');
+  h.set('errors', !(await h.snapshot()).goals.find((g) => g.id === 'ci-docker').stoppedAt, 'it stopped without a reason');
+  await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
+  await h.checkpoint('stop dialog');
+  // The chart as it is now: stopping carries on with the same page, so it isn't drawn again under the message.
+  await p.evaluate(() => { const c = document.querySelector('.goal-chart svg.chart'); if (c) c.dataset.beforeStop = '1'; });
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  // A stopped goal makes no forecast: no "will it hit?" on its scorecard, no projection on its chart.
+  const kept = await p.locator('.goal-chart svg.chart[data-before-stop="1"]').count();
+  const forecasts = await p.locator('.sc-hit, .goal-chart .c-fc, .goal-chart .c-band').count();
+  h.set('attention', kept === 1 && forecasts === 0, `the chart was ${kept ? 'kept' : 'drawn afresh'} when the goal stopped; ${forecasts} forecast marks on a stopped goal`);
+  // Its page stays, marked Stopped with the reason, and no main button.
+  await see(p.locator('.goal-bar'), 'Stopped', 'the page does not say Stopped');
+  await see(p.locator('.goal-bar'), 'The platform team took base images over in October.', 'the page does not give the reason');
+  const primary = await p.locator('.goal-bar .btn.primary').count();
+  await h.checkpoint('stopped page');
+  const s1 = await h.snapshot();
+  const g1 = s1.goals.find((g) => g.id === 'ci-docker');
+  const moved = kids.every((id) => s1.goals.find((g) => g.id === id).parentId === g1.parentId);
+  h.set('attention', primary === 0 && moved, `${primary} main buttons on a stopped goal; goals feeding it moved up: ${moved}`);
+  // The mistaken goal: no check-ins, so it's deleted; Undo brings it back.
+  await p.goto(url('/goals/g-mistake'));
+  await p.locator('.goal-bar').first().waitFor();
+  await goalMenu(h, p, 'Delete this goal');
+  await h.click(p.getByRole('dialog', { name: 'Delete this goal' }).getByRole('button', { name: 'Delete the goal' }));
+  await see(p, 'Deleted Base image build time, again', 'no message that it was deleted');
+  const listed = await p.locator('main').innerText();
+  h.set('finish', !!g1.stoppedAt && g1.stopReason === 'The platform team took base images over in October.' && !listed.includes('Base image build time'), `stopped ${g1.stoppedAt}; Goals still lists it: ${listed.includes('Base image build time')}`);
+  await h.checkpoint('undo');
+  await h.click(p.locator('.toast-action').filter({ hasText: 'Undo' }));
+  await see(p, 'Undone', 'Undo did not say it was done');
+  const s2 = await h.snapshot();
+  const back = s2.goals.find((g) => g.id === 'g-mistake');
+  const log = s2.changes.filter((c) => c.goalId === 'g-mistake' || c.goalId === 'ci-docker').map((c) => c.action);
+  h.set('logged', !back.removedAt && log.includes('stopped') && log.includes('removed') && log.includes('restored'), `the mistaken goal is ${back.removedAt ? 'still deleted' : 'back'}; logged ${log.slice(-4).join(', ')}`);
+  h.set('progress', true);
+  await p.context().close();
+}, ['entry']);
+
+journey('U45', ['IMPORT-UNDO', 'BULK-EDIT'], 'Undo an import: every row back as it was, and a row changed since skipped and listed', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'chen'));
+  await p.goto(url('/quick-check-in'));
+  const s0 = await h.snapshot();
+  const g0 = (id) => s0.goals.find((g) => g.id === id);
+  const jenkins = valueAt(g0('dep-jenkins'), NOW, 1.02), tests = valueAt(g0('cfr-tests'), NOW, 1.05);
+  await h.fill(p.getByLabel(/Jenkins jobs still running: this week’s number/), jenkins);
+  await h.fill(p.getByLabel(/Changes shipped with automated integration tests: this week’s number/), tests);
+  await h.click(p.getByRole('button', { name: 'Post 2 check-ins' }));
+  await see(p, 'Saved: 2 check-ins');
+  // Someone corrects one of the two afterwards: undoing the import must leave that one alone.
+  const imp = await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    const entry = s.changes.filter((c) => c.action === 'imported').pop();
+    const row = s.changes.find((c) => c.importId === entry.entityId && c.goalId === 'cfr-tests');
+    await window.__goalsStore.commit('platform-org', { changes: [{ id: 'chg-corrected', at: new Date(Date.parse(entry.at) + 60_000).toISOString(), actorId: 'tariq', goalId: 'cfr-tests', entity: 'check-in', entityId: row.entityId, action: 'edited', summary: 'Corrected the check-in', diffs: [] }] });
+    return entry.entityId;
+  });
+  await p.goto(url('/activity?kind=imports'));
+  const undo = p.getByRole('button', { name: 'Undo this import' }).first();
+  await undo.waitFor();
+  await h.inView(undo, 'entry', 'Undo this import');
+  await h.click(undo);
+  // It asks first, and says what happens to rows changed since.
+  await see(p, 'Rows changed since are skipped and listed', 'it does not say what happens to rows changed since');
+  h.set('errors', !(await h.snapshot()).changes.some((c) => c.action === 'undone'), 'it undid the import before it was confirmed');
+  await h.checkpoint('undo import');
+  await h.click(p.getByRole('button', { name: 'Undo the import' }));
+  await see(p, 'Undid the import: 1 row put back; 1 skipped', 'the message does not say what was put back and skipped');
+  await see(p, 'skipped as changed since', 'Activity does not list the skipped row');
+  await see(p, 'Undone', 'the import is not marked undone');
+  await h.checkpoint('undone');
+  const s1 = await h.snapshot();
+  const posted = (id) => s1.checkIns.filter((c) => c.goalId === id && c.week === NOW && s1.changes.some((x) => x.importId === imp && x.entityId === c.id));
+  const gone = posted('dep-jenkins').every((c) => !!c.removedAt), kept = posted('cfr-tests').every((c) => !c.removedAt);
+  h.set('finish', posted('dep-jenkins').length === 1 && gone && kept, `Jenkins check-in removed ${gone}; the corrected one kept ${kept}`);
+  const undone = s1.changes.find((c) => c.action === 'undone' && c.entityId === imp);
+  h.set('logged', !!undone && undone.diffs.some((d) => d.field === 'Skipped' && /Changes shipped with automated integration tests/.test(d.to)), 'the undo is not logged with the row it skipped');
+  h.set('attention', true);
+  h.set('progress', true);
+  await p.context().close();
+});
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals'));

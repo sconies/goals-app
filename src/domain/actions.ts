@@ -24,6 +24,8 @@ export interface ActionContext {
   newId: (prefix: string) => string;
   /** Every goal in the workspace, in every cycle: for the rules that reach past this cycle (removing a team). */
   allGoals?: Goal[];
+  /** The whole workspace, unscoped: every cycle and every removed record, for restoring (domain/removal). */
+  full?: Snapshot;
 }
 
 /** A rule says no: the message says why, in words the person (or their assistant) can act on. */
@@ -180,7 +182,7 @@ export function editCall(x: ActionContext, d: Decision | Ask, note: string, extr
   const dec = d as Decision;
   if (dec.byId !== x.actor.id && !x.actor.admin) no('Only whoever said it, or an admin, can correct it.');
   if (dec.kind !== 'acknowledge' && note.trim().length < 2) no('Write the new wording.');
-  const after: Decision = { ...dec, note: note.trim() };
+  const after: Decision = { ...dec, note: note.trim(), editedAt: x.now };
   if (after.note === dec.note) return null;
   return { decisions: [after], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: dec.goalId, entity: 'decision', entityId: dec.id, action: 'edited', summary: 'Corrected a note', diffs: [{ field: 'Note', from: dec.note, to: after.note }] }] };
 }
@@ -211,19 +213,27 @@ export function newReview(x: ActionContext, v: { name: string; everyWeeks: numbe
 
 /* ---------- Watching ---------- */
 
-/** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. */
+/** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. Watching again what
+    you stopped watching brings the same watch back (one watch per person and thing). */
 export function watch(x: ActionContext, kind: Watch['kind'], ref: string): Commit | null {
   if (kind === 'level' ? !['north-star', 'svp', 'team'].includes(ref) : !x.snapshot.goals.some((g) => g.id === ref)) no(kind === 'level' ? 'Levels are north-star, svp and team.' : 'There’s no goal with that ID in this cycle.');
   if (x.snapshot.watches.some((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref)) return null;
-  return { watches: [{ id: x.newId('w'), personId: x.actor.id, kind, ref }], changes: [] };
+  const old = (x.full?.watches ?? []).find((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref && w.removedAt);
+  return { watches: [old ? { ...old, removedAt: null, removedBy: null } : { id: x.newId('w'), personId: x.actor.id, kind, ref }], changes: [] };
 }
 
-/** Stop watching: your own watches only. */
+/** What a watch is on, in words: a goal's name, "Billing and what feeds it", or "every north star goal". */
+const watchWhat = (x: ActionContext, w: Watch) => {
+  const title = (x.full ?? x.snapshot).goals.find((g) => g.id === w.ref)?.title ?? 'a goal';
+  return w.kind === 'level' ? `every ${w.ref.replace('-', ' ')} goal` : w.kind === 'tree' ? `${title} and what feeds it` : title;
+};
+
+/** Stop watching: your own watches only. Kept, and logged, so it can be undone. */
 export function unwatch(x: ActionContext, watchId: string): Commit {
   const w = x.snapshot.watches.find((v) => v.id === watchId);
   if (!w) no('There’s no watch with that ID.');
   if (w!.personId !== x.actor.id) no('That’s someone else’s watch.');
-  return { unwatch: [watchId], changes: [] };
+  return { watches: [{ ...w!, removedAt: x.now, removedBy: x.actor.id }], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'watch', entityId: w!.id, action: 'removed', summary: `Stopped watching ${watchWhat(x, w!)}`, diffs: [{ field: 'Watching', from: watchWhat(x, w!), to: '—' }] }] };
 }
 
 /* ---------- People ---------- */
@@ -306,12 +316,14 @@ export function saveTableView(x: ActionContext, v: { id?: string; name: string; 
   return saveView(x, { id: v.id, name: v.name, params: layoutParams({ ...v.layout, widths }) });
 }
 
-/** Delete one of your views; an admin can also delete a pinned one. Null when it's already gone. */
+/** Delete one of your views; an admin can delete anyone's (pinned or not). Kept, and logged, so it can be undone. Null when it's already gone. */
 export function deleteView(x: ActionContext, id: string): Commit | null {
   const v = liveView(x, id);
   if (!v) return null;
-  if (v.personId !== x.actor.id && !(x.actor.admin && v.pinned)) no('Only its owner, or an admin for a pinned view, can delete this view.');
-  return { views: [{ ...v, deletedAt: x.now, updatedAt: x.now }], changes: v.pinned ? [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: v.id, action: 'edited', summary: `Removed the pinned view “${v.name}”`, diffs: [{ field: 'Pinned view', from: v.name, to: '—' }] }] : [] };
+  if (v.personId !== x.actor.id && !x.actor.admin) no('Only its owner, or an admin, can delete this view.');
+  // A data table's is a saved layout; a Goals one is a view (docs/glossary.md).
+  const what = isTableView(v) ? 'saved layout' : v.pinned ? 'pinned view' : 'view';
+  return { views: [{ ...v, deletedAt: x.now, deletedBy: x.actor.id, updatedAt: x.now }], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'view', entityId: v.id, action: 'removed', summary: v.pinned && !isTableView(v) ? `Removed the pinned view “${v.name}”` : `Deleted the ${what} “${v.name}”`, diffs: [{ field: what.charAt(0).toUpperCase() + what.slice(1), from: v.name, to: '—' }] }] };
 }
 
 /** Admins: show a view to everyone in the workspace, or stop. Null when it already is. */
@@ -325,13 +337,15 @@ export function pinView(x: ActionContext, id: string, pinned: boolean): Commit |
 
 /* ---------- AI assistant tokens ---------- */
 
-/** Admins: a personal token for an assistant to act as someone. Only the token's hash is kept; the caller makes both. */
-export function createToken(x: ActionContext, personId: string, name: string, tokenHash: string): Commit {
+/** Admins: a personal token for an assistant to act as someone. The store makes the secret and keeps only its hash
+    (Store.issueToken): in the shared database, the database does. */
+export function createToken(x: ActionContext, personId: string, name: string): Commit {
   if (!x.actor.admin) no('Only admins can make tokens.');
   const who = x.snapshot.people.find((p) => p.id === personId);
   if (!who) no('There’s no one with that ID in this workspace.');
   if (!name.trim()) no('Say what the token is for, e.g. “Claude on my laptop”.');
-  const t: ApiToken = { id: x.newId('tok'), personId, name: name.trim(), tokenHash, createdBy: x.actor.id, createdAt: x.now, lastUsedAt: null, revokedAt: null };
+  if (name.trim().length > 120) no('Keep what it’s for to 120 characters.');
+  const t: ApiToken = { id: x.newId('tok'), personId, name: name.trim(), createdBy: x.actor.id, createdAt: x.now, lastUsedAt: null, revokedAt: null };
   return { tokens: [t], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'person', entityId: personId, action: 'created', summary: `Gave ${who!.name} an AI assistant token: “${t.name}”`, diffs: [{ field: 'AI assistant token', from: '—', to: t.name }] }] };
 }
 

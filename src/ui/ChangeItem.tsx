@@ -1,11 +1,13 @@
 /* One logged change, as the goal page, Activity and Watching's "What changed" list it: who, what, when, and the
    before and after on request. The same component at three scopes. */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { LABEL } from '../domain/status';
+import { COMMENT_REMOVED, EDITED, NOTE_REMOVED } from '../domain/words';
 import type { Change } from '../domain/types';
 import { Avatar, StatusShape, timeAgo } from './bits';
+import { CommentTools, ImportUndo } from './RemoveControls';
 
 /** "3 h ago (30 Oct, 18:02)" for recent changes; just the date and time for older ones. */
 export function whenText(iso: string, now: Date) {
@@ -14,20 +16,31 @@ export function whenText(iso: string, now: Date) {
   return /ago|now|yesterday/.test(rel) ? `${rel} (${abs})` : abs;
 }
 
-export function ChangeItem({ c, showGoal }: { c: Change; showGoal?: boolean }) {
+/** `manage`: on a goal's page, a comment's author can edit it and its author or an admin can remove it, in place. */
+export function ChangeItem({ c, showGoal, manage }: { c: Change; showGoal?: boolean; manage?: boolean }) {
   const app = useApp();
   const who = app.person(c.actorId);
   const [open, setOpen] = useState(false);
   const goal = c.goalId ? app.goal(c.goalId) : undefined;
   const diffs = c.diffs.filter((d) => d.field !== 'Note' || c.entity === 'decision');
+  // A comment reads as it is now: its latest words (marked edited), or only its place, once removed.
+  const comment = c.entity === 'note' && c.action === 'noted' ? app.comment(c.entityId) : undefined;
+  const commentBody: ReactNode = c.entity === 'note' && c.action === 'noted' && (comment?.removedAt
+    ? <p className="note-text comment-removed">{COMMENT_REMOVED}</p>
+    : <p className="note-text">{comment?.text ?? c.diffs[0]?.to}{comment?.editedAt && <span className="hint edited-mark"> · {EDITED}</span>}</p>);
   return (
     <li className={'change change-' + c.entity}>
       <Avatar p={who ?? { name: c.actorId, initials: '?' }} size="sm" />
       <div className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
         <span className="small"><strong>{who?.name ?? c.actorId}</strong> {c.summary.charAt(0).toLowerCase() + c.summary.slice(1)}{showGoal && goal ? <> on <Link className="linkish" to={'/goals/' + goal.id}>{goal.title}</Link></> : null}</span>
-        {c.entity === 'note' && <p className="note-text">{c.diffs[0]?.to}</p>}
+        {manage && comment && !comment.removedAt ? <CommentTools comment={comment} body={commentBody} /> : commentBody}
+        {c.action === 'imported' && c.undo && <ImportUndo entry={c} />}
         {/* What was said in a review, said in place: the action, question or note, with who and by when (visual review 2). */}
         {c.entity === 'decision' && (() => {
+          // A review note reads as it is now: removed (only its place), or its latest words, marked edited.
+          const note = c.diffs.some((d) => d.field === 'Note') ? app.full.decisions.find((d) => d.id === c.entityId) : undefined;
+          if (note?.removedAt) return c.action === 'removed' ? null : <p className="note-text comment-removed">{NOTE_REMOVED}</p>;
+          if (note && c.action === 'noted') return <p className="note-text">{note.note}{note.editedAt && <span className="hint edited-mark"> · {EDITED}</span>}</p>;
           const said = c.diffs.find((d) => d.field === 'Action' || d.field === 'Question' || d.field === 'Note')?.to;
           const who = c.diffs.find((d) => d.field === 'Who')?.to;
           const due = c.diffs.find((d) => d.field === 'Due')?.to;

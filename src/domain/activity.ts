@@ -71,12 +71,12 @@ const PLAN_FIELDS = ['Start', 'Target', 'Plan shape', 'Target due', 'Plan number
 /** What kind of change this is. A goal change that touches its plan or target counts as a plan change. */
 export function kindOf(c: Change): ActivityKind {
   if (VIA(c) === 'AI assistant (MCP)') return 'ai';
-  if (c.action === 'imported') return 'imports';
+  if (c.action === 'imported' || c.action === 'undone') return 'imports';
   if (c.entity === 'check-in') return 'checkins';
   if (c.entity === 'goal') return c.action !== 'created' && c.diffs.some((d) => PLAN_FIELDS.includes(d.field)) ? 'plans' : 'goals';
   if (c.entity === 'decision' || c.entity === 'review') return 'reviews';
   if (c.entity === 'note') return 'comments';
-  if (c.entity === 'person' || c.entity === 'workspace') return 'people';
+  if (c.entity === 'person' || c.entity === 'workspace' || c.entity === 'view' || c.entity === 'watch') return 'people';
   return 'cycle';
 }
 

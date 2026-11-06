@@ -121,11 +121,12 @@ function useViewMenu(view: SavedView | undefined): { items: MenuItem[]; sheet: R
   if (!view) return { items: [], sheet: null };
   const mine = view.personId === app.viewer.id;
   const canRename = mine || app.viewer.admin;
-  const canDelete = mine || (app.viewer.admin && view.pinned);
+  // An admin can delete anyone's view; deleting shows Undo for 10 seconds (domain/removal).
+  const canDelete = mine || app.viewer.admin;
   const items: MenuItem[] = [
     ...(canRename ? [{ label: 'Rename', onClick: () => setRenaming(true) }] : []),
     ...(app.viewer.admin ? [{ label: view.pinned ? 'Unpin' : 'Pin for everyone', onClick: () => void app.pinView(view.id, !view.pinned).then(() => app.toast(view.pinned ? 'Unpinned' : 'Pinned for everyone')) }] : []),
-    ...(canDelete ? [{ label: 'Delete', onClick: () => void app.deleteView(view.id).then(() => { setParams({}, { replace: true }); app.toast('View deleted'); }) }] : []),
+    ...(canDelete ? [{ label: 'Delete', onClick: () => void app.deleteView(view.id).then(() => setParams({}, { replace: true })) }] : []),
   ];
   return { items, sheet: renaming ? <SaveViewSheet params={view.params} view={view} onClose={() => setRenaming(false)} /> : null };
 }

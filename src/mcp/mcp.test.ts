@@ -170,4 +170,42 @@ describe('MCP server', () => {
     expect((await oskar.call('withdraw_request', { request_id: q.id })).isError).toBe(false);
     expect(asksOf(oskar.data()).find((r) => r.id === q.id)!.status).toBe('withdrawn');
   });
+
+  it('removes, archives and undoes with the app’s own rules: stop a goal, edit and remove a comment, mark someone as left, undo an import, restore', async () => {
+    const rhea = await setup('rhea');
+    // Not Rhea's goal: refused, as in the app.
+    expect((await rhea.call('stop_goal', { goal_id: 'lead-mq', reason: 'Not mine to stop at all.' })).content[0]!.text).toMatch(/Only the goal’s owner or an admin/);
+    expect((await rhea.call('delete_goal', { goal_id: 'ci-docker' })).content[0]!.text).toMatch(/stop it instead/);
+    expect((await rhea.call('stop_goal', { goal_id: 'ci-docker', reason: 'Taken over by the platform team.' })).isError).toBe(false);
+    expect(rhea.data().goals.find((g) => g.id === 'ci-docker')).toMatchObject({ stopReason: 'Taken over by the platform team.', stoppedBy: 'rhea' });
+    expect(((await rhea.call('find_goals', { text: 'Base image' })).structuredContent!.goals as { id: string }[]).map((g) => g.id)).not.toContain('ci-docker');
+    // A comment: written, edited, removed; get_goal says so.
+    await rhea.call('add_comment', { goal_id: 'lead-review', text: 'First go' });
+    const goal = await rhea.call('get_goal', { goal_id: 'lead-review' });
+    const c = (goal.structuredContent!.comments as { id: string; text: string }[]).find((x) => x.text === 'First go')!;
+    expect((await rhea.call('edit_comment', { comment_id: c.id, text: 'Second go' })).isError).toBe(false);
+    expect((await rhea.call('delete_comment', { comment_id: c.id })).isError).toBe(false);
+    const after = (await rhea.call('get_goal', { goal_id: 'lead-review' })).structuredContent!.comments as { id: string; text: string; edited: boolean; removed: boolean }[];
+    expect(after.find((x) => x.id === c.id)).toMatchObject({ text: 'Comment removed', edited: true, removed: true });
+    // What she removed, she can list and restore.
+    const removed = (await rhea.call('list_removed')).structuredContent!.removed as { kind: string; id: string }[];
+    expect(removed.map((r) => r.kind).sort()).toEqual(['comment', 'stopped']);
+    expect((await rhea.call('restore_removed', { kind: 'stopped', id: 'ci-docker' })).isError).toBe(false);
+    expect(rhea.data().goals.find((g) => g.id === 'ci-docker')!.stoppedAt).toBeNull();
+    // An import through bulk_change, undone.
+    await rhea.call('bulk_change', { goals: [{ ID: 'ci-docker', Goal: 'Base image build time, renamed' }], apply: true });
+    const imports = ((await rhea.call('get_activity', { query: 'kind=ai', limit: 5 })).structuredContent!.changes as { importId?: string; canUndo?: boolean }[]).filter((x) => x.importId);
+    expect(imports[0]!.canUndo).toBe(true);
+    expect((await rhea.call('undo_import', { import_id: imports[0]!.importId })).content[0]!.text).toMatch(/1 row put back/);
+    expect(rhea.data().goals.find((g) => g.id === 'ci-docker')!.title).toBe('Base image build time');
+    // Admins only: marking someone as left, with their goals handed over; then their token stops working.
+    expect((await rhea.call('mark_person_left', { person: 'Mateo', goals_to: 'Marisol', asks_to: 'Marisol' })).content[0]!.text).toMatch(/Only admins/);
+    const grace = await setup('grace');
+    expect((await grace.call('mark_person_left', { person: 'Mateo' })).content[0]!.text).toMatch(/choose who takes them over/);
+    expect((await grace.call('mark_person_left', { person: 'Mateo', goals_to: 'Marisol', asks_to: 'Marisol' })).isError).toBe(false);
+    expect(grace.data().goals.filter((g) => g.ownerId === 'mateo' && g.cycleId === demo.id)).toEqual([]);
+    const mateo = await setup('mateo');
+    (mateo.deps as { load: Deps['load'] }).load = async () => grace.data();
+    expect((await mateo.rpc('tools/call', { name: 'get_overview', arguments: {} })).body.error.message).toMatch(/no longer in the workspace/);
+  });
 });

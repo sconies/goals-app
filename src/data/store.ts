@@ -1,6 +1,7 @@
 import { asksOf, upgradeAsks } from '../domain/asks';
 import { settleKeys, withKeys } from '../domain/goalKey';
 import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import { hashToken, newToken } from '../mcp/token';
 import { buildExample, EXAMPLE, isExample } from './examples';
 
 export { EXAMPLE };
@@ -95,6 +96,11 @@ export interface Store {
   resetExample(id?: string): Promise<Snapshot>;
   /** Deletes a workspace someone set up, and everything in it. Examples can only be reset. */
   deleteWorkspace(id: string): Promise<void>;
+  /**
+   * Saves a new AI assistant token (domain/actions createToken: the token without its secret, and its change-log
+   * entry) and returns the secret, this once. The shared database makes the secret itself and keeps only its hash.
+   */
+  issueToken(workspaceId: string, c: Commit): Promise<string>;
   /**
    * Why saves aren't being kept, if they aren't: the browser refused to store them (full, or blocked in a private
    * window). The changes still apply for this visit; the app says so instead of letting them vanish on reload.
@@ -333,6 +339,14 @@ export class BrowserStore implements Store {
     // Starting over frees the room the saves took; a browser that blocks storage still does.
     if (this.problem === 'full') this.setProblem(null);
     return structuredClone(await this.example(id));
+  }
+
+  /** In this browser, the secret is made here, and the token kept with its hash like any other save. */
+  async issueToken(id: string, c: Commit) {
+    const secret = newToken();
+    const tokenHash = await hashToken(secret);
+    await this.commit(id, { ...c, tokens: (c.tokens ?? []).map((t) => ({ ...t, tokenHash })) });
+    return secret;
   }
 
   async deleteWorkspace(id: string) {

@@ -170,7 +170,9 @@ describe('AI assistants can do what the person can', () => {
     const mine = list.data!.watches.find((w: { ref: string }) => w.ref === 'ns-cost');
     expect((await (await as('mateo', TODAY, oskar.data())).call('unwatch', { watch_id: mine.id })).text).toMatch(/someone else’s/);
     await oskar.call('unwatch', { watch_id: mine.id });
-    expect(oskar.data().watches.some((w) => w.id === mine.id)).toBe(false);
+    // Stopped, not erased (release 1b): the row stays, marked removed, so it can be undone.
+    expect(oskar.data().watches.some((w) => w.id === mine.id && !w.removedAt)).toBe(false);
+    expect(oskar.data().watches.find((w) => w.id === mine.id)?.removedBy).toBe('oskar');
     expect((await oskar.call('watch', { kind: 'level', ref: 'board' })).error).toBe(true);
   });
 

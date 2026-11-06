@@ -2,9 +2,10 @@
    save as PDF); on paper it's A4 portrait, black on white, with no navigation and status still a shape and a word.
    What it says comes from domain/onePager, which gathers what the app already works out. */
 import { Link, useParams } from 'react-router';
-import { useApp } from '../app/state';
+import { ArchivedGoalScope, useApp } from '../app/state';
 import { goalSheet, reviewSheet, type Fact, type Said } from '../domain/onePager';
 import { valueSeries } from '../domain/plan';
+import { projects } from '../domain/scorecard';
 import { assessPosted } from '../domain/status';
 import { periodLabel, quarterOf } from '../domain/year';
 import { Chip, Empty, LevelTag } from '../ui/bits';
@@ -57,6 +58,15 @@ export function GoalPrint() {
   const app = useApp();
   const { goalId } = useParams();
   const goal = goalId ? app.goal(goalId) : undefined;
+  // A stopped goal prints as it stood, with its check-ins (domain/removal).
+  if (goal?.stoppedAt) return <ArchivedGoalScope goalId={goal.id}><GoalPrintView /></ArchivedGoalScope>;
+  return <GoalPrintView />;
+}
+
+function GoalPrintView() {
+  const app = useApp();
+  const { goalId } = useParams();
+  const goal = goalId ? app.goal(goalId) : undefined;
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn sm" to="/goals">All goals</Link></Empty></div>;
   const sh = goalSheet(goal, app.snapshot, app.cycle, app.week, app.today);
   const s = sh.summary;
@@ -95,7 +105,7 @@ export function GoalPrint() {
         <Facts facts={sh.facts} />
 
         <section className="ps-block ps-chart" aria-label="Chart">
-          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptgBy} height={140} />}
+          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={projects(goal, stale) ? a.forecast : null} projection={projects(goal, stale) ? a.projection : null} ptgBy={projects(goal, stale) ? ptgBy : null} height={140} />}
           {goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={150} />}
           {a.kind === 'milestone' && <StageList a={a} />}
         </section>

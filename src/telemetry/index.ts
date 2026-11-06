@@ -6,7 +6,7 @@ import { Telemetry } from './client';
 import { Exporter, supabaseTarget } from './exporter';
 import { tabSessionId } from './ids';
 
-export type { Step } from './client';
+export type { Problem, Step } from './client';
 
 const env = import.meta.env;
 const testing = env.MODE === 'test';
@@ -28,6 +28,9 @@ export const telemetry = new Telemetry({
 
 /** The last steps of this tab's session, oldest first (at most 20), kept in memory only. */
 export const recentSteps = () => telemetry.recentSteps();
+
+/** This visit's errors and failed saves, oldest first (at most 25), kept in memory only. */
+export const recentProblems = () => telemetry.recentProblems();
 
 /** A screen moved on to a step of its own in a named flow (src/help/flows.ts). */
 export const mark = (name: import('../help/flows').Mark) => { try { telemetry.mark(name); } catch { /* never in the way */ } };

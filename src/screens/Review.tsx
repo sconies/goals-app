@@ -17,6 +17,7 @@ import { saveReviewOrder } from './Inspect';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
+import { EndedReview, EndReview } from '../ui/RemoveControls';
 
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
 const goalsN = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
@@ -53,7 +54,7 @@ export function Reviews() {
   const mine = sessions.filter((s) => s.review.people.includes(app.viewer.id)).sort((a, b) => underWay(a) - underWay(b));
   const others = sessions.filter((s) => !s.review.people.includes(app.viewer.id));
   return (
-    <div className="page narrow reviews-list">
+    <div className="page narrow reviews-list" data-part="Reviews">
       <div className="page-head row between">
         <span className="stack" style={{ gap: 2 }}>
           <h1 className="title-xl">Reviews</h1>
@@ -62,8 +63,8 @@ export function Reviews() {
         <Link className="btn" to="/reviews/new">Set up a review</Link>
       </div>
       {!sessions.length && <Empty title="No reviews yet"><span className="muted">A review walks a set of goals, worst and stalest first, and keeps what was said.</span><Link className="btn primary" to="/reviews/new">Set up the first review</Link></Empty>}
-      {mine.length > 0 && <section className="block"><h2 className="block-title">You’re in</h2><div className="alist">{mine.map((s) => <ReviewLine key={s.review.id} s={s} />)}</div></section>}
-      {others.length > 0 && <section className="block"><h2 className="block-title">Other reviews</h2><div className="alist">{others.map((s) => <ReviewLine key={s.review.id} s={s} />)}</div></section>}
+      {mine.length > 0 && <section className="block" data-part="You’re in"><h2 className="block-title">You’re in</h2><div className="alist">{mine.map((s) => <ReviewLine key={s.review.id} s={s} />)}</div></section>}
+      {others.length > 0 && <section className="block" data-part="Other reviews"><h2 className="block-title">Other reviews</h2><div className="alist">{others.map((s) => <ReviewLine key={s.review.id} s={s} />)}</div></section>}
     </div>
   );
 }
@@ -103,7 +104,7 @@ function SessionRecord({ s, title, reviewed }: { s: ReviewSession; title: string
   const goalLink = (id: string) => <Link className="linkish" to={`/goals/${id}`}>{app.goal(id)?.title}</Link>;
   if (!asks.length && !actions.length && !notes.length && (reviewed === 'none' || !covered.length)) return null;
   return (
-    <section className="block session-record">
+    <section className="block session-record" data-part="What was said">
       <h2 className="block-title">{title}</h2>
       {actions.length > 0 && (
         <div className="stack" style={{ gap: 'var(--s1)' }}>
@@ -159,6 +160,9 @@ export function ReviewHome() {
   const [walkAll, setWalkAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [listHealthy, setListHealthy] = useState(false);
+  // An ended review keeps its page: what it was, that it ended, and (for its owner or an admin) Reopen.
+  const ended = !review ? app.snapshot.archive?.reviews.find((r) => r.id === reviewId) : undefined;
+  if (ended) return <EndedReview review={ended} />;
   if (!review) return <div className="page narrow"><Empty title="That review doesn’t exist"><Link className="btn" to="/reviews">All reviews</Link></Empty></div>;
   const s = reviewSession(review, app.snapshot, app.cycle, app.today, app.week);
   const st = sessionState(s);
@@ -198,7 +202,7 @@ export function ReviewHome() {
       : [dayText(s.date), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} on track` : ''].filter(Boolean).join(' · ');
 
   return (
-    <div className="page narrow review-home">
+    <div className="page narrow review-home" data-part="Review">
       <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link></nav>
       <section className="hero">
         <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals reviewed`} />
@@ -218,13 +222,13 @@ export function ReviewHome() {
       {/* Held: what was said comes first, with every goal reviewed. */}
       {done && <SessionRecord s={s} title="What was said" reviewed="open" />}
       {!done && remaining.length > 0 && (
-        <section className="block">
+        <section className="block" data-part="Still to review">
           <h2 className="block-title">Still to review · {remaining.length}</h2>
           <Agenda goals={remaining.map((a) => a.goal)} />
         </section>
       )}
       {!done && !walkAll && exceptions.length > 0 && healthyLeft.length > 0 && (
-        <section className="block healthy-group">
+        <section className="block healthy-group" data-part="On track, nothing new">
           <div className="healthy-head">
             <h2 className="block-title">On track, nothing new · {healthyLeft.length}</h2>
             {inIt && first && <button className="btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} reviewed</button>}
@@ -249,6 +253,7 @@ export function ReviewHome() {
         <h2 className="block-title">People</h2>
         <div className="people">{people.map((p) => <span key={p.id} className="person"><Avatar p={p} size="sm" />{p.name}</span>)}</div>
       </section>
+      <EndReview review={review} />
     </div>
   );
 }

@@ -182,9 +182,8 @@ export function WatchButton({ goal, primary }: { goal: Goal; primary?: boolean }
   };
   const stop = async (x: Watch) => {
     try {
+      // The message says what stopped, with Undo (domain/removal); the sheet already said what else covers it.
       await app.unwatch(x.id);
-      const still = covers.filter((c) => c.id !== x.id);
-      app.toast(still.length ? `Stopped. Still watching it as part of ${coverText(still[0]!)}.` : `Stopped watching ${goal.title}`);
       setOpen(false);
     } catch { /* the save already said what went wrong */ }
   };

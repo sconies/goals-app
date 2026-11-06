@@ -15,9 +15,38 @@ export interface NewsEntry {
   points: string[];
   /** Guide articles that explain it. */
   articles: string[];
+  /** The markups (mk_…) this release fixes: whoever sent one sees “You raised this” on the entry. */
+  fixes?: string[];
 }
 
 export const WHATS_NEW: NewsEntry[] = [
+  {
+    id: 'remove-and-undo',
+    date: '2026-11-06',
+    title: 'Take anything away again, and undo it',
+    points: [
+      'When someone leaves, an admin marks them as left on Workspace: first choosing who takes over their goals and open asks. They leave every list and picker; their history keeps their name, as “Name (left)”.',
+      'A goal can be stopped mid-year, with a reason, from its “…” menu. It leaves the numbers, reviews and Home, but its page, history and exports stay, marked Stopped. A goal set up by mistake, with no check-ins, is deleted instead.',
+      'Delete your latest check-in, end a review, edit or remove your comments (they say edited, or “Comment removed”), and delete saved views.',
+      'Every removal shows Undo for 10 seconds, and admins can restore anything from the last 30 days under Recently removed on Workspace. Nothing is ever erased.',
+      'Loaded the wrong spreadsheet? Undo this import, on its entry in Activity, puts every row back as it was.',
+      'A stopped goal makes no forecast: its page keeps how it stood, without “Will it hit?” or a projection, and stopping it no longer draws the page again under the Undo message.',
+    ],
+    articles: ['removing', 'workspace', 'goal-page', 'activity'],
+  },
+  {
+    id: 'mark-up-a-screen',
+    date: '2026-11-06',
+    title: 'Mark up a screen to say what should change',
+    points: [
+      'Send feedback now starts with Mark up this screen: draw on a picture of the screen you’re on with a pen, an arrow, a box or a numbered note, and say in one line what should change. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere; Escape cancels.',
+      'Before you send, you see the exact picture that goes, with your marks. Your last 20 steps on this visit go with it unless you untick them, so the people building Faro can see what led up to it. Never anything you typed.',
+      'When a release fixes something you marked up, its entry here says “You raised this”.',
+      'For the people building Faro, Workspace has an Inbox to read and triage markups, after signing in with an email link. Feedback sent with a mood and a few words is there too, with the same statuses: New, In hand, Fixed and Won’t fix. Your admins can’t see markups yet; they will once sign-in comes to the whole app.',
+      'AI assistant tokens are now made by the database, which keeps only a fingerprint of each and never hands one back; feedback can only be read by its own workspace. Making and revoking tokens works as before.',
+    ],
+    articles: ['feedback', 'inbox', 'ai-assistants', 'recording'],
+  },
   {
     id: 'fit-fixes-nov-6',
     date: '2026-11-06',

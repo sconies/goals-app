@@ -28,6 +28,7 @@ export function tracedStore(store: Store, tel: Telemetry): Store {
     createWorkspace: (w, data) => timed(pg ? 'okr_create_workspace' : 'create_workspace', () => store.createWorkspace(w, data)),
     resetExample: (id) => store.resetExample(id),
     deleteWorkspace: (id) => timed(pg ? 'okr_delete_workspace' : 'delete_workspace', () => store.deleteWorkspace(id)),
+    issueToken: (id, c) => timed(pg ? 'okr_token_create' : 'issue_token', () => store.issueToken(id, c)),
     ...(store.saveProblem ? { saveProblem: () => store.saveProblem!() } : {}),
     ...(store.onSaveProblem ? { onSaveProblem: (l: () => void) => store.onSaveProblem!(l) } : {}),
   };
