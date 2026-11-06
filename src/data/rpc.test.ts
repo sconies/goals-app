@@ -8,7 +8,10 @@ import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../domain/impor
 import { emptyDraft, toCheckIn } from '../domain/checkin';
 import { planAt } from '../domain/plan';
 import type { Snapshot } from '../domain/types';
-import { commitPayload, teamToRow, workspaceToRow } from './rows';
+import {
+  changeFromRow, checkInFromRow, commitPayload, decisionFromRow, goalFromRows, personFromRow, reviewFromRow, teamToRow, watchFromRow, workspaceToRow,
+  type ChangeRow, type CheckInRow, type DecisionRow, type GoalRow, type PersonRow, type ReviewRow, type WatchRow,
+} from './rows';
 import { withExpectations, type Commit } from './store';
 
 const dir = join(__dirname, '../../supabase/migrations');
@@ -163,6 +166,92 @@ describe('database save functions, as the public user', () => {
   it('won’t start the same year twice', async () => {
     const c = { ...snap.cycles[0]!, id: 'cycle_dup' };
     await expect(commit({ cycles: [c], changes: [] })).rejects.toThrow();
+  });
+
+  describe('removing, archiving and undoing (0025)', () => {
+    const at = now.toISOString();
+    const log = (id: string, entity: string, action: string, extra: object = {}) => ({ id, at, actorId: snap.people[0]!.id, goalId: null, entity, entityId: id, action, summary: 'x', diffs: [], ...extra }) as unknown as import('../domain/types').Change;
+    const one = async <T,>(q: string, p: unknown[] = []) => (await db.query<T>(q, p)).rows[0]!;
+
+    it('marks a person as left and deletes one outright, keeping both rows, and brings them back', async () => {
+      // As they are now (an earlier test moved some to another team).
+      const [a, b] = await Promise.all(snap.people.slice(0, 2).map(async (p) => personFromRow(await one<PersonRow>('select * from okr_people where id = $1', [p.id]))));
+      await commit({ people: [{ ...a!, leftAt: at, leftBy: b!.id }, { ...b!, removedAt: at, removedBy: a!.id }], changes: [log('chg_left', 'person', 'left'), log('chg_del_p', 'person', 'removed')] });
+      const r = await one<{ left_at: string; left_by: string }>('select left_at, left_by from okr_people where id = $1', [a!.id]);
+      expect(r.left_by).toBe(b!.id);
+      expect(personFromRow({ ...(await one<PersonRow>('select * from okr_people where id = $1', [a!.id])) }).leftAt).toBe(at);
+      expect(await count('okr_people', `id = '${b!.id}' and removed_at is not null`)).toBe(1);
+      await commit({ people: [{ ...a!, leftAt: null, leftBy: null }, { ...b!, removedAt: null, removedBy: null }], changes: [log('chg_back_a', 'person', 'restored'), log('chg_back_b', 'person', 'restored')] });
+      expect(await count('okr_people', `workspace_id = '${ws}' and (left_at is not null or removed_at is not null)`)).toBe(0);
+    });
+
+    it('stops a goal with its reason and moves what fed it, in one save; a stop without a reason is refused whole', async () => {
+      const parent = snap.goals.find((g) => snap.goals.some((c) => c.parentId === g.id))!;
+      const kids = snap.goals.filter((c) => c.parentId === parent.id);
+      const fresh = async (id: string) => goalFromRows(await one<GoalRow>('select * from okr_goals where id = $1', [id]), []);
+      const p0 = await fresh(parent.id);
+      await expect(commit({ goals: [{ ...p0, stoppedAt: at, stoppedBy: p0.ownerId, stopReason: '' }], changes: [log('chg_stop_bad', 'goal', 'stopped')] })).rejects.toThrow(/stop_reason/);
+      expect(await count('okr_changes', `id = 'chg_stop_bad'`)).toBe(0);
+      const moved = await Promise.all(kids.map(async (k) => ({ ...(await fresh(k.id)), parentId: parent.parentId })));
+      await commit({ goals: [{ ...p0, stoppedAt: at, stoppedBy: p0.ownerId, stopReason: 'Merged into another goal.' }, ...moved], changes: [log('chg_stop', 'goal', 'stopped')] });
+      const g = await fresh(parent.id);
+      expect(g).toMatchObject({ stoppedAt: at, stopReason: 'Merged into another goal.' });
+      expect(await count('okr_goals', `parent_id = '${parent.id}'`)).toBe(0);
+      await commit({ goals: [{ ...g, stoppedAt: null, stoppedBy: null, stopReason: null }], changes: [log('chg_restart', 'goal', 'restored')] });
+      expect((await fresh(parent.id)).stoppedAt).toBeUndefined();
+    });
+
+    it('deletes and restores a check-in and a review note, and marks a note edited', async () => {
+      const c = (await one<CheckInRow>(`select * from okr_check_ins where workspace_id = '${ws}' limit 1`));
+      const ci = checkInFromRow(c);
+      await commit({ checkIns: [{ ...ci, removedAt: at, removedBy: ci.authorId }], changes: [log('chg_ci_del', 'check-in', 'removed')] });
+      expect(checkInFromRow(await one<CheckInRow>('select * from okr_check_ins where id = $1', [ci.id])).removedAt).toBe(at);
+      await commit({ checkIns: [{ ...ci, removedAt: null, removedBy: null }], changes: [log('chg_ci_back', 'check-in', 'restored')] });
+      expect(await count('okr_check_ins', `id = '${ci.id}' and removed_at is null`)).toBe(1);
+      const d = { id: 'dec_rpc', goalId: ci.goalId, checkInId: null, reviewId: null, week: 44, kind: 'note' as const, byId: ci.authorId, at, note: 'First words' };
+      await commit({ decisions: [d], changes: [] });
+      await commit({ decisions: [{ ...d, note: 'Better words', editedAt: at }], changes: [log('chg_note_edit', 'decision', 'edited')] });
+      await commit({ decisions: [{ ...d, note: 'Better words', editedAt: at, removedAt: at, removedBy: ci.authorId }], changes: [log('chg_note_del', 'decision', 'removed')] });
+      expect(decisionFromRow(await one<DecisionRow>('select * from okr_decisions where id = $1', ['dec_rpc']))).toMatchObject({ note: 'Better words', editedAt: at, removedAt: at });
+    });
+
+    it('ends and deletes reviews, and keeps a stopped watch so watching again reuses it', async () => {
+      const r = { id: 'rev_rpc', name: 'Weekly', everyWeeks: 1, weekday: 3, scope: { goals: [snap.goals[0]!.id], trees: [], levels: [] }, people: [snap.people[0]!.id], createdBy: snap.people[0]!.id, createdAt: at };
+      await commit({ reviews: [r], changes: [] });
+      await commit({ reviews: [{ ...r, endedAt: at, endedBy: r.createdBy }], changes: [log('chg_rev_end', 'review', 'ended')] });
+      expect(reviewFromRow(await one<ReviewRow>('select * from okr_reviews where id = $1', [r.id])).endedAt).toBe(at);
+      const w = { id: 'w_rpc', personId: snap.people[0]!.id, kind: 'goal' as const, ref: snap.goals[0]!.id };
+      await commit({ watches: [w], changes: [] });
+      await commit({ watches: [{ ...w, removedAt: at, removedBy: w.personId }], changes: [log('chg_unwatch', 'watch', 'removed')] });
+      expect(watchFromRow(await one<WatchRow>('select * from okr_watches where id = $1', [w.id])).removedAt).toBe(at);
+      await commit({ watches: [{ ...w, removedAt: null, removedBy: null }], changes: [log('chg_rewatch', 'watch', 'restored')] });
+      expect(await count('okr_watches', `id = 'w_rpc' and removed_at is null`)).toBe(1);
+    });
+
+    it('frees a deleted cycle’s start date, so the year can be started again', async () => {
+      const c = { ...snap.cycles[0]!, id: 'cycle_rpc_next', name: 'Next', startDate: '2026-12-28' };
+      await commit({ cycles: [c], changes: [] });
+      await expect(commit({ cycles: [{ ...c, id: 'cycle_rpc_again' }], changes: [] })).rejects.toThrow();
+      await commit({ cycles: [{ ...c, removedAt: at, removedBy: snap.people[0]!.id }], changes: [log('chg_cycle_del', 'cycle', 'removed')] });
+      await commit({ cycles: [{ ...c, id: 'cycle_rpc_again' }], changes: [] });
+      expect(await count('okr_cycles', `start_date = '2026-12-28'`)).toBe(2);
+      // …but the deleted one can't come back over it.
+      await expect(commit({ cycles: [{ ...c, removedAt: null, removedBy: null }], changes: [] })).rejects.toThrow();
+    });
+
+    it('tags every change an import made with its id, keeps what it replaced, and logs its undoing', async () => {
+      const g = snap.goals[0]!;
+      const undo = { goals: [{ id: g.id, before: g }], checkIns: [], people: [], requests: [] };
+      await commit({ changes: [log('chg_imp_row', 'goal', 'edited', { importId: 'imp_rpc' }), log('imp_rpc', 'workspace', 'imported', { importId: 'imp_rpc', undo })] });
+      const rows = (await db.query<ChangeRow>(`select * from okr_changes where import_id = 'imp_rpc' order by id`)).rows.map(changeFromRow);
+      expect(rows.map((r) => r.id)).toEqual(['chg_imp_row', 'imp_rpc']);
+      expect(rows[1]!.undo!.goals[0]!.before!.title).toBe(g.title);
+      await commit({ changes: [log('chg_imp_undone', 'workspace', 'undone', { entityId: 'imp_rpc', importId: 'imp_rpc' })] });
+      expect(await count('okr_changes', `action = 'undone' and entity_id = 'imp_rpc'`)).toBe(1);
+      // The log takes the new kinds of entry and nothing else.
+      await commit({ changes: [log('chg_view_del', 'view', 'removed')] });
+      await expect(commit({ changes: [log('chg_bad', 'view', 'vanished')] })).rejects.toThrow();
+    });
   });
 
   it('deletes a workspace and everything in it, as the public user', async () => {

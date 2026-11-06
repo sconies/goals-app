@@ -19,6 +19,7 @@ import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsDate, newsSince } from '../help/whatsNew';
 import { hashToken, newToken } from './protocol';
+import { canUndoImport, importUndone } from '../domain/removal';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
@@ -30,7 +31,7 @@ const READ = { readOnlyHint: true, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const VIA = { field: 'Via', from: '—', to: 'AI assistant (MCP)' };
 
-const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}) });
+const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}) });
 
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 async function save(ctx: McpContext, c: Commit | null, done: string, nothing: string): Promise<ToolResult> {
@@ -246,8 +247,12 @@ export const WORK_TOOLS: ToolDef[] = [
       const keep = activityFilter(q, { snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, watched: null });
       const n = Math.min(500, Math.max(1, Number(a.limit ?? 50)));
       const list = ctx.snapshot.changes.filter(keep).sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, n)
-        .map((c) => ({ at: c.at, by: name(ctx, c.actorId), goal: c.goalId ? ctx.snapshot.goals.find((g) => g.id === c.goalId)?.title ?? c.goalId : null, summary: c.summary, changes: c.diffs.map((d) => ({ field: d.field, from: d.from, to: d.to })) }));
-      return { data: { changes: list }, text: lines(list.map((c) => `${c.at.slice(0, 16).replace('T', ' ')} · ${c.by} · ${c.goal ? c.goal + ': ' : ''}${c.summary}`), 'No changes match.') };
+        .map((c) => ({
+          at: c.at, by: name(ctx, c.actorId), goal: c.goalId ? ctx.snapshot.goals.find((g) => g.id === c.goalId)?.title ?? c.goalId : null, summary: c.summary, changes: c.diffs.map((d) => ({ field: d.field, from: d.from, to: d.to })),
+          // An import or bulk edit: its ID, for undo_import, and whether this person can undo it now.
+          ...(c.action === 'imported' ? { importId: c.entityId, canUndo: canUndoImport(ctx.snapshot, c, ctx.actor), undone: importUndone(ctx.snapshot, c.entityId) } : {}),
+        }));
+      return { data: { changes: list }, text: lines(list.map((c) => `${c.at.slice(0, 16).replace('T', ' ')} · ${c.by} · ${c.goal ? c.goal + ': ' : ''}${c.summary}${'importId' in c ? ` · import ${c.importId}${c.undone ? ' (undone)' : c.canUndo ? ' (can be undone)' : ''}` : ''}`), 'No changes match.') };
     },
   },
   {

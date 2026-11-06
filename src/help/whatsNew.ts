@@ -19,6 +19,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'remove-and-undo',
+    date: '2026-11-06',
+    title: 'Take anything away again, and undo it',
+    points: [
+      'When someone leaves, an admin marks them as left on Workspace: first choosing who takes over their goals and open asks. They leave every list and picker; their history keeps their name, as “Name (left)”.',
+      'A goal can be stopped mid-year, with a reason, from its “…” menu. It leaves the numbers, reviews and Home, but its page, history and exports stay, marked Stopped. A goal set up by mistake, with no check-ins, is deleted instead.',
+      'Delete your latest check-in, end a review, edit or remove your comments (they say edited, or “Comment removed”), and delete saved views.',
+      'Every removal shows Undo for 10 seconds, and admins can restore anything from the last 30 days under Recently removed on Workspace. Nothing is ever erased.',
+      'Loaded the wrong spreadsheet? Undo this import, on its entry in Activity, puts every row back as it was.',
+    ],
+    articles: ['removing', 'workspace', 'goal-page', 'activity'],
+  },
+  {
     id: 'fit-fixes-nov-6',
     date: '2026-11-06',
     title: 'Small fixes: on plan to the cent, nothing cut off',

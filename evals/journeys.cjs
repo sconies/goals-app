@@ -1777,6 +1777,147 @@ journey('U40', ['OTHER-CAUSE', 'DEMO-FEEDBACK', 'RESEARCH'], 'Research notes fol
   await p.context().close();
 }, ['entry', 'one-action', 'errors']);
 
+/* Release 1b: remove, archive and undo. */
+const liveCycle = (s) => [...s.cycles].filter((c) => !c.removedAt).sort((a, b) => a.startDate.localeCompare(b.startDate)).filter((c) => c.startDate <= '2026-11-12').pop();
+
+journey('U41', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/workspace'));
+  await p.locator('.page-head').first().waitFor();
+  const s0 = await h.snapshot();
+  const cycle = liveCycle(s0).id;
+  const owned = s0.goals.filter((g) => g.ownerId === 'mateo' && g.cycleId === cycle && !g.removedAt && !g.stoppedAt).map((g) => g.id);
+  await h.fill(p.getByPlaceholder('Find by name, role or team'), 'Mateo');
+  await h.click(p.getByRole('button', { name: /Mateo Fernández/ }).first());
+  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Mark as left…' }));
+  const dlg = p.getByRole('dialog', { name: 'Mark Mateo Fernández as left' });
+  await dlg.waitFor();
+  // It asks who takes over first: marking him as left with no one chosen says what's missing and saves nothing.
+  await see(dlg, `Who takes over Mateo’s ${owned.length} goal`, 'the dialog does not ask who takes over his goals');
+  await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
+  await see(dlg, 'Choose who takes them over.', 'marking him as left with no one chosen did not say what was missing');
+  h.set('errors', !(await h.snapshot()).people.find((x) => x.id === 'mateo').leftAt, 'he was marked as left with no one taking over');
+  await h.checkpoint('mark as left');
+  await dlg.getByLabel(/Who takes over Mateo’s \d+ goals?/).selectOption({ label: 'Marisol Duarte' });
+  await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
+  await see(p, 'Mateo Fernández is marked as left', 'no message that he left');
+  h.set('attention', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'the message has no Undo');
+  // Gone from the directory; on Recently removed, with Restore.
+  await see(p, 'No one matches', 'Mateo is still in the directory');
+  const removed = p.locator('.removed-block');
+  await see(removed, 'Person who left', 'Recently removed does not list him');
+  await see(removed, 'Mateo Fernández');
+  await h.checkpoint('after');
+  const s1 = await h.snapshot();
+  const m = s1.people.find((x) => x.id === 'mateo');
+  const handed = owned.every((id) => s1.goals.find((g) => g.id === id).ownerId === 'marisol');
+  const open = (s1.requests || []).filter((r) => r.status === 'open' && (r.askedBy === 'mateo' || r.recipientId === 'mateo')).length;
+  h.set('finish', !!m.leftAt && m.leftBy === 'grace' && handed && open === 0, `left ${m.leftAt}; goals handed over ${handed}; ${open} open asks still his`);
+  const log = s1.changes.filter((c) => c.at > (s0.changes.at(-1)?.at ?? ''));
+  h.set('logged', log.some((c) => c.entity === 'person' && c.action === 'left' && c.entityId === 'mateo') && log.filter((c) => c.entity === 'goal' && /as Mateo Fernández left/.test(c.summary)).length === owned.length, `logged: ${log.map((c) => c.summary).join(' | ').slice(0, 200)}`);
+  // History keeps his name, as "Name (left)".
+  await p.goto(url('/activity?who=mateo'));
+  await see(p, 'Mateo Fernández (left)', 'Activity does not name him as having left');
+  h.set('progress', true);
+  await p.context().close();
+}, ['entry']);
+
+journey('U42', ['GOAL-STOP', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An owner stops a goal with history, then deletes a goal set up by mistake and undoes it', 11, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-docker'));
+  await p.locator('.goal-bar').first().waitFor();
+  // A goal set up by mistake beside it, with no check-ins.
+  await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    const g = s.goals.find((x) => x.id === 'ci-docker');
+    await window.__goalsStore.commit('platform-org', { goals: [{ ...g, id: 'g-mistake', key: undefined, title: 'Base image build time, again', parentId: g.parentId, version: 0, createdAt: new Date().toISOString() }], changes: [] });
+  });
+  await p.reload();
+  await p.locator('.goal-bar').first().waitFor();
+  const s0 = await h.snapshot();
+  const kids = s0.goals.filter((g) => g.parentId === 'ci-docker' && !g.removedAt).map((g) => g.id);
+  await goalMenu(h, p, 'Stop this goal');
+  const dlg = p.getByRole('dialog', { name: 'Stop this goal' });
+  await dlg.waitFor();
+  // A stop needs its reason.
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  await see(dlg, 'Say why, in a sentence', 'stopping without a reason did not ask for one');
+  h.set('errors', !(await h.snapshot()).goals.find((g) => g.id === 'ci-docker').stoppedAt, 'it stopped without a reason');
+  await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
+  await h.checkpoint('stop dialog');
+  await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
+  await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  // Its page stays, marked Stopped with the reason, and no main button.
+  await see(p.locator('.goal-bar'), 'Stopped', 'the page does not say Stopped');
+  await see(p.locator('.goal-bar'), 'The platform team took base images over in October.', 'the page does not give the reason');
+  const primary = await p.locator('.goal-bar .btn.primary').count();
+  await h.checkpoint('stopped page');
+  const s1 = await h.snapshot();
+  const g1 = s1.goals.find((g) => g.id === 'ci-docker');
+  const moved = kids.every((id) => s1.goals.find((g) => g.id === id).parentId === g1.parentId);
+  h.set('attention', primary === 0 && moved, `${primary} main buttons on a stopped goal; goals feeding it moved up: ${moved}`);
+  // The mistaken goal: no check-ins, so it's deleted; Undo brings it back.
+  await p.goto(url('/goals/g-mistake'));
+  await p.locator('.goal-bar').first().waitFor();
+  await goalMenu(h, p, 'Delete this goal');
+  await h.click(p.getByRole('dialog', { name: 'Delete this goal' }).getByRole('button', { name: 'Delete the goal' }));
+  await see(p, 'Deleted Base image build time, again', 'no message that it was deleted');
+  const listed = await p.locator('main').innerText();
+  h.set('finish', !!g1.stoppedAt && g1.stopReason === 'The platform team took base images over in October.' && !listed.includes('Base image build time'), `stopped ${g1.stoppedAt}; Goals still lists it: ${listed.includes('Base image build time')}`);
+  await h.checkpoint('undo');
+  await h.click(p.locator('.toast-action').filter({ hasText: 'Undo' }));
+  await see(p, 'Undone', 'Undo did not say it was done');
+  const s2 = await h.snapshot();
+  const back = s2.goals.find((g) => g.id === 'g-mistake');
+  const log = s2.changes.filter((c) => c.goalId === 'g-mistake' || c.goalId === 'ci-docker').map((c) => c.action);
+  h.set('logged', !back.removedAt && log.includes('stopped') && log.includes('removed') && log.includes('restored'), `the mistaken goal is ${back.removedAt ? 'still deleted' : 'back'}; logged ${log.slice(-4).join(', ')}`);
+  h.set('progress', true);
+  await p.context().close();
+}, ['entry']);
+
+journey('U43', ['IMPORT-UNDO', 'BULK-EDIT'], 'Undo an import: every row back as it was, and a row changed since skipped and listed', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'chen'));
+  await p.goto(url('/quick-check-in'));
+  const s0 = await h.snapshot();
+  const g0 = (id) => s0.goals.find((g) => g.id === id);
+  const jenkins = valueAt(g0('dep-jenkins'), NOW, 1.02), tests = valueAt(g0('cfr-tests'), NOW, 1.05);
+  await h.fill(p.getByLabel(/Jenkins jobs still running: this week’s number/), jenkins);
+  await h.fill(p.getByLabel(/Changes shipped with automated integration tests: this week’s number/), tests);
+  await h.click(p.getByRole('button', { name: 'Post 2 check-ins' }));
+  await see(p, 'Saved: 2 check-ins');
+  // Someone corrects one of the two afterwards: undoing the import must leave that one alone.
+  const imp = await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    const entry = s.changes.filter((c) => c.action === 'imported').pop();
+    const row = s.changes.find((c) => c.importId === entry.entityId && c.goalId === 'cfr-tests');
+    await window.__goalsStore.commit('platform-org', { changes: [{ id: 'chg-corrected', at: new Date(Date.parse(entry.at) + 60_000).toISOString(), actorId: 'tariq', goalId: 'cfr-tests', entity: 'check-in', entityId: row.entityId, action: 'edited', summary: 'Corrected the check-in', diffs: [] }] });
+    return entry.entityId;
+  });
+  await p.goto(url('/activity?kind=imports'));
+  const undo = p.getByRole('button', { name: 'Undo this import' }).first();
+  await undo.waitFor();
+  await h.inView(undo, 'entry', 'Undo this import');
+  await h.click(undo);
+  // It asks first, and says what happens to rows changed since.
+  await see(p, 'Rows changed since are skipped and listed', 'it does not say what happens to rows changed since');
+  h.set('errors', !(await h.snapshot()).changes.some((c) => c.action === 'undone'), 'it undid the import before it was confirmed');
+  await h.checkpoint('undo import');
+  await h.click(p.getByRole('button', { name: 'Undo the import' }));
+  await see(p, 'Undid the import: 1 row put back; 1 skipped', 'the message does not say what was put back and skipped');
+  await see(p, 'skipped as changed since', 'Activity does not list the skipped row');
+  await see(p, 'Undone', 'the import is not marked undone');
+  await h.checkpoint('undone');
+  const s1 = await h.snapshot();
+  const posted = (id) => s1.checkIns.filter((c) => c.goalId === id && c.week === NOW && s1.changes.some((x) => x.importId === imp && x.entityId === c.id));
+  const gone = posted('dep-jenkins').every((c) => !!c.removedAt), kept = posted('cfr-tests').every((c) => !c.removedAt);
+  h.set('finish', posted('dep-jenkins').length === 1 && gone && kept, `Jenkins check-in removed ${gone}; the corrected one kept ${kept}`);
+  const undone = s1.changes.find((c) => c.action === 'undone' && c.entityId === imp);
+  h.set('logged', !!undone && undone.diffs.some((d) => d.field === 'Skipped' && /Changes shipped with automated integration tests/.test(d.to)), 'the undo is not logged with the row it skipped');
+  h.set('attention', true);
+  h.set('progress', true);
+  await p.context().close();
+});
+
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals'));

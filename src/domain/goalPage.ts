@@ -9,7 +9,7 @@ import type { GoalAttention } from './attention';
 import { fmt, NO_VALUE } from './format';
 import { currentWeek, daysSince, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
-import { asksOf, canAnswer, canMarkDone, isOverdue, isResolved, liveNotes, openAsksFor } from './asks';
+import { asksOf, canAnswer, canMarkDone, isOverdue, isResolved, liveNotes, openAsksFor, writtenNotes } from './asks';
 import { goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
 import { assessPosted, checkInsFor, LABEL, RANK } from './status';
 import { countWord, summaryFacts, type Direction } from './summaryFacts';
@@ -390,7 +390,8 @@ export function activityStream(goal: Goal, s: Snapshot): StreamItem[] {
     else items.push({ kind: 'checkin', at: c.postedAt, checkIn: c, ...(sameAs != null ? { sameAs } : {}) });
     i = j;
   }
-  for (const n of liveNotes(s.changes).filter((x) => x.goalId === goal.id)) items.push({ kind: 'comment', at: n.at, change: n });
+  // Removed comments keep their place ("Comment removed"), so a thread still reads (domain/removal commentsOf).
+  for (const n of writtenNotes(s.changes).filter((x) => x.goalId === goal.id)) items.push({ kind: 'comment', at: n.at, change: n });
   for (const ch of s.changes.filter((x) => x.goalId === goal.id && x.entity !== 'check-in' && x.entity !== 'note')) items.push({ kind: 'change', at: ch.at, change: ch });
   return items.sort((a, b) => b.at.localeCompare(a.at));
 }

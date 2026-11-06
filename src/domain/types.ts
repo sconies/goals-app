@@ -13,6 +13,12 @@ export interface Person {
   initials: string;
   teamId: Id | null;
   admin: boolean;
+  /** Marked as left (domain/removal): gone from pickers, counts, reviews and Home; history keeps their name, "Name (left)". */
+  leftAt?: string | null;
+  leftBy?: Id | null;
+  /** Deleted outright (only someone with no history): kept, hidden everywhere, restorable for 30 days. */
+  removedAt?: string | null;
+  removedBy?: Id | null;
 }
 
 /** How important a goal is to the organisation, for reporting at major reviews. Separate from what it feeds. */
@@ -34,6 +40,9 @@ export interface Cycle {
   weeks: number;
   /** Day of the weekly review, 0 = Monday. Check-ins are due before it. */
   reviewDay: number;
+  /** Deleted (only a cycle with no check-ins): kept, hidden, restorable. */
+  removedAt?: string | null;
+  removedBy?: Id | null;
 }
 
 export type PlanShape = 'straight' | 'back' | 'stepped';
@@ -93,6 +102,13 @@ interface GoalBase {
   pending?: PendingChange | null;
   /** Bumped on every save, so a save based on an older version is refused rather than overwriting a newer one. */
   version?: number;
+  /** Deleted (a goal with no check-ins): kept, hidden everywhere, restorable. */
+  removedAt?: string | null;
+  removedBy?: Id | null;
+  /** Stopped mid-cycle (a goal with history): out of stats, reviews, Home and attention, still in its history. */
+  stoppedAt?: string | null;
+  stoppedBy?: Id | null;
+  stopReason?: string | null;
 }
 
 export interface PendingChange {
@@ -183,6 +199,9 @@ export interface CheckIn {
   dataFlagged: boolean;
   /** Loaded later from a spreadsheet or another tool, not posted in its week. */
   backfilled?: boolean;
+  /** Deleted (only while no newer check-in exists on the goal): kept, hidden, restorable. */
+  removedAt?: string | null;
+  removedBy?: Id | null;
 }
 
 /** A field that changed: values are already formatted for reading. */
@@ -198,11 +217,39 @@ export interface Change {
   at: string;
   actorId: Id;
   goalId: Id | null;
-  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person' | 'retro' | 'cycle' | 'request';
+  entity: 'goal' | 'check-in' | 'decision' | 'workspace' | 'note' | 'review' | 'person' | 'retro' | 'cycle' | 'request' | 'view' | 'watch';
   entityId: Id;
-  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed' | 'answered' | 'linked' | 'done';
+  action: 'created' | 'edited' | 'posted' | 'approved' | 'declined' | 'acknowledged' | 'asked' | 'imported' | 'reset' | 'proposed' | 'withdrawn' | 'noted' | 'actioned' | 'removed' | 'answered' | 'linked' | 'done' | 'restored' | 'stopped' | 'ended' | 'left' | 'undone';
   summary: string;
   diffs: Diff[];
+  /** The import or bulk edit this change was part of (its summary entry's entityId), so the whole of it can be undone. */
+  importId?: Id | null;
+  /** On an import's summary entry only: every record it wrote, as it was before (null: the import added it). */
+  undo?: ImportUndo | null;
+}
+
+/** What an import or bulk edit replaced, so "Undo this import" can put every row back (domain/removal undoImport). */
+export interface ImportUndo {
+  goals: { id: Id; before: Goal | null }[];
+  checkIns: { id: Id; before: CheckIn | null }[];
+  people: { id: Id; before: Person | null }[];
+  requests: { id: Id; before: Ask | null }[];
+}
+
+/**
+ * A comment on a goal, as it reads now (domain/removal commentsOf). Comments are stored as change-log entries (entity
+ * 'note'): written ('noted'), then edited, removed and restored by later entries, so the log stays append-only and old
+ * comments read as they always did.
+ */
+export interface Comment {
+  id: Id;
+  goalId: Id;
+  authorId: Id;
+  text: string;
+  at: string;
+  editedAt: string | null;
+  removedAt: string | null;
+  removedBy: Id | null;
 }
 
 /** What someone said about a goal in a review: seen, or a note. A question or an action said in a review is an ask
@@ -223,6 +270,11 @@ export interface Decision {
   /** Actions: who does it, and the week it's due by (optional). */
   assigneeId?: Id | null;
   dueWeek?: number | null;
+  /** When the words were last corrected (shown as "edited"). */
+  editedAt?: string | null;
+  /** Deleted (a note): kept, read as "Note removed", restorable. */
+  removedAt?: string | null;
+  removedBy?: Id | null;
 }
 
 /** Something a person keeps an eye on: one goal, a goal and everything feeding it, or every goal at a level. */
@@ -232,6 +284,9 @@ export interface Watch {
   kind: 'goal' | 'tree' | 'level';
   /** A goal id, or a level. */
   ref: string;
+  /** Stopped watching: kept, so it can be undone or restored. */
+  removedAt?: string | null;
+  removedBy?: Id | null;
 }
 
 /** A goal review on a cadence: which goals it walks, and who takes part. Anyone can set one up. */
@@ -247,6 +302,12 @@ export interface Review {
   createdAt: string;
   /** Bumped on every save (see Goal.version). */
   version?: number;
+  /** Ended: keeps its notes and actions, no longer due. */
+  endedAt?: string | null;
+  endedBy?: Id | null;
+  /** Deleted (a review never held): kept, hidden, restorable. */
+  removedAt?: string | null;
+  removedBy?: Id | null;
 }
 
 export interface Workspace {
@@ -281,6 +342,20 @@ export interface Snapshot {
   /** The highest goal key given in the workspace so far, across every cycle (set when a snapshot is scoped to one
       cycle), so a new goal's key is never one an earlier cycle used. */
   keysIssued?: number;
+  /**
+   * Set when a snapshot is scoped (domain/cycle scopeToCycle): records kept for history but out of every list, stat,
+   * picker, attention list and review. Stopped goals with their check-ins and notes, people who left, ended reviews.
+   * Deleted records are in neither; they're read from the whole snapshot (Recently removed).
+   */
+  archive?: Archive;
+}
+
+export interface Archive {
+  goals: Goal[];
+  checkIns: CheckIn[];
+  decisions: Decision[];
+  people: Person[];
+  reviews: Review[];
 }
 
 /** Where an ask stands: open until the person asked responds (answered; an action: done) or it's taken back. */
@@ -338,6 +413,8 @@ export interface SavedView {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  /** Who deleted it. */
+  deletedBy?: Id | null;
 }
 
 /** A personal token an AI assistant uses to act as one person in one workspace. Only its hash is kept. */

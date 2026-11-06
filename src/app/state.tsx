@@ -7,7 +7,7 @@ import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
-import { currentCycle, scopeToCycle } from '../domain/cycle';
+import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '../domain/cycle';
 import { findGoal, nextKey, withKeys } from '../domain/goalKey';
 import { requestsAfterCheckIn } from '../domain/asks';
 import type { TableLayout } from '../domain/tableLayout';
@@ -17,6 +17,8 @@ import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/ch
 import { hashToken, newToken } from '../mcp/protocol';
 import { ACTIONS } from '../mcp/parity';
 import { telemetry } from '../telemetry';
+import * as R from '../domain/removal';
+import { leftName, UNDO_MS } from '../domain/words';
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
     which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too). */
@@ -34,7 +36,10 @@ export interface Toast {
   id: number;
   kind: 'success' | 'error';
   text: string;
+  /** One thing to do about it, such as Undo after a removal: the message then stays for 10 seconds. */
+  action?: ToastAction;
 }
+export interface ToastAction { label: string; run: () => void }
 
 export interface AppState {
   /** The real app, or the demo (example data, role switcher, reset). */
@@ -119,13 +124,46 @@ export interface AppState {
   saveView(v: { id?: string; name: string; params: string }): Promise<string>;
   /** Save a data table's layout (columns in order, widths, search, filters, sort) as a named table view. Returns its id. */
   saveTableView(v: { id?: string; name: string; layout: TableLayout }, head?: readonly string[]): Promise<string>;
-  /** Delete one of your views; an admin can also delete a pinned one. */
+  /** Delete one of your views (an admin: anyone's), with Undo. */
   deleteView(id: string): Promise<void>;
+  /* Removing, archiving and undoing (domain/removal): each shows a message with Undo for 10 seconds and is logged. */
+  /** Admins: mark someone as left, handing their goals and open asks to the people given. */
+  markPersonLeft(id: string, to: { goalsTo?: string | null; asksTo?: string | null }): Promise<void>;
+  /** Admins: delete someone with no history. */
+  deletePerson(id: string): Promise<void>;
+  /** Owner or admin: stop a goal with check-ins, with a reason. */
+  stopGoal(goal: Goal, reason: string): Promise<void>;
+  /** Owner or admin: delete a goal with no check-ins. */
+  deleteGoal(goal: Goal): Promise<void>;
+  /** Author or admin: delete a goal's latest check-in. */
+  deleteCheckIn(c: CheckIn): Promise<void>;
+  /** Review owner or admin: end a review (one never held is deleted). */
+  endReview(id: string): Promise<void>;
+  /** Review owner or admin: delete a review that was never held. */
+  deleteReview(id: string): Promise<void>;
+  /** The author: correct a comment, which then shows as edited. */
+  editComment(id: string, text: string): Promise<void>;
+  /** Author or admin: remove a comment, leaving "Comment removed". */
+  deleteComment(id: string): Promise<void>;
+  /** Whoever said it, or an admin: remove a note said in a review. */
+  deleteNote(id: string): Promise<void>;
+  /** Admins: delete a cycle no one has checked in to. */
+  deleteCycle(id: string): Promise<void>;
+  /** Whoever imported, or an admin: put every row an import or bulk edit wrote back as it was. */
+  undoImport(importId: string): Promise<{ restored: number; skipped: string[] }>;
+  /** Admins, or whoever removed it: bring back something removed in the last 30 days. */
+  restoreRemoved(kind: R.RemovedKind, id: string): Promise<void>;
+  /** Everything removed in the last 30 days, newest first (Workspace → Recently removed). */
+  recentlyRemoved(): R.Removed[];
+  /** A comment as it reads now (edited, or removed), by its id. */
+  comment(id: string): import('../domain/types').Comment | undefined;
+  /** The whole workspace, every cycle and every removed record (snapshot is this cycle's, live records only). */
+  full: Snapshot;
   /** Admins: show a view to everyone in the workspace, or stop. */
   pinView(id: string, pinned: boolean): Promise<void>;
   /** Now, as an ISO timestamp on the app's today. Use for anything saved. */
   stamp(): string;
-  toast(text: string, kind?: Toast['kind']): void;
+  toast(text: string, kind?: Toast['kind'], action?: ToastAction): void;
   storeKind: Store['kind'];
   /** When this browser isn't keeping saves (full, or blocked): why, in words to show. Changes still apply for this visit. */
   saveNote: string | null;
@@ -154,6 +192,25 @@ export function useApp(): AppState {
   const v = useContext(Ctx);
   if (!v) throw new Error('useApp outside AppProvider');
   return v;
+}
+
+/**
+ * A stopped goal's own page (and its print view): the app as it is, with that one goal and its check-ins and notes put
+ * back, so the page shows it as it stood, marked Stopped. Every list outside this scope still leaves it out.
+ */
+export function ArchivedGoalScope({ goalId, children }: { goalId: string; children: ReactNode }) {
+  const app = useApp();
+  const value = useMemo<AppState>(() => {
+    const snapshot = withArchivedGoal(app.snapshot, goalId);
+    const mine = (g: Goal) => g.id === goalId;
+    return {
+      ...app, snapshot,
+      statusOf: (g) => (mine(g) ? goalStatus(g, app.cycle, snapshot.checkIns, app.today) : app.statusOf(g)),
+      attentionOf: (g) => (mine(g) ? attentionFor(g, snapshot, app.cycle, app.today) : app.attentionOf(g)),
+      checkInsOf: (g) => checkInsFor(g, snapshot.checkIns),
+    };
+  }, [app, goalId]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -188,11 +245,13 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
-  const toast = useCallback((text: string, kind: Toast['kind'] = 'success') => {
+  const toast = useCallback((text: string, kind: Toast['kind'] = 'success', action?: ToastAction) => {
     const id = ++toastId.current;
     // One success message at a time: a new one replaces the last, so they never pile up over the page. Errors stay until they time out.
-    setToasts((t) => [...(kind === 'success' ? t.filter((x) => x.kind === 'error') : t), { id, kind, text }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), kind === 'error' ? 7000 : 3200);
+    // A message with something to do about it (Undo) stays 10 seconds; pressing it closes the message.
+    const act = action && { label: action.label, run: () => { setToasts((t) => t.filter((x) => x.id !== id)); action.run(); } };
+    setToasts((t) => [...(kind === 'success' ? t.filter((x) => x.kind === 'error') : t), { id, kind, text, ...(act ? { action: act } : {}) }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? UNDO_MS : kind === 'error' ? 7000 : 3200);
   }, []);
 
   // Saves this browser won't keep (full, or blocked): said once as it happens, and shown for as long as it lasts.
@@ -315,16 +374,22 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     if (!cycle) return null;
     const sc = scopeToCycle(snapshot, cycle);
     const week = currentWeek(cycle, now);
-    const people = new Map(sc.people.map((p) => [p.id, p]));
+    // Everyone history names: the people here now, and those who left, as "Name (left)". Pickers and counts read
+    // snapshot.people, which has only the people here now (domain/cycle scopeToCycle).
+    const people = new Map([...(sc.archive?.people ?? []).map((p) => [p.id, { ...p, name: leftName(p.name) }] as const), ...sc.people.map((p) => [p.id, p] as const)]);
+    const archived = (id: string) => sc.archive?.goals.find((g) => g.id === id || g.key === id);
+    // The whole workspace without deleted check-ins and notes: what attention reads across cycles.
+    const live = withoutRemoved(snapshot);
+    let comments: Map<string, import('../domain/types').Comment> | null = null;
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
     const fallback = sc.people.find((p) => p.id === 'rhea') ?? sc.people.find((p) => sc.goals.some((g) => g.ownerId === p.id)) ?? sc.people[0]!;
-    const chosen = !!viewerId && people.has(viewerId);
+    const chosen = !!viewerId && sc.people.some((p) => p.id === viewerId);
     const viewer = (chosen && people.get(viewerId!)) || fallback;
     const statuses = new Map<string, GoalStatus>();
     const attention = new Map<string, GoalAttention>();
     const lookup: Lookup = {
       person: (id) => people.get(id),
-      goal: (id) => sc.goals.find((g) => g.id === id),
+      goal: (id) => sc.goals.find((g) => g.id === id) ?? archived(id),
       teamName: (id) => sc.teams.find((t) => t.id === id)?.name ?? id,
     };
     // Records are stamped with the real time of day, moved to the app's today (the demo and the evals pin today to a date).
@@ -332,7 +397,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     const stamp = () => new Date(Date.now() + skewDays * 86_400_000).toISOString();
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
-    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals });
+    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot });
     async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
       try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
@@ -341,9 +406,21 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       return out;
     }
 
+    /**
+     * A removal (domain/removal): saved and logged, then a message with Undo for 10 seconds. Undo puts back every record
+     * the removal changed, as it was just before (what it handed over or moved included).
+     */
+    async function removal<T extends Commit | { commit: Commit }>(run: () => T, said: (out: T) => string): Promise<T> {
+      const before = snapshot;
+      const out = await act(run);
+      const c = ('commit' in out ? out.commit : out) as Commit;
+      toast(said(out), 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), c, before)).then(() => toast('Undone')).catch(() => undefined); } });
+      return out;
+    }
+
     return traced({
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot: sc, allGoals: snapshot.goals, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
+      ws, workspaces, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
@@ -378,8 +455,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
       team: (id) => sc.teams.find((t) => t.id === id),
-      // By ID or by key, so /goals/G-12 opens the same goal as its ID does.
-      goal: (id) => findGoal(sc.goals, id),
+      // By ID or by key, so /goals/G-12 opens the same goal as its ID does. A stopped goal still opens (its page says so).
+      goal: (id) => findGoal(sc.goals, id) ?? archived(id),
       statusOf: (g) => {
         let st = statuses.get(g.id);
         if (!st) statuses.set(g.id, (st = goalStatus(g, cycle, sc.checkIns, now)));
@@ -387,10 +464,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       attentionOf: (g) => {
         let a = attention.get(g.id);
-        if (!a) attention.set(g.id, (a = attentionFor(g, snapshot, cycle, now)));
+        if (!a) attention.set(g.id, (a = attentionFor(g, live, cycle, now)));
         return a;
       },
-      checkInsOf: (g) => checkInsFor(g, sc.checkIns),
+      checkInsOf: (g) => checkInsFor(g, g.stoppedAt ? sc.archive?.checkIns ?? [] : sc.checkIns),
       postCheckIn: (goal, draft, existing) => {
         const inFlight = posting.current.get(goal.id);
         if (inFlight) return inFlight;
@@ -430,7 +507,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       reviewCall: async (goal, review, sessionWeek, kind, note, extra) => { await act(() => A.reviewCall(ax(), goal, review, kind, note, { week: sessionWeek, ...extra })); },
       editCall: async (d, note, extra) => { await act(() => A.editCall(ax(), d, note, extra)); },
       watch: async (kind, ref) => { await act(() => A.watch(ax(), kind, ref)); },
-      unwatch: async (watchId) => { await act(() => A.unwatch(ax(), watchId)); },
+      unwatch: async (watchId) => { await removal(() => A.unwatch(ax(), watchId), (c) => c.changes[0]?.summary ?? 'Stopped watching'); },
       savePerson: async (p, before) => { await act(() => A.savePerson(ax(), p, before)); },
       saveReview: async (review, before) => { await act(() => A.saveReview(ax(), review, before)); },
       saveRetro: async (goal, retro) => { await act(() => A.saveRetro(ax(), goal, retro)); },
@@ -452,7 +529,26 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       saveView: async (v) => { const out = await act(() => A.saveView(ax(), v)); return out.id; },
       saveTableView: async (v, head) => { const out = await act(() => A.saveTableView(ax(), v, head)); return out.id; },
-      deleteView: async (id) => { await act(() => A.deleteView(ax(), id)); },
+      deleteView: async (id) => {
+        const before = snapshot;
+        const out = await act(() => A.deleteView(ax(), id));
+        if (out) toast(out.changes[0]!.summary, 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), out, before)).then(() => toast('Undone')).catch(() => undefined); } });
+      },
+      markPersonLeft: async (id, to) => { await removal(() => R.markPersonLeft(ax(), id, to), () => `${people.get(id)?.name ?? 'They'} ${people.get(id) ? 'is' : 'are'} marked as left`); },
+      deletePerson: async (id) => { await removal(() => R.deletePerson(ax(), id), () => `Deleted ${people.get(id)?.name ?? 'them'}`); },
+      stopGoal: async (goal, reason) => { await removal(() => R.stopGoal(ax(), goal.id, reason), () => `Stopped ${goal.title}`); },
+      deleteGoal: async (goal) => { await removal(() => R.deleteGoal(ax(), goal.id), () => `Deleted ${goal.title}`); },
+      deleteCheckIn: async (c) => { await removal(() => R.deleteCheckIn(ax(), c.id), () => `Deleted the check-in for week ${c.week}`); },
+      endReview: async (id) => { await removal(() => R.endReview(ax(), id), (o) => `${o.deleted ? 'Deleted' : 'Ended'} the review “${sc.reviews.find((r) => r.id === id)?.name ?? ''}”`); },
+      deleteReview: async (id) => { await removal(() => R.deleteReview(ax(), id), () => `Deleted the review “${sc.reviews.find((r) => r.id === id)?.name ?? ''}”`); },
+      editComment: async (id, text) => { await act(() => R.editComment(ax(), id, text)); },
+      deleteComment: async (id) => { await removal(() => R.deleteComment(ax(), id), () => 'Comment removed'); },
+      deleteNote: async (id) => { await removal(() => R.deleteNote(ax(), id), () => 'Note removed'); },
+      deleteCycle: async (id) => { await removal(() => R.deleteCycle(ax(), id), () => `Deleted the cycle ${snapshot.cycles.find((c) => c.id === id)?.name ?? ''}`); },
+      undoImport: async (importId) => { const out = await act(() => R.undoImport(ax(), importId)); return { restored: out.restored, skipped: out.skipped }; },
+      restoreRemoved: async (kind, id) => { await act(() => R.restoreRemoved(ax(), kind, id)); },
+      recentlyRemoved: () => R.recentlyRemoved(snapshot, now),
+      comment: (id) => (comments ??= R.commentsOf(sc.changes)).get(id),
       pinView: async (id, pinned) => { await act(() => A.pinView(ax(), id, pinned)); },
       revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },
       startNextCycle: async () => { const out = await act(() => A.startNextCycle(ax())); return out.name; },

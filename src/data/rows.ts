@@ -3,12 +3,20 @@
 import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
 
 type W = { workspace_id: string };
+/** Removal columns (migration 0025): written only when the record says (a restore says null), so rows for older tables
+    and records that were never removed look exactly as before. */
+type Removal = { removed_at?: string | null; removed_by?: string | null };
+const set = <T extends object>(o: T): Partial<T> => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
+/** A removal timestamp read back: only when there is one, so records never removed read exactly as before. */
+const when = (k: string, v: string | null | undefined) => (v ? { [k]: new Date(v).toISOString() } : {});
+const who = (k: string, v: string | null | undefined) => (v ? { [k]: v } : {});
 export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string; recording?: boolean | null }
 export interface TeamRow extends W { id: string; name: string; lead_id: string | null; objective: string }
-export interface PersonRow extends W { id: string; name: string; role: string; initials: string; team_id: string | null; is_admin: boolean }
-export interface CycleRow extends W { id: string; name: string; start_date: string; weeks: number; review_day: number }
+export interface PersonRow extends W, Removal { id: string; name: string; role: string; initials: string; team_id: string | null; is_admin: boolean; left_at?: string | null; left_by?: string | null }
+export interface CycleRow extends W, Removal { id: string; name: string; start_date: string; weeks: number; review_day: number }
 export interface StageRow extends W { id: string; goal_id: string; name: string; due_week: number }
-export interface GoalRow extends W {
+export interface GoalRow extends W, Removal {
+  stopped_at?: string | null; stopped_by?: string | null; stop_reason?: string | null;
   id: string; key?: string | null; cycle_id: string; team_id: string; owner_id: string; parent_id: string | null; title: string;
   kind: Goal['kind']; io: Goal['io']; headline: boolean; level: Level; guardrail: boolean; effect: number | null; why_helps?: string | null; source: string; definition: string;
   unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null; plan_end_week?: number | null; plan_points?: MetricPlan['points'] | null;
@@ -16,15 +24,17 @@ export interface GoalRow extends W {
   range_margin: number | null; created_at: string; pending?: Goal['pending']; version?: number; also_helps?: string[] | null;
   plan_history?: { untilWeek: number; plan: MetricPlan }[] | null;
 }
-export interface CheckInRow extends W {
+export interface CheckInRow extends W, Removal {
   id: string; goal_id: string; author_id: string; week: number; posted_at: string; value: number | null; stages: CheckIn['stages'];
   status: CheckIn['status']; calculated: CheckIn['calculated']; cause: CheckIn['cause']; why: string; greener_why: string;
   propose_target: number | null; ptg_what: string | null; ptg_by_week: number | null; ptg_needs: string; ptg_state?: RecoveryState | null; next: string; data_flagged: boolean; backfilled?: boolean;
 }
-export interface DecisionRow extends W { id: string; goal_id: string; check_in_id: string | null; review_id: string | null; week: number; kind: Decision['kind']; by_id: string; at: string; note: string; assignee_id?: string | null; due_week?: number | null }
+export interface DecisionRow extends W, Removal { id: string; goal_id: string; check_in_id: string | null; review_id: string | null; week: number; kind: Decision['kind']; by_id: string; at: string; note: string; assignee_id?: string | null; due_week?: number | null; edited_at?: string | null }
 export interface ChangeRow extends W {
   id: string; at: string; actor_id: string; goal_id: string | null; entity: Change['entity']; entity_id: string;
   action: Change['action']; summary: string; diffs: Change['diffs'];
+  /** Migration 0025: the import a change was part of, and on an import's summary what it replaced. */
+  import_id?: string | null; undo?: Change['undo'];
 }
 
 /** Postgres numerics can arrive as strings; timestamps in any ISO form. Normalise both. */
@@ -36,10 +46,10 @@ export const workspaceToRow = (w: Workspace): WorkspaceRow => ({ id: w.id, name:
 export const workspaceFromRow = (r: WorkspaceRow): Workspace => ({ id: r.id, name: r.name, kind: r.kind, createdAt: iso(r.created_at), ...(r.recording === false ? { recording: false } : {}) });
 export const teamToRow = (ws: string, t: Team, withLead = true): TeamRow => ({ workspace_id: ws, id: t.id, name: t.name, lead_id: withLead && t.leadId ? t.leadId : null, objective: t.objective });
 export const teamFromRow = (r: TeamRow): Team => ({ id: r.id, name: r.name, leadId: r.lead_id ?? '', objective: r.objective });
-export const personToRow = (ws: string, p: Person): PersonRow => ({ workspace_id: ws, id: p.id, name: p.name, role: p.role, initials: p.initials, team_id: p.teamId, is_admin: p.admin });
-export const personFromRow = (r: PersonRow): Person => ({ id: r.id, name: r.name, role: r.role, initials: r.initials, teamId: r.team_id, admin: !!r.is_admin });
-export const cycleToRow = (ws: string, c: Cycle): CycleRow => ({ workspace_id: ws, id: c.id, name: c.name, start_date: c.startDate, weeks: c.weeks, review_day: c.reviewDay });
-export const cycleFromRow = (r: CycleRow): Cycle => ({ id: r.id, name: r.name, startDate: r.start_date.slice(0, 10), weeks: Number(r.weeks), reviewDay: Number(r.review_day ?? 3) });
+export const personToRow = (ws: string, p: Person): PersonRow => ({ workspace_id: ws, id: p.id, name: p.name, role: p.role, initials: p.initials, team_id: p.teamId, is_admin: p.admin, ...set({ left_at: p.leftAt, left_by: p.leftBy, removed_at: p.removedAt, removed_by: p.removedBy }) });
+export const personFromRow = (r: PersonRow): Person => ({ id: r.id, name: r.name, role: r.role, initials: r.initials, teamId: r.team_id, admin: !!r.is_admin, ...when('leftAt', r.left_at), ...who('leftBy', r.left_by), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
+export const cycleToRow = (ws: string, c: Cycle): CycleRow => ({ workspace_id: ws, id: c.id, name: c.name, start_date: c.startDate, weeks: c.weeks, review_day: c.reviewDay, ...set({ removed_at: c.removedAt, removed_by: c.removedBy }) });
+export const cycleFromRow = (r: CycleRow): Cycle => ({ id: r.id, name: r.name, startDate: r.start_date.slice(0, 10), weeks: Number(r.weeks), reviewDay: Number(r.review_day ?? 3), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
 
 export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageRow[] } {
   const goal: GoalRow = {
@@ -55,6 +65,7 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     created_at: g.createdAt || new Date().toISOString(),
     pending: g.pending ?? null,
     also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
+    ...set({ removed_at: g.removedAt, removed_by: g.removedBy, stopped_at: g.stoppedAt, stopped_by: g.stoppedBy, stop_reason: g.stopReason }),
   };
   const stages = g.kind === 'milestone' ? g.stages.map((s) => ({ workspace_id: ws, id: s.id, goal_id: g.id, name: s.name, due_week: s.dueWeek })) : [];
   return { goal, stages };
@@ -73,6 +84,7 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     ...(r.pending ? { pending: r.pending } : {}),
     ...(r.version != null ? { version: Number(r.version) } : {}),
     ...(r.also_helps?.length ? { alsoHelps: r.also_helps } : {}),
+    ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by), ...when('stoppedAt', r.stopped_at), ...who('stoppedBy', r.stopped_by), ...who('stopReason', r.stop_reason),
   };
   if (r.kind === 'metric') {
     const op = r.original_plan;
@@ -97,6 +109,7 @@ export const checkInToRow = (ws: string, c: CheckIn): CheckInRow => ({
   status: c.status, calculated: c.calculated, cause: c.cause, why: c.why, greener_why: c.greenerWhy, propose_target: c.proposeTarget,
   ptg_what: c.pathToGreen?.what ?? null, ptg_by_week: c.pathToGreen?.byWeek ?? null, ptg_needs: c.pathToGreen?.needs ?? '', ptg_state: c.pathToGreen?.state ?? null,
   next: c.next, data_flagged: c.dataFlagged, backfilled: !!c.backfilled,
+  ...set({ removed_at: c.removedAt, removed_by: c.removedBy }),
 });
 
 export const checkInFromRow = (r: CheckInRow): CheckIn => ({
@@ -104,26 +117,30 @@ export const checkInFromRow = (r: CheckInRow): CheckIn => ({
   status: r.status, calculated: r.calculated, cause: r.cause, why: r.why, greenerWhy: r.greener_why, proposeTarget: num(r.propose_target),
   pathToGreen: r.ptg_what != null && (r.ptg_by_week != null || r.ptg_state) ? { what: r.ptg_what, byWeek: r.ptg_by_week == null ? null : Number(r.ptg_by_week), ...(r.ptg_state ? { state: r.ptg_state } : {}), needs: r.ptg_needs } : null,
   next: r.next, dataFlagged: r.data_flagged, ...(r.backfilled ? { backfilled: true } : {}),
+  ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
 });
 
-export const decisionToRow = (ws: string, d: Decision): DecisionRow => ({ workspace_id: ws, id: d.id, goal_id: d.goalId, check_in_id: d.checkInId, review_id: d.reviewId, week: d.week, kind: d.kind, by_id: d.byId, at: d.at, note: d.note, assignee_id: d.assigneeId ?? null, due_week: d.dueWeek ?? null });
-export const decisionFromRow = (r: DecisionRow): Decision => ({ id: r.id, goalId: r.goal_id, checkInId: r.check_in_id, reviewId: r.review_id ?? null, week: Number(r.week), kind: r.kind, byId: r.by_id, at: iso(r.at), note: r.note, ...(r.assignee_id ? { assigneeId: r.assignee_id } : {}), ...(r.due_week != null ? { dueWeek: Number(r.due_week) } : {}) });
-export const changeToRow = (ws: string, c: Change): ChangeRow => ({ workspace_id: ws, id: c.id, at: c.at, actor_id: c.actorId, goal_id: c.goalId, entity: c.entity, entity_id: c.entityId, action: c.action, summary: c.summary, diffs: c.diffs });
-export const changeFromRow = (r: ChangeRow): Change => ({ id: r.id, at: iso(r.at), actorId: r.actor_id, goalId: r.goal_id, entity: r.entity, entityId: r.entity_id, action: r.action, summary: r.summary, diffs: r.diffs ?? [] });
+export const decisionToRow = (ws: string, d: Decision): DecisionRow => ({ workspace_id: ws, id: d.id, goal_id: d.goalId, check_in_id: d.checkInId, review_id: d.reviewId, week: d.week, kind: d.kind, by_id: d.byId, at: d.at, note: d.note, assignee_id: d.assigneeId ?? null, due_week: d.dueWeek ?? null, ...set({ edited_at: d.editedAt, removed_at: d.removedAt, removed_by: d.removedBy }) });
+export const decisionFromRow = (r: DecisionRow): Decision => ({ id: r.id, goalId: r.goal_id, checkInId: r.check_in_id, reviewId: r.review_id ?? null, week: Number(r.week), kind: r.kind, byId: r.by_id, at: iso(r.at), note: r.note, ...(r.assignee_id ? { assigneeId: r.assignee_id } : {}), ...(r.due_week != null ? { dueWeek: Number(r.due_week) } : {}), ...when('editedAt', r.edited_at), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
+export const changeToRow = (ws: string, c: Change): ChangeRow => ({ workspace_id: ws, id: c.id, at: c.at, actor_id: c.actorId, goal_id: c.goalId, entity: c.entity, entity_id: c.entityId, action: c.action, summary: c.summary, diffs: c.diffs, ...set({ import_id: c.importId, undo: c.undo }) });
+export const changeFromRow = (r: ChangeRow): Change => ({ id: r.id, at: iso(r.at), actorId: r.actor_id, goalId: r.goal_id, entity: r.entity, entityId: r.entity_id, action: r.action, summary: r.summary, diffs: r.diffs ?? [], ...who('importId', r.import_id), ...(r.undo ? { undo: r.undo } : {}) });
 
-export interface WatchRow extends W { id: string; person_id: string; kind: Watch['kind']; ref: string }
-export const watchToRow = (ws: string, w: Watch): WatchRow => ({ workspace_id: ws, id: w.id, person_id: w.personId, kind: w.kind, ref: w.ref });
-export const watchFromRow = (r: WatchRow): Watch => ({ id: r.id, personId: r.person_id, kind: r.kind, ref: r.ref });
+export interface WatchRow extends W, Removal { id: string; person_id: string; kind: Watch['kind']; ref: string }
+export const watchToRow = (ws: string, w: Watch): WatchRow => ({ workspace_id: ws, id: w.id, person_id: w.personId, kind: w.kind, ref: w.ref, ...set({ removed_at: w.removedAt, removed_by: w.removedBy }) });
+export const watchFromRow = (r: WatchRow): Watch => ({ id: r.id, personId: r.person_id, kind: r.kind, ref: r.ref, ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
 
-export interface ReviewRow extends W {
+export interface ReviewRow extends W, Removal {
   id: string; name: string; every_weeks: number; weekday: number; scope: Review['scope']; people: string[]; created_by: string; created_at: string; version?: number;
+  ended_at?: string | null; ended_by?: string | null;
 }
 export const reviewToRow = (ws: string, r: Review): ReviewRow => ({
   workspace_id: ws, id: r.id, name: r.name, every_weeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people, created_by: r.createdBy, created_at: r.createdAt,
+  ...set({ ended_at: r.endedAt, ended_by: r.endedBy, removed_at: r.removedAt, removed_by: r.removedBy }),
 });
 export const reviewFromRow = (r: ReviewRow): Review => ({
   id: r.id, name: r.name, everyWeeks: Number(r.every_weeks), weekday: Number(r.weekday),
   scope: { goals: r.scope?.goals ?? [], trees: r.scope?.trees ?? [], levels: r.scope?.levels ?? [] }, people: r.people ?? [], createdBy: r.created_by, createdAt: iso(r.created_at), ...(r.version != null ? { version: Number(r.version) } : {}),
+  ...when('endedAt', r.ended_at), ...who('endedBy', r.ended_by), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
 });
 
 export interface RetroRow extends W {
@@ -138,9 +155,9 @@ export const feedbackFromRow = (r: FeedbackRow): Feedback => ({ id: r.id, person
 
 export interface TokenRow extends W { id: string; person_id: string; name: string; token_hash: string; created_by: string; created_at: string; last_used_at: string | null; revoked_at: string | null }
 export const tokenToRow = (ws: string, t: ApiToken): TokenRow => ({ workspace_id: ws, id: t.id, person_id: t.personId, name: t.name, token_hash: t.tokenHash, created_by: t.createdBy, created_at: t.createdAt, last_used_at: t.lastUsedAt, revoked_at: t.revokedAt });
-export interface ViewRow extends W { id: string; person_id: string; name: string; params: string; pinned: boolean; created_at: string; updated_at: string; deleted_at: string | null }
-export const viewToRow = (ws: string, v: SavedView): ViewRow => ({ workspace_id: ws, id: v.id, person_id: v.personId, name: v.name, params: v.params, pinned: v.pinned, created_at: v.createdAt, updated_at: v.updatedAt, deleted_at: v.deletedAt });
-export const viewFromRow = (r: ViewRow): SavedView => ({ id: r.id, personId: r.person_id, name: r.name, params: r.params ?? '', pinned: !!r.pinned, createdAt: iso(r.created_at), updatedAt: iso(r.updated_at), deletedAt: r.deleted_at ? iso(r.deleted_at) : null });
+export interface ViewRow extends W { id: string; person_id: string; name: string; params: string; pinned: boolean; created_at: string; updated_at: string; deleted_at: string | null; deleted_by?: string | null }
+export const viewToRow = (ws: string, v: SavedView): ViewRow => ({ workspace_id: ws, id: v.id, person_id: v.personId, name: v.name, params: v.params, pinned: v.pinned, created_at: v.createdAt, updated_at: v.updatedAt, deleted_at: v.deletedAt, ...set({ deleted_by: v.deletedBy }) });
+export const viewFromRow = (r: ViewRow): SavedView => ({ id: r.id, personId: r.person_id, name: r.name, params: r.params ?? '', pinned: !!r.pinned, createdAt: iso(r.created_at), updatedAt: iso(r.updated_at), deletedAt: r.deleted_at ? iso(r.deleted_at) : null, ...who('deletedBy', r.deleted_by) });
 /** Every ask (okr_requests; kind, due_week, review_id and week arrive with migration 0023: a row without them is a decision or help). */
 export interface RequestRow extends W { id: string; kind?: Ask['kind'] | null; goal_ids: string[]; asked_by: string; recipient_id: string | null; ask: string; status: Ask['status']; due_week?: number | null; review_id?: string | null; week?: number | null; check_in_id: string | null; answer: string | null; answered_by: string | null; answered_at: string | null; created_at: string; updated_at: string }
 export const requestToRow = (ws: string, r: Ask): RequestRow => ({ workspace_id: ws, id: r.id, kind: r.kind, goal_ids: r.goalIds, asked_by: r.askedBy, recipient_id: r.recipientId, ask: r.ask, status: r.status, due_week: r.dueWeek, review_id: r.reviewId, week: r.week, check_in_id: r.checkInId, answer: r.answer, answered_by: r.answeredBy, answered_at: r.answeredAt, created_at: r.createdAt, updated_at: r.updatedAt });

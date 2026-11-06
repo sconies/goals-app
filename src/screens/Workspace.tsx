@@ -10,11 +10,15 @@ import { teamMembers } from '../domain/actions';
 import { newId } from '../data/store';
 import { Avatar, Sheet } from '../ui/bits';
 import { AiAssistants } from '../ui/AiAssistants';
+import { LeaveSheet, leaveLabel } from '../ui/RemoveSheets';
+import { CycleList, RecentlyRemoved } from '../ui/RecentlyRemoved';
 
 export function WorkspaceHome() {
   const app = useApp();
   const [confirming, setConfirming] = useState(false);
   const [editing, setEditing] = useState<Person | 'new' | null>(null);
+  // Marking someone as left (or deleting someone with no history) opens from their sheet (ui/RemoveSheets).
+  const [leaving, setLeaving] = useState<Person | null>(null);
   const admin = app.viewer.admin;
   // A directory that works for a whole company: find by name, role or team, filter by team, and show a page at a time.
   const [q, setQ] = useState('');
@@ -71,6 +75,8 @@ export function WorkspaceHome() {
         {admin ? <AiAssistants /> : <section className="block"><h2 className="block-title">AI assistants</h2><p className="hint">Your tokens for an AI assistant are in <Link to="/settings">Settings</Link>.</p></section>}
         {admin && <Recording />}
         {admin && <FeedbackList />}
+        {admin && <RecentlyRemoved />}
+        {admin && <CycleList />}
         {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
       </aside>
       <section className="block split-b">
@@ -106,7 +112,8 @@ export function WorkspaceHome() {
         {found.length > limit && <button type="button" className="btn" onClick={() => setLimit((n) => n + 60)}>Show {Math.min(60, found.length - limit)} more of {found.length - limit}</button>}
       </section>
       </div>
-      {editing && <PersonSheet person={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <PersonSheet person={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onLeave={(p) => { setEditing(null); setLeaving(p); }} />}
+      {leaving && <LeaveSheet person={leaving} onClose={() => setLeaving(null)} />}
     </div>
   );
 }
@@ -283,7 +290,7 @@ function RemoveTeamSheet({ team, onClose }: { team: Team; onClose: () => void })
   );
 }
 
-function PersonSheet({ person, onClose }: { person: Person | null; onClose: () => void }) {
+function PersonSheet({ person, onClose, onLeave }: { person: Person | null; onClose: () => void; onLeave: (p: Person) => void }) {
   const app = useApp();
   const [p, setP] = useState<Person>(person ?? { id: newId('p'), name: '', role: '', initials: '', teamId: app.viewer.teamId ?? app.snapshot.teams[0]?.id ?? null, admin: false });
   const [tried, setTried] = useState(false);
@@ -321,6 +328,7 @@ function PersonSheet({ person, onClose }: { person: Person | null; onClose: () =
           <span className="stack" style={{ gap: 0 }}><span className="admin-word">Admin</span><span className="hint">{lastAdmin ? (self ? 'You’re the only admin, so you stay one.' : 'The only admin stays one.') : 'Can add people, change settings and make others admins.'}</span></span>
         </label>
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></div>
+        {person && <div className="person-leave"><button type="button" className="btn ghost" onClick={() => onLeave(person)}>{leaveLabel(app, person)}…</button></div>}
       </form>
     </Sheet>
   );

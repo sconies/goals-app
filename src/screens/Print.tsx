@@ -2,7 +2,7 @@
    save as PDF); on paper it's A4 portrait, black on white, with no navigation and status still a shape and a word.
    What it says comes from domain/onePager, which gathers what the app already works out. */
 import { Link, useParams } from 'react-router';
-import { useApp } from '../app/state';
+import { ArchivedGoalScope, useApp } from '../app/state';
 import { goalSheet, reviewSheet, type Fact, type Said } from '../domain/onePager';
 import { valueSeries } from '../domain/plan';
 import { assessPosted } from '../domain/status';
@@ -54,6 +54,15 @@ function SaidList({ said, showReview }: { said: Said[]; showReview?: boolean }) 
 const SAID_ON_PAPER = 3;
 
 export function GoalPrint() {
+  const app = useApp();
+  const { goalId } = useParams();
+  const goal = goalId ? app.goal(goalId) : undefined;
+  // A stopped goal prints as it stood, with its check-ins (domain/removal).
+  if (goal?.stoppedAt) return <ArchivedGoalScope goalId={goal.id}><GoalPrintView /></ArchivedGoalScope>;
+  return <GoalPrintView />;
+}
+
+function GoalPrintView() {
   const app = useApp();
   const { goalId } = useParams();
   const goal = goalId ? app.goal(goalId) : undefined;

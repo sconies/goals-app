@@ -92,16 +92,18 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
     const cycle = currentCycle(all.cycles, now);
     if (!cycle) throw new Error('This workspace has no cycle yet.');
     const actor = all.people.find((p) => p.id === found.token.personId);
-    if (!actor) throw new Error('The person this token belongs to is no longer in the workspace.');
+    // Someone marked as left (or deleted) no longer acts in the workspace, through the app or an assistant.
+    if (!actor || actor.leftAt || actor.removedAt) throw new Error('The person this token belongs to is no longer in the workspace.');
     ctx = {
       ws: { id: found.workspaceId, name, kind: found.workspaceId === EXAMPLE.id ? 'example' : 'own', ...(recording === false ? { recording: false } : {}) }, snapshot: scopeToCycle(all, cycle), cycle, week: currentWeek(cycle, now), today: now, actor,
-      now: now.toISOString(), newId, allGoals: all.goals,
+      now: now.toISOString(), newId, allGoals: all.goals, full: all,
       // Each save says what it was based on, and the context moves on with it, so later calls see it.
       save: async (c) => {
         await db('okr_commit', () => deps.commit(found.workspaceId, withExpectations(c, all)));
         all = applyCommit(all, c);
         ctx!.snapshot = scopeToCycle(all, cycle);
         ctx!.allGoals = all.goals;
+        ctx!.full = all;
         if (c.workspace) ctx!.ws = { ...ctx!.ws, name: c.workspace.name };
         if (c.recording !== undefined) ctx!.ws = { ...ctx!.ws, recording: c.recording };
       },

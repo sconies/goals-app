@@ -8,6 +8,7 @@ import { reviewSession } from '../domain/review';
 import type { Decision, Goal } from '../domain/types';
 import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
+import { EDITED } from '../domain/words';
 
 /* ---------- review order: fixed when a session starts, so moving between goals doesn't reshuffle it ---------- */
 const orderKey = (ws: string, review: string, week: number) => `goals-app-review:${ws}:${review}:${week}`;
@@ -98,7 +99,7 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
     <div className="decide">
       {said.length > 0 && (
         <ul className="said">
-          {said.map((d) => <li key={d.id}>{d.byId === app.viewer.id && <button type="button" className="linkish small said-edit" onClick={() => { setEditing(d); setMode(d.kind as Say); }} aria-label={`Edit this ${d.kind === 'ask' ? 'question' : d.kind}`}>Edit</button>}<span className="field-label">{d.kind === 'ask' ? `Question for ${owner}` : d.kind === 'action' ? `Action · ${app.person(d.assigneeId ?? goal.ownerId)?.name.split(' ')[0] ?? owner}${d.dueWeek ? `, by week ${d.dueWeek}` : ''}` : 'Note'}</span><span className="small">{d.note}</span></li>)}
+          {said.map((d) => <li key={d.id}>{d.byId === app.viewer.id && <button type="button" className="linkish small said-edit" onClick={() => { setEditing(d); setMode(d.kind as Say); }} aria-label={`Edit this ${d.kind === 'ask' ? 'question' : d.kind}`}>Edit</button>}{d.kind === 'note' && (d.byId === app.viewer.id || app.viewer.admin) && <button type="button" className="linkish small said-edit" onClick={() => void app.deleteNote(d.id).catch(() => undefined)} aria-label="Remove this note">Remove</button>}<span className="field-label">{d.kind === 'ask' ? `Question for ${owner}` : d.kind === 'action' ? `Action · ${app.person(d.assigneeId ?? goal.ownerId)?.name.split(' ')[0] ?? owner}${d.dueWeek ? `, by week ${d.dueWeek}` : ''}` : 'Note'}</span><span className="small">{d.note}{d.editedAt && <span className="hint edited-mark"> · {EDITED}</span>}</span></li>)}
         </ul>
       )}
       <div className="row decide-buttons">
