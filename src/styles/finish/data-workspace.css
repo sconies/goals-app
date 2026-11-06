@@ -6,13 +6,13 @@
    =================================================================================================================== */
 .data-page {
   --dcell-h: 40px;
-  --edit-fill: #EEF1FD; --edit-line: #C7D0F5;
+  --edit-fill: var(--accent-soft); --edit-line: var(--accent-line);
   --ro-fill: var(--surface-2);
   --data-foot-h: 0px; --data-tabbar-h: 0px;
 }
 @media (pointer: coarse) { .data-page { --dcell-h: 45px; } }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .data-page { --edit-fill: #1E2547; --edit-line: #3A4A8C; --ro-fill: #2C3442; } }
-:root[data-theme="dark"] .data-page { --edit-fill: #1E2547; --edit-line: #3A4A8C; --ro-fill: #2C3442; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .data-page { --ro-fill: #26393B; } }
+:root[data-theme="dark"] .data-page { --ro-fill: #26393B; }
 
 /* [D21] The data uses the whole width, with the page's own gutters. The left edge stays where every page starts. */
 .page.data-page { max-width: none; }

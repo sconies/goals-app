@@ -1,6 +1,6 @@
-# Goals
+# Faro
 
-An internal goals (OKR) tool for team leads, built slice by slice from the prototype and the build spec.
+Faro is an internal goals (OKR) tool for team leads, built slice by slice from the prototype and the build spec. A faro is a lighthouse: the logo's F is a dark stem with an amber beam and a teal bar (`src/ui/Brand.tsx`, `public/favicon.svg`). The repository and package keep the name `goals-app`.
 
 **Slice 2: profiles, journeys and the change log.**
 

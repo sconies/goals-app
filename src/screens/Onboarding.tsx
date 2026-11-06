@@ -19,6 +19,7 @@ import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { StageFields } from '../ui/GoalFields';
+import { FaroLogo } from '../ui/Brand';
 
 interface PersonRow { name: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string }
@@ -86,7 +87,7 @@ export function Welcome() {
   return (
     <div className="welcome">
       <div className="welcome-body">
-        <span className="welcome-mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2" /></svg></span>
+        <FaroLogo size={48} className="welcome-logo" />
         <h1 className="title-xl">Weekly goals that stay on track</h1>
         <ul className="welcome-points">
           <li><strong>Set an outcome</strong> and the few goals that move it.</li>

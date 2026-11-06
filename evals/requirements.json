@@ -535,6 +535,11 @@
       "id": "ONE-WATCHING",
       "area": "Watching",
       "text": "Watching is one place: a Goals scope (/goals?show=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block."
+    },
+    {
+      "id": "BRAND",
+      "area": "Platform",
+      "text": "The app is called Faro. The page title ends “Faro”; the browser tab shows Faro’s mark (an SVG favicon at /favicon.svg, linked from index.html and served in the demo too); the welcome page shows the Faro logo, named “Faro”; the sidebar shows the logo (the mark alone on the icon rail). The default look is Faro’s warm paper, ink and teal; the logo’s amber is used nowhere else in the app, since amber means At risk. In light and dark, body text passes 7:1 on the page, links 4.5:1 and primary button text 4.5:1. The earlier accents stay in Settings, with Faro the default."
     }
   ],
   "notYetBuilt": [

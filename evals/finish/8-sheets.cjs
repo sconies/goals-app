@@ -235,7 +235,7 @@ module.exports = {
       });
       if (Math.abs(r.head - r.avatar) > 1 || Math.abs(r.more - r.avatar) > 1) fails.push(`Demo menu: heading at x ${round(r.head)}, "Everyone else" at ${round(r.more)}, avatars at ${round(r.avatar)}`);
       if (r.hintTop < r.labelBottom - 0.5 || r.labelW < 60) fails.push(`Demo menu: "Start over" label ${round(r.labelW)}px wide, hint not under it`);
-      if (r.current !== 'rgb(238, 241, 253)') fails.push(`Demo menu: the current person's row is ${r.current} (want the accent fill, at least as strong as hover)`);
+      if (r.current !== 'rgb(226, 241, 239)') fails.push(`Demo menu: the current person's row is ${r.current} (want the accent fill, at least as strong as hover)`);
       if (r.moreH < 44) fails.push(`Demo menu: "Everyone else" is ${round(r.moreH)}px tall`);
       await c.close();
     });
@@ -283,7 +283,7 @@ module.exports = {
       await p.getByRole('dialog', { name: 'Status' }).waitFor();
       const r = await p.evaluate(() => { const o = document.querySelector('.sheet .opt[aria-checked="true"]'); const cs = getComputedStyle(o); const dot = getComputedStyle(o, '::after'); return { outline: cs.outlineStyle, bg: cs.backgroundColor, dot: dot.backgroundColor, w: dot.width }; });
       if (r.outline !== 'none') fails.push(`Status sheet: the chosen row has a ${r.outline} outline`);
-      if (r.bg !== 'rgb(247, 249, 255)' || r.dot !== 'rgb(52, 81, 209)' || r.w !== '18px') fails.push(`Status sheet: chosen row ${r.bg}, dot ${r.dot} ${r.w}`);
+      if (r.bg !== 'rgb(242, 248, 247)' || r.dot !== 'rgb(33, 150, 142)' || r.w !== '18px') fails.push(`Status sheet: chosen row ${r.bg}, dot ${r.dot} ${r.w}`);
       await c.close();
     });
 
@@ -315,7 +315,7 @@ module.exports = {
         return { border: cs.borderTopWidth, pad: cs.padding, title: `${t.fontSize}/${t.fontWeight}/${t.color}`, gap: btn.top - line.bottom, legend: !!document.querySelector('.legend') };
       });
       if (r.border !== '1px' || r.pad !== '32px 24px') fails.push(`empty state: border ${r.border}, padding ${r.pad}`);
-      if (r.title !== '15px/600/rgb(16, 24, 40)') fails.push(`empty state: heading ${r.title}`);
+      if (r.title !== '15px/600/rgb(24, 54, 56)') fails.push(`empty state: heading ${r.title}`);
       if (Math.abs(r.gap - 16) > 1) fails.push(`empty state: the button is ${round(r.gap)}px under the line (want 16)`);
       if (r.legend) fails.push('empty state: the legend still shows');
       await c.close();
@@ -325,7 +325,7 @@ module.exports = {
     await step('first load', async () => {
       const [c, p] = await open(390, 844, 'rhea', '/');
       const html = await (await p.request.get(url('/'))).text();
-      if (!/class="preboot"[^>]*>Goals<span>Loading…<\/span>/.test(html)) fails.push('first load: index.html has no static "Loading…" placeholder');
+      if (!/class="preboot"[^>]*>Faro<span>Loading…<\/span>/.test(html)) fails.push('first load: index.html has no static "Loading…" placeholder');
       const s = await p.evaluate(() => {
         const d = document.createElement('div'); d.className = 'skeleton'; d.innerHTML = '<i></i><i></i><i></i><i></i>';
         const wrap = document.createElement('div'); wrap.style.width = '1400px'; wrap.appendChild(d); document.body.appendChild(wrap);
@@ -334,7 +334,7 @@ module.exports = {
         wrap.remove();
         return out;
       });
-      if (Math.round(s.w) !== 1040 || s.bg !== 'none' || s.border !== '1px' || s.block !== 'rgb(242, 244, 247)') fails.push(`first load: skeleton ${round(s.w)}px wide, background ${s.bg}, border ${s.border}, blocks ${s.block}`);
+      if (Math.round(s.w) !== 1040 || s.bg !== 'none' || s.border !== '1px' || s.block !== 'rgb(238, 236, 230)') fails.push(`first load: skeleton ${round(s.w)}px wide, background ${s.bg}, border ${s.border}, blocks ${s.block}`);
       await c.close();
     });
 

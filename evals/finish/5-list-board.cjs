@@ -47,7 +47,7 @@ module.exports = {
       });
       chk(m.inView, 'L&T 2: the selected tab (By team) is not scrolled into view');
       chk(m.glines === 0 && m.trows > 5, `L&T 21: By team draws ${m.glines} rows of another kind`);
-      chk(m.staleColour === 'rgb(71, 84, 103)', `L&T 19: “no recent update” is ${m.staleColour}`);
+      chk(m.staleColour === 'rgb(70, 87, 89)', `L&T 19: “no recent update” is ${m.staleColour}`);
       chk(m.titleW >= 300 && m.valueBelow && Math.abs(m.valueLeft - m.titleLeft) <= 1 && m.valueSize === 14, `L&T 22: phone row title ${r0(m.titleW)}px, value ${m.valueBelow ? 'below' : 'beside'} it at x ${r0(m.valueLeft)} vs ${r0(m.titleLeft)}, ${m.valueSize}px`);
       await c.close();
     }
@@ -158,7 +158,7 @@ module.exports = {
         const story = document.querySelector('.gtable tr.story-row.selected td:last-child');
         return { main: main && getComputedStyle(main).backgroundColor, story: story && getComputedStyle(story).backgroundColor };
       });
-      chk(m.main === 'rgb(242, 244, 247)' && m.story === m.main, `L&T 10: selected off-track goal fills ${m.main} and its story ${m.story}`);
+      chk(m.main === 'rgb(238, 236, 230)' && m.story === m.main, `L&T 10: selected off-track goal fills ${m.main} and its story ${m.story}`);
       await p.locator('.story-row').first().getByRole('button', { name: /^Details/ }).click();
       const st = await p.evaluate(() => { const s = document.querySelector('.story-row .story'); const cs = getComputedStyle(s); return [cs.borderBottomWidth, cs.paddingBottom]; });
       chk(st[0] === '0px' && st[1] === '0px', `L&T 30: an opened story keeps a ${st[0]} divider and ${st[1]} under it`);
@@ -187,7 +187,7 @@ module.exports = {
       chk(m.tab >= 44 && m.lay >= 44, `L&T 14: tabs ${r0(m.tab)}px, layout buttons ${r0(m.lay)}px`);
       chk(m.hit[0] >= 44 && m.hit[1] >= 44 && r0(m.box) === 16, `L&T 14: checkbox ${r0(m.box)}px in a ${m.hit.map(r0).join('×')} target`);
       chk(m.track <= m.sum + 40, `L&T 16: the tab track is ${r0(m.track)}px for ${r0(m.sum)}px of tabs`);
-      chk(m.qBg === 'rgb(249, 250, 251)' && m.qBorder === '2px' && m.chip === 'none', `L&T 25: pressed decision toggle ${m.qBg}, border ${m.qBorder}, chip ${m.chip}`);
+      chk(m.qBg === 'rgb(250, 249, 246)' && m.qBorder === '2px' && m.chip === 'none', `L&T 25: pressed decision toggle ${m.qBg}, border ${m.qBorder}, chip ${m.chip}`);
       await c.close();
     }
 
@@ -238,7 +238,7 @@ module.exports = {
       await p.waitForTimeout(200);
       const m = await p.evaluate(() => ({ w: [...document.querySelectorAll('.board-col')].map((l) => Math.round(l.getBoundingClientRect().width)), lane: getComputedStyle(document.querySelector('.board-col')).backgroundColor, card: getComputedStyle(document.querySelector('.board-card')).backgroundColor }));
       chk(m.w.every((w) => w <= 320), `B&C 2: filtered lanes are ${m.w.join('/')}px`);
-      chk(m.lane === 'rgb(22, 26, 33)' && m.card === 'rgb(29, 35, 44)', `B&C 17: dark lane ${m.lane}, card ${m.card}`);
+      chk(m.lane === 'rgb(21, 36, 38)' && m.card === 'rgb(28, 46, 48)', `B&C 17: dark lane ${m.lane}, card ${m.card}`);
       await c.close();
     }
 

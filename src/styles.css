@@ -1,53 +1,60 @@
-/* Goals: Graphite & Cobalt. Calm, low-density, one thing at a time; status is word + shape, never colour alone.
+/* Faro: warm paper, dark ink and the lighthouse's teal. Calm, low-density, one thing at a time; status is word + shape,
+   never colour alone. The logo's amber is the logo's alone (src/ui/Brand.tsx): in the app, amber means At risk.
    Layout: sidebar (icons only on tablets) + work area; bottom tabs below 760px of app width (container queries).
    Motion: 150–200ms, on state changes only, never blocking; off under prefers-reduced-motion. */
 :root {
-  --bg: #F5F6F8; --surface: #FFFFFF; --surface-2: #F9FAFB; --surface-3: #F2F4F7; --tint: #FCFCFD;
-  --line: #E4E7EC; --line-2: #EAECF0; --line-strong: #D0D5DD;
-  --fg: #101828; --fg-2: #344054; --muted: #475467; --faint: #98A2B3;
-  --primary: #3451D1; --primary-fg: #FFFFFF;
-  --accent: #3451D1; --accent-fg: #FFFFFF; --accent-soft: #EEF1FD; --accent-wash: #F7F9FF; --accent-line: #C9D2F7; --accent-text: #2A44B8;
+  --bg: #F6F5F1; --surface: #FFFFFF; --surface-2: #FAF9F6; --surface-3: #EEECE6; --tint: #FCFBF9;
+  --line: #E4E1D9; --line-2: #EBE8E1; --line-strong: #D2CEC4;
+  --fg: #183638; --fg-2: #2F4A4C; --muted: #465759; --faint: #9AA3A1;
+  --primary: #183638; --primary-fg: #FFFFFF;
+  --accent: #21968E; --accent-fg: #0C1D1F; --accent-soft: #E2F1EF; --accent-wash: #F2F8F7; --accent-line: #A9D5D0; --accent-text: #136F78;
   --on-fg: #0E6B50; --on-bg: #E3F4EE; --on-line: #7CC8AC; --on-mark: #1F8A68;
   --risk-fg: #93450A; --risk-bg: #FDF1E3; --risk-line: #EDB677; --risk-mark: #E59A3E;
   --off-fg: #B42318; --off-bg: #FDECEB; --off-line: #F0A39C; --off-mark: #C8372B; --off-wash: #FFF6F5;
   --stale-fg: #475467; --stale-bg: #F2F4F7; --stale-line: #D0D5DD; --stale-mark: #B8BFCA;
-  --done-fg: #2A44B8; --done-bg: #EAEFFE; --done-mark: #3451D1;
-  --chrome: #101828; --chrome-2: #1D2939; --chrome-fg: #FFFFFF; --chrome-muted: #C3C9D3;
-  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .06);
+  --done-fg: #2C5A5C; --done-bg: #E6EEED; --done-mark: #4A7A7C;
+  --chrome: #183638; --chrome-2: #22474A; --chrome-fg: #FFFFFF; --chrome-muted: #B9CACB;
+  --brand-ink: #183638;
+  --shadow: 0 1px 2px rgba(24, 54, 56, .06), 0 8px 24px rgba(24, 54, 56, .06);
   /* One spacing scale and one type scale; nothing in between. */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --t-xs: 0.75rem; --t-sm: 0.875rem; --t-md: 0.9375rem; --t-lg: 1.125rem; --t-xl: 1.375rem; --t-2xl: 1.75rem; --t-num: 2.75rem;
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
+/* Faro's primary button is ink; on hover it lifts a shade rather than turning teal. The other accents' buttons are their
+   accent, and lift to its text colour (below, .btn.primary:hover). */
+:root:not([data-accent]) { --primary-hover: #22474A; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0E1116; --surface: #161A21; --surface-2: #1B2029; --surface-3: #232A35; --tint: #13171D;
-    --line: #2A313D; --line-2: #262C37; --line-strong: #3A4252;
-    --fg: #E8EBF0; --fg-2: #C9CFDA; --muted: #9AA3B2; --faint: #6B7385;
-    --primary: #4F60E6; --primary-fg: #FFFFFF;
-    --primary: #4F60E6; --primary-fg: #FFFFFF;
-  --accent: #7C8EF2; --accent-fg: #0E1116; --accent-soft: #1E2540; --accent-wash: #171C2E; --accent-line: #34407A; --accent-text: #AFBAF8;
+    --bg: #0F1B1C; --surface: #152426; --surface-2: #1A2B2D; --surface-3: #213537; --tint: #122022;
+    --line: #263A3C; --line-2: #223538; --line-strong: #354B4D;
+    --fg: #E6EEED; --fg-2: #C5D3D2; --muted: #94A8A8; --faint: #627676;
+    --primary: #4FC0C4; --primary-fg: #0F1B1C; --primary-hover: initial;
+    --accent: #4FC0C4; --accent-fg: #0F1B1C; --accent-soft: #173B3A; --accent-wash: #132A2A; --accent-line: #2B5F5B; --accent-text: #74CDD3;
     --on-fg: #5FD3A8; --on-bg: #123A2E; --on-line: #2B6B55; --on-mark: #3DBB8C;
     --risk-fg: #F5B86B; --risk-bg: #3A2A12; --risk-line: #7A5420; --risk-mark: #E59A3E;
     --off-fg: #FF8A7A; --off-bg: #3D1814; --off-line: #7A3229; --off-mark: #E5584A; --off-wash: #26130F;
     --stale-fg: #9AA3B2; --stale-bg: #232A35; --stale-line: #3A4252; --stale-mark: #6B7385;
-    --done-fg: #AFBAF8; --done-bg: #1E2540; --done-mark: #7C8EF2;
-    --chrome: #05070A; --chrome-2: #161A21; --chrome-fg: #FFFFFF; --chrome-muted: #9AA3B2;
+    --done-fg: #A6C8C6; --done-bg: #1D3436; --done-mark: #7FAAA9;
+    --chrome: #0A1314; --chrome-2: #152426; --chrome-fg: #FFFFFF; --chrome-muted: #94A8A8;
+    --brand-ink: #E6EEED;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0E1116; --surface: #161A21; --surface-2: #1B2029; --surface-3: #232A35; --tint: #13171D;
-  --line: #2A313D; --line-2: #262C37; --line-strong: #3A4252;
-  --fg: #E8EBF0; --fg-2: #C9CFDA; --muted: #9AA3B2; --faint: #6B7385;
-  --accent: #7C8EF2; --accent-fg: #0E1116; --accent-soft: #1E2540; --accent-wash: #171C2E; --accent-line: #34407A; --accent-text: #AFBAF8;
+  --bg: #0F1B1C; --surface: #152426; --surface-2: #1A2B2D; --surface-3: #213537; --tint: #122022;
+  --line: #263A3C; --line-2: #223538; --line-strong: #354B4D;
+  --fg: #E6EEED; --fg-2: #C5D3D2; --muted: #94A8A8; --faint: #627676;
+  --primary: #4FC0C4; --primary-fg: #0F1B1C; --primary-hover: initial;
+  --accent: #4FC0C4; --accent-fg: #0F1B1C; --accent-soft: #173B3A; --accent-wash: #132A2A; --accent-line: #2B5F5B; --accent-text: #74CDD3;
   --on-fg: #5FD3A8; --on-bg: #123A2E; --on-line: #2B6B55; --on-mark: #3DBB8C;
   --risk-fg: #F5B86B; --risk-bg: #3A2A12; --risk-line: #7A5420; --risk-mark: #E59A3E;
   --off-fg: #FF8A7A; --off-bg: #3D1814; --off-line: #7A3229; --off-mark: #E5584A; --off-wash: #26130F;
   --stale-fg: #9AA3B2; --stale-bg: #232A35; --stale-line: #3A4252; --stale-mark: #6B7385;
-  --done-fg: #AFBAF8; --done-bg: #1E2540; --done-mark: #7C8EF2;
-  --chrome: #05070A; --chrome-2: #161A21; --chrome-fg: #FFFFFF; --chrome-muted: #9AA3B2;
+  --done-fg: #A6C8C6; --done-bg: #1D3436; --done-mark: #7FAAA9;
+  --chrome: #0A1314; --chrome-2: #152426; --chrome-fg: #FFFFFF; --chrome-muted: #94A8A8;
+  --brand-ink: #E6EEED;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
   color-scheme: dark;
 }
@@ -580,10 +587,10 @@ svg.chart { display: block; overflow: visible; }
 /* ---------- first run, onboarding, demo ---------- */
 .welcome { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--s6) var(--s4); background: var(--bg); }
 .welcome-body { width: min(520px, 100%); display: flex; flex-direction: column; gap: var(--s5); }
-.welcome-mark { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--primary); color: var(--primary-fg); }
+.welcome-logo { align-self: flex-start; margin-bottom: var(--s2); }
 .welcome-points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s3); font-size: var(--t-lg); line-height: 1.625rem; color: var(--fg-2); }
 .welcome-points li { padding-left: var(--s5); position: relative; }
-.welcome-points li::before { content: ''; position: absolute; left: 0; top: 10px; width: 8px; height: 8px; border-radius: 999px; background: var(--on-mark); }
+.welcome-points li::before { content: ''; position: absolute; left: 0; top: 10px; width: 8px; height: 8px; border-radius: 999px; background: var(--accent); }
 .welcome .btn.primary { align-self: flex-start; }
 .goalcard { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .goalcard > .linkish { align-self: flex-start; color: var(--muted); }
@@ -611,7 +618,7 @@ svg.chart { display: block; overflow: visible; }
 .retro-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .retro-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s4); padding: var(--s4); border-top: 1px solid var(--line-2); }
 .retro-row:first-child { border-top: 0; }
-.retro-row[data-result="none"] { opacity: .8; }
+.retro-row[data-result="none"] > .stack > .strong { color: var(--fg-2); }
 .result-tag { display: inline-flex; align-self: flex-start; align-items: center; margin-left: 8px; font-size: 0.6875rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .result-hit { background: var(--on-bg); color: var(--on-fg); }
 .result-partly { background: var(--risk-bg); color: var(--risk-fg); }
@@ -1386,13 +1393,13 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 html { scroll-padding-top: 72px; scroll-padding-bottom: 92px; }
 fieldset > legend { padding: 0; }
 /* Rings and progress tracks are visible before anything is done (at least 3:1 on the page). */
-:root { --track: #98A2B3; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --track: #667085; } }
-:root[data-theme="dark"] { --track: #667085; }
+:root { --track: #9AA3A1; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --track: #627676; } }
+:root[data-theme="dark"] { --track: #627676; }
 .ring-track { stroke: var(--track); }
 /* Buttons: one radius and one weight. */
 .btn { border-radius: 8px; font-weight: 600; }
-.btn.primary:hover { filter: none; background: var(--accent-text); }
+.btn.primary:hover { filter: none; background: var(--primary-hover, var(--accent-text)); }
 /* Text links and link-like buttons get a 44px target on touch without moving anything. */
 @media (pointer: coarse) {
   .linkish, a.textlink, .page p a, .sheet p a { padding-block: 12px; margin-block: -12px; }

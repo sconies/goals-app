@@ -89,7 +89,7 @@ module.exports = {
     if (head.mix || head.counts < 2 || !head.countShapes) fails.push(`head: the goals feeding it shown as a colour bar (${head.mix}) not counts with shapes (${head.counts})`);
     if (head.statusAlign !== 'baseline') fails.push('the bar’s status line is not on one baseline');
     if (!(head.showAll > 0 && head.showAll < 260)) fails.push(`Activity’s “Show all” is ${head.showAll}px wide`);
-    if (head.fc !== 'rgb(71, 84, 103)') fails.push(`projection words in ${head.fc}`);
+    if (head.fc !== 'rgb(70, 87, 89)') fails.push(`projection words in ${head.fc}`);
     if (head.crumbs || !/^Back to /.test(head.back)) fails.push(`head: a breadcrumb (${head.crumbs}) or no named Back link (“${head.back}”)`);
     checkChart(await chartFacts(p), 'head 1280 chart', fails, { ticks: [4, 6] });
     const changes = await p.locator('#activity .stream > li').count();
@@ -141,7 +141,7 @@ module.exports = {
     if (envA !== headA) fails.push(`main column ${envA}px on env-search, ${headA}px on ns-lead`);
     const q = await p.evaluate(() => [...document.querySelectorAll('.quarters li')].map((li) => ({ bg: getComputedStyle(li).backgroundColor, now: li.classList.contains('q-now'), bc: getComputedStyle(li).borderTopColor, dash: /—/.test(li.innerText) })));
     if (q.some((x) => x.bg !== 'rgb(255, 255, 255)')) fails.push('a quarter card is tinted');
-    if (!q.some((x) => x.now && x.bc === 'rgb(52, 81, 209)')) fails.push('this quarter has no accent border');
+    if (!q.some((x) => x.now && x.bc === 'rgb(33, 150, 142)')) fails.push('this quarter has no accent border');
     if (q.some((x) => x.dash)) fails.push('a quarter card uses “—” as its result');
     await c.close();
 
@@ -194,7 +194,7 @@ module.exports = {
       gap: getComputedStyle(document.querySelector('.qtable tbody tr')).rowGap,
     }));
     if (q768.clipped) fails.push(`768 quarter results: ${q768.clipped} tables clipped`);
-    if (!q768.now || !/now/.test(q768.now[0]) || q768.now[1] !== 'rgb(42, 68, 184)') fails.push(`768 quarter cards: this quarter labelled ${q768.now}`);
+    if (!q768.now || !/now/.test(q768.now[0]) || q768.now[1] !== 'rgb(19, 111, 120)') fails.push(`768 quarter cards: this quarter labelled ${q768.now}`);
     if (q768.gap !== '8px') fails.push(`768 quarter cards: ${q768.gap} gap`);
     await c.close();
 
@@ -221,7 +221,7 @@ module.exports = {
     if (wk.tableW > 1040) fails.push(`1440 weekly grid is ${wk.tableW}px wide`);
     if (wk.rowH !== 40) fails.push(`1440 weekly rows ${wk.rowH}px`);
     if (!wk.ring || wk.ring[0] !== '28px' || wk.ring[1] !== '28px' || wk.ring[2] !== '2px' || wk.ring[3] !== '6px') fails.push(`selection ring ${wk.ring}`);
-    if (wk.nowBg !== 'rgb(238, 241, 253)') fails.push(`this week’s header ${wk.nowBg}`);
+    if (wk.nowBg !== 'rgb(226, 241, 239)') fails.push(`this week’s header ${wk.nowBg}`);
     if (!wk.hint || !/Each mark/.test(wk.hint[0]) || /square/.test(wk.hint[0]) || Math.abs(wk.hint[1]) > 1 || wk.hint[2] !== 8) fails.push(`weekly hint ${JSON.stringify(wk.hint)}`);
     if (wk.untitled || wk.ellipsis) fails.push(`goal names: ${wk.untitled} without a title, ${wk.ellipsis} cut with an ellipsis`);
     if (wk.indent !== 28) fails.push(`weekly child goals indented ${wk.indent}px`);
@@ -232,7 +232,7 @@ module.exports = {
     const h1 = await p.locator('.week-inspector').evaluate((e) => e.getBoundingClientRect().height);
     if (Math.round(h0) !== 64 || Math.round(h1) !== 64) fails.push(`inspector ${Math.round(h0)} then ${Math.round(h1)}px`);
     const nowBg2 = await p.evaluate(() => getComputedStyle(document.querySelector('.hgrid thead th.now')).backgroundColor);
-    if (nowBg2 !== 'rgb(238, 241, 253)') fails.push(`this week loses its mark when another is selected (${nowBg2})`);
+    if (nowBg2 !== 'rgb(226, 241, 239)') fails.push(`this week loses its mark when another is selected (${nowBg2})`);
     // The header stays in view as the goals scroll under it.
     await p.evaluate(() => { const t = document.querySelector('.hgrid'); window.scrollBy(0, t.getBoundingClientRect().top + 200); });
     await p.waitForTimeout(150);
@@ -249,7 +249,7 @@ module.exports = {
       return { over: w.scrollWidth - w.clientWidth, nums: [...document.querySelectorAll('.hgrid-year thead .hn')].filter((x) => x.textContent).length, now: now ? [now.textContent, getComputedStyle(now).color] : null, qpad: getComputedStyle(document.querySelector('.hgrid-year .hq')).paddingLeft };
     });
     if (yr.over > 1) fails.push(`1280 whole year scrolls ${yr.over}px`);
-    if (yr.nums < 8 || !yr.now || yr.now[0] !== '45' || yr.now[1] !== 'rgb(42, 68, 184)') fails.push(`whole-year header: ${yr.nums} week numbers, this week ${yr.now}`);
+    if (yr.nums < 8 || !yr.now || yr.now[0] !== '45' || yr.now[1] !== 'rgb(19, 111, 120)') fails.push(`whole-year header: ${yr.nums} week numbers, this week ${yr.now}`);
     if (yr.qpad !== '8px') fails.push(`quarter labels padded ${yr.qpad}`);
     await c.close();
 

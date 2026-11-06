@@ -42,7 +42,7 @@ export function Settings() {
               </button>
             ))}
           </div>
-          <span className="hint">For links, buttons and what’s selected. Status colours stay the same, so on track, at risk and off track always look alike.</span>
+          <span className="hint">Faro’s teal is the default; the others are the earlier colours. The accent is for links and what’s selected. Status colours stay the same, so on track, at risk and off track always look alike.</span>
         </div>
       </section>
 

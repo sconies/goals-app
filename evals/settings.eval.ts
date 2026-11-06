@@ -26,18 +26,16 @@ function vars(sel: string): Record<string, string> {
 const PAGE = { light: vars(':root'), dark: vars(':root[data-theme="dark"]') };
 
 describe('Settings: how the app looks, readable whatever you choose', () => {
-  it(R('three themes (system, light, dark) and three or four accents'), () => {
+  it(R('three themes (system, light, dark) and five accents: Faro’s teal by default, and the earlier four'), () => {
     expect(THEMES.map(([k]) => k)).toEqual(['system', 'light', 'dark']);
-    expect(ACCENTS.length).toBeGreaterThanOrEqual(3);
-    expect(ACCENTS.length).toBeLessThanOrEqual(4);
-    expect(ACCENTS[0]![0]).toBe('cobalt');
+    expect(ACCENTS.map(([k]) => k)).toEqual(['faro', 'cobalt', 'violet', 'petrol', 'graphite']);
   });
 
   for (const [accent, label] of ACCENTS) {
     for (const mode of ['light', 'dark'] as const) {
       it(R(`${label} in ${mode}: its text passes 4.5:1 on every page and panel colour, and text on its fill passes too`), () => {
         const page = PAGE[mode];
-        const a = accent === 'cobalt' ? (mode === 'light' ? vars(':root') : vars(':root[data-theme="dark"]')) : vars(mode === 'light' ? `:root[data-accent="${accent}"]` : `:root[data-accent="${accent}"][data-theme="dark"]`);
+        const a = accent === 'faro' ? (mode === 'light' ? vars(':root') : vars(':root[data-theme="dark"]')) : vars(mode === 'light' ? `:root[data-accent="${accent}"]` : `:root[data-accent="${accent}"][data-theme="dark"]`);
         for (const bg of [page['--bg'], page['--surface'], page['--surface-2'], page['--surface-3'], a['--accent-soft'], a['--accent-wash']]) {
           expect(contrast(a['--accent-text']!, bg!), `${a['--accent-text']} on ${bg}`).toBeGreaterThanOrEqual(4.5);
         }
@@ -48,7 +46,7 @@ describe('Settings: how the app looks, readable whatever you choose', () => {
   }
 
   it(R('a dark device on System gets the same accent colours as choosing Dark'), () => {
-    for (const [accent] of ACCENTS.filter(([k]) => k !== 'cobalt')) {
+    for (const [accent] of ACCENTS.filter(([k]) => k !== 'faro')) {
       expect(vars(`:root[data-accent="${accent}"]:not([data-theme="light"])`)).toEqual(vars(`:root[data-accent="${accent}"][data-theme="dark"]`));
     }
   });
@@ -58,11 +56,25 @@ describe('Settings: how the app looks, readable whatever you choose', () => {
     const script = /<script>([\s\S]*?)<\/script>/.exec(head)?.[1] ?? '';
     expect(script).toContain("localStorage.getItem('goals-theme')");
     expect(script).toContain("localStorage.getItem('goals-accent')");
-    for (const [k] of ACCENTS.filter(([x]) => x !== 'cobalt')) expect(script).toContain(`'${k}'`);
+    for (const [k] of ACCENTS.filter(([x]) => x !== 'faro')) expect(script).toContain(`'${k}'`);
     // It runs before the stylesheet and the app's code, and a blocked storage can't stop the page.
     expect(head.indexOf('<script>')).toBeLessThan(head.indexOf('<link rel="stylesheet"'));
     expect(script).toMatch(/^try\{[\s\S]*\}catch\(e\)\{\}$/);
     // The loading screen itself follows a dark choice.
-    expect(head).toContain(':root[data-theme="dark"] body { background: #0E1116; }');
+    expect(head).toContain(`:root[data-theme="dark"] body { background: ${PAGE.dark['--bg']}; }`);
+    expect(head).toContain(`body { margin: 0; background: ${PAGE.light['--bg']}; }`);
+  });
+
+  it('[BRAND] Faro’s own look: body text 7:1 on the page, links and primary button text 4.5:1, in light and dark', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const v = PAGE[mode];
+      for (const bg of [v['--bg'], v['--surface']]) {
+        expect(contrast(v['--fg']!, bg!), `${mode} text on ${bg}`).toBeGreaterThanOrEqual(7);
+        expect(contrast(v['--accent-text']!, bg!), `${mode} links on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(contrast(v['--primary-fg']!, v['--primary']!), `${mode} primary button`).toBeGreaterThanOrEqual(4.5);
+    }
+    // The logo's amber is the logo's alone: no stylesheet uses it (amber in the app means At risk).
+    expect(css.toUpperCase().match(/#F7AE2E/g) ?? []).toEqual([]);
   });
 });
