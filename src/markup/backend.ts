@@ -13,6 +13,7 @@ import type { Pictures } from './ink';
 import { MARKUP_REPO, markupFromRow, markupToRow, type Markup, type MarkupRow, type Raised } from './model';
 import { markupOps, type MarkupOps, type MarkupStore } from './ops';
 import { signedInMarkups } from './stores';
+import { feedbackOps, localFeedback, signedInFeedback, type FeedbackOps } from './feedback';
 
 const env = import.meta.env;
 const DB = env.VITE_SUPABASE_URL && env.VITE_SUPABASE_KEY && /^https?:\/\//.test(env.VITE_SUPABASE_URL) ? { url: env.VITE_SUPABASE_URL as string, key: env.VITE_SUPABASE_KEY as string } : null;
@@ -126,6 +127,13 @@ export async function makeBuilderToken(workspaceId: string, personId: string, na
 export async function inboxOps(): Promise<MarkupOps> {
   const store: MarkupStore = markupsShared() ? signedInMarkups(await builderClient()) : local.store;
   return markupOps({ store, entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO, inboxLink: (id) => inboxAddress(id) });
+}
+
+/** Feedback in the inbox, triaged like markups: every workspace's for the signed-in builder, or (with no database)
+    this workspace's, as the app has it. */
+export async function inboxFeedback(here: Parameters<typeof localFeedback>[0]): Promise<FeedbackOps> {
+  const store = markupsShared() ? signedInFeedback(await builderClient()) : localFeedback(here);
+  return feedbackOps({ store, entries: WHATS_NEW.map((e) => e.id) });
 }
 
 /* ---------- kept in this browser, when there's no database ---------- */

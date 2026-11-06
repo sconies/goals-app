@@ -28659,11 +28659,20 @@ function milestoneCard(goal, checkIns, week) {
 		marks: null
 	};
 }
-/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected. */
+/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected.
+A stopped goal makes no forecast: its card says how it stood (no "will it hit?" cell and no likely end on the
+chart), and the note under it says when and why it stopped. */
 function goalScorecard(goal, cycle, checkIns, week, stale) {
-	if (goal.kind === "metric") return metricCard(goal, cycle, checkIns, week, stale);
-	if (goal.kind === "range") return rangeCard(goal, cycle, checkIns, week, stale);
-	return milestoneCard(goal, checkIns, week);
+	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale) : milestoneCard(goal, checkIns, week);
+	if (!goal.stoppedAt) return card;
+	return {
+		...card,
+		cells: card.cells.filter((c) => c.key !== "hit"),
+		marks: card.marks && {
+			...card.marks,
+			end: null
+		}
+	};
 }
 // src/domain/activity.ts
 init_format();
@@ -29643,7 +29652,11 @@ var ARTICLES = [
 			},
 			{
 				heading: "A stopped goal",
-				list: ["A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.", "It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity."]
+				list: [
+					"A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.",
+					"A stopped goal makes no forecast: its scorecard keeps Vs plan, Vs last week and To target as they stood, without Will it hit the target, and its chart has no projection.",
+					"It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity."
+				]
 			},
 			{
 				heading: "Sharing it",
@@ -30465,7 +30478,7 @@ var ARTICLES = [
 					"The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.",
 					"Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.",
 					"Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.",
-					"Or skip the picture: choose how it’s working and add a few words, as before."
+					"Or skip the picture: choose how it’s working and add a few words, as before. It goes to the same inbox as markups, where the people building Faro mark it in hand, fixed or won’t fix."
 				]
 			},
 			{
@@ -30506,7 +30519,7 @@ var ARTICLES = [
 	{
 		id: "inbox",
 		title: "The builder inbox",
-		summary: "For the people building Faro: every markup people send, to triage, with its picture, the parts it names and what led up to it.",
+		summary: "For the people building Faro: every markup and piece of feedback people send, to triage, with a markup’s picture, the parts it names and what led up to it.",
 		group: "you",
 		sections: [
 			{
@@ -30529,13 +30542,21 @@ var ARTICLES = [
 				]
 			},
 			{
+				heading: "Feedback",
+				list: [
+					"Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.",
+					"It has the same statuses: open it to mark it in hand, fixed in a What’s new entry, or won’t fix with a reason, or new again. It has no picture and no GitHub issue.",
+					"Feedback always arrives as New. Only builders read everyone’s and change its status; a workspace’s admins still read their own on Workspace."
+				]
+			},
+			{
 				heading: "Without a database",
-				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them without signing in."]
+				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback, without signing in. Statuses you give feedback there stay in that browser."]
 			}
 		],
 		routes: [],
 		screens: [],
-		reqs: ["MARKUP-INBOX"],
+		reqs: ["MARKUP-INBOX", "FEEDBACK-INBOX"],
 		keywords: [
 			"inbox",
 			"markups",
@@ -30546,7 +30567,9 @@ var ARTICLES = [
 			"email link",
 			"fixed",
 			"won’t fix",
-			"in hand"
+			"in hand",
+			"feedback",
+			"mood"
 		],
 		related: [
 			"feedback",
@@ -30698,7 +30721,8 @@ var WHATS_NEW = [
 			"A goal can be stopped mid-year, with a reason, from its “…” menu. It leaves the numbers, reviews and Home, but its page, history and exports stay, marked Stopped. A goal set up by mistake, with no check-ins, is deleted instead.",
 			"Delete your latest check-in, end a review, edit or remove your comments (they say edited, or “Comment removed”), and delete saved views.",
 			"Every removal shows Undo for 10 seconds, and admins can restore anything from the last 30 days under Recently removed on Workspace. Nothing is ever erased.",
-			"Loaded the wrong spreadsheet? Undo this import, on its entry in Activity, puts every row back as it was."
+			"Loaded the wrong spreadsheet? Undo this import, on its entry in Activity, puts every row back as it was.",
+			"A stopped goal makes no forecast: its page keeps how it stood, without “Will it hit?” or a projection, and stopping it no longer draws the page again under the Undo message."
 		],
 		articles: [
 			"removing",
@@ -30715,7 +30739,7 @@ var WHATS_NEW = [
 			"Send feedback now starts with Mark up this screen: draw on a picture of the screen you’re on with a pen, an arrow, a box or a numbered note, and say in one line what should change. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere; Escape cancels.",
 			"Before you send, you see the exact picture that goes, with your marks. Your last 20 steps on this visit go with it unless you untick them, so the people building Faro can see what led up to it. Never anything you typed.",
 			"When a release fixes something you marked up, its entry here says “You raised this”.",
-			"For the people building Faro, Workspace has an Inbox to read and triage markups, after signing in with an email link. Your admins can’t see markups yet; they will once sign-in comes to the whole app.",
+			"For the people building Faro, Workspace has an Inbox to read and triage markups, after signing in with an email link. Feedback sent with a mood and a few words is there too, with the same statuses: New, In hand, Fixed and Won’t fix. Your admins can’t see markups yet; they will once sign-in comes to the whole app.",
 			"AI assistant tokens are now made by the database, which keeps only a fingerprint of each and never hands one back; feedback can only be read by its own workspace. Making and revoking tokens works as before."
 		],
 		articles: [

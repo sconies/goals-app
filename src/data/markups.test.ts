@@ -157,6 +157,37 @@ describe('markups, tokens and feedback (0024)', () => {
     expect((await asAnon(`select * from okr_feedback_list('ws_o')`)).rows).toEqual([]);
   });
 
+  it('puts feedback in the inbox (0026): new when sent, read and triaged by builders only, from every workspace', async () => {
+    const at = '2026-11-06T09:00:00.000Z';
+    // Sent through a save, even claiming a status: it arrives new.
+    const fb = { id: 'fb_in1', workspace_id: 'ws_o', person_id: 'lane', path: '/goals', mood: 'bad', text: 'The filters are hard to find', at, status: 'fixed', fixed_in: 'remove-and-undo' };
+    await asAnon('select okr_commit($1, $2)', ['ws_o', JSON.stringify({ ...commitPayload('ws_o', { changes: [] }), feedback: [fb] })]);
+    expect(await one('select status, fixed_in from okr_feedback where id = $1', ['fb_in1'], false)).toEqual({ status: 'new', fixed_in: null });
+    // Straight into the table, the public key can add feedback's own columns, never a status.
+    await asAnon(`insert into okr_feedback (id, workspace_id, person_id, path, mood, text) values ('fb_in2', 'ws_o', 'lane', '/', 'good', 'Calm')`);
+    await expect(asAnon(`insert into okr_feedback (id, workspace_id, person_id, mood, status) values ('fb_in3', 'ws_o', 'lane', 'good', 'in-hand')`)).rejects.toThrow(/permission denied/);
+    // A builder reads every workspace's, newest first, with the workspace's and the sender's names.
+    const listed = (await asUser<{ id: string; workspace_name: string; person_name: string; status: string }>(LANE, 'select * from okr_feedback_inbox(50)')).rows;
+    expect(listed.map((r) => r.id)).toEqual(expect.arrayContaining(['fb_in1', 'fb1']));
+    expect(listed.find((r) => r.id === 'fb_in1')).toMatchObject({ workspace_name: 'Other', person_name: 'Lane Hirschfield', status: 'new' });
+    // …and triages it: in hand, then fixed in a What's new entry. Fixed needs the entry; won't fix needs a reason.
+    const triage = (patch: object, who = LANE) => asUser<{ status: string; fixed_in: string | null; status_by: string | null }>(who, 'select * from okr_feedback_triage($1, $2)', ['fb_in1', JSON.stringify(patch)]);
+    expect((await triage({ status: 'in-hand', status_by: 'Lane', status_at: at })).rows[0]).toMatchObject({ status: 'in-hand', status_by: 'Lane' });
+    await expect(triage({ status: 'fixed', fixed_in: null })).rejects.toThrow(/okr_feedback_status_check/);
+    await expect(triage({ status: 'wont-fix', wont_fix_reason: null })).rejects.toThrow(/okr_feedback_status_check/);
+    await expect(triage({ status: 'done' })).rejects.toThrow(/okr_feedback_status_check/);
+    expect((await triage({ status: 'fixed', fixed_in: 'remove-and-undo' })).rows[0]).toMatchObject({ status: 'fixed', fixed_in: 'remove-and-undo' });
+    // Nobody else: not someone signed in who isn't a builder, and not the public key.
+    expect((await asUser('someone@example.com', 'select * from okr_feedback_inbox(50)')).rows).toEqual([]);
+    await expect(triage({ status: 'new' }, 'someone@example.com')).rejects.toThrow(/Only builders/);
+    await expect(asAnon('select * from okr_feedback_inbox(50)')).rejects.toThrow(/permission denied/);
+    await expect(asAnon(`select * from okr_feedback_triage('fb_in1', '{"status":"new"}')`)).rejects.toThrow(/permission denied/);
+    await expect(asAnon(`update okr_feedback set status = 'new'`)).rejects.toThrow(/permission denied/);
+    expect((await one<{ status: string }>('select status from okr_feedback where id = $1', ['fb_in1'], false)).status).toBe('fixed');
+    // A workspace's own list of feedback still works for it.
+    expect((await asAnon<{ id: string }>(`select * from okr_feedback_list('ws_o')`)).rows.map((r) => r.id).sort()).toEqual(['fb_in1', 'fb_in2']);
+  });
+
   it('lets a builder signed in by email read and triage markups and their pictures; nobody else signed in', async () => {
     const id = await newId();
     await addMarkup(markup(id, { workspace_id: 'platform-org', demo: true }));

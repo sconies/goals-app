@@ -196,10 +196,13 @@ export function useApp(): AppState {
 /**
  * A stopped goal's own page (and its print view): the app as it is, with that one goal and its check-ins and notes put
  * back, so the page shows it as it stood, marked Stopped. Every list outside this scope still leaves it out.
+ * For a goal that isn't stopped it passes the app through unchanged; the page always renders inside it, so stopping,
+ * restarting or undoing doesn't mount the page afresh (which replayed the chart's entrance under the Undo message).
  */
 export function ArchivedGoalScope({ goalId, children }: { goalId: string; children: ReactNode }) {
   const app = useApp();
   const value = useMemo<AppState>(() => {
+    if (!app.snapshot.archive?.goals.some((g) => g.id === goalId)) return app;
     const snapshot = withArchivedGoal(app.snapshot, goalId);
     const mine = (g: Goal) => g.id === goalId;
     return {

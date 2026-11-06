@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router';
 import { ArchivedGoalScope, useApp } from '../app/state';
 import { goalSheet, reviewSheet, type Fact, type Said } from '../domain/onePager';
 import { valueSeries } from '../domain/plan';
+import { projects } from '../domain/scorecard';
 import { assessPosted } from '../domain/status';
 import { periodLabel, quarterOf } from '../domain/year';
 import { Chip, Empty, LevelTag } from '../ui/bits';
@@ -104,7 +105,7 @@ function GoalPrintView() {
         <Facts facts={sh.facts} />
 
         <section className="ps-block ps-chart" aria-label="Chart">
-          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptgBy} height={140} />}
+          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={projects(goal, stale) ? a.forecast : null} projection={projects(goal, stale) ? a.projection : null} ptgBy={projects(goal, stale) ? ptgBy : null} height={140} />}
           {goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={150} />}
           {a.kind === 'milestone' && <StageList a={a} />}
         </section>

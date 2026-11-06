@@ -4,13 +4,16 @@
    Builders sign in here with an email link (Supabase Auth) and triage: mark it in hand, open its GitHub issue (a
    pre-filled link; paste the issue's address back), mark it fixed in a What's new entry, or say why it won't be fixed.
    Admins who aren't builders can't read it until sign-in comes (release 4). With no database, it shows the markups
-   kept in this browser, without signing in. */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+   kept in this browser, without signing in.
+   Feedback sent with a mood and a few words joins it (Lane, 6 Nov; migration 0026): listed among the markups, newest
+   first, and triaged with the same states and rules (src/markup/feedback.ts). */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { WHATS_NEW } from '../help/whatsNew';
 import { Sheet, timeAgo } from '../ui/bits';
-import { builderClient, builderSession, inboxOps, makeBuilderToken, markupsShared, sendSignInLink, signOutBuilder, type BuilderSession } from './backend';
+import { builderClient, builderSession, inboxFeedback, inboxOps, makeBuilderToken, markupsShared, sendSignInLink, signOutBuilder, type BuilderSession } from './backend';
+import type { FeedbackOps, InboxFeedback } from './feedback';
 import { PartPath } from './Markup';
 import { MOOD_WORD, STATUS_WORD, groupMarkups, namedParts, problemText, stepText, type Markup, type MarkupStatus } from './model';
 import type { ListedMarkup, MarkupOps, OpenedMarkup } from './ops';
@@ -41,16 +44,28 @@ export default function Inbox() {
   const [ops, setOps] = useState<MarkupOps | null>(null);
   const [list, setList] = useState<ListedMarkup[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(params.get('markup'));
+  const [fbOps, setFbOps] = useState<FeedbackOps | null>(null);
+  const [feedback, setFeedback] = useState<InboxFeedback[]>([]);
+  const [openFb, setOpenFb] = useState<string | null>(null);
+  // With no database, the inbox's feedback is this workspace's, as the app has it now.
+  const appNow = useRef(app);
+  appNow.current = app;
+  const here = useMemo(() => ({
+    workspaceId: app.ws.id, workspaceName: app.ws.name,
+    feedback: () => appNow.current.snapshot.feedback ?? [],
+    personName: (id: string) => appNow.current.person(id)?.name ?? '',
+  }), [app.ws.id, app.ws.name]);
 
   // Who is signed in to the inbox here: also finishes a sign-in arriving from the email link.
   const refresh = useCallback(async () => {
-    if (!shared) { setOps(await inboxOps()); return; }
+    if (!shared) { setOps(await inboxOps()); setFbOps(await inboxFeedback(here)); return; }
     try {
       const session = await builderSession();
       setAccess(session ? { kind: 'signed-in', session } : { kind: 'signed-out' });
       setOps(session?.builder ? await inboxOps() : null);
+      setFbOps(session?.builder ? await inboxFeedback(here) : null);
     } catch (e) { setAccess({ kind: 'error', text: e instanceof Error ? e.message : String(e) }); }
-  }, [shared]);
+  }, [shared, here]);
   useEffect(() => {
     void refresh();
     if (!shared) return;
@@ -63,10 +78,23 @@ export default function Inbox() {
     try { setList(await ops.list({})); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); setList([]); }
   }, [ops, app]);
   useEffect(() => { void load(); }, [load]);
+  // Feedback is listed when the database can give it (migration 0026); without it the inbox still shows markups.
+  const loadFeedback = useCallback(async () => {
+    if (!fbOps) { setFeedback([]); return; }
+    try { setFeedback(await fbOps.list()); } catch { setFeedback([]); }
+  }, [fbOps]);
+  useEffect(() => { void loadFeedback(); }, [loadFeedback]);
   // Coming back from the email link, the inbox is where the page opens.
   useEffect(() => { if (params.get('inbox')) document.getElementById('inbox')?.scrollIntoView({ block: 'start' }); }, [params]);
 
   const groups = useMemo(() => groupMarkups(list ?? []), [list]);
+  // Markups (grouped by part) and feedback, newest first.
+  const rows = useMemo(() => [
+    ...groups.map((g) => ({ kind: 'markup' as const, key: 'm:' + g.key, at: g.markups[0]!.createdAt, g })),
+    ...feedback.map((f) => ({ kind: 'feedback' as const, key: 'f:' + f.id, at: f.at, f })),
+  ].sort((a, b) => b.at.localeCompare(a.at)), [groups, feedback]);
+  const newCount = (list ?? []).filter((m) => m.status === 'new').length + feedback.filter((f) => f.status === 'new').length;
+  const openedFb = openFb ? feedback.find((f) => f.id === openFb) ?? null : null;
   const builderName = access.kind === 'signed-in' ? access.session.email : 'This browser';
   const open = (id: string | null) => {
     setOpenId(id);
@@ -78,10 +106,10 @@ export default function Inbox() {
   return (
     <section className="block inbox-block" id="inbox" aria-labelledby="inbox-title">
       <div className="row between">
-        <h2 className="block-title" id="inbox-title">Inbox{list ? <span className="hint count-after">· {list.filter((m) => m.status === 'new').length} new</span> : null}</h2>
+        <h2 className="block-title" id="inbox-title">Inbox{list ? <span className="hint count-after">· {newCount} new</span> : null}</h2>
         {access.kind === 'signed-in' && <button type="button" className="btn sm ghost" onClick={async () => { await signOutBuilder(); setList(null); void refresh(); }}>Sign out</button>}
       </div>
-      <p className="hint">Markups people send with Send feedback: a picture of a screen with their drawing, and a line saying what should change. {shared ? 'For the people building Faro, who sign in here.' : 'No database is set up, so these are the markups sent from this browser.'}</p>
+      <p className="hint">What people send with Send feedback: markups (a picture of a screen with their drawing, and a line saying what should change) and feedback (a mood and a few words). {shared ? 'For the people building Faro, who sign in here.' : 'No database is set up, so these are the markups sent from this browser and this workspace’s feedback.'}</p>
       {access.kind === 'loading' && <p className="hint" role="status">Checking who’s signed in…</p>}
       {access.kind === 'error' && <p className="hint tone-off" role="alert">{access.text}</p>}
       {access.kind === 'signed-out' && <SignIn />}
@@ -89,13 +117,15 @@ export default function Inbox() {
         <p className="hint" role="status">You’re signed in as {access.session.email}, which isn’t on the builders list. Until sign-in comes to the whole app, only builders read markups; admins will see their own workspace’s then.</p>
       )}
       {ops && list === null && <p className="hint" role="status">Loading markups…</p>}
-      {ops && list && !list.length && <p className="hint">No markups yet. When someone marks up a screen, it arrives here.</p>}
-      {ops && groups.length > 0 && (
+      {ops && list && !rows.length && <p className="hint">Nothing yet. When someone marks up a screen or sends feedback, it arrives here.</p>}
+      {ops && list && rows.length > 0 && (
         <ul className="mk-list">
-          {groups.map((g) => {
+          {rows.map((r) => {
+            if (r.kind === 'feedback') return <li key={r.key}><FeedbackRow f={r.f} onOpen={() => setOpenFb(r.f.id)} /></li>;
+            const g = r.g;
             const m = g.markups[0]!;
             return (
-              <li key={g.key}>
+              <li key={r.key}>
                 <button type="button" className="mk-row" onClick={() => open(m.id)}>
                   <MarkupStatusMark status={m.status} />
                   {m.thumbUrl ? <img className="mk-thumb" src={m.thumbUrl} alt="" loading="lazy" /> : <span className="mk-thumb empty" aria-hidden="true" />}
@@ -112,6 +142,7 @@ export default function Inbox() {
       )}
       {access.kind === 'signed-in' && access.session.builder && app.mode === 'live' && <BuilderToken />}
       {ops && openId && <Detail id={openId} ops={ops} by={builderName} siblings={groups.find((g) => g.markups.some((m) => m.id === openId))?.markups ?? []} onOpen={open} onChanged={load} />}
+      {fbOps && openedFb && <FeedbackDetail f={openedFb} ops={fbOps} by={builderName} onClose={() => setOpenFb(null)} onChanged={(id, t) => setFeedback((xs) => xs.map((x) => (x.id === id ? { ...x, ...t } : x)))} />}
     </section>
   );
 }
@@ -169,8 +200,6 @@ function Detail({ id, ops, by, siblings, onOpen, onChanged }: { id: string; ops:
   const [failed, setFailed] = useState('');
   const [ink, setInk] = useState(true);
   const [form, setForm] = useState<'fixed' | 'wont-fix' | 'issue' | null>(null);
-  const [fixedIn, setFixedIn] = useState(WHATS_NEW[0]?.id ?? '');
-  const [reason, setReason] = useState('');
   const [issue, setIssue] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -218,20 +247,10 @@ function Detail({ id, ops, by, siblings, onOpen, onChanged }: { id: string; ops:
             </form>
           )}
           {form === 'fixed' && (
-            <form className="stack mk-form" onSubmit={(e) => { e.preventDefault(); void act(() => ops.setStatus(id, { status: 'fixed', fixedIn, by }), 'Marked fixed'); }}>
-              <label className="field"><span className="field-label">Fixed in this What’s new entry</span>
-                <select className="input" value={fixedIn} onChange={(e) => setFixedIn(e.target.value)}>{WHATS_NEW.slice(0, 30).map((e) => <option key={e.id} value={e.id}>{e.date}: {e.title}</option>)}</select>
-              </label>
-              <span className="hint">{m.personName || 'The sender'} sees “You raised this” on that entry. List the markup’s id ({m.id}) in the entry’s fixes, too.</span>
-              <div className="row" style={{ gap: 'var(--s2)' }}><button type="submit" className="btn primary">Mark fixed</button><button type="button" className="btn ghost" onClick={() => setForm(null)}>Cancel</button></div>
-            </form>
+            <FixedForm onFixed={(fixedIn) => act(() => ops.setStatus(id, { status: 'fixed', fixedIn, by }), 'Marked fixed')} onCancel={() => setForm(null)}
+              hint={`${m.personName || 'The sender'} sees “You raised this” on that entry. List the markup’s id (${m.id}) in the entry’s fixes, too.`} />
           )}
-          {form === 'wont-fix' && (
-            <form className="stack mk-form" onSubmit={(e) => { e.preventDefault(); void act(() => ops.setStatus(id, { status: 'wont-fix', reason, by }), 'Marked won’t fix'); }}>
-              <label className="field"><span className="field-label">Why it won’t be fixed</span><textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus /></label>
-              <div className="row" style={{ gap: 'var(--s2)' }}><button type="submit" className="btn" disabled={!reason.trim()}>Won’t fix</button><button type="button" className="btn ghost" onClick={() => setForm(null)}>Cancel</button></div>
-            </form>
-          )}
+          {form === 'wont-fix' && <WontFixForm onWontFix={(reason) => act(() => ops.setStatus(id, { status: 'wont-fix', reason, by }), 'Marked won’t fix')} onCancel={() => setForm(null)} />}
           {m.issueUrl && <p className="small">Issue: <a href={m.issueUrl} target="_blank" rel="noopener noreferrer">{m.issueUrl.replace('https://github.com/', '')}</a></p>}
           {m.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${m.fixedIn}`}>{WHATS_NEW.find((e) => e.id === m.fixedIn)?.title ?? m.fixedIn}</Link>.</p>}
           {m.wontFixReason && <p className="small">Won’t fix: {m.wontFixReason}</p>}
@@ -274,16 +293,92 @@ function Detail({ id, ops, by, siblings, onOpen, onChanged }: { id: string; ops:
 }
 
 /** The next step for a markup is the main action; the others are plain. */
-function Actions({ m, busy, form, setForm, onInHand, onIssue, onReopen }: { m: Markup; busy: boolean; form: string | null; setForm: (f: 'fixed' | 'wont-fix' | null) => void; onInHand: () => void; onIssue: () => void; onReopen: () => void }) {
+function Actions({ m, busy, form, setForm, onInHand, onIssue, onReopen }: { m: Pick<Markup, 'status' | 'issueUrl'>; busy: boolean; form: string | null; setForm: (f: 'fixed' | 'wont-fix' | null) => void; onInHand: () => void; onIssue?: () => void; onReopen: () => void }) {
   if (form === 'fixed') return null;
   const open = m.status === 'new' || m.status === 'in-hand';
   return (
     <div className="row mk-actions" style={{ gap: 'var(--s2)', flexWrap: 'wrap' }}>
       {m.status === 'new' && <button type="button" className="btn primary" aria-disabled={busy || undefined} onClick={onInHand}>Mark in hand</button>}
-      {open && !m.issueUrl && <button type="button" className="btn" onClick={onIssue}>Open GitHub issue</button>}
+      {open && onIssue && !m.issueUrl && <button type="button" className="btn" onClick={onIssue}>Open GitHub issue</button>}
       {open && <button type="button" className={'btn' + (m.status === 'in-hand' ? ' primary' : '')} onClick={() => setForm('fixed')}>Mark fixed</button>}
       {open && <button type="button" className="btn" onClick={() => setForm('wont-fix')}>Won’t fix</button>}
       {!open && <button type="button" className="btn" onClick={onReopen}>Mark new again</button>}
     </div>
+  );
+}
+
+/** Marking something fixed: in which What's new entry. */
+function FixedForm({ hint, onFixed, onCancel }: { hint: string; onFixed: (fixedIn: string) => void; onCancel: () => void }) {
+  const [fixedIn, setFixedIn] = useState(WHATS_NEW[0]?.id ?? '');
+  return (
+    <form className="stack mk-form" onSubmit={(e) => { e.preventDefault(); onFixed(fixedIn); }}>
+      <label className="field"><span className="field-label">Fixed in this What’s new entry</span>
+        <select className="input" value={fixedIn} onChange={(e) => setFixedIn(e.target.value)}>{WHATS_NEW.slice(0, 30).map((e) => <option key={e.id} value={e.id}>{e.date}: {e.title}</option>)}</select>
+      </label>
+      <span className="hint">{hint}</span>
+      <div className="row" style={{ gap: 'var(--s2)' }}><button type="submit" className="btn primary">Mark fixed</button><button type="button" className="btn ghost" onClick={onCancel}>Cancel</button></div>
+    </form>
+  );
+}
+
+/** Saying why something won't be fixed. */
+function WontFixForm({ onWontFix, onCancel }: { onWontFix: (reason: string) => void; onCancel: () => void }) {
+  const [reason, setReason] = useState('');
+  return (
+    <form className="stack mk-form" onSubmit={(e) => { e.preventDefault(); onWontFix(reason); }}>
+      <label className="field"><span className="field-label">Why it won’t be fixed</span><textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus /></label>
+      <div className="row" style={{ gap: 'var(--s2)' }}><button type="submit" className="btn" disabled={!reason.trim()}>Won’t fix</button><button type="button" className="btn ghost" onClick={onCancel}>Cancel</button></div>
+    </form>
+  );
+}
+
+/** A piece of feedback in the inbox list: its status, a speech mark where a markup has its picture, its words, its
+    mood and page, who sent it, where and when. */
+function FeedbackRow({ f, onOpen }: { f: InboxFeedback; onOpen: () => void }) {
+  const app = useApp();
+  return (
+    <button type="button" className="mk-row fb-row" onClick={onOpen}>
+      <MarkupStatusMark status={f.status} />
+      <span className="mk-thumb fb-thumb" aria-hidden="true"><svg viewBox="0 0 16 16" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg></span>
+      <span className="stack mk-row-text">
+        <span className="mk-line">{f.text.trim() || MOOD_WORD[f.mood]}</span>
+        <span className="tiny muted">Feedback · {MOOD_WORD[f.mood]} · {f.path || '/'}</span>
+        <span className="tiny muted">{f.personName || 'Someone'}, {f.workspaceName || f.workspaceId}, {timeAgo(f.at, app.today)}</span>
+      </span>
+    </button>
+  );
+}
+
+/** A piece of feedback opened: what was said, from where, and the same triage as a markup (no picture, no issue). */
+function FeedbackDetail({ f, ops, by, onClose, onChanged }: { f: InboxFeedback; ops: FeedbackOps; by: string; onClose: () => void; onChanged: (id: string, t: Partial<InboxFeedback>) => void }) {
+  const app = useApp();
+  const [form, setForm] = useState<'fixed' | 'wont-fix' | null>(null);
+  const [busy, setBusy] = useState(false);
+  const act = async (c: Parameters<FeedbackOps['setStatus']>[1], done: string) => {
+    if (busy) return;
+    setBusy(true);
+    try { onChanged(f.id, await ops.setStatus(f.id, c)); setForm(null); app.toast(done); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
+    setBusy(false);
+  };
+  const said = f.text.trim();
+  return (
+    <Sheet open onClose={onClose} title={`Feedback: ${said ? (said.length > 48 ? said.slice(0, 47) + '…' : said) : MOOD_WORD[f.mood]}`}>
+      <div className="stack mk-detail" style={{ gap: 'var(--s4)' }}>
+        <div className="row between" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
+          <MarkupStatusMark status={f.status} />
+          <span className="tiny muted">{f.personName || 'Someone'}, in {f.workspaceName || f.workspaceId}, {timeAgo(f.at, app.today)} · {MOOD_WORD[f.mood]}</span>
+        </div>
+        {said ? <p className="mk-said">{said}</p> : <p className="hint">Only a mood, no words.</p>}
+        <Actions m={{ status: f.status, issueUrl: null }} busy={busy} form={form} setForm={setForm} onInHand={() => act({ status: 'in-hand', by }, 'Marked in hand')} onReopen={() => act({ status: 'new', by }, 'Marked new again')} />
+        {form === 'fixed' && <FixedForm hint="Unlike a markup, feedback isn’t linked to the entry, so whoever sent it isn’t told there." onFixed={(fixedIn) => act({ status: 'fixed', fixedIn, by }, 'Marked fixed')} onCancel={() => setForm(null)} />}
+        {form === 'wont-fix' && <WontFixForm onWontFix={(reason) => act({ status: 'wont-fix', reason, by }, 'Marked won’t fix')} onCancel={() => setForm(null)} />}
+        {f.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${f.fixedIn}`}>{WHATS_NEW.find((e) => e.id === f.fixedIn)?.title ?? f.fixedIn}</Link>.</p>}
+        {f.wontFixReason && <p className="small">Won’t fix: {f.wontFixReason}</p>}
+        <dl className="mk-where">
+          <dt>Page</dt><dd><code>{f.path || '/'}</code></dd>
+          <dt>Feedback</dt><dd><code>{f.id}</code></dd>
+        </dl>
+      </div>
+    </Sheet>
   );
 }

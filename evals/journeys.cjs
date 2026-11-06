@@ -1888,9 +1888,11 @@ journey('U41', ['MARKUP'], 'Mark up a screen on a phone and a desktop: draw, add
 }, ['progress']);
 
 /** A database for the build whose database never answers (DOWN): just enough of Supabase (REST, Storage and Auth) for
-    markups, answered by Playwright. Keeps what was sent, and says what the inbox asked for. */
+    markups and feedback in the inbox, answered by Playwright. Keeps what was sent, and says what the inbox asked for. */
 async function fakeSupabase(ctx) {
-  const db = { markups: [], inserted: [], uploads: [], issued: [], patches: [], otp: [], signedOut: 0 };
+  const db = { markups: [], inserted: [], uploads: [], issued: [], patches: [], otp: [], signedOut: 0, fbPatches: [],
+    // Feedback someone sent from another workspace two days ago (migration 0026's okr_feedback_inbox).
+    feedback: [{ id: 'fb_j1', workspace_id: 'acme', workspace_name: 'Acme', person_id: 'mateo', person_name: 'Mateo Silva', path: '/check-in', mood: 'meh', text: 'The reason box is too small on a phone', at: '2026-11-04T10:00:00.000Z', status: 'new', fixed_in: null, wont_fix_reason: null, status_by: null, status_at: null }] };
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS', 'Access-Control-Expose-Headers': '*' };
   const ok = (route, body, status = 200) => route.fulfill({ status, headers: { ...cors, 'Content-Type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -1905,6 +1907,15 @@ async function fakeSupabase(ctx) {
     if (path.startsWith('/rest/v1/okr_telemetry_') || path === '/rest/v1/okr_research_notes') return ok(route, undefined, 201);
     if (path === '/rest/v1/rpc/okr_markup_new_id') { const id = 'mk_' + Math.random().toString(16).slice(2, 10).padEnd(8, '0') + Date.now().toString(16).slice(-8); db.issued.push(id); return ok(route, id); }
     if (path === '/rest/v1/rpc/okr_is_builder') return ok(route, (r.headers().authorization || '').includes(jwt));
+    if (path === '/rest/v1/rpc/okr_feedback_inbox') return ok(route, (r.headers().authorization || '').includes(jwt) ? db.feedback : []);
+    if (path === '/rest/v1/rpc/okr_feedback_triage') {
+      if (!(r.headers().authorization || '').includes(jwt)) return ok(route, { message: 'Only builders, signed in to the inbox, change feedback.' }, 400);
+      const { fid, patch } = JSON.parse(r.postData() || '{}');
+      db.fbPatches.push(patch);
+      const f = db.feedback.find((x) => x.id === fid);
+      if (f) Object.assign(f, patch);
+      return ok(route, f ? [f] : []);
+    }
     if (path.startsWith('/storage/v1/object/sign/markups/')) return ok(route, { signedURL: `/object/sign/markups/${path.split('/markups/')[1]}?token=t` });
     if (path.startsWith('/storage/v1/object/markups/')) { db.uploads.push(path.split('/markups/')[1]); return ok(route, { Key: path.slice(18), Id: 'x' }); }
     if (path.startsWith('/storage/v1/object/sign/')) return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'image/png' }, body: PNG });
@@ -1924,7 +1935,7 @@ async function fakeSupabase(ctx) {
   return { db, jwt };
 }
 
-journey('U42', ['MARKUP', 'MARKUP-INBOX'], 'A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed', 18, async (h, device) => {
+journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand', 21, async (h, device) => {
   if (!DOWN) fail('U42 needs the build with a database address (DOWN)');
   const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
   const p = h.use(await newPage(device, 'rhea'));
@@ -1987,8 +1998,21 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX'], 'A builder signs in to the inbox, ope
   h.set('logged', shared && asked.email === 'lanehirschfield@gmail.com' && /\/demo\/workspace\?inbox=1$/.test(asked.redirect_to || '')
     && m.status === 'fixed' && m.fixed_in && m.issue_url === 'https://github.com/sconies/goals-app/issues/101' && m.status_by === 'lanehirschfield@gmail.com' && db.patches.length === 3,
   `sent ${shared}, sign-in ${JSON.stringify(asked)}, stored ${JSON.stringify({ status: m.status, fixed: m.fixed_in, issue: m.issue_url, by: m.status_by, patches: db.patches.length })}`);
-  // Signing out: the inbox asks to sign in again.
+  // Feedback sent with a mood and a few words is in the same inbox, below the newer markup, with the same states.
   await h.click(detail.getByRole('button', { name: 'Close' }));
+  const fbRow = inbox.locator('.fb-row').first();
+  const fbText = await fbRow.innerText();
+  h.set('attention', await inbox.locator('.mk-list > li').first().locator('.fb-row').count() === 0 && await fbRow.locator('.mk-status').innerText() === 'New'
+    && fbText.includes('The reason box is too small on a phone') && fbText.includes('Feedback') && fbText.includes('Mateo Silva, Acme'), `the feedback is not listed as New, after the newer markup, with its words and who sent it: ${fbText.replace(/\n/g, ' | ')}`);
+  await h.click(fbRow);
+  const fbDetail = p.getByRole('dialog', { name: /^Feedback: / });
+  await h.click(fbDetail.getByRole('button', { name: 'Mark in hand' }));
+  await see(fbDetail.locator('.mk-status').first(), 'In hand', 'the feedback was not marked in hand');
+  await h.click(fbDetail.getByRole('button', { name: 'Close' }));
+  await see(fbRow.locator('.mk-status'), 'In hand', 'the inbox list does not show the feedback in hand');
+  const fp = db.fbPatches[0] || {};
+  h.set('logged', db.fbPatches.length === 1 && fp.status === 'in-hand' && fp.status_by === 'lanehirschfield@gmail.com' && db.feedback[0].status === 'in-hand', `feedback stored ${JSON.stringify(db.fbPatches)}`);
+  // Signing out: the inbox asks to sign in again.
   await h.click(inbox.getByRole('button', { name: 'Sign out' }));
   await inbox.getByLabel(/Sign in with your email/).waitFor();
   await p.context().close();
@@ -2062,8 +2086,14 @@ journey('U44', ['GOAL-STOP', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An owner stops 
   h.set('errors', !(await h.snapshot()).goals.find((g) => g.id === 'ci-docker').stoppedAt, 'it stopped without a reason');
   await h.fill(dlg.getByLabel('Why is it stopping?'), 'The platform team took base images over in October.');
   await h.checkpoint('stop dialog');
+  // The chart as it is now: stopping carries on with the same page, so it isn't drawn again under the message.
+  await p.evaluate(() => { const c = document.querySelector('.goal-chart svg.chart'); if (c) c.dataset.beforeStop = '1'; });
   await h.click(dlg.getByRole('button', { name: 'Stop the goal' }));
   await see(p, 'Stopped Base image build time', 'no message that it stopped');
+  // A stopped goal makes no forecast: no "will it hit?" on its scorecard, no projection on its chart.
+  const kept = await p.locator('.goal-chart svg.chart[data-before-stop="1"]').count();
+  const forecasts = await p.locator('.sc-hit, .goal-chart .c-fc, .goal-chart .c-band').count();
+  h.set('attention', kept === 1 && forecasts === 0, `the chart was ${kept ? 'kept' : 'drawn afresh'} when the goal stopped; ${forecasts} forecast marks on a stopped goal`);
   // Its page stays, marked Stopped with the reason, and no main button.
   await see(p.locator('.goal-bar'), 'Stopped', 'the page does not say Stopped');
   await see(p.locator('.goal-bar'), 'The platform team took base images over in October.', 'the page does not give the reason');

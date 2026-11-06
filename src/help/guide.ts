@@ -390,6 +390,7 @@ export const ARTICLES: Article[] = [
       ] },
       { heading: 'A stopped goal', list: [
         'A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.',
+        'A stopped goal makes no forecast: its scorecard keeps Vs plan, Vs last week and To target as they stood, without Will it hit the target, and its chart has no projection.',
         'It is out of every list, count, review and Home, but still in exports (Status: Stopped) and Activity.',
       ] },
       { heading: 'Sharing it', list: [
@@ -784,7 +785,7 @@ export const ARTICLES: Article[] = [
         'The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.',
         'Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.',
         'Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.',
-        'Or skip the picture: choose how it’s working and add a few words, as before.',
+        'Or skip the picture: choose how it’s working and add a few words, as before. It goes to the same inbox as markups, where the people building Faro mark it in hand, fixed or won’t fix.',
       ] },
       { heading: 'With the keyboard', list: [
         'Tab to the drawing area. The arrow keys move a crosshair (with Shift, further), Enter starts and ends a mark, and P, A, B and N choose Pen, Arrow, Box and Note.',
@@ -806,7 +807,7 @@ export const ARTICLES: Article[] = [
   {
     id: 'inbox',
     title: 'The builder inbox',
-    summary: 'For the people building Faro: every markup people send, to triage, with its picture, the parts it names and what led up to it.',
+    summary: 'For the people building Faro: every markup and piece of feedback people send, to triage, with a markup’s picture, the parts it names and what led up to it.',
     group: 'you',
     sections: [
       { heading: 'Signing in', list: [
@@ -822,12 +823,17 @@ export const ARTICLES: Article[] = [
         'Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.',
         'Make a builder token, so your AI assistant can list, open and change markups too.',
       ] },
-      { heading: 'Without a database', text: ['When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them without signing in.'] },
+      { heading: 'Feedback', list: [
+        'Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.',
+        'It has the same statuses: open it to mark it in hand, fixed in a What’s new entry, or won’t fix with a reason, or new again. It has no picture and no GitHub issue.',
+        'Feedback always arrives as New. Only builders read everyone’s and change its status; a workspace’s admins still read their own on Workspace.',
+      ] },
+      { heading: 'Without a database', text: ['When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback, without signing in. Statuses you give feedback there stay in that browser.'] },
     ],
     routes: [],
     screens: [],
-    reqs: ['MARKUP-INBOX'],
-    keywords: ['inbox', 'markups', 'builders', 'triage', 'github issue', 'sign in', 'email link', 'fixed', 'won’t fix', 'in hand'],
+    reqs: ['MARKUP-INBOX', 'FEEDBACK-INBOX'],
+    keywords: ['inbox', 'markups', 'builders', 'triage', 'github issue', 'sign in', 'email link', 'fixed', 'won’t fix', 'in hand', 'feedback', 'mood'],
     related: ['feedback', 'workspace', 'ai-assistants'],
   },
   {

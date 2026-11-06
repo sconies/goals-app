@@ -2,7 +2,7 @@
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentWeek } from './plan';
 import { goalStatus } from './status';
-import { amount, goalScorecard, likelihood, likelihoodFloor } from './scorecard';
+import { amount, goalScorecard, likelihood, likelihoodFloor, projects } from './scorecard';
 import type { CheckIn, Cycle, MetricGoal, RangeGoal } from './types';
 
 describe('will it hit the target: where the target sits against the projected range', () => {
@@ -86,6 +86,19 @@ describe('the scorecard on made-up goals', () => {
     expect(card.cells[3]!.value).toBe('Can’t say');
     expect(card.cells[0]!.sub).toMatch(/in week 13$/);
     expect(card.marks?.end).toBeNull();
+  });
+
+  it('a stopped goal says how it stood and makes no forecast: no “will it hit?”, no likely end on the chart', () => {
+    const cs = [10, 11, 12, 13, 14].map((w) => ci('down', w, 25 + (w - 10) * 0.1));
+    const stopped = { ...down, stoppedAt: '2026-04-10T10:00:00Z', stoppedBy: 'x', stopReason: 'Another team took it over.' } as MetricGoal;
+    const card = goalScorecard(stopped, cycle, cs, 14, false);
+    expect(card.cells.map((c) => c.label)).toEqual(['Vs plan', 'Vs last week', 'To target']);
+    expect(card.cells.some((c) => c.likelihood)).toBe(false);
+    expect(card.marks?.end).toBeNull();
+    expect(card.marks?.now?.text).toBe('1.4 ahead');
+    expect(projects(stopped, false)).toBe(false);
+    expect(projects(down, false)).toBe(true);
+    expect(projects(down, true)).toBe(false);
   });
 
   it('a range: vs the limit, vs last week, room to the limit, and will it stay within', () => {

@@ -63,6 +63,8 @@
 .mk-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .mk-thumb { width: 72px; height: 48px; object-fit: cover; object-position: top left; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-3); }
 .mk-thumb.empty { display: block; }
+/* Feedback has no picture: a quiet speech mark in the picture's place. */
+.fb-thumb { display: grid; place-items: center; color: var(--muted); background: var(--surface-2); }
 .mk-row-text { gap: 2px; min-width: 0; }
 .mk-line { font-weight: 600; overflow-wrap: anywhere; }
 .mk-count { color: var(--fg-2); font-weight: 600; }

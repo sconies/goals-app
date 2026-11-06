@@ -16,6 +16,7 @@ import { hashToken } from '../src/mcp/protocol';
 const M = (t: string) => `[MARKUP] ${t}`;
 const I = (t: string) => `[MARKUP-INBOX] ${t}`;
 const T = (t: string) => `[TOKENS-SERVER-ONLY] ${t}`;
+const F = (t: string) => `[FEEDBACK-INBOX] ${t}`;
 const dir = path.join(__dirname, '../supabase/migrations');
 const sql = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
 const sha = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
@@ -82,6 +83,30 @@ describe('The builder inbox', () => {
     const secret = (await as<{ s: string }>('lanehirschfield@gmail.com', `select okr_builder_token_create('acme', 'amara', 'Claude on Lane’s laptop') as s`)).rows[0]!.s;
     expect((await as<{ id: string }>('anon', 'select id from okr_markups_for_token($1)', [sha(secret)])).rows.length).toBeGreaterThan(0);
     await expect(as('anon', 'select * from okr_markups_for_token($1)', [sha('gk_not-a-builder')])).rejects.toThrow(/builder token/);
+  });
+});
+
+describe('Feedback joins the builder inbox', () => {
+  it(F('feedback a save sends arrives New whatever it claims; builders read every workspace’s with the sender’s and the workspace’s names, and nobody else can'), async () => {
+    const fb = { id: 'fb_e1', workspace_id: 'acme', person_id: 'mateo', path: '/check-in', mood: 'bad', text: 'The reason box is too small', at: '2026-11-06T08:00:00.000Z', status: 'in-hand' };
+    await as('anon', 'select okr_commit($1, $2)', ['acme', JSON.stringify({ ...commitPayload('acme', { changes: [] }), feedback: [fb] })]);
+    const rows = (await as<{ id: string; status: string; person_name: string; workspace_name: string }>('lanehirschfield@gmail.com', 'select * from okr_feedback_inbox(100)')).rows;
+    expect(rows.find((r) => r.id === 'fb_e1')).toMatchObject({ status: 'new', person_name: 'Mateo', workspace_name: 'Acme' });
+    expect((await as('admin@acme.example', 'select * from okr_feedback_inbox(100)')).rows).toEqual([]);
+    await expect(as('anon', 'select * from okr_feedback_inbox(100)')).rejects.toThrow(/permission denied/);
+    await expect(as('anon', `insert into okr_feedback (id, workspace_id, person_id, mood, status) values ('fb_e2', 'acme', 'mateo', 'good', 'fixed')`)).rejects.toThrow(/permission denied/);
+  });
+
+  it(F('a builder triages feedback with the markups’ states, New, In hand, Fixed (in a What’s new entry) and Won’t fix (with a reason); nobody else can'), async () => {
+    const triage = (who: string, patch: object) => as<{ status: string; fixed_in: string | null; wont_fix_reason: string | null }>(who, 'select * from okr_feedback_triage($1, $2)', ['fb_e1', JSON.stringify(patch)]);
+    expect((await triage('lanehirschfield@gmail.com', { status: 'in-hand', status_by: 'Lane' })).rows[0]!.status).toBe('in-hand');
+    await expect(triage('lanehirschfield@gmail.com', { status: 'fixed' })).rejects.toThrow();
+    await expect(triage('lanehirschfield@gmail.com', { status: 'wont-fix' })).rejects.toThrow();
+    expect((await triage('lanehirschfield@gmail.com', { status: 'wont-fix', wont_fix_reason: 'It grows as you type since release 1.' })).rows[0]).toMatchObject({ status: 'wont-fix', wont_fix_reason: 'It grows as you type since release 1.' });
+    expect((await triage('lanehirschfield@gmail.com', { status: 'fixed', fixed_in: 'remove-and-undo', wont_fix_reason: null })).rows[0]).toMatchObject({ status: 'fixed', fixed_in: 'remove-and-undo' });
+    await expect(triage('admin@acme.example', { status: 'new' })).rejects.toThrow(/Only builders/);
+    await expect(as('anon', `select * from okr_feedback_triage('fb_e1', '{"status":"new"}')`)).rejects.toThrow(/permission denied/);
+    expect((await db.query<{ status: string }>(`select status from okr_feedback where id = 'fb_e1'`)).rows[0]!.status).toBe('fixed');
   });
 });
 

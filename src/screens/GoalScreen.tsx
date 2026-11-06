@@ -14,7 +14,7 @@ import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, LEVEL_LABEL } from '../domain/format';
 import { planHistoryOf, valueSeries, weekDates } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
-import { goalScorecard, type ScoreCell, type Scorecard } from '../domain/scorecard';
+import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../domain/scorecard';
 import { criticalPath } from '../domain/map';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { ASK_KIND_LABEL, asksOf, canMarkDone, canWithdraw, openUpdateAsk } from '../domain/asks';
@@ -54,9 +54,9 @@ export function GoalScreen() {
   const [replay, setReplay] = useState(0);
   useEffect(() => { const on = () => setReplay((n) => n + 1); window.addEventListener('goals-replay', on); return () => window.removeEventListener('goals-replay', on); }, []);
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn sm" to="/goals">All goals</Link></Empty></div>;
-  // A stopped goal keeps its page, as it stood, marked Stopped (domain/removal).
-  if (goal.stoppedAt) return <ArchivedGoalScope goalId={goal.id}><GoalView key={goal.id + ':' + app.viewer.id + ':' + replay} goal={goal} /></ArchivedGoalScope>;
-  return <GoalView key={goal.id + ':' + app.viewer.id + ':' + replay} goal={goal} />;
+  // A stopped goal keeps its page, as it stood, marked Stopped (domain/removal). Always inside the scope, so stopping
+  // the goal or undoing it carries on with the same page rather than mounting a new one.
+  return <ArchivedGoalScope goalId={goal.id}><GoalView key={goal.id + ':' + app.viewer.id + ':' + replay} goal={goal} /></ArchivedGoalScope>;
 }
 
 /** Where the page's two columns start: as the shared side-column layout does (styles.css, `.split`). */
@@ -380,7 +380,7 @@ function useShare(goal: Goal, now: string, against: string[], why: string, statu
         status, statusWord: LABEL[status], now, against: against.join(' · '), why,
         when: `Week ${app.week} · ${app.today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
         link: link(),
-        chart: goal.kind === 'metric' && a.kind === 'metric' ? { goal: goal as MetricGoal, weeks: app.cycle.weeks, week: app.week, series, projection: status === 'stale' ? null : a.projection } : null,
+        chart: goal.kind === 'metric' && a.kind === 'metric' ? { goal: goal as MetricGoal, weeks: app.cycle.weeks, week: app.week, series, projection: projects(goal, status === 'stale') ? a.projection : null } : null,
       };
       try {
         const png = await shareCardPng(card);
@@ -509,7 +509,9 @@ function GoalChart({ goal, stale, landed, hit, card }: { goal: Goal; stale: bool
   };
   // Under the chart, one small footnote: where the likely end comes from. The numbers are the scorecard's, marked on the chart.
   const projected = card.cells.some((c) => c.key === 'hit' && c.likelihood);
-  const foot = stale ? 'No projection: the last check-in is too old to project from.'
+  // A stopped goal makes no forecast, and says nothing about one.
+  const ahead = projects(goal, stale);
+  const foot = goal.stoppedAt ? null : stale ? 'No projection: the last check-in is too old to project from.'
     : projected ? (goal.kind === 'metric' ? 'Likely end projected from the last eight weeks, not the owner’s date.' : 'Likely end projected from the last eight weeks.')
     : null;
   const caption = foot ? <span className="chart-say chart-foot">{foot}</span> : null;
@@ -517,7 +519,7 @@ function GoalChart({ goal, stale, landed, hit, card }: { goal: Goal; stale: bool
     <section className="block goal-chart-block" aria-label="Chart" data-part="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptg?.byWeek ?? null} scrub={scrub} draw={draw} landed={landed && draw} hit={hit} marks={stale ? null : card.marks} />
+          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && draw} hit={hit} marks={stale ? null : card.marks} />
           {(caption || goal.originalPlan) && <figcaption className="small">{caption}{goal.originalPlan ? <PlanChanges goal={goal} /> : null}</figcaption>}
         </figure>
       )}

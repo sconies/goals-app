@@ -211,9 +211,16 @@ function milestoneCard(goal: MilestoneGoal, checkIns: CheckIn[], week: number): 
   return { cells, gap, marks: null };
 }
 
-/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected. */
+/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected.
+    A stopped goal makes no forecast: its card says how it stood (no "will it hit?" cell and no likely end on the
+    chart), and the note under it says when and why it stopped. */
 export function goalScorecard(goal: Goal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean): Scorecard {
-  if (goal.kind === 'metric') return metricCard(goal, cycle, checkIns, week, stale);
-  if (goal.kind === 'range') return rangeCard(goal, cycle, checkIns, week, stale);
-  return milestoneCard(goal, checkIns, week);
+  const card = goal.kind === 'metric' ? metricCard(goal, cycle, checkIns, week, stale)
+    : goal.kind === 'range' ? rangeCard(goal, cycle, checkIns, week, stale)
+    : milestoneCard(goal, checkIns, week);
+  if (!goal.stoppedAt) return card;
+  return { ...card, cells: card.cells.filter((c) => c.key !== 'hit'), marks: card.marks && { ...card.marks, end: null } };
 }
+
+/** Whether a goal's page projects where it will end: not when its last check-in is too old, nor once it's stopped. */
+export const projects = (goal: Goal, stale: boolean) => !stale && !goal.stoppedAt;

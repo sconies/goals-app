@@ -562,6 +562,11 @@
       "text": "AI assistant tokens are made and revoked only by security-definer functions (okr_token_create, okr_token_revoke) that make the secret in the database, store only its SHA-256 hash and return it once. The public key can't read, add or change okr_api_tokens; the app lists token metadata (never the hash) with okr_token_list, and the MCP server finds a token with okr_token_find. The public key can't read okr_feedback; Workspace reads a workspace's with okr_feedback_list. AI assistants and Workspace's feedback keep working."
     },
     {
+      "id": "FEEDBACK-INBOX",
+      "area": "Feedback",
+      "text": "Feedback sent with a mood and a few words joins the builder inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Builders open it and triage it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again. Feedback always arrives New: the public key can only add feedback’s own columns, and only builders signed in to the inbox read every workspace’s feedback (okr_feedback_inbox) or change its status (okr_feedback_triage). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser."
+    },
+    {
       "id": "REMOVE-ANYTHING",
       "area": "Removing",
       "text": "Every kind of record that can be made can be removed, archived or ended: a person (marked as left, or deleted with no history), a goal (stopped with a reason, or deleted with no check-ins), a check-in (until a newer one exists), a review (ended, or deleted if never held), a comment or review note (edited, or removed leaving its place), a saved view, a watch and a cycle with no check-ins. Who may is the same in the app, the import and the AI assistant (one set of rules, domain/removal). Nothing is erased: a removed record keeps its row with when and by whom, and leaves every list, count, picker, attention list, review and Home through one place (the scoped snapshot). Every removal is logged in Activity, unwatching and deleting a personal view included."
@@ -579,7 +584,7 @@
     {
       "id": "GOAL-STOP",
       "area": "Removing",
-      "text": "The owner or an admin stops a goal with check-ins, with a required reason: it leaves stats, reviews, Home, Watching and attention lists but stays on its page (marked Stopped, a shape and a word), in its history, in exports and in Activity; the goals feeding it move up to its parent and its open asks are withdrawn with a note. A goal with no check-ins is deleted instead."
+      "text": "The owner or an admin stops a goal with check-ins, with a required reason: it leaves stats, reviews, Home, Watching and attention lists but stays on its page (marked Stopped, a shape and a word, as it stood but with no forecast: no “will it hit?” and no projection), in its history, in exports and in Activity; the goals feeding it move up to its parent and its open asks are withdrawn with a note. A goal with no check-ins is deleted instead."
     },
     {
       "id": "IMPORT-UNDO",
@@ -726,9 +731,9 @@
     },
     {
       "id": "U42",
-      "title": "A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed",
+      "title": "A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand",
       "who": "A builder",
-      "budget": 18
+      "budget": 21
     },
     {
       "id": "U43",

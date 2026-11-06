@@ -14,6 +14,7 @@ import { dashboard } from '../src/domain/home';
 import { currentWeek } from '../src/domain/plan';
 import * as R from '../src/domain/removal';
 import { reviewSession, watchedGoals } from '../src/domain/review';
+import { goalScorecard } from '../src/domain/scorecard';
 import { checkInsFor } from '../src/domain/status';
 import { LEFT, STOPPED } from '../src/domain/words';
 import type { Snapshot } from '../src/domain/types';
@@ -128,6 +129,11 @@ describe('Remove, archive and undo', () => {
     expect(kids.every((id) => s.goals.find((v) => v.id === id)!.parentId === g.parentId)).toBe(true);
     expect(asksOf(w.full).some((r) => r.status === 'open' && r.goalIds.includes(g.id))).toBe(false);
     expect(s.archive!.checkIns.some((c) => c.goalId === g.id)).toBe(true);
+    // Its page shows it as it stood, with no forecast: no "will it hit?" and no likely end on the chart.
+    const stopped = s.archive!.goals.find((v) => v.id === g.id)!;
+    const card = goalScorecard(stopped, w.cycle, s.archive!.checkIns, w.week, false);
+    expect(card.cells.some((c) => c.key === 'hit' || c.likelihood)).toBe(false);
+    expect(card.marks?.end ?? null).toBeNull();
     const goals = workbook({ ws: { id: 'w', name: 'W' }, snapshot: s, cycle: w.cycle, week: w.week, today })[0]!.rows;
     const status = goals[0]!.indexOf('Status');
     expect(goals.find((r) => r[1] === g.id)?.[status]).toBe(STOPPED);
