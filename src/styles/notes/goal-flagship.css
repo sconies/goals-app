@@ -195,9 +195,15 @@
 .goal-page .why-block .why-handled { font-size: 0.875rem; color: var(--muted); }
 .goal-page .why-block .why-handled.not-handled { color: var(--risk-fg); font-weight: 600; }
 .goal-page .why-block .why-by { font-size: 0.875rem; }
+/* Each flag as its warning mark and its name, then what it means in full at normal weight (the reason Home cuts to two
+   lines on a phone). */
 .goal-page .signal-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px var(--s4); }
-.goal-page .signal-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 600; color: var(--risk-fg); }
-.goal-page .signal-tag svg { width: 14px; height: 14px; flex: none; }
+.goal-page .signal-tag { display: inline-flex; align-items: baseline; gap: 6px; font-size: 0.875rem; line-height: 1.25rem; max-width: 72ch; }
+.goal-page .signal-tag:has(.signal-detail) { flex-basis: 100%; }
+.goal-page .signal-tag svg { width: 14px; height: 14px; flex: none; align-self: center; position: relative; top: 1px; color: var(--risk-fg); }
+.goal-page .signal-tag:has(.signal-detail) svg { align-self: flex-start; top: 3px; }
+.goal-page .signal-label { font-weight: 600; color: var(--risk-fg); }
+.goal-page .signal-detail { color: var(--fg-2); }
 
 /* ---------- what's being done ---------- */
 .goal-page .doing .ptg { border-top: 0; padding-top: 0; margin-top: 0; gap: 4px; }

@@ -21596,6 +21596,47 @@ function projection(series, toWeek) {
 		slope: tidy(lean * slope)
 	};
 }
+/** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
+function isShare(goal) {
+	return !!goal && goal.kind !== "milestone" && goal.unit.trim() === "%" && planValues(goal).every((v) => v >= 0 && v <= 100);
+}
+/**
+* Does a number goal count things (deploys, templates, runbooks, incidents)? Whole numbers, a plan that never goes
+* below zero, and a unit that isn't a share, a time, money or a score (a score can go below zero).
+*/
+function isCount(goal) {
+	if (!goal || goal.kind === "milestone" || goal.decimals !== 0) return false;
+	const unit = goal.unit.trim().toLowerCase();
+	if (unit === "%" || /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/.test(unit)) return false;
+	return planValues(goal).every((v) => v >= 0 && Number.isInteger(v));
+}
+function planValues(goal) {
+	if (goal.kind === "metric") return [
+		goal.plan.start,
+		goal.plan.target,
+		...(goal.plan.points ?? []).map((p) => p.value)
+	];
+	if (goal.kind === "range") return [goal.range.limit];
+	return [];
+}
+/**
+* A goal's projection, held to the values its number can take: a count's range stops at zero, a share's stays within
+* 0–100%. Every projection of a goal's own numbers comes from here (the status rules, the scorecard, the summary facts
+* and the path-to-green check), so a count is never projected below zero anywhere.
+*/
+function projectionFor(goal, series, toWeek) {
+	const p = projection(series, toWeek);
+	if (!p) return null;
+	const share = isShare(goal);
+	if (!share && !isCount(goal)) return p;
+	const hold = (v) => Math.max(0, share ? Math.min(100, v) : v);
+	return {
+		...p,
+		value: hold(p.value),
+		low: hold(p.low),
+		high: hold(p.high)
+	};
+}
 /** "2–8 Nov" (or "28 Oct–3 Nov"): the calendar days of a cycle week, Monday to Sunday. */
 function weekDates(cycle, week) {
 	const a = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
@@ -21639,7 +21680,7 @@ var init_plan = __esmMin((() => {
 function assessMetric(goal, weeks, week, actual, history) {
 	const { start, target } = goal.plan;
 	const plan = planAt(goal.plan, week, weeks);
-	const pr = projection(actual == null ? history : [...history.filter((p) => p.week < week), {
+	const pr = projectionFor(goal, actual == null ? history : [...history.filter((p) => p.week < week), {
 		week,
 		value: actual
 	}], planEnd(goal.plan, weeks));
@@ -21680,7 +21721,16 @@ function assessMetric(goal, weeks, week, actual, history) {
 			behind: backwards
 		};
 	}
-	const ratio = Math.round((actual - start) / planned * 1e9) / 1e9;
+	const ratioOf = (v) => Math.round((v - start) / planned * 1e9) / 1e9;
+	if (Math.abs(actual - Number(plan.toFixed(goal.decimals ?? 0))) < 1e-9 && !onTrackTypeable(start, planned, goal.decimals ?? 0, ratioOf)) return {
+		...base,
+		calc: "on",
+		ratio: 1,
+		ahead: false,
+		behind: false,
+		asWritten: ratioOf(actual)
+	};
+	const ratio = ratioOf(actual);
 	const calc = ratio >= RULES.onTrack ? "on" : ratio >= RULES.atRisk ? "risk" : "off";
 	return {
 		...base,
@@ -21689,6 +21739,17 @@ function assessMetric(goal, weeks, week, actual, history) {
 		ahead: ratio >= RULES.wellAhead,
 		behind: ratio < RULES.onTrack
 	};
+}
+/** Can any number written to `decimals` places be on track (95% of the planned move or more, short of well ahead)? */
+function onTrackTypeable(start, planned, decimals, ratioOf) {
+	const step = 10 ** -decimals;
+	const a = start + planned * RULES.onTrack, b = start + planned * RULES.wellAhead;
+	if (Math.abs(b - a) >= step) return true;
+	for (let k = Math.floor(Math.min(a, b) / step) - 1, end = Math.ceil(Math.max(a, b) / step) + 1; k <= end; k++) {
+		const r = ratioOf(Number((k * step).toFixed(decimals)));
+		if (r >= RULES.onTrack && r < RULES.wellAhead) return true;
+	}
+	return false;
 }
 function assessRange(goal, week, actual, previous) {
 	const { bound, limit, margin } = goal.range;
@@ -22884,10 +22945,14 @@ function commitPayload(ws, c) {
 	};
 }
 // src/domain/format.ts
+/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
+function unitFor(n, unit) {
+	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
+}
 function fmt(v, g) {
 	const n = v.toFixed(g.decimals);
 	if (!g.unit) return n;
-	return g.unit === "%" ? n + "%" : n + " " + g.unit;
+	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
 }
 /** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
 function nowText(g, a) {
@@ -22897,7 +22962,7 @@ function nowText(g, a) {
 function fmtDiff(v, g) {
 	const n = Math.abs(v).toFixed(g.decimals);
 	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
-	return g.unit ? n + " " + g.unit : n;
+	return g.unit ? n + " " + unitFor(n, g.unit) : n;
 }
 /**
 * A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
@@ -23025,20 +23090,6 @@ function parseNumber(s) {
 	const n = Number(t);
 	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
 }
-/** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
-function isShare(goal) {
-	return !!goal && goal.kind !== "milestone" && goal.unit.trim() === "%" && withinHundred(goal);
-}
-function withinHundred(goal) {
-	if (!goal) return false;
-	if (goal.kind === "metric") return [
-		goal.plan.start,
-		goal.plan.target,
-		...(goal.plan.points ?? []).map((p) => p.value)
-	].every((v) => v >= 0 && v <= 100);
-	if (goal.kind === "range") return goal.range.limit >= 0 && goal.range.limit <= 100;
-	return false;
-}
 /** Why a typed value can't be used, or a check worth making before posting it. */
 function valueProblem(raw, last, unit, goal) {
 	if (!raw.trim()) return {
@@ -23054,7 +23105,7 @@ function valueProblem(raw, last, unit, goal) {
 		block: true,
 		text: `It can’t be below zero${unit ? " " + unit : ""}.`
 	};
-	if (unit === "%" && n > 100) return withinHundred(goal) ? {
+	if (unit === "%" && n > 100) return isShare(goal) ? {
 		block: true,
 		text: "It can’t be over 100%: this goal measures a share of something."
 	} : {
@@ -23143,6 +23194,7 @@ function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
 var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, MISSING_TEXT;
 var init_checkin = __esmMin((() => {
 	init_status();
+	init_plan();
 	CAUSES_BEHIND = [
 		["aggressive", "Plan too aggressive"],
 		["slower", "Delivery slower"],
@@ -27859,7 +27911,7 @@ function rangeFacts(goal, cycle, own, stale) {
 	}
 	out.push(sinceFact(goal, own, safe));
 	const due = cycle.weeks;
-	const pr = stale ? null : projection(valued.map((c) => ({
+	const pr = stale ? null : projectionFor(goal, valued.map((c) => ({
 		week: c.week,
 		value: c.value
 	})), due);
@@ -27981,7 +28033,6 @@ function milestoneFacts(goal, own, week, stale) {
 	return out;
 }
 // src/domain/scorecard.ts
-init_checkin();
 init_format();
 init_plan();
 init_status();
@@ -28078,8 +28129,6 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 	const target = goal.plan.target;
 	const due = planEnd(goal.plan, cycle.weeks);
 	const cells = [];
-	const share = isShare(goal);
-	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
 	let gap = null;
 	let now = null;
 	if (a.actual == null) cells.push({
@@ -28145,11 +28194,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 		tone: "flat"
 	});
 	else {
-		const p = {
-			value: clamp(a.projection.value),
-			low: clamp(a.projection.low),
-			high: clamp(a.projection.high)
-		};
+		const p = a.projection;
 		const l = likelihood(target, p, better, likelihoodFloor(goal.plan.target - goal.plan.start, goal.decimals));
 		const tone = l === "likely" ? "good" : l === "possible" ? "flat" : "bad";
 		cells.push({
@@ -28228,7 +28273,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 	cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, better));
 	const label = a.out ? "Back within by the end?" : "Will it stay within?";
 	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
-	const pr = stale ? null : projection(valueSeries(own), cycle.weeks);
+	const pr = stale ? null : projectionFor(goal, valueSeries(own), cycle.weeks);
 	if (stale) cells.push({
 		key: "hit",
 		label,
@@ -28594,10 +28639,11 @@ var ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it.",
+					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
 					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and the note about goals still waiting for their first check-in comes after your own goals.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Goals you watch follow.",
+					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
 					"After a release you haven’t seen, a quiet line says what’s new. Open it, or dismiss it with the cross."
 				]
 			},
@@ -28660,7 +28706,7 @@ var ARTICLES = [
 			},
 			{
 				heading: "Whose call it is",
-				text: [`The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call greener than the numbers needs a reason, and is flagged.`, `A number goal is judged against the plan for that week, whether higher or lower is better. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A stage up to ${RULES.lateWeeksOff} weeks late is at risk; later than that is off track.`]
+				text: [`The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call greener than the numbers needs a reason, and is flagged.`, `A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A stage up to ${RULES.lateWeeksOff} weeks late is at risk; later than that is off track.`]
 			},
 			{
 				heading: "Where to see it",
@@ -28668,7 +28714,11 @@ var ARTICLES = [
 			},
 			{
 				heading: "Where the trend is heading",
-				text: ["The app projects a number goal to its due week from a straight line fitted through its numbers of the last eight weeks, not from two weeks alone, so one noisy week can’t swing it. A slope the numbers barely support counts for little.", "The projection is a range: about two chances in three that the number lands inside it if nothing changes. A clean trend has no spread, so its range is a single number. It is the app’s estimate, kept apart from the owner’s own date."]
+				text: [
+					"The app projects a number goal to its due week from a straight line fitted through its numbers of the last eight weeks, not from two weeks alone, so one noisy week can’t swing it. A slope the numbers barely support counts for little.",
+					"The projection is a range: about two chances in three that the number lands inside it if nothing changes. A clean trend has no spread, so its range is a single number. It is the app’s estimate, kept apart from the owner’s own date.",
+					"A projection only goes where the number can: a count of things (deploys, runbooks, incidents) never below zero, and a share never below 0% or above 100%."
+				]
 			}
 		],
 		routes: [],
@@ -28810,11 +28860,11 @@ var ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Start check-in on Home walks through every goal due this week. From a goal’s page, Check in does just that goal.",
-					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type.",
+					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
 					`On plan, that’s it: post. Behind (under ${pct(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
 					`Causes when behind: ${causes(CAUSES_BEHIND)}. When ahead: ${causes(CAUSES_AHEAD)}. Something else lets you say it in your own words.`,
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
-					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing.",
+					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
 					"The status is your call. Change it if the numbers don’t tell the whole story; a call greener than the numbers needs a reason."
 				]
@@ -29224,7 +29274,8 @@ var ARTICLES = [
 				"Pan, zoom and drag goals about. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.",
 				"The critical path, the inputs most likely to make a top goal miss, is drawn bold. Only what needs attention narrows the map to that.",
 				"Fit all shows everything small; Readable shows the critical path at a size you can read.",
-				"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row."
+				"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.",
+				"The map’s walkthrough ends beside the story: on a desktop its card sits over the map, left of the story and level with its foot; on a phone, above the story."
 			]
 		}],
 		routes: ["/goals?view=map"],
@@ -29270,7 +29321,7 @@ var ARTICLES = [
 					"One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.",
 					"Every section under the chart has a heading and one line saying what it answers, with a rule between sections.",
-					"Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything the numbers would otherwise hide, as small tags. On plan, the same place has the owner’s latest word; gone quiet, how long it has been.",
+					"Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call greener than the numbers, or a trend that will miss the target while the goal is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); gone quiet, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
 					"What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done.",
 					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
 					"What feeds it: how the goals feeding it stand (“Fed by four goals: 2 off track, 1 at risk”), then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
@@ -29477,8 +29528,8 @@ var ARTICLES = [
 				heading: "Running it",
 				list: [
 					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first.",
-					"Open a review to see its agenda: one line per goal, the ones to discuss first. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.",
-					"The walk opens each goal’s page in turn. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
+					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.",
+					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
 					"Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session."
 				]
 			},
@@ -30104,6 +30155,27 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "fit-fixes-nov-6",
+		date: "2026-11-06",
+		title: "Small fixes: on plan to the cent, nothing cut off",
+		points: [
+			"A number typed to the goal’s decimals can be on plan again. A new goal whose plan moves less than a cent in its first week (CI cost: 0.4067 USD) is on plan at 0.41, instead of reading as behind at 0.41 and well ahead at 0.40.",
+			"Projections stay where a number can go: a count of things is never projected below zero.",
+			"On a phone, Home keeps each reason a goal needs attention to two lines; the goal’s page now says every flag in full, such as a trend heading short of the target or a call greener than the numbers.",
+			"A review’s agenda gives each goal’s name the room, at every width, with the gap to plan wrapping beside it; the review’s name wraps rather than being cut off while you walk it.",
+			"On a phone the strip at the top of Home is slimmer for leaders, and in a check-in the box with last week’s words grows to show all of them.",
+			"The map’s walkthrough ends with its card beside the story, over the map, instead of in the top corner."
+		],
+		articles: [
+			"status",
+			"home",
+			"goal-page",
+			"reviews",
+			"check-in",
+			"goal-map"
+		]
+	},
+	{
 		id: "goal-page-scorecard",
 		date: "2026-11-06",
 		title: "A goal’s page says each thing once, with a scorecard at the top",
@@ -30718,6 +30790,8 @@ function layoutFrom(ctx, a) {
 	if (problems.length) throw new Error(`${problems.join(" ")} Its columns: ${choosableColumns(layout.table, headOf(ctx, layout.table)).join(", ")}.`);
 	return layout;
 }
+/** A sentence as part of a longer line: without its closing full stop, so the line never ends in two. */
+var clause = (t) => t.trim().replace(/\.+$/, "");
 var WORK_TOOLS = [
 	{
 		name: "get_my_work",
@@ -30836,8 +30910,8 @@ var WORK_TOOLS = [
 					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question} (${q.id})`).join("; ") : "none"}.`,
 					`Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by} (${x.id})`).join("; ") : "none"}.`,
 					`Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? ", overdue" : ""}` : ""} (${x.id})`).join("; ") : "none"}.`,
-					`Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.join(" ")}`).join("; ") : "none"}.`,
-					`Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === "off" ? "off track" : "at risk"}): ${g.inHand}`).join("; ") : "none"}.`
+					`Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.map(clause).join(". ")}`).join("; ") : "none"}.`,
+					`Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === "off" ? "off track" : "at risk"}): ${clause(g.inHand)}`).join("; ") : "none"}.`
 				].join("\n")
 			};
 		}

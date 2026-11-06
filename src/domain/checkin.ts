@@ -1,6 +1,7 @@
 /* What a check-in must say before it can be posted. */
 import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Assessment } from './status';
 import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
+import { isShare } from './plan';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
   ['aggressive', 'Plan too aggressive'], ['slower', 'Delivery slower'], ['blocked', 'Blocked by a dependency'], ['external', 'External factor'], ['data', 'Data problem'], ['other', 'Something else'],
@@ -67,16 +68,8 @@ export function parseNumber(s: string): number | null {
   return Number.isFinite(n) && Math.abs(n) < 1e12 ? n : null;
 }
 
-/** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
-export function isShare(goal?: Goal): boolean {
-  return !!goal && goal.kind !== 'milestone' && goal.unit.trim() === '%' && withinHundred(goal);
-}
-function withinHundred(goal?: Goal): boolean {
-  if (!goal) return false;
-  if (goal.kind === 'metric') return [goal.plan.start, goal.plan.target, ...(goal.plan.points ?? []).map((p) => p.value)].every((v) => v >= 0 && v <= 100);
-  if (goal.kind === 'range') return goal.range.limit >= 0 && goal.range.limit <= 100;
-  return false;
-}
+// What values a goal's number can take (a share, a count) is plan.ts's, where projections are held to them.
+export { isCount, isShare } from './plan';
 
 /** Why a typed value can't be used, or a check worth making before posting it. */
 export function valueProblem(raw: string, last: number | null, unit: string, goal?: Goal): { block: boolean; text: string } | null {
@@ -86,7 +79,7 @@ export function valueProblem(raw: string, last: number | null, unit: string, goa
   if (n < 0 && (unit === '%' || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit))) return { block: true, text: `It can’t be below zero${unit ? ' ' + unit : ''}.` };
   if (unit === '%' && n > 100) {
     // A share of something (coverage, adoption) can't pass 100%. A goal planned beyond 100% (growth, say) can.
-    return withinHundred(goal) ? { block: true, text: 'It can’t be over 100%: this goal measures a share of something.' } : { block: false, text: 'That’s over 100%. Is that right?' };
+    return isShare(goal) ? { block: true, text: 'It can’t be over 100%: this goal measures a share of something.' } : { block: false, text: 'That’s over 100%. Is that right?' };
   }
   if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return { block: false, text: `Last week was ${last}. Is ${n} right?` };
   return null;

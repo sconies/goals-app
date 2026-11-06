@@ -7,9 +7,8 @@
    change since the last check-in, plan for the range); this module only says them, and decides one thing of its own:
    how likely the target is, as a word, from where the target sits against the projected range (`likelihood`).
    Pure: the page, the chart and the AI assistant's get_goal read the same words. */
-import { isShare } from './checkin';
 import { fmt, NO_VALUE } from './format';
-import { planEnd, projection, valueSeries } from './plan';
+import { planEnd, projectionFor, valueSeries } from './plan';
 import { assessMilestone, assessPosted, checkInsFor } from './status';
 import { summaryFacts } from './summaryFacts';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
@@ -116,8 +115,6 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
   const target = goal.plan.target;
   const due = planEnd(goal.plan, cycle.weeks);
   const cells: ScoreCell[] = [];
-  const share = isShare(goal);
-  const clamp = (v: number) => (share ? Math.min(100, Math.max(0, v)) : v);
 
   // Vs plan: the latest number against the plan for its own week.
   let gap: string | null = null;
@@ -149,7 +146,8 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
   if (stale) cells.push({ key: 'hit', label, value: 'Can’t say', sub: 'no recent check-in to go on', tone: 'flat' });
   else if (!a.projection) cells.push({ key: 'hit', label, value: 'Too early to say', sub: 'needs three weeks of numbers', tone: 'flat' });
   else {
-    const p = { value: clamp(a.projection.value), low: clamp(a.projection.low), high: clamp(a.projection.high) };
+    // Already held to what the number can be (a share within 0–100%, a count not below zero): plan.ts projectionFor.
+    const p = a.projection;
     const l = likelihood(target, p, better, likelihoodFloor(goal.plan.target - goal.plan.start, goal.decimals));
     const tone: CellTone = l === 'likely' ? 'good' : l === 'possible' ? 'flat' : 'bad';
     cells.push({ key: 'hit', label, value: LIKELIHOOD_WORD[l], sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}`, tone, likelihood: l });
@@ -182,7 +180,7 @@ function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: num
   // Will it stay within (or get back within) the limit by the end of the cycle?
   const label = a.out ? 'Back within by the end?' : 'Will it stay within?';
   const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
-  const pr = stale ? null : projection(valueSeries(own), cycle.weeks);
+  const pr = stale ? null : projectionFor(goal, valueSeries(own), cycle.weeks);
   if (stale) cells.push({ key: 'hit', label, value: 'Can’t say', sub: 'no recent check-in to go on', tone: 'flat' });
   else if (!pr) cells.push({ key: 'hit', label, value: 'Too early to say', sub: 'needs three weeks of numbers', tone: 'flat' });
   else {

@@ -7,7 +7,7 @@
    Each fact has one home on it (the plan's "one home for each fact" table). */
 import type { GoalAttention } from './attention';
 import { fmt, NO_VALUE } from './format';
-import { currentWeek, daysSince, goalAsOf, planAt, planEnd, projection, valueSeries } from './plan';
+import { currentWeek, daysSince, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
 import { asksOf, canAnswer, canMarkDone, isOverdue, isResolved, liveNotes, openAsksFor } from './asks';
 import { goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
@@ -80,7 +80,8 @@ export function whyLine(goal: Goal, s: Snapshot, att: GoalAttention): WhyLine {
   const st = att.status;
   const latest = st.latest;
   if (!latest) return { text: st.status === 'stale' ? 'Nothing reported yet' : 'Waiting for its first check-in', by: null, handled: null, handledText: null };
-  if (st.status === 'stale') return { text: `No check-in for ${st.daysSinceCheckIn} days; last heard in week ${latest.week}`, by: null, handled: null, handledText: null };
+  // Gone quiet: the same words as the flag on Home and Watching (attention.ts), so the reason cut short there is here whole.
+  if (st.status === 'stale') return { text: (att.flags.find((f) => f.kind === 'stale')?.detail ?? `No check-in for ${st.daysSinceCheckIn} days.`).replace(/\.$/, ''), by: null, handled: null, handledText: null };
   const by = `${first(s, latest.authorId)}, week ${latest.week}`;
   if (st.status === 'off' || st.status === 'risk') {
     const handled = att.handled ? 'handled' as const : 'nobody' as const;
@@ -255,7 +256,7 @@ export function pathCheck(goal: Goal, s: Snapshot, cycle: Cycle, week: number, l
   if (by == null || missed) return { what: ptg.what, byWeek: by, check: missed ? `${owner} said it would be back on plan by week ${by}; that week has passed.` : null, reaches: null, missed };
   if (goal.kind === 'metric') {
     const series = valueSeries(checkInsFor(goal, s.checkIns).filter((c) => c.week <= week));
-    const p = projection(series, by);
+    const p = projectionFor(goal, series, by);
     if (!p) return { what: ptg.what, byWeek: by, check: 'Too few check-ins yet to check that date against the trend.', reaches: null, missed };
     const g = goalAsOf(goal, by);
     const plan = planAt(g.plan, by, cycle.weeks);

@@ -194,7 +194,12 @@ export function buildPlatformOrg(today: Date): Snapshot {
     if (s.done && w === T(s.done.week)) { draft.status = 'done'; draft.greenerWhy = s.done.why; }
     let e: Evaluation = evaluate(asOf, cycle, w, draft, history);
     if (e.greener && !draft.greenerWhy) draft.greenerWhy = s.call?.why ?? 'The owner’s call.';
+    const a = e.assessment;
     if (e.reason) Object.assign(draft, say(s, phase, e.reason));
+    // On plan only as written at the goal's decimals (a first week whose plan moved less than they show): nothing to
+    // explain, so the owner says nothing. The reason it would have read as before is still drawn, so the year's one
+    // random stream (noise, skipped and late weeks) runs as it did and the story the demo tells doesn't move.
+    else if (a.kind === 'metric' && a.asWritten != null) { say(s, phase, a.asWritten < 1 ? 'behind' : 'ahead'); draft.why = ''; }
     else draft.why = R.next() < 0.75 ? R.pick(STEADY) : '';
     if (phase.theme === 'data' && e.reason) draft.dataFlagged = true;
     e = evaluate(asOf, cycle, w, draft, history);

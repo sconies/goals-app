@@ -70,8 +70,9 @@
 .ci .stagepick-state { font-size: 0.875rem; line-height: 1.25rem; font-weight: 600; }
 .ci .stagepick-state svg { width: 12px; height: 12px; }
 
-/* The account's text grows with what's in it, so carried-over words aren't cut off (Check-in 18). */
-.ci .account textarea.input { field-sizing: content; min-height: 88px; max-height: 200px; }
+/* The account's text grows with what's in it, so carried-over words aren't cut off (Check-in 18): all of it, however
+   long last week's reason was (a 560-character one needs about 300px on a phone), so no cap on the height. */
+.ci .account textarea.input { field-sizing: content; min-height: 88px; max-height: none; }
 
 /* Saved: on a phone both buttons are full width; the status phrase doesn't split (Check-in 16). */
 .ci .nobr, .quick .nobr { white-space: nowrap; }

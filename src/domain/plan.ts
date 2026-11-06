@@ -147,6 +147,41 @@ export function projection(series: Point[], toWeek: number): Projection | null {
   return { value: tidy(value), low: tidy(value - half), high: tidy(value + half), week: toWeek, from: pts[0]!.week, to: last.week, slope: tidy(lean * slope) };
 }
 
+/** Does a percentage goal measure a share (its whole plan within 0–100%), so a value over 100% can't be real? */
+export function isShare(goal?: Goal): boolean {
+  return !!goal && goal.kind !== 'milestone' && goal.unit.trim() === '%' && planValues(goal).every((v) => v >= 0 && v <= 100);
+}
+
+/**
+ * Does a number goal count things (deploys, templates, runbooks, incidents)? Whole numbers, a plan that never goes
+ * below zero, and a unit that isn't a share, a time, money or a score (a score can go below zero).
+ */
+export function isCount(goal?: Goal): boolean {
+  if (!goal || goal.kind === 'milestone' || goal.decimals !== 0) return false;
+  const unit = goal.unit.trim().toLowerCase();
+  if (unit === '%' || /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/.test(unit)) return false;
+  return planValues(goal).every((v) => v >= 0 && Number.isInteger(v));
+}
+function planValues(goal: Goal): number[] {
+  if (goal.kind === 'metric') return [goal.plan.start, goal.plan.target, ...(goal.plan.points ?? []).map((p) => p.value)];
+  if (goal.kind === 'range') return [goal.range.limit];
+  return [];
+}
+
+/**
+ * A goal's projection, held to the values its number can take: a count's range stops at zero, a share's stays within
+ * 0–100%. Every projection of a goal's own numbers comes from here (the status rules, the scorecard, the summary facts
+ * and the path-to-green check), so a count is never projected below zero anywhere.
+ */
+export function projectionFor(goal: Goal, series: Point[], toWeek: number): Projection | null {
+  const p = projection(series, toWeek);
+  if (!p) return null;
+  const share = isShare(goal);
+  if (!share && !isCount(goal)) return p;
+  const hold = (v: number) => Math.max(0, share ? Math.min(100, v) : v);
+  return { ...p, value: hold(p.value), low: hold(p.low), high: hold(p.high) };
+}
+
 /** The likeliest value of the projection: where the number lands by `weeks` if the recent trend holds. */
 export function forecast(series: Point[], weeks: number): number | null {
   return projection(series, weeks)?.value ?? null;

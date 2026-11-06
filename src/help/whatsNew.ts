@@ -19,6 +19,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'fit-fixes-nov-6',
+    date: '2026-11-06',
+    title: 'Small fixes: on plan to the cent, nothing cut off',
+    points: [
+      'A number typed to the goal’s decimals can be on plan again. A new goal whose plan moves less than a cent in its first week (CI cost: 0.4067 USD) is on plan at 0.41, instead of reading as behind at 0.41 and well ahead at 0.40.',
+      'Projections stay where a number can go: a count of things is never projected below zero.',
+      'On a phone, Home keeps each reason a goal needs attention to two lines; the goal’s page now says every flag in full, such as a trend heading short of the target or a call greener than the numbers.',
+      'A review’s agenda gives each goal’s name the room, at every width, with the gap to plan wrapping beside it; the review’s name wraps rather than being cut off while you walk it.',
+      'On a phone the strip at the top of Home is slimmer for leaders, and in a check-in the box with last week’s words grows to show all of them.',
+      'The map’s walkthrough ends with its card beside the story, over the map, instead of in the top corner.',
+    ],
+    articles: ['status', 'home', 'goal-page', 'reviews', 'check-in', 'goal-map'],
+  },
+  {
     id: 'goal-page-scorecard',
     date: '2026-11-06',
     title: 'A goal’s page says each thing once, with a scorecard at the top',

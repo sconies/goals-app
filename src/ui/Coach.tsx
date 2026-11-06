@@ -119,7 +119,11 @@ type Hint = { anchor: DOMRect | null; gap?: number; opts: PlaceOptions };
 const SIDES: Side[] = ['below', 'above', 'right', 'left'];
 function readHint(target: HTMLElement | null): Hint | null {
   const el = target ?? document.querySelector<HTMLElement>('[data-coach-anchor]');
-  const avoid = [...document.querySelectorAll<Element>('[data-coach-avoid]')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0)
+  // Beside an anchor (a step about the map's story panel, not about a goal on it) the card may sit over the drawing:
+  // the panel says where it goes (left of it, on its bottom line) and the map stays in view around it. Kept clear of
+  // the drawing, it found no spot left of the panel once a critical line ran low, and fled to the top corner (Map 1).
+  const avoidEls = [...document.querySelectorAll<Element>('[data-coach-avoid]')].filter((e) => target || !e.closest('.react-flow'));
+  const avoid = avoidEls.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0)
     .map((r) => ({ left: r.left, top: r.top, width: r.width, height: r.height }));
   if (!el?.dataset.coachPlace && !el?.dataset.coachGap && !avoid.length && !(el && !target)) return null;
   const words = (el?.dataset.coachPlace ?? '').split(/\s+/);
