@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-06 08:23 UTC.
+Run 2026-11-06 12:05 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -48,6 +48,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 38 | A leader reads the quarters, inspects a week, asks for an update and takes it back; an owner’s double press posts once | **10** | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 24) |
 | 39 | Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 8 · 8 (budget 14) |
 | 40 | Research notes followed up: a cause for anything else, demo feedback that says where it goes, and a research session that ends after its last task | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 14 · 13 (budget 16) |
+| 41 | Mark up a screen on a phone and a desktop: draw, add a note, check the picture, say what should change, send | **10** | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 9 (budget 14) |
+| 42 | A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed | **10** | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 18) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -66,7 +68,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**109 of 109 pass**. Spec scenarios 208/208.
+**112 of 112 pass**. Spec scenarios 213/213.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -179,6 +181,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **DEMO-STORAGE** The demo keeps only the visitor’s own saves on top of the example rebuilt from its description, so a change survives a reload at the example’s full size. When the browser refuses to store (full, or blocked in a private window), the changes still apply for the visit and the page says plainly that they will be lost on reload; starting over clears the saves. | Demo | 5 | P15 |
 | ✅ | **ONE-WATCHING** Watching is one place: a Goals scope (/goals?show=watching, with /watching going there) with the full toolbar (filters, sort, layouts, export) and the What changed side column; levels are the ordinary Level filter. There is no four-tab navigation trial, and Home has one watching block. | Watching | 2 | U8, U9, U16, U31 |
 | ✅ | **BRAND** The app is called Faro. The page title ends “Faro”; the browser tab shows Faro’s mark (an SVG favicon at /favicon.svg, linked from index.html and served in the demo too); the welcome page shows the Faro logo, named “Faro”; the sidebar shows the logo (the mark alone on the icon rail). The default look is Faro’s warm paper, ink and teal; the logo’s amber is used nowhere else in the app, since amber means At risk. In light and dark, body text passes 7:1 on the page, links 4.5:1 and primary button text 4.5:1. The earlier accents stay in Settings, with Faro the default. | Platform | 1 | N4 |
+| ✅ | **MARKUP** Send feedback's first choice, Mark up this screen (and Ctrl+Shift+M or Cmd+Shift+M anywhere), takes the visible screen as a still picture, loaded only when a markup starts, and gives a slim toolbar: Pen, Arrow, Box, Note (a numbered pin with a few words), Undo, Clear, Cancel and Next, in one high-contrast ink, with the page frozen, by mouse, touch or the keyboard alone, and Escape cancelling. Next asks one required line (What should change?), the Send feedback moods and shows the exact picture that will be sent; Include my last 20 steps on this visit is ticked, with a link to Help. Send says “Sent. You’ll hear when it’s fixed.” A markup carries the screen and the drawing as separate pictures, the strokes and pins as vectors, the named screen parts (data-part) under each, the route, the goal or review, viewport, theme, accent, app version, the steps (if ticked) and the visit's errors and failed saves. Markups from the demo are kept too, marked demo; the public key can only add a markup, under an id the database issued, and upload its pictures to a private bucket. A What’s new entry that lists (or was marked as fixing) a markup says “You raised this” to its sender. | Feedback | 1 | U41, U42 |
+| ✅ | **MARKUP-INBOX** Workspace has an Inbox for builders, who sign in to it (only it) with a Supabase Auth email link; a builder is an email on okr_builders, checked in the database by okr_is_builder(). Builders read and triage every markup, newest first, grouped by page and part with a count, each with a thumbnail, its line, its page, who sent it, when, and its status as a shape plus a word (New, In hand, Fixed, Won’t fix). A markup opens with its picture (the drawing can be hidden), the named parts, the steps as a timeline, errors and where it came from. Builders mark it in hand, open a pre-filled GitHub issue and paste its address back, mark it fixed in a What’s new entry, or say why it won’t be fixed. Admins who aren’t builders can’t read it until release 4. With a builder token, the MCP tools list_markups, get_markup and update_markup do the same through security-definer functions, with no new secret. | Feedback | 2 | U42 |
+| ✅ | **TOKENS-SERVER-ONLY** AI assistant tokens are made and revoked only by security-definer functions (okr_token_create, okr_token_revoke) that make the secret in the database, store only its SHA-256 hash and return it once. The public key can't read, add or change okr_api_tokens; the app lists token metadata (never the hash) with okr_token_list, and the MCP server finds a token with okr_token_find. The public key can't read okr_feedback; Workspace reads a workspace's with okr_feedback_list. AI assistants and Workspace's feedback keep working. | AI assistants | 2 | — |
 
 ## Platform checks
 

@@ -14,7 +14,6 @@ import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
-import { hashToken, newToken } from '../mcp/protocol';
 import { ACTIONS } from '../mcp/parity';
 import { telemetry } from '../telemetry';
 
@@ -293,6 +292,20 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     }
   }, [store, toast]);
 
+  /** A new AI assistant token: the store makes the secret and keeps only its hash; the secret comes back once. */
+  const issueToken = useCallback(async (c: Commit) => {
+    const cur = loadedRef.current;
+    if (!cur) throw new Error('no workspace is open');
+    saving.current++;
+    try {
+      const secret = await store.issueToken(cur.ws, c);
+      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: Date.now() } : l));
+      return secret;
+    } finally {
+      saving.current--;
+    }
+  }, [store]);
+
   // See other people's changes: reload when coming back to the tab, and every two minutes while it's open.
   useEffect(() => {
     const refresh = () => {
@@ -445,10 +458,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         await commit(cs.commit);
       },
       createToken: async (personId, name) => {
-        const token = newToken();
-        const hash = await hashToken(token);
-        await act(() => A.createToken(ax(), personId, name, hash));
-        return token;
+        let c: Commit;
+        try { c = A.createToken(ax(), personId, name); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+        // The secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.
+        return issueToken(c);
       },
       saveView: async (v) => { const out = await act(() => A.saveView(ax(), v)); return out.id; },
       saveTableView: async (v, head) => { const out = await act(() => A.saveTableView(ax(), v, head)); return out.id; },
@@ -457,7 +470,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },
       startNextCycle: async () => { const out = await act(() => A.startNextCycle(ax())); return out.name; },
     });
-  }, [loaded, viewerId, store, today, workspaces, commit, toast, createWorkspace, mode, saveNote]);
+  }, [loaded, viewerId, store, today, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 

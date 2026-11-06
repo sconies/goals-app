@@ -81,12 +81,24 @@ Other assistants:
 | `send_feedback` | Feedback about the app |
 | `delete_workspace` | Admins: delete the workspace. Needs its exact name, and can't be undone |
 
+**The builder inbox** (builder tokens only)
+
+| Tool | What it does |
+|---|---|
+| `list_markups` | Markups people sent (a picture of a screen with a drawing, and a line saying what should change), newest first, from every workspace and the demo. Filter by `status` (`new`, `in-hand`, `fixed`, `wont-fix`) or `workspace` |
+| `get_markup` | One markup in full: its line, the named screen parts under the drawing, its notes, where it was sent from (page, goal or review, screen size, theme, accent, app version), the steps before it and the visit's errors. With a link to its picture that works for ten minutes, when the server can sign one (see below); otherwise it points to the inbox |
+| `update_markup` | Set a markup's `status` (`fixed` needs `fixed_in`, the What's new entry's id; `wont-fix` needs a `reason`) and keep its GitHub issue's address (`issue_url`). The same rules as the inbox |
+
+These need a **builder token**: a builder signs in to the inbox (Workspace → Inbox, an email link) and makes one there, acting as themselves in a workspace. An ordinary token, which an admin can make for anyone, gets "only builders" instead. A builder token stops counting as one if its email leaves `okr_builders`. The tools reach markups through the database's functions for builder tokens (`okr_markups_for_token`, `okr_markup_for_token`, `okr_markup_triage_for_token`, migration 0024), so they need no secret beyond the token.
+
 Goal, plan and check-in tools take `dry_run: true` to check a change without saving it. Destructive tools are marked as such, so assistants ask before using them.
 
 ## Hosting and security
 
 - **Hosting.** The server is a Vercel function. `server/vercel.ts` is bundled into `api/mcp.js` by `npm run build:mcp`, and CI checks that the bundle matches its source.
-- **Database key.** It reads and writes Supabase with `SUPABASE_SERVICE_ROLE_KEY` when that is set, otherwise with the app's public key.
+- **Database key.** It reads and writes Supabase with `SUPABASE_SERVICE_ROLE_KEY` when that is set, otherwise with the app's public key. Today the Vercel project has only the public key.
+- **Tokens** (migration 0024). The public key can't read, add or change `okr_api_tokens`. The server finds a token by its hash with `okr_token_find` and notes its use with `okr_token_touch`; `create_token` goes through `okr_token_create`, which makes the secret in the database and keeps only its SHA-256 hash. All of these work with either key.
+- **Markup pictures** live in the private Storage bucket `markups`. Only Storage's own access can sign a link to one: the inbox does it as the signed-in builder; the MCP server can only with `SUPABASE_SERVICE_ROLE_KEY`. Without that key, `get_markup` says to open the picture in the inbox.
 - **Telemetry.** Each tool call is recorded as a SERVER span in `okr_telemetry_spans` (migration 0022), with CLIENT spans for the database reads and saves inside it, unless the workspace has turned recording off. Send a W3C `traceparent` header and the spans join your trace. Spans carry the tool's name, the person's and workspace's ids and the class of any failure, never a tool's arguments or answers. A failure to store them never changes an answer.
-- **Until company sign-in arrives**, the app's public key can still write to every table. A token makes clear who an assistant acts for and can be switched off, but it doesn't stop someone with the public key. The next step is sign-in, then making the public key read-only, so that all writes go through the server.
+- **Until company sign-in arrives**, the app's public key can still write to most tables (not tokens, and it can only add markups and feedback). A token makes clear who an assistant acts for and can be switched off, but it doesn't stop someone with the public key. The next step is sign-in, then making the public key read-only, so that all writes go through the server.
 - **Vercel's deployment protection** must let `/api/mcp` through (for example, a custom domain, or protection for previews only), or assistants will get Vercel's sign-in page instead of the server.

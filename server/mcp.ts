@@ -8,24 +8,30 @@ import { applyCommit, EXAMPLE, newId, withExpectations } from '../src/data/store
 import { currentCycle, scopeToCycle } from '../src/domain/cycle';
 import { currentWeek } from '../src/domain/plan';
 import type { ApiToken, Snapshot } from '../src/domain/types';
-import { handleBody, hashToken, type TraceTool } from '../src/mcp/protocol';
+import { handleBody, hashToken, newToken, type TraceTool } from '../src/mcp/protocol';
 import { errorType } from '../src/telemetry/errors';
 import { parseTraceparent, type SpanContext } from '../src/telemetry/ids';
 import type { SpanRow } from '../src/telemetry/model';
 import { SpanCollector } from '../src/telemetry/server';
 import type { McpContext } from '../src/mcp/tools';
+import type { MarkupOps } from '../src/markup/ops';
 
 export interface Deps {
-  /** The live (not revoked) token with this hash, and its workspace. */
-  findToken(hash: string): Promise<{ token: ApiToken; workspaceId: string } | null>;
+  /** The live (not revoked) token with this hash, its workspace, and whether it's a builder token (migration 0024). */
+  findToken(hash: string): Promise<{ token: ApiToken; workspaceId: string; builder?: boolean } | null>;
   workspaceName(id: string): Promise<string>;
   load(workspaceId: string): Promise<Snapshot>;
   commit(workspaceId: string, c: Commit): Promise<void>;
   touch(tokenId: string, at: string): Promise<void>;
+  /** Saves a new token and returns its secret, made and hashed by the database (migration 0024). Without it, the
+      secret is made here and the token saved, with its hash, like any other change. */
+  issueToken?(workspaceId: string, c: Commit): Promise<string>;
   /** Deletes a workspace and everything in it (an admin's delete_workspace). */
   deleteWorkspace?(workspaceId: string): Promise<void>;
   /** Whether the workspace records how it is used (migration 0022). Unknown counts as on. */
   recording?(workspaceId: string): Promise<boolean>;
+  /** The builder inbox (src/markup/ops.ts) for a builder token, given its hash. Only builder tokens get it. */
+  markups?(tokenHash: string): MarkupOps;
   /** Where the server's own spans go. Without it, nothing is recorded. */
   telemetry?(spans: SpanRow[]): Promise<void>;
   now?: () => Date;
@@ -52,7 +58,8 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   const auth = req.headers.get('authorization') ?? '';
   const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1] ?? new URL(req.url).searchParams.get('token') ?? '';
   if (!token) return rpcError(401, 'Add your personal token: Authorization: Bearer gk_… An admin makes one under Workspace → AI assistants.', { 'WWW-Authenticate': 'Bearer' });
-  const found = await deps.findToken(await hashToken(token));
+  const hash = await hashToken(token);
+  const found = await deps.findToken(hash);
   if (!found) return rpcError(401, 'That token isn’t valid or has been revoked. Ask an admin for a new one.', { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
 
   let body: unknown;
@@ -105,7 +112,23 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
         if (c.workspace) ctx!.ws = { ...ctx!.ws, name: c.workspace.name };
         if (c.recording !== undefined) ctx!.ws = { ...ctx!.ws, recording: c.recording };
       },
+      issueToken: async (c) => {
+        let saved = c;
+        let secret: string;
+        if (deps.issueToken) secret = await db('okr_token_create', () => deps.issueToken!(found.workspaceId, c));
+        else {
+          secret = newToken();
+          const tokenHash = await hashToken(secret);
+          saved = { ...c, tokens: (c.tokens ?? []).map((t) => ({ ...t, tokenHash })) };
+          await db('okr_commit', () => deps.commit(found.workspaceId, saved));
+        }
+        all = applyCommit(all, saved);
+        ctx!.snapshot = scopeToCycle(all, cycle);
+        return secret;
+      },
       ...(deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace!(found.workspaceId) } : {}),
+      // The markup tools work only with a builder token, which only a builder signed in to the inbox can make.
+      ...(deps.markups && found.builder ? { markups: deps.markups(hash) } : {}),
     };
     return ctx;
   };

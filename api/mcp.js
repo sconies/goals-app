@@ -1,4 +1,5 @@
 // \0rolldown/runtime.js
+var __defProp = Object.defineProperty;
 var __esmMin = (fn, res, err) => () => {
 	if (err) throw err[0];
 	try {
@@ -6,6 +7,15 @@ var __esmMin = (fn, res, err) => () => {
 	} catch (e) {
 		throw err = [e], e;
 	}
+};
+var __exportAll = (all, no_symbols) => {
+	let target = {};
+	for (var name in all) __defProp(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
+	return target;
 };
 // node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
@@ -22829,7 +22839,7 @@ var tokenToRow = (ws, t) => ({
 	id: t.id,
 	person_id: t.personId,
 	name: t.name,
-	token_hash: t.tokenHash,
+	token_hash: t.tokenHash ?? "",
 	created_by: t.createdBy,
 	created_at: t.createdAt,
 	last_used_at: t.lastUsedAt,
@@ -22897,7 +22907,7 @@ var tokenFromRow = (r) => ({
 	id: r.id,
 	personId: r.person_id,
 	name: r.name,
-	tokenHash: r.token_hash,
+	...r.token_hash ? { tokenHash: r.token_hash } : {},
 	createdBy: r.created_by,
 	createdAt: iso$1(r.created_at),
 	lastUsedAt: r.last_used_at ? iso$1(r.last_used_at) : null,
@@ -22944,6 +22954,22 @@ function commitPayload(ws, c) {
 		} : null
 	};
 }
+// src/mcp/token.ts
+var token_exports = /* @__PURE__ */ __exportAll({
+	hashToken: () => hashToken,
+	newToken: () => newToken
+});
+/** SHA-256 of a token, as hex: what's stored, and what a presented token is checked against. */
+async function hashToken(token) {
+	const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+	return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+/** A new token: "gk_" and 40 random letters and digits. */
+function newToken() {
+	const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
+}
+var init_token = __esmMin((() => {}));
 // src/domain/format.ts
 /** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
 function unitFor(n, unit) {
@@ -24939,17 +24965,18 @@ function pinView(x, id, pinned) {
 		}]
 	};
 }
-/** Admins: a personal token for an assistant to act as someone. Only the token's hash is kept; the caller makes both. */
-function createToken(x, personId, name, tokenHash) {
+/** Admins: a personal token for an assistant to act as someone. The store makes the secret and keeps only its hash
+(Store.issueToken): in the shared database, the database does. */
+function createToken(x, personId, name) {
 	if (!x.actor.admin) no("Only admins can make tokens.");
 	const who = x.snapshot.people.find((p) => p.id === personId);
 	if (!who) no("There’s no one with that ID in this workspace.");
 	if (!name.trim()) no("Say what the token is for, e.g. “Claude on my laptop”.");
+	if (name.trim().length > 120) no("Keep what it’s for to 120 characters.");
 	const t = {
 		id: x.newId("tok"),
 		personId,
 		name: name.trim(),
-		tokenHash,
 		createdBy: x.actor.id,
 		createdAt: x.now,
 		lastUsedAt: null,
@@ -26225,6 +26252,8 @@ var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) +
 // src/data/supabaseStore.ts
 init_asks();
 init_goalKey();
+/** A database function that isn't there yet: its migration hasn't been applied. */
+var missing = (error) => error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message);
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
 var TIMEOUT_MS = 12e3;
 /** Supabase returns at most 1,000 rows per request; read in pages below that. */
@@ -26246,7 +26275,10 @@ var SupabaseStore = class {
 	db;
 	constructor(url, key, client) {
 		this.db = client ?? createClient(url, key, {
-			auth: { persistSession: false },
+			auth: {
+				persistSession: false,
+				detectSessionInUrl: false
+			},
 			global: { fetch: timedFetch }
 		});
 	}
@@ -26286,8 +26318,8 @@ var SupabaseStore = class {
 			this.all("okr_watches", ws),
 			this.all("okr_reviews", ws),
 			this.all("okr_retros", ws),
-			this.all("okr_feedback", ws),
-			this.all("okr_api_tokens", ws).catch(() => []),
+			this.viaRpc("okr_feedback_list", ws, "okr_feedback").catch(() => []),
+			this.viaRpc("okr_token_list", ws, "okr_api_tokens").catch(() => []),
 			this.all("okr_views", ws).catch(() => []),
 			this.all("okr_requests", ws).catch(() => null)
 		]);
@@ -26309,16 +26341,48 @@ var SupabaseStore = class {
 			...requests ? { requests: requests.map(requestFromRow) } : {}
 		});
 	}
+	/** A workspace's rows from a database function that returns them (migration 0024), or from the table before it. */
+	async viaRpc(fn, ws, table) {
+		const { data, error } = await this.db.rpc(fn, { ws });
+		if (!error) return data ?? [];
+		if (missing(error)) return this.all(table, ws);
+		throw new Error(`${table}: ${error.message}`);
+	}
 	/** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
 	async rpc(fn, args, what) {
 		const { error } = await this.db.rpc(fn, args);
 		if (!error) return;
-		if (error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message)) return "missing";
+		if (missing(error)) return "missing";
 		if (/stale: /.test(error.message)) throw new StaleError(error.message.replace(/^.*stale: /, ""));
 		throw new Error(`${what}: ${error.message}`);
 	}
-	/** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. */
+	/** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. Revoking a
+	token goes through okr_token_revoke (migration 0024), with its change-log entry, in its own transaction. */
 	async commit(ws, c) {
+		if (c.tokens?.length) {
+			const by = c.changes[0]?.actorId ?? "";
+			const done = [];
+			for (const t of c.tokens) {
+				if (!t.revokedAt) continue;
+				const change = c.changes.find((x) => x.entityId === t.personId && x.diffs.some((d) => d.field === "AI assistant token"));
+				if (await this.rpc("okr_token_revoke", {
+					ws,
+					token_id: t.id,
+					by_id: by,
+					change: change ? changeToRow(ws, change) : null
+				}, "Revoking the token") === "missing") break;
+				done.push(t.id);
+				if (change) c = {
+					...c,
+					changes: c.changes.filter((x) => x !== change)
+				};
+			}
+			if (done.length) c = {
+				...c,
+				tokens: c.tokens.filter((t) => !done.includes(t.id))
+			};
+			if (!c.tokens?.length && Object.entries(c).every(([k, v]) => k === "expect" || k === "tokens" || (Array.isArray(v) ? !v.length : v === void 0))) return;
+		}
 		if (await this.rpc("okr_commit", {
 			ws,
 			payload: commitPayload(ws, c)
@@ -26327,6 +26391,35 @@ var SupabaseStore = class {
 			return;
 		}
 		await this.legacyCommit(ws, c);
+	}
+	/** A new AI assistant token: the database makes the secret, keeps only its hash, logs the change and returns it once
+	(okr_token_create, migration 0024). Before that migration, the secret is made here and saved with the rest. */
+	async issueToken(ws, c) {
+		const t = c.tokens?.[0];
+		if (!t || c.tokens.length !== 1) throw new Error("Saving the token: one token at a time.");
+		const change = c.changes[0];
+		const { data, error } = await this.db.rpc("okr_token_create", {
+			ws,
+			token: {
+				id: t.id,
+				person_id: t.personId,
+				name: t.name,
+				created_by: t.createdBy
+			},
+			change: change ? changeToRow(ws, change) : null
+		});
+		if (!error) return data;
+		if (!missing(error)) throw new Error(`Saving the token: ${error.message.replace(/^.*?: /, "")}`);
+		const { hashToken, newToken } = await Promise.resolve().then(() => (init_token(), token_exports));
+		const secret = newToken();
+		await this.commit(ws, {
+			...c,
+			tokens: [{
+				...t,
+				tokenHash: await hashToken(secret)
+			}]
+		});
+		return secret;
 	}
 	async teamsAndName(ws, c) {
 		if (c.removeTeams?.length) await this.must(this.db.from("okr_teams").delete().eq("workspace_id", ws).in("id", c.removeTeams), "Removing the team");
@@ -29817,11 +29910,16 @@ var ARTICLES = [
 				"Rename the workspace; add, rename and remove teams. A team with people or goals moves them to another team in the same save.",
 				"AI assistants: make a personal token for someone (shown once) and revoke tokens. Feedback: read what people sent with the feedback button.",
 				"What the app records: recording of how the app is used is on for everyone. Untick it to turn it off for the whole workspace; while it’s off, nothing is recorded or sent.",
-				"Delete the workspace, after typing its name. It can’t be undone; an example can only be reset."
+				"Delete the workspace, after typing its name. It can’t be undone; an example can only be reset.",
+				"Inbox: for the people building Faro, the markups people send. See The builder inbox."
 			]
 		}, {
 			heading: "Who can",
-			list: ["Everyone can see the people and teams.", "Only admins add or change people and teams, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin."]
+			list: [
+				"Everyone can see the people and teams.",
+				"Only admins add or change people and teams, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.",
+				"Only builders, signed in to the inbox, read markups. Admins who aren’t builders can’t see them until sign-in comes to the whole app."
+			]
 		}],
 		routes: ["/workspace"],
 		screens: ["Workspace"],
@@ -29842,13 +29940,15 @@ var ARTICLES = [
 			"directory",
 			"feedback",
 			"tokens",
-			"recording"
+			"recording",
+			"inbox"
 		],
 		related: [
 			"ai-assistants",
 			"set-up",
 			"settings",
-			"recording"
+			"recording",
+			"inbox"
 		]
 	},
 	{
@@ -29942,6 +30042,14 @@ var ARTICLES = [
 				]
 			},
 			{
+				heading: "When you send a markup",
+				list: [
+					"A markup is sent only when you press Send. It carries the picture of your screen as it was (nothing on it is hidden, and you see it before sending), your marks, your line, your name, the page, your screen size, light or dark, your accent and the app’s version.",
+					"It also carries your last 20 steps on this visit (the pages you opened and the buttons you pressed, never what you typed) unless you untick them, and any errors or saves that didn’t go through on this visit.",
+					"Only the people building Faro read markups."
+				]
+			},
+			{
 				heading: "Turning it off",
 				list: ["Everyone is recorded by default. Settings says whether it is on where you are.", "An admin can turn it off for the whole workspace on Workspace, under What the app records. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
 			}
@@ -29990,19 +30098,23 @@ var ARTICLES = [
 			{
 				heading: "How to connect",
 				list: [
-					"An admin makes a personal token for you under Workspace, AI assistants. It is shown once; only a hash is stored.",
+					"An admin makes a personal token for you under Workspace, AI assistants. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.",
 					"Add the server to your assistant with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header \"Authorization: Bearer gk_…\".",
 					"See and revoke your tokens in Settings. The full list of tools is in docs/mcp.md."
 				]
 			},
 			{
 				heading: "Who can",
-				text: ["Only admins make tokens. An admin or the token’s own person can revoke one."]
+				text: ["Only admins make tokens. An admin or the token’s own person can revoke one. A builder makes a builder token in the inbox, so their assistant can read and triage markups too."]
 			}
 		],
 		routes: [],
 		screens: [],
-		reqs: ["MCP-TOKENS", "MCP-PARITY"],
+		reqs: [
+			"MCP-TOKENS",
+			"MCP-PARITY",
+			"TOKENS-SERVER-ONLY"
+		],
 		keywords: [
 			"ai",
 			"claude",
@@ -30020,6 +30132,108 @@ var ARTICLES = [
 		]
 	},
 	{
+		id: "feedback",
+		title: "Send feedback, and marking up a screen",
+		summary: "Tell the people building Faro what should change: mark up the screen you’re on, or say in a few words how the app is working for you.",
+		group: "you",
+		sections: [
+			{
+				heading: "How to use it",
+				list: [
+					"Choose Send feedback, at the foot of the sidebar or in More on a phone. Its first choice is Mark up this screen. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere.",
+					"The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.",
+					"Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.",
+					"Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.",
+					"Or skip the picture: choose how it’s working and add a few words, as before."
+				]
+			},
+			{
+				heading: "With the keyboard",
+				list: ["Tab to the drawing area. The arrow keys move a crosshair (with Shift, further), Enter starts and ends a mark, and P, A, B and N choose Pen, Arrow, Box and Note.", "Ctrl+Z takes back the last mark. Escape stops the mark you’re making, or else cancels."]
+			},
+			{
+				heading: "What’s sent",
+				list: [
+					"The picture of your screen, as it was. Nothing on it is hidden, so check it before you send.",
+					"Your marks, your line, your name, which parts of the screen your marks are on (for example Goal page, Scorecard, Will it hit), the page, your screen size, light or dark, your accent and the app’s version.",
+					"Your last 20 steps on this visit, unless you untick them: the pages you opened and the buttons you pressed, never what you typed. And any errors or saves that didn’t go through on this visit.",
+					"In the demo, markups are sent too, marked as from the demo. Only the people building Faro read them, in the builder inbox. Your admins don’t see them yet."
+				]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: ["MARKUP"],
+		keywords: [
+			"feedback",
+			"markup",
+			"mark up",
+			"picture",
+			"draw",
+			"shortcut",
+			"ctrl shift m",
+			"report a problem",
+			"what should change",
+			"you raised this"
+		],
+		related: [
+			"inbox",
+			"recording",
+			"help"
+		]
+	},
+	{
+		id: "inbox",
+		title: "The builder inbox",
+		summary: "For the people building Faro: every markup people send, to triage, with its picture, the parts it names and what led up to it.",
+		group: "you",
+		sections: [
+			{
+				heading: "Signing in",
+				list: [
+					"The inbox is on Workspace. Builders sign in with their email: the link in the email brings you back, signed in, in that browser. Sign out there too.",
+					"Only the inbox signs in. The rest of the app is unchanged.",
+					"A builder is someone whose email is on Faro’s builders list. Admins who aren’t builders can’t read markups until sign-in comes to the whole app, when they’ll see their own workspace’s."
+				]
+			},
+			{
+				heading: "How to use it",
+				list: [
+					"Markups are listed newest first, each with a small picture, its line, the part of the page it’s about, who sent it and when, and its status as a shape and a word: New, In hand, Fixed or Won’t fix.",
+					"Markups about the same part of the same page are grouped, with a count.",
+					"Open one to see its picture (hide the drawing to see the screen beneath), the parts its marks are on, its notes, the steps before it as a timeline, any errors, and where it was sent from.",
+					"Mark it in hand. Open GitHub issue opens a new issue on GitHub filled in with the line, the page, the parts, the steps and a link back here: press Submit there, then paste the issue’s address back with Paste issue link.",
+					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.",
+					"Make a builder token, so your AI assistant can list, open and change markups too."
+				]
+			},
+			{
+				heading: "Without a database",
+				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them without signing in."]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: ["MARKUP-INBOX"],
+		keywords: [
+			"inbox",
+			"markups",
+			"builders",
+			"triage",
+			"github issue",
+			"sign in",
+			"email link",
+			"fixed",
+			"won’t fix",
+			"in hand"
+		],
+		related: [
+			"feedback",
+			"workspace",
+			"ai-assistants"
+		]
+	},
+	{
 		id: "any-device",
 		title: "On a phone, a tablet or a big screen",
 		summary: "The app works at every size, from a small phone to an ultra-wide monitor, and keeps your work safe as you go.",
@@ -30034,7 +30248,7 @@ var ARTICLES = [
 			]
 		}, {
 			heading: "Your work is safe",
-			list: ["Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.", "Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you."]
+			list: ["Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.", "Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."]
 		}],
 		routes: [],
 		screens: [],
@@ -30154,6 +30368,24 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "mark-up-a-screen",
+		date: "2026-11-06",
+		title: "Mark up a screen to say what should change",
+		points: [
+			"Send feedback now starts with Mark up this screen: draw on a picture of the screen you’re on with a pen, an arrow, a box or a numbered note, and say in one line what should change. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere; Escape cancels.",
+			"Before you send, you see the exact picture that goes, with your marks. Your last 20 steps on this visit go with it unless you untick them, so the people building Faro can see what led up to it. Never anything you typed.",
+			"When a release fixes something you marked up, its entry here says “You raised this”.",
+			"For the people building Faro, Workspace has an Inbox to read and triage markups, after signing in with an email link. Your admins can’t see markups yet; they will once sign-in comes to the whole app.",
+			"AI assistant tokens are now made by the database, which keeps only a fingerprint of each and never hands one back; feedback can only be read by its own workspace. Making and revoking tokens works as before."
+		],
+		articles: [
+			"feedback",
+			"inbox",
+			"ai-assistants",
+			"recording"
+		]
+	},
 	{
 		id: "fit-fixes-nov-6",
 		date: "2026-11-06",
@@ -30639,7 +30871,7 @@ init_asks();
 init_review();
 init_tableLayout();
 init_goalKey();
-var str$1 = (description, extra = {}) => ({
+var str$2 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -30662,7 +30894,7 @@ var LEVELS$1 = [
 	"svp",
 	"team"
 ];
-var READ = {
+var READ$1 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -30802,7 +31034,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const s = ctx.snapshot, me = ctx.actor.id;
 			const mine = s.goals.filter((g) => g.ownerId === me);
@@ -30924,24 +31156,24 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$1("Which asks.", { enum: [
+				status: str$2("Which asks.", { enum: [
 					"open",
 					"answered",
 					"done",
 					"withdrawn",
 					"all"
 				] }),
-				kind: str$1("Only one kind.", { enum: [
+				kind: str$2("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$1("Only asks on a goal (its ID or key).")
+				goal_id: str$2("Only asks on a goal (its ID or key).")
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const st = a.status ?? "open";
 			const list = asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
@@ -30960,7 +31192,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const list = ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -30996,9 +31228,9 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$1("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const r = reviewOf(ctx, a.review_id);
 			const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -31052,7 +31284,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
 				id: w.id,
@@ -31082,7 +31314,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const team = (id) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
 			const people = ctx.snapshot.people.map((p) => ({
@@ -31119,11 +31351,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$1("An Activity link’s query string."),
+				query: str$2("An Activity link’s query string."),
 				limit: int$1("How many changes, newest first (default 50, at most 500).")
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
 			if (q.goal) q.goal = goalOf(ctx, q.goal).id;
@@ -31160,7 +31392,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
 				const l = isTableView(v) ? parseLayout(v.params) : null;
@@ -31193,7 +31425,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
 				id: t.id,
@@ -31217,7 +31449,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			if (!ctx.actor.admin) return {
 				isError: true,
@@ -31245,7 +31477,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(_a, ctx) {
 			const retros = ctx.snapshot.retros ?? [];
 			const list = ctx.snapshot.goals.map((g) => {
@@ -31279,11 +31511,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$1("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$1("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$2("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$2("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a) {
 			const brief = (x) => ({
 				id: x.id,
@@ -31323,11 +31555,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$1("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$2("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$1("How many entries, newest first (default all).")
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a) {
 			const since = a.since ? String(a.since) : void 0;
 			if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return {
@@ -31357,8 +31589,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$1("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$1("The answer, decision or help offered.")
+				request_id: str$2("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$2("The answer, decision or help offered.")
 			}
 		},
 		annotations: WRITE,
@@ -31376,8 +31608,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$1("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$1("Optional: what was done.")
+				request_id: str$2("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$2("Optional: what was done.")
 			}
 		},
 		annotations: WRITE,
@@ -31394,8 +31626,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
-				question: str$1("The question.")
+				goal_id: str$2("The goal’s ID or its key, e.g. G-12."),
+				question: str$2("The question.")
 			}
 		},
 		annotations: WRITE,
@@ -31413,8 +31645,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$1("The request’s ID."),
-				goal_id: str$1("The goal that waits on it (its ID or key).")
+				request_id: str$2("The request’s ID."),
+				goal_id: str$2("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE,
@@ -31431,8 +31663,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$1("The ask’s ID."),
-				goal_id: str$1("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$2("The ask’s ID."),
+				goal_id: str$2("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
 		annotations: WRITE,
@@ -31449,7 +31681,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$2("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE,
@@ -31468,7 +31700,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$2("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE,
 		async run(a, ctx) {
@@ -31488,16 +31720,16 @@ var WORK_TOOLS = [
 				"kind"
 			],
 			properties: {
-				review_id: str$1("The review’s ID."),
-				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
-				kind: str$1("What it is.", { enum: [
+				review_id: str$2("The review’s ID."),
+				goal_id: str$2("The goal’s ID or its key, e.g. G-12."),
+				kind: str$2("What it is.", { enum: [
 					"acknowledge",
 					"note",
 					"ask",
 					"action"
 				] }),
-				text: str$1("The note, question or action. Optional when acknowledging."),
-				who: str$1("Actions: who does it (name or ID). Defaults to the goal’s owner."),
+				text: str$2("The note, question or action. Optional when acknowledging."),
+				who: str$2("Actions: who does it (name or ID). Defaults to the goal’s owner."),
 				due_week: int$1("Actions: the week it’s due by.")
 			}
 		},
@@ -31532,9 +31764,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$1("Its ID, from get_review."),
-				text: str$1("The new wording."),
-				who: str$1("Actions: who does it."),
+				call_id: str$2("Its ID, from get_review."),
+				text: str$2("The new wording."),
+				who: str$2("Actions: who does it."),
 				due_week: int$1("Actions: the week it’s due by (0 for none).")
 			}
 		},
@@ -31565,10 +31797,10 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				review_id: str$1("The review to change. Leave out to set up a new one."),
-				name: str$1("Its name, e.g. \"Platform weekly review\"."),
+				review_id: str$2("The review to change. Leave out to set up a new one."),
+				name: str$2("Its name, e.g. \"Platform weekly review\"."),
 				every_weeks: int$1("Held every 1, 2 or 4 weeks."),
-				weekday: str$1("The weekday.", { enum: [
+				weekday: str$2("The weekday.", { enum: [
 					"Monday",
 					"Tuesday",
 					"Wednesday",
@@ -31633,12 +31865,12 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "ref"],
 			properties: {
-				kind: str$1("What to watch.", { enum: [
+				kind: str$2("What to watch.", { enum: [
 					"goal",
 					"tree",
 					"level"
 				] }),
-				ref: str$1("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
+				ref: str$2("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
 			}
 		},
 		annotations: {
@@ -31658,7 +31890,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["watch_id"],
-			properties: { watch_id: str$1("The watch’s ID, from list_watching.") }
+			properties: { watch_id: str$2("The watch’s ID, from list_watching.") }
 		},
 		annotations: WRITE,
 		async run(a, ctx) {
@@ -31673,10 +31905,10 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$1("The person to change. Leave out to add someone."),
-				name: str$1("Their full name."),
-				job_title: str$1("Their job title."),
-				team: str$1("Their team (name or ID); empty string for none."),
+				person_id: str$2("The person to change. Leave out to add someone."),
+				name: str$2("Their full name."),
+				job_title: str$2("Their job title."),
+				team: str$2("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
@@ -31712,14 +31944,14 @@ var WORK_TOOLS = [
 				"next"
 			],
 			properties: {
-				goal_id: str$1("The goal’s ID or its key, e.g. G-12."),
-				result: str$1("How it landed.", { enum: [
+				goal_id: str$2("The goal’s ID or its key, e.g. G-12."),
+				result: str$2("How it landed.", { enum: [
 					"hit",
 					"partly",
 					"missed"
 				] }),
-				learned: str$1("One thing worth knowing next time (a sentence)."),
-				next: str$1("Next cycle.", { enum: ["carry", "stop"] })
+				learned: str$2("One thing worth knowing next time (a sentence)."),
+				next: str$2("Next cycle.", { enum: ["carry", "stop"] })
 			}
 		},
 		annotations: {
@@ -31776,9 +32008,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$1("The view to change."),
-				name: str$1("Its name."),
-				query: str$1("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$2("The view to change."),
+				name: str$2("Its name."),
+				query: str$2("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
 		annotations: WRITE,
@@ -31803,16 +32035,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$1("The table view to change."),
-				name: str$1("Its name."),
-				table: str$1("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$2("The table view to change."),
+				name: str$2("Its name."),
+				table: str$2("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$1("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$2("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
 		annotations: WRITE,
@@ -31837,14 +32069,14 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				view: str$1("The name of a saved table view: one of yours, or one pinned for everyone."),
-				table: str$1("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+				view: str$2("The name of a saved table view: one of yours, or one pinned for everyone."),
+				table: str$2("Which data table, when not using a view.", { enum: TABLE_ORDER }),
 				columns: ids("The columns, in order. Leave out for the usual columns."),
-				query: str$1("Search, filters and sort, as for save_table_view."),
-				format: str$1("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+				query: str$2("Search, filters and sort, as for save_table_view."),
+				format: str$2("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const layout = layoutFrom(ctx, a);
 			const rows = shownTable(sheetOf(ctx, layout.table), layout);
@@ -31876,7 +32108,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$1("The view’s ID, from list_views.") }
+			properties: { view_id: str$2("The view’s ID, from list_views.") }
 		},
 		annotations: {
 			...WRITE,
@@ -31896,7 +32128,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$1("The view’s ID."),
+				view_id: str$2("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
@@ -31917,18 +32149,23 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$1("Who it acts as (name or ID)."),
-				name: str$1("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$2("Who it acts as (name or ID)."),
+				name: str$2("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
 		annotations: WRITE,
 		async run(a, ctx) {
 			const p = personOf(ctx, a.person);
-			const token = newToken();
-			const r = await save(ctx, createToken(ax(ctx), p.id, String(a.name ?? ""), await hashToken(token)), `Made a token for ${p.name}`, "");
+			const c = createToken(ax(ctx), p.id, String(a.name ?? ""));
+			const token = await ctx.issueToken({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA]
+				}))
+			});
 			return {
-				...r,
-				text: `${r.text} Here it is, shown once: ${token}`,
+				text: `Made a token for ${p.name} (as ${ctx.actor.name}). Here it is, shown once: ${token}`,
 				data: { token }
 			};
 		}
@@ -31941,7 +32178,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$1("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$2("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
 			...WRITE,
@@ -31961,12 +32198,12 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["mood", "text"],
 			properties: {
-				mood: str$1("How it felt.", { enum: [
+				mood: str$2("How it felt.", { enum: [
 					"good",
 					"meh",
 					"bad"
 				] }),
-				text: str$1("What happened, or what would help.")
+				text: str$2("What happened, or what would help.")
 			}
 		},
 		annotations: WRITE,
@@ -31982,7 +32219,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$1("The new name.") }
+			properties: { name: str$2("The new name.") }
 		},
 		annotations: {
 			...WRITE,
@@ -32025,9 +32262,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$1("The team to change (name or ID). Leave out to add a team."),
-				name: str$1("The team’s name."),
-				lead: str$1("The team lead (a person’s name or ID); empty string for none.")
+				team: str$2("The team to change (name or ID). Leave out to add a team."),
+				name: str$2("The team’s name."),
+				lead: str$2("The team lead (a person’s name or ID); empty string for none.")
 			}
 		},
 		annotations: WRITE,
@@ -32054,8 +32291,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$1("The team to remove (name or ID)."),
-				move_to: str$1("Where its people and goals go (a team’s name or ID).")
+				team: str$2("The team to remove (name or ID)."),
+				move_to: str$2("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -32080,7 +32317,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$1("The workspace’s exact name.") }
+			properties: { confirm_name: str$2("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -32100,6 +32337,285 @@ var WORK_TOOLS = [
 	}
 ];
 WORK_TOOLS.filter((t) => t.annotations.readOnlyHint).map((t) => t.name);
+// src/markup/model.ts
+/** The words for each status. A status is always shown as its shape and this word together. */
+var STATUS_WORD = {
+	new: "New",
+	"in-hand": "In hand",
+	fixed: "Fixed",
+	"wont-fix": "Won’t fix"
+};
+var STATUSES$1 = [
+	"new",
+	"in-hand",
+	"fixed",
+	"wont-fix"
+];
+var MOOD_WORD = Object.fromEntries([
+	["good", "It helps"],
+	["meh", "It’s OK"],
+	["bad", "It gets in the way"]
+]);
+/** Where markups' GitHub issues go (FARO_GITHUB_REPO on the server can say otherwise). */
+var MARKUP_REPO = "sconies/goals-app";
+var same = (a, b) => a.length === b.length && a.every((x, i) => b[i] === x);
+/** Every part named in a markup once, most mentioned first: what the inbox and the issue list. */
+function namedParts(m) {
+	const seen = [];
+	m.parts.forEach((list, i) => list.forEach((path) => {
+		const had = seen.find((s) => same(s.path, path));
+		if (had) had.n++;
+		else seen.push({
+			path,
+			n: 1,
+			first: i
+		});
+	}));
+	return seen.sort((a, b) => b.n - a.n || a.first - b.first).map((s) => s.path);
+}
+var partText = (path) => path.join(" › ");
+var MarkupError = class extends Error {};
+var markupFromRow = (r) => ({
+	id: r.id,
+	workspaceId: r.workspace_id,
+	workspaceName: r.workspace_name,
+	demo: !!r.demo,
+	personId: r.person_id,
+	personName: r.person_name,
+	line: r.line,
+	mood: r.mood ?? null,
+	route: r.route,
+	path: r.path,
+	goalId: r.goal_id,
+	reviewId: r.review_id,
+	parts: r.parts ?? [],
+	strokes: r.strokes ?? [],
+	context: r.context,
+	steps: r.steps ?? [],
+	errors: r.errors ?? [],
+	pictures: r.pictures ?? [],
+	status: r.status,
+	issueUrl: r.issue_url,
+	fixedIn: r.fixed_in,
+	wontFixReason: r.wont_fix_reason,
+	statusBy: r.status_by,
+	statusAt: r.status_at,
+	createdAt: new Date(r.created_at).toISOString()
+});
+/** Checks a status change and gives the fields it sets. Fixed names the What's new entry; Won't fix needs a reason. */
+function statusPatch(c, now, entries) {
+	if (!STATUSES$1.includes(c.status)) throw new MarkupError("A status is new, in-hand, fixed or wont-fix.");
+	const fixedIn = c.status === "fixed" ? (c.fixedIn ?? "").trim() : "";
+	if (c.status === "fixed" && !fixedIn) throw new MarkupError("Say which What’s new entry has the fix.");
+	if (c.status === "fixed" && entries.length && !entries.includes(fixedIn)) throw new MarkupError(`There’s no What’s new entry “${fixedIn}”.`);
+	const reason = c.status === "wont-fix" ? (c.reason ?? "").trim() : "";
+	if (c.status === "wont-fix" && !reason) throw new MarkupError("Say why it won’t be fixed.");
+	return {
+		status: c.status,
+		fixedIn: fixedIn || null,
+		wontFixReason: reason ? reason.slice(0, 2e3) : null,
+		statusBy: c.by.slice(0, 200),
+		statusAt: now
+	};
+}
+var ISSUE_URL = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+$/;
+/** Where a markup was sent from, in words: the part most drawn on, or the page. */
+function placeOf(m) {
+	const p = namedParts(m)[0];
+	return p ? partText(p) : m.route || "Somewhere in the app";
+}
+var when = (iso) => iso.slice(0, 16).replace("T", " ") + " UTC";
+var esc = (s) => s.replace(/[<>]/g, (c) => c === "<" ? "&lt;" : "&gt;");
+function issueTitle(m) {
+	return `Markup: ${m.line.length > 90 ? m.line.slice(0, 89).trimEnd() + "…" : m.line}`;
+}
+/** The issue's text: the line, a link back to the markup (and its picture) in Faro's inbox, the page, the parts named,
+the notes, the steps and the errors. The picture stays in Faro's private storage, so the issue links to it. */
+function issueBody(m, o = {}) {
+	const out = [];
+	out.push(`> ${esc(m.line)}`, "");
+	out.push(`${m.personName || "Someone"} sent this ${m.demo ? "from the demo" : `from ${m.workspaceName || m.workspaceId}`} on ${when(m.createdAt)}${m.mood ? `, saying “${MOOD_WORD[m.mood]}”` : ""}.`, "");
+	out.push(o.inboxUrl ? `**The picture, with the drawing:** [open markup \`${m.id}\` in Faro’s inbox](${o.inboxUrl}) (builders, signed in).` : `The picture is in Faro’s inbox: markup \`${m.id}\`.`, "");
+	const parts = namedParts(m);
+	out.push("## Parts named", "");
+	out.push(...parts.length ? parts.map((p) => `- ${esc(partText(p))}`) : ["- No named part under the drawing."], "");
+	const notes = m.strokes.filter((s) => s.kind === "note" && !!s.text);
+	if (notes.length) out.push("## Notes on the picture", "", ...notes.map((n) => `${n.n}. ${esc(n.text)}`), "");
+	out.push("## Where", "");
+	out.push(`- Page: \`${m.path || m.route}\` (route \`${m.route}\`)`);
+	if (m.goalId) out.push(`- Goal: \`${m.goalId}\``);
+	if (m.reviewId) out.push(`- Review: \`${m.reviewId}\``);
+	const c = m.context;
+	if (c) out.push(`- Screen: ${c.viewport.w} × ${c.viewport.h} at ${c.viewport.dpr}x, ${c.theme}${c.themeChoice === "system" ? " (following the device)" : ""}, accent ${c.accent}`, `- Version: \`${c.appVersion}\`, session \`${c.sessionId}\``);
+	out.push(`- Markup: \`${m.id}\``, "");
+	out.push("## Steps before it", "");
+	out.push(...m.steps.length ? m.steps.map((s, i) => `${i + 1}. ${stepText(s)}`) : ["Not included."], "");
+	out.push("## Errors and failed saves on this visit", "");
+	out.push(...m.errors.length ? m.errors.map((e) => `- ${problemText(e)}`) : ["None."], "");
+	out.push("When it’s fixed, list this markup’s id in the What’s new entry (`fixes`), so the sender sees “You raised this”.");
+	return out.join("\n");
+}
+/** A step, in words: "Opened /goals/:goalId", "postCheckIn (failed)". */
+function stepText(s) {
+	const at = s.at.slice(11, 19);
+	switch (s.kind) {
+		case "page": return `${at} Opened ${s.name}`;
+		case "action": return `${at} ${s.name}${s.ok === false ? " (failed)" : ""}${s.route ? ` on ${s.route}` : ""}`;
+		case "flow": return `${at} ${s.flow ?? "Task"}: ${s.name}${s.step ? ` at ${s.step}` : ""}`;
+		case "error": return `${at} Error: ${s.name}${s.route ? ` on ${s.route}` : ""}`;
+		default: return `${at} ${s.name}${s.route ? ` on ${s.route}` : ""}`;
+	}
+}
+function problemText(e) {
+	const what = e.kind === "save" ? `A save didn’t go through${e.action ? ` (${e.action})` : ""}: ${e.type}` : `${e.type}${e.message ? `: ${e.message}` : ""}`;
+	return `${e.at.slice(11, 19)} ${what}${e.route ? ` on ${e.route}` : ""}`;
+}
+/** A pre-filled new-issue link: the builder presses Submit on GitHub. GitHub caps the address, so long text is cut. */
+function newIssueLink(repo, m, o = {}) {
+	let body = issueBody(m, o);
+	const make = () => `https://github.com/${repo}/issues/new?${new URLSearchParams({
+		title: issueTitle(m),
+		body
+	}).toString()}`;
+	let url = make();
+	while (url.length > 7500 && body.length > 200) {
+		body = body.slice(0, Math.floor(body.length * .8)) + "\n\n(cut short: the rest is in the inbox)";
+		url = make();
+	}
+	return url;
+}
+// src/mcp/markupTools.ts
+var str$1 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var READ = {
+	readOnlyHint: true,
+	openWorldHint: false
+};
+/** The inbox, when this request may use it; otherwise why not, for the assistant to say. */
+function inbox(ctx) {
+	if (!ctx.markups) throw new Error("Only builders (the people building Faro) can read markups, with a builder token: sign in to the inbox on Workspace and make one there.");
+	return ctx.markups;
+}
+var MARKUP_TOOLS = [
+	{
+		name: "list_markups",
+		title: "List markups",
+		description: "Builders: markups people sent (a picture of a screen with a drawing and a line saying what should change), newest first, from every workspace and the demo. Filter by status or workspace.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				status: str$1("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$1("Only this workspace’s (its id)."),
+				limit: {
+					type: "integer",
+					description: "At most this many (default 50)."
+				}
+			}
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			const rows = (await inbox(ctx).list({
+				...a.workspace ? { workspaceId: String(a.workspace) } : {},
+				...a.status ? { status: a.status } : {},
+				limit: Number(a.limit ?? 50)
+			})).map((m) => ({
+				id: m.id,
+				status: m.status,
+				line: m.line,
+				place: placeOf(m),
+				route: m.route,
+				from: m.demo ? "the demo" : m.workspaceName,
+				by: m.personName,
+				at: m.createdAt,
+				issueUrl: m.issueUrl,
+				fixedIn: m.fixedIn
+			}));
+			return {
+				data: { markups: rows },
+				text: rows.length ? rows.map((r) => `${r.id} · ${STATUS_WORD[r.status]} · “${r.line}” · ${r.place} · ${r.by}, ${r.from}, ${r.at.slice(0, 10)}`).join("\n") : "No markups."
+			};
+		}
+	},
+	{
+		name: "get_markup",
+		title: "Open a markup",
+		description: "Builders: one markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version), the steps before it and the errors on that visit, with links to its pictures that work for ten minutes.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["id"],
+			properties: { id: str$1("The markup’s id (mk_…), from list_markups.") }
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			const m = await inbox(ctx).open(String(a.id ?? ""));
+			const notes = m.strokes.flatMap((s) => s.kind === "note" && s.text ? [`${s.n}. ${s.text}`] : []);
+			const text = [
+				`${m.id} · ${STATUS_WORD[m.status]} · “${m.line}”`,
+				`From ${m.personName || "someone"} in ${m.demo ? "the demo" : m.workspaceName}, ${m.createdAt}${m.mood ? `, saying ${MOOD_WORD[m.mood]}` : ""}.`,
+				`Page ${m.path} (${m.route})${m.goalId ? `, goal ${m.goalId}` : ""}${m.reviewId ? `, review ${m.reviewId}` : ""}. Screen ${m.context.viewport.w}×${m.context.viewport.h}, ${m.context.theme}, accent ${m.context.accent}, version ${m.context.appVersion}.`,
+				`Parts: ${namedParts(m).map(partText).join("; ") || "none named"}.`,
+				...notes.length ? [`Notes: ${notes.join(" ")}`] : [],
+				`Steps: ${m.steps.length ? m.steps.map(stepText).join(" | ") : "not included"}.`,
+				`Errors: ${m.errors.length ? m.errors.map(problemText).join(" | ") : "none"}.`,
+				...m.issueUrl ? [`Issue: ${m.issueUrl}`] : [],
+				...m.fixedIn ? [`Fixed in What’s new entry ${m.fixedIn}.`] : [],
+				...m.wontFixReason ? [`Won’t fix: ${m.wontFixReason}`] : [],
+				m.urls.marked || m.urls.screen ? `Picture (works for ten minutes): ${m.urls.marked ?? m.urls.screen}` : "Picture: open it in Faro’s inbox (Workspace, signed in as a builder). This server can’t sign picture links without the database’s service role key."
+			].join("\n");
+			return {
+				data: { markup: m },
+				text
+			};
+		}
+	},
+	{
+		name: "update_markup",
+		title: "Change a markup",
+		description: "Builders: set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["id"],
+			properties: {
+				id: str$1("The markup’s id (mk_…)."),
+				status: str$1("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$1("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$1("With wont-fix: why it won’t be fixed."),
+				issue_url: str$1("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const ops = inbox(ctx);
+			const id = String(a.id ?? "");
+			if (!a.status && !a.issue_url) return {
+				isError: true,
+				text: "Give a status, an issue_url, or both."
+			};
+			let m = a.issue_url ? await ops.setIssueUrl(id, String(a.issue_url)) : null;
+			if (a.status) m = await ops.setStatus(id, {
+				status: a.status,
+				fixedIn: a.fixed_in,
+				reason: a.reason,
+				by: `${ctx.actor.name} via AI assistant (MCP)`
+			});
+			return {
+				data: { markup: m },
+				text: `${id} is ${STATUS_WORD[m.status]}${m.fixedIn ? `, fixed in ${m.fixedIn}` : ""}${m.issueUrl ? `, issue ${m.issueUrl}` : ""}.`
+			};
+		}
+	}
+];
 // src/mcp/tools.ts
 init_actions();
 init_status();
@@ -32148,7 +32664,7 @@ function row(args, map) {
 	return r;
 }
 /** Rows given as objects with column names, any case, spaces or underscores. */
-function rows(list, sheet) {
+function rows$1(list, sheet) {
 	if (list == null) return [];
 	if (!Array.isArray(list)) throw new Error(`${sheet} should be a list of rows.`);
 	return list.map((o, i) => {
@@ -32288,455 +32804,459 @@ var GOAL_COLS = {
 };
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
 requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts. */
-var TOOLS = [...[
-	{
-		name: "get_overview",
-		title: "Overview of the goals",
-		description: "A short brief of every goal in the current cycle: what needs attention and why, every goal by what it feeds, open questions and actions, and each goal’s weekly numbers. Start here.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(_a, ctx) {
-			return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}.
+var TOOLS = [
+	...[
+		{
+			name: "get_overview",
+			title: "Overview of the goals",
+			description: "A short brief of every goal in the current cycle: what needs attention and why, every goal by what it feeds, open questions and actions, and each goal’s weekly numbers. Start here.",
+			inputSchema: {
+				type: "object",
+				properties: {},
+				additionalProperties: false
+			},
+			annotations: {
+				readOnlyHint: true,
+				openWorldHint: false
+			},
+			async run(_a, ctx) {
+				return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}.
 
 ` + aiBrief({
-				ws: ctx.ws,
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				today: ctx.today
-			}) };
-		}
-	},
-	{
-		name: "find_goals",
-		title: "Find goals",
-		description: "List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				text: str("Words in the goal’s name, or its key (G-12)."),
-				owner: str("Part of the owner’s name."),
-				status: str("Only goals with this status.", { enum: STATUSES }),
-				level: str("Only goals at this level.", { enum: LEVELS }),
-				mine: bool("Only goals you own."),
-				query: str("A Goals link’s query string, e.g. \"status=off,risk&needs=decision,slipped&due=quarter&sort=gap\". Keys: q, status (off, risk, stale, on, done, planned), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), needs (decision, no-recovery, slipped, missed-date, greener), due (quarter or a week), quiet (weeks), qtr (met, missed), result (completed, late, missed, open), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."),
-				view: str("The name of a saved view: one of yours, or one pinned for everyone.")
-			}
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
-			const byKey = normalKey(a.text);
-			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
-			if (a.view) {
-				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
-				if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
-				query = parseQuery(new URLSearchParams(v.params));
-			}
-			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
-			if (query) list = applyQuery(list, query, {
-				goals: ctx.snapshot.goals,
-				cycle: ctx.cycle,
-				week: ctx.week
-			});
-			const data = list.map((s) => ({
-				key: s.goal.key ?? null,
-				id: s.goal.id,
-				title: s.goal.title,
-				type: s.goal.kind,
-				level: s.goal.level,
-				owner: s.owner,
-				team: s.team,
-				status: s.status,
-				now: s.now,
-				planThisWeek: s.planNow != null ? s.planNowText : null,
-				target: s.target,
-				gap: s.gap,
-				lastCheckInWeek: s.lastWeek,
-				feedsInto: s.feedsInto,
-				youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
-			}));
-			return {
-				data: {
+					ws: ctx.ws,
+					snapshot: ctx.snapshot,
+					cycle: ctx.cycle,
 					week: ctx.week,
-					weeks: ctx.cycle.weeks,
-					goals: data
-				},
-				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
-			};
-		}
-	},
-	{
-		name: "get_goal",
-		title: "One goal in full",
-		description: "Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id"],
-			properties: { goal_id: str("The goal’s ID or its key (e.g. G-12), from find_goals.") }
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const g = goalRef(ctx, a.goal_id);
-			const j = toJson({
-				ws: ctx.ws,
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				today: ctx.today,
-				goals: [g]
-			});
-			const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
-			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
-				label: c.label,
-				value: c.value,
-				detail: c.sub
-			}));
-			const data = {
-				cycle: j.cycle,
-				goal: j.goals[0],
-				scorecard,
-				notes: j.notes
-			};
-			return {
-				data,
-				text: JSON.stringify(data, null, 2)
-			};
-		}
-	},
-	{
-		name: "post_check_in",
-		title: "Post a check-in",
-		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id"],
-			properties: {
-				goal_id: str("The goal’s ID or its key, e.g. G-12."),
-				week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
-				value: num("Number goals: the value for the week."),
-				stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
-				call: str("The owner’s status call. Leave out to let the rules decide.", { enum: [
-					"On track",
-					"At risk",
-					"Off track",
-					"Done"
-				] }),
-				cause: str("Why it’s behind or ahead.", { enum: [
-					"Plan too aggressive",
-					"Delivery slower",
-					"Blocked by a dependency",
-					"External factor",
-					"Data problem",
-					"Plan too cautious",
-					"Change landed early",
-					"One-off, won’t last"
-				] }),
-				why: str("In a sentence (10 characters or more)."),
-				why_greener: str("If the call is greener than the numbers: why."),
-				path_to_green: str("How it gets back on plan."),
-				recovery: str("Where the owner is with recovery.", { enum: [
-					"Plan",
-					"Still investigating",
-					"Needs a decision or help",
-					"Target should change"
-				] }),
-				back_on_plan_by_week: int("With a plan: the week it is back on plan by."),
-				needs: str("A decision or help needed, and from whom."),
-				next_step: str("The next step."),
-				dry_run: DRY
+					today: ctx.today
+				}) };
 			}
 		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const g = goalRef(ctx, a.goal_id);
-			return change(ctx, { checkIns: [row({
-				...a,
-				goal_id: g.id,
-				week: a.week ?? ctx.week
-			}, {
-				goal_id: "goal id",
-				week: "week",
-				value: "value",
-				stages: "stages",
-				call: "call",
-				cause: "cause",
-				why: "why",
-				why_greener: "why greener",
-				path_to_green: "path to green",
-				recovery: "recovery",
-				back_on_plan_by_week: "back on plan by week",
-				needs: "needs",
-				next_step: "next step"
-			})] }, { dry: !!a.dry_run });
-		}
-	},
-	{
-		name: "update_goal",
-		title: "Change a goal",
-		description: "Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id"],
-			properties: {
-				goal_id: str("The goal’s ID or its key, e.g. G-12."),
-				...GOAL_FIELDS,
-				reason: str("Why the plan is changing."),
-				dry_run: DRY
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const g = goalRef(ctx, a.goal_id);
-			return change(ctx, { goals: [row({
-				...a,
-				goal_id: g.id
-			}, {
-				goal_id: "id",
-				...GOAL_COLS
-			})] }, {
-				dry: !!a.dry_run,
-				reason: a.reason
-			});
-		}
-	},
-	{
-		name: "create_goal",
-		title: "Add a goal",
-		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. You can add goals you own; admins can add goals for anyone.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["title", "type"],
-			properties: {
-				type: str("What kind of goal.", { enum: [
-					"metric",
-					"range",
-					"milestone"
-				] }),
-				...GOAL_FIELDS,
-				dry_run: DRY
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: false,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			return change(ctx, { goals: [row({
-				owner: ctx.actor.name,
-				...a
-			}, {
-				type: "type",
-				...GOAL_COLS
-			})] }, { dry: !!a.dry_run });
-		}
-	},
-	{
-		name: "set_plan_numbers",
-		title: "Set plan numbers by hand",
-		description: "Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id", "numbers"],
-			properties: {
-				goal_id: str("The goal’s ID or its key, e.g. G-12."),
-				numbers: {
-					type: "array",
-					description: "Planned values by week.",
-					items: {
-						type: "object",
-						required: ["week", "value"],
-						properties: {
-							week: int("Week from the cycle start."),
-							value: num("Planned value.")
-						}
-					}
-				},
-				reason: str("Why the plan is changing."),
-				dry_run: DRY
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const r = {
-				__row: "1",
-				id: goalRef(ctx, a.goal_id).id
-			};
-			for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
-			return change(ctx, { plan: [r] }, {
-				dry: !!a.dry_run,
-				reason: a.reason
-			});
-		}
-	},
-	{
-		name: "add_comment",
-		title: "Comment on a goal",
-		description: "Add a comment to a goal’s history. Anyone can comment; it doesn’t change the status.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["goal_id", "text"],
-			properties: {
-				goal_id: str("The goal’s ID or its key, e.g. G-12."),
-				text: str("The comment.")
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: false,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const g = goalRef(ctx, a.goal_id);
-			const c = addNote({
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				actor: ctx.actor,
-				now: ctx.now,
-				newId: ctx.newId
-			}, g, String(a.text ?? ""));
-			await ctx.save({
-				...c,
-				changes: c.changes.map((x) => ({
-					...x,
-					diffs: [...x.diffs, {
-						field: "Via",
-						from: "—",
-						to: "AI assistant (MCP)"
-					}]
-				}))
-			});
-			return { text: `Comment added to ${g.title} as ${ctx.actor.name}.` };
-		}
-	},
-	{
-		name: "bulk_change",
-		title: "Change many goals at once",
-		description: "Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{\"ID\": \"...\", \"Target\": 90}], check_ins: [{\"Goal ID\": \"...\", \"Week\": 3, \"Value\": 41}], plan: [{\"ID\": \"...\", \"Week 5\": 45}]). A goal’s key (G-12) works wherever its ID does: in ID, Key, Goal ID, Goal key and Feeds into ID. Checks every row and returns what would change; nothing is saved unless \"apply\" is true and every row is valid.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				goals: {
-					type: "array",
-					items: { type: "object" },
-					description: "Rows for the Goals sheet. ID to change a goal; no ID to add one."
-				},
-				plan: {
-					type: "array",
-					items: { type: "object" },
-					description: "Rows for the Plan sheet: ID and \"Week N\" columns."
-				},
-				check_ins: {
-					type: "array",
-					items: { type: "object" },
-					description: "Rows for the Check-ins sheet: Goal ID, Week, Value or Stages, Call, Cause, Why, Path to green, Back on plan by week, Needs, Next step."
-				},
-				reason: str("Why plans are changing, for any plan change that needs one."),
-				apply: bool("Save the changes. Leave out first to check them.")
-			}
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			return change(ctx, {
-				goals: rows(a.goals, "goals"),
-				plan: rows(a.plan, "plan"),
-				checkIns: rows(a.check_ins, "check_ins")
-			}, {
-				dry: !a.apply,
-				reason: a.reason
-			});
-		}
-	},
-	{
-		name: "export",
-		title: "Export the goals",
-		description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or CSV of the goals or the check-ins.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["format"],
-			properties: { format: str("Which export.", { enum: [
-				"json",
-				"brief",
-				"goals_csv",
-				"check_ins_csv"
-			] }) }
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const x = {
-				ws: ctx.ws,
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				today: ctx.today
-			};
-			if (a.format === "json") {
-				const j = toJson(x);
+		{
+			name: "find_goals",
+			title: "Find goals",
+			description: "List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				properties: {
+					text: str("Words in the goal’s name, or its key (G-12)."),
+					owner: str("Part of the owner’s name."),
+					status: str("Only goals with this status.", { enum: STATUSES }),
+					level: str("Only goals at this level.", { enum: LEVELS }),
+					mine: bool("Only goals you own."),
+					query: str("A Goals link’s query string, e.g. \"status=off,risk&needs=decision,slipped&due=quarter&sort=gap\". Keys: q, status (off, risk, stale, on, done, planned), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), needs (decision, no-recovery, slipped, missed-date, greener), due (quarter or a week), quiet (weeks), qtr (met, missed), result (completed, late, missed, open), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."),
+					view: str("The name of a saved view: one of yours, or one pinned for everyone.")
+				}
+			},
+			annotations: {
+				readOnlyHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
+				const byKey = normalKey(a.text);
+				let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
+				if (a.view) {
+					const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+					if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
+					query = parseQuery(new URLSearchParams(v.params));
+				}
+				let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+				if (query) list = applyQuery(list, query, {
+					goals: ctx.snapshot.goals,
+					cycle: ctx.cycle,
+					week: ctx.week
+				});
+				const data = list.map((s) => ({
+					key: s.goal.key ?? null,
+					id: s.goal.id,
+					title: s.goal.title,
+					type: s.goal.kind,
+					level: s.goal.level,
+					owner: s.owner,
+					team: s.team,
+					status: s.status,
+					now: s.now,
+					planThisWeek: s.planNow != null ? s.planNowText : null,
+					target: s.target,
+					gap: s.gap,
+					lastCheckInWeek: s.lastWeek,
+					feedsInto: s.feedsInto,
+					youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
+				}));
 				return {
-					data: j,
-					text: JSON.stringify(j)
+					data: {
+						week: ctx.week,
+						weeks: ctx.cycle.weeks,
+						goals: data
+					},
+					text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
 				};
 			}
-			if (a.format === "brief") return { text: aiBrief(x) };
-			const wb = workbook(x);
-			if (a.format === "goals_csv") return { text: toCsv(wb[0].rows) };
-			if (a.format === "check_ins_csv") return { text: toCsv(wb[2].rows) };
-			return {
-				isError: true,
-				text: "format should be json, brief, goals_csv or check_ins_csv."
-			};
+		},
+		{
+			name: "get_goal",
+			title: "One goal in full",
+			description: "Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id"],
+				properties: { goal_id: str("The goal’s ID or its key (e.g. G-12), from find_goals.") }
+			},
+			annotations: {
+				readOnlyHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const g = goalRef(ctx, a.goal_id);
+				const j = toJson({
+					ws: ctx.ws,
+					snapshot: ctx.snapshot,
+					cycle: ctx.cycle,
+					week: ctx.week,
+					today: ctx.today,
+					goals: [g]
+				});
+				const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
+				const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
+					label: c.label,
+					value: c.value,
+					detail: c.sub
+				}));
+				const data = {
+					cycle: j.cycle,
+					goal: j.goals[0],
+					scorecard,
+					notes: j.notes
+				};
+				return {
+					data,
+					text: JSON.stringify(data, null, 2)
+				};
+			}
+		},
+		{
+			name: "post_check_in",
+			title: "Post a check-in",
+			description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id"],
+				properties: {
+					goal_id: str("The goal’s ID or its key, e.g. G-12."),
+					week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
+					value: num("Number goals: the value for the week."),
+					stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
+					call: str("The owner’s status call. Leave out to let the rules decide.", { enum: [
+						"On track",
+						"At risk",
+						"Off track",
+						"Done"
+					] }),
+					cause: str("Why it’s behind or ahead.", { enum: [
+						"Plan too aggressive",
+						"Delivery slower",
+						"Blocked by a dependency",
+						"External factor",
+						"Data problem",
+						"Plan too cautious",
+						"Change landed early",
+						"One-off, won’t last"
+					] }),
+					why: str("In a sentence (10 characters or more)."),
+					why_greener: str("If the call is greener than the numbers: why."),
+					path_to_green: str("How it gets back on plan."),
+					recovery: str("Where the owner is with recovery.", { enum: [
+						"Plan",
+						"Still investigating",
+						"Needs a decision or help",
+						"Target should change"
+					] }),
+					back_on_plan_by_week: int("With a plan: the week it is back on plan by."),
+					needs: str("A decision or help needed, and from whom."),
+					next_step: str("The next step."),
+					dry_run: DRY
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const g = goalRef(ctx, a.goal_id);
+				return change(ctx, { checkIns: [row({
+					...a,
+					goal_id: g.id,
+					week: a.week ?? ctx.week
+				}, {
+					goal_id: "goal id",
+					week: "week",
+					value: "value",
+					stages: "stages",
+					call: "call",
+					cause: "cause",
+					why: "why",
+					why_greener: "why greener",
+					path_to_green: "path to green",
+					recovery: "recovery",
+					back_on_plan_by_week: "back on plan by week",
+					needs: "needs",
+					next_step: "next step"
+				})] }, { dry: !!a.dry_run });
+			}
+		},
+		{
+			name: "update_goal",
+			title: "Change a goal",
+			description: "Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id"],
+				properties: {
+					goal_id: str("The goal’s ID or its key, e.g. G-12."),
+					...GOAL_FIELDS,
+					reason: str("Why the plan is changing."),
+					dry_run: DRY
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const g = goalRef(ctx, a.goal_id);
+				return change(ctx, { goals: [row({
+					...a,
+					goal_id: g.id
+				}, {
+					goal_id: "id",
+					...GOAL_COLS
+				})] }, {
+					dry: !!a.dry_run,
+					reason: a.reason
+				});
+			}
+		},
+		{
+			name: "create_goal",
+			title: "Add a goal",
+			description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. You can add goals you own; admins can add goals for anyone.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["title", "type"],
+				properties: {
+					type: str("What kind of goal.", { enum: [
+						"metric",
+						"range",
+						"milestone"
+					] }),
+					...GOAL_FIELDS,
+					dry_run: DRY
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: false,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				return change(ctx, { goals: [row({
+					owner: ctx.actor.name,
+					...a
+				}, {
+					type: "type",
+					...GOAL_COLS
+				})] }, { dry: !!a.dry_run });
+			}
+		},
+		{
+			name: "set_plan_numbers",
+			title: "Set plan numbers by hand",
+			description: "Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id", "numbers"],
+				properties: {
+					goal_id: str("The goal’s ID or its key, e.g. G-12."),
+					numbers: {
+						type: "array",
+						description: "Planned values by week.",
+						items: {
+							type: "object",
+							required: ["week", "value"],
+							properties: {
+								week: int("Week from the cycle start."),
+								value: num("Planned value.")
+							}
+						}
+					},
+					reason: str("Why the plan is changing."),
+					dry_run: DRY
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const r = {
+					__row: "1",
+					id: goalRef(ctx, a.goal_id).id
+				};
+				for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
+				return change(ctx, { plan: [r] }, {
+					dry: !!a.dry_run,
+					reason: a.reason
+				});
+			}
+		},
+		{
+			name: "add_comment",
+			title: "Comment on a goal",
+			description: "Add a comment to a goal’s history. Anyone can comment; it doesn’t change the status.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["goal_id", "text"],
+				properties: {
+					goal_id: str("The goal’s ID or its key, e.g. G-12."),
+					text: str("The comment.")
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: false,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const g = goalRef(ctx, a.goal_id);
+				const c = addNote({
+					snapshot: ctx.snapshot,
+					cycle: ctx.cycle,
+					week: ctx.week,
+					actor: ctx.actor,
+					now: ctx.now,
+					newId: ctx.newId
+				}, g, String(a.text ?? ""));
+				await ctx.save({
+					...c,
+					changes: c.changes.map((x) => ({
+						...x,
+						diffs: [...x.diffs, {
+							field: "Via",
+							from: "—",
+							to: "AI assistant (MCP)"
+						}]
+					}))
+				});
+				return { text: `Comment added to ${g.title} as ${ctx.actor.name}.` };
+			}
+		},
+		{
+			name: "bulk_change",
+			title: "Change many goals at once",
+			description: "Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{\"ID\": \"...\", \"Target\": 90}], check_ins: [{\"Goal ID\": \"...\", \"Week\": 3, \"Value\": 41}], plan: [{\"ID\": \"...\", \"Week 5\": 45}]). A goal’s key (G-12) works wherever its ID does: in ID, Key, Goal ID, Goal key and Feeds into ID. Checks every row and returns what would change; nothing is saved unless \"apply\" is true and every row is valid.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				properties: {
+					goals: {
+						type: "array",
+						items: { type: "object" },
+						description: "Rows for the Goals sheet. ID to change a goal; no ID to add one."
+					},
+					plan: {
+						type: "array",
+						items: { type: "object" },
+						description: "Rows for the Plan sheet: ID and \"Week N\" columns."
+					},
+					check_ins: {
+						type: "array",
+						items: { type: "object" },
+						description: "Rows for the Check-ins sheet: Goal ID, Week, Value or Stages, Call, Cause, Why, Path to green, Back on plan by week, Needs, Next step."
+					},
+					reason: str("Why plans are changing, for any plan change that needs one."),
+					apply: bool("Save the changes. Leave out first to check them.")
+				}
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				return change(ctx, {
+					goals: rows$1(a.goals, "goals"),
+					plan: rows$1(a.plan, "plan"),
+					checkIns: rows$1(a.check_ins, "check_ins")
+				}, {
+					dry: !a.apply,
+					reason: a.reason
+				});
+			}
+		},
+		{
+			name: "export",
+			title: "Export the goals",
+			description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or CSV of the goals or the check-ins.",
+			inputSchema: {
+				type: "object",
+				additionalProperties: false,
+				required: ["format"],
+				properties: { format: str("Which export.", { enum: [
+					"json",
+					"brief",
+					"goals_csv",
+					"check_ins_csv"
+				] }) }
+			},
+			annotations: {
+				readOnlyHint: true,
+				openWorldHint: false
+			},
+			async run(a, ctx) {
+				const x = {
+					ws: ctx.ws,
+					snapshot: ctx.snapshot,
+					cycle: ctx.cycle,
+					week: ctx.week,
+					today: ctx.today
+				};
+				if (a.format === "json") {
+					const j = toJson(x);
+					return {
+						data: j,
+						text: JSON.stringify(j)
+					};
+				}
+				if (a.format === "brief") return { text: aiBrief(x) };
+				const wb = workbook(x);
+				if (a.format === "goals_csv") return { text: toCsv(wb[0].rows) };
+				if (a.format === "check_ins_csv") return { text: toCsv(wb[2].rows) };
+				return {
+					isError: true,
+					text: "format should be json, brief, goals_csv or check_ins_csv."
+				};
+			}
 		}
-	}
-], ...WORK_TOOLS];
+	],
+	...WORK_TOOLS,
+	...MARKUP_TOOLS
+];
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
 async function callTool(name, args, ctx) {
 	const t = TOOLS.find((x) => x.name === name);
@@ -32755,6 +33275,7 @@ async function callTool(name, args, ctx) {
 	}
 }
 // src/mcp/protocol.ts
+init_token();
 /** The name stays 'goals' (assistants already have it saved); the title is the product's. */
 var SERVER_INFO = {
 	name: "goals",
@@ -32836,16 +33357,6 @@ async function handleBody(body, context, trace) {
 		return out.length ? out : null;
 	}
 	return handle(body, context, trace);
-}
-/** SHA-256 of a token, as hex: what's stored, and what a presented token is checked against. */
-async function hashToken(token) {
-	const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-	return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-/** A new token: "gk_" and 40 random letters and digits. */
-function newToken() {
-	const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
 }
 // src/telemetry/errors.ts
 init_actions();
@@ -33128,7 +33639,8 @@ async function serve(req, deps) {
 	const auth = req.headers.get("authorization") ?? "";
 	const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1] ?? new URL(req.url).searchParams.get("token") ?? "";
 	if (!token) return rpcError(401, "Add your personal token: Authorization: Bearer gk_… An admin makes one under Workspace → AI assistants.", { "WWW-Authenticate": "Bearer" });
-	const found = await deps.findToken(await hashToken(token));
+	const hash = await hashToken(token);
+	const found = await deps.findToken(hash);
 	if (!found) return rpcError(401, "That token isn’t valid or has been revoked. Ask an admin for a new one.", { "WWW-Authenticate": "Bearer error=\"invalid_token\"" });
 	let body;
 	try {
@@ -33230,7 +33742,28 @@ async function serve(req, deps) {
 					recording: c.recording
 				};
 			},
-			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {}
+			issueToken: async (c) => {
+				let saved = c;
+				let secret;
+				if (deps.issueToken) secret = await db("okr_token_create", () => deps.issueToken(found.workspaceId, c));
+				else {
+					secret = newToken();
+					const tokenHash = await hashToken(secret);
+					saved = {
+						...c,
+						tokens: (c.tokens ?? []).map((t) => ({
+							...t,
+							tokenHash
+						}))
+					};
+					await db("okr_commit", () => deps.commit(found.workspaceId, saved));
+				}
+				all = applyCommit(all, saved);
+				ctx.snapshot = scopeToCycle(all, cycle);
+				return secret;
+			},
+			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {},
+			...deps.markups && found.builder ? { markups: deps.markups(hash) } : {}
 		};
 		return ctx;
 	};
@@ -33268,22 +33801,125 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 		clearTimeout(timer);
 	} catch {}
 }
+function markupOps(o) {
+	const now = () => (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString();
+	const must = async (id) => {
+		const m = await o.store.get(id);
+		if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+		return m;
+	};
+	const pic = (m, name) => m.pictures.includes(name) ? o.store.pictureUrl(m.id, name, 600).catch(() => null) : Promise.resolve(null);
+	return {
+		async list(q = {}) {
+			const list = await o.store.list({
+				...q,
+				limit: Math.min(Math.max(q.limit ?? 200, 1), 500)
+			});
+			return Promise.all(list.map(async (m) => ({
+				...m,
+				thumbUrl: await pic(m, "thumb.jpg")
+			})));
+		},
+		async open(id) {
+			const m = await must(id);
+			const [screen, ink, marked] = await Promise.all([
+				"screen.png",
+				"ink.png",
+				"marked.jpg"
+			].map((n) => pic(m, n)));
+			return {
+				...m,
+				urls: {
+					screen: screen ?? null,
+					ink: ink ?? null,
+					marked: marked ?? null
+				}
+			};
+		},
+		async setStatus(id, c) {
+			await must(id);
+			const m = await o.store.update(id, statusPatch(c, now(), o.entries));
+			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+			return m;
+		},
+		/** Keeps the address of the issue the builder opened. */
+		async setIssueUrl(id, url) {
+			const u = url.trim().replace(/[?#].*$/, "");
+			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+			await must(id);
+			const m = await o.store.update(id, { issueUrl: u });
+			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+			return m;
+		},
+		/** The pre-filled new-issue link: title, line, page, parts, steps and a link back to the markup in the inbox. The
+		builder presses Submit on GitHub, then pastes the issue's address back. */
+		async issueLink(id) {
+			const m = await must(id);
+			return newIssueLink(o.repo, m, { inboxUrl: o.inboxLink?.(m.id) ?? null });
+		}
+	};
+}
+// src/markup/stores.ts
+var COLUMN = {
+	status: "status",
+	fixedIn: "fixed_in",
+	wontFixReason: "wont_fix_reason",
+	statusBy: "status_by",
+	statusAt: "status_at",
+	issueUrl: "issue_url"
+};
+var toRow = (patch) => Object.fromEntries(Object.entries(patch).map(([k, v]) => [COLUMN[k] ?? k, v]));
+var rows = (data) => (data ?? []).map(markupFromRow);
+function tokenMarkups(db, hash, signer) {
+	const call = async (fn, args, what) => {
+		const { data, error } = await db.rpc(fn, args);
+		if (error) throw new Error(`${what}: ${error.message}`);
+		return rows(data);
+	};
+	return {
+		list: (o) => call("okr_markups_for_token", {
+			hash,
+			ws: o.workspaceId ?? null,
+			st: o.status ?? null,
+			lim: o.limit
+		}, "Markups"),
+		get: async (id) => (await call("okr_markup_for_token", {
+			hash,
+			mid: id
+		}, "Markups"))[0] ?? null,
+		update: async (id, patch) => (await call("okr_markup_triage_for_token", {
+			hash,
+			mid: id,
+			patch: toRow(patch)
+		}, "Saving the markup"))[0] ?? null,
+		async pictureUrl(id, name, seconds) {
+			if (!signer) return null;
+			const { data, error } = await signer.storage.from("markups").createSignedUrl(`${id}/${name}`, seconds);
+			return error ? null : data?.signedUrl ?? null;
+		}
+	};
+}
 // server/vercel.ts
-function deps() {
+function deps(origin) {
 	const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-	const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.VITE_SUPABASE_KEY;
+	const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	const key = service ?? process.env.VITE_SUPABASE_KEY;
 	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and a key).");
 	const db = createClient(url, key, { auth: { persistSession: false } });
 	const store = new SupabaseStore(url, key, db);
+	let seen = null;
 	return {
 		async findToken(hash) {
-			const { data, error } = await db.from("okr_api_tokens").select("*").eq("token_hash", hash).is("revoked_at", null).maybeSingle();
+			let { data, error } = await db.rpc("okr_token_find", { hash });
+			if (error && /okr_token_find|PGRST202|Could not find the function/.test(`${error.code} ${error.message}`)) ({data, error} = await db.from("okr_api_tokens").select("*").eq("token_hash", hash).is("revoked_at", null));
 			if (error) throw new Error("The goals database didn’t answer. Try again in a moment.");
-			if (!data) return null;
-			const row = data;
+			const row = (data ?? [])[0];
+			if (!row) return null;
+			seen = hash;
 			return {
 				token: tokenFromRow(row),
-				workspaceId: row.workspace_id
+				workspaceId: row.workspace_id,
+				builder: !!row.builder
 			};
 		},
 		async workspaceName(id) {
@@ -33293,8 +33929,16 @@ function deps() {
 		load: (ws) => store.load(ws),
 		commit: (ws, c) => store.commit(ws, c),
 		async touch(id, at) {
-			await db.from("okr_api_tokens").update({ last_used_at: at }).eq("id", id);
+			const { error } = seen ? await db.rpc("okr_token_touch", { hash: seen }) : { error: { message: "no hash" } };
+			if (error) await db.from("okr_api_tokens").update({ last_used_at: at }).eq("id", id);
 		},
+		issueToken: (ws, c) => store.issueToken(ws, c),
+		markups: (hash) => markupOps({
+			store: tokenMarkups(db, hash, service ? db : null),
+			entries: WHATS_NEW.map((e) => e.id),
+			repo: MARKUP_REPO,
+			inboxLink: (id) => `${origin}/workspace?markup=${id}`
+		}),
 		deleteWorkspace: (ws) => store.deleteWorkspace(ws),
 		async recording(id) {
 			const { data, error } = await db.from("okr_workspaces").select("recording").eq("id", id).maybeSingle();
@@ -33307,7 +33951,7 @@ function deps() {
 }
 var handler = async (req) => {
 	try {
-		return await serve(req, deps());
+		return await serve(req, deps(new URL(req.url).origin));
 	} catch (e) {
 		return new Response(JSON.stringify({
 			jsonrpc: "2.0",

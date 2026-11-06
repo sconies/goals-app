@@ -4,10 +4,10 @@
    saves and flow stops are logs in the trace they happened in; load timings are metrics.
 
    Recording is cheap on purpose: building a row and pushing it to a list. The exporter sends in batches, later.
-   The last few steps of this tab's session are kept in memory (recentSteps), never sent by themselves, for a later
-   release to attach to a markup. */
+   The last few steps of this tab's session, and its errors and failed saves, are kept in memory (recentSteps,
+   recentProblems), never sent by themselves: a markup attaches them when its sender says so (src/markup). */
 import { appRouteFor } from '../help/guide';
-import type { Attrs } from './attributes';
+import { redact, type Attrs } from './attributes';
 import { errorType, exceptionType, saveOutcome } from './errors';
 import { Exporter } from './exporter';
 import { FlowTracker, type FlowEvent } from './flows';
@@ -35,6 +35,18 @@ export interface Step {
   step?: string;
 }
 
+/** An error or a save that didn't get through, on this visit: what a markup carries about what went wrong. */
+export interface Problem {
+  at: string;
+  kind: 'exception' | 'save';
+  /** The error's class (TypeError) or the save's failure (network, not_allowed, stale…). */
+  type: string;
+  route?: string;
+  action?: string;
+  /** An exception's message, with anything quoted or numeric taken out. */
+  message?: string;
+}
+
 export interface TelemetryOptions {
   exporter?: Exporter;
   resource?: Record<string, unknown>;
@@ -46,6 +58,7 @@ export interface TelemetryOptions {
 }
 
 const STEPS = 20;
+const PROBLEMS = 25;
 /** A page that opens this soon after an action ends is that action's result. */
 const RESULT_MS = 1500;
 const MAX_EXCEPTIONS = 25;
@@ -73,6 +86,7 @@ export class Telemetry {
   private route = '';
   private pageOf = new Set<string>();
   private steps: Step[] = [];
+  private problems: Problem[] = [];
   private exceptions = 0;
   private lastException = '';
 
@@ -104,6 +118,14 @@ export class Telemetry {
 
   /** The last steps of this tab's session (at most 20), oldest first. In memory only. */
   recentSteps(): Step[] { return this.steps.map((s) => ({ ...s })); }
+
+  private problem(p: Omit<Problem, 'at'>) {
+    this.problems.push({ at: new Date(this.now()).toISOString(), ...p });
+    if (this.problems.length > PROBLEMS) this.problems.splice(0, this.problems.length - PROBLEMS);
+  }
+
+  /** This visit's errors and failed saves (at most 25), oldest first. In memory only. */
+  recentProblems(): Problem[] { return this.problems.map((p) => ({ ...p })); }
 
   /** Where flows are now: "check-in, step 2 of 3". */
   flowsNow() { return this.flows.current(); }
@@ -164,6 +186,7 @@ export class Telemetry {
     const ok = !err;
     if (err) {
       const t = errorType(err);
+      this.problem({ kind: 'save', type: t, action: span.name, ...(this.route ? { route: this.route } : {}) });
       span.end({ status: 'ERROR', statusMessage: t, attributes: { 'error.type': t, 'app.save.outcome': saveOutcome(t) } });
       this.log(t === 'not_allowed' || t === 'stale' ? 'WARN' : 'ERROR', t === 'not_allowed' ? 'save.refused' : t === 'stale' ? 'save.stale' : 'save.failed',
         { 'error.type': t, 'app.action.name': span.name, 'app.error.source': 'save', 'app.save.outcome': saveOutcome(t) }, span);
@@ -241,6 +264,7 @@ export class Telemetry {
     this.exceptions++;
     this.lastException = key;
     this.remember({ kind: 'error', name: type, route: this.route });
+    this.problem({ kind: 'exception', type, ...(this.route ? { route: this.route } : {}), ...(message ? { message: redact(message, 200) } : {}) });
     this.log('ERROR', 'exception', { 'exception.type': type, 'exception.message': message, ...(e instanceof Error && e.stack ? { 'exception.stacktrace': e.stack } : {}), 'error.type': type, 'app.error.source': source });
   }
 

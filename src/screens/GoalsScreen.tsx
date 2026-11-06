@@ -125,9 +125,9 @@ export function GoalsScreen() {
     else if (right > row.scrollLeft + row.clientWidth - 24) row.scrollLeft = right - row.clientWidth + 24;
   }, [show, activeView?.id]);
   return (
-    <div className={frame}>
+    <div className={frame} data-part={show === 'watching' ? 'Watching' : 'Goals'}>
       {/* A short header, so the goals start near the top: the title and the one creating action, then one toolbar. */}
-      <div className="page-head row between goals-head">
+      <div className="page-head row between goals-head" data-part="Views, search and filters">
         <span className="goals-title">
           <h1 className="title-xl">{show === 'watching' ? 'Watching' : 'Goals'}</h1>
           {/* The week line breaks only between its parts, never inside one. */}
@@ -180,7 +180,7 @@ export function GoalsScreen() {
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
       {!alt && refined && !watchingList && groups.map((g) => (
-        <section key={g.key} className="block" aria-label={g.title}>
+        <section key={g.key} className="block" aria-label={g.title} data-part={g.title}>
           <h2 className="block-title">{g.title} <span className="hint">· {g.rows.length}</span></h2>
           <ul className="tree">{g.rows.map((r) => <li key={r.goal.id}><GoalRow g={r.goal} /></li>)}</ul>
         </section>
@@ -189,7 +189,7 @@ export function GoalsScreen() {
       {!alt && !refined && show === 'outcomes' && (
         <>
           {trees.map((t) => (
-            <section key={t.goal.id} className="outcome" aria-label={t.goal.title}>
+            <section key={t.goal.id} className="outcome" aria-label={t.goal.title} data-part={t.goal.title}>
               <TreeCard node={t} />
               <TreeRows nodes={t.children} />
             </section>
@@ -215,7 +215,7 @@ export function GoalsScreen() {
         const list = app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app));
         if (!list.length) return null;
         return (
-          <section key={l} className="block" aria-label={LEVEL_LABEL[l]}>
+          <section key={l} className="block" aria-label={LEVEL_LABEL[l]} data-part={LEVEL_LABEL[l]}>
             <div className="row between nowrap">
               <h2 className="block-title">{LEVEL_LABEL[l]} <span className="hint">· {list.length}</span></h2>
               <Chip k={worst(list.map((g) => app.statusOf(g).status))} />
@@ -230,7 +230,7 @@ export function GoalsScreen() {
         if (!list.length) return null;
         const st = worst(list.map((g) => app.statusOf(g).status));
         return (
-          <section key={t.id} className="block" aria-label={t.name}>
+          <section key={t.id} className="block" aria-label={t.name} data-part={t.name}>
             <div className="row between nowrap">
               <span className="stack" style={{ gap: 0, minWidth: 0 }}>
                 <h2 className="block-title">{t.name}</h2>

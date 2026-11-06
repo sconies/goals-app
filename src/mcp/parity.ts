@@ -72,7 +72,7 @@ export const SCREENS: Record<string, Entry> = {
   Import: ['bulk_change'],
   Export: ['export'],
   Retro: ['get_wrap_up', 'wrap_up_goal', 'start_next_cycle'],
-  Workspace: ['list_people', 'save_person', 'list_tokens', 'create_token', 'revoke_token', 'list_feedback', 'delete_workspace', 'rename_workspace', 'save_team', 'remove_team', 'set_recording'],
+  Workspace: ['list_people', 'save_person', 'list_tokens', 'create_token', 'revoke_token', 'list_feedback', 'delete_workspace', 'rename_workspace', 'save_team', 'remove_team', 'set_recording', 'list_markups', 'get_markup', 'update_markup'],
   Settings: ['list_tokens', 'revoke_token', 'create_token', 'get_help', 'set_recording'],
   Print: ['get_goal', 'get_review'],
   Help: ['get_help', 'whats_new'],

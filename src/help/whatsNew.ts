@@ -15,9 +15,24 @@ export interface NewsEntry {
   points: string[];
   /** Guide articles that explain it. */
   articles: string[];
+  /** The markups (mk_…) this release fixes: whoever sent one sees “You raised this” on the entry. */
+  fixes?: string[];
 }
 
 export const WHATS_NEW: NewsEntry[] = [
+  {
+    id: 'mark-up-a-screen',
+    date: '2026-11-06',
+    title: 'Mark up a screen to say what should change',
+    points: [
+      'Send feedback now starts with Mark up this screen: draw on a picture of the screen you’re on with a pen, an arrow, a box or a numbered note, and say in one line what should change. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere; Escape cancels.',
+      'Before you send, you see the exact picture that goes, with your marks. Your last 20 steps on this visit go with it unless you untick them, so the people building Faro can see what led up to it. Never anything you typed.',
+      'When a release fixes something you marked up, its entry here says “You raised this”.',
+      'For the people building Faro, Workspace has an Inbox to read and triage markups, after signing in with an email link. Your admins can’t see markups yet; they will once sign-in comes to the whole app.',
+      'AI assistant tokens are now made by the database, which keeps only a fingerprint of each and never hands one back; feedback can only be read by its own workspace. Making and revoking tokens works as before.',
+    ],
+    articles: ['feedback', 'inbox', 'ai-assistants', 'recording'],
+  },
   {
     id: 'fit-fixes-nov-6',
     date: '2026-11-06',

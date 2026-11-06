@@ -325,13 +325,15 @@ export function pinView(x: ActionContext, id: string, pinned: boolean): Commit |
 
 /* ---------- AI assistant tokens ---------- */
 
-/** Admins: a personal token for an assistant to act as someone. Only the token's hash is kept; the caller makes both. */
-export function createToken(x: ActionContext, personId: string, name: string, tokenHash: string): Commit {
+/** Admins: a personal token for an assistant to act as someone. The store makes the secret and keeps only its hash
+    (Store.issueToken): in the shared database, the database does. */
+export function createToken(x: ActionContext, personId: string, name: string): Commit {
   if (!x.actor.admin) no('Only admins can make tokens.');
   const who = x.snapshot.people.find((p) => p.id === personId);
   if (!who) no('There’s no one with that ID in this workspace.');
   if (!name.trim()) no('Say what the token is for, e.g. “Claude on my laptop”.');
-  const t: ApiToken = { id: x.newId('tok'), personId, name: name.trim(), tokenHash, createdBy: x.actor.id, createdAt: x.now, lastUsedAt: null, revokedAt: null };
+  if (name.trim().length > 120) no('Keep what it’s for to 120 characters.');
+  const t: ApiToken = { id: x.newId('tok'), personId, name: name.trim(), createdBy: x.actor.id, createdAt: x.now, lastUsedAt: null, revokedAt: null };
   return { tokens: [t], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'person', entityId: personId, action: 'created', summary: `Gave ${who!.name} an AI assistant token: “${t.name}”`, diffs: [{ field: 'AI assistant token', from: '—', to: t.name }] }] };
 }
 

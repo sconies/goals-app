@@ -10,6 +10,8 @@ import { summariseAll } from '../domain/summary';
 import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
 import { WORK_TOOLS } from './workTools';
+import { MARKUP_TOOLS } from './markupTools';
+import type { MarkupOps } from '../markup/ops';
 import { findGoal, isKey, normalKey } from '../domain/goalKey';
 import { isTableView } from '../domain/tableLayout';
 import type { Cycle, DisplayStatus, Level, Person, Snapshot } from '../domain/types';
@@ -26,10 +28,14 @@ export interface McpContext {
   now: string;
   newId: (prefix: string) => string;
   save(c: Commit): Promise<void>;
+  /** Saves a new token (createToken's commit) and returns its secret, made where it's kept; only the hash is stored. */
+  issueToken(c: Commit): Promise<string>;
   /** Every goal in the workspace, in every cycle, when the server has them (removing a team reaches past this cycle). */
   allGoals?: Snapshot['goals'];
   /** Deletes the whole workspace (admins, confirmed by name); not every server can. */
   deleteWorkspace?: () => Promise<void>;
+  /** The builder inbox (src/markup/ops.ts): only when the request carries the builder passcode and the server can read markups. */
+  markups?: MarkupOps;
 }
 
 /** `cause`: what a failed tool threw, for the server's own telemetry (its class only); never sent to the assistant. */
@@ -297,7 +303,7 @@ const CORE_TOOLS: ToolDef[] = [
 
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
     requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts. */
-export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS];
+export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...MARKUP_TOOLS];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
 export async function callTool(name: string, args: Record<string, unknown>, ctx: McpContext): Promise<ToolResult> {

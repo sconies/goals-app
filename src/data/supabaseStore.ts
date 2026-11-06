@@ -8,6 +8,9 @@ import {
   type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, type ViewRow, viewFromRow, viewToRow, commitPayload } from './rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from './store';
 
+/** A database function that isn't there yet: its migration hasn't been applied. */
+const missing = (error: { code?: string; message: string }) => error.code === 'PGRST202' || /Could not find the function|function .* does not exist/i.test(error.message);
+
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
 export const TIMEOUT_MS = 12_000;
 /** Supabase returns at most 1,000 rows per request; read in pages below that. */
@@ -29,7 +32,7 @@ export class SupabaseStore implements Store {
   private readonly db: SupabaseClient;
 
   constructor(url: string, key: string, client?: SupabaseClient) {
-    this.db = client ?? createClient(url, key, { auth: { persistSession: false }, global: { fetch: timedFetch } });
+    this.db = client ?? createClient(url, key, { auth: { persistSession: false, detectSessionInUrl: false }, global: { fetch: timedFetch } });
   }
 
   private async all<T>(table: string, ws: string): Promise<T[]> {
@@ -65,9 +68,11 @@ export class SupabaseStore implements Store {
       this.all<TeamRow>('okr_teams', ws), this.all<PersonRow>('okr_people', ws), this.all<CycleRow>('okr_cycles', ws),
       this.all<GoalRow>('okr_goals', ws), this.all<StageRow>('okr_stages', ws), this.all<CheckInRow>('okr_check_ins', ws),
       this.all<DecisionRow>('okr_decisions', ws), this.all<ChangeRow>('okr_changes', ws),
-      this.all<WatchRow>('okr_watches', ws), this.all<ReviewRow>('okr_reviews', ws), this.all<RetroRow>('okr_retros', ws), this.all<FeedbackRow>('okr_feedback', ws),
-      // Tokens arrive with migration 0010; until then the app works without them.
-      this.all<TokenRow>('okr_api_tokens', ws).catch(() => [] as TokenRow[]),
+      this.all<WatchRow>('okr_watches', ws), this.all<ReviewRow>('okr_reviews', ws), this.all<RetroRow>('okr_retros', ws),
+      // Feedback and tokens are read through functions since migration 0024 (the tables can't be read with the public
+      // key); before it, from the tables. Tokens arrive with migration 0010; until then the app works without them.
+      this.viaRpc<FeedbackRow>('okr_feedback_list', ws, 'okr_feedback').catch(() => [] as FeedbackRow[]),
+      this.viaRpc<TokenRow>('okr_token_list', ws, 'okr_api_tokens').catch(() => [] as TokenRow[]),
       // Saved views arrive with migration 0016; until then there are none.
       this.all<ViewRow>('okr_views', ws).catch(() => [] as ViewRow[]),
       // Requests arrive with migration 0017; until then they're read from each goal's latest check-in.
@@ -94,17 +99,41 @@ export class SupabaseStore implements Store {
     });
   }
 
+  /** A workspace's rows from a database function that returns them (migration 0024), or from the table before it. */
+  private async viaRpc<T>(fn: string, ws: string, table: string): Promise<T[]> {
+    const { data, error } = await this.db.rpc(fn, { ws });
+    if (!error) return (data ?? []) as T[];
+    if (missing(error)) return this.all<T>(table, ws);
+    throw new Error(`${table}: ${error.message}`);
+  }
+
   /** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
   private async rpc(fn: string, args: Record<string, unknown>, what: string): Promise<'missing' | void> {
     const { error } = await this.db.rpc(fn, args);
     if (!error) return;
-    if (error.code === 'PGRST202' || /Could not find the function|function .* does not exist/i.test(error.message)) return 'missing';
+    if (missing(error)) return 'missing';
     if (/stale: /.test(error.message)) throw new StaleError(error.message.replace(/^.*stale: /, ''));
     throw new Error(`${what}: ${error.message}`);
   }
 
-  /** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. */
+  /** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. Revoking a
+      token goes through okr_token_revoke (migration 0024), with its change-log entry, in its own transaction. */
   async commit(ws: string, c: Commit) {
+    if (c.tokens?.length) {
+      const by = c.changes[0]?.actorId ?? '';
+      const done: string[] = [];
+      for (const t of c.tokens) {
+        // A new token reaches a save only before migration 0024 (issueToken's fallback): okr_commit writes it then.
+        if (!t.revokedAt) continue;
+        const change = c.changes.find((x) => x.entityId === t.personId && x.diffs.some((d) => d.field === 'AI assistant token'));
+        const r = await this.rpc('okr_token_revoke', { ws, token_id: t.id, by_id: by, change: change ? changeToRow(ws, change) : null }, 'Revoking the token');
+        if (r === 'missing') break;
+        done.push(t.id);
+        if (change) c = { ...c, changes: c.changes.filter((x) => x !== change) };
+      }
+      if (done.length) c = { ...c, tokens: c.tokens!.filter((t) => !done.includes(t.id)) };
+      if (!c.tokens?.length && Object.entries(c).every(([k, v]) => k === 'expect' || k === 'tokens' || (Array.isArray(v) ? !v.length : v === undefined))) return;
+    }
     if ((await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c) }, 'Saving')) !== 'missing') {
       // Before migration 0020, okr_commit saves teams but can't remove one or rename the workspace: finish those here.
       // Afterwards they've already happened, and doing them again changes nothing.
@@ -112,6 +141,21 @@ export class SupabaseStore implements Store {
       return;
     }
     await this.legacyCommit(ws, c);
+  }
+
+  /** A new AI assistant token: the database makes the secret, keeps only its hash, logs the change and returns it once
+      (okr_token_create, migration 0024). Before that migration, the secret is made here and saved with the rest. */
+  async issueToken(ws: string, c: Commit): Promise<string> {
+    const t = c.tokens?.[0];
+    if (!t || c.tokens!.length !== 1) throw new Error('Saving the token: one token at a time.');
+    const change = c.changes[0];
+    const { data, error } = await this.db.rpc('okr_token_create', { ws, token: { id: t.id, person_id: t.personId, name: t.name, created_by: t.createdBy }, change: change ? changeToRow(ws, change) : null });
+    if (!error) return data as string;
+    if (!missing(error)) throw new Error(`Saving the token: ${error.message.replace(/^.*?: /, '')}`);
+    const { hashToken, newToken } = await import('../mcp/token');
+    const secret = newToken();
+    await this.commit(ws, { ...c, tokens: [{ ...t, tokenHash: await hashToken(secret) }] });
+    return secret;
   }
 
   private async teamsAndName(ws: string, c: Commit) {

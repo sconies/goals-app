@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { useApp, useToasts } from '../app/state';
 import { shortPeriod } from '../domain/year';
@@ -18,6 +18,13 @@ import { ProfileSheet } from './ProfileSheet';
 import { PageHelp } from '../screens/Help';
 import { useUnreadNews } from '../help/seen';
 import { isGoalTop, ShellTopContext } from './shellTop';
+import { MOODS } from '../markup/model';
+
+/** Marking up a screen loads only when someone starts one (src/markup). */
+const MarkupFlow = lazy(() => import('../markup/Markup'));
+/** Ctrl+Shift+M, or Cmd+Shift+M on a Mac: mark up this screen, from anywhere. */
+const isMarkupKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'm';
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'data' | 'new' | 'workspace' | 'settings';
 const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
@@ -90,10 +97,9 @@ function YouMenu({ onClose }: { onClose: () => void }) {
 }
 
 
-const MOODS = [['good', 'It helps'], ['meh', 'It’s OK'], ['bad', 'It gets in the way']] as const;
-
-/** What someone thinks of the app, from wherever they are. Two taps; the words are optional. */
-function FeedbackSheet({ onClose, path }: { onClose: () => void; path: string }) {
+/** What someone thinks of the app, from wherever they are. Two taps; the words are optional. First, the choice to mark up
+    the screen instead: a picture with a drawing on it, for the people building the app. */
+function FeedbackSheet({ onClose, onMarkup, path }: { onClose: () => void; onMarkup: () => void; path: string }) {
   const app = useApp();
   const [mood, setMood] = useState<'good' | 'meh' | 'bad' | null>(null);
   const [text, setText] = useState('');
@@ -109,6 +115,11 @@ function FeedbackSheet({ onClose, path }: { onClose: () => void; path: string })
   return (
     <Sheet open onClose={onClose} title="How is the app working for you?">
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void send(); }}>
+        <button type="button" className="menuitem markup-choice" onClick={onMarkup}>
+          <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="10" rx="1.5" /><path d="M4.5 9.5 7 7l1.5 1.5 3-3" /></svg>
+          <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Mark up this screen</span><span className="tiny muted">Draw on a picture of it and say what should change{MAC ? ' (Cmd+Shift+M)' : ' (Ctrl+Shift+M)'}</span></span>
+        </button>
+        <span className="field-label">Or say how it’s working</span>
         <div className="stack" style={{ gap: 'var(--s2)' }}>
           <div className="seg full feedback-moods" role="group" aria-label="How it's working" aria-describedby={tried && !mood ? 'feedback-choose' : undefined}>
             {MOODS.map(([k, l]) => <button key={k} type="button" aria-pressed={mood === k} onClick={() => setMood(k)}>{l}</button>)}
@@ -157,6 +168,13 @@ export function Shell({ children }: { children: ReactNode }) {
   useTrail();
   const look = useAppearance();
   const [sheet, setSheet] = useState<'profile' | 'more' | 'feedback' | 'demo' | 'people' | null>(null);
+  const [marking, setMarking] = useState(false);
+  // Ctrl+Shift+M (Cmd+Shift+M on a Mac), from anywhere: mark up this screen. Any open sheet closes first, so it isn't in the picture.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (!isMarkupKey(e)) return; e.preventDefault(); setSheet(null); setMarking(true); };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   // In the demo, choosing who you are is part of the demo panel, roles first; opened from a person, it says so.
   const openPeople = () => setSheet(app.mode === 'demo' ? 'people' : 'profile');
   const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
@@ -227,7 +245,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className={'app' + (focusMode ? ' focus-mode' : '') + (icons ? ' nav-icons' : '') + (goalTop ? ' goal-top' : '')}>
       <a className="skip" href="#main">Skip to content</a>
-      <div className="mtop">
+      <div className="mtop" data-part="Header">
         <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{wsName.slice(0, 1).toUpperCase()}</span>
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
           <strong className="ellipsis">{title}</strong>
@@ -236,7 +254,7 @@ export function Shell({ children }: { children: ReactNode }) {
         {!goalTop && topControls}
       </div>
       <div className="shell">
-        <nav className="side" aria-label="Main">
+        <nav className="side" aria-label="Main" data-part="Sidebar">
           {/* The product's name, quietly, above the workspace's: the wordmark in the full sidebar, the F alone on the rail. */}
           <div className="side-brand" title="Faro">
             <FaroLogo size={22} />
@@ -284,7 +302,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <PageHelp />
         </main>
       </div>
-      <nav className="tabbar" aria-label="Main">
+      <nav className="tabbar" aria-label="Main" data-part="Tab bar">
         {tabs.map((id) => (
           <Link key={id} to={NAV[id].to} aria-current={isActive(id, navAt, tabs) ? 'page' : undefined}>
             <span className="tabicon">{NAV[id].icon}{count(id) > 0 && <span className="badge">{count(id)}</span>}</span>
@@ -326,7 +344,8 @@ export function Shell({ children }: { children: ReactNode }) {
       )}
       {app.mode === 'demo' && <Coach />}
       <ResearchBar />
-      {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} path={pathname} />}
+      {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} onMarkup={() => { setSheet(null); setMarking(true); }} path={pathname} />}
+      {marking && <Suspense fallback={null}><MarkupFlow onClose={() => setMarking(false)} /></Suspense>}
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={'toast ' + t.kind}>{t.text}</div>)}
       </div>

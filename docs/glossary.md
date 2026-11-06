@@ -30,6 +30,8 @@ Decided in release 1 of the consolidation (5 Nov 2026). Routes and AI assistant 
 | Data | The screen of every person, goal, check-in, plan and ask as tables (`/data`). Its nav item, page title and help article all say Data. | `Data tables`, `the data tables` |
 | Import | Loading a spreadsheet of changes (`/import`): new goals, plan numbers, check-ins and past weeks, all shown before anything is saved. Its button, menu item, page, walkthrough and help say Import. | `Load changes from a spreadsheet`, `upload changes` |
 | Export | Saving goals as a workbook, CSV, JSON or a brief for an AI chat. | download (as the name of the action) |
+| Markup | A picture of a screen with marks drawn on it and a line saying what should change, sent to the people building Faro from Send feedback (Mark up this screen). Its status is New, In hand, Fixed or Won't fix. | screenshot, annotation, bug report, ticket |
+| Builder | One of the people building Faro, whose email is on the builders list; signs in to the inbox on Workspace. | developer, staff |
 | File names | Every file the app saves is named `<workspace>-<what>-<scope>-<date>`, for example `platform-engineering-goals-year-2026-2026-11-05.xlsx`, and goes through `saveFile` in `src/app/files.ts` (requirement SHARED-DOWNLOADS). | |
 
 ## Kept for now

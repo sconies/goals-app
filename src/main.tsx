@@ -24,6 +24,7 @@ import './styles/notes/print-motion.css';
 import './styles/notes/help.css';
 import './styles/notes/recording.css';
 import './styles/notes/goal-flagship.css';
+import './styles/notes/markup.css';
 
 applyAppearance();
 // Errors, load timings and the page closing (src/telemetry). Records nothing without a database.

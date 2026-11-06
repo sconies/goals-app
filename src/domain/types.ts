@@ -346,7 +346,9 @@ export interface ApiToken {
   personId: Id;
   /** What it's for, e.g. "Claude on my laptop". */
   name: string;
-  tokenHash: string;
+  /** The SHA-256 hash of the token. Kept by the database, which never hands it back: the app and the MCP server's
+      context see tokens without it. The demo's browser store keeps it. */
+  tokenHash?: string;
   createdBy: Id;
   createdAt: string;
   lastUsedAt: string | null;

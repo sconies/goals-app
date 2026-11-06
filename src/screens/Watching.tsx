@@ -55,7 +55,7 @@ export function WatchingBody({ goals }: { goals: Goal[] }) {
       )}
       <aside className="split-side" aria-label="What changed">
       {recent.length > 0 && (
-        <section className="block">
+        <section className="block" data-part="What changed this week">
           <h2 className="block-title">What changed this week <span className="hint">· week {app.week}, {weekDates(app.cycle, Math.max(0, app.week))}</span></h2>
           <ol className="changes">{recent.slice(0, 6).map((c) => <ChangeItem key={c.id} c={c} showGoal />)}</ol>
           {recent.length > 6 && <Link className="small linkish" to={`/activity?watching=all&since=${since}`}>{recent.length - 6} more in Activity</Link>}
@@ -64,7 +64,7 @@ export function WatchingBody({ goals }: { goals: Goal[] }) {
       </aside>
       <div className="split-b">
       <Group title={bad.length || quiet.length || groups.handled.length ? 'On track or done' : 'All on track or done'} goals={fine} collapsed={fine.length > 6} />
-      <section className="block">
+      <section className="block" data-part="What you watch">
         <div className="row between">
           <h2 className="block-title">What you watch</h2>
           <button className="linkish small" onClick={() => setManaging((m) => !m)} aria-expanded={managing}>{managing ? 'Done' : 'Change'}</button>
@@ -93,7 +93,7 @@ function Group({ title, hint, goals, collapsed }: { title: string; hint?: string
   if (!goals.length) return null;
   const shown = open ? goals : goals.slice(0, 5);
   return (
-    <section className="block">
+    <section className="block" data-part={title}>
       <div className="stack" style={{ gap: 'var(--s1)' }}>
         <h2 className="block-title">{title} <span className="hint">· {goals.length}</span></h2>
         {hint && <span className="hint">{hint}</span>}

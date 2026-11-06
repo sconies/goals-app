@@ -18,7 +18,6 @@ import { findGoal, isKey } from '../domain/goalKey';
 import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsDate, newsSince } from '../help/whatsNew';
-import { hashToken, newToken } from './protocol';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
@@ -611,9 +610,10 @@ export const WORK_TOOLS: ToolDef[] = [
     annotations: WRITE,
     async run(a, ctx) {
       const p = personOf(ctx, a.person);
-      const token = newToken();
-      const r = await save(ctx, A.createToken(ax(ctx), p.id, String(a.name ?? ''), await hashToken(token)), `Made a token for ${p.name}`, '');
-      return { ...r, text: `${r.text} Here it is, shown once: ${token}`, data: { token } };
+      const c = A.createToken(ax(ctx), p.id, String(a.name ?? ''));
+      // The secret is made where the token is kept (the database), and only its hash is stored.
+      const token = await ctx.issueToken({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
+      return { text: `Made a token for ${p.name} (as ${ctx.actor.name}). Here it is, shown once: ${token}`, data: { token } };
     },
   },
   {

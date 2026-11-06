@@ -2,7 +2,7 @@
    /help lists the articles by section with a search; /help/:id is one article; /whats-new is every release.
    PageHelp is the small Help link at the foot of every page, chosen from the address by the guide's route map;
    HomeNews is the one quiet line on Home after a release the person hasn't seen. */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import { ARTICLES, GROUPS, articleById, articleForPath, searchGuide, type Article } from '../help/guide';
 import { WHATS_NEW, latestNews, newsDate } from '../help/whatsNew';
@@ -11,6 +11,9 @@ import { BackLink } from '../ui/BackLink';
 import { EmptyResult } from '../ui/bits';
 import { StatusLegend } from '../ui/StatusLegend';
 import { Icon } from '../ui/Icon';
+import { useApp } from '../app/state';
+import { raisedBy } from '../markup/backend';
+import { raisedThis, type Raised } from '../markup/model';
 
 function ArticleRow({ a }: { a: Article }) {
   return (
@@ -103,8 +106,12 @@ export function HelpArticle() {
 }
 
 export function WhatsNew() {
+  const app = useApp();
   // Seeing this page is seeing what's new: the dot beside Help and the line on Home go.
   useEffect(() => { markWhatsNewSeen(); }, []);
+  // The markups this person sent, so an entry that fixed one says so.
+  const [raised, setRaised] = useState<Raised[]>([]);
+  useEffect(() => { let live = true; void raisedBy(app.ws.id, app.viewer.id, app.mode === 'demo').then((r) => { if (live) setRaised(r); }).catch(() => undefined); return () => { live = false; }; }, [app.ws.id, app.viewer.id, app.mode]);
   return (
     <div className="page narrow help-page">
       <BackLink to="/help" label="Help" />
@@ -119,6 +126,7 @@ export function WhatsNew() {
             <li key={e.id} id={e.id} className="news">
               <time className="news-date" dateTime={e.date}>{newsDate(e.date)}</time>
               <h2 className="h2">{e.title}</h2>
+              {raisedThis(e, raised, app.viewer.id) && <p className="news-raised"><Icon name="check-circle" size={14} /><strong>You raised this.</strong> <span className="muted">Thank you: a markup you sent is fixed here.</span></p>}
               <ul className="help-points">{e.points.map((p) => <li key={p}>{p}</li>)}</ul>
               {read.length > 0 && (
                 <p className="news-more"><span className="muted">Read more: </span>{read.map((r, i) => <span key={r.id}>{i > 0 && ', '}<Link to={'/help/' + r.id}>{r.title}</Link></span>)}</p>

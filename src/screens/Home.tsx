@@ -58,7 +58,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
   const allIn = p.goals.length > 0 && !p.due.length && p.done.length >= p.goals.length;
   return (
     <>
-      <section className="hero home-hero split-a">
+      <section className="hero home-hero split-a" data-part="This week’s main action">
         {p.goals.length > 0 && !(myReview && !p.due.length && !wrapLeft.length)
           ? <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
           : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={56} label={`${myReview.done} of ${myReview.total} goals covered in ${myReview.review.name}`} /> : null}
@@ -132,7 +132,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
       <aside className="home-side split-side" aria-label="For you">{side}</aside>
       <div className="home-main split-b">
         {mine.length > 0 && (
-          <section className="block home-mine">
+          <section className="block home-mine" data-part="Your goals">
             <div className="row between">
               <h2 className="block-title">Your goals <span className="count-pill">{mine.length}</span></h2>
               {mine.length > 1 && <Link className="small linkish" to="/goals?show=mine">See them in Goals</Link>}
@@ -197,7 +197,7 @@ function NeedsYou() {
   items.sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.at.localeCompare(a.at));
   const groups = GROUP_ORDER.map((k) => [k, items.filter((x) => x.kind === k)] as const).filter(([, l]) => l.length);
   return (
-    <section className="block needs-you">
+    <section className="block needs-you" data-part="Needs your response">
       <h2 className="block-title">Needs your response <span className="count-pill">{items.length}</span></h2>
       {groups.map(([k, list]) => (
         <div key={k} className="need-group">
@@ -244,7 +244,7 @@ function WatchedGoals() {
     groups.fine.length ? `${groups.fine.length} on track or done` : '',
   ].filter(Boolean);
   return (
-    <section className="block home-watch">
+    <section className="block home-watch" data-part="Goals you watch">
       <div className="row between">
         <h2 className="block-title">Goals you watch <span className="count-pill">{watched.length}</span></h2>
         <Link className="small linkish" to="/goals?show=watching">All you’re watching</Link>
@@ -318,7 +318,7 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
 function DashStrip({ d }: { d: Dashboard }) {
   const when = d.next ? (d.next.days === 0 ? 'today' : d.next.days === 1 ? 'tomorrow' : `in ${d.next.days} days`) : '';
   return (
-    <section className="dash" aria-label="Your week at a glance">
+    <section className="dash" aria-label="Your week at a glance" data-part="Week at a glance">
       <Link className="dash-cell dash-goals" to={d.scope === 'mine' ? '/goals?show=mine' : '/goals'}>
         <span className="dash-label">{d.scope === 'mine' ? 'Your goals' : 'All goals'} · {d.total}</span>
         <span className="dash-counts">
@@ -345,7 +345,7 @@ export function Home() {
   const app = useApp();
   const first = app.viewer.name.split(' ')[0];
   return (
-    <div className="page home">
+    <div className="page home" data-part="Home">
       <div className="page-head">
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
         <span className="muted small home-where">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
