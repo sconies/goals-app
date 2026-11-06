@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Goals design picker</title>
+<title>Faro design picker</title>
 <meta name="description" content="Pick a design direction for the goals app, then change any element and see the check-in, Watching and goal detail screens update live.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -945,7 +945,7 @@ function syncPanel(){
   var tb=$('themeBtn'); tb.setAttribute('aria-pressed',state.theme==='dark');
 }
 function picksText(){
-  var lines=['Goals app design picks','Direction: '+PRESETS[state.preset].name+(isCustomised()?' (customised)':'')];
+  var lines=['Faro design picks','Direction: '+PRESETS[state.preset].name+(isCustomised()?' (customised)':'')];
   ELEMENTS.forEach(function(el){
     var o=el.opts[state[el.key]], extra='';
     if(el.key==='palette') extra=' ('+PAL_NAMES.map(function(n){return n[1]+' '+o.light[n[0]];}).join(', ')+')';

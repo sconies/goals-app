@@ -5,11 +5,12 @@
 import { useSyncExternalStore } from 'react';
 
 export type Theme = 'system' | 'light' | 'dark';
-export type Accent = 'cobalt' | 'violet' | 'petrol' | 'graphite';
+export type Accent = 'faro' | 'cobalt' | 'violet' | 'petrol' | 'graphite';
 export type Sidebar = 'full' | 'icons';
 
 export const THEMES: [Theme, string][] = [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']];
-export const ACCENTS: [Accent, string][] = [['cobalt', 'Cobalt'], ['violet', 'Violet'], ['petrol', 'Petrol'], ['graphite', 'Graphite']];
+/** Faro's teal first, the default; the earlier colours stay for anyone who chose one (a saved choice is kept). */
+export const ACCENTS: [Accent, string][] = [['faro', 'Faro (teal)'], ['cobalt', 'Cobalt'], ['violet', 'Violet'], ['petrol', 'Petrol'], ['graphite', 'Graphite']];
 export const SIDEBARS: [Sidebar, string][] = [['full', 'Full'], ['icons', 'Icons only']];
 
 /* ---------- how a goal's page moves (Lane, 5 Nov: sliders, and more options) ---------- */
@@ -38,7 +39,7 @@ export const impactWords = (i: number) => (i <= 0 ? 'None' : i < 0.6 ? 'Gentle' 
 
 const KEYS = { theme: 'goals-theme', accent: 'goals-accent', sidebar: 'goals-sidebar', pace: 'goals-pace', impact: 'goals-impact', off: 'goals-motion-off', landing: 'goals-landing', sound: 'goals-sound', buzz: 'goals-buzz' } as const;
 export interface Appearance { theme: Theme; accent: Accent; sidebar: Sidebar; pace: number; impact: number; off: Effect[]; landing: Landing; sound: boolean; buzz: boolean }
-const DEFAULT: Appearance = { theme: 'system', accent: 'cobalt', sidebar: 'full', pace: PACE.default, impact: IMPACT.default, off: [], landing: 'thump', sound: false, buzz: false };
+const DEFAULT: Appearance = { theme: 'system', accent: 'faro', sidebar: 'full', pace: PACE.default, impact: IMPACT.default, off: [], landing: 'thump', sound: false, buzz: false };
 
 const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const pick = <T extends string>(v: string | null, list: [T, string][], d: T): T => (list.some(([k]) => k === v) ? (v as T) : d);
@@ -69,7 +70,7 @@ function read(): Appearance {
 export function applyAppearance(a: Appearance = read()) {
   const d = document.documentElement;
   if (a.theme === 'system') d.removeAttribute('data-theme'); else d.setAttribute('data-theme', a.theme);
-  if (a.accent === 'cobalt') d.removeAttribute('data-accent'); else d.setAttribute('data-accent', a.accent);
+  if (a.accent === DEFAULT.accent) d.removeAttribute('data-accent'); else d.setAttribute('data-accent', a.accent);
   d.style.setProperty('--pace', String(a.pace));
   d.style.setProperty('--impact', String(a.impact));
   if (a.off.length) d.setAttribute('data-motion-off', a.off.join(' ')); else d.removeAttribute('data-motion-off');

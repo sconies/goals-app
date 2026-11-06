@@ -13,6 +13,7 @@ import { setAppearance, useAppearance } from '../app/appearance';
 import { useTrail } from './BackLink';
 import { useViews, viewParams } from '../screens/GoalFilters';
 import { Icon } from './Icon';
+import { FaroLogo, FaroMark } from './Brand';
 import { ProfileSheet } from './ProfileSheet';
 import { PageHelp } from '../screens/Help';
 import { useUnreadNews } from '../help/seen';
@@ -197,7 +198,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const first = useRef(true);
   useEffect(() => {
     window.scrollTo?.(0, 0); work.current?.scrollTo?.(0, 0);
-    document.title = `${title} · ${app.ws.name}`;
+    document.title = app.ws.name ? `${title} · ${app.ws.name} · Faro` : `${title} · Faro`;
     // After moving to another page, put focus on its heading so screen readers announce where you are.
     if (first.current) { first.current = false; return; }
     const active = document.activeElement;
@@ -236,6 +237,11 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
       <div className="shell">
         <nav className="side" aria-label="Main">
+          {/* The product's name, quietly, above the workspace's: the wordmark in the full sidebar, the F alone on the rail. */}
+          <div className="side-brand" title="Faro">
+            <FaroLogo size={22} />
+            <FaroMark size={28} label={null} />
+          </div>
           {/* The workspace's name. Switching (for the few in more than one) is in the person menu at the foot. */}
           <div className="ws-head" title={app.ws.name}>
             <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{wsName.slice(0, 1).toUpperCase()}</span>

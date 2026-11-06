@@ -5,9 +5,10 @@ import { callTool, TOOLS, type McpContext, type ToolResult } from './tools';
 /** Wraps each tool call, for the server's own telemetry: the context loading and the tool itself, in one span. */
 export type TraceTool = (tool: string, run: () => Promise<ToolResult>) => Promise<ToolResult>;
 
-export const SERVER_INFO = { name: 'goals', title: 'Goals', version: '1.0.0' };
+/** The name stays 'goals' (assistants already have it saved); the title is the product's. */
+export const SERVER_INFO = { name: 'goals', title: 'Faro', version: '1.0.0' };
 export const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
-const INSTRUCTIONS = 'Goals and weekly check-ins for one workspace, acting as the person whose token this is. Start with get_overview or find_goals. Writes follow the app’s rules and are logged as that person; use dry_run (or bulk_change without apply) to check first. Weeks count from the cycle start.';
+const INSTRUCTIONS = 'Faro: goals and weekly check-ins for one workspace, acting as the person whose token this is. Start with get_overview or find_goals. Writes follow the app’s rules and are logged as that person; use dry_run (or bulk_change without apply) to check first. Weeks count from the cycle start.';
 
 interface Rpc { jsonrpc: '2.0'; id?: string | number | null; method: string; params?: Record<string, unknown> }
 type Reply = { jsonrpc: '2.0'; id: string | number | null; result?: unknown; error?: { code: number; message: string } };

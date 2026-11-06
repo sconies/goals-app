@@ -1,6 +1,6 @@
 # Connecting an AI assistant (MCP)
 
-The app has an MCP server at `/api/mcp`. An assistant such as Claude can use it to do anything the person can do in the app: read every screen, check in, change goals and plans, answer asks, take part in reviews, watch goals, manage people, wrap up the cycle, and more.
+Faro has an MCP server at `/api/mcp` (it introduces itself as Faro; its id stays `goals`). An assistant such as Claude can use it to do anything the person can do in the app: read every screen, check in, change goals and plans, answer asks, take part in reviews, watch goals, manage people, wrap up the cycle, and more.
 
 ## How it works
 

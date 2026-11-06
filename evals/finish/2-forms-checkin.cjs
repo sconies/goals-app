@@ -104,7 +104,7 @@ module.exports = {
         const unpicked = p.getByRole('radiogroup', { name: 'Where you are' }).locator('.opt[aria-checked="false"]').first();
         await unpicked.hover();
         const bg = await unpicked.evaluate((el) => getComputedStyle(el).backgroundColor);
-        if (bg !== 'rgb(249, 250, 251)') fail(`check-in 7: hovered option is ${bg}`);
+        if (bg !== 'rgb(250, 249, 246)') fail(`check-in 7: hovered option is ${bg}`);
         // Check-in 9: the five week picks share one line, 48px tall.
         const picks = await p.getByRole('group', { name: 'Back on plan by' }).locator('.pill').evaluateAll((els) => els.map((e) => { const b = e.getBoundingClientRect(); return { y: Math.round(b.top), h: Math.round(b.height) }; }));
         if (new Set(picks.map((x) => x.y)).size > 1) fail(`check-in 9: ${picks.length} week picks wrap onto ${new Set(picks.map((x) => x.y)).size} lines at 1280`);
@@ -252,7 +252,7 @@ module.exports = {
       await p.reload();
       await p.locator('.restored').waitFor();
       const ban = await p.locator('.restored').evaluate((el) => ({ pl: getComputedStyle(el).paddingLeft, c: getComputedStyle(el).color, bg: getComputedStyle(el).backgroundColor }));
-      if (ban.pl !== '16px' || ban.c !== 'rgb(52, 64, 84)') fail(`numbers 19: the banner has padding ${ban.pl} and text ${ban.c}`);
+      if (ban.pl !== '16px' || ban.c !== 'rgb(47, 74, 76)') fail(`numbers 19: the banner has padding ${ban.pl} and text ${ban.c}`);
       await c.close();
     }
 

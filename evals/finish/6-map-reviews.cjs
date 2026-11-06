@@ -37,7 +37,7 @@ module.exports = {
       fail(Math.abs(m.cvB - (m.ih - 24)) <= 2, `Map 16: canvas ends at ${n(m.cvB)}, not 24px above the window (${m.ih - 24})`);
       fail(m.cvR - m.ctR >= 10 && m.cvR - m.ctR <= 16 && m.ctT - m.cvT >= 10 && m.ctT - m.cvT <= 16, `Map 7/11: zoom controls not top right 12px in (right gap ${n(m.cvR - m.ctR)}, top gap ${n(m.ctT - m.cvT)})`);
       fail(m.fold >= 96, `Map 17: Fold all is ${n(m.fold)}px wide (min 96)`);
-      fail(m.feed === 'rgb(152, 162, 179)' && m.feedW === '1.5px', `Map 26: feeds-into lines ${m.feed} at ${m.feedW}`);
+      fail(m.feed === 'rgb(154, 163, 161)' && m.feedW === '1.5px', `Map 26: feeds-into lines ${m.feed} at ${m.feedW}`);
       fail(m.critW === '3px' && m.order, `Map 9: critical lines ${m.critW}, drawn last ${m.order}`);
       fail(m.pad === '12px', `Map 24: node padding ${m.pad}`);
       fail(m.nums === 'normal', `Map 23: map titles use ${m.nums} figures`);
@@ -157,7 +157,7 @@ module.exports = {
       });
       fail(m.gap <= 40, `RV 2: ${n(m.gap)}px hole above "Chart and check-ins"`);
       fail(m.pad[0] === '12px' && m.pad[1] === '12px', `RV 22: decide bar padding ${m.pad.join('/')}`);
-      fail(m.track === 'rgb(152, 162, 179)', `RV 5: review bar track ${m.track}`);
+      fail(m.track === 'rgb(154, 163, 161)', `RV 5: review bar track ${m.track}`);
       fail(m.cur.length === 1 && /Reviews/.test(m.cur[0]), `RV 8: the sidebar marks ${m.cur.join(', ') || 'nothing'} while walking a review`);
       await c.close();
     }
@@ -232,7 +232,7 @@ module.exports = {
         return { pillIcon: !!pill?.querySelector('svg'), pillBg: pill && getComputedStyle(pill).backgroundColor, optIcon: !!opt?.querySelector('.picked-mark svg'), optBg: opt && getComputedStyle(opt).backgroundColor };
       });
       fail(sel.pillIcon && sel.optIcon, `RV 16: selected choices carry no tick (pill ${sel.pillIcon}, row ${sel.optIcon})`);
-      fail(sel.pillBg !== 'rgb(238, 241, 253)' && sel.optBg !== 'rgb(238, 241, 253)', `RV 16: selection is still a pastel fill (${sel.pillBg}, ${sel.optBg})`);
+      fail(sel.pillBg !== 'rgb(226, 241, 239)' && sel.optBg !== 'rgb(226, 241, 239)', `RV 16: selection is still a pastel fill (${sel.pillBg}, ${sel.optBg})`);
       await c.close();
     }
     {

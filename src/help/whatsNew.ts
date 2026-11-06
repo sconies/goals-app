@@ -19,6 +19,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'faro',
+    date: '2026-11-06',
+    title: 'Goals is now Faro',
+    points: [
+      'The app has a name: Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar, on the welcome page and in your browser tab.',
+      'A new look to match: warm paper, dark ink and the lighthouse’s teal, in light and in dark.',
+      'Status colours haven’t changed, except that Done is now a calm slate teal instead of blue. The logo’s amber is used nowhere else, so amber still only ever means At risk.',
+      'Prefer the earlier colours? Cobalt, violet, petrol and graphite are still in Settings → Appearance. If you had chosen violet, petrol or graphite, you keep it.',
+    ],
+    articles: ['settings', 'help'],
+  },
+  {
     id: 'one-ask-one-watching',
     date: '2026-11-05',
     title: 'One way to ask, one Watching, and a bigger example',
