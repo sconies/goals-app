@@ -68,8 +68,8 @@ describe('Help: what everything does', () => {
   it(G('the status article reads its words and numbers from the status rules, not a copy'), () => {
     const s = articleById('status')!;
     const text = s.sections.flatMap((x) => [...(x.text ?? []), ...(x.list ?? [])]).join(' ');
-    expect(text).toMatch(/at least 95% of the progress planned/);
-    expect(text).toMatch(/No recent update: no check-in for 2 weeks/);
+    expect(text).toMatch(/At least 95% of the progress planned/);
+    expect(text).toMatch(/No recent update: The latest check-in was posted 14 days ago or more/);
     expect(text).not.toMatch(/No recent update: No recent update/);
   });
 

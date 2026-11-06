@@ -12,6 +12,7 @@ import { QuarterMark, quarterWords } from '../ui/charts';
 import { StatusShape } from '../ui/bits';
 import { StatusLegend } from '../ui/StatusLegend';
 import { useSummaries, GroupHead, type ViewGroup } from './GoalViews';
+import { QUARTER } from '../domain/vocabulary';
 
 type Span = 'year' | 1 | 2 | 3 | 4;
 /** History opens on each quarter's actual against plan; the owners' weekly calls are a named option (Senior UX review, finding 14). */
@@ -76,9 +77,9 @@ export function HistoryGrid({ groups }: { groups: ViewGroup[] }) {
               extra={<li className="hcell-key"><span className="hcell-empty" aria-hidden="true" />No check-in</li>} />
           ) : (
             <div className="hlegend qlegend" aria-label="Key">
-              <span className="hcell-key q-met"><QuarterMark kind="met" />Met</span>
-              <span className="hcell-key q-missed"><QuarterMark kind="missed" />Missed</span>
-              <span className="hcell-key q-open"><QuarterMark kind="open" done={0.5} />In progress</span>
+              <span className="hcell-key q-met"><QuarterMark kind="met" />{QUARTER.met.label}</span>
+              <span className="hcell-key q-missed"><QuarterMark kind="missed" />{QUARTER.missed.label}</span>
+              <span className="hcell-key q-open"><QuarterMark kind="open" done={0.5} />{QUARTER.open.label}</span>
               <span className="hcell-key q-none"><QuarterMark kind="none" />Nothing due</span>
             </div>
           )}
@@ -121,7 +122,7 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
                         {rs.map((r) => (
                           <td key={r.quarter.n} className={'qcell q-' + r.kind + (r.quarter.n === nowQ ? ' q-now' : '')}>
                             <span className="qcell-label">{r.quarter.label} {r.quarter.months}{r.quarter.n === nowQ ? ' · now' : ''}</span>
-                            <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === nowQ ? quarterDone(r.quarter, app.week) : 0} />{r.kind === 'met' ? 'Met' : r.kind === 'missed' ? 'Missed' : r.kind === 'open' ? (r.quarter.n === nowQ ? 'In progress' : 'To come') : 'Nothing due'}</span>
+                            <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === nowQ ? quarterDone(r.quarter, app.week) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === nowQ ? QUARTER.open.label : 'To come') : 'Nothing due'}</span>
                             {r.kind !== 'none' && <span className="hint qcell-text">{quarterWords(r.text, true)}</span>}
                           </td>
                         ))}

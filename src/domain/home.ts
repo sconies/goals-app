@@ -1,6 +1,6 @@
 /* Home at a glance (Lane's notes, 5 Nov): your goals by status, your on-time streak, the goals you watch that need
    attention, and your next review. Worked out once, for Home and for the AI assistant's "what needs me". */
-import { attentionFor, type GoalAttention } from './attention';
+import { attentionFor, needsAttention, type GoalAttention } from './attention';
 import { daysSince } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
 import { sessionDate, sessionWeek, watchedGoals } from './review';
@@ -8,28 +8,28 @@ import { goalStatus } from './status';
 import { STATUS_ORDER } from './summary';
 import type { Cycle, DisplayStatus, Goal, Snapshot } from './types';
 
-/** Watched goals by what they need: new information, in hand, gone quiet, and the rest. */
+/** Watched goals by what they need: new information, in hand, and the rest. */
 export interface WatchGroups {
   all: GoalAttention[];
-  /** Off track or at risk, and nobody has looked since the latest check-in (or something new came up since). */
+  /** Needs attention (domain/attention.ts, the one rule): flagged, and nobody has picked it up. */
   needs: GoalAttention[];
   /** Off track or at risk, but someone has looked since the latest check-in and nothing new has happened. */
   handled: GoalAttention[];
-  /** No check-in for two weeks or more. */
+  /** Of those needing attention, the ones with no recent update, for a count. */
   quiet: GoalAttention[];
-  /** On track, done or not started. */
+  /** Nothing flagged, or only a check-in due. */
   fine: GoalAttention[];
 }
 
 /** Splits goals' attention into the Watching groups. The order of the list is kept within each group. */
 export function groupWatched(all: GoalAttention[]): WatchGroups {
-  const behind = (a: GoalAttention) => a.status.status === 'off' || a.status.status === 'risk';
+  const needs = all.filter(needsAttention);
   return {
     all,
-    needs: all.filter((a) => behind(a) && !a.handled),
-    handled: all.filter((a) => behind(a) && !!a.handled),
-    quiet: all.filter((a) => a.status.status === 'stale'),
-    fine: all.filter((a) => !behind(a) && a.status.status !== 'stale'),
+    needs,
+    handled: all.filter((a) => !!a.handled),
+    quiet: needs.filter((a) => a.status.status === 'stale'),
+    fine: all.filter((a) => !needsAttention(a) && !a.handled),
   };
 }
 

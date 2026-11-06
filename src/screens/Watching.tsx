@@ -7,6 +7,7 @@ import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { groupWatched } from '../domain/home';
+import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { weekDate, weekDates } from '../domain/plan';
 import type { Goal, Level, Watch } from '../domain/types';
 import { Icon } from '../ui/Icon';
@@ -33,7 +34,7 @@ export function WatchingBody({ goals }: { goals: Goal[] }) {
   // Needs attention is new information; what someone has looked at since its latest check-in is being handled.
   const groups = groupWatched(goals.map((g) => app.attentionOf(g)));
   const bad = groups.needs.map((a) => a.goal);
-  const quiet = groups.quiet.map((a) => a.goal);
+  const quiet = groups.quiet.length;
   const fine = groups.fine.map((a) => a.goal);
   // "This week" is the app's week (the same one check-ins and reviews use), not the last seven days.
   const since = weekDate(app.cycle, Math.max(0, app.week));
@@ -43,14 +44,14 @@ export function WatchingBody({ goals }: { goals: Goal[] }) {
 
   return (
     <>
-      <p className="lede">{summary(goals.length, bad.length, groups.handled.length, quiet.length, recent.length)}</p>
+      <p className="lede">{summary(goals.length, bad.length, groups.handled.length, quiet, recent.length)}</p>
       <div className="split">
       {/* Nothing needs attention: no empty column taking a gap of its own. */}
-      {bad.length + quiet.length + groups.handled.length > 0 && (
+      {bad.length + groups.handled.length > 0 && (
         <div className="split-a">
-          <Group title="Needs attention" hint={groups.handled.length ? 'Behind, with something new since anyone last looked.' : undefined} goals={bad} />
+          {/* The one Needs attention rule (domain/attention.ts): each row says why, a goal with no recent update included. */}
+          <Group title={ATTENTION.needs.label} hint={ATTENTION.needs.meaning} goals={bad} />
           <HandledGroup list={groups.handled} />
-          <Group title="No recent update" hint="No check-in for two weeks or more, so the status can’t be trusted." goals={quiet} />
         </div>
       )}
       <aside className="split-side" aria-label="What changed">
@@ -63,7 +64,7 @@ export function WatchingBody({ goals }: { goals: Goal[] }) {
       )}
       </aside>
       <div className="split-b">
-      <Group title={bad.length || quiet.length || groups.handled.length ? 'On track or done' : 'All on track or done'} goals={fine} collapsed={fine.length > 6} />
+      <Group title={bad.length || groups.handled.length ? 'Nothing flagged' : 'Nothing flagged in what you watch'} goals={fine} collapsed={fine.length > 6} />
       <section className="block" data-part="What you watch">
         <div className="row between">
           <h2 className="block-title">What you watch</h2>
@@ -80,11 +81,10 @@ export function WatchingBody({ goals }: { goals: Goal[] }) {
 
 function summary(n: number, bad: number, handled: number, quiet: number, changed: number) {
   const parts = [`${n} ${n === 1 ? 'goal' : 'goals'}`];
-  if (bad) parts.push(`${bad} need${bad === 1 ? 's' : ''} attention`);
-  if (handled) parts.push(`${handled} being handled`);
-  if (quiet) parts.push(`${quiet} with no recent update`);
+  if (bad) parts.push(`${bad} need${bad === 1 ? 's' : ''} attention${quiet ? ` (${quiet} with ${LABEL.stale.toLowerCase()})` : ''}`);
+  if (handled) parts.push(`${handled} ${ATTENTION.handled.label.toLowerCase()}`);
   if (changed) parts.push(`${changed} ${changed === 1 ? 'change' : 'changes'} this week`);
-  if (!bad && !quiet) parts.push('nothing needs you');
+  if (!bad) parts.push('nothing needs you');
   return parts.join(' · ') + '.';
 }
 

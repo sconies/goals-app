@@ -1,12 +1,13 @@
 /* The one status legend. As a key, the shapes and their words (Help, the weekly history); in full, each status with what
-   it means and the results, folded under the goals where they're listed. */
+   it means and the results, folded under the goals where they're listed. Every word and meaning is the vocabulary's
+   (domain/vocabulary.ts): the legend is generated from it, never written here. */
 import { Fragment, type ReactNode } from 'react';
-import { LABEL } from '../domain/status';
-import { MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING } from '../domain/story';
 import type { DisplayStatus } from '../domain/types';
+import { FLAG, lower, RESULT, STATUS } from '../domain/vocabulary';
 import { StatusWord } from './bits';
 
 const LISTED = ['on', 'risk', 'off', 'stale'] as const;
+const RESULTS = ['completed', 'late', 'missed'] as const;
 
 export function StatusLegend({ kind = 'full', statuses, className, itemClass, wordClass, label = 'Key', extra }: {
   /** `full`: what each status means, always in view where goals are listed. `key`: the shapes and their words. */
@@ -33,13 +34,13 @@ export function StatusLegend({ kind = 'full', statuses, className, itemClass, wo
   return (
     <details className="legend">
       <summary>
-        {(statuses ?? LISTED).map((k) => <StatusWord key={k} k={k} className="legend-key" wordClass="strong"><span className="muted">{SHORT_MEANING[k]}</span></StatusWord>)}
+        {(statuses ?? LISTED).map((k) => <StatusWord key={k} k={k} className="legend-key" wordClass="strong"><span className="muted">{STATUS[k].short}</span></StatusWord>)}
         <span className="linkish small legend-more">What these mean</span>
       </summary>
       <dl className="legend-full">
-        {(statuses ?? LISTED).map((k) => <Fragment key={k}><dt className={'tone-' + k}>{LABEL[k]}</dt><dd>{MEANING[k]}</dd></Fragment>)}
-        {(['completed', 'late', 'missed'] as const).map((k) => <Fragment key={k}><dt><span className={'result-tag result-' + k}>{RESULT_TEXT[k]}</span></dt><dd>{RESULT_MEANING[k]}</dd></Fragment>)}
-        <dt>The call</dt><dd>The status is the owner’s call each week, checked against the numbers. A call greener than the numbers needs a reason, and is flagged.</dd>
+        {(statuses ?? LISTED).map((k) => <Fragment key={k}><dt className={'tone-' + k}>{STATUS[k].label}</dt><dd>{STATUS[k].long}</dd></Fragment>)}
+        {RESULTS.map((k) => <Fragment key={k}><dt><span className={'result-tag result-' + k}>{RESULT[k].label}</span></dt><dd>{RESULT[k].long}</dd></Fragment>)}
+        <dt>The call</dt><dd>The status is the owner’s call each week, checked against the numbers. A call {lower(FLAG.greener)} needs a reason, and is flagged.</dd>
       </dl>
     </details>
   );

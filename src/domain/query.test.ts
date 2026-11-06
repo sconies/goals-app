@@ -15,7 +15,7 @@ const id = (title: string) => s.goals.find((g) => g.title === title)!.id;
 
 describe('searching, filtering and sorting goals', () => {
   it('round-trips through a link, ignoring anything it doesn’t know', () => {
-    const q: GoalQuery = { ...EMPTY_QUERY, q: 'merge queue', status: ['off', 'risk'], level: ['svp'], needs: ['slipped'], due: 'quarter', quiet: 2, quarter: 'missed', result: ['open'], feeds: 'ns-lead', helps: true, sort: 'gap', dir: -1 };
+    const q: GoalQuery = { ...EMPTY_QUERY, q: 'merge queue', status: ['off', 'risk'], level: ['svp'], attention: true, needs: ['slipped'], due: 'quarter', quiet: 2, quarter: 'missed', result: ['open'], feeds: 'ns-lead', helps: true, sort: 'gap', dir: -1 };
     expect(parseQuery(new URLSearchParams(queryEntries(q)))).toEqual(q);
     expect(parseQuery(new URLSearchParams('status=nope,off&sort=sideways&due=-3&quiet=x'))).toEqual({ ...EMPTY_QUERY, status: ['off'] });
     expect(filters({ ...EMPTY_QUERY, sort: 'title' })).toBe(false);
@@ -58,8 +58,10 @@ describe('searching, filtering and sorting goals', () => {
     expect(names).toEqual([...names].sort((a, b) => b.localeCompare(a)));
   });
   it('says each filter in words, and can drop one', () => {
-    const q: GoalQuery = { ...EMPTY_QUERY, status: ['off', 'risk'], due: 'quarter', needs: ['decision'] };
-    expect(describeQuery(q, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Off track or At risk', 'Decision or help needed', 'Due this quarter']);
+    const q: GoalQuery = { ...EMPTY_QUERY, status: ['off', 'risk'], due: 'quarter', attention: true, needs: ['decision'] };
+    expect(describeQuery(q, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Off track or At risk', 'Needs attention because: decision or help needed', 'Due this quarter']);
+    expect(describeQuery({ ...EMPTY_QUERY, attention: true, quiet: 2, quarter: 'missed' }, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Needs attention', 'No update for 2+ weeks', 'Not met last quarter']);
+    expect(without(q, 'needs')).toMatchObject({ attention: false, needs: [] });
     expect(without(q, 'due').due).toBeNull();
   });
 });

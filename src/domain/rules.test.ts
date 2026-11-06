@@ -198,8 +198,10 @@ describe('official status', () => {
     expect(goalStatus(g, cycle, [], new Date('2026-09-15T10:00:00Z')).status).toBe('none');
     expect(goalStatus(g, cycle, [], new Date('2026-09-21T10:00:00Z')).status).toBe('stale');
   });
-  it('rolls up to the worst, counting stale as at risk', () => {
-    expect(worst(['on', 'stale'])).toBe('risk');
+  it('rolls up to the worst real status: a group with no recent update says so, never at risk', () => {
+    expect(worst(['on', 'stale'])).toBe('stale');
+    expect(worst(['on', 'stale', 'risk'])).toBe('risk');
+    expect(worst(['none', 'planned'])).toBe('none');
     expect(worst(['on', 'risk', 'off'])).toBe('off');
     expect(worst(['done', 'done'])).toBe('done');
     expect(worst(['on', 'done'])).toBe('on');

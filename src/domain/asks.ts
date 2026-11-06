@@ -9,14 +9,15 @@
    actions (actions.ts), Home, the goal page and the review all use them. */
 import { checkInsFor } from './status';
 import type { Ask, AskKind, AskStatus, Change, CheckIn, Decision, Goal, Person, Snapshot } from './types';
+import { ASK_KIND, ASK_STATUS, labels, lower, STATUS } from './vocabulary';
 
 const norm = (s: string) => s.trim().toLowerCase();
 type Asks = Pick<Snapshot, 'requests'> & Partial<Snapshot>;
 
 /** How each kind is named where people read it. */
-export const ASK_KIND_LABEL: Record<AskKind, string> = { decision: 'Decision or help', update: 'Update', question: 'Question', action: 'Action' };
+export const ASK_KIND_LABEL: Record<AskKind, string> = labels(ASK_KIND);
 /** …and each state. */
-export const ASK_STATUS_LABEL: Record<AskStatus, string> = { open: 'Open', answered: 'Answered', done: 'Done', withdrawn: 'Withdrawn' };
+export const ASK_STATUS_LABEL: Record<AskStatus, string> = { open: ASK_STATUS.open.label, answered: ASK_STATUS.answered.label, done: ASK_STATUS.done.label, withdrawn: ASK_STATUS.withdrawn.label };
 
 /* ---------- reading ---------- */
 
@@ -100,11 +101,11 @@ export function answerAsk(r: Ask, answer: string, by: string, now: string, newId
 /** Mark an action done, with an optional note. */
 export function markDone(r: Ask, note: string, by: string, now: string, newId: (p: string) => string): { request: Ask; changes: Change[] } {
   const request: Ask = { ...r, status: 'done', answer: note.trim(), answeredBy: by, answeredAt: now, updatedAt: now };
-  return { request, changes: r.goalIds.map((g) => change(r, g, by, now, newId('chg'), 'done', 'Marked the action done', [{ field: 'Action', from: 'Open', to: 'Done' }, ...(note.trim() ? [{ field: 'Note', from: '—', to: note.trim() }] : [])])) };
+  return { request, changes: r.goalIds.map((g) => change(r, g, by, now, newId('chg'), 'done', 'Marked the action done', [{ field: 'Action', from: ASK_STATUS.open.label, to: ASK_STATUS.done.label }, ...(note.trim() ? [{ field: 'Note', from: '—', to: note.trim() }] : [])])) };
 }
 
 /** Withdraw it; or, for a goal linked to someone else's decision or help, stop waiting on it. */
-export function withdrawAsk(r: Ask, goalId: string, by: string, now: string, newId: (p: string) => string, why = 'Withdrawn'): { request: Ask; changes: Change[] } {
+export function withdrawAsk(r: Ask, goalId: string, by: string, now: string, newId: (p: string) => string, why = ASK_STATUS.withdrawn.label): { request: Ask; changes: Change[] } {
   const own = r.goalIds[0] === goalId || r.kind !== 'decision';
   const request: Ask = own ? { ...r, status: 'withdrawn', updatedAt: now } : { ...r, goalIds: r.goalIds.filter((g) => g !== goalId), updatedAt: now };
   const summary = !own ? 'No longer waiting on this request' : r.kind === 'update' ? 'Withdrew the ask for an update' : r.kind === 'question' ? 'Withdrew the question' : r.kind === 'action' ? 'Withdrew the action' : 'Withdrew the request';
@@ -282,4 +283,4 @@ export function liveNotes(changes: Change[]): Change[] {
 
 /** The words of an ask for an update. */
 export const updateAskText = (ownerFirstName: string | undefined, lastWeek: number | null) =>
-  `${ownerFirstName ?? 'Hi'}, could you post an update? ${lastWeek != null ? `The last check-in was week ${lastWeek}.` : 'There’s no check-in yet.'}`;
+  `${ownerFirstName ?? 'Hi'}, could you post an update? ${lastWeek != null ? `The last check-in was week ${lastWeek}.` : `There’s ${lower(STATUS.none)}.`}`;

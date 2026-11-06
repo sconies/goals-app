@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-06 13:47 UTC.
+Run 2026-11-06 23:35 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -71,7 +71,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**118 of 118 pass**. Spec scenarios 221/221.
+**121 of 121 pass**. Spec scenarios 237/237.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -179,6 +179,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **TELEMETRY-RETENTION** Raw spans, logs and metrics are kept 90 days. A nightly pg_cron job rolls each day up into daily totals (counts, errors, p50 and p95 durations by name, route and flow step; flow starts, finishes and stops by step), kept indefinitely, and rolls a day up again before pruning it. | Observability | 1 | — |
 | ✅ | **TELEMETRY-SWITCH** Recording is on for everyone by default. An admin (and only an admin, in the app or through the MCP set_recording tool) can turn it off for a workspace; the switch is saved with the workspace and logged. While it is off nothing is sent for that workspace, from the browser or the MCP server, and the database refuses rows for it. | Observability | 2 | N8 |
 | ✅ | **CONSISTENT-WORDS** One word for each concept: docs/glossary.md names each term, says what it means and lists the words not to use, and the app's copy (screens, components, walkthroughs, the rules' own words and the guide) never uses them, apart from what the glossary keeps on purpose. Data is called Data, its named column arrangements are saved layouts, Import is called Import, the one-table check-in has one name, and a goal with no number says "No value yet" everywhere. | Copy | 7 | — |
+| ✅ | **ONE-VOCABULARY** One meaning for every status word: src/domain/vocabulary.ts defines each status, attention flag, result, quarter result, stage, ask state, gap phrase and removal word once, with its code, its label, a one-line and a longer meaning, the rule that decides it and where it may appear. The status legend, Help's status and Needs attention articles, the export's definitions (workbook README and JSON words), the AI assistant's tool descriptions and outputs ("Off track (off)"; inputs take the code or the words) and docs/glossary.md are generated from it. No word it retired is said anywhere, and no word it defines is written outside it, src/mcp included, apart from listed non-status uses. Stored codes don't change. | Copy | 6 | — |
+| ✅ | **ONE-ATTENTION-RULE** Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's "Only what needs attention", the Goals filter (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on; an old link's needs=no-recovery still opens No path to green. | Attention | 7 | — |
+| ✅ | **ONE-TREND** One trend rule (domain/trend.ts): a goal is getting worse when it is further behind plan in its own units at each of the last two check-ins (closer to its limit, or a stage expected later), or on track but heading short of its target. The Getting worse flag, the goal's story, the summary bar's trend and the words under the chart use it, and say Getting worse or Getting better. | Status rules | 3 | — |
 | ✅ | **SHARED-DOWNLOADS** Every file the app saves (Export, Import's workbook, Data, Activity, the set-up template, research notes) goes through one saveFile(), named <workspace>-<what>-<scope>-<date>, with one way of saying it saved or what went wrong. | Export | 3 | — |
 | ✅ | **ONE-ASK** One ask model: a decision or help, an update, a question and an action are each one record with who asked, who must respond, an optional due week and the goals it covers. Each is open until it is explicitly answered (an action: marked done) or withdrawn; a comment never closes one. Every kind is answered in one Respond panel, appears once in Home’s Needs your response and on the goal page, and the goal page’s action list shows its real state (open, overdue, done). | Asking | 9 | U3, U8, U16, U33, U36, U37, U38 |
 | ✅ | **DEMO-STORAGE** The demo keeps only the visitor’s own saves on top of the example rebuilt from its description, so a change survives a reload at the example’s full size. When the browser refuses to store (full, or blocked in a private window), the changes still apply for the visit and the page says plainly that they will be lost on reload; starting over clears the saves. | Demo | 5 | P15 |

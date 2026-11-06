@@ -21,6 +21,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'one-meaning-for-every-word',
+    date: '2026-11-06',
+    title: 'One meaning for every status word',
+    points: [
+      'Needs attention is one rule everywhere: Home, Watching, the map’s “Only what needs attention”, the Goals filter, reviews and the AI assistant all pick the same goals. It covers off track, at risk, no recent update, getting worse, no path to green or a missed one, a decision waiting, and a call greener than calculated, unless someone is already handling it. The Goals filter can narrow it to why.',
+      'Results say Met, Met late or Not met, and so does each quarter. At the wrap-up, the owner’s own words are labelled as their view, so they’re never read as the result.',
+      'The gap reads the same in every list, the scorecard, the review, exports and the AI: “9 hours behind plan”, “3 pts ahead of plan”, or On plan. A stage up to two weeks behind is slipping; more is late.',
+      'A goal without a check-in for two weeks has no recent update, wherever you look, and the “No update for” filter counts it the same way. One with none yet says No check-in yet, and has a lane of its own on the Board.',
+      'Getting worse is one rule for the flag, the goal’s story, its trend and the words under its chart. A group’s status is the worst one in it, never one it doesn’t have.',
+      'The AI assistant says the words you see, with the code beside them (“Off track (off)”), and takes either. The export defines every word on its README sheet.',
+    ],
+    articles: ['status', 'needs-attention', 'goals-filters', 'watching'],
+  },
+  {
     id: 'remove-and-undo',
     date: '2026-11-06',
     title: 'Take anything away again, and undo it',

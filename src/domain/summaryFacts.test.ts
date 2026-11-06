@@ -28,7 +28,10 @@ describe('the four facts on the example goals', () => {
     expect(trend).toMatch(/^(\d+ → \d+ → \d+ pts behind plan|.+ → .+ → \d+ pts (behind|ahead of) plan)$/);
     expect(since).toMatch(/^Down \d+ pts?$/);
     expect(proj).toMatch(new RegExp(`by week ${cycle.weeks}$`));
-    expect(facts('fresh-streaming').facts.every((f) => f.tone === 'bad')).toBe(true);
+    // Behind plan, down since the last check-in, heading short: bad news in each. Its trend is the one rule's (trend.ts):
+    // 6 → 6 → 8 pts behind isn't further behind at each check-in, so it says so rather than calling it worse.
+    expect(facts('fresh-streaming').facts.filter((f) => f.key !== 'trend').every((f) => f.tone === 'bad')).toBe(true);
+    expect(facts('fresh-streaming').facts.find((f) => f.key === 'trend')!.detail).toMatch(/^(Getting worse|No steady trend), weeks \d+–\d+$/);
   });
   it('the Kafka stages: late, slipping, and when they now land', () => {
     const [plan, , since, proj] = val('fresh-kafka');

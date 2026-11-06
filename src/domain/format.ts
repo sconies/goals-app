@@ -1,5 +1,6 @@
 import type { Assessment } from './status';
 import type { Goal, Level, MetricGoal, RangeGoal } from './types';
+import { GAP, gapPhrase, LABEL, STAGE } from './vocabulary';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 
@@ -71,18 +72,19 @@ export function gapBeside(g: Goal, a: Assessment): ReturnType<typeof gapText> | 
 
 /** Short words for the gap against plan, and its tone for colour. */
 export function gapText(g: Goal, a: Assessment): { short: string; long: string; tone: 'on' | 'risk' | 'off' | 'ahead' | 'stale' } {
-  if (a.calc === 'planned') return { short: 'Not started', long: 'It starts this week', tone: 'stale' };
-  if (a.calc === 'none') return { short: g.kind === 'milestone' ? 'No check-in yet' : NO_VALUE, long: 'Waiting for the first check-in', tone: 'stale' };
+  if (a.calc === 'planned') return { short: LABEL.planned, long: 'It starts this week', tone: 'stale' };
+  if (a.calc === 'none') return { short: g.kind === 'milestone' ? LABEL.none : NO_VALUE, long: LABEL.none, tone: 'stale' };
   if (a.kind === 'metric' && g.kind === 'metric') {
     const actual = a.actual as number;
-    if (a.ratio == null) return { short: a.behind ? 'Going backwards' : 'On plan', long: 'No change planned yet', tone: a.behind ? 'risk' : 'on' };
-    // Lead with the raw difference in the goal's own units; the progress score is secondary and labelled as such.
+    if (a.ratio == null) return { short: a.behind ? 'Going backwards' : GAP['on-plan'].label, long: 'No change planned yet', tone: a.behind ? 'risk' : 'on' };
+    // Lead with the raw difference in the goal's own units, said the same whichever way is better ("9 hours behind
+    // plan", "3 pts ahead of plan"); the progress score is secondary and labelled as such. The week it's compared
+    // with is the latest number's own: the history and the week inspector say which.
     const pct = Math.round(a.ratio * 100);
-    const diff = Number((actual - a.plan).toFixed(g.decimals));
+    const better = Number(((actual - a.plan) * (Math.sign(g.plan.target - g.plan.start) || 1)).toFixed(g.decimals));
     return {
-      // Name the week it's compared with, so views that use different weeks can't silently disagree.
-      short: diff === 0 ? `On the week-${a.week} plan` : `${fmtDiff(diff, g)} ${diff > 0 ? 'above' : 'below'} week-${a.week} plan`,
-      long: `${pct}% of the planned improvement so far (plan for this week: ${fmt(a.plan, g)})`,
+      short: gapPhrase(better, fmtDiff(better, g)),
+      long: `${pct}% of the planned improvement so far (plan for week ${a.week}: ${fmt(a.plan, g)})`,
       tone: a.ahead ? 'ahead' : a.calc === 'risk' || a.calc === 'off' ? a.calc : 'on',
     };
   }
@@ -97,10 +99,10 @@ export function gapText(g: Goal, a: Assessment): { short: string; long: string; 
     return { short: `Inside the ${lim} limit`, long: 'Inside the limit', tone: 'on' };
   }
   if (a.kind === 'milestone') {
-    if (a.calc === 'done') return { short: 'Done', long: 'Every stage is done', tone: 'on' };
+    if (a.calc === 'done') return { short: GAP.reached.label, long: 'Every stage is done', tone: 'on' };
     const first = a.late[0];
-    if (first) return { short: a.calc === 'off' ? 'Late' : 'Slipping', long: first.name + ': expected week ' + first.expectedWeek + ', ' + first.weeksLate + (first.weeksLate === 1 ? ' week' : ' weeks') + ' late', tone: a.calc === 'off' ? 'off' : 'risk' };
-    return { short: 'On schedule', long: 'Every stage on schedule', tone: 'on' };
+    if (first) return { short: a.calc === 'off' ? STAGE.off.label : STAGE.risk.label, long: first.name + ': expected week ' + first.expectedWeek + ', ' + first.weeksLate + (first.weeksLate === 1 ? ' week' : ' weeks') + ' late', tone: a.calc === 'off' ? 'off' : 'risk' };
+    return { short: STAGE.planned.label, long: 'Every stage ' + STAGE.planned.label.toLowerCase(), tone: 'on' };
   }
   return { short: '', long: '', tone: 'stale' };
 }

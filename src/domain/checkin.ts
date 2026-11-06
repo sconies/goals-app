@@ -12,6 +12,10 @@ export const CAUSES_AHEAD: [Cause, string][] = [
 export const causeLabel = (c: Cause | null) => [...CAUSES_BEHIND, ...CAUSES_AHEAD].find(([k]) => k === c)?.[1] ?? '';
 
 export const MIN_REASON = 10;
+/** The why older check-ins stored when nothing needed explaining. Not a reason, and never shown as one. */
+export const NO_REASON = 'On plan.';
+/** A check-in's why, when it is a reason someone gave. */
+export const reasonOf = (why: string | null | undefined): string | null => (why && why.trim() !== '' && why !== NO_REASON ? why : null);
 export const MIN_PATH = 8;
 
 /** The form as the owner fills it in. Numbers stay strings until posted. */

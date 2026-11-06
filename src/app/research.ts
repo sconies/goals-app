@@ -16,7 +16,7 @@ export const TASKS: ResearchTask[] = [
   { id: 'behind', as: 'rhea', start: '/', title: 'Say why a goal is behind, and when it’ll be back', detail: 'Lead time, your north star, is behind plan. Make sure Amara, your VP, can see why, what you’ll do about it and by when.' },
   { id: 'sink', as: 'amara', start: '/', title: 'Find what will sink the north star', detail: 'You’re Amara, VP Platform Engineering. Before the review, find the goal most likely to make the lead time north star miss, and what’s being done about it.' },
   { id: 'review', as: 'amara', start: '/', title: 'Run the weekly review', detail: 'Walk this week’s review and leave an action for someone, with a date.' },
-  { id: 'year', as: 'amara', start: '/goals', title: 'See how the year is going, quarter by quarter', detail: 'Which goals missed last quarter’s plan? Which are done, late or not going to make it?' },
+  { id: 'year', as: 'amara', start: '/goals', title: 'See how the year is going, quarter by quarter', detail: 'Which goals didn’t meet last quarter’s plan? Which are done, late or not going to make it?' },
   { id: 'follow', as: 'oskar', start: '/', title: 'Follow goals you don’t own', detail: 'You’re Oskar, an engineer in Developer Experience. Keep an eye on the goals your work feeds into, without owning any.' },
   { id: 'raise', as: 'tariq', start: '/', title: 'Raise a target that’s too easy', detail: 'You’re Tariq, who runs Developer Experience. One of your targets turned out too easy. Raise it properly, so everyone can see what changed and why.' },
   { id: 'brief', as: 'amara', start: '/goals', title: 'Get a summary for an AI chat', detail: 'Get a short write-up of every goal you could paste into an AI chat, or a file you could open in Excel.' },

@@ -138,7 +138,7 @@ describe('MCP server', () => {
   it('says what needs someone in plain sentences, each ending in one full stop', async () => {
     for (const who of ['rhea', 'amara', 'daniel']) {
       const text = (await (await setup(who)).call('get_my_work')).content[0]!.text;
-      expect(text, who).toMatch(/Your goals needing attention: /);
+      expect(text, who).toMatch(/Your goals that need attention: /);
       expect(text, who).not.toMatch(/\.\.|\.;|\. \./);
     }
   });

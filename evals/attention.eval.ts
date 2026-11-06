@@ -113,7 +113,7 @@ describe('the AI assistant sees the same split', () => {
     const w = await (await as('chen'))('get_my_work');
     expect(w.data!.needsAttention.map((g: { id: string }) => g.id)).toEqual(['cfr-tests']);
     expect(w.data!.beingHandled).toEqual([expect.objectContaining({ id: 'dep-jenkins', inHand: `Reviewed in Developer Productivity fortnightly, week ${week - 1}` })]);
-    expect(w.text).toMatch(/Being handled .*Jenkins jobs still running \(at risk\): Reviewed in Developer Productivity fortnightly/);
+    expect(w.text).toMatch(/Being handled .*Jenkins jobs still running \(At risk \(risk\)\): Reviewed in Developer Productivity fortnightly/);
   });
   it(R('ATTENTION-HANDLED', 'an action agreed through the assistant moves the red goal to being handled in the overview; a new check-in moves it back'), async () => {
     const daniel = await as('daniel'); // Daniel runs the Developer Productivity fortnightly, which has the merge queue on its map

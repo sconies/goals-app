@@ -30,9 +30,8 @@ import { applyQuery, filters } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
+import { ATTENTION } from '../domain/vocabulary';
 
-/** The map's "Only what needs attention": the statuses a leader acts on, as an ordinary status filter. */
-const ATTENTION = ['off', 'risk', 'stale'] as const;
 // The map loads only when someone opens it, so the rest of the app stays small.
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
 
@@ -55,7 +54,7 @@ export function GoalsScreen() {
   // Built once per change to the goals, so the views' summaries aren't recomputed on every render.
   const grouped: ViewGroup[] = useMemo(() => show === 'outcomes'
     ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
-    : show === 'attention' ? [one('attention', 'Needs attention', att.map((a) => a.goal)), ...(handled.length ? [{ ...one('handled', 'Being handled', handled.map((a) => a.goal)), hint: 'Behind, but someone has looked since the latest check-in.' }] : [])]
+    : show === 'attention' ? [one('attention', ATTENTION.needs.label, att.map((a) => a.goal)), ...(handled.length ? [{ ...one('handled', ATTENTION.handled.label, handled.map((a) => a.goal)), hint: ATTENTION.handled.meaning }] : [])]
     : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'teams' ? app.snapshot.teams.map((t) => one(t.id, t.name, app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'mine' ? [one('mine', 'Mine', [...mine].sort(worstFirst(app)))]
@@ -99,7 +98,7 @@ export function GoalsScreen() {
   const alt = layout !== 'list';
   const tabs: [Show, string, number | null][] = [
     ['outcomes', 'Trees', null],
-    ['attention', 'Needs attention', att.length],
+    ['attention', ATTENTION.needs.label, att.length],
     ['levels', 'By level', null],
     ['teams', 'By team', null],
     ...(mine.length ? [['mine', 'Mine', mine.length] as [Show, string, number]] : []),
@@ -176,7 +175,7 @@ export function GoalsScreen() {
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
       {alt && shown.length > 0 && layout === 'cards' && <GoalCards groups={groups} />}
-      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={ATTENTION.every((k) => query.status.includes(k)) && query.status.length === ATTENTION.length} onAttention={(on) => setQuery((cur) => ({ ...cur, status: on ? [...ATTENTION] : [] }))} /></Suspense>}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={query.attention} onAttention={(on) => setQuery((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] }))} /></Suspense>}
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
       {!alt && refined && !watchingList && groups.map((g) => (

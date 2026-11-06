@@ -36,7 +36,7 @@ module.exports = {
       const shape = await p.locator('section.handled-block .trow-icon svg.status-shape').count();
       check(shape >= 1, `[ATTENTION-HANDLED] being-handled rows on ${who}'s Watching have no status shape`);
       const lede = await p.locator('.page.watching .lede').innerText();
-      check(/\d+ need(s)? attention · 1 being handled/.test(lede), `[ATTENTION-HANDLED] the Watching summary does not count what is being handled ("${lede}")`);
+      check(/\d+ need(s)? attention( \(\d+ with no recent update\))? · 1 being handled/.test(lede), `[ATTENTION-HANDLED] the Watching summary does not count what is being handled ("${lede}")`);
       await c.close();
     }
 

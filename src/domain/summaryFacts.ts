@@ -6,6 +6,9 @@ import { isShare } from './checkin';
 import { fmt, fmtDiff, NO_VALUE, rangeText } from './format';
 import { goalAsOf, planAt, planEnd, projectionFor, type Projection } from './plan';
 import { assessMetric, assessMilestone, assessPosted, checkInsFor, LABEL } from './status';
+import { TREND_SPAN } from './thresholds';
+import { gapTrend, planGaps, stagesTrend } from './trend';
+import { GAP, gapPhrase, stagesBehind, TREND, type TrendWord } from './vocabulary';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 
 export type FactKey = 'plan' | 'trend' | 'since' | 'projection';
@@ -35,8 +38,10 @@ export interface FactSource { week: number; authorId: string; postedAt: string }
 
 export interface SummaryFacts { facts: SummaryFact[]; source: FactSource | null }
 
-/** How many check-ins the trend looks back over. */
-export const TREND_SPAN = 3;
+/** How many check-ins the trend looks back over (thresholds.ts). */
+export { TREND_SPAN };
+/** The trend's word as the summary bar's arrow reads it. */
+const DIRECTION: Record<TrendWord, Direction> = { worse: 'worsening', better: 'recovering', flat: 'flat' };
 
 const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 /** "two", "three" … for small counts in a sentence; digits from 11. */
@@ -82,7 +87,7 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
     const ahead = diff * dir > 0;
     out.push({
       key: 'plan', label: 'Against plan',
-      value: diff === 0 ? 'On plan' : `${fmtDiff(diff, goal)} ${ahead ? 'ahead of' : 'behind'} plan`,
+      value: gapPhrase(diff === 0 ? 0 : ahead ? 1 : -1, fmtDiff(diff, goal)),
       detail: `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${a.week}${a.ratio != null ? ` · ${pct(a.ratio)} of the planned progress` : ''}`,
       tone: a.calc === 'risk' || a.calc === 'off' ? 'bad' : diff === 0 || a.calc !== 'on' ? 'flat' : 'good',
     });
@@ -90,26 +95,23 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
 
   // Trend: the gap to plan at each of the last three check-ins, in the goal's own units ("1 → 2 → 3 pts behind plan").
   // A share of planned progress made a flat number look like a collapse while the plan rose (Lane, 5 Nov).
-  const span = valued.slice(-TREND_SPAN).map((c) => {
-    const p = planAt(goalAsOf(goal, c.week).plan, c.week, cycle.weeks);
-    return { c, plan: p, gap: round((c.value! - p) * dir, goal.decimals) };
-  });
+  const span = planGaps(goal, cycle, valued).slice(-TREND_SPAN);
   if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins', tone: 'flat', direction: 'flat' });
   else {
-    const unit = 10 ** -goal.decimals;
     const latest = span[span.length - 1]!;
-    const move = round(latest.gap - span[0]!.gap, goal.decimals);
-    const direction: Direction = move <= -unit ? 'worsening' : move >= unit ? 'recovering' : 'flat';
+    // The one trend rule (domain/trend.ts): the same "Getting worse" as the flag, the story and the chart.
+    const word = gapTrend(span.map((x) => x.raw), true);
+    const direction = DIRECTION[word];
     const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
     const num = (v: number) => Math.abs(v).toFixed(goal.decimals);
     // The unit as a difference is said ("pts", "days"), after the last number only.
     const words = fmtDiff(2, goal).replace(/^[0-9.]+ ?/, '');
     const tail = words ? ' ' + words : '';
-    const value = span.every((x) => x.gap === 0) ? 'On plan at each check-in'
-      : behind ? `${span.map((x) => num(x.gap)).join(' → ')}${tail} behind plan`
-      : ahead ? `${span.map((x) => num(x.gap)).join(' → ')}${tail} ahead of plan`
+    const value = span.every((x) => x.gap === 0) ? `${GAP['on-plan'].label} at each check-in`
+      : behind ? `${span.map((x) => num(x.gap)).join(' → ')}${tail} ${GAP.behind.label}`
+      : ahead ? `${span.map((x) => num(x.gap)).join(' → ')}${tail} ${GAP.ahead.label}`
       // Ahead some weeks and behind others: each says which, in words ("1 ahead → 1 behind → 4 pts behind plan").
-      : span.map((x, i) => (x.gap === 0 ? 'on plan' : `${num(x.gap)}${i === span.length - 1 ? tail : ''} ${x.gap > 0 ? 'ahead' : 'behind'}`)).join(' → ') + (latest.gap > 0 ? ' of plan' : latest.gap < 0 ? ' plan' : '');
+      : span.map((x, i) => (x.gap === 0 ? GAP['on-plan'].label.toLowerCase() : `${num(x.gap)}${i === span.length - 1 ? tail : ''} ${x.gap > 0 ? 'ahead' : 'behind'}`)).join(' → ') + (latest.gap > 0 ? ' of plan' : latest.gap < 0 ? ' plan' : '');
     // The same number check-in after check-in while the plan moves on: say exactly that, once.
     let held = 1;
     for (let k = valued.length - 2; k >= 0 && valued[k]!.value === latest.c.value; k--) held++;
@@ -117,7 +119,7 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
     const planMoved = (latest.plan - planAt(goalAsOf(goal, heldFrom.week).plan, heldFrom.week, cycle.weeks)) * dir > 0;
     const detail = held >= 2 && planMoved
       ? `Flat at ${fmt(latest.c.value!, goal)} for ${countWord(held)} weeks while the plan ${dir > 0 ? 'rises' : 'falls'}`
-      : `${direction === 'worsening' ? (behind ? 'Falling further behind' : 'Losing ground on the plan') : direction === 'recovering' ? (behind ? 'Closing the gap' : 'Gaining ground on the plan') : 'Holding steady against the plan'}, ${weekSpan(span.map((x) => x.c))}`;
+      : `${TREND[word].label}, ${weekSpan(span.map((x) => x.c))}`;
     out.push({ key: 'trend', label: 'Trend', value, detail, tone: direction === 'worsening' ? 'bad' : direction === 'recovering' ? 'good' : 'flat', direction });
   }
 
@@ -183,13 +185,13 @@ function rangeFacts(goal: RangeGoal, cycle: Cycle, own: CheckIn[], stale: boolea
   const span = valued.slice(-TREND_SPAN);
   if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins', tone: 'flat', direction: 'flat' });
   else {
-    const move = round((span[span.length - 1]!.value! - span[0]!.value!) * safe, goal.decimals);
+    const word = gapTrend(span.map((c) => (c.value! - limit) * safe));
     out.push({
       key: 'trend', label: 'Trend',
       value: span.map((c) => fmt(c.value!, goal)).join(' → '),
-      detail: `${move === 0 ? 'Holding steady' : move > 0 ? 'Moving away from the limit' : 'Moving towards the limit'}, ${weekSpan(span)}`,
-      tone: move === 0 ? 'flat' : move > 0 ? 'good' : 'bad',
-      direction: move === 0 ? 'flat' : move > 0 ? 'recovering' : 'worsening',
+      detail: `${TREND[word].label}, ${weekSpan(span)}`,
+      tone: word === 'worse' ? 'bad' : word === 'better' ? 'good' : 'flat',
+      direction: DIRECTION[word],
     });
   }
 
@@ -227,7 +229,7 @@ function milestoneFacts(goal: MilestoneGoal, own: CheckIn[], week: number, stale
   // Against plan: the stages running late (overdue, or expected after their date), against those due by now.
   out.push({
     key: 'plan', label: 'Against plan',
-    value: m.calc === 'done' ? 'Every stage done' : m.late.length ? `${plural(m.late.length, 'stage')} late` : 'On schedule',
+    value: m.calc === 'done' ? 'Every stage done' : stagesBehind(m.late.map((s) => s.kind as 'risk' | 'off')),
     detail: `${m.doneCount} of ${plural(m.stages.length, 'stage')} done; ${m.dueCount} due by week ${week}`,
     tone: m.late.length ? 'bad' : 'good',
   });
@@ -237,13 +239,13 @@ function milestoneFacts(goal: MilestoneGoal, own: CheckIn[], week: number, stale
   if (span.length < 2) out.push({ key: 'trend', label: 'Trend', value: 'Not enough check-ins yet', detail: 'Needs two check-ins', tone: 'flat', direction: 'flat' });
   else {
     const late = span.map((c) => weeksLateAt(goal, c));
-    const move = late[late.length - 1]! - late[0]!;
+    const word = stagesTrend(goal, own).word;
     out.push({
       key: 'trend', label: 'Trend',
       value: late.every((n) => n === 0) ? 'On time at every check-in' : `${late.join(' → ')} weeks late`,
-      detail: `${move > 0 ? 'Slipping' : move < 0 ? 'Recovering' : 'Holding steady'}, ${weekSpan(span)}`,
-      tone: move > 0 ? 'bad' : move < 0 ? 'good' : late[late.length - 1] ? 'bad' : 'flat',
-      direction: move > 0 ? 'worsening' : move < 0 ? 'recovering' : 'flat',
+      detail: `${TREND[word].label}, ${weekSpan(span)}`,
+      tone: word === 'worse' ? 'bad' : word === 'better' ? 'good' : late[late.length - 1] ? 'bad' : 'flat',
+      direction: DIRECTION[word],
     });
   }
 

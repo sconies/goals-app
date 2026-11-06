@@ -1,18 +1,19 @@
 /* What needs someone's attention, and why. One list drives the homes, the goals list and the review.
    "Needs attention" means new information: a goal that is behind but that someone has looked at since its latest
    check-in (reviewed, noted, an action agreed, or its request answered) is being handled until something new happens. */
-import { assessMetric, assessMilestone, assessRange, checkInsFor, goalStatus, LABEL, type GoalStatus } from './status';
-import { fmt, rangeText, weekLabel } from './format';
-import { isShare } from './checkin';
+import { checkInsFor, goalStatus, type GoalStatus } from './status';
+import { askText, answeredSince, isOverdue, openAsksFor, openFor } from './asks';
 import { currentWeek } from './plan';
-import { answeredSince, isOverdue, openAsksFor } from './asks';
-import type { CheckIn, Cycle, Decision, Goal, Snapshot } from './types';
+import { goalTrend } from './trend';
+import { ATTENTION_FLAGS, FLAG, LABEL, lower, type FlagKind } from './vocabulary';
+import type { Cycle, Decision, Goal, Snapshot } from './types';
+import { NO_REASON } from './checkin';
 
-export type FlagKind = 'off' | 'missed-path' | 'stale' | 'no-path' | 'risk' | 'trend' | 'greener' | 'due';
+export type { FlagKind };
 
 export interface Flag {
   kind: FlagKind;
-  /** Short label for a chip. */
+  /** Short label for a chip: the flag's word in the vocabulary. */
   label: string;
   /** One sentence: what is wrong, in numbers where there are numbers. */
   detail: string;
@@ -42,62 +43,36 @@ export interface Handled {
   reviewId: string | null;
 }
 
-const WEIGHT: Record<FlagKind, number> = { off: 100, 'missed-path': 90, stale: 80, 'no-path': 70, risk: 60, trend: 50, greener: 30, due: 10 };
+/** Worst first, by the vocabulary's order of the flags that need attention; a check-in due last. */
+const WEIGHT: Record<FlagKind, number> = Object.fromEntries([...ATTENTION_FLAGS, 'due' as const].map((k, i, all) => [k, (all.length - i) * 10])) as Record<FlagKind, number>;
 
-/**
- * A worsening trend the status may not show yet: progress against plan has fallen at the
- * last two check-ins, a range value has moved towards its limit twice running, or a
- * milestone stage's expected week has slipped since the previous check-in.
- */
-export function worseningTrend(goal: Goal, cycle: Cycle, checkIns: CheckIn[]): string | null {
-  const own = checkInsFor(goal, checkIns);
-  if (goal.kind === 'metric') {
-    const pts = own.filter((c) => c.value != null).map((c) => ({ week: c.week, value: c.value as number }));
-    if (pts.length < 3) return null;
-    const ratios = pts.slice(-3).map((p, i, arr) => assessMetric(goal, cycle.weeks, p.week, p.value, pts.slice(0, pts.length - arr.length + i)).ratio);
-    const [a, b, c] = ratios;
-    if (a == null || b == null || c == null) return null;
-    if (c < b && b < a && c < 1) return `Progress against plan has fallen two check-ins running: ${Math.round(a * 100)}% → ${Math.round(b * 100)}% → ${Math.round(c * 100)}%.`;
-    const last = assessMetric(goal, cycle.weeks, pts[pts.length - 1]!.week, pts[pts.length - 1]!.value, pts.slice(0, -1));
-    if (last.forecastMisses && last.projection && last.calc === 'on') return `On track today, but the recent trend heads for ${rangeText(last.projection, goal, isShare(goal))} by week ${last.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.`;
-    return null;
-  }
-  if (goal.kind === 'range') {
-    const v = own.filter((c) => c.value != null).map((c) => c.value as number).slice(-3);
-    if (v.length < 3) return null;
-    const toward = goal.range.bound === 'atMost' ? (x: number, y: number) => y > x : (x: number, y: number) => y < x;
-    if (toward(v[0]!, v[1]!) && toward(v[1]!, v[2]!) && !assessRange(goal, 1, v[2]!, v[1]!).out) {
-      return `Moving towards the limit two weeks running: ${v.map((x) => fmt(x, goal)).join(' → ')} (limit ${fmt(goal.range.limit, goal)}).`;
-    }
-    return null;
-  }
-  const withStages = own.filter((c) => c.stages);
-  if (withStages.length < 2) return null;
-  const prev = withStages[withStages.length - 2]!, last = withStages[withStages.length - 1]!;
-  const before = assessMilestone(goal, prev.week, prev.stages), now = assessMilestone(goal, last.week, last.stages);
-  const slipped = now.stages.find((s, i) => s.kind !== 'done' && s.expectedWeek > (before.stages[i]?.expectedWeek ?? s.expectedWeek));
-  return slipped ? `${slipped.name} slipped to ${weekLabel(slipped.expectedWeek, cycle.weeks)} at the last check-in.` : null;
+/** A worsening trend the status may not show yet (domain/trend.ts, the one trend rule): its sentence, or null. */
+export function worseningTrend(goal: Goal, cycle: Cycle, checkIns: Snapshot['checkIns']): string | null {
+  const t = goalTrend(goal, cycle, checkIns);
+  return t.word === 'worse' ? t.detail : null;
 }
 
-function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { status: GoalStatus; flags: Flag[] } {
+export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { status: GoalStatus; flags: Flag[] } {
   const status = goalStatus(goal, cycle, s.checkIns, today);
   const { latest, week } = status;
   const flags: Flag[] = [];
-  const add = (kind: FlagKind, label: string, detail: string, tone: Flag['tone']) => flags.push({ kind, label, detail, tone });
+  const add = (kind: FlagKind, detail: string, tone: Flag['tone']) => flags.push({ kind, label: FLAG[kind].label, detail, tone });
   const ptg = latest?.pathToGreen ?? null;
   const behind = status.status === 'off' || status.status === 'risk';
 
-  if (status.status === 'off') add('off', 'Off track', latest?.why && latest.why !== 'On plan.' ? latest.why : 'The owner called it off track.', 'off');
-  if (status.status === 'stale') {
-    add('stale', LABEL.stale, latest ? `No check-in for ${status.daysSinceCheckIn} days; the last was week ${latest.week} (${LABEL[latest.status].toLowerCase()}).` : 'No check-in yet this cycle.', 'stale');
-  }
-  if (behind && ptg && ptg.byWeek != null && ptg.byWeek < week) add('missed-path', 'Missed path to green', `Was due back on plan by week ${ptg.byWeek}: ${ptg.what}`, 'off');
-  if (behind && !ptg) add('no-path', 'No path to green', 'It is behind and the owner has not said how it gets back.', 'off');
-  if (status.status === 'risk') add('risk', 'At risk', latest?.why && latest.why !== 'On plan.' ? latest.why : 'The owner called it at risk.', 'risk');
+  const why = latest?.why && latest.why !== NO_REASON ? latest.why : null;
+  if (status.status === 'off') add('off', why ?? `The owner called it ${lower(FLAG.off)}.`, 'off');
+  if (status.status === 'stale') add('stale', latest ? `No check-in for ${status.daysSinceCheckIn} days; the last was week ${latest.week} (${LABEL[latest.status].toLowerCase()}).` : 'No check-in this cycle yet.', 'stale');
+  if (behind && ptg && ptg.byWeek != null && ptg.byWeek < week) add('missed-path', `Said it would be back on plan by week ${ptg.byWeek}: ${ptg.what}`, 'off');
+  // Waiting on someone: an open decision or help it needs (its own, or one it's linked to), whatever its status.
+  const waiting = status.status !== 'done' ? openFor(goal.id, s) : [];
+  if (waiting.length) add('decision', `Waiting on ${waiting.map((r) => askText(r, s.people)).join('; ')}.`, behind ? 'off' : 'risk');
+  if (behind && !ptg) add('no-path', 'It is behind and the owner has not said how it gets back.', 'off');
+  if (status.status === 'risk') add('risk', why ?? `The owner called it ${lower(FLAG.risk)}.`, 'risk');
   const trend = status.status === 'done' ? null : worseningTrend(goal, cycle, s.checkIns);
-  if (trend) add('trend', 'Worsening trend', trend, 'risk');
-  if (status.greener && latest && status.status !== 'stale') add('greener', 'Greener than calculated', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
-  if (week >= 1 && status.status !== 'done' && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', 'Check-in due', `Due before the review in week ${week}.`, 'info');
+  if (trend) add('trend', trend, 'risk');
+  if (status.greener && latest && status.status !== 'stale') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
+  if (week >= 1 && status.status !== 'done' && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due before the review in week ${week}.`, 'info');
 
   flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
   return { status, flags };
@@ -155,12 +130,16 @@ export function handledFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, s
   return looks.sort((a, b) => HANDLED_ORDER.indexOf(a.kind) - HANDLED_ORDER.indexOf(b.kind) || b.at.localeCompare(a.at))[0]!;
 }
 
-/** Needs attention: flagged for something beyond a due check-in, and not already in hand. */
+/**
+ * Needs attention (the vocabulary's ATTENTION.needs): flagged for something beyond a due check-in, and not already in
+ * hand. The one rule: Home, Watching, the map's toggle, the Goals filter, reviews, the brief and the AI assistant all
+ * ask it, and evals/vocabulary.eval.ts checks they pick the same goals.
+ */
 export const needsAttention = (a: GoalAttention) => !a.handled && a.flags.some((f) => f.kind !== 'due');
 
 /** A list of goals' attention split into what needs attention (new information) and what is being handled. */
 export function splitAttention(list: GoalAttention[]): { needs: GoalAttention[]; handled: GoalAttention[] } {
-  return { needs: list.filter((a) => !a.handled), handled: list.filter((a) => !!a.handled) };
+  return { needs: list.filter(needsAttention), handled: list.filter((a) => !!a.handled) };
 }
 
 /**

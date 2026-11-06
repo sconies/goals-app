@@ -16,7 +16,7 @@ import * as R from '../src/domain/removal';
 import { reviewSession, watchedGoals } from '../src/domain/review';
 import { goalScorecard } from '../src/domain/scorecard';
 import { checkInsFor } from '../src/domain/status';
-import { LEFT, STOPPED } from '../src/domain/words';
+import { LEFT, STOPPED } from '../src/domain/vocabulary';
 import type { Snapshot } from '../src/domain/types';
 
 const Q = (id: string, text: string) => `[${id}] ${text}`;

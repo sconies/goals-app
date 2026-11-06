@@ -11,14 +11,10 @@ import { LevelTag, StatusShape } from '../ui/bits';
 import { hasStory, Keep, ResultTag, StoryLines } from '../ui/GoalStory';
 import { useSummaries, type ViewGroup } from './GoalViews';
 
-const COLUMNS: { key: string; title: string; statuses: DisplayStatus[]; always: boolean }[] = [
-  { key: 'off', title: 'Off track', statuses: ['off'], always: true },
-  { key: 'risk', title: 'At risk', statuses: ['risk'], always: true },
-  { key: 'stale', title: LABEL.stale, statuses: ['stale'], always: true },
-  { key: 'waiting', title: 'No check-in yet', statuses: ['none', 'planned'], always: false },
-  { key: 'on', title: 'On track', statuses: ['on'], always: true },
-  { key: 'done', title: 'Done', statuses: ['done'], always: false },
-];
+/** A lane per status, worst first, each titled with its own word: No check-in yet and Not started are lanes of their own. */
+const COLUMNS: { key: string; title: string; statuses: DisplayStatus[]; always: boolean }[] = (['off', 'risk', 'stale', 'none', 'planned', 'on', 'done'] as const).map((k) => ({
+  key: k, title: LABEL[k], statuses: [k], always: k === 'off' || k === 'risk' || k === 'stale' || k === 'on',
+}));
 
 export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
   const sums = useSummaries(groups);

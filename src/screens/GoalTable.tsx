@@ -14,6 +14,7 @@ import { hasStory, Keep, ResultTag, TableStory } from '../ui/GoalStory';
 import { BulkBar } from './BulkEdit';
 import { useGoalQuery } from './GoalFilters';
 import { useSummaries, GroupHead, type ViewGroup } from './GoalViews';
+import { LABEL } from '../domain/vocabulary';
 
 type ColId = 'goal' | 'owner' | 'status' | 'now' | 'target' | 'gap' | 'trend';
 /**
@@ -95,7 +96,7 @@ export function GoalTable({ groups }: { groups: ViewGroup[] }) {
                         <span className="gt-name"><Link to={'/goals/' + goal.id}>{goal.title}</Link><LevelTag level={goal.level} />{goal.key && <span className="gkey" title="The goal’s key">{goal.key}</span>}</span>
                       </td>
                       {show.has('owner') && <td className="col-opt">{s.owner}</td>}
-                      <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? <Keep text={`Last: week ${s.lastWeek}`} /> : app.week > 0 ? 'No check-in yet' : ''}</span></td>
+                      <td><Chip k={s.status} /><ResultTag s={s} /><span className="hint gt-plan">{s.lastWeek != null ? <Keep text={`Last: week ${s.lastWeek}`} /> : app.week > 0 ? LABEL.none : ''}</span></td>
                       <td className="num">{s.now}{s.planThen ? <span className="hint gt-plan"><Keep text={`plan ${s.planThen}`} /></span> : s.planNow != null && <span className="hint gt-plan">plan {s.planNowText} this week</span>}</td>
                       {show.has('target') && <td className="num col-opt">{s.target}</td>}
                       {show.has('gap') && <td className={'col-opt gt-gap tone-' + s.gapTone + ' small'} title={s.gap}>{s.gap !== s.now ? s.gap : ''}</td>}

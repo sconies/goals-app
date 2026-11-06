@@ -199,7 +199,9 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   const g0 = (id) => s0.goals.find((g) => g.id === id);
   const reviewV = String(Math.round(planAt(g0('ci-docker').plan, NOW)) - 2); // lower is better: two minutes under plan
   await h.fill(p.getByLabel('This week’s value'), reviewV);
-  await see(p, `below week-${NOW} plan`, 'the verdict names the week it compares with');
+  // The gap in the words every list uses, whichever way is better; the line under it names the week it compares with.
+  await see(p, 'ahead of plan', 'the verdict says how it stands against the plan');
+  await see(p, `planned for week ${NOW}`, 'the verdict names the week it compares with');
   await h.checkpoint('first goal');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Check-in saved');
@@ -366,8 +368,8 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     await p.waitForTimeout(120);
   }
   // The walk is the exceptions; goals on track with nothing flagged are acknowledged together (Senior UX review, 2 Nov).
-  await see(p, 'On track, nothing new', 'healthy goals are not grouped after the exceptions');
-  const ack = p.getByRole('button', { name: /^Mark \d+ goals? on track reviewed/ });
+  await see(p, 'Nothing flagged', 'healthy goals are not grouped after the exceptions');
+  const ack = p.getByRole('button', { name: /^Mark \d+ goals? with nothing flagged reviewed/ });
   const healthyN = Number(((await ack.innerText().catch(() => '')).match(/\d+/) || ['0'])[0]);
   h.set('finish', healthyN > 0 && items <= 10, `expected the healthy goals as one acknowledgement, saw ${healthyN} after walking ${items}`);
   await h.checkpoint('healthy group');
@@ -648,7 +650,8 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   await see(p, 'No recent update');
   await see(p, /\d+ goals · .*need/, 'the summary line counts what needs attention');
   h.set('parity', await p.getByRole('tab', { name: /^Watching/, selected: true }).isVisible() && await p.locator('.goals-toolbar .view-bar').isVisible(), 'Watching is not a Goals tab with the Goals toolbar');
-  const quiet = p.locator('section', { has: p.getByRole('heading', { name: /No recent update/ }) }).locator('.trow').first();
+  // A goal with no recent update needs attention (the one rule): it's in that group, saying its status.
+  const quiet = p.locator('section', { has: p.getByRole('heading', { name: /Needs attention/ }) }).locator('.trow[data-tone="stale"]').first();
   await h.inView(p.getByRole('heading', { name: /Needs attention/ }), 'entry', 'Needs attention');
   await h.checkpoint('watching');
   h.set('attention', /No check-in for \d+ days/.test(await quiet.innerText()), 'a quiet goal does not say how long it has been');
@@ -1120,7 +1123,7 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   const strip = p.getByRole('region', { name: 'This year by quarter' });
   await strip.waitFor();
   const cells = await strip.locator('li').allInnerTexts();
-  h.set('attention', cells.length === 4 && cells.slice(0, 3).every((t) => /Met/.test(t) && /against a plan of/.test(t)) && /Now/.test(cells[3]), `the quarters read: ${cells.join(' | ')}`);
+  h.set('attention', cells.length === 4 && cells.slice(0, 3).every((t) => /Met/.test(t) && /against a plan of/.test(t)) && /In progress/.test(cells[3]), `the quarters read: ${cells.join(' | ')}`);
   await h.checkpoint('quarters');
   // The weekly history grid shows this quarter by default, or the whole year.
   await p.goto(url('/goals?view=history&hist=weekly'));
@@ -1324,16 +1327,17 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   // Filters: what needs someone. Then sort, and the same goals in the Table.
   await h.click(p.getByRole('button', { name: /^Filters/ }));
   const sheet = p.getByRole('dialog', { name: 'Filter goals' });
-  await h.click(sheet.getByLabel('Recovery date slipped'));
+  // Needs attention, narrowed to a slipped date: the one Needs attention rule, then why.
+  await h.click(sheet.getByLabel('Date slipped'));
   // Sort is in the sheet on every screen (a phone has no room for it in the bar).
   await sheet.getByLabel('Sort').selectOption('due');
   await h.checkpoint('filters');
   await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
-  await see(p, '25 of 126 goals', 'the slipped-date filter does not narrow the goals');
+  await see(p, '21 of 126 goals', 'the slipped-date filter does not narrow the goals');
   await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Table' }));
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
-  h.set('progress', rows === 25 && (await p.getByRole('button', { name: /Remove filter: Recovery date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
+  h.set('progress', rows === 21 && (await p.getByRole('button', { name: /Remove filter: Needs attention because: date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
   // Save it: a name is needed; then it's a tab of its own. On a phone, saving and sharing are in one View menu (L&T 23).
   if (device === 'phone') await h.click(p.locator('.filter-view-menu > summary'));
   await h.click(p.getByRole('button', { name: 'Save view' }));
@@ -1352,11 +1356,12 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await p.goto(url('/goals?view=list'));
   await h.click(p.locator('.views-menu > summary'));
   await h.click(p.getByRole('button', { name: /Slipped dates/ }));
-  await see(p, '25 of 126 goals', 'opening the saved view did not bring its filters back');
+  await see(p, '21 of 126 goals', 'opening the saved view did not bring its filters back');
   // A shared link opens the same goals for anyone.
   const other = await newPage(device, 'rhea');
+  // A link from before release 2 (needs=slipped, without attention=1) opens the same goals.
   await other.goto(url('/goals?needs=slipped&sort=due'));
-  await see(other, '25 of 126 goals', 'a shared link does not open the same goals');
+  await see(other, '21 of 126 goals', 'a shared link does not open the same goals');
   await other.context().close();
   // Delete it: the tab goes.
   // Rename, pin and delete live in one menu, not beside the filters.
@@ -1423,7 +1428,8 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   await p.getByRole('region', { name: /Goal map/ }).waitFor();
   await h.click(p.getByLabel('Only what needs attention'));
   await p.waitForURL(/status=off(%2C|,)risk(%2C|,)stale/, { timeout: 3000 }).catch(() => {});
-  h.set('logged', /status=off(%2C|,)risk(%2C|,)stale/.test(p.url()), 'the attention filter is not in the link');
+  // The map's toggle is the Goals screen's Needs attention filter (the one rule), so the link carries attention=1.
+  h.set('logged', /attention=1/.test(p.url()), 'the attention filter is not in the link');
   await see(p, /\d+ of 126 goals/, 'the attention filter does not show in the count');
   await h.click(p.getByRole('button', { name: /Export/ }));
   const scope = p.getByRole('dialog', { name: 'Export goals' }).getByLabel(/What’s shown now/);
@@ -2414,7 +2420,7 @@ async function platformChecks() {
       const mute = await r.$$eval('svg.status-shape', (els) => els.filter((e) => {
         if (!e.getClientRects().length || e.closest('.hgrid, [aria-hidden="true"] [aria-hidden="true"]')) return false;
         const near = (e.parentElement?.innerText || '') + ' ' + (e.parentElement?.parentElement?.innerText || '');
-        return !/on track|at risk|off track|stale|done|not started|no check-in|met|missed|completed|gone quiet|no recent update|nothing is|late|on schedule/i.test(near);
+        return !/on track|at risk|off track|stale|done|not started|no check-in|met|missed|no recent update|nothing is|late|slipping|on schedule|in progress|target reached|nothing flagged/i.test(near);
       }).map((e) => (e.closest('[class]')?.className || '').toString().split(' ')[0]));
       if (mute.length) problems.push(`${who} ${route}: ${mute.length} status shapes without a word (${[...new Set(mute)].join(', ')})`);
     }

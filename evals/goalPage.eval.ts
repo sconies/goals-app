@@ -38,12 +38,13 @@ describe('the summary bar', () => {
     expect(feeds?.text).toMatch(/^Fed by four goals: 2 off track/);
   });
 
-  it(R('GOAL-PAGE-BAR', 'a range says where it is against its limit; dated stages say how many are done and which are slipping'), () => {
+  it(R('GOAL-PAGE-BAR', 'a range says where it is against its limit; dated stages say how many are done and which are slipping or late'), () => {
     expect(barFigures(goal('ns-cfr'), s, cycle, week, false).against[0]).toMatch(/^at most [\d.]+%$/);
     expect(barFigures(goal('ns-cfr'), s, cycle, week, false).against.join(' ')).toMatch(/(inside|outside) the limit/);
     const m = barFigures(goal('lead-mq'), s, cycle, week, false);
     expect(m.now).toBe('2 of 4 stages done');
-    expect(m.against[0]).toBe('2 stages slipping');
+    // Both are more than two weeks behind their dates: late, in the vocabulary's stage words (up to two is slipping).
+    expect(m.against[0]).toBe('2 stages late');
   });
 
   it(R('GOAL-PAGE-BAR', 'one main action by who is looking and what is waiting'), () => {

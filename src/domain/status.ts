@@ -1,21 +1,13 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
 import { daysSince, currentWeek, goalAsOf, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
+import { RULES } from './thresholds';
+import { LABEL, STATUS_ORDER } from './vocabulary';
+
+/* What each status is called and means lives in the vocabulary (domain/vocabulary.ts); the thresholds in thresholds.ts. */
+export { LABEL, RULES };
 
 export const RANK: Record<DisplayStatus, number> = { done: 0, planned: 0, none: 0, on: 1, risk: 2, stale: 2, off: 3 };
-export const LABEL: Record<DisplayStatus, string> = {
-  on: 'On track', risk: 'At risk', off: 'Off track', done: 'Done', stale: 'No recent update', planned: 'Not started', none: 'No check-in',
-};
-
-/** Thresholds, as the spec states them. */
-export const RULES = {
-  onTrack: 0.95,
-  atRisk: 0.8,
-  wellAhead: 1.2,
-  staleDays: 14,
-  /** A milestone stage more than this many weeks late is off track. */
-  lateWeeksOff: 2,
-} as const;
 
 export type Calc = Status | 'planned' | 'none';
 
@@ -212,20 +204,35 @@ export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today:
   const latest = own.length ? own.reduce((a, b) => (b.postedAt > a.postedAt ? b : a)) : null;
   const calc = assessPosted(goal, cycle, checkIns, week).calc;
   const days = latest ? daysSince(latest.postedAt, today) : null;
+  const quiet = daysWithoutUpdate(goal, cycle, latest, today);
   let status: DisplayStatus;
   if (latest?.status === 'done') status = 'done';
   else if (week === 0) status = 'planned';
-  else if (latest && days != null && days < RULES.staleDays) status = latest.status;
-  else if (!latest && daysSince(goal.createdAt && goal.createdAt.slice(0, 10) > cycle.startDate ? goal.createdAt : cycle.startDate, today) < RULES.staleDays) status = 'none';
+  else if (quiet < RULES.staleDays) status = latest ? latest.status : 'none';
   else status = 'stale';
   const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
   return { status, calc, latest, greener, daysSinceCheckIn: days, week };
 }
 
-/** Roll a set of statuses up to the worst one, counting stale as at risk. */
+/**
+ * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
+ * added if later). The one rule for "no recent update": stale at RULES.staleDays, and the Goals filter "No update for
+ * N weeks" counts the same days in weeks.
+ */
+export function daysWithoutUpdate(goal: Goal, cycle: Cycle, latest: CheckIn | null, today: Date): number {
+  if (latest) return daysSince(latest.postedAt, today);
+  return daysSince(goal.createdAt && goal.createdAt.slice(0, 10) > cycle.startDate ? goal.createdAt : cycle.startDate, today);
+}
+
+/**
+ * A group's status: the worst real status in it, never one it doesn't have. A group with a goal that has no recent
+ * update and none worse says No recent update, not At risk. Every goal done is done; otherwise on track beats a goal
+ * merely not started or without a check-in yet, as it always has.
+ */
 export function worst(statuses: DisplayStatus[]): DisplayStatus {
   if (!statuses.length) return 'none';
   if (statuses.every((s) => s === 'done')) return 'done';
   const r = Math.max(...statuses.map((s) => RANK[s]));
-  return r >= 3 ? 'off' : r === 2 ? 'risk' : statuses.some((s) => s === 'on' || s === 'done') ? 'on' : statuses[0] ?? 'none';
+  if (r === 1) return 'on';
+  return STATUS_ORDER.find((k) => RANK[k] === r && statuses.includes(k)) ?? statuses[0]!;
 }

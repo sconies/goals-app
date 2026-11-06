@@ -14,7 +14,8 @@
     "evals:smoke": "node evals/run.mjs --smoke",
     "migrate": "node scripts/migrate.mjs",
     "visual": "node evals/visual.mjs",
-    "build:mcp": "vite build -c vite.mcp.config.ts --logLevel warn"
+    "build:mcp": "vite build -c vite.mcp.config.ts --logLevel warn",
+    "glossary": "node scripts/glossary.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

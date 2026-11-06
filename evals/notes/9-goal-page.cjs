@@ -125,7 +125,7 @@ module.exports = {
         chk(/^Off track \d+ hours$/.test(bar.two), `${at1}: line 2 “${bar.two}”`);
         // The scorecard: four labelled cells, each a value and one line.
         const want = [
-          [/^vs plan$/i, /^\d+ hours? (behind|ahead)$|^On plan$/, /^plan \d+ hours$/],
+          [/^vs plan$/i, /^\d+ hours? (behind plan|ahead of plan)$|^On plan$/, /^plan \d+ hours$/],
           [/^vs last week$/i, /^(No change|\d+ hours? (better|worse))$/, /^was \d+ hours? in week \d+$/],
           [/^to target$/i, /^(\d+ hours? to go|Reached)$/, /^target 24 hours$/],
           [/^will it hit 24\?$/i, /^(Likely|Possible|Unlikely|Very unlikely)$/, /^likely \d+ hours? by year end$/],
@@ -137,7 +137,7 @@ module.exports = {
         chk(!bar.oldFacts.length && !/Against plan|Likely end\s+about|could be|Target \d/.test(bar.under), `${at1}: the old rows under the chart (${bar.oldFacts.join(', ')}) “${bar.under}”`);
         chk(/^Likely end projected from the last eight weeks, not the owner’s date\.$/.test(bar.under), `${at1}: the footnote under the chart “${bar.under}”`);
         // The chart marks the scorecard's numbers: the gap to plan at now, the likely end, and what's left to the target.
-        chk(bar.band && /\d+ (behind|ahead)/.test(bar.marks.plan) && /likely \d+/.test(bar.marks.likely) && /(\d+ short|on course)/.test(bar.marks.target), `${at1}: chart marks ${JSON.stringify(bar.marks)}`);
+        chk(bar.band && /\d+ hours? (behind plan|ahead of plan)|On plan/.test(bar.marks.plan) && /likely \d+/.test(bar.marks.likely) && /(\d+ short|on course)/.test(bar.marks.target), `${at1}: chart marks ${JSON.stringify(bar.marks)}`);
         // The reason is not in the bar: it opens Why, the section right under the chart. The feeds head What feeds it.
         chk(!/Lead time is well above plan/.test(bar.barText) && /why-block/.test(bar.whyNext || '') && /^Lead time is well above plan/.test(bar.whyFirst), `${at1}: the reason is in the bar or does not open Why (next ${bar.whyNext}, “${bar.whyFirst.slice(0, 40)}”)`);
         chk(/^Fed by four goals: .*2 off track/.test(bar.feeds) && !/Fed by/.test(bar.barText), `${at1}: What feeds it opens with “${bar.feeds}”`);
@@ -179,7 +179,7 @@ module.exports = {
           const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(cs.backgroundColor);
           return { text: b.innerText.replace(/\s+/g, ' ').trim(), h: Math.round(b.getBoundingClientRect().height), opaque: !alpha || Number(alpha[1]) === 1, rule: parseFloat(cs.borderBottomWidth) >= 1 && cs.borderBottomStyle !== 'none', shadow: cs.boxShadow !== 'none', menu: !!b.querySelector('.bar-menu summary') && b.querySelector('.bar-menu').getClientRects().length > 0, card: !!b.querySelector('.scorecard') && b.querySelector('.scorecard').getClientRects().length > 0 };
         });
-        chk(cb && cb.opaque && cb.rule && cb.shadow && cb.menu && !cb.card && cb.h <= 64 && /Off track · \d+ hours · \d+ behind plan/.test(cb.text), `${at1}: the one-line bar ${JSON.stringify(cb)}`);
+        chk(cb && cb.opaque && cb.rule && cb.shadow && cb.menu && !cb.card && cb.h <= 64 && /Off track · \d+ hours · \d+ hours behind plan/.test(cb.text), `${at1}: the one-line bar ${JSON.stringify(cb)}`);
         await c.close();
       }
 

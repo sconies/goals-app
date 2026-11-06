@@ -93,7 +93,7 @@ module.exports = {
       const now = (await stale.locator('.trow-now').innerText()).toLowerCase();
       check(!now.includes('no recent update'), '[WA] 27: the value line repeats "No recent update"');
       const miss = p.locator('.trow-now .result-missed').first();
-      check(await miss.count() === 1, '[WA] 28: "Did not meet" is not in the value column');
+      check(await miss.count() === 1, '[WA] 28: "Not met" is not in the value column');
       if (await miss.count()) check(await miss.evaluate((e) => getComputedStyle(e).textTransform) === 'none', '[WA] 28: the result is still uppercase');
       if (w === 768) {
         const why = await p.$eval('.tree .trow-why', (e) => ({ clamp: getComputedStyle(e).webkitLineClamp, title: e.getAttribute('title') || '' }));

@@ -27,6 +27,7 @@ import {
   type DataTable, type TableLayout,
 } from '../domain/tableLayout';
 import { Icon } from '../ui/Icon';
+import { LABEL as STATUS_WORD } from '../domain/vocabulary';
 
 type Tab = DataTable;
 const TABS: [Tab, string][] = TABLE_ORDER.map((t) => [t, TABLES[t].label]);
@@ -178,7 +179,7 @@ export function DataTables() {
     Team: ['', ...app.snapshot.teams.map((t) => t.name)],
     Level: ['north star', 'svp', 'team'],
     Admin: ['', 'yes'],
-    Call: ['On track', 'At risk', 'Off track', 'Done'],
+    Call: (['on', 'risk', 'off', 'done'] as const).map((k) => STATUS_WORD[k]),
   };
 
   const [cs, setCs] = useState<ChangeSet | null>(null);

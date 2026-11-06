@@ -1,5 +1,6 @@
 /* Closing a cycle: which cycle is current, the retro on each goal, and starting the next cycle
    with the goals that carry on. */
+import { labels, OWNER_VIEW } from './vocabulary';
 import { lastKey } from './goalKey';
 import { requestsFromCheckIns } from './asks';
 import { isYear, yearWeeks } from './year';
@@ -91,7 +92,8 @@ export function suggestedResult(goal: Goal, cycle: Cycle, checkIns: CheckIn[], t
   return 'missed';
 }
 
-export const RESULT_LABEL: Record<Retro['result'], string> = { hit: 'Hit it', partly: 'Partly', missed: 'Missed' };
+/** The owner's own words at the wrap-up (the vocabulary's OWNER_VIEW): shown as their view, never as the result. */
+export const RESULT_LABEL: Record<Retro['result'], string> = labels(OWNER_VIEW);
 
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 export function cycleName(startDate: string, weeks: number): string {

@@ -14,6 +14,9 @@ import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
 import { useMark } from '../telemetry/react';
+import { NO_REASON } from '../domain/checkin';
+import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
+import { RULES } from '../domain/thresholds';
 
 /** The focused weekly check-in: every due goal, one at a time, then done. */
 export function CheckInFlow() {
@@ -206,7 +209,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const needsWay = valueOk && e.needsPath;
   // Last week's story, offered back when this week still needs a reason or a path.
   const priorCauseOk = !!previous?.cause && (e.reason === 'ahead' ? CAUSES_AHEAD : CAUSES_BEHIND).some(([k]) => k === previous.cause);
-  const priorWhy = needsWhy && priorCauseOk && !!previous?.why && previous.why !== 'On plan.';
+  const priorWhy = needsWhy && priorCauseOk && !!previous?.why && previous.why !== NO_REASON;
   const priorWay = needsWay && !!previous?.pathToGreen;
   // Once the owner has written their own reason or path, last week's is no longer offered (or pasted over it).
   const edited = (!!draft.why.trim() && draft.why !== previous?.why) || (!!draft.ptgWhat.trim() && draft.ptgWhat !== previous?.pathToGreen?.what) || (!!draft.cause && draft.cause !== previous?.cause);
@@ -309,7 +312,7 @@ function GoalCheckIn({ goal, onPosted, onSkip }: { goal: Goal; onPosted: (c: Che
   const stepNo = Math.max(1, full.indexOf(step) + 1);
   // Every first step shows its dots. Before the number is typed the count is the most it could take (last week's
   // note offered back, then an account), so it can only shrink once the number shows it's on plan.
-  const mayCarry = !!previous && ((!!previous.why && previous.why !== 'On plan.') || !!previous.pathToGreen);
+  const mayCarry = !!previous && ((!!previous.why && previous.why !== NO_REASON) || !!previous.pathToGreen);
   const stepsOf = goal.kind === 'milestone' || valueOk ? full.length : 2 + (mayCarry || carryOffered.current ? 1 : 0);
 
   return (
@@ -555,7 +558,7 @@ function GoalHead({ goal, previous, teamLine, compact, steps }: { goal: Goal; pr
       </div>
       <h1 className="title-xl">{goal.title}</h1>
       {!compact && previous && <span className="row hint" style={{ gap: 'var(--s2)' }}><Chip k={previous.status} />at the week {previous.week} check-in</span>}
-      {!compact && !previous && app.week > 1 && <span className="hint">No check-in yet</span>}
+      {!compact && !previous && app.week > 1 && <span className="hint">{STATUS_WORD.none}</span>}
     </div>
   );
 }
@@ -606,10 +609,11 @@ function StageEditor({ goal, draft, set }: { goal: MilestoneGoal; draft: Draft; 
   const open = goal.stages.filter((s) => upd(s.id)?.doneWeek == null || showDone);
   const state = (s: MilestoneGoal['stages'][number]) => {
     const u = upd(s.id);
-    if (u?.doneWeek != null) return { text: `Done in week ${u.doneWeek}`, tone: 'done' as const };
+    if (u?.doneWeek != null) return { text: `${STAGE.done.label} in week ${u.doneWeek}`, tone: 'done' as const };
     const exp = u?.forecastWeek ?? Math.max(s.dueWeek, week);
-    if (exp > s.dueWeek) return { text: `Late, now week ${exp}`, tone: exp - s.dueWeek > 2 ? 'off' as const : 'risk' as const };
-    return { text: 'On schedule', tone: 'on' as const };
+    // Late is more than RULES.lateWeeksOff weeks behind; up to that, slipping (the vocabulary's STAGE words).
+    if (exp > s.dueWeek) { const off = exp - s.dueWeek > RULES.lateWeeksOff; return { text: `${(off ? STAGE.off : STAGE.risk).label}, now week ${exp}`, tone: off ? 'off' as const : 'risk' as const }; }
+    return { text: STAGE.planned.label, tone: 'on' as const };
   };
   const current = goal.stages.find((s) => s.id === editing);
   const lateFrom = current ? Math.min(cycle.weeks, Math.max(current.dueWeek + 1, week)) : week;
@@ -639,8 +643,8 @@ function StageEditor({ goal, draft, set }: { goal: MilestoneGoal; draft: Draft; 
             {/* One pill for every answer, the same as "back on plan by": done, on schedule, or the week it's now expected. */}
             <div className="field"><span className="field-label" id="stage-now">Where it stands</span>
               <div className="row weekpicks" role="group" aria-labelledby="stage-now">
-                <button type="button" className="pill" aria-pressed={upd(current.id)?.doneWeek != null} onClick={() => { update(current.id, week, null); setEditing(null); }}>Done</button>
-                {current.dueWeek >= week && <button type="button" className="pill" aria-pressed={state(current).tone === 'on'} onClick={() => { update(current.id, null, null); setEditing(null); }}>On schedule</button>}
+                <button type="button" className="pill" aria-pressed={upd(current.id)?.doneWeek != null} onClick={() => { update(current.id, week, null); setEditing(null); }}>{STAGE.done.label}</button>
+                {current.dueWeek >= week && <button type="button" className="pill" aria-pressed={state(current).tone === 'on'} onClick={() => { update(current.id, null, null); setEditing(null); }}>{STAGE.planned.label}</button>}
               </div>
             </div>
             {current.dueWeek < cycle.weeks && (

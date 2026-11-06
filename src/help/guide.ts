@@ -2,10 +2,14 @@
    contextual Help link on every page and the AI assistant's get_help tool all read it from here.
    Keeping it true is enforced: src/help/guide.test.ts fails when a screen, a route or a requirement has no article,
    and CI fails a pull request that changes the app without a What's new entry (scripts/check-whats-new.mjs).
-   Numbers that are rules (status bands, how long until a goal goes quiet) are read from the domain, never restated. */
+   Numbers that are rules (status bands, how long until a goal has no recent update) are read from the domain, never
+   restated; where the guide says what a status, flag or result means, it reads the vocabulary (domain/vocabulary.ts). */
 import { CAUSES_AHEAD, CAUSES_BEHIND } from '../domain/checkin';
-import { LABEL, RULES } from '../domain/status';
-import { MEANING, RESULT_MEANING, RESULT_TEXT } from '../domain/story';
+import { RULES } from '../domain/thresholds';
+import { ATTENTION, ATTENTION_FLAGS, FLAG, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
+
+/** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
+const define = (t: { label: string; long: string }) => `${t.label}: ${t.long}`;
 
 export type GroupId = 'start' | 'week' | 'goals' | 'leading' | 'data' | 'you';
 
@@ -78,18 +82,27 @@ export const ARTICLES: Article[] = [
     summary: 'Every goal has a status, always shown as a shape and a word together.',
     group: 'start',
     sections: [
-      { heading: 'The statuses', list: (['on', 'risk', 'off', 'stale', 'done'] as const).map((k) => (MEANING[k].startsWith(LABEL[k]) ? MEANING[k] : `${LABEL[k]}: ${MEANING[k]}`)) },
+      { heading: 'The statuses', list: (['on', 'risk', 'off', 'stale', 'none', 'planned', 'done'] as const).map((k) => define(STATUS[k])) },
       { heading: 'The shapes', list: [
         `${LABEL.on}: a filled circle.`,
         `${LABEL.risk}: a half-filled circle.`,
-        `${LABEL.off}: an open ring. Off track goals also get a quiet wash over the whole row or card.`,
+        `${LABEL.off}: an open ring. ${LABEL.off} goals also get a quiet wash over the whole row or card.`,
         `${LABEL.stale}: a dashed ring.`,
         `${LABEL.done}: a circle with a tick.`,
       ] },
-      { heading: 'Results, once a goal is due', list: (['completed', 'late', 'missed'] as const).map((k) => `${RESULT_TEXT[k]}: ${RESULT_MEANING[k]}`) },
+      { heading: 'Results, once a goal is due', list: [
+        ...(['completed', 'late', 'missed'] as const).map((k) => define(RESULT[k])),
+        `Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs.`,
+        `At the wrap-up the owner says how it landed in their own words, shown as “${OWNER_VIEW_LABEL}”. It never changes the result.`,
+      ] },
+      { heading: 'Against the plan', list: [
+        `The gap reads the same whichever way is better: “9 hours ${GAP.behind.label}”, “3 pts ${GAP.ahead.label}”, or ${GAP['on-plan'].label}. ${define(GAP.reached)}`,
+        `A dated stage is ${lower(STAGE.planned)}, ${lower(STAGE.risk)} (${STAGE.risk.short}), ${lower(STAGE.off)} (${STAGE.off.short}) or ${lower(STAGE.done)}.`,
+        `${define(TREND.worse)}`,
+      ] },
       { heading: 'Whose call it is', text: [
-        `The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call greener than the numbers needs a reason, and is flagged.`,
-        `A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A stage up to ${RULES.lateWeeksOff} weeks late is at risk; later than that is off track.`,
+        `The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call ${lower(FLAG.greener)} needs a reason, and is flagged.`,
+        `A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A stage up to ${RULES.lateWeeksOff} weeks late is ${lower(STATUS.risk)}; later than that is ${lower(STATUS.off)}.`,
       ] },
       { heading: 'Where to see it', text: ['The key under the goals on the Goals page has the same words. Open “What these mean” there for the full meanings.'] },
       { heading: 'Where the trend is heading', text: [
@@ -100,8 +113,8 @@ export const ARTICLES: Article[] = [
     ],
     routes: [],
     screens: [],
-    reqs: ['PROJECTION-RANGE', 'STATUS-BANDS', 'STATUS-DIRECTION', 'RANGE', 'MILESTONE', 'OWNER-CALL', 'STALE', 'GREENER', 'DESIGN-RULES', 'A11Y'],
-    keywords: ['legend', 'key', 'on track', 'at risk', 'off track', 'no recent update', 'done', 'colour', 'shape', 'completed late', 'did not meet', 'red', 'amber', 'green'],
+    reqs: ['PROJECTION-RANGE', 'STATUS-BANDS', 'STATUS-DIRECTION', 'RANGE', 'MILESTONE', 'OWNER-CALL', 'STALE', 'GREENER', 'DESIGN-RULES', 'A11Y', 'ONE-VOCABULARY', 'ONE-TREND'],
+    keywords: ['legend', 'key', 'on track', 'at risk', 'off track', 'no recent update', 'no check-in yet', 'not started', 'done', 'colour', 'shape', 'met', 'met late', 'not met', 'target reached', 'slipping', 'late', 'getting worse', 'red', 'amber', 'green', 'completed', 'quiet'],
     related: ['check-in', 'goal-page', 'needs-attention'],
   },
   {
@@ -164,7 +177,7 @@ export const ARTICLES: Article[] = [
         'At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.',
         'If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.',
         'Milestone goals ask where each stage stands: done, on schedule, or late with a new week.',
-        'The status is your call. Change it if the numbers don’t tell the whole story; a call greener than the numbers needs a reason.',
+        `The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
       ] },
       { heading: 'Ad hoc check-ins and corrections', list: [
         'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status.',
@@ -238,7 +251,7 @@ export const ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Following other teams’ goals, or a whole level, the way a leader or a dependent team would.'] },
       { heading: 'How to use it', list: [
         'Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team).',
-        'Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention, what has gone quiet, then what is on track or done, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.',
+        'Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention (a goal with no recent update included), then what has nothing flagged, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.',
         'For a goal with no recent update, ask its owner for an update. It’s an ask, open on their Home until they check in; whoever asked can withdraw it.',
         'Stop watching from the same place you started.',
       ] },
@@ -247,7 +260,7 @@ export const ARTICLES: Article[] = [
     routes: ['/watching'],
     screens: ['Watching'],
     reqs: ['WATCHING', 'ASK-UNDO', 'ONE-WATCHING'],
-    keywords: ['follow', 'subscribe', 'watch', 'unwatch', 'ask for an update', 'quiet', 'gone quiet'],
+    keywords: ['follow', 'subscribe', 'watch', 'unwatch', 'ask for an update', 'quiet', 'no recent update'],
     related: ['needs-attention', 'goal-page', 'home'],
   },
 
@@ -283,7 +296,7 @@ export const ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition.',
-        'Filters cover status, level, team, owner and type; what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers); due date; weeks since the last check-in; last quarter met or missed; result; a goal’s tree; and also-helps links.',
+        `Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(', ')}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
         'Decision or help needed is one press. Each active filter shows as words you can remove.',
         'Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest.',
         'Everything is in the link: Copy link shares exactly what you see. Save view keeps it as a tab of your own; rename or delete it from Views.',
@@ -302,18 +315,19 @@ export const ARTICLES: Article[] = [
     summary: 'Needs attention means something new since anyone looked. A goal that is behind but already in hand is shown as being handled.',
     group: 'goals',
     sections: [
-      { heading: 'What it’s for', text: ['Keeping attention on the exceptions: what is off track, quiet or slipping, and that nobody has picked up yet.'] },
+      { heading: 'What it’s for', text: ['Keeping attention on the exceptions: what is behind, without a recent update or getting worse, and that nobody has picked up yet.'] },
+      { heading: 'What it means', text: [ATTENTION.needs.long, define(ATTENTION.handled)] },
+      { heading: 'Why a goal is flagged', list: [...(['off', 'risk', 'stale'] as const).map((k) => `${STATUS[k].label}: ${STATUS[k].meaning}`), ...(['decision', 'no-path', 'missed-path', 'trend', 'greener', 'due'] as const).map((k) => define(FLAG[k]))] },
       { heading: 'How to use it', list: [
-        'A goal is flagged when it is off track, has no recent update, is getting worse, has no path to green or has missed one. The reason is one line.',
-        'An off track or at risk goal is being handled when, since its latest check-in, someone else marked it reviewed or noted it, an action was agreed (and isn’t overdue), or its request was answered.',
-        'A new check-in, or a new warning, makes it need attention again.',
-        'Home, Watching, Goals (Needs attention) and the review agenda all list the two apart, and say what is in hand: for example, “Action: Farah, due week 46”.',
+        'Each flag is one line with its reason, in numbers where there are numbers.',
+        `A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
+        'Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.',
       ] },
     ],
     routes: ['/goals?show=attention'],
     screens: [],
-    reqs: ['ATTENTION', 'ATTENTION-HANDLED', 'EXCEPTIONS-FIRST'],
-    keywords: ['attention', 'handled', 'exceptions', 'flag', 'warning', 'slipping', 'worse', 'red'],
+    reqs: ['ATTENTION', 'ATTENTION-HANDLED', 'EXCEPTIONS-FIRST', 'ONE-ATTENTION-RULE'],
+    keywords: ['attention', 'handled', 'exceptions', 'flag', 'warning', 'slipping', 'worse', 'getting worse', 'decision', 'path to green', 'greener', 'red'],
     related: ['status', 'home', 'reviews', 'watching'],
   },
   {
@@ -368,7 +382,7 @@ export const ARTICLES: Article[] = [
         'First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.',
         'Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go), and Will it hit the target.',
         'Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.',
-        'A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages late and Next stage: when it now lands, and the week it was due if it’s late.',
+        'A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages behind (slipping or late) and Next stage: when it now lands, and the week it was due if it’s late.',
         'One main button, for what you’d most likely do next: answer something asked of you, check in when it’s due, ask a quiet goal’s owner for an update, or watch it. The “…” menu has Share image, Copy link, Print or save as PDF, Change this goal, and Stop this goal (with check-ins, asking why) or Delete this goal (with none).',
         'As you scroll, the bar shrinks to one line on a solid panel at the top: the status, the number and the gap to plan (“Off track · 37 hours · 9 behind plan”), and the “…” menu. On a phone the bar takes the place of the app’s header.',
       ] },
@@ -377,7 +391,7 @@ export const ARTICLES: Article[] = [
         'One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures.',
         'The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.',
         'Every section under the chart has a heading and one line saying what it answers, with a rule between sections.',
-        'Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call greener than the numbers, or a trend that will miss the target while the goal is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); gone quiet, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.',
+        'Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.',
         'What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done.',
         'Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.',
         'What feeds it: how the goals feeding it stand (“Fed by four goals: 2 off track, 1 at risk”), then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.',
@@ -397,7 +411,7 @@ export const ARTICLES: Article[] = [
         'Share image copies a picture of the summary bar and a small chart, with the goal’s link. Where the browser can’t copy a picture, it saves one instead and copies the link.',
         'The picture has your company’s numbers in it, so share it where they belong. A pasted link shows the goal to people who can sign in.',
       ] },
-      { heading: 'Who can', list: ['The owner checks in and changes the goal; admins can change any goal.', 'Anyone can watch, comment, share, or ask the owner for an update when it has gone quiet.'] },
+      { heading: 'Who can', list: ['The owner checks in and changes the goal; admins can change any goal.', `Anyone can watch, comment, share, or ask the owner for an update when it has ${lower(STATUS.stale)}.`] },
     ],
     routes: ['/goals/:goalId'],
     screens: ['GoalScreen'],

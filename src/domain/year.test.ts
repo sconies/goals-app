@@ -79,7 +79,7 @@ describe('quarters read off the owner’s plan', () => {
     const r = quarterResult(g, cycle, low, q3, week);
     expect(r.kind).toBe('missed');
     expect(r.text).toMatch(/^Q3: 10% against a plan of \d+%, \d+ pts short$/);
-    expect(storyOf(g, { ...s, checkIns: low }, cycle, week, today).warnings.join(' ')).toMatch(/Missed its Q3 plan: 10%/);
+    expect(storyOf(g, { ...s, checkIns: low }, cycle, week, today).warnings.join(' ')).toMatch(/Last quarter not met\. Q3: 10%/);
   });
   it('milestone quarters count the stages due in them', () => {
     const r = quarterResult(goal('cfr-halt'), cycle, s.checkIns, quarters(cycle)[3]!, week);

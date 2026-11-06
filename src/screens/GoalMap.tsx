@@ -9,7 +9,8 @@ import { useApp } from '../app/state';
 import { readTour, type TourState } from '../app/tours';
 import { LEVEL_LABEL } from '../domain/format';
 import { criticalPath, edges as mapEdges, layout, layoutIndented, NODE_H, NODE_W } from '../domain/map';
-import { LABEL, RANK } from '../domain/status';
+import { RANK } from '../domain/status';
+import { ATTENTION, LABEL, type ResultKind } from '../domain/vocabulary';
 import { RESULT_TEXT } from '../domain/story';
 import { summarise } from '../domain/summary';
 import type { DisplayStatus, Goal } from '../domain/types';
@@ -17,7 +18,7 @@ import { Chip, StatusWord } from '../ui/bits';
 import { StoryLines } from '../ui/GoalStory';
 import { Icon } from '../ui/Icon';
 
-type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: string | null; children: number; collapsed: boolean; critical: boolean; root: boolean; context: boolean; onToggle: (id: string) => void };
+type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: ResultKind | null; children: number; collapsed: boolean; critical: boolean; root: boolean; context: boolean; onToggle: (id: string) => void };
 
 function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
   const { goal, status, owner, result, children, collapsed, critical, root, context, onToggle } = data;
@@ -26,7 +27,7 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
   return (
     <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '')} data-tone={status} {...coach}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
-      <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + (result === 'Completed' ? 'completed' : result === 'Completed late' ? 'late' : 'missed')}>{result}</span>}</StatusWord>
+      <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + result}>{RESULT_TEXT[result]}</span>}</StatusWord>
       <span className="map-title">{goal.title}</span>
       <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${owner}${goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}`}</span>
       {children > 0 && (
@@ -64,8 +65,9 @@ const readPos = (ws: string): Record<string, { x: number; y: number }> => { try 
 
 /**
  * The map draws `goals`. When the Goals screen is filtered, `matches` are the goals that match; the rest are the goals
- * they feed into, drawn greyed as context. "Only what needs attention" is the status filter itself, so the count, the
- * link and "what's shown now" in Export always agree with what's drawn (round 3 review).
+ * they feed into, drawn greyed as context. "Only what needs attention" is the Goals screen's Needs attention filter
+ * itself (attention=1, the one rule in domain/attention.ts), so the count, the link and "what's shown now" in Export
+ * always agree with what's drawn (round 3 review), and with Home, Watching and reviews.
  */
 export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goal[]; matches?: Set<string>; attention: boolean; onAttention: (on: boolean) => void }) {
   const app = useApp();
@@ -87,7 +89,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
     id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected,
     domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
     ariaLabel: `${n.goal.title}: ${LABEL[statusOf(n.goal)]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
-    data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? RESULT_TEXT[r.kind] : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), root: n.depth === 0, context: !!matches && !matches.has(n.id), onToggle: toggle },
+    data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? r.kind : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), root: n.depth === 0, context: !!matches && !matches.has(n.id), onToggle: toggle },
   })), [placed, moved, selected, statusOf, critical, app, toggle, matches]);
   const busOf = useMemo(() => new Map(placed.filter((n) => n.bus != null).map((n) => [n.id, n.bus!])), [placed]);
   // The critical path is drawn last, so no grey line paints over it.
@@ -207,7 +209,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           <KeyMore />
         </div>
         <div className="map-tools">
-          <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> Only what needs attention</label>
+          <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> Only what {ATTENTION.needs.label.toLowerCase()}</label>
           <button type="button" className="btn sm map-fold" onClick={fold}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
           {/* Two framings, one at a time: every goal, or the north stars and the critical path at a readable size. */}
