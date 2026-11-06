@@ -25,6 +25,9 @@ export interface SummaryFact {
   direction?: Direction;
   /** The projection itself (number goals and ranges, when there is one). */
   projection?: Projection;
+  /** Since last update (number goals and ranges): the change in the goal's units, and the number it is compared with. */
+  delta?: number;
+  from?: { value: number; week: number };
 }
 
 /** Whose check-in the facts come from: "Week 44 check-in · Kofi Boateng · 8 days ago" in the page's words. */
@@ -148,7 +151,7 @@ function sinceFact(goal: MetricGoal | RangeGoal, own: CheckIn[], better: number)
   if (!prev) return { key: 'since', label: 'Since last update', value: 'First check-in', detail: `${fmt(latest.value, goal)} in week ${latest.week}`, tone: 'flat' };
   const delta = round(latest.value - prev.value!, goal.decimals);
   return {
-    key: 'since', label: 'Since last update',
+    key: 'since', label: 'Since last update', delta, from: { value: prev.value!, week: prev.week },
     value: delta === 0 ? 'No change' : `${delta > 0 ? 'Up' : 'Down'} ${fmtDiff(delta, goal)}`,
     detail: `${fmt(prev.value!, goal)} in week ${prev.week} → ${fmt(latest.value, goal)} in week ${latest.week}${callMoved(prev)}`,
     tone: delta === 0 ? 'flat' : delta * better > 0 ? 'good' : 'bad',

@@ -7,6 +7,8 @@ import type { Commit } from '../data/store';
 import { describe, planChanges, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { aiBrief, toCsv, toJson, workbook } from '../domain/export';
 import { summariseAll } from '../domain/summary';
+import { goalScorecard } from '../domain/scorecard';
+import { goalStatus } from '../domain/status';
 import { WORK_TOOLS } from './workTools';
 import { findGoal, isKey, normalKey } from '../domain/goalKey';
 import { isTableView } from '../domain/tableLayout';
@@ -169,13 +171,16 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'get_goal',
     title: 'One goal in full',
-    description: 'Everything about one goal: its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.',
+    description: 'Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key (e.g. G-12), from find_goals.') } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       const j = toJson({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, goals: [g] });
-      const data = { cycle: j.cycle, goal: j.goals[0], notes: j.notes };
+      // The goal page's scorecard, in its words: vs plan, vs last week, to target and will it hit (domain/scorecard).
+      const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === 'stale';
+      const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({ label: c.label, value: c.value, detail: c.sub }));
+      const data = { cycle: j.cycle, goal: j.goals[0], scorecard, notes: j.notes };
       return { data, text: JSON.stringify(data, null, 2) };
     },
   },

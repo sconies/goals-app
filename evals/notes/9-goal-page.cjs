@@ -7,7 +7,11 @@
    J8 a first-time viewer from a shared key link, then coming back.
    And the page's promises: the goal's status once in the first screen, no reason repeated, the chart within the first
    phone screen, nothing moving under reduced motion (and nothing over 250ms otherwise), Share producing an image and a
-   link. */
+   link.
+   The scorecard (Lane, 5 Nov, on a phone: "the target four times, the trend three times"): under the status and the
+   number, four labelled cells (vs plan, vs last week, to target, will it hit), the target said once in the first screen,
+   the same numbers marked on the chart, nothing restated under it; the reason opening Why, the feeds heading What feeds
+   it; every section headed and saying what it answers; the one-line bar a solid panel that stands off the page. */
 
 const SIZES = [[390, 844, true], [1280, 800, false]];
 const LIMIT = 250;
@@ -33,7 +37,7 @@ const firstScreen = (p) => p.evaluate(() => {
   const fold = bar ? bar.getBoundingClientRect().top : innerHeight;
   const label = document.querySelector('.goal-bar .bar-status')?.innerText.trim() ?? '';
   // The goal's own status: changes ("at risk → off track") and the goals feeding it are about something else.
-  const skip = (e) => e.closest('.bar-feeds, .context-line, #feeds, .asked, .stream, .talked, .action-list, .chart-read');
+  const skip = (e) => e.closest('.context-line, #feeds, .asked, .stream, .talked, .action-list, .chart-read');
   const words = [];
   const walker = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -47,8 +51,7 @@ const firstScreen = (p) => p.evaluate(() => {
   const status = label ? (text.toLowerCase().match(new RegExp(label.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length : 0;
   const chart = document.querySelector('.goal-chart svg.chart, .goal-chart-block .stagelist');
   const cr = chart?.getBoundingClientRect();
-  const why = document.querySelector('.goal-bar .bar-why')?.innerText.trim() ?? '';
-  return { fold, label, status, chartTop: cr ? Math.round(cr.top) : null, chartBottom: cr ? Math.round(cr.bottom) : null, why, primaries: [...document.querySelectorAll('.btn.primary')].filter((b) => { const x = b.getBoundingClientRect(); return x.width && x.bottom > 0 && x.top < fold; }).map((b) => b.innerText.trim()) };
+  return { fold, label, status, chartTop: cr ? Math.round(cr.top) : null, chartBottom: cr ? Math.round(cr.bottom) : null, primaries: [...document.querySelectorAll('.btn.primary')].filter((b) => { const x = b.getBoundingClientRect(); return x.width && x.bottom > 0 && x.top < fold; }).map((b) => b.innerText.trim()) };
 });
 
 /** How many separate places on the page say a sentence, and how many of them are in the first two screens. */
@@ -69,7 +72,7 @@ module.exports = {
   id: 'N9',
   area: 'goal-page-flagship',
   title: 'The flagship goal page: five journeys at 390 and 1280; status once, no repeats, the chart in the first screen, motion and Share',
-  reqs: ['GOAL-PAGE-BAR', 'GOAL-PAGE-ONCE', 'GOAL-PAGE-INTENT', 'GOAL-PAGE-ALIVE', 'GOAL-SHARE', 'PROJECTION-RANGE', 'CHART-READ'],
+  reqs: ['GOAL-PAGE-BAR', 'GOAL-PAGE-ONCE', 'GOAL-PAGE-INTENT', 'GOAL-PAGE-ALIVE', 'GOAL-SHARE', 'PROJECTION-RANGE', 'CHART-READ', 'GOAL-PAGE-SCORECARD'],
   async run({ url, browser }) {
     const fails = [];
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
@@ -81,49 +84,102 @@ module.exports = {
       {
         const [c, p] = await at(browser, url, { w, h, touch, who: 'amara', route: '/goals/ns-lead' });
         const s = await firstScreen(p);
-        const bar = await p.evaluate(() => ({
-          title: document.querySelector('.goal-bar .bar-title')?.innerText, owner: document.querySelector('.goal-bar .bar-who')?.innerText,
-          two: document.querySelector('.goal-bar .bar-2')?.innerText.replace(/\s+/g, ' '), three: document.querySelector('.goal-bar .bar-3')?.innerText.replace(/\s+/g, ' '),
-          feeds: document.querySelector('.goal-bar .bar-feeds')?.innerText.replace(/\s+/g, ' '),
-          mtop: [...document.querySelectorAll('.mtop')].some((e) => e.getClientRects().length),
-          me: !!document.querySelector('.goal-bar .bar-me .profilebtn') && [...document.querySelectorAll('.goal-bar .bar-me')].some((e) => e.getClientRects().length),
-          caption: document.querySelector('.goal-chart .chart-say')?.innerText ?? '',
-          endBar: !!document.querySelector('.goal-chart .chart-facts svg.cf-end'),
-          band: !!document.querySelector('.goal-chart .c-band'),
-        }));
+        const bar = await p.evaluate(() => {
+          const t = (e) => (e ? e.innerText.replace(/\s+/g, ' ').trim() : '');
+          const svgText = (q) => [...document.querySelectorAll('.goal-chart svg.chart ' + q)].map((e) => e.textContent.trim()).join(' | ');
+          // The first screen's words outside the chart's drawing and its readout: the bar, the scorecard, what's under the chart.
+          const bar1 = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);
+          const fold = bar1 ? bar1.getBoundingClientRect().top : innerHeight;
+          const words = [];
+          const walker = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const el = n.parentElement;
+            if (!el || el.closest('svg, .chart-read') || !el.getClientRects().length) continue;
+            const r = el.getBoundingClientRect();
+            if (r.bottom > 0 && r.top < fold) words.push(n.textContent);
+          }
+          const chartBlock = document.querySelector('.goal-chart-block');
+          let next = chartBlock?.nextElementSibling;
+          while (next && next.classList.contains('context-line')) next = next.nextElementSibling;
+          return {
+            title: document.querySelector('.goal-bar .bar-title')?.innerText, owner: document.querySelector('.goal-bar .bar-who')?.innerText,
+            two: t(document.querySelector('.goal-bar .bar-2')), barText: t(document.querySelector('.goal-bar')),
+            cells: [...document.querySelectorAll('.goal-bar .scorecard .sc-cell')].map((c) => ({ label: t(c.querySelector('.sc-label')), value: t(c.querySelector('.sc-value')), sub: t(c.querySelector('.sc-sub')) })),
+            firstText: words.join(' ').replace(/\s+/g, ' '),
+            mtop: [...document.querySelectorAll('.mtop')].some((e) => e.getClientRects().length),
+            me: !!document.querySelector('.goal-bar .bar-me .profilebtn') && [...document.querySelectorAll('.goal-bar .bar-me')].some((e) => e.getClientRects().length),
+            under: t(document.querySelector('.goal-chart figcaption')),
+            oldFacts: ['.chart-facts', '.cf-end', '.cf-row', '.bar-3', '.bar-why', '.bar-feeds', '.bar-against', '.bar-dir'].filter((q) => document.querySelector('.goal-page ' + q)),
+            band: !!document.querySelector('.goal-chart .c-band'),
+            marks: { plan: svgText('.c-gap-plan'), likely: svgText('.c-likely'), target: svgText('.c-gap-target') },
+            whyNext: next ? next.className : null,
+            whyFirst: t(document.querySelector('.why-block .why-text')),
+            feeds: t(document.querySelector('#feeds .feeds-sum')),
+            // (In the side column beside the chart, sections stack under their headings without a rule.)
+            sections: [...document.querySelectorAll('.goal-page .goal-section')].filter((e) => e.getClientRects().length).map((e) => ({ title: t(e.querySelector('.block-title')), purpose: t(e.querySelector('.section-purpose')), rule: !!e.closest('.goal-side') || (getComputedStyle(e).borderTopStyle !== 'none' && parseFloat(getComputedStyle(e).borderTopWidth) >= 1) })),
+          };
+        });
         const at1 = `J1 ${dev}`;
         chk(bar.title === 'Lead time for changes' && /Rhea Kapoor/.test(bar.owner || '') && /NORTH STAR|North star/i.test(bar.owner || '') && /G-\d+/.test(bar.owner || ''), `${at1}: line 1 “${bar.title}” / “${bar.owner}”`);
-        chk(/Off track/.test(bar.two) && /\d+ hours · plan \d+ hours · target \d+ hours/.test(bar.two) && /(worsening|flat|recovering)/.test(bar.two), `${at1}: line 2 “${bar.two}”`);
-        chk(/Lead time is well above plan/.test(bar.three || '') && /(being handled|no response yet)/.test(bar.three || ''), `${at1}: line 3 “${bar.three}”`);
-        chk(/^Fed by four goals: .*2 off track/.test(bar.feeds || ''), `${at1}: north star feeds line “${bar.feeds}”`);
+        // Line 2 is the status and the number; plan, target and trend are the scorecard's.
+        chk(/^Off track \d+ hours$/.test(bar.two), `${at1}: line 2 “${bar.two}”`);
+        // The scorecard: four labelled cells, each a value and one line.
+        const want = [
+          [/^vs plan$/i, /^\d+ hours? (behind|ahead)$|^On plan$/, /^plan \d+ hours$/],
+          [/^vs last week$/i, /^(No change|\d+ hours? (better|worse))$/, /^was \d+ hours? in week \d+$/],
+          [/^to target$/i, /^(\d+ hours? to go|Reached)$/, /^target 24 hours$/],
+          [/^will it hit 24\?$/i, /^(Likely|Possible|Unlikely|Very unlikely)$/, /^likely \d+ hours? by year end$/],
+        ];
+        chk(bar.cells.length === 4 && want.every(([l, v, sub], i) => bar.cells[i] && l.test(bar.cells[i].label) && v.test(bar.cells[i].value) && sub.test(bar.cells[i].sub)), `${at1}: scorecard ${JSON.stringify(bar.cells)}`);
+        // The target is said once in the first screen (outside the chart's own labels), not again under the chart.
+        const targets = (bar.firstText.match(/24 hours/g) || []).length;
+        chk(targets === 1, `${at1}: “24 hours” is said ${targets} times in the first screen`);
+        chk(!bar.oldFacts.length && !/Against plan|Likely end\s+about|could be|Target \d/.test(bar.under), `${at1}: the old rows under the chart (${bar.oldFacts.join(', ')}) “${bar.under}”`);
+        chk(/^Likely end projected from the last eight weeks, not the owner’s date\.$/.test(bar.under), `${at1}: the footnote under the chart “${bar.under}”`);
+        // The chart marks the scorecard's numbers: the gap to plan at now, the likely end, and what's left to the target.
+        chk(bar.band && /\d+ (behind|ahead)/.test(bar.marks.plan) && /likely \d+/.test(bar.marks.likely) && /(\d+ short|on course)/.test(bar.marks.target), `${at1}: chart marks ${JSON.stringify(bar.marks)}`);
+        // The reason is not in the bar: it opens Why, the section right under the chart. The feeds head What feeds it.
+        chk(!/Lead time is well above plan/.test(bar.barText) && /why-block/.test(bar.whyNext || '') && /^Lead time is well above plan/.test(bar.whyFirst), `${at1}: the reason is in the bar or does not open Why (next ${bar.whyNext}, “${bar.whyFirst.slice(0, 40)}”)`);
+        chk(/^Fed by four goals: .*2 off track/.test(bar.feeds) && !/Fed by/.test(bar.barText), `${at1}: What feeds it opens with “${bar.feeds}”`);
+        // Every section below the chart: a heading, one line on what it answers, and a rule above it.
+        const bare = bar.sections.filter((x) => !x.title || x.purpose.length < 10 || !x.rule);
+        chk(bar.sections.length >= 6 && !bare.length, `${at1}: sections without a heading, a purpose line or a rule: ${JSON.stringify(bare)} (of ${bar.sections.length})`);
         chk(s.status === 1, `${at1}: the goal's status “${s.label}” appears ${s.status} times in the first screen`);
         chk(s.chartTop != null && s.chartTop < s.fold - 60, `${at1}: the chart starts at ${s.chartTop}px, fold ${Math.round(s.fold)}px`);
         if (dev === 'laptop') chk(s.chartBottom != null && s.chartBottom <= s.fold + 120, `${at1}: the chart ends at ${s.chartBottom}px, fold ${Math.round(s.fold)}`);
         chk(s.primaries.length <= 1, `${at1}: ${s.primaries.length} primary actions in the first screen (${s.primaries.join(' | ')})`);
-        // The projection is a range on the chart, in words under it (approved: least squares over the recent weeks).
-        // Under the chart: short rows and a likely-end bar, not a paragraph (Lane, 5 Nov).
-        chk(bar.band && /Likely end\s+about \S+/.test(bar.caption) && /could be \S+ \S* ?to \S+/.test(bar.caption) && bar.endBar && !/→|week \d/.test(bar.caption), `${at1}: projection on the chart as rows and a bar: band ${bar.band}, bar ${bar.endBar}, “${bar.caption.slice(0, 160)}”`);
         // The reason is said once near the top; weeks that repeated it are one group in the activity.
         const said = await sayings(p, 'Lead time is well above plan and the gap grew again this week');
         chk(said.top === 1 && said.all <= 2, `${at1}: the reason is said ${said.top} times in the first two screens, ${said.all} in all`);
         // On a phone the bar is the header: no app header above it, the person button at its right.
         if (dev === 'phone') chk(!bar.mtop && bar.me, `${at1}: phone header still shown (${bar.mtop}) or no person button in the bar (${bar.me})`);
         // Removed: the four facts, Signals, What the owner says, the threats block, the breadcrumb and tab counts.
-        const gone = await p.evaluate(() => ['.story .facts', '.goal-rail', '.threats', '.crumbs', '.goal-sticky', '.tabcount', '.fact-source'].filter((q) => document.querySelector('.goal-page ' + q)));
+        const gone = await p.evaluate(() => ['.story .facts', '.goal-rail', '.threats', '.crumbs', '.goal-sticky', '.tabcount', '.fact-source', '.chart-facts'].filter((q) => document.querySelector('.goal-page ' + q)));
         chk(!gone.length, `${at1}: removed parts still on the page: ${gone.join(', ')}`);
         const heads = await p.evaluate(() => [...document.querySelectorAll('.goal-page h2')].map((e) => e.innerText.trim()));
         chk(!heads.some((x) => /^(Signals|What the owner says|Most likely to make it miss)$/.test(x)), `${at1}: old sections ${heads.join(' / ')}`);
-        // Scrubbing reads a week in words.
+        // Scrubbing reads a week in words: along the part of the chart in the first screen, without scrolling.
         const svg = p.locator('.goal-chart svg.chart');
         const box = await svg.boundingBox();
         if (box) {
-          await p.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
-          if (touch) { await p.mouse.down(); await p.mouse.move(box.x + box.width * 0.55, box.y + box.height * 0.5); }
+          const y = box.y + Math.max(8, Math.min(box.height * 0.5, (s.fold - box.y) / 2));
+          await p.mouse.move(box.x + box.width * 0.5, y);
+          if (touch) { await p.mouse.down(); await p.mouse.move(box.x + box.width * 0.55, y); }
           await p.waitForTimeout(120);
           const read = await p.locator('.goal-chart .chart-read').innerText();
           if (touch) await p.mouse.up();
           chk(/^Week \d+ \(.+\) · /.test(read), `${at1}: dragging along the chart reads “${read}”`);
         }
+        // Scrolled: the bar is one line on a solid panel, with a rule and a soft shadow under it, so it stands off the page.
+        await p.evaluate(() => window.scrollTo(0, 1600)); await p.waitForTimeout(300);
+        const cb = await p.evaluate(() => {
+          const b = document.querySelector('.goal-bar.compact');
+          if (!b) return null;
+          const cs = getComputedStyle(b);
+          const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(cs.backgroundColor);
+          return { text: b.innerText.replace(/\s+/g, ' ').trim(), h: Math.round(b.getBoundingClientRect().height), opaque: !alpha || Number(alpha[1]) === 1, rule: parseFloat(cs.borderBottomWidth) >= 1 && cs.borderBottomStyle !== 'none', shadow: cs.boxShadow !== 'none', menu: !!b.querySelector('.bar-menu summary') && b.querySelector('.bar-menu').getClientRects().length > 0, card: !!b.querySelector('.scorecard') && b.querySelector('.scorecard').getClientRects().length > 0 };
+        });
+        chk(cb && cb.opaque && cb.rule && cb.shadow && cb.menu && !cb.card && cb.h <= 64 && /Off track · \d+ hours · \d+ behind plan/.test(cb.text), `${at1}: the one-line bar ${JSON.stringify(cb)}`);
         await c.close();
       }
 
@@ -225,7 +281,8 @@ module.exports = {
         const back = p.locator('.goal-page > .backlink');
         chk((await back.innerText()).trim() === 'Back to Lead time for changes', `${at6}: back from ${child} says “${(await back.innerText()).trim()}”`);
         await back.click();
-        await p.locator('.goal-bar .bar-title').filter({ hasText: 'Lead time for changes' }).waitFor({ timeout: 3000 }).catch(() => fails.push(`${at6}: Back did not return to the north star`));
+        // Back lands where you were, down the page: on a phone the one-line bar there has no title, so it's on the page, not in view.
+        await p.locator('.goal-bar .bar-title').filter({ hasText: 'Lead time for changes' }).waitFor({ state: 'attached', timeout: 3000 }).catch(() => fails.push(`${at6}: Back did not return to the north star`));
         await c.close();
       }
 
@@ -269,7 +326,8 @@ module.exports = {
         await p.goto(url('/goals/G-1'));
         await p.locator('.goal-bar').waitFor(); await p.waitForTimeout(300);
         const again = await p.evaluate(() => ({ about: !!document.querySelector('details.about[open]'), line: document.querySelector('.context-line')?.innerText ?? '' }));
-        chk(!again.about && /^(Nothing new since you looked|Since you looked) /.test(again.line), `${at8}: coming back, About open ${again.about}, line “${again.line}”`);
+        // Nothing new since: no line at all (Lane, 5 Nov); something new: what it was.
+        chk(!again.about && (again.line === '' || /^Since you looked /.test(again.line)), `${at8}: coming back, About open ${again.about}, line “${again.line}”`);
         await c.close();
       }
     }
@@ -337,10 +395,10 @@ module.exports = {
     /* ---------- plan and actual never alike; which way is better (Lane, 5 Nov) ---------- */
     for (const [ws, who, route, way] of [['platform-org', 'rhea', '/goals/ns-ai', 'Higher'], ['platform-org', 'amara', '/goals/ns-lead', 'Lower']]) {
       const [c, p] = await at(browser, url, { w: 1280, h: 800, ws, who, route });
-      for (const theme of ['light', 'dark']) for (const accent of ['cobalt', 'violet', 'petrol', 'graphite']) {
+      for (const theme of ['light', 'dark']) for (const accent of ['faro', 'cobalt', 'violet', 'petrol', 'graphite']) {
         const r = await p.evaluate(([theme, accent]) => {
           const d = document.documentElement;
-          d.setAttribute('data-theme', theme); if (accent === 'cobalt') d.removeAttribute('data-accent'); else d.setAttribute('data-accent', accent);
+          d.setAttribute('data-theme', theme); if (accent === 'faro') d.removeAttribute('data-accent'); else d.setAttribute('data-accent', accent);
           const st = (q) => { const e = document.querySelector('.goal-chart ' + q); if (!e) return null; const s = getComputedStyle(e); return { c: s.stroke, w: parseFloat(s.strokeWidth), o: Number(s.strokeOpacity) }; };
           return { plan: st('.c-plan'), act: st('.c-act'), better: document.querySelector('.goal-chart .c-better-t')?.textContent ?? '' };
         }, [theme, accent]);

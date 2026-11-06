@@ -141,6 +141,11 @@ main.work > .page, main.work > .focus { animation: pm-page-in .18s ease-out back
   .ps-facts { gap: 3px; }
   .ps-rows li { padding: 3px 0; }
   .ps-said { gap: 4px; }
+  /* What was said, one run of text each: who and where, then the words, then who's on it. */
+  .ps-said li { display: block; }
+  .ps-said li > span { display: inline; }
+  .ps-said li > .ps-said-kind::after { content: ': '; }
+  .ps-said li > .hint::before { content: ' · '; }
   .ps-fact, .ps-block, .ps-goal, .ps-rows li, .ps-said li, .ps-status, .ps-cols { break-inside: avoid; }
   .ps-h, .ps-goal-head { break-after: avoid; }
   .chip, .tone-on, .tone-risk, .tone-off, .tone-stale, .tone-done, .tone-ahead, .tone-planned, .ps-result { color: #000 !important; background: none !important; }

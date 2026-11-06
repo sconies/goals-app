@@ -6,8 +6,7 @@
    how those actions are going; where it is heading; what has happened, and what was said the last time it was discussed.
    Each fact has one home on it (the plan's "one home for each fact" table). */
 import type { GoalAttention } from './attention';
-import { isShare } from './checkin';
-import { fmt, NO_VALUE, rangeText } from './format';
+import { fmt, NO_VALUE } from './format';
 import { currentWeek, daysSince, goalAsOf, planAt, planEnd, projection, valueSeries } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
 import { asksOf, canAnswer, canMarkDone, isOverdue, isResolved, liveNotes, openAsksFor } from './asks';
@@ -240,7 +239,7 @@ export function firstLook(goal: Goal): string {
 export interface PathCheck {
   what: string;
   byWeek: number | null;
-  /** "The recent trend doesn’t get there without a change (heading for 82–84% against a plan of 87%)." */
+  /** "The recent trend doesn’t get there without a change." */
   check: string | null;
   /** The trend reaches the plan by the owner's date. */
   reaches: boolean | null;
@@ -264,9 +263,8 @@ export function pathCheck(goal: Goal, s: Snapshot, cycle: Cycle, week: number, l
     const reaches = (p.value - plan) * dir >= -1e-9;
     return {
       what: ptg.what, byWeek: by, reaches, missed,
-      check: reaches
-        ? `The recent trend gets there (heading for ${rangeText(p, goal, isShare(goal))} against a plan of ${fmt(plan, goal)}).`
-        : `The recent trend doesn’t get there without a change (heading for ${rangeText(p, goal, isShare(goal))} against a plan of ${fmt(plan, goal)}).`,
+      // In words only: the numbers are the scorecard's and the chart's, and a second range here projected to another week.
+      check: reaches ? 'The recent trend gets there.' : 'The recent trend doesn’t get there without a change.',
     };
   }
   if (goal.kind === 'milestone') {
@@ -412,7 +410,9 @@ export function feedingOrder(children: Goal[], att: (g: Goal) => GoalAttention, 
   if (!top || !needy.includes(top)) return { pinned: null, rest: sorted };
   const at = att(top);
   const f = at.flags.find((x) => x.kind !== 'due' && x.kind !== 'off' && x.kind !== 'risk');
-  const why = [onPath.has(top.id) ? 'On the critical path' : '', at.status.status === 'stale' ? 'Its last result is unknown' : f ? f.label : 'Furthest behind of the goals feeding it'].filter(Boolean).join('. ') + '.';
+  // Short enough for one line beside "Most likely to make it miss:" (F4): "on the critical path; furthest behind."
+  const parts = [onPath.has(top.id) ? 'on the critical path' : '', at.status.status === 'stale' ? 'its last result is unknown' : f ? f.label.charAt(0).toLowerCase() + f.label.slice(1) : 'furthest behind'].filter(Boolean);
+  const why = parts.join('; ') + '.';
   return { pinned: { goal: top, why }, rest: sorted.slice(1) };
 }
 

@@ -1,7 +1,9 @@
 /* A goal's page: the app's flagship (approved by Lane, 5 Nov). It answers, in order: what is this goal and who owns
    it; how is it doing; if badly, why; what is being done and how those actions are going; where it's heading; what has
-   happened, and what was said the last time it was discussed. Each fact has one home: the summary bar carries status,
-   number and gap; the chart carries direction and the projection; Why carries the evidence; and so on down.
+   happened, and what was said the last time it was discussed. Each fact has one home (Lane, 5 Nov, on a phone: "the
+   target four times, the trend three times"): the bar carries the status, the number and the scorecard (vs plan, vs
+   last week, to target, will it hit); the chart marks those numbers where they are; Why opens with the owner's reason;
+   What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
@@ -12,7 +14,7 @@ import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, LEVEL_LABEL } from '../domain/format';
 import { planHistoryOf, valueSeries, weekDates } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
-import { summaryFacts, weeksLateAt } from '../domain/summaryFacts';
+import { goalScorecard, type ScoreCell, type Scorecard } from '../domain/scorecard';
 import { criticalPath } from '../domain/map';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { ASK_KIND_LABEL, asksOf, canMarkDone, canWithdraw, openUpdateAsk } from '../domain/asks';
@@ -36,9 +38,6 @@ import { MenuButton } from '../ui/MenuButton';
 import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
 import { reducedMotion, STORY_MS } from '../ui/motion';
-import { byWhen, metricFacts, rangeFacts, sayAmount, stageFacts, type StoryFacts } from '../domain/chartStory';
-import { ChartFacts } from '../ui/ChartFacts';
-import { isShare } from '../domain/checkin';
 import { effectOn, landedMoment, openMotionLab, storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 
@@ -111,6 +110,7 @@ function GoalView({ goal }: { goal: Goal }) {
   const primary = primaryAction({ goal, viewer: app.viewer, owner, status, due, week, asked, updateAsked: !!updateAsk, watching });
 
   const figures = barFigures(goal, app.snapshot, cycle, week, stale);
+  const card = goalScorecard(goal, cycle, app.snapshot.checkIns, week, stale);
   const why = whyLine(goal, app.snapshot, att);
   const feeds = feedsLine(children, (g) => app.statusOf(g).status);
   const a = assessPosted(goal, cycle, app.snapshot.checkIns, week);
@@ -118,7 +118,9 @@ function GoalView({ goal }: { goal: Goal }) {
 
   // The context line: just posted, or what's new since the last look, or (first time) what the number is.
   const postedText = posted ? postedLine(goal, app.snapshot, cycle, week) : null;
-  const since = !posted && seen ? sinceLooked(goal, app.snapshot, seen, status, app.today) : null;
+  // Since you looked: only when something has changed; nothing new says nothing (Lane, 5 Nov).
+  const looked = !posted && seen ? sinceLooked(goal, app.snapshot, seen, status, app.today) : null;
+  const since = looked && (looked.checkIns + looked.comments + looked.changes > 0 || looked.statusFrom) ? looked : null;
   const statusMoved = !!since?.statusFrom || (!!postedText?.from && postedText.from !== postedText.to);
 
   // Asking a quiet goal's owner for an update stays visible ("Asked 2 hours ago") until the next check-in; whoever asked
@@ -185,12 +187,12 @@ function GoalView({ goal }: { goal: Goal }) {
       </> : since ? <>{since.text}{(since.checkIns + since.comments + since.changes) > 0 && <> <a className="linkish" href="#activity">See them</a></>}</> : firstLook(goal)}
     </p>
   );
-  const chart = <GoalChart key="chart" goal={goal} stale={stale} landed={posted} hit={hit} />;
-  const whySection = !review && <WhySection key="why" goal={goal} />;
+  const chart = <GoalChart key="chart" goal={goal} stale={stale} landed={posted} hit={hit} card={card} />;
+  const whySection = !review && <WhySection key="why" goal={goal} why={why} />;
   const doing = !review && <DoingSection key="doing" goal={goal} withActions={!wide} asked={asked} />;
   const actionsSide = !review && wide && <ActionsSection key="actions" goal={goal} asked={asked} />;
   const talked = <TalkedSection key="talked" goal={goal} />;
-  const feeding = !review && children.length > 0 && <FeedsSection key="feeds" feeding={children} />;
+  const feeding = !review && children.length > 0 && <FeedsSection key="feeds" feeding={children} feeds={feeds} />;
   const quarters = !review && isYear(cycle) && <QuarterStrip key="quarters" goal={goal} />;
   const activity = !review && <ActivitySection key="activity" goal={goal} focusComposer={tabComments && !alias} />;
   const about = !review && <AboutSection key="about" goal={goal} detailsRef={aboutRef} open={aboutOpen ?? firstVisit} onToggle={setAboutOpen} />;
@@ -200,13 +202,15 @@ function GoalView({ goal }: { goal: Goal }) {
 
   const main = review ? [evidence] : [chart, whySection, doing, feeding, quarters, activity, about];
   const side = review ? [askedSection, talked] : [askedSection, contextLine, actionsSide, talked];
-  const phone = review ? [askedSection, evidence, talked] : [askedSection, contextLine, chart, whySection, doing, talked, feeding, quarters, activity, about];
+  // On a phone the chart comes first in the first screen: a first look's line on what the number measures waits under it.
+  const firstOnly = !postedText && !since;
+  const phone = review ? [askedSection, evidence, talked] : [askedSection, firstOnly ? null : contextLine, chart, firstOnly ? contextLine : null, whySection, doing, talked, feeding, quarters, activity, about];
 
   return (
     <div className={'page goal-page' + (review ? ' in-review' : '')} ref={page}>
       <ReviewBar goalId={goal.id} />
       <GoalBack />
-      <GoalBar goal={goal} status={status} figures={figures} why={why} feeds={feeds} stale={stale} actions={actions} askedLine={askedLine}
+      <GoalBar goal={goal} status={status} figures={figures} card={card} actions={actions} askedLine={askedLine}
         statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own[0]?.value ?? null : null} />
 
       {published && (
@@ -233,14 +237,16 @@ function GoalView({ goal }: { goal: Goal }) {
 /* ---------------------------------------------------------------------------------------------------- the bar */
 
 /**
- * The summary bar: a two-second read. Line 1: the goal and its owner. Line 2: status, the number against plan and
- * target, which way it's heading. Line 3: why, and whether anyone's on it. Once it scrolls away it shrinks to one line
- * that stays at the top (title, status, number, the main action): the same element, not a copy. On a phone it is the
- * page's header, with the app header's Demo tag and person button at its right.
+ * The summary bar: a two-second read. The goal and its owner; its status and the number; then the scorecard, four
+ * labelled cells that answer how it stands against plan, what changed since last week, what's left to the target and
+ * whether it will get there (domain/scorecard). The reason and the goals feeding it have their own sections below, said
+ * once there. Once the bar scrolls away it shrinks to one line at the top, a solid panel with a rule under it: status,
+ * number and the gap to plan, and the "…" menu (the same element, not a copy). On a phone it is the page's header, with
+ * the app header's Demo tag and person button at its right.
  */
-function GoalBar({ goal, status, figures, why, feeds, stale, actions, askedLine, statusMoved, hit, countFrom }: {
-  goal: Goal; status: DisplayStatus; figures: ReturnType<typeof barFigures>; why: ReturnType<typeof whyLine>; feeds: ReturnType<typeof feedsLine>;
-  stale: boolean; actions: ReactNode; askedLine: ReactNode; statusMoved: boolean; hit: boolean; countFrom: number | null;
+function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved, hit, countFrom }: {
+  goal: Goal; status: DisplayStatus; figures: ReturnType<typeof barFigures>; card: Scorecard;
+  actions: ReactNode; askedLine: ReactNode; statusMoved: boolean; hit: boolean; countFrom: number | null;
 }) {
   const app = useApp();
   const owner = app.person(goal.ownerId);
@@ -251,12 +257,6 @@ function GoalBar({ goal, status, figures, why, feeds, stale, actions, askedLine,
   const num = figures.nowValue != null && goal.kind !== 'milestone'
     ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={STORY_MS * storyPace()} onLanded={landedMoment} />
     : figures.now;
-  const arrow = figures.direction && (
-    <span className={'bar-dir dir-' + figures.direction} title={figures.directionText ?? undefined} aria-label={figures.directionText ? `Heading: ${figures.directionText}` : undefined}>
-      <Icon name={figures.direction === 'worsening' ? 'trend-down' : figures.direction === 'recovering' ? 'arrow-up' : 'arrow-right'} size={14} />
-      {figures.direction}
-    </span>
-  );
   return (
     <div className="goal-bar-slot" ref={slot} style={c.on ? { height: c.height } : undefined}>
       <header className={'goal-bar' + (c.on ? ' compact' : '') + (hit ? ' hit' : '')} data-tone={status} style={c.on ? { position: 'fixed', top: c.top, left: c.left, width: c.width } : undefined} aria-label="This goal">
@@ -271,22 +271,46 @@ function GoalBar({ goal, status, figures, why, feeds, stale, actions, askedLine,
         </div>
         <div className="bar-2">
           <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>
+          <span className="bar-dot" aria-hidden="true">·</span>
           <span className="bar-now">{num}</span>
-          {figures.against.map((x) => <span key={x} className="bar-against"><span aria-hidden="true">· </span>{x}</span>)}
-          {!stale && arrow}
+          {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}
+          {card.gap && <span className="bar-gap"><span aria-hidden="true">· </span>{card.gap}</span>}
         </div>
-        {(why.text || why.handledText || askedLine || feeds) && (
-          <div className="bar-3">
-            {why.text && <span className="bar-why">{why.text}{stale ? '. Without a newer check-in, the status and any projection can’t be trusted.' : ''}</span>}
-            {why.handledText && <span className={'bar-handled ' + (why.handled === 'handled' ? 'is-handled' : 'not-handled')}><span aria-hidden="true">· </span>{why.handledText}</span>}
-            {askedLine}
-            {feeds && (
-              <span className="bar-feeds"><a href="#feeds" className="linkish">{feeds.text.split(':')[0]}</a>{feeds.counts.length > 0 && <>: {feeds.counts.map((x, i) => <span key={x.status} className={'feeds-count tone-' + x.status}>{i ? ', ' : ''}<StatusShape k={x.status} />{x.n} {LABEL[x.status].toLowerCase()}</span>)}</>}{!feeds.counts.length && ', none behind'}</span>
-            )}
-          </div>
-        )}
+        {card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
+        {askedLine && <div className="bar-note">{askedLine}</div>}
         {actions && <div className="bar-actions">{actions}</div>}
       </header>
+    </div>
+  );
+}
+
+/** The scorecard: a label, a value and one muted line per cell; two by two on a phone, in a row on a wider screen. */
+function ScoreGrid({ cells }: { cells: ScoreCell[] }) {
+  return (
+    <dl className={'scorecard cells-' + cells.length} aria-label="Scorecard">
+      {cells.map((c) => (
+        <div key={c.key} className={'sc-cell sc-' + c.key}>
+          <dt className="sc-label">{c.label}</dt>
+          <dd className={'sc-value tone-' + c.tone}>{c.move && <MoveMark up={c.move === 'up'} />}{c.value}</dd>
+          <dd className="sc-sub">{c.sub}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Which way the number moved: a small drawn triangle (the app's own shape, not a glyph). */
+const MoveMark = ({ up }: { up: boolean }) => (
+  <svg className="sc-move" viewBox="0 0 10 10" aria-hidden="true"><path d={up ? 'M5 1.5 9 8.5H1z' : 'M1 1.5h8L5 8.5z'} fill="currentColor" /></svg>
+);
+
+/** A section's heading and one muted line saying what it answers (Lane, 5 Nov: "say what each part is for"). */
+function SectionHead({ id, title, purpose, children }: { id?: string; title: string; purpose: ReactNode; children?: ReactNode }) {
+  return (
+    <div className="section-head">
+      <h2 className="block-title" id={id}>{title}</h2>
+      <p className="section-purpose">{purpose}</p>
+      {children}
     </div>
   );
 }
@@ -382,7 +406,7 @@ function AskedOfYou({ goal, items, open, focus, onOpen, onDone, sectionRef }: { 
     : `${x.fromFirst} commented`;
   return (
     <section className="block asked" aria-labelledby="g-asked" ref={sectionRef}>
-      <h2 className="block-title" id="g-asked">Asked of you</h2>
+      <SectionHead id="g-asked" title="Asked of you" purpose="Waiting on you: answer it here." />
       <ul className="asked-list">
         {items.map((x) => {
           const isOpen = open === x.id;
@@ -449,7 +473,7 @@ function ReplyBox({ goal, item, focus, onDone }: { goal: Goal; item: AskedItem; 
 
 /* ---------------------------------------------------------------------------------------------------- the chart */
 
-function GoalChart({ goal, stale, landed, hit }: { goal: Goal; stale: boolean; landed: boolean; hit: boolean }) {
+function GoalChart({ goal, stale, landed, hit, card }: { goal: Goal; stale: boolean; landed: boolean; hit: boolean; card: Scorecard }) {
   const app = useApp();
   const { cycle, week } = app;
   const own = app.checkInsOf(goal);
@@ -471,22 +495,17 @@ function GoalChart({ goal, stale, landed, hit }: { goal: Goal; stale: boolean; l
       return parts.join(' · ') + (c && c.why && c.why !== 'On plan.' ? `. ${c.cause ? causeLabel(c.cause) + ': ' : ''}${c.why}` : '');
     },
   };
-  const facts = summaryFacts(goal, cycle, app.snapshot.checkIns, week, stale).facts;
-  const rangeProj = goal.kind === 'range' ? facts.find((f) => f.key === 'projection' && f.projection) : undefined;
-  // Where it stands and where it's heading, as a few short rows and a small "likely end" bar (chartStory.ts, ChartFacts).
-  const storyFacts: StoryFacts = stale ? { rows: [], footnote: 'No projection: the last check-in is too old to project from.' }
-    : goal.kind === 'metric' && a.kind === 'metric'
-      ? metricFacts(goal, series, cycle.weeks, a.forecast != null && a.projection ? { likely: a.forecast, low: a.projection.low, high: a.projection.high } : null, a.forecastMisses, byWhen(cycle, goal.plan.endWeek ?? cycle.weeks), isShare(goal))
-    : goal.kind === 'range' ? rangeFacts(goal, series, rangeProj?.projection ?? null, byWhen(cycle, cycle.weeks))
-    : goal.kind === 'milestone' ? stageFacts(own.filter((c) => c.stages).slice(-3).map((c) => ({ week: c.week, late: weeksLateAt(goal, c) })))
-    : { rows: [] };
-  const say = (v: number) => (goal.kind === 'milestone' ? String(v) : sayAmount(v, goal));
-  const caption = storyFacts.rows.length || storyFacts.footnote ? <ChartFacts facts={storyFacts} say={say} /> : null;
+  // Under the chart, one small footnote: where the likely end comes from. The numbers are the scorecard's, marked on the chart.
+  const projected = card.cells.some((c) => c.key === 'hit' && c.likelihood);
+  const foot = stale ? 'No projection: the last check-in is too old to project from.'
+    : projected ? (goal.kind === 'metric' ? 'Likely end projected from the last eight weeks, not the owner’s date.' : 'Likely end projected from the last eight weeks.')
+    : null;
+  const caption = foot ? <span className="chart-say chart-foot">{foot}</span> : null;
   return (
     <section className="block goal-chart-block" aria-label="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptg?.byWeek ?? null} scrub={scrub} draw={draw} landed={landed && draw} hit={hit} />
+          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptg?.byWeek ?? null} scrub={scrub} draw={draw} landed={landed && draw} hit={hit} marks={stale ? null : card.marks} />
           {(caption || goal.originalPlan) && <figcaption className="small">{caption}{goal.originalPlan ? <PlanChanges goal={goal} /> : null}</figcaption>}
         </figure>
       )}
@@ -496,7 +515,7 @@ function GoalChart({ goal, stale, landed, hit }: { goal: Goal; stale: boolean; l
           {caption && <figcaption className="small">{caption}</figcaption>}
         </figure>
       )}
-      {a.kind === 'milestone' && <div className="card"><StageList a={a} />{caption}</div>}
+      {a.kind === 'milestone' && <div className="card"><StageList a={a} /></div>}
     </section>
   );
 }
@@ -508,40 +527,48 @@ function PlanChanges({ goal }: { goal: MetricGoal }) {
   if (!last) return null;
   const what = last.plan.target !== goal.plan.target ? `Target changed in week ${last.untilWeek}: ${fmt(last.plan.target, goal)} → ${fmt(goal.plan.target, goal)}.` : `Plan changed in week ${last.untilWeek}.`;
   const first = history.length > 1 ? ` It was first set at ${fmt(history[0]!.plan.target, goal)}, and has changed ${history.length} times.` : '';
-  return <span className="muted">{what}{first} The original plan is dotted; earlier weeks and closed quarters are judged against the plan of their day.</span>;
+  return <span className="muted plan-changes">{what}{first} The original plan is dotted; earlier weeks and closed quarters are judged against the plan of their day.</span>;
 }
 
 /* ---------------------------------------------------------------------------------------------------- why */
 
-/** Why: who gave the reason and since when, its cause, and the signals as small tags. The reason itself is in the bar. */
-function WhySection({ goal }: { goal: Goal }) {
+/**
+ * Why: the owner's reason opens it, then whether anyone is on it, where the reason came from and since when, and
+ * anything the numbers would otherwise hide, as small tags. The trend is the scorecard's (vs last week), not a tag here.
+ * On plan, the same place carries the owner's latest word; gone quiet, how long since anyone said anything.
+ */
+function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine> }) {
   const app = useApp();
   const att = app.attentionOf(goal);
   const latest = att.status.latest;
   const status = att.status.status;
-  const facts = summaryFacts(goal, app.cycle, app.snapshot.checkIns, app.week, status === 'stale').facts;
-  const trend = facts.find((f) => f.key === 'trend');
-  const signals = att.flags.filter((f) => !['due', 'off', 'risk', 'stale'].includes(f.kind));
+  const signals = att.flags.filter((f) => !['due', 'off', 'risk', 'stale', 'trend'].includes(f.kind));
   const behind = status === 'off' || status === 'risk';
-  if (!behind && !signals.length) return null;
+  const stale = status === 'stale';
+  const reason = !!latest && !!latest.why && latest.why !== 'On plan.';
+  // On plan with nothing said, there's nothing to explain.
+  if (!behind && !stale && !reason && !latest?.next && !signals.length) return null;
   const own = app.checkInsOf(goal);
   let k = own.length - 1;
   while (k > 0 && latest && own[k - 1]!.why === latest.why && own[k - 1]!.cause === latest.cause) k--;
   const runFrom = own[k]?.week;
   const by = latest ? app.person(latest.authorId)?.name.split(' ')[0] ?? 'The owner' : null;
-  const reason = latest && latest.why && latest.why !== 'On plan.';
-  const flat = trend?.detail && /^Flat at /.test(trend.detail) ? trend.detail : null;
+  const when = latest ? (latest.week === app.week ? 'this week’s check-in' : `the week ${latest.week} check-in`) : null;
+  const [title, purpose] = stale ? ['Why it’s gone quiet', 'When the owner last said where it stands.']
+    : behind ? ['Why it’s behind', `The owner’s reason, from ${when ?? 'their check-in'}.`]
+    : ['The latest word', when ? `What the owner said in ${when}.` : 'What the owner has said so far.'];
   return (
-    <section className="block why-block" aria-labelledby="g-why">
-      <h2 className="block-title" id="g-why">Why</h2>
-      {latest && reason && (
+    <section className="block why-block goal-section" aria-labelledby="g-why">
+      <SectionHead id="g-why" title={title} purpose={purpose} />
+      {why.text && (behind || stale || reason || !!latest?.next) && <p className="why-text">{why.text}{stale ? '. Without a newer check-in, the status and any projection can’t be trusted.' : ''}</p>}
+      {why.handledText && <p className={'why-handled ' + (why.handled === 'handled' ? 'is-handled' : 'not-handled')}>{cap(why.handledText)}.</p>}
+      {behind && latest && reason && (
         <p className="why-by">
           {latest.cause ? <><strong>{causeLabel(latest.cause)}</strong>, from </> : 'From '}{by}’s check-in in week {latest.week}{runFrom != null && runFrom < latest.week ? `; the same reason since week ${runFrom}` : ''}.
         </p>
       )}
-      {flat && <p className="why-flat">{flat}.</p>}
       {signals.length > 0 && (
-        <ul className="signal-tags" aria-label="Signals">
+        <ul className="signal-tags" aria-label="Also worth knowing">
           {signals.map((f) => <li key={f.kind} className="signal-tag" title={f.detail}><WarnMark />{f.label}</li>)}
         </ul>
       )}
@@ -565,8 +592,8 @@ function DoingSection({ goal, withActions, asked }: { goal: Goal; withActions: b
   const state = latest?.pathToGreen?.state ?? 'plan';
   if (!behind && !(withActions && items.length)) return null;
   return (
-    <section className="block doing" aria-labelledby="g-doing">
-      <h2 className="block-title" id="g-doing">What’s being done</h2>
+    <section className="block doing goal-section" aria-labelledby="g-doing">
+      <SectionHead id="g-doing" title="What’s being done" purpose={behind ? 'The owner’s plan to get back on track, and who’s doing what.' : 'Who’s doing what about it, and how each ask stands.'} />
       {behind && (path ? (
         <div className="ptg">
           <span className="field-label">Path to green</span>
@@ -590,7 +617,7 @@ function ActionsSection({ goal, asked }: { goal: Goal; asked: AskedItem[] }) {
   if (!items.length) return null;
   return (
     <section className="block side-actions" aria-labelledby="g-actions">
-      <h2 className="block-title" id="g-actions">Actions</h2>
+      <SectionHead id="g-actions" title="Actions" purpose="The asks on this goal: who, by when, and how each stands." />
       <ActionRows goal={goal} items={items} />
     </section>
   );
@@ -646,8 +673,8 @@ function TalkedSection({ goal }: { goal: Goal }) {
   const nextText = t.next ? `${t.next.review}, ${t.next.date === app.today.toISOString().slice(0, 10) ? 'today' : `${t.next.weekday} ${dayOf(t.next.date).replace(/^\w+ /, '')}`}` : null;
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
   return (
-    <section className="block talked" aria-labelledby="g-talked">
-      <h2 className="block-title" id="g-talked">Last time we talked</h2>
+    <section className="block talked goal-section" aria-labelledby="g-talked">
+      <SectionHead id="g-talked" title="Last time we talked" purpose="What the last review said about it." />
       {t.held ? (
         <>
           <p className="small"><span className="strong">{t.held.review}</span>, {dayOf(t.held.on)} (week {t.held.week}){t.held.said.length ? '' : ': reviewed, nothing added.'}</p>
@@ -670,17 +697,24 @@ function TalkedSection({ goal }: { goal: Goal }) {
 
 /* ---------------------------------------------------------------------------------------------------- what feeds it */
 
-function FeedsSection({ feeding }: { feeding: Goal[] }) {
+function FeedsSection({ feeding, feeds }: { feeding: Goal[]; feeds: ReturnType<typeof feedsLine> }) {
   const app = useApp();
   const [all, setAll] = useState(false);
   const onPath = criticalPath(app.snapshot.goals, (g) => app.statusOf(g).status);
   const { pinned, rest } = feedingOrder(feeding, (g) => app.attentionOf(g), onPath);
   const shown = all ? rest : rest.slice(0, pinned ? 2 : 3);
   return (
-    <section className="block feeds" id="feeds" aria-labelledby="g-feeds">
-      <h2 className="block-title" id="g-feeds">What feeds it</h2>
+    <section className="block feeds goal-section" id="feeds" aria-labelledby="g-feeds">
+      <SectionHead id="g-feeds" title="What feeds it" purpose="The goals that move this number, worst first.">
+        {/* How they stand, said once: "Fed by four goals: 2 off track, 1 at risk". */}
+        {feeds && (
+          <p className="feeds-sum">
+            {feeds.text.split(/[:,]/)[0]}{feeds.counts.length > 0 ? <>: {feeds.counts.map((x, i) => <span key={x.status} className={'feeds-count tone-' + x.status}>{i ? ', ' : ''}<StatusShape k={x.status} />{x.n} {LABEL[x.status].toLowerCase()}</span>)}</> : ', none behind'}
+          </p>
+        )}
+      </SectionHead>
       <ul className="tree">
-        {pinned && <li className="pinned"><GoalRow g={pinned.goal} /><span className="hint pinned-why">Most likely to make it miss: {pinned.why}</span></li>}
+        {pinned && <li className="pinned"><GoalRow g={pinned.goal} /><span className="hint pinned-why"><span className="strong">Most likely to make it miss:</span> {pinned.why}</span></li>}
         {shown.map((g) => <li key={g.id}><GoalRow g={g} /></li>)}
       </ul>
       {rest.length > shown.length && <button type="button" className="linkish small show-all" onClick={() => setAll(true)}>Show the other {rest.length - shown.length}</button>}
@@ -697,8 +731,8 @@ function QuarterStrip({ goal }: { goal: Goal }) {
   const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, app.week);
   if (rs.every((r) => r.kind === 'none')) return null;
   return (
-    <section className="block" aria-label="This year by quarter">
-      <h2 className="block-title">This year by quarter</h2>
+    <section className="block goal-section" aria-labelledby="g-quarters">
+      <SectionHead id="g-quarters" title="This year by quarter" purpose="Whether each quarter met its plan." />
       <ol className="quarters">
         {rs.map((r) => (
           <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
@@ -725,8 +759,8 @@ function ActivitySection({ goal, focusComposer }: { goal: Goal; focusComposer: b
   const ref = useRef<HTMLElement>(null);
   useLayoutEffect(() => { if (focusComposer) { ref.current?.scrollIntoView({ block: 'start' }); document.getElementById('note-' + goal.id)?.focus({ preventScroll: true }); } }, [focusComposer, goal.id]);
   return (
-    <section className="block activity" id="activity" aria-labelledby="g-activity" ref={ref}>
-      <h2 className="block-title" id="g-activity">Activity</h2>
+    <section className="block activity goal-section" id="activity" aria-labelledby="g-activity" ref={ref}>
+      <SectionHead id="g-activity" title="Activity" purpose="Check-ins, comments and changes, newest first." />
       <NoteComposer goal={goal} />
       <div className="seg activity-filter" role="group" aria-label="Show">
         {FILTERS.map(([k, l]) => <button key={k} type="button" aria-pressed={filter === k} onClick={() => { setFilter(k); setAll(false); }}>{l}</button>)}
@@ -867,8 +901,8 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
   const history = goal.kind === 'metric' ? planHistoryOf(goal) : [];
   const own = app.checkInsOf(goal);
   return (
-    <details className="block about" ref={detailsRef} open={open} onToggle={(e) => onToggle((e.target as HTMLDetailsElement).open)}>
-      <summary><h2 className="block-title">About this goal</h2></summary>
+    <details className="block about goal-section" ref={detailsRef} open={open} onToggle={(e) => onToggle((e.target as HTMLDetailsElement).open)}>
+      <summary><span className="section-head"><h2 className="block-title">About this goal</h2><span className="section-purpose">How it’s measured, its plan week by week, and who watches it.</span></span></summary>
       <dl className="details">
         {goal.kind !== 'milestone' && <><dt>How it’s measured</dt><dd>{goal.definition || <span className="muted">Not described yet.</span>}{goal.source ? <span className="muted"> Source: {goal.source}.</span> : null}</dd></>}
         {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {goal.plan.endWeek ?? cycle.weeks} ({weekDates(cycle, goal.plan.endWeek ?? cycle.weeks)}){(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}</dd></>}

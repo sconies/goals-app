@@ -1,9 +1,10 @@
 /* N2: Lane's review notes (5 Nov), goal-page, as rebuilt into the flagship page the same day. run({ open, url, browser })
    returns a list of failures.
    What each old check protected, and where it is now:
-   - the four facts (against plan, trend, since, projection) → the summary bar's second line (number, plan, target,
-     direction) and the words under the chart (trend and projection); the facts themselves are still worked out once in
-     summaryFacts (evals/goalSummary.eval.ts);
+   - the four facts (against plan, trend, since, projection) → the summary bar's scorecard (vs plan, vs last week, to
+     target, will it hit), marked on the chart (the scorecard, 5 Nov); the facts themselves are still worked out once in
+     summaryFacts and scorecard (evals/goalSummary.eval.ts, src/domain/scorecard.test.ts);
+   - the reason and whether it's being handled → the top of Why, under the chart;
    - the path to green in the main column → What's being done, in the main column, with the owner's date labelled;
    - the grouped side column → Asked of you, Actions and Last time we talked, under labelled headings;
    - the header that stays on screen → the summary bar itself shrinking to one line, under the review bar when there is one;
@@ -24,10 +25,9 @@ async function bar(p) {
       status: txt(b?.querySelector('.bar-status')),
       shape: !!b?.querySelector('.bar-status svg'),
       now: txt(b?.querySelector('.bar-now')),
-      against: [...(b?.querySelectorAll('.bar-against') ?? [])].map(txt),
-      dir: txt(b?.querySelector('.bar-dir')),
-      why: txt(b?.querySelector('.bar-why')),
-      handled: txt(b?.querySelector('.bar-handled')),
+      cells: Object.fromEntries([...(b?.querySelectorAll('.scorecard .sc-cell') ?? [])].map((c) => [txt(c.querySelector('.sc-label')).toLowerCase(), { value: txt(c.querySelector('.sc-value')), sub: txt(c.querySelector('.sc-sub')) }])),
+      why: txt(document.querySelector('.why-block .why-text')),
+      handled: txt(document.querySelector('.why-block .why-handled')),
       ptg: vis(ptg) ? { inMain: !!ptg.closest('.goal-main, .goal-col'), inSide: !!ptg.closest('.goal-side'), text: txt(ptg) } : null,
       heads: [...document.querySelectorAll('.goal-side .block-title')].filter(vis).map(txt),
       sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -45,8 +45,8 @@ module.exports = {
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
     let c, p;
 
-    // (a, b) The bar's second and third lines, and the path to green in the main column, on a number goal behind plan,
-    // at every width, light and dark.
+    // (a, b) The bar's status, number and scorecard, the reason opening Why, and the path to green in the main column, on
+    // a number goal behind plan, at every width, light and dark.
     for (const [w, h, touch] of [[390, 844, true], [1100, 900, false], [1280, 800, false], [1440, 900, false]]) {
       for (const scheme of ['light', 'dark']) {
         [c, p] = await open(w, h, 'yasmin', '/goals/vuln-containers', touch);
@@ -57,9 +57,9 @@ module.exports = {
         const at = `vuln-containers ${w} ${scheme}`;
         chk(/^(At risk|Off track)$/.test(f.status) && f.shape, `${at}: bar status “${f.status}”`);
         chk(/^\d+%$/.test(f.now), `${at}: bar number “${f.now}”`);
-        chk(/plan \d+%/.test(f.against.join(' ')) && /target \d+%/.test(f.against.join(' ')), `${at}: bar says “${f.against.join(' / ')}”`);
-        chk(/^(worsening|flat|recovering)$/.test(f.dir), `${at}: bar direction “${f.dir}”`);
-        chk(f.why.length > 20 && /^· (being handled|no response yet)/.test(f.handled), `${at}: line 3 “${f.why}” “${f.handled}”`);
+        const cells = f.cells;
+        chk(/^(\d+ pts? (behind|ahead)|On plan)$/.test(cells['vs plan']?.value) && /^plan \d+%$/.test(cells['vs plan']?.sub) && /^target \d+%/.test(cells['to target']?.sub) && !!cells['vs last week'] && /^(Likely|Possible|Unlikely|Very unlikely)$/.test(Object.entries(cells).find(([k]) => /^will it hit/.test(k))?.[1].value), `${at}: scorecard ${JSON.stringify(cells)}`);
+        chk(f.why.length > 20 && /^(Being handled|No response yet)/.test(f.handled), `${at}: Why opens with “${f.why}” “${f.handled}”`);
         chk(f.ptg && f.ptg.inMain && !f.ptg.inSide && /Path to green/.test(f.ptg.text) && /Owner’s date: back on plan by/.test(f.ptg.text), `${at}: path to green not in the main column (${JSON.stringify(f.ptg)})`);
         if (w >= 1100) chk(f.heads.length >= 1 && f.heads.every((x) => ['Asked of you', 'Actions', 'Last time we talked'].includes(x)), `${at}: side headings ${f.heads.join(' / ')}`);
         chk(f.sideways <= 1, `${at}: ${f.sideways}px sideways`);
@@ -70,7 +70,7 @@ module.exports = {
           .map((e) => e.tagName.toLowerCase() + '.' + e.className).slice(0, 3));
         chk(!filled.length, `${at}: text with a fill behind it: ${filled.join(', ')}`);
         if (scheme === 'light' && w === 1280) {
-          // On track: no path to green, and line 3 has no "being handled".
+          // On track: no path to green, and nothing says "being handled".
           await p.goto(p.url().replace('/goals/vuln-containers', '/goals/lead-review-small')); await p.locator('.goal-bar').waitFor();
           const on = await bar(p);
           chk(!on.ptg && !on.handled, `lead-review-small 1280: on track shows path to green ${!!on.ptg}, handled “${on.handled}”`);
@@ -83,10 +83,10 @@ module.exports = {
     [c, p] = await open(1280, 800, 'daniel', '/goals/ns-cfr');
     await p.locator('.goal-bar').waitFor();
     let f = await bar(p);
-    chk(/at most \d/.test(f.against.join(' ')) && /(inside|outside) the limit/.test(f.against.join(' ')), `ns-cfr: bar says ${f.against.join(' / ')}`);
+    chk(/^must stay at most \d/.test(f.cells['vs the limit']?.sub) && /^(Inside it|Inside, near it|Outside it)$/.test(f.cells['vs the limit']?.value) && /of room|over|at the limit/.test(f.cells['room to the limit']?.value) && !!f.cells['vs last week'], `ns-cfr: scorecard ${JSON.stringify(f.cells)}`);
     await p.goto(p.url().replace('/goals/ns-cfr', '/goals/lead-mq')); await p.locator('.goal-bar').waitFor();
     f = await bar(p);
-    chk(/^\d of \d stages done$/.test(f.now) && /stages? slipping/.test(f.against.join(' ')), `lead-mq: bar says ${f.now} / ${f.against.join(' / ')}`);
+    chk(/^\d of \d stages done$/.test(f.now) && /^\d+$/.test(f.cells['stages late']?.value) && /^Week \d+$/.test(f.cells['next stage']?.value), `lead-mq: bar says ${f.now} / ${JSON.stringify(f.cells)}`);
     chk(f.heads[0] === 'Asked of you', `lead-mq as Daniel (the decision is asked of him): first side heading “${f.heads[0]}”`);
     // (e) Arriving from outside on a goal that feeds another, Back names that goal; About says what it feeds.
     const back = (await p.locator('.goal-page > .backlink').innerText()).trim();
@@ -127,7 +127,8 @@ module.exports = {
       chk(before === 0, `${at}: bar compact before scrolling`);
       chk(s && s.n === 1, `${at}: ${s?.n} bars (the compact bar must be the same element)`);
       chk(s && Math.abs(s.top - s.under) <= 1, `${at}: compact bar at ${s?.top}, under ${s?.under}`);
-      chk(s && s.title && s.chip && s.number && !/rgba\(0, 0, 0, 0\)/.test(s.bg) && s.h <= (w < 500 ? 100 : 64), `${at}: compact bar ${JSON.stringify(s)}`);
+      // One line: on a phone the status, number and gap (the page's own header had the title); wider, the title too.
+      chk(s && (w < 500 || s.title) && s.chip && s.number && !/rgba\(0, 0, 0, 0\)/.test(s.bg) && s.h <= 64, `${at}: compact bar ${JSON.stringify(s)}`);
       if (!/review=/.test(route)) chk(s && s.actions.length >= 1, `${at}: compact bar actions ${s?.actions}`);
       // Back at the top it opens out again.
       await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(250);

@@ -50,6 +50,9 @@ function SaidList({ said, showReview }: { said: Said[]; showReview?: boolean }) 
   );
 }
 
+/** How many things said in reviews a goal's page prints, newest first: enough for the last few sessions on one page. */
+const SAID_ON_PAPER = 3;
+
 export function GoalPrint() {
   const app = useApp();
   const { goalId } = useParams();
@@ -62,6 +65,10 @@ export function GoalPrint() {
   const series = valueSeries(s.checkIns);
   const ptgBy = s.checkIns.at(-1)?.pathToGreen?.byWeek ?? null;
   const nowQ = quarterOf(app.cycle, app.week);
+  // Said once on the page: the reason is under Why when the goal is behind, so the latest check-in doesn't repeat it.
+  const whyShown = sh.facts.some((f) => f.label === 'Why');
+  // The latest few things said in reviews; the rest are in the app.
+  const said = sh.said.slice(0, SAID_ON_PAPER);
   return (
     <div className="page narrow print-page">
       <PrintBar back={`/goals/${goal.id}`} label="Back to the goal" />
@@ -88,7 +95,7 @@ export function GoalPrint() {
         <Facts facts={sh.facts} />
 
         <section className="ps-block ps-chart" aria-label="Chart">
-          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptgBy} height={170} />}
+          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={stale ? null : a.forecast} projection={stale ? null : a.projection} ptgBy={stale ? null : ptgBy} height={140} />}
           {goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={150} />}
           {a.kind === 'milestone' && <StageList a={a} />}
         </section>
@@ -99,7 +106,7 @@ export function GoalPrint() {
             {sh.latest ? (
               <div className="stack" style={{ gap: 2 }}>
                 <span className="ps-line"><Chip k={sh.latest.c.status} /> <strong>Week {sh.latest.c.week}: {sh.latest.value}</strong>. {sh.latest.by}, {day(sh.latest.c.postedAt)}.</span>
-                {sh.latest.reason && <span>{sh.latest.reason}</span>}
+                {sh.latest.reason && !whyShown && <span>{sh.latest.reason}</span>}
                 {sh.latest.c.next && <span className="hint">Next: {sh.latest.c.next}</span>}
                 {sh.latest.c.greenerWhy && <span className="hint">Called greener than the numbers: {sh.latest.c.greenerWhy}</span>}
               </div>
@@ -125,7 +132,8 @@ export function GoalPrint() {
 
         <section className="ps-block" aria-label="From reviews">
           <h2 className="ps-h">From reviews</h2>
-          {sh.said.length ? <SaidList said={sh.said} showReview /> : <span className="hint">No actions, questions or notes yet.</span>}
+          {said.length ? <SaidList said={said} showReview /> : <span className="hint">No actions, questions or notes yet.</span>}
+          {sh.said.length > said.length && <span className="hint">And {sh.said.length - said.length} earlier, on the goal’s page.</span>}
         </section>
 
         {sh.quarters.length > 0 && (
@@ -135,7 +143,7 @@ export function GoalPrint() {
               {sh.quarters.map((q) => (
                 <li key={q.quarter.n}>
                   <span className="ps-q-head"><strong>{q.quarter.label}</strong><span className="q-result"><QuarterMark kind={q.kind} done={q.quarter.n === nowQ.n ? (app.week - nowQ.from + 1) / (nowQ.to - nowQ.from + 1) : 0} />{q.kind === 'met' ? 'Met' : q.kind === 'missed' ? 'Missed' : q.kind === 'open' ? (q.quarter.n === nowQ.n ? 'Now' : 'To come') : 'None due'}</span></span>
-                  {q.kind !== 'none' && <span className="small">{quarterWords(q.text)}</span>}
+                  {q.kind !== 'none' && <span className="small">{quarterWords(q.text, true)}</span>}
                 </li>
               ))}
             </ol>

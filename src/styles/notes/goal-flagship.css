@@ -4,13 +4,16 @@
 
 /* ---------- the page ---------- */
 .goal-page .goal-col { display: flex; flex-direction: column; gap: var(--s5); max-width: 1040px; }
+/* One column measures itself as the two do (goal-history.css), so rows that stack in a narrow column stack here too:
+   at 360px a check-in's reason ran 3px past the screen. */
+.page.goal-page .goal-col { container: gcol / inline-size; }
 .goal-page .goal-main, .goal-page .goal-side { display: flex; flex-direction: column; gap: var(--s5); }
 .goal-page > .backlink { align-self: flex-start; }
 
 /* ---------- the summary bar ---------- */
 .goal-page .goal-bar-slot { position: relative; z-index: 8; }
 .goal-page .goal-bar {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "one act" "who act" "two two" "three three";
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "one act" "who act" "two two" "card card" "note note";
   column-gap: var(--s4); row-gap: 6px; padding: var(--s4) 0 var(--s3); background: var(--bg); max-width: 1040px;
 }
 /* Off track: a quiet wash over the whole bar, never an edge (design rules). */
@@ -22,36 +25,48 @@
 .goal-page .bar-status { font-size: var(--t-lg); line-height: 1.5rem; font-weight: 650; gap: 8px; }
 .goal-page .bar-status svg { width: 18px; height: 18px; align-self: center; }
 .goal-page .bar-now { font-size: 2rem; line-height: 2.5rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--fg); }
-.goal-page .bar-against { font-size: 0.9375rem; color: var(--fg-2); font-variant-numeric: tabular-nums; }
-.goal-page .bar-dir { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8125rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
-.goal-page .bar-dir.dir-worsening { color: var(--off-fg); }
-.goal-page .bar-dir.dir-recovering { color: var(--on-fg); }
-.goal-page .bar-3 { grid-area: three; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s2); font-size: 0.9375rem; line-height: 1.375rem; color: var(--fg-2); max-width: 72ch; }
-.goal-page .bar-why { color: var(--fg); }
-.goal-page .bar-handled { color: var(--muted); }
-.goal-page .bar-handled.not-handled { color: var(--risk-fg); font-weight: 600; }
-.goal-page .bar-feeds { flex-basis: 100%; font-size: 0.8125rem; color: var(--muted); }
-.goal-page .bar-feeds .feeds-count { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
-.goal-page .bar-feeds .status-shape { width: 12px; height: 12px; }
+.goal-page .bar-dot { display: none; color: var(--muted); }
+.goal-page .bar-gap { display: none; font-size: 0.9375rem; color: var(--fg-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.goal-page .bar-note { grid-area: note; font-size: 0.875rem; line-height: 1.25rem; color: var(--fg-2); max-width: 72ch; }
+
+/* The scorecard: four labelled cells under the number (two by two on a phone). Words on the bar, no boxes or fills;
+   a hairline above sets it apart from the status line. */
+.goal-page .scorecard {
+  grid-area: card; margin: var(--s2) 0 0; padding-top: var(--s3); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3) var(--s5); max-width: 880px;
+}
+.goal-page .goal-bar[data-tone="off"] .scorecard { border-top-color: var(--off-line); }
+.goal-page .sc-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.goal-page .sc-cell dd { margin: 0; }
+.goal-page .sc-label { font-size: 0.75rem; line-height: 1rem; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.goal-page .sc-value { display: flex; align-items: baseline; gap: 6px; font-size: 1.0625rem; line-height: 1.5rem; font-weight: 650; color: var(--fg); font-variant-numeric: tabular-nums; }
+.goal-page .sc-since .sc-value.tone-bad, .goal-page .sc-hit .sc-value.tone-bad { color: var(--off-fg); }
+.goal-page .sc-since .sc-value.tone-good, .goal-page .sc-hit .sc-value.tone-good { color: var(--on-fg); }
+.goal-page .sc-move { width: 10px; height: 10px; flex: none; align-self: center; }
+.goal-page .sc-sub { font-size: 0.8125rem; line-height: 1.125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .goal-page .bar-actions { grid-area: act; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--s2); }
 .goal-page .bar-actions .bar-menu > summary { padding-inline: 10px; }
 .goal-page .bar-me { display: none; }
 .goal-page .asked-line { flex-basis: 100%; }
 
-/* Once scrolled away: one line at the top (title, status, number, the main action). The same element, fixed in place
-   while the slot behind it keeps its height, so nothing under it moves. */
+/* Once scrolled away: one line at the top, a solid panel with a rule under it and a soft shadow, so it never blends
+   into the page (Lane, 5 Nov): the title (where there's room), status, number and the gap to plan, and the "…" menu.
+   The same element, fixed in place while the slot behind it keeps its height, so nothing under it moves. */
 .goal-page .goal-bar.compact {
-  z-index: 9; display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s3); padding: var(--s2) var(--s4); max-width: none;
-  border-bottom: 1px solid var(--line); border-radius: 0; box-sizing: border-box;
+  z-index: 9; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--s3); padding: var(--s2) var(--s4); max-width: none; min-height: 52px;
+  background: var(--surface); border-bottom: 1px solid var(--line-strong); border-radius: 0; box-sizing: border-box;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.08);
 }
-.goal-page .goal-bar.compact > .bar-1 { flex: 1 1 200px; align-items: center; }
+.goal-page .goal-bar.compact[data-tone="off"] { background: var(--off-wash); border-bottom-color: var(--off-line); }
+.goal-page .goal-bar.compact > .bar-1 { flex: 0 1 auto; min-width: 0; align-items: center; }
 .goal-page .goal-bar.compact .bar-title { font-size: 1rem; line-height: 1.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.goal-page .goal-bar.compact > .bar-who, .goal-page .goal-bar.compact > .bar-3, .goal-page .goal-bar.compact .bar-against, .goal-page .goal-bar.compact .bar-dir { display: none; }
-.goal-page .goal-bar.compact > .bar-2 { margin: 0; gap: var(--s2); }
+.goal-page .goal-bar.compact > .bar-who, .goal-page .goal-bar.compact > .scorecard, .goal-page .goal-bar.compact > .bar-note { display: none; }
+.goal-page .goal-bar.compact > .bar-2 { margin: 0; gap: var(--s2); flex: none; flex-wrap: nowrap; white-space: nowrap; }
+.goal-page .goal-bar.compact .bar-gap, .goal-page .goal-bar.compact .bar-dot { display: inline; }
 .goal-page .goal-bar.compact .bar-status { font-size: 0.9375rem; }
 .goal-page .goal-bar.compact .bar-now { font-size: 1rem; line-height: 1.5rem; }
-.goal-page .goal-bar.compact > .bar-actions { margin-left: auto; }
-.goal-page .goal-bar.compact .bar-actions .btn:not(.primary), .goal-page .goal-bar.compact .bar-menu { display: none; }
+.goal-page .goal-bar.compact > .bar-actions { margin-left: auto; flex: none; }
+.goal-page .goal-bar.compact .bar-actions > .btn { display: none; }
 
 /* A status that changed since you last looked turns in once; a target reached gives the status a soft pulse. */
 .goal-page .bar-status.moved .status-shape { animation: pm-shape-swap calc(.55s * var(--pace)) calc(.1s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
@@ -84,13 +99,14 @@
 @container app (max-width: 760px) {
   .app.goal-top .mtop { display: none; }
   .app.goal-top .page.goal-page { padding-top: var(--s3); }
-  .goal-page .goal-bar { grid-template-columns: minmax(0, 1fr); grid-template-areas: "one" "who" "two" "three" "act"; padding-top: var(--s2); row-gap: 4px; }
+  .goal-page .goal-bar { grid-template-columns: minmax(0, 1fr); grid-template-areas: "one" "who" "two" "card" "note" "act"; padding-top: var(--s2); row-gap: 4px; }
+  .goal-page .scorecard { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s4); margin-top: 4px; padding-top: var(--s2); }
+  .goal-page .sc-value { font-size: 1rem; line-height: 1.375rem; }
+  .goal-page .sc-label { font-size: 0.6875rem; }
   .goal-page .goal-bar[data-tone="off"] { padding-inline: var(--s3); }
   .goal-page .bar-title { font-size: 1.25rem; line-height: 1.625rem; }
   .goal-page .bar-2 { margin-top: 4px; gap: 2px var(--s2); }
   .goal-page .bar-now { font-size: 1.5rem; line-height: 2rem; }
-  .goal-page .bar-against { font-size: 0.875rem; }
-  .goal-page .bar-3 { font-size: 0.875rem; line-height: 1.25rem; }
   .goal-page .goal-col { gap: var(--s4); }
   .goal-page > .backlink { margin-bottom: calc(-1 * var(--s3)); }
   .goal-page .bar-me { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
@@ -106,13 +122,14 @@
   .goal-page .bar-actions { flex-wrap: nowrap; }
   .goal-page .bar-actions .btn.primary { flex: 1 1 auto; min-width: 0; white-space: normal; text-align: center; }
   .goal-page .bar-actions .btn:not(.primary) { flex: none; }
-  .goal-page .goal-bar.compact { padding: 4px var(--s3); column-gap: 8px; row-gap: 0; }
-  .goal-page .goal-bar.compact > .bar-1 { flex-basis: 100%; }
+  /* On a phone the one line is the status, the number and the gap; the title is the page's own header above. */
+  .goal-page .goal-bar.compact { padding: 4px var(--s2) 4px var(--s3); column-gap: 8px; min-height: 48px; }
+  .goal-page .goal-bar.compact > .bar-1 { display: none; }
   .goal-page .goal-bar.compact > .bar-actions { margin: 0 0 0 auto; }
-  .goal-page .goal-bar.compact .bar-actions .btn.primary { flex: none; padding-inline: 10px; font-size: 0.8125rem; }
-  .goal-page .goal-bar.compact > .bar-2 { flex: 0 1 auto; min-width: 0; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
+  .goal-page .goal-bar.compact > .bar-2 { flex: 0 1 auto; min-width: 0; gap: 6px; overflow: hidden; }
   .goal-page .goal-bar.compact .bar-status { font-size: 0.875rem; gap: 6px; }
-  .goal-page .goal-bar.compact .bar-now { font-size: 0.9375rem; }
+  .goal-page .goal-bar.compact .bar-now, .goal-page .goal-bar.compact .bar-gap { font-size: 0.875rem; }
+  .goal-page .goal-bar.compact .bar-now { font-weight: 700; }
 }
 
 /* ---------- asked of you ---------- */
@@ -129,7 +146,19 @@
 .goal-page .context-line.posted { color: var(--fg); font-weight: 600; }
 
 /* ---------- the chart ---------- */
-.goal-page .goal-chart-block .chart-say { margin: var(--s2) 0 0; color: var(--muted); max-width: 72ch; }
+.goal-page .goal-chart-block .chart-say { display: block; margin: var(--s2) 0 0; color: var(--muted); max-width: 72ch; font-size: 0.75rem; line-height: 1rem; }
+.goal-page .goal-chart figcaption .plan-changes { display: block; margin-top: 4px; }
+/* The scorecard's numbers on the chart: a bracket and a few words each, with a halo so lines don't cross them. */
+.chart .c-note { font-size: 0.75rem; font-weight: 600; fill: var(--fg-2); stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; paint-order: stroke fill; font-variant-numeric: tabular-nums; }
+.chart .c-bracket { fill: none; stroke: var(--fg-2); stroke-width: 1.25; stroke-linejoin: round; }
+.chart .tone-bad .c-note { fill: var(--off-fg); }
+.chart .tone-bad .c-bracket { stroke: var(--off-fg); }
+.chart .tone-good .c-note { fill: var(--on-fg); }
+.chart .c-end-note tspan.tone-bad { fill: var(--off-fg); }
+.chart .c-end-note tspan.tone-good { fill: var(--on-fg); }
+.chart .tone-good .c-bracket { stroke: var(--on-fg); }
+@keyframes gp-marks-in { from { opacity: 0; } to { opacity: 1; } }
+.chart.draw .c-marks { animation: gp-marks-in calc(.35s * var(--pace)) calc(1.5s * var(--pace)) ease-out both; }
 .chart .c-band { fill: var(--off-mark); fill-opacity: .1; stroke: none; }
 .chart.scrubbable { touch-action: pan-y; cursor: crosshair; }
 .chart-scrub { border-radius: 4px; }
@@ -162,6 +191,10 @@
 
 /* ---------- why ---------- */
 .goal-page .why-block p { margin: 0; font-size: 0.9375rem; color: var(--fg-2); max-width: 72ch; }
+.goal-page .why-block .why-text { color: var(--fg); font-size: 1rem; line-height: 1.5rem; }
+.goal-page .why-block .why-handled { font-size: 0.875rem; color: var(--muted); }
+.goal-page .why-block .why-handled.not-handled { color: var(--risk-fg); font-weight: 600; }
+.goal-page .why-block .why-by { font-size: 0.875rem; }
 .goal-page .signal-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px var(--s4); }
 .goal-page .signal-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 600; color: var(--risk-fg); }
 .goal-page .signal-tag svg { width: 14px; height: 14px; flex: none; }
@@ -192,6 +225,11 @@
 
 /* ---------- what feeds it ---------- */
 .goal-page .feeds .pinned-why { display: block; padding: 0 0 var(--s2) 0; }
+.goal-page .feeds-sum { margin: 2px 0 0; font-size: 0.875rem; color: var(--fg-2); }
+.goal-page .feeds-sum .feeds-count { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.goal-page .feeds-sum .feeds-count.tone-off { color: var(--off-fg); }
+.goal-page .feeds-sum .feeds-count.tone-risk { color: var(--risk-fg); }
+.goal-page .feeds-sum .status-shape { width: 12px; height: 12px; }
 .goal-page .feeds .show-all { align-self: flex-start; }
 
 /* ---------- this year by quarter: the tiles fill in turn ---------- */
@@ -235,6 +273,12 @@
   .goal-page .asked-item > section > .asked-text { flex: 1 1 160px; }
   .goal-page .asked-item.is-open > section > * { flex-basis: 100%; }
   .goal-page .asked .block-title { font-size: 1rem; }
+  /* Above the chart on a phone, what's asked of you says so in its heading alone. */
+  .goal-page .asked .section-purpose { display: none; }
+  .goal-page .asked, .goal-page .asked-list { gap: var(--s2); }
+  .goal-page .sc-sub { font-size: 0.75rem; line-height: 1rem; }
+  .goal-page .bar-actions { gap: 6px; }
+  .goal-page .bar-actions > .btn { padding-inline: 12px; }
 }
 
 /* ---------- print: the bar prints as the page's head ---------- */
@@ -283,26 +327,14 @@
 .motion-lab .field { margin-bottom: var(--s3); }
 .motion-lab .seg { flex-wrap: wrap; }
 
-/* ---------- under the chart: short facts and the likely-end bar ---------- */
-.chart-facts { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s2); color: var(--fg-2); }
-.chart-facts .cf-rows { margin: 0; display: grid; gap: 6px; }
-.chart-facts .cf-row { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: var(--s3); align-items: baseline; }
-.chart-facts dt { font-size: 0.8125rem; color: var(--muted); }
-.chart-facts dd { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s2); }
-.chart-facts .cf-value { font-weight: 650; color: var(--fg); font-variant-numeric: tabular-nums; }
-.chart-facts .cf-note { font-size: 0.875rem; color: var(--fg-2); }
-.chart-facts .cf-note.tone-good { color: var(--on-fg); }
-.chart-facts .cf-note.tone-bad { color: var(--off-fg); }
-.chart-facts .cf-end { max-width: 420px; overflow: visible; }
-.chart-facts .cf-axis { stroke: var(--line); stroke-width: 1; }
-.chart-facts .cf-band { fill: var(--track, var(--line)); }
-.chart-facts .cf-dot { fill: var(--fg); }
-.chart-facts .cf-mark { stroke: var(--on-fg); stroke-width: 2; }
-.chart-facts .tone-bad .cf-mark, .chart-facts .cf-end.tone-bad .cf-mark { stroke: var(--off-fg); }
-.chart-facts .cf-mark-label { font-size: 11px; fill: var(--fg-2); font-weight: 600; }
-.chart-facts .cf-range { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
-.chart-facts .cf-foot { margin: 0; font-size: 0.75rem; color: var(--muted); }
-@container gcol (max-width: 420px) { .chart-facts .cf-row { grid-template-columns: 88px minmax(0, 1fr); } }
+/* ---------- sections: a heading, one line on what it answers, and a full-width rule between them ---------- */
+.goal-page .section-head { display: flex; flex-direction: column; gap: 2px; }
+.goal-page .section-head .block-title { margin: 0; }
+.goal-page .section-purpose { margin: 0; font-size: 0.875rem; line-height: 1.25rem; color: var(--muted); font-weight: 400; }
+.goal-page .goal-main > .goal-section, .goal-page .goal-col > .goal-section { border-top: 1px solid var(--faint); padding-top: var(--s5); }
+.goal-page .about > summary .section-head { flex: 1 1 auto; }
+.goal-page .about > summary { align-items: flex-start; }
+.goal-page .about > summary::after { margin-top: 8px; }
 
 /* One way to ask (5 Nov): the comment box posts a comment, or asks the owner the same words as a question. */
 .note-compose { flex-wrap: wrap; }
