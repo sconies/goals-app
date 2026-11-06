@@ -19,6 +19,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-page-scorecard',
+    date: '2026-11-06',
+    title: 'A goal’s page says each thing once, with a scorecard at the top',
+    points: [
+      'Under a goal’s status and number there’s now a scorecard: against plan, against last week, what’s left to the target, and whether it will hit it, in words (Likely, Possible, Unlikely or Very unlikely), never a percentage.',
+      'The chart marks the same numbers where they are: the gap to plan at now, where it will likely end, and how far that is from the target. The rows and the small bar under the chart are gone.',
+      'The owner’s reason now opens the Why section under the chart, and how the goals feeding it stand opens What feeds it, instead of both sitting in the bar too.',
+      'Every section says in one line what it answers, with a clear rule between sections. Path to green gives the owner’s date in words and whether the trend gets there.',
+      'Scrolled down, the bar is one line on a solid panel that stands off the page: status, number, the gap to plan and the “…” menu. “Since you looked” only appears when something has changed.',
+      'On paper, a goal fits one A4 page again, and on a 360px phone nothing runs off the side.',
+    ],
+    articles: ['goal-page', 'print'],
+  },
+  {
     id: 'one-ask-one-watching',
     date: '2026-11-05',
     title: 'One way to ask, one Watching, and a bigger example',

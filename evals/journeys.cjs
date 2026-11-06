@@ -566,8 +566,8 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
   await h.click(p.locator('.arow-main', { hasText: 'Kafka moved to the managed service' }));
   await p.locator('.goal-bar').waitFor();
-  // The summary bar says off track and why; the signals are tags under Why (the flagship page, 5 Nov).
-  h.set('attention', await p.locator('.goal-bar[data-tone=off] .bar-status.off').isVisible() && (await p.locator('.goal-bar .bar-why').innerText()).length > 10 && await p.locator('.why-block .signal-tag').count() > 0, 'off track and its reasons are not shown');
+  // The summary bar says off track and how many stages are late; Why opens with the reason (the scorecard, 5 Nov).
+  h.set('attention', await p.locator('.goal-bar[data-tone=off] .bar-status.off').isVisible() && /^[1-9]\d*$/.test((await p.locator('.goal-bar .sc-late .sc-value').innerText()).trim()) && (await p.locator('.why-block .why-text').innerText()).length > 10, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
   // Check-ins, comments and changes are one stream; Changes shows only the changes.
   await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Changes', exact: true }));
@@ -1707,7 +1707,8 @@ journey('U39', ['ONE-ACCOUNT', 'PATH-TO-GREEN', 'WALKTHROUGHS'], 'Something chan
   // The goal page says whose date is whose: the owner's recovery date and the app's projection.
   await p.goto(url('/goals/dep-jenkins'));
   await see(p, 'Owner’s date: back on plan by', 'the owner’s date is not labelled as theirs');
-  const proj = await p.getByText(/Projected by the app/).count();
+  // The chart's footnote: "Likely end projected from the last eight weeks, not the owner’s date." (the scorecard, 5 Nov).
+  const proj = await p.getByText(/projected from the last eight weeks, not the owner’s date/i).count();
   h.set('attention', proj > 0, 'the projection is not labelled as the app’s estimate');
   // The map walkthrough: the coach sits beside the goal it points at, never on it.
   await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'amara'));

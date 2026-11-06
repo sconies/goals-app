@@ -7,7 +7,7 @@ var __esmMin = (fn, res, err) => () => {
 		throw err = [e], e;
 	}
 };
-// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// ../../../node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -15,7 +15,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// node_modules/tslib/tslib.es6.mjs
+// ../../../node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -51,12 +51,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// node_modules/@supabase/functions-js/dist/module/helper.js
+// ../../../node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// node_modules/@supabase/functions-js/dist/module/types.js
+// ../../../node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -146,7 +146,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// ../../../node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -399,7 +399,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// node_modules/@supabase/postgrest-js/dist/index.mjs
+// ../../../node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -4373,7 +4373,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -4466,7 +4466,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -4500,7 +4500,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -4642,7 +4642,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -4828,7 +4828,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// ../../../node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -6523,7 +6523,7 @@ var Socket = class {
 		}
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -6610,7 +6610,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -6643,7 +6643,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -6665,7 +6665,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -6767,7 +6767,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -6902,7 +6902,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -7593,7 +7593,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -7704,7 +7704,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// ../../../node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -8316,7 +8316,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// node_modules/iceberg-js/dist/index.mjs
+// ../../../node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -8812,7 +8812,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// node_modules/@supabase/storage-js/dist/index.mjs
+// ../../../node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -11999,9 +11999,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/version.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -12030,7 +12030,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -12316,7 +12316,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -12519,7 +12519,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -12917,7 +12917,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -13076,13 +13076,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/types.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// ../../../node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -14228,7 +14228,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -14260,7 +14260,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -14279,7 +14279,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -14319,7 +14319,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -14509,7 +14509,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// ../../../node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -15115,7 +15115,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// ../../../node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -20616,9 +20616,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// ../../../node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// node_modules/@supabase/supabase-js/dist/index.mjs
+// ../../../node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
@@ -27642,6 +27642,676 @@ function aiBrief(x) {
 	}
 	return out.join("\n");
 }
+// src/domain/summaryFacts.ts
+init_checkin();
+init_format();
+init_plan();
+init_status();
+var COUNT_WORDS = [
+	"no",
+	"one",
+	"two",
+	"three",
+	"four",
+	"five",
+	"six",
+	"seven",
+	"eight",
+	"nine",
+	"ten"
+];
+/** "two", "three" … for small counts in a sentence; digits from 11. */
+var countWord = (n) => COUNT_WORDS[n] ?? String(n);
+var plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+var pct$1 = (r) => `${Math.round(r * 100)}%`;
+var round$1 = (v, decimals) => Number(v.toFixed(decimals));
+/** "weeks 42–44", or "week 44" for one. */
+var weekSpan = (cs) => cs.length > 1 && cs[0].week !== cs[cs.length - 1].week ? `weeks ${cs[0].week}–${cs[cs.length - 1].week}` : `week ${cs[cs.length - 1].week}`;
+/** The goal's facts from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected. */
+function summaryFacts(goal, cycle, checkIns, week, stale = false) {
+	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
+	const latest = own[own.length - 1];
+	if (!latest) return {
+		facts: [],
+		source: null
+	};
+	const source = {
+		week: latest.week,
+		authorId: latest.authorId,
+		postedAt: latest.postedAt
+	};
+	return {
+		facts: goal.kind === "metric" ? metricFacts(goal, cycle, checkIns, own, week, stale) : goal.kind === "range" ? rangeFacts(goal, cycle, own, stale) : milestoneFacts(goal, own, week, stale),
+		source
+	};
+}
+function metricFacts(goal, cycle, all, own, week, stale) {
+	const a = assessPosted(goal, cycle, all, week);
+	if (a.kind !== "metric") return [];
+	const g = goalAsOf(goal, a.week);
+	const dir = Math.sign(g.plan.target - g.plan.start) || 1;
+	const valued = own.filter((c) => c.value != null);
+	const out = [];
+	if (a.actual == null) out.push({
+		key: "plan",
+		label: "Against plan",
+		value: NO_VALUE$1,
+		detail: `Plan for week ${a.week}: ${fmt(a.plan, goal)}`,
+		tone: "flat"
+	});
+	else {
+		const diff = round$1(a.actual - a.plan, goal.decimals);
+		const ahead = diff * dir > 0;
+		out.push({
+			key: "plan",
+			label: "Against plan",
+			value: diff === 0 ? "On plan" : `${fmtDiff(diff, goal)} ${ahead ? "ahead of" : "behind"} plan`,
+			detail: `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${a.week}${a.ratio != null ? ` · ${pct$1(a.ratio)} of the planned progress` : ""}`,
+			tone: a.calc === "risk" || a.calc === "off" ? "bad" : diff === 0 || a.calc !== "on" ? "flat" : "good"
+		});
+	}
+	const span = valued.slice(-3).map((c) => {
+		const p = planAt(goalAsOf(goal, c.week).plan, c.week, cycle.weeks);
+		return {
+			c,
+			plan: p,
+			gap: round$1((c.value - p) * dir, goal.decimals)
+		};
+	});
+	if (span.length < 2) out.push({
+		key: "trend",
+		label: "Trend",
+		value: "Not enough check-ins yet",
+		detail: "Needs two check-ins",
+		tone: "flat",
+		direction: "flat"
+	});
+	else {
+		const unit = 10 ** -goal.decimals;
+		const latest = span[span.length - 1];
+		const move = round$1(latest.gap - span[0].gap, goal.decimals);
+		const direction = move <= -unit ? "worsening" : move >= unit ? "recovering" : "flat";
+		const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
+		const num = (v) => Math.abs(v).toFixed(goal.decimals);
+		const words = fmtDiff(2, goal).replace(/^[0-9.]+ ?/, "");
+		const tail = words ? " " + words : "";
+		const value = span.every((x) => x.gap === 0) ? "On plan at each check-in" : behind ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} behind plan` : ahead ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ahead of plan` : span.map((x, i) => x.gap === 0 ? "on plan" : `${num(x.gap)}${i === span.length - 1 ? tail : ""} ${x.gap > 0 ? "ahead" : "behind"}`).join(" → ") + (latest.gap > 0 ? " of plan" : latest.gap < 0 ? " plan" : "");
+		let held = 1;
+		for (let k = valued.length - 2; k >= 0 && valued[k].value === latest.c.value; k--) held++;
+		const heldFrom = valued[valued.length - held];
+		const planMoved = (latest.plan - planAt(goalAsOf(goal, heldFrom.week).plan, heldFrom.week, cycle.weeks)) * dir > 0;
+		const detail = held >= 2 && planMoved ? `Flat at ${fmt(latest.c.value, goal)} for ${countWord(held)} weeks while the plan ${dir > 0 ? "rises" : "falls"}` : `${direction === "worsening" ? behind ? "Falling further behind" : "Losing ground on the plan" : direction === "recovering" ? behind ? "Closing the gap" : "Gaining ground on the plan" : "Holding steady against the plan"}, ${weekSpan(span.map((x) => x.c))}`;
+		out.push({
+			key: "trend",
+			label: "Trend",
+			value,
+			detail,
+			tone: direction === "worsening" ? "bad" : direction === "recovering" ? "good" : "flat",
+			direction
+		});
+	}
+	out.push(sinceFact(goal, own, dir));
+	const due = planEnd(goal.plan, cycle.weeks);
+	if (stale) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not projected",
+		detail: "The last check-in is too old to project from",
+		tone: "flat"
+	});
+	else if (a.forecast == null || !a.projection) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not enough check-ins yet",
+		detail: "Projected by the app once there are three weeks of numbers",
+		tone: "flat"
+	});
+	else {
+		const gap = round$1(a.forecast - goal.plan.target, goal.decimals);
+		const misses = a.forecastMisses && gap !== 0;
+		out.push({
+			key: "projection",
+			label: "Projection",
+			value: misses ? `Heading for ${rangeText(a.projection, goal, isShare(goal))} by week ${due}` : `Reaches ${fmt(goal.plan.target, goal)} by week ${due}`,
+			detail: `${misses ? `Misses the ${fmt(goal.plan.target, goal)} target by about ${fmtDiff(gap, goal)}. ` : ""}Projected by the app from the last ${a.projection.to - a.projection.from + 1} weeks, not the owner’s date`,
+			tone: misses ? "bad" : "good",
+			projection: a.projection
+		});
+	}
+	return out;
+}
+/** What changed since the check-in before the latest: the number, and the call if it moved. */
+function sinceFact(goal, own, better) {
+	const latest = own[own.length - 1];
+	const prev = [...own.slice(0, -1)].reverse().find((c) => c.value != null);
+	const callMoved = (p) => p.status !== latest.status ? `; was ${LABEL[p.status].toLowerCase()}, now ${LABEL[latest.status].toLowerCase()}` : "";
+	if (latest.value == null) return {
+		key: "since",
+		label: "Since last update",
+		value: "No number this time",
+		detail: null,
+		tone: "flat"
+	};
+	if (!prev) return {
+		key: "since",
+		label: "Since last update",
+		value: "First check-in",
+		detail: `${fmt(latest.value, goal)} in week ${latest.week}`,
+		tone: "flat"
+	};
+	const delta = round$1(latest.value - prev.value, goal.decimals);
+	return {
+		key: "since",
+		label: "Since last update",
+		delta,
+		from: {
+			value: prev.value,
+			week: prev.week
+		},
+		value: delta === 0 ? "No change" : `${delta > 0 ? "Up" : "Down"} ${fmtDiff(delta, goal)}`,
+		detail: `${fmt(prev.value, goal)} in week ${prev.week} → ${fmt(latest.value, goal)} in week ${latest.week}${callMoved(prev)}`,
+		tone: delta === 0 ? "flat" : delta * better > 0 ? "good" : "bad"
+	};
+}
+function rangeFacts(goal, cycle, own, stale) {
+	const { bound, limit } = goal.range;
+	const safe = bound === "atMost" ? -1 : 1;
+	const valued = own.filter((c) => c.value != null);
+	const last = valued[valued.length - 1];
+	const out = [];
+	const lim = `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, goal)}`;
+	if (!last) out.push({
+		key: "plan",
+		label: "Against the limit",
+		value: NO_VALUE$1,
+		detail: `Must stay ${lim}`,
+		tone: "flat"
+	});
+	else {
+		const room = round$1((limit - last.value) * -safe, goal.decimals);
+		out.push({
+			key: "plan",
+			label: "Against the limit",
+			value: room === 0 ? "At the limit" : room > 0 ? `${fmtDiff(room, goal)} inside the limit` : `${fmtDiff(room, goal)} ${bound === "atMost" ? "over" : "under"} the limit`,
+			detail: `${fmt(last.value, goal)} in week ${last.week}; must stay ${lim}`,
+			tone: room < 0 ? "bad" : room <= goal.range.margin ? "flat" : "good"
+		});
+	}
+	const span = valued.slice(-3);
+	if (span.length < 2) out.push({
+		key: "trend",
+		label: "Trend",
+		value: "Not enough check-ins yet",
+		detail: "Needs two check-ins",
+		tone: "flat",
+		direction: "flat"
+	});
+	else {
+		const move = round$1((span[span.length - 1].value - span[0].value) * safe, goal.decimals);
+		out.push({
+			key: "trend",
+			label: "Trend",
+			value: span.map((c) => fmt(c.value, goal)).join(" → "),
+			detail: `${move === 0 ? "Holding steady" : move > 0 ? "Moving away from the limit" : "Moving towards the limit"}, ${weekSpan(span)}`,
+			tone: move === 0 ? "flat" : move > 0 ? "good" : "bad",
+			direction: move === 0 ? "flat" : move > 0 ? "recovering" : "worsening"
+		});
+	}
+	out.push(sinceFact(goal, own, safe));
+	const due = cycle.weeks;
+	const pr = stale ? null : projection(valued.map((c) => ({
+		week: c.week,
+		value: c.value
+	})), due);
+	if (stale) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not projected",
+		detail: "The last check-in is too old to project from",
+		tone: "flat"
+	});
+	else if (!pr) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not enough check-ins yet",
+		detail: "Projected by the app once there are three weeks of numbers",
+		tone: "flat"
+	});
+	else {
+		const outside = bound === "atMost" ? pr.value > limit : pr.value < limit;
+		out.push({
+			key: "projection",
+			label: "Projection",
+			value: `${rangeText(pr, goal, isShare(goal))} by week ${due}`,
+			detail: `${outside ? `Outside the ${fmt(limit, goal)} limit` : `Inside the ${fmt(limit, goal)} limit`}. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
+			tone: outside ? "bad" : "good",
+			projection: pr
+		});
+	}
+	return out;
+}
+/** The most weeks late any unfinished stage was at a check-in (0 when none is late). */
+function weeksLateAt(goal, c) {
+	const m = assessMilestone(goal, c.week, c.stages);
+	return Math.max(0, ...m.stages.filter((s) => s.kind !== "done").map((s) => s.weeksLate));
+}
+function milestoneFacts(goal, own, week, stale) {
+	const latest = own[own.length - 1];
+	const m = assessMilestone(goal, week, latest.stages);
+	const out = [];
+	out.push({
+		key: "plan",
+		label: "Against plan",
+		value: m.calc === "done" ? "Every stage done" : m.late.length ? `${plural(m.late.length, "stage")} late` : "On schedule",
+		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done; ${m.dueCount} due by week ${week}`,
+		tone: m.late.length ? "bad" : "good"
+	});
+	const span = own.filter((c) => c.stages).slice(-3);
+	if (span.length < 2) out.push({
+		key: "trend",
+		label: "Trend",
+		value: "Not enough check-ins yet",
+		detail: "Needs two check-ins",
+		tone: "flat",
+		direction: "flat"
+	});
+	else {
+		const late = span.map((c) => weeksLateAt(goal, c));
+		const move = late[late.length - 1] - late[0];
+		out.push({
+			key: "trend",
+			label: "Trend",
+			value: late.every((n) => n === 0) ? "On time at every check-in" : `${late.join(" → ")} weeks late`,
+			detail: `${move > 0 ? "Slipping" : move < 0 ? "Recovering" : "Holding steady"}, ${weekSpan(span)}`,
+			tone: move > 0 ? "bad" : move < 0 ? "good" : late[late.length - 1] ? "bad" : "flat",
+			direction: move > 0 ? "worsening" : move < 0 ? "recovering" : "flat"
+		});
+	}
+	const prev = own.length > 1 ? own[own.length - 2] : null;
+	if (!prev) out.push({
+		key: "since",
+		label: "Since last update",
+		value: "First check-in",
+		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done in week ${latest.week}`,
+		tone: "flat"
+	});
+	else {
+		const before = assessMilestone(goal, prev.week, prev.stages);
+		const now = assessMilestone(goal, latest.week, latest.stages);
+		const done = now.stages.filter((s) => s.kind === "done" && before.stages.find((b) => b.id === s.id)?.kind !== "done");
+		const slips = now.stages.map((s) => ({
+			s,
+			b: before.stages.find((b) => b.id === s.id)
+		})).filter(({ s, b }) => s.kind !== "done" && b && s.expectedWeek > b.expectedWeek);
+		const first = slips[0];
+		const parts = [...done.map((s) => `${s.name} done`), ...slips.map(({ s, b }) => `${s.name} moved from week ${b.expectedWeek} to week ${s.expectedWeek}`)];
+		out.push({
+			key: "since",
+			label: "Since last update",
+			value: first ? `${first.s.name} slipped ${plural(first.s.expectedWeek - first.b.expectedWeek, "week")}` : done.length ? `${plural(done.length, "stage")} done` : "No change",
+			detail: parts.length ? `Since week ${prev.week}: ${parts.join("; ")}` : `Same as week ${prev.week}`,
+			tone: slips.length ? "bad" : done.length ? "good" : "flat"
+		});
+	}
+	const due = Math.max(0, ...m.stages.map((s) => s.dueWeek));
+	const finish = Math.max(0, ...m.stages.map((s) => s.expectedWeek));
+	const next = m.stages.filter((s) => s.kind !== "done").sort((x, y) => x.dueWeek - y.dueWeek)[0];
+	const nextText = next ? `Next: ${next.name}, due week ${next.dueWeek}${next.expectedWeek > next.dueWeek ? `, expected week ${next.expectedWeek}` : ""}` : null;
+	if (m.calc === "done") out.push({
+		key: "projection",
+		label: "Projection",
+		value: `Finished in week ${finish}`,
+		detail: finish > due ? `${plural(finish - due, "week")} after its week ${due} date` : `By its week ${due} date`,
+		tone: finish > due ? "bad" : "good"
+	});
+	else if (stale) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not projected",
+		detail: nextText ?? "The last check-in is too old to project from",
+		tone: "flat"
+	});
+	else out.push({
+		key: "projection",
+		label: "Projection",
+		value: finish > due ? `Finishes week ${finish}, ${plural(finish - due, "week")} late` : `Finishes by week ${due}`,
+		detail: nextText,
+		tone: finish > due ? "bad" : "good"
+	});
+	return out;
+}
+// src/domain/scorecard.ts
+init_checkin();
+init_format();
+init_plan();
+init_status();
+var LIKELIHOOD_WORD = {
+	likely: "Likely",
+	possible: "Possible",
+	unlikely: "Unlikely",
+	"very-unlikely": "Very unlikely"
+};
+/**
+* How likely a goal is to end on the right side of its mark (a target to reach, or a limit to stay within), from where
+* the mark sits against the projected range (plan.ts `projection`: the likeliest value and a range around it). Worked in
+* "better" terms, so it reads the same whichever way is good. With h half the range's width (never less than `floor`,
+* so a clean trend with no spread still has a little doubt), and d how far the mark sits beyond the likeliest value
+* towards better, in units of h:
+*   d ≤ −0.5      Likely: the mark sits comfortably on the near side of the likeliest value, or below the whole range;
+*   −0.5 < d ≤ 1  Possible: the mark is close to the likeliest value, or inside the range on its better side;
+*   1 < d ≤ 2     Unlikely: the mark is beyond the range, but within half a range's width of it;
+*   d > 2         Very unlikely.
+* Words, never a percentage: the range is a rough guide, not odds.
+*/
+function likelihood(mark, p, better, floor = 0) {
+	const half = Math.max(Math.abs(p.high - p.low) / 2, floor, 1e-9);
+	const d = (mark - p.value) * better / half;
+	if (d <= -.5) return "likely";
+	if (d <= 1) return "possible";
+	if (d <= 2) return "unlikely";
+	return "very-unlikely";
+}
+/** The least half-width the likelihood allows: 2% of the planned change, or half the goal's last decimal place. */
+var likelihoodFloor = (span, decimals) => Math.max(Math.abs(span) * .02, 10 ** -decimals / 2);
+var round = (v, d) => Number(v.toFixed(d));
+/** An amount in the goal's units, "1 hour" not "1 hours": "9 hours", "0.4 days", "3 pts". */
+function amount(v, g) {
+	const n = Math.abs(v).toFixed(g.decimals);
+	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
+	if (!g.unit) return n;
+	return `${n} ${Number(n) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
+}
+/** The same, as short as the chart needs: "9", "0.4", "3 pts". */
+var bare = (v, g) => g.unit === "%" ? amount(v, g) : Math.abs(v).toFixed(g.decimals);
+/** A value as short as the chart needs: "37", "83%". */
+var bareValue = (v, g) => v.toFixed(g.decimals) + (g.unit === "%" ? "%" : "");
+/** The target or limit as the question says it: "24", "80%", "0.10%". */
+var markWord = (v, g) => bareValue(v, g);
+/** "by year end", "by cycle end", "by week 40". */
+function byWeekWords(cycle, due) {
+	return due >= cycle.weeks ? cycle.weeks >= 48 ? "by year end" : "by cycle end" : `by week ${due}`;
+}
+/** Vs last week: the latest check-in against the one before it with a number (summaryFacts' "since"). */
+function sinceCell(goal, cycle, checkIns, week, stale, better) {
+	const f = summaryFacts(goal, cycle, checkIns, week, stale).facts.find((x) => x.key === "since");
+	const label = stale ? "Last change" : "Vs last week";
+	if (!f) return {
+		key: "since",
+		label,
+		value: "No check-in yet",
+		sub: "nothing to compare",
+		tone: "flat"
+	};
+	if (f.delta == null || !f.from) return {
+		key: "since",
+		label,
+		value: f.value,
+		sub: f.value === "First check-in" ? "nothing to compare yet" : "no number to compare",
+		tone: "flat"
+	};
+	const was = `was ${fmt(f.from.value, goal)} in week ${f.from.week}`;
+	if (f.delta === 0) return {
+		key: "since",
+		label,
+		value: "No change",
+		sub: was,
+		tone: "flat"
+	};
+	const good = f.delta * better > 0;
+	return {
+		key: "since",
+		label,
+		value: `${amount(f.delta, goal)} ${good ? "better" : "worse"}`,
+		sub: was,
+		tone: good ? "good" : "bad",
+		move: f.delta > 0 ? "up" : "down"
+	};
+}
+function metricCard(goal, cycle, checkIns, week, stale) {
+	const a = assessPosted(goal, cycle, checkIns, week);
+	if (a.kind !== "metric") return {
+		cells: [],
+		gap: null,
+		marks: null
+	};
+	const better = goal.plan.target >= goal.plan.start ? 1 : -1;
+	const target = goal.plan.target;
+	const due = planEnd(goal.plan, cycle.weeks);
+	const cells = [];
+	const share = isShare(goal);
+	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
+	let gap = null;
+	let now = null;
+	if (a.actual == null) cells.push({
+		key: "plan",
+		label: "Vs plan",
+		value: NO_VALUE$1,
+		sub: `plan ${fmt(a.plan, goal)}`,
+		tone: "flat"
+	});
+	else {
+		const diff = round((a.actual - a.plan) * better, goal.decimals);
+		const value = diff === 0 ? "On plan" : `${amount(diff, goal)} ${diff > 0 ? "ahead" : "behind"}`;
+		const tone = diff === 0 ? "flat" : diff > 0 ? "good" : "bad";
+		cells.push({
+			key: "plan",
+			label: "Vs plan",
+			value,
+			sub: `plan ${fmt(a.plan, goal)}${a.week < week ? ` in week ${a.week}` : ""}`,
+			tone
+		});
+		gap = diff === 0 ? "on plan" : `${bare(diff, goal)} ${diff > 0 ? "ahead of" : "behind"} plan`;
+		now = {
+			week: a.week,
+			actual: a.actual,
+			plan: a.plan,
+			text: diff === 0 ? "on plan" : `${bare(diff, goal)} ${diff > 0 ? "ahead" : "behind"}`,
+			tone
+		};
+	}
+	cells.push(sinceCell(goal, cycle, checkIns, week, stale, better));
+	const by = due !== cycle.weeks ? ` by week ${due}` : "";
+	if (a.actual == null) cells.push({
+		key: "target",
+		label: "To target",
+		value: NO_VALUE$1,
+		sub: `target ${fmt(target, goal)}${by}`,
+		tone: "flat"
+	});
+	else {
+		const left = round((target - a.actual) * better, goal.decimals);
+		cells.push({
+			key: "target",
+			label: "To target",
+			value: left <= 0 ? "Reached" : `${amount(left, goal)} to go`,
+			sub: `target ${fmt(target, goal)}${by}`,
+			tone: left <= 0 ? "good" : "flat"
+		});
+	}
+	const label = `Will it hit ${markWord(target, goal)}?`;
+	let end = null;
+	if (stale) cells.push({
+		key: "hit",
+		label,
+		value: "Can’t say",
+		sub: "no recent check-in to go on",
+		tone: "flat"
+	});
+	else if (!a.projection) cells.push({
+		key: "hit",
+		label,
+		value: "Too early to say",
+		sub: "needs three weeks of numbers",
+		tone: "flat"
+	});
+	else {
+		const p = {
+			value: clamp(a.projection.value),
+			low: clamp(a.projection.low),
+			high: clamp(a.projection.high)
+		};
+		const l = likelihood(target, p, better, likelihoodFloor(goal.plan.target - goal.plan.start, goal.decimals));
+		const tone = l === "likely" ? "good" : l === "possible" ? "flat" : "bad";
+		cells.push({
+			key: "hit",
+			label,
+			value: LIKELIHOOD_WORD[l],
+			sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}`,
+			tone,
+			likelihood: l
+		});
+		const short = round((target - p.value) * better, goal.decimals);
+		end = {
+			week: a.projection.week,
+			likely: p.value,
+			target,
+			likelyText: `likely ${bareValue(p.value, goal)}`,
+			gapText: short > 0 ? `${bare(short, goal)} short` : "on course",
+			tone: short > 0 ? "bad" : "good"
+		};
+	}
+	return {
+		cells,
+		gap,
+		marks: {
+			now,
+			end
+		}
+	};
+}
+function rangeCard(goal, cycle, checkIns, week, stale) {
+	const a = assessPosted(goal, cycle, checkIns, week);
+	if (a.kind !== "range") return {
+		cells: [],
+		gap: null,
+		marks: null
+	};
+	const { bound, limit, margin } = goal.range;
+	const better = bound === "atLeast" ? 1 : -1;
+	const lim = `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, goal)}`;
+	const cells = [];
+	let gap = null;
+	if (a.actual == null) {
+		cells.push({
+			key: "limit",
+			label: "Vs the limit",
+			value: NO_VALUE$1,
+			sub: `must stay ${lim}`,
+			tone: "flat"
+		});
+		cells.push({
+			key: "room",
+			label: "Room to the limit",
+			value: NO_VALUE$1,
+			sub: `warning within ${amount(margin, goal)}`,
+			tone: "flat"
+		});
+	} else {
+		const room = round((limit - a.actual) * -better, goal.decimals);
+		cells.push({
+			key: "limit",
+			label: "Vs the limit",
+			value: a.out ? "Outside it" : a.near ? "Inside, near it" : "Inside it",
+			sub: `must stay ${lim}`,
+			tone: a.out ? "bad" : a.near ? "flat" : "good"
+		});
+		const over = bound === "atMost" ? "over" : "under";
+		cells.push({
+			key: "room",
+			label: "Room to the limit",
+			value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? "None: at the limit" : `${amount(room, goal)} ${over}`,
+			sub: `warning within ${amount(margin, goal)}`,
+			tone: room < 0 ? "bad" : room <= margin ? "flat" : "good"
+		});
+		gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
+	}
+	cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, better));
+	const label = a.out ? "Back within by the end?" : "Will it stay within?";
+	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
+	const pr = stale ? null : projection(valueSeries(own), cycle.weeks);
+	if (stale) cells.push({
+		key: "hit",
+		label,
+		value: "Can’t say",
+		sub: "no recent check-in to go on",
+		tone: "flat"
+	});
+	else if (!pr) cells.push({
+		key: "hit",
+		label,
+		value: "Too early to say",
+		sub: "needs three weeks of numbers",
+		tone: "flat"
+	});
+	else {
+		const stay = likelihood(limit, {
+			value: pr.value,
+			low: pr.low,
+			high: pr.high
+		}, better, likelihoodFloor(margin || limit * .1, goal.decimals));
+		cells.push({
+			key: "hit",
+			label,
+			value: LIKELIHOOD_WORD[stay],
+			sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}`,
+			tone: stay === "likely" ? "good" : stay === "possible" ? "flat" : "bad",
+			likelihood: stay
+		});
+	}
+	return {
+		cells,
+		gap,
+		marks: null
+	};
+}
+function milestoneCard(goal, checkIns, week) {
+	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
+	const m = assessMilestone(goal, week, own[own.length - 1]?.stages ?? null);
+	const n = m.stages.length;
+	const late = m.stages.filter((s) => s.kind !== "done" && s.weeksLate > 0);
+	const most = Math.max(0, ...late.map((s) => s.weeksLate));
+	const next = m.stages.filter((s) => s.kind !== "done").sort((x, y) => x.dueWeek - y.dueWeek)[0];
+	const lastDone = Math.max(0, ...m.stages.map((s) => s.doneWeek ?? 0));
+	return {
+		cells: [
+			{
+				key: "done",
+				label: "Stages done",
+				value: `${m.doneCount} of ${n}`,
+				sub: `${m.dueCount} due by week ${week}`,
+				tone: m.doneCount >= m.dueCount ? "good" : "flat"
+			},
+			{
+				key: "late",
+				label: "Stages late",
+				value: late.length ? String(late.length) : "None",
+				sub: late.length ? `up to ${most} ${most === 1 ? "week" : "weeks"} late` : "on schedule",
+				tone: late.length ? "bad" : "good"
+			},
+			next ? {
+				key: "next",
+				label: "Next stage",
+				value: `Week ${Math.max(next.dueWeek, next.expectedWeek)}`,
+				sub: `${next.name}${next.expectedWeek > next.dueWeek ? `, due week ${next.dueWeek}` : ""}`,
+				tone: next.expectedWeek > next.dueWeek ? "bad" : "flat"
+			} : {
+				key: "next",
+				label: "Next stage",
+				value: "All done",
+				sub: `last done in week ${lastDone}`,
+				tone: "good"
+			}
+		],
+		gap: m.calc === "done" ? "every stage done" : late.length ? `${late.length} ${late.length === 1 ? "stage" : "stages"} late` : "on schedule",
+		marks: null
+	};
+}
+/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected. */
+function goalScorecard(goal, cycle, checkIns, week, stale) {
+	if (goal.kind === "metric") return metricCard(goal, cycle, checkIns, week, stale);
+	if (goal.kind === "range") return rangeCard(goal, cycle, checkIns, week, stale);
+	return milestoneCard(goal, checkIns, week);
+}
 // src/domain/activity.ts
 init_format();
 init_plan();
@@ -28585,23 +29255,25 @@ var ARTICLES = [
 			{
 				heading: "The summary bar",
 				list: [
-					"First line: the goal, its owner, its level and its key (G-12).",
-					"Second line: its status as a shape and a word, the number against this week’s plan and the target in the goal’s own units, and which way it’s heading (worsening, flat or recovering). Dated stages say how many are done and which are slipping; a range says whether it’s inside its limit.",
-					"Third line: why, in the owner’s words, and whether anyone is on it yet. A north star also says how the goals feeding it are doing.",
+					"First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.",
+					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go), and Will it hit the target.",
+					"Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.",
+					"A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages late and Next stage: when it now lands, and the week it was due if it’s late.",
 					"One main button, for what you’d most likely do next: answer something asked of you, check in when it’s due, ask a quiet goal’s owner for an update, or watch it. The “…” menu has Share image, Copy link, Print or save as PDF, and Change this goal.",
-					"As you scroll, the bar shrinks to one line at the top: the goal, its status, the number and the main button. On a phone it takes the place of the app’s header."
+					"As you scroll, the bar shrinks to one line on a solid panel at the top: the status, the number and the gap to plan (“Off track · 37 hours · 9 behind plan”), and the “…” menu. On a phone the bar takes the place of the app’s header."
 				]
 			},
 			{
 				heading: "Below the bar",
 				list: [
 					"Asked of you: every ask waiting on you (a decision or help, a question, an update, an action), each answered or marked done right there in the Respond panel. Home’s buttons open the goal with the ask open and the box ready.",
-					"One line for you: what happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”), what you just posted (“Posted: at risk → off track · 6 weeks on time”), or, the first time, what the number measures.",
-					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. Its top-left corner says which way is better, higher or lower. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given.",
-					"Why: where the reason came from and since when, and anything the numbers would otherwise hide, as small tags.",
-					"What’s being done: the path to green, the owner’s date checked against the trend, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done, as the ask itself says.",
+					"One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures.",
+					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.",
+					"Every section under the chart has a heading and one line saying what it answers, with a rule between sections.",
+					"Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything the numbers would otherwise hide, as small tags. On plan, the same place has the owner’s latest word; gone quiet, how long it has been.",
+					"What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done.",
 					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
-					"What feeds it: the goal most likely to make it miss first, with why, then the rest worst first. Back from one of them names the goal you came from.",
+					"What feeds it: how the goals feeding it stand (“Fed by four goals: 2 off track, 1 at risk”), then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
 					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks.",
 					"About this goal: how it’s measured, its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change. It’s open the first time you visit, and folded after."
 				]
@@ -28625,6 +29297,7 @@ var ARTICLES = [
 			"GOAL-PAGE",
 			"CHART-READ",
 			"GOAL-PAGE-BAR",
+			"GOAL-PAGE-SCORECARD",
 			"GOAL-PAGE-ONCE",
 			"GOAL-PAGE-INTENT",
 			"GOAL-PAGE-ALIVE",
@@ -28640,6 +29313,10 @@ var ARTICLES = [
 			"goal",
 			"chart",
 			"summary",
+			"scorecard",
+			"will it hit",
+			"likely",
+			"vs last week",
 			"projection",
 			"forecast",
 			"range",
@@ -29054,7 +29731,7 @@ var ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"On a goal’s page or a review, choose Print or save as PDF.",
-				"A goal prints on one A4 page: status, the number against plan and target, the facts, chart, path to green, latest check-in, requests, review notes, quarters and contributing goals.",
+				"A goal prints on one A4 page: status, the number against plan and target, the facts, chart, path to green, latest check-in, requests, the three latest review notes, quarters and contributing goals. The reason is printed once, under Why.",
 				"A review prints its session worst first, with what was said.",
 				"Print uses black on white with the status shapes kept, and no navigation."
 			]
@@ -29413,6 +30090,20 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "goal-page-scorecard",
+		date: "2026-11-06",
+		title: "A goal’s page says each thing once, with a scorecard at the top",
+		points: [
+			"Under a goal’s status and number there’s now a scorecard: against plan, against last week, what’s left to the target, and whether it will hit it, in words (Likely, Possible, Unlikely or Very unlikely), never a percentage.",
+			"The chart marks the same numbers where they are: the gap to plan at now, where it will likely end, and how far that is from the target. The rows and the small bar under the chart are gone.",
+			"The owner’s reason now opens the Why section under the chart, and how the goals feeding it stand opens What feeds it, instead of both sitting in the bar too.",
+			"Every section says in one line what it answers, with a clear rule between sections. Path to green gives the owner’s date in words and whether the trend gets there.",
+			"Scrolled down, the bar is one line on a solid panel that stands off the page: status, number, the gap to plan and the “…” menu. “Since you looked” only appears when something has changed.",
+			"On paper, a goal fits one A4 page again, and on a 360px phone nothing runs off the side."
+		],
+		articles: ["goal-page", "print"]
+	},
 	{
 		id: "one-ask-one-watching",
 		date: "2026-11-05",
@@ -31312,6 +32003,7 @@ var WORK_TOOLS = [
 WORK_TOOLS.filter((t) => t.annotations.readOnlyHint).map((t) => t.name);
 // src/mcp/tools.ts
 init_actions();
+init_status();
 init_goalKey();
 init_tableLayout();
 var str = (description, extra = {}) => ({
@@ -31589,7 +32281,7 @@ var TOOLS = [...[
 	{
 		name: "get_goal",
 		title: "One goal in full",
-		description: "Everything about one goal: its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.",
+		description: "Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, and notes, questions and actions from reviews.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -31610,9 +32302,16 @@ var TOOLS = [...[
 				today: ctx.today,
 				goals: [g]
 			});
+			const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
+			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
+				label: c.label,
+				value: c.value,
+				detail: c.sub
+			}));
 			const data = {
 				cycle: j.cycle,
 				goal: j.goals[0],
+				scorecard,
 				notes: j.notes
 			};
 			return {

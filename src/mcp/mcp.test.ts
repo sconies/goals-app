@@ -65,6 +65,10 @@ describe('MCP server', () => {
     expect((mine.structuredContent!.goals as { id: string }[]).map((g) => g.id).sort()).toEqual(['mttr-pir', 'ns-mttr']);
     const g = await call('get_goal', { goal_id: 'mttr-pir' });
     expect((g.structuredContent!.goal as { checkIns: unknown[] }).checkIns.length).toBeGreaterThan(3);
+    // The goal page's scorecard, in the same words (domain/scorecard): the assistant and the page agree.
+    const card = g.structuredContent!.scorecard as { label: string; value: string; detail: string }[];
+    expect(card.map((c) => c.label).slice(0, 3)).toEqual(['Vs plan', 'Vs last week', 'To target']);
+    expect(card[3]!.value).toMatch(/^(Likely|Possible|Unlikely|Very unlikely|Too early to say|Can’t say)$/);
     expect((await call('get_goal', { goal_id: 'nope' })).isError).toBe(true);
   });
 
