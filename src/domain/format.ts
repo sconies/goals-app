@@ -3,10 +3,15 @@ import type { Goal, Level, MetricGoal, RangeGoal } from './types';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 
+/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
+export function unitFor(n: string, unit: string): string {
+  return n === '1' && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
+}
+
 export function fmt(v: number, g: Numeric): string {
   const n = v.toFixed(g.decimals);
   if (!g.unit) return n;
-  return g.unit === '%' ? n + '%' : n + ' ' + g.unit;
+  return g.unit === '%' ? n + '%' : n + ' ' + unitFor(n, g.unit);
 }
 
 /** The words for a goal with no number yet: the same in every list, card, headline and export. */
@@ -21,7 +26,7 @@ export function nowText(g: Goal, a: Assessment): string {
 export function fmtDiff(v: number, g: Numeric): string {
   const n = Math.abs(v).toFixed(g.decimals);
   if (g.unit === '%') return n + (Number(n) === 1 ? ' pt' : ' pts');
-  return g.unit ? n + ' ' + g.unit : n;
+  return g.unit ? n + ' ' + unitFor(n, g.unit) : n;
 }
 
 /**

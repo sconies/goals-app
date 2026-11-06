@@ -22945,10 +22945,14 @@ function commitPayload(ws, c) {
 	};
 }
 // src/domain/format.ts
+/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
+function unitFor(n, unit) {
+	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
+}
 function fmt(v, g) {
 	const n = v.toFixed(g.decimals);
 	if (!g.unit) return n;
-	return g.unit === "%" ? n + "%" : n + " " + g.unit;
+	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
 }
 /** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
 function nowText(g, a) {
@@ -22958,7 +22962,7 @@ function nowText(g, a) {
 function fmtDiff(v, g) {
 	const n = Math.abs(v).toFixed(g.decimals);
 	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
-	return g.unit ? n + " " + g.unit : n;
+	return g.unit ? n + " " + unitFor(n, g.unit) : n;
 }
 /**
 * A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
