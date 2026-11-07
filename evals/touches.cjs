@@ -11,7 +11,7 @@ const FULL = 'FULL';
 /** [what changed, the journeys and checks it touches] */
 const RULES = [
   // Nothing extra: words for people, the database's paste-in copies, the backlog. (What's new and the guide are N7.)
-  [/^(docs\/|README|CLAUDE\.md|supabase\/manual\/|\.github\/)/, []],
+  [/^(docs\/|README|CLAUDE\.md|supabase\/manual\/|\.github\/|evals\/(report\.md|requirements\.json))/, []],
   [/^src\/help\//, ['N7', 'U27', 'U29']],
   // Shared by every screen: the full suite.
   [/^(src\/(App|main)\.tsx|src\/styles\.css|src\/styles\/[^/]+\.css|src\/app\/state\.tsx|src\/ui\/|src\/domain\/(vocabulary|status|types|plan|cycle|year)\.ts|src\/data\/(store|examples)\.ts|src\/data\/platformOrg\/|index\.html|vite\.config\.ts|package(-lock)?\.json)/, [FULL]],
