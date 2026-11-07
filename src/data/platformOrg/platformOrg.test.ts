@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /* The Platform Engineering example is a believable organisation, and every record in it follows the app's own rules. */
 import { describe, expect, it } from 'vitest';
 import { draftFrom, emptyDraft, evaluate } from '../../domain/checkin';
@@ -176,5 +177,12 @@ describe('the Platform Engineering example', () => {
     expect((await store.load('platform-org')).goals.length).toBe(s.goals.length);
     pickExampleFromUrl('?example=nothing-like-it');
     expect(localStorage.getItem('goals-app-workspace')).toBe('platform-org');
+  });
+});
+
+describe('the example saved for an eval build (backlog -1)', () => {
+  it('is the same after a trip through JSON, so loading the saved one gives what building it would', () => {
+    const built = buildPlatformOrg(new Date('2026-11-05T12:00:00.000Z'));
+    expect(JSON.parse(JSON.stringify(built))).toEqual(built);
   });
 });

@@ -8,8 +8,17 @@ export const EXAMPLE: Workspace = { id: 'platform-org', name: 'Example: Platform
 /** Whether a workspace id is the demo's example. */
 export const isExample = (id: string) => id === EXAMPLE.id;
 
-/** The example's data as it stands on a day: built from its description, loaded on demand. */
+/** The example's data as it stands on a day: built from its description, loaded on demand. An eval build carries it
+    already built for the moment the evals pin the clock to (VITE_EXAMPLE_SNAPSHOT, made by scripts/example-snapshot.mjs
+    with the same code), and loads that instead of building it on every page load. */
 export async function buildExample(today: Date): Promise<Snapshot> {
+  const saved = import.meta.env.VITE_EXAMPLE_SNAPSHOT as string | undefined;
+  if (saved && today.toISOString() === saved) {
+    try {
+      const r = await fetch(`/example-${saved.slice(0, 10)}.json`);
+      if (r.ok) return (await r.json()) as Snapshot;
+    } catch { /* built below instead */ }
+  }
   const { buildPlatformOrg } = await import('./platformOrg/generate');
   return buildPlatformOrg(today);
 }

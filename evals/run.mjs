@@ -2,7 +2,10 @@
 
    npm run evals                  the full suite: builds once, then runs the spec scenarios and EVALS_SHARDS (default 4)
                                   journey shards side by side, and merges them into one scorecard
-   npm run evals:smoke            the quick gate: the spec scenarios, journeys U1 U2 U3 U5 U16 U33, and checks P6 and P5
+   npm run evals:smoke            the quick gate: the spec scenarios, journeys U1 U2 U3 U5 U16 U33, and checks P6 and P5,
+                                  in two processes beside the scenarios
+   npm run evals:changed          the smoke gate plus every journey and check the files changed since origin/main touch
+                                  (evals/touches.cjs; --base ref for another base). Shared code means the full suite
    node evals/run.mjs --shard k/n one shard of the full suite (CI runs each on its own machine; shard 1 also runs the
                                   spec scenarios), leaving evals/out/journeys-k.json
    node evals/run.mjs --merge dir only merges the shards' results found under dir into the scorecard (CI)
@@ -21,7 +24,10 @@ import { fileURLToPath } from 'node:url';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'evals', 'out');
 const require = createRequire(import.meta.url);
-const { plan: shardPlan, checkIds } = require('./shards.cjs');
+const { plan: shardPlan, checkIds, WEIGHTS, JOURNEY_WEIGHTS } = require('./shards.cjs');
+const { touches: touchesOf } = require('./touches.cjs');
+/** Journeys measured as slow on their own (seconds, a phone and a desktop), for splitting a quick run in two. */
+const QUICK_WEIGHTS = { U1: 40, U3: 45, U33: 22 };
 const PORT = Number(process.env.EVALS_PORT || 4318);
 const HANG_PORT = PORT + 2;
 const SMOKE_JOURNEYS = ['U1', 'U2', 'U3', 'U5', 'U16', 'U33'];
@@ -30,6 +36,7 @@ const SMOKE_CHECKS = ['P6'];
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i < 0 ? undefined : args[i + 1] ?? ''; };
 const smoke = args.includes('--smoke');
+const changed = args.includes('--changed');
 const mergeDir = flag('--merge');
 const oneShard = (/^(\d+)\/(\d+)$/.exec(flag('--shard') || '') || []).slice(1).map(Number);
 const subset = !!(process.env.ONLY || process.env.FINISH || process.env.CHECKS);
@@ -47,12 +54,19 @@ const journeyIds = () => [...fs.readFileSync(path.join(root, 'evals', 'journeys.
 
 /* ---------------- build, serve, run ---------------- */
 
+/** The moment the evals pin the clock to (journeys.cjs TODAY, `?today=` is noon UTC): the builds carry the example
+    already built for it (scripts/example-snapshot.mjs), so pages don't build it on every load. */
+const EXAMPLE_AT = '2026-11-05T12:00:00.000Z';
+
 function build({ down }) {
   console.log(`\n▸ Building the app${down ? ', and a copy whose database never answers' : ''}`);
-  if (sh('npx', ['vite', 'build', '--logLevel', 'warn']).status !== 0) process.exit(2);
+  const saved = { VITE_EXAMPLE_SNAPSHOT: EXAMPLE_AT };
+  if (sh('npx', ['vite', 'build', '--logLevel', 'error'], saved).status !== 0) process.exit(2);
   // The copy talks to a local server that accepts connections and never answers: a dead database that
   // behaves the same on every machine (an unroutable address fails fast behind some proxies and hangs on others).
-  if (down) sh('npx', ['vite', 'build', '--logLevel', 'error', '--outDir', 'evals/out/dist-down'], { VITE_SUPABASE_URL: `http://127.0.0.1:${HANG_PORT}`, VITE_SUPABASE_KEY: 'unused' });
+  if (down) sh('npx', ['vite', 'build', '--logLevel', 'error', '--outDir', 'evals/out/dist-down'], { ...saved, VITE_SUPABASE_URL: `http://127.0.0.1:${HANG_PORT}`, VITE_SUPABASE_KEY: 'unused' });
+  sh('node', ['scripts/example-snapshot.mjs', 'dist', EXAMPLE_AT]);
+  if (down) fs.copyFileSync(path.join(root, 'dist', `example-${EXAMPLE_AT.slice(0, 10)}.json`), path.join(out, 'dist-down', `example-${EXAMPLE_AT.slice(0, 10)}.json`));
 }
 
 function scenarios() {
@@ -60,7 +74,18 @@ function scenarios() {
   sh('npx', ['vitest', 'run', '--config', 'evals/vitest.config.ts', '--reporter=default', '--reporter=json', '--outputFile=evals/out/scenarios.json']);
 }
 
-const serve = (port, dir) => spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort', ...(dir ? ['--outDir', dir] : [])], { cwd: root, stdio: 'ignore' });
+// Vite itself, not through npx: killing npx left the server it started running (and holding its port) after a run.
+const VITE = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js');
+const running = new Set();
+const serve = (port, dir) => {
+  const s = spawn(process.execPath, [VITE, 'preview', '--port', String(port), '--strictPort', ...(dir ? ['--outDir', dir] : [])], { cwd: root, stdio: 'ignore' });
+  running.add(s); s.on('exit', () => running.delete(s));
+  return s;
+};
+// However the run ends, its servers go with it.
+const stopAll = () => running.forEach((s) => { try { s.kill(); } catch { /* gone */ } });
+process.on('exit', stopAll);
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { stopAll(); process.exit(130); });
 
 /** Starts the app (and, with down, the dead-database copy) on app/app+1; resolves once they answer. */
 async function startServers(ports) {
@@ -209,28 +234,64 @@ if (mergeDir !== undefined) {
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 
-if (smoke) {
+/* ---------------- the quick runs: smoke, and what a change touches ---------------- */
+
+/** --changed [--base ref]: the files changed since the base (origin/main), committed or not. */
+function changedFiles() {
+  const base = flag('--base') || 'origin/main';
+  const git = (a) => (spawnSync('git', a, { cwd: root, encoding: 'utf8' }).stdout || '').split('\n').filter(Boolean);
+  return [...new Set([...git(['diff', '--name-only', `${base}...HEAD`]), ...git(['diff', '--name-only', 'HEAD']), ...git(['ls-files', '--others', '--exclude-standard'])])].sort();
+}
+
+let quick = null;
+if (smoke) quick = { name: 'Smoke', journeys: SMOKE_JOURNEYS, checks: SMOKE_CHECKS, down: false };
+if (changed) {
+  const files = changedFiles();
+  const t = touchesOf(files);
+  console.log(`▸ ${files.length} file(s) changed since ${flag('--base') || 'origin/main'}`);
+  if (t.full) console.log(`  They touch shared code${t.unmatched.length ? ` (or code no rule in evals/touches.cjs names: ${t.unmatched.slice(0, 5).join(', ')})` : ''}: running the full suite.`);
+  else {
+    const ids = [...new Set([...SMOKE_JOURNEYS, ...SMOKE_CHECKS, ...t.ids])];
+    quick = { name: 'Changed', journeys: ids.filter((x) => /^U/.test(x)), checks: ids.filter((x) => !/^U/.test(x)), down: true };
+  }
+}
+
+if (quick) {
   const took = clock();
-  build({ down: false });
-  scenarios();
-  console.log(`\n▸ Core journeys (${SMOKE_JOURNEYS.join(' ')}) and checks ${SMOKE_CHECKS.join(' ')}, P5`);
-  const servers = await startServers([[PORT]]);
-  await journeysProc({ BASE: `http://localhost:${PORT}`, ONLY: SMOKE_JOURNEYS.join(','), CHECKS: SMOKE_CHECKS.join(',') });
-  servers.forEach((s) => s.kill());
+  build({ down: quick.down });
+  console.log(`\n▸ Spec scenarios, and journeys ${quick.journeys.join(' ')} with checks ${quick.checks.join(' ')} and P5, side by side`);
+  const servers = await startServers(quick.down ? [[PORT], [PORT + 1, 'evals/out/dist-down']] : [[PORT]]);
+  const stopHang = quick.down ? startHang() : () => {};
+  // Two journey processes and the scenarios at once (they used to run one after another), balanced by how long each
+  // journey and check takes (shards.cjs): the two slow smoke journeys, U1 and U3, land one in each.
+  const halves = [{ journeys: [], checks: [], s: 0 }, { journeys: [], checks: [], s: 0 }];
+  const units = [...quick.journeys.map((id) => ({ id, w: QUICK_WEIGHTS[id] ?? JOURNEY_WEIGHTS[id] ?? 9.5, j: true })), ...quick.checks.map((id) => ({ id, w: WEIGHTS[id] ?? 20, j: false }))].sort((x, y) => y.w - x.w);
+  for (const u of units) { const h = halves[0].s <= halves[1].s ? halves[0] : halves[1]; (u.j ? h.journeys : h.checks).push(u.id); h.s += u.w; }
+  const env = { BASE: `http://localhost:${PORT}`, ...(quick.down ? { DOWN: `http://localhost:${PORT + 1}` } : {}) };
+  await Promise.all([
+    new Promise((resolve) => { const p = spawn('npx', ['vitest', 'run', '--config', 'evals/vitest.config.ts', '--reporter=default', '--reporter=json', '--outputFile=evals/out/scenarios.json'], { cwd: root, stdio: ['ignore', fs.openSync(path.join(out, 'scenarios.log'), 'w'), 'inherit'] }); p.on('close', resolve); }),
+    ...halves.map((h, i) => (!h.journeys.length && !h.checks.length ? null : journeysProc({ ...env, ONLY: h.journeys.join(','), CHECKS: h.checks.join(','), FINISH: '', OUT_FILE: `quick-${i + 1}.json` }, path.join(out, `quick-${i + 1}.log`)))),
+  ]);
+  servers.forEach((x) => x.kill());
+  stopHang();
+  for (const f of ['scenarios.log', 'quick-1.log', 'quick-2.log']) if (fs.existsSync(path.join(out, f))) process.stdout.write(fs.readFileSync(path.join(out, f), 'utf8').split('\n').filter((l) => /^(PASS|FAIL| {5}| Test Files| {6}Tests)/.test(l)).join('\n') + '\n');
+  const parts = [1, 2].map((i) => path.join(out, `quick-${i}.json`)).filter((f) => fs.existsSync(f)).map(read);
+  const errs = parts.flatMap((x) => x.consoleErrors || []);
+  fs.writeFileSync(path.join(out, 'journeys.json'), JSON.stringify({ journeys: parts.flatMap((x) => x.journeys), platform: [...parts.flatMap((x) => x.platform.filter((c) => c.id !== 'P5')), { id: 'P5', reqs: ['NO-ERRORS'], title: 'No console or page errors', pass: !errs.length && parts.length === halves.filter((h) => h.journeys.length || h.checks.length).length, error: errs.slice(0, 4).join(' | ') || undefined }], consoleErrors: errs }, null, 2));
   const scen = read(path.join(out, 'scenarios.json'));
   const cases = scen.testResults.flatMap((f) => f.assertionResults);
   const j = fs.existsSync(path.join(out, 'journeys.json')) ? read(path.join(out, 'journeys.json')) : { journeys: [], platform: [] };
   const bad = [
     ...(cases.length ? [] : ['the spec scenarios did not run']),
     ...cases.filter((t) => t.status !== 'passed').map((t) => `scenario ${t.title}`),
-    ...SMOKE_JOURNEYS.filter((id) => !j.journeys.some((x) => x.id === id)).map((id) => `journey ${id} did not run`),
+    ...quick.journeys.filter((id) => !j.journeys.some((x) => x.id === id)).map((id) => `journey ${id} did not run`),
     ...j.journeys.filter((x) => !x.pass || (['U1', 'U2', 'U3', 'U4', 'U5'].includes(x.id) && x.score < 10)).map((x) => `journey ${x.id} ${x.title} (${x.score}/10): ${x.phone.error || x.desktop.error || 'below 10'}`),
-    ...[...SMOKE_CHECKS, 'P5'].filter((id) => !j.platform.some((x) => x.id === id)).map((id) => `check ${id} did not run`),
+    ...[...quick.checks, 'P5'].filter((id) => !j.platform.some((x) => x.id === id)).map((id) => `check ${id} did not run`),
     ...j.platform.filter((x) => !x.pass).map((x) => `check ${x.id}: ${x.error}`),
   ];
-  const md = `# Smoke run\n\nSpec scenarios ${cases.filter((t) => t.status === 'passed').length}/${cases.length}. Journeys ${j.journeys.map((x) => `${x.id} ${x.score}`).join(' · ')}. Checks ${j.platform.map((x) => `${x.id} ${x.pass ? 'pass' : 'FAIL'}`).join(' · ')}.\n${bad.length ? `\n## Failed\n\n${bad.map((x) => `- ${x}`).join('\n')}\n` : ''}`;
-  fs.writeFileSync(path.join(out, 'smoke.md'), md);
-  console.log(`\n▸ Smoke ${bad.length ? 'FAILED' : 'passed'} in ${took()}s\n${md}`);
+  const md = `# ${quick.name} run\n\nSpec scenarios ${cases.filter((t) => t.status === 'passed').length}/${cases.length}. Journeys ${j.journeys.map((x) => `${x.id} ${x.score}`).join(' · ')}. Checks ${j.platform.map((x) => `${x.id} ${x.pass ? 'pass' : 'FAIL'}`).join(' · ')}.\n${bad.length ? `\n## Failed\n\n${bad.map((x) => `- ${x}`).join('\n')}\n` : ''}`;
+  fs.writeFileSync(path.join(out, smoke ? 'smoke.md' : 'changed.md'), md);
+  console.log(`\n▸ ${quick.name} ${bad.length ? 'FAILED' : 'passed'} in ${took()}s\n${md}`);
   process.exit(bad.length ? 1 : 0);
 }
 

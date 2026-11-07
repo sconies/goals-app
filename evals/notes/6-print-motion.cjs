@@ -35,6 +35,31 @@ const SAMPLER = () => {
   requestAnimationFrame(tick);
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__pm.shift += e.value; }).observe({ type: 'layout-shift', buffered: true }); } catch { /* no layout-shift API */ }
 };
+/** Sets who's looking before the app starts, so a page loads once (not Home first, then the page). */
+const asViewer = (v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } };
+
+/**
+ * Waits for the page to be up and its entrance motion to end, instead of reading at a fixed time. Home's progress ring
+ * was read 700ms after the address opened: on a machine four times slower (EVALS_CPU=4) Home wasn't drawn by then, so
+ * the ring hadn't filled and its count was part-way (found in PR #38). Endless animations (a spinner) don't count.
+ */
+async function settled(p) {
+  await p.waitForFunction(() => {
+    if (document.querySelector('.preboot, .boot')) return false;
+    const main = document.querySelector('main');
+    return !!main && [...main.children].some((e) => !e.matches('.page-help'));
+  }, null, { timeout: 20000 }).catch(() => {});
+  await p.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running' || a.effect.getTiming().iterations === Infinity), null, { timeout: 8000 }).catch(() => {});
+  // A count drawn frame by frame (not an animation) lands within a few frames of the motion ending.
+  await p.waitForTimeout(150);
+}
+
+/** EVALS_CPU=4 runs these pages four times slower (Chrome's CPU throttling), to prove the checks don't depend on speed. */
+async function slower(c, p) {
+  const rate = Number(process.env.EVALS_CPU || 1);
+  if (rate > 1) await (await c.newCDPSession(p)).send('Emulation.setCPUThrottlingRate', { rate });
+}
+
 const sampled = (p) => p.evaluate(() => ({ anims: [...window.__pm.anims.values()], counts: window.__pm.counts, maxRunning: window.__pm.maxRunning, shift: window.__pm.shift }));
 
 /** Each row's goal, in order: the first link in it. */
@@ -72,12 +97,12 @@ module.exports = {
     /** A page with the sampler running from the start; `reduced` asks for reduced motion. */
     const at = async (w, h, who, route, opts = {}) => {
       const c = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: opts.reduced ? 'reduce' : 'no-preference', colorScheme: opts.scheme || 'light' });
+      await c.addInitScript(asViewer, who);
       await c.addInitScript(SAMPLER);
       const p = await c.newPage();
-      await p.goto(url('/'));
-      await p.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
+      await slower(c, p);
       await p.goto(url(route));
-      await p.waitForTimeout(opts.wait ?? 700);
+      await settled(p);
       return [c, p];
     };
 
@@ -115,9 +140,8 @@ module.exports = {
     // (The page-count rule for a review, one to three pages, is checked on the quarterly review: the leadership weekly walks 56 goals.)
     for (const [route, scheme] of [['/goals/ns-lead/print', 'dark'], ['/reviews/qbr/print', 'light'], ['/goals/lead-mq/print', 'light']]) {
       const c = await browser.newContext({ viewport: { width: A4_CONTENT, height: 1000 }, colorScheme: scheme });
+      await c.addInitScript(asViewer, 'amara');
       const p = await c.newPage();
-      await p.goto(url('/'));
-      await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'amara'));
       await p.goto(url(route));
       await p.locator('.print-sheet').waitFor();
       await p.emulateMedia({ media: 'print', colorScheme: scheme });
