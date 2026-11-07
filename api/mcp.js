@@ -35212,10 +35212,10 @@ function buildOf(host) {
 }
 /** Where a markup was sent from, in words: “the demo”, “Acme”, with “on a preview build” or “on a laptop” when it
 wasn't the live app, so a test round's markups are easy to tell apart. */
-function sentFrom(m) {
+function sentFrom(m, o = {}) {
 	const where = m.demo ? "the demo" : m.workspaceName || "a workspace";
 	const b = buildOf(m.context?.host);
-	return b === "preview" ? `${where} on a preview build (${m.context.host})` : b === "local" ? `${where} on a laptop` : where;
+	return b === "preview" ? `${where} on a preview build${o.host === false ? "" : ` (${m.context.host})`}` : b === "local" ? `${where} on a laptop` : where;
 }
 var MarkupError = class extends Error {};
 var markupFromRow = (r) => ({

@@ -148,7 +148,7 @@ export default function Inbox() {
                   <span className="stack mk-row-text">
                     <span className="mk-line">{m.line}</span>
                     <span className="tiny muted">{namedParts(m)[0] ? <PartPath path={namedParts(m)[0]!} /> : m.route}</span>
-                    <span className="tiny muted">{m.personName || 'Someone'}, {sentFrom(m)}, {timeAgo(m.createdAt, app.today)}{g.markups.length > 1 ? <strong className="mk-count"> · {g.markups.length} on this part</strong> : null}</span>
+                    <span className="tiny muted">{m.personName || 'Someone'}, {sentFrom(m, { host: false })}, {timeAgo(m.createdAt, app.today)}{g.markups.length > 1 ? <strong className="mk-count"> · {g.markups.length} on this part</strong> : null}</span>
                   </span>
                 </button>
               </li>
