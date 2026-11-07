@@ -13,7 +13,7 @@ import { StatusLegend } from '../ui/StatusLegend';
 import { Icon } from '../ui/Icon';
 import { useApp } from '../app/state';
 import { raisedBy } from '../markup/backend';
-import { raisedThis, type Raised } from '../markup/model';
+import { raisedIn, raisedText, type Raised } from '../markup/model';
 
 function ArticleRow({ a }: { a: Article }) {
   return (
@@ -109,9 +109,10 @@ export function WhatsNew() {
   const app = useApp();
   // Seeing this page is seeing what's new: the dot beside Help and the line on Home go.
   useEffect(() => { markWhatsNewSeen(); }, []);
-  // The markups this person sent, so an entry that fixed one says so.
+  // The markups and feedback this person sent, so an entry that fixed one says so.
   const [raised, setRaised] = useState<Raised[]>([]);
-  useEffect(() => { let live = true; void raisedBy(app.ws.id, app.viewer.id, app.mode === 'demo').then((r) => { if (live) setRaised(r); }).catch(() => undefined); return () => { live = false; }; }, [app.ws.id, app.viewer.id, app.mode]);
+  const feedback = app.snapshot.feedback;
+  useEffect(() => { let live = true; void raisedBy(app.ws.id, app.viewer.id, app.mode === 'demo', feedback ?? []).then((r) => { if (live) setRaised(r); }).catch(() => undefined); return () => { live = false; }; }, [app.ws.id, app.viewer.id, app.mode, feedback]);
   return (
     <div className="page narrow help-page">
       <BackLink to="/help" label="Help" />
@@ -122,11 +123,12 @@ export function WhatsNew() {
       <ol className="news-list">
         {WHATS_NEW.map((e) => {
           const read = e.articles.map((id) => articleById(id)).filter((x): x is Article => !!x);
+          const mine = raisedIn(e, raised, app.viewer.id);
           return (
             <li key={e.id} id={e.id} className="news">
               <time className="news-date" dateTime={e.date}>{newsDate(e.date)}</time>
               <h2 className="h2">{e.title}</h2>
-              {raisedThis(e, raised, app.viewer.id) && <p className="news-raised"><Icon name="check-circle" size={14} /><strong>You raised this.</strong> <span className="muted">Thank you: a markup you sent is fixed here.</span></p>}
+              {mine.length > 0 && <p className="news-raised"><Icon name="check-circle" size={14} /><strong>You raised this.</strong> <span className="muted">{raisedText(mine)}</span></p>}
               <ul className="help-points">{e.points.map((p) => <li key={p}>{p}</li>)}</ul>
               {read.length > 0 && (
                 <p className="news-more"><span className="muted">Read more: </span>{read.map((r, i) => <span key={r.id}>{i > 0 && ', '}<Link to={'/help/' + r.id}>{r.title}</Link></span>)}</p>

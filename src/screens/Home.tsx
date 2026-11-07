@@ -152,8 +152,10 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
             )}
           </section>
         )}
-        {/* After your own goals, so what needs you comes first on a phone (U2); it qualifies an empty attention list. */}
-        <FirstReports />
+        {/* After your own goals, so what needs you comes first on a phone (U2). It qualifies an empty attention list, so it
+            shows only while a goal Home lists (yours, or one you watch) is still waiting for its first check-in: someone
+            who owns none sees the goals they watch on the first screen (U9). */}
+        <FirstReports among={[...mine, ...watchedGoals(app.viewer.id, app.snapshot)].map((g) => g.id)} />
         {after}
       </div>
     </>

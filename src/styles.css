@@ -235,12 +235,15 @@ select.input { padding-right: 28px; }
 .arow:hover { background: var(--surface-2); }
 .arow-icon { flex: none; padding-top: 4px; display: inline-flex; }
 .arow-icon svg { width: 14px; height: 14px; }
-.arow-icon[data-tone="off"] { color: var(--off-mark); } .arow-icon[data-tone="risk"] { color: var(--risk-mark); } .arow-icon[data-tone="stale"] { color: var(--stale-mark); } .arow-icon[data-tone="info"] { color: var(--accent); }
+/* The status shape, in its status's mark colour (the goal's status, never a flag's). */
+.arow-icon.tone-on { color: var(--on-mark); } .arow-icon.tone-off { color: var(--off-mark); } .arow-icon.tone-risk { color: var(--risk-mark); } .arow-icon.tone-stale, .arow-icon.tone-none, .arow-icon.tone-planned { color: var(--stale-mark); } .arow-icon.tone-done { color: var(--done-mark); }
 .arow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
 .arow-title { font-weight: 600; }
 .arow-why { font-size: 0.875rem; line-height: 1.25rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.arow-flags { color: var(--fg-2); font-weight: 600; }
-.arow[data-tone="off"] .arow-flags { color: var(--off-fg); } .arow[data-tone="risk"] .arow-flags { color: var(--risk-fg); }
+/* The status's word leads the reason; anything else flagged follows it with the warning mark (a flag is not a status). */
+.arow-status { font-weight: 600; }
+.arow-flags { color: var(--risk-fg); font-weight: 600; }
+.arow-flags svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
 .arow-action { flex: none; align-self: center; }
 
 /* goal lines: one line per goal */

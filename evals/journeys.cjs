@@ -181,6 +181,17 @@ const navTo = async (h, p, label) => {
   await h.click(p.getByRole('dialog').getByRole('link', { name: label }));
 };
 
+/** Status shapes whose words disagree with them (SHAPE-MATCHES-WORD): the shape says one status and the words nearest it
+    (its own slot, or the nearest box around it with any text) don't name it, such as the At risk half-circle beside
+    "Getting worse" on a goal that is on track. The app's own rule decides (vocabulary.ts shapeAgrees, which the page
+    exposes); the history grid's compact cells have a key instead. */
+const shapeMismatches = (p) => p.$$eval('svg.status-shape[data-status]', (els) => {
+  const near = (e) => { let box = e.parentElement; while (box && !box.innerText.trim()) box = box.parentElement; return box ? box.innerText : ''; };
+  if (typeof window.__shapeAgrees !== 'function') return ['the page does not expose the shape rule (window.__shapeAgrees)'];
+  return els.filter((e) => e.getClientRects().length && !e.closest('.hgrid') && !window.__shapeAgrees(e.dataset.status, near(e)))
+    .map((e) => `the ${e.dataset.status} shape beside “${near(e).replace(/\s+/g, ' ').trim().slice(0, 60)}”`);
+});
+
 /* ---------------- the ten journeys ---------------- */
 const J = [];
 const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
@@ -2495,7 +2506,7 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();
@@ -2517,8 +2528,9 @@ async function platformChecks() {
         return !/on track|at risk|off track|stale|done|not started|no check-in|met|missed|no recent update|nothing is|late|slipping|on schedule|in progress|target reached|nothing flagged/i.test(near);
       }).map((e) => (e.closest('[class]')?.className || '').toString().split(' ')[0]));
       if (mute.length) problems.push(`${who} ${route}: ${mute.length} status shapes without a word (${[...new Set(mute)].join(', ')})`);
+      (await shapeMismatches(r)).forEach((x) => problems.push(`${who} ${route}: ${x}`));
     }
-    add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y'] : ['A11Y'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
+    add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y', 'SHAPE-MATCHES-WORD'] : ['A11Y', 'SHAPE-MATCHES-WORD'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
     await c3.close();
     lap(device === 'phone' ? 'P3' : 'P4');
   }
@@ -2554,11 +2566,13 @@ async function platformChecks() {
         return [...new Set(out)];
       });
       found.forEach((x) => design.push(`${device} ${route}: ${x}`));
+      // Status is a shape plus a word, and the shape is the word's: every Goals layout, at both widths.
+      (await shapeMismatches(r)).forEach((x) => design.push(`${device} ${route}: ${x}`));
     }
     await c4.close();
   }
   lap('P6');
-  if (want('P6')) add('P6', ['DESIGN-RULES'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules', !design.length, design.slice(0, 6).join(' | '));
+  if (want('P6')) add('P6', ['DESIGN-RULES', 'SHAPE-MATCHES-WORD'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules, and every status shape beside its own word', !design.length, design.slice(0, 6).join(' | '));
   // P7: wide screens and a short laptop. Each kind of page uses the room it has: no clipped tables, portfolio views and
   // the map fill the work area, Home, a goal and Watching put their side column beside the main one, and on a 1440×700
   // laptop a goal's chart starts above the fold.

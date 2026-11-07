@@ -15,6 +15,7 @@ import type { SpanRow } from '../src/telemetry/model';
 import { SpanCollector } from '../src/telemetry/server';
 import type { McpContext } from '../src/mcp/tools';
 import type { MarkupOps } from '../src/markup/ops';
+import type { FeedbackOps } from '../src/markup/feedback';
 
 export interface Deps {
   /** The live (not revoked) token with this hash, its workspace, and whether it's a builder token (migration 0024). */
@@ -32,6 +33,8 @@ export interface Deps {
   recording?(workspaceId: string): Promise<boolean>;
   /** The builder inbox (src/markup/ops.ts) for a builder token, given its hash. Only builder tokens get it. */
   markups?(tokenHash: string): MarkupOps;
+  /** The builders' feedback triage (src/markup/feedback.ts) for a builder token, given its hash. Only builder tokens get it. */
+  feedback?(tokenHash: string): FeedbackOps;
   /** Where the server's own spans go. Without it, nothing is recorded. */
   telemetry?(spans: SpanRow[]): Promise<void>;
   now?: () => Date;
@@ -132,6 +135,8 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
       ...(deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace!(found.workspaceId) } : {}),
       // The markup tools work only with a builder token, which only a builder signed in to the inbox can make.
       ...(deps.markups && found.builder ? { markups: deps.markups(hash) } : {}),
+      // So do the feedback tools' statuses (migration 0028).
+      ...(deps.feedback && found.builder ? { feedback: deps.feedback(hash) } : {}),
     };
     return ctx;
   };

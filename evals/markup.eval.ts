@@ -12,6 +12,9 @@ import { applyCommit } from '../src/data/store';
 import { buildPlatformOrg } from '../src/data/platformOrg';
 import type { Snapshot } from '../src/domain/types';
 import { hashToken } from '../src/mcp/protocol';
+import { WHATS_NEW } from '../src/help/whatsNew';
+import { feedbackOps, tokenFeedback } from '../src/markup/feedback';
+import { raisedIn, raisedText } from '../src/markup/model';
 
 const M = (t: string) => `[MARKUP] ${t}`;
 const I = (t: string) => `[MARKUP-INBOX] ${t}`;
@@ -141,5 +144,78 @@ describe('AI assistant tokens are made only by the database', () => {
     // Revoked, it's no longer found.
     await as('anon', 'select okr_token_revoke($1, $2, $3)', ['acme', 'tok_mateo1', 'amara']);
     expect((await as('anon', 'select * from okr_token_find($1)', [sha(secret)])).rows).toEqual([]);
+  });
+});
+
+describe('The AI triages feedback, as it does markups (migration 0028)', () => {
+  const MF = (t: string) => `[MCP-FEEDBACK] ${t}`;
+  const R = (t: string) => `[FEEDBACK-RAISED] ${t}`;
+  const send = (fb: object) => as('anon', 'select okr_commit($1, $2)', ['acme', JSON.stringify({ ...commitPayload('acme', { changes: [] }), feedback: [fb] })]);
+  const builderSecret = async () => (await as<{ s: string }>('lanehirschfield@gmail.com', `select okr_builder_token_create('acme', 'amara', 'Claude, triaging feedback') as s`)).rows[0]!.s;
+  /** The public key's client as the MCP server holds it: rpc calls the database's functions, as anon. */
+  const client = { rpc: async (fn: string, args: Record<string, unknown>) => {
+    const keys = Object.keys(args);
+    try {
+      const r = await as('anon', `select * from ${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(', ')})`, keys.map((k) => (args[k] !== null && typeof args[k] === 'object' ? JSON.stringify(args[k]) : args[k])));
+      return { data: r.rows, error: null };
+    } catch (e) { return { data: null, error: { message: (e as Error).message } }; }
+  } } as unknown as Parameters<typeof tokenFeedback>[0];
+
+  it(MF('a builder token lists every workspace’s feedback with the sender’s and workspace’s names, by status or workspace, opens one, and triages it under the table’s rules'), async () => {
+    await send({ id: 'fb_m1', workspace_id: 'acme', person_id: 'mateo', path: '/goals', mood: 'meh', text: 'The filters are hard to find', at: '2026-11-07T08:00:00.000Z' });
+    const hash = sha(await builderSecret());
+    const rows = (await as<{ id: string; status: string; person_name: string; workspace_name: string }>('anon', 'select * from okr_feedback_for_token($1)', [hash])).rows;
+    expect(rows[0]).toMatchObject({ id: 'fb_m1', status: 'new', person_name: 'Mateo', workspace_name: 'Acme' });
+    expect((await as<{ id: string }>('anon', `select id from okr_feedback_for_token($1, st => 'fixed')`, [hash])).rows.map((r) => r.id)).toEqual(['fb_e1']);
+    expect((await as<{ id: string }>('anon', `select id from okr_feedback_for_token($1, fid => 'fb_m1')`, [hash])).rows.map((r) => r.id)).toEqual(['fb_m1']);
+    expect((await as('anon', `select id from okr_feedback_for_token($1, ws => 'elsewhere')`, [hash])).rows).toEqual([]);
+    const triage = (patch: object) => as<{ status: string }>('anon', 'select * from okr_feedback_triage_for_token($1, $2, $3)', [hash, 'fb_m1', JSON.stringify(patch)]);
+    expect((await triage({ status: 'in-hand', status_by: 'Lane via AI assistant (MCP)' })).rows[0]!.status).toBe('in-hand');
+    await expect(triage({ status: 'fixed' })).rejects.toThrow();
+    await expect(triage({ status: 'wont-fix' })).rejects.toThrow();
+    // The inbox's own triage still works, through the same change.
+    expect((await as<{ status: string }>('lanehirschfield@gmail.com', 'select * from okr_feedback_triage($1, $2)', ['fb_m1', JSON.stringify({ status: 'new' })])).rows[0]!.status).toBe('new');
+  });
+
+  it(MF('an ordinary token, a made-up one or the public key on its own can’t read or change feedback'), async () => {
+    const secret = (await as<{ s: string }>('anon', 'select okr_token_create($1, $2) as s', ['acme', JSON.stringify({ id: 'tok_mateo3', person_id: 'mateo', name: 'Claude', created_by: 'amara' })])).rows[0]!.s;
+    for (const h of [sha(secret), sha('gk_made-up')]) {
+      await expect(as('anon', 'select * from okr_feedback_for_token($1)', [h])).rejects.toThrow(/builder token/);
+      await expect(as('anon', 'select * from okr_feedback_triage_for_token($1, $2, $3)', [h, 'fb_m1', '{"status":"in-hand"}'])).rejects.toThrow(/builder token/);
+    }
+    await expect(as('anon', `select * from okr_feedback_patch('fb_m1', '{"status":"in-hand"}')`)).rejects.toThrow(/permission denied/);
+    await expect(as('admin@acme.example', `select * from okr_feedback_patch('fb_m1', '{"status":"in-hand"}')`)).rejects.toThrow(/permission denied/);
+    expect((await db.query<{ status: string }>(`select status from okr_feedback where id = 'fb_m1'`)).rows[0]!.status).toBe('new');
+  });
+
+  it(MF('the MCP server’s list_feedback, get_feedback and update_feedback reach it with a builder token, on the public key, with the inbox’s rules'), async () => {
+    const secret = await builderSecret();
+    let data: Snapshot = buildPlatformOrg(new Date('2026-11-05T12:00:00Z'));
+    const deps: Deps = {
+      async findToken(hash) { const row = (await as<TokenRow & { builder: boolean }>('anon', 'select * from okr_token_find($1)', [hash])).rows[0]; return row ? { token: { ...tokenFromRow({ ...row, person_id: 'amara' } as TokenRow) }, workspaceId: 'platform-org', builder: row.builder } : null; },
+      workspaceName: async () => 'Platform Engineering', load: async () => data, commit: async (_w, c) => { data = applyCommit(data, c); }, touch: async () => undefined,
+      feedback: (hash) => feedbackOps({ store: tokenFeedback(client, hash), entries: WHATS_NEW.map((e) => e.id) }),
+      now: () => new Date('2026-11-05T12:00:00Z'),
+    };
+    let n = 0;
+    const call = async (name: string, args: object) => (await (await serve(new Request('https://x/api/mcp', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method: 'tools/call', params: { name, arguments: args } }) }), deps)).json() as { result: { content: { text: string }[]; isError: boolean } }).result;
+    expect((await call('list_feedback', { status: 'new' })).content[0]!.text).toContain('fb_m1 · New · It’s OK · “The filters are hard to find” · /goals · Mateo, Acme');
+    expect((await call('get_feedback', { id: 'fb_m1' })).content[0]!.text).toContain('From Mateo in Acme');
+    expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: 'no-such-entry' })).isError).toBe(true);
+    expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: WHATS_NEW[0]!.id })).content[0]!.text).toBe(`fb_m1 is Fixed, fixed in ${WHATS_NEW[0]!.id}.`);
+    expect((await db.query<{ status: string; fixed_in: string; status_by: string }>(`select status, fixed_in, status_by from okr_feedback where id = 'fb_m1'`)).rows[0]).toMatchObject({ status: 'fixed', fixed_in: WHATS_NEW[0]!.id, status_by: expect.stringMatching(/via AI assistant/) });
+  });
+
+  it(R('a sender sees “You raised this” on the entry that fixed their feedback: the database gives a person their own feedback’s statuses only, and What’s new matches by person and id'), async () => {
+    const mine = (await as<{ id: string; status: string; fixed_in: string | null }>('anon', `select * from okr_feedback_raised('acme', 'mateo')`)).rows;
+    expect(mine.find((r) => r.id === 'fb_m1')).toMatchObject({ status: 'fixed', fixed_in: WHATS_NEW[0]!.id });
+    expect(Object.keys(mine[0]!).sort()).toEqual(['fixed_in', 'id', 'status']);
+    expect((await as('anon', `select * from okr_feedback_raised('acme', 'amara')`)).rows).toEqual([]);
+    const raised = mine.map((r) => ({ id: r.id, personId: 'mateo', fixedIn: r.fixed_in, kind: 'feedback' as const }));
+    expect(raisedIn(WHATS_NEW[0]!, raised, 'mateo').map((r) => r.id)).toContain('fb_m1');
+    expect(raisedText(raisedIn(WHATS_NEW[0]!, raised, 'mateo'))).toBe('Thank you: feedback you sent is fixed here.');
+    expect(raisedIn(WHATS_NEW[0]!, raised, 'amara')).toEqual([]);
+    // An entry naming the feedback in its fixes says it too, before anyone marks it.
+    expect(raisedIn({ id: 'later', fixes: ['fb_m1'] }, [{ id: 'fb_m1', personId: 'mateo', kind: 'feedback' }], 'mateo')).toHaveLength(1);
   });
 });
