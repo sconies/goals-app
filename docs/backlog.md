@@ -4,7 +4,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **How items are ordered:** by what they unblock first, then value against effort. Effort: S (under a day), M (a release), L (more than one release).
 
-**In progress (7 Nov):** nothing; the next build starts from item -2.
+**In progress (7 Nov):** item -2 (reviewing the inbox with Claude), then item -1 (faster test runs), in one build session, each as its own PR.
 
 ## Up next, in order
 

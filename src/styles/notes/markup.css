@@ -101,3 +101,16 @@
 
 /* The inbox arrives a moment after Workspace (it loads on its own): no rise of its own, so it never shows half-faded. */
 .inbox-block { animation: none; }
+
+/* ---------- Connect Claude, at the top of the inbox (src/markup/Connect.tsx) ---------- */
+.connect { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.connect-title { margin: 0; font-size: var(--t-md, 1rem); font-weight: 650; }
+.connect-make { gap: var(--s2); align-items: flex-end; flex-wrap: wrap; }
+.connect-setup { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--s4); }
+.connect-way { gap: var(--s2); min-width: 0; }
+.connect-way h4 { margin: 0; }
+.connect-steps { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: var(--s2); font-size: var(--t-sm); }
+.connect-copy { gap: var(--s2); min-width: 0; width: 100%; }
+.connect-copy .input { flex: 1; min-width: 0; }
+.connect-copy.inline { margin-top: var(--s1, 4px); }
+.connect-check { margin: 0; }

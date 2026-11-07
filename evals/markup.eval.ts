@@ -219,3 +219,64 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     expect(raisedIn({ id: 'later', fixes: ['fb_m1'] }, [{ id: 'fb_m1', personId: 'mateo', kind: 'feedback' }], 'mateo')).toHaveLength(1);
   });
 });
+
+describe('Connect Claude (backlog -2, migration 0029)', () => {
+  const C = (t: string) => `[CONNECT-CLAUDE] ${t}`;
+  const P = (t: string) => `[MCP-PICTURES] ${t}`;
+  /** The first builder, as migration 0024 lists them. */
+  const LANE = /insert into okr_builders \(email\) values \('([^']+)'\)/.exec(sql)![1]!;
+  const make = async (who: string, name: string) => (await as<{ s: string }>(who, `select okr_builder_token_create('acme', 'amara', $1) as s`, [name])).rows[0]!.s;
+
+  it(C('a signed-in builder lists their own live builder tokens, with the workspace’s and person’s names and never a hash, and revokes one; nobody else can'), async () => {
+    await db.query(`insert into okr_builders (email) values ('other@builder.example') on conflict do nothing`);
+    const mine = await make(LANE, 'Claude, reviewing markups');
+    await make('other@builder.example', 'Someone else’s Claude');
+    const listed = (await as<Record<string, unknown>>(LANE, 'select * from okr_builder_tokens()')).rows;
+    const row = listed.find((t) => t.name === 'Claude, reviewing markups')!;
+    expect(row).toMatchObject({ workspace_name: 'Acme', person_name: 'Amara', last_used_at: null });
+    expect(listed.every((t) => !('token_hash' in t) && t.name !== 'Someone else’s Claude')).toBe(true);
+    await expect(as('admin@acme.example', 'select * from okr_builder_tokens()')).rejects.toThrow(/Only builders/);
+    await expect(as('anon', 'select * from okr_builder_tokens()')).rejects.toThrow(/permission denied/);
+    await expect(as('anon', `select okr_builder_token_revoke($1)`, [row.id])).rejects.toThrow(/permission denied/);
+    // Someone else's token isn't theirs to revoke.
+    const theirs = (await as<{ id: string }>('other@builder.example', 'select id from okr_builder_tokens()')).rows[0]!.id;
+    expect((await as<{ r: boolean }>(LANE, 'select okr_builder_token_revoke($1) as r', [theirs])).rows[0]!.r).toBe(false);
+    expect((await as<{ r: boolean }>(LANE, 'select okr_builder_token_revoke($1) as r', [row.id])).rows[0]!.r).toBe(true);
+    expect((await as('anon', 'select * from okr_token_find($1)', [sha(mine)])).rows).toEqual([]);
+    expect((await as<{ id: string }>(LANE, 'select id from okr_builder_tokens()')).rows.map((r) => r.id)).not.toContain(row.id);
+  });
+
+  it(P('with the service role key, get_markup and review_inbox send a builder token the markup’s picture as image content; without it, they say what to add where'), async () => {
+    const { markupOps } = await import('../src/markup/ops');
+    const { tokenMarkups } = await import('../src/markup/stores');
+    const secret = await make(LANE, 'Claude, pictures');
+    const id = (await as<{ id: string }>('anon', 'select okr_markup_new_id() as id')).rows[0]!.id;
+    await addMarkup({ id, workspace_id: 'platform-org', demo: true, line: 'The week strip needs the week', route: '/', parts: [[['Home', 'Week at a glance']]], strokes: [], pictures: ['screen.png', 'marked.jpg'], context: { viewport: { w: 390, h: 844, dpr: 3 }, theme: 'light', themeChoice: 'light', accent: 'faro', appVersion: 'x', sessionId: 's', host: 'goals-app-git-journeys-x.vercel.app' } });
+    const client = { rpc: async (fn: string, args: Record<string, unknown>) => {
+      const keys = Object.keys(args);
+      try { return { data: (await as('anon', `select * from ${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(', ')})`, keys.map((k) => (args[k] !== null && typeof args[k] === 'object' ? JSON.stringify(args[k]) : args[k])))).rows, error: null }; } catch (e) { return { data: null, error: { message: (e as Error).message } }; }
+    } } as unknown as Parameters<typeof tokenMarkups>[0];
+    // Storage, as the service role key reads it.
+    const signer = { storage: { from: () => ({ download: async (path: string) => ({ data: new Blob([`bytes of ${path}`]), error: null }), createSignedUrl: async () => ({ data: null, error: { message: 'no' } }) }) } } as unknown as Parameters<typeof tokenMarkups>[0];
+    let data: Snapshot = buildPlatformOrg(new Date('2026-11-05T12:00:00Z'));
+    const deps = (withKey: boolean): Deps => ({
+      async findToken(hash) { const r = (await as<TokenRow & { builder: boolean }>('anon', 'select * from okr_token_find($1)', [hash])).rows[0]; return r ? { token: { ...tokenFromRow({ ...r, person_id: 'amara' } as TokenRow) }, workspaceId: 'platform-org', builder: r.builder } : null; },
+      workspaceName: async () => 'Platform Engineering', load: async () => data, commit: async (_w, c) => { data = applyCommit(data, c); }, touch: async () => undefined,
+      markups: (hash) => markupOps({ store: tokenMarkups(client, hash, withKey ? signer : null), entries: WHATS_NEW.map((e) => e.id), repo: 'sconies/goals-app' }),
+      now: () => new Date('2026-11-05T12:00:00Z'),
+    });
+    type Out = { result: { content: { type: string; text?: string; data?: string; mimeType?: string }[]; isError: boolean } };
+    const call = async (withKey: boolean, name: string, args: object) => (await (await serve(new Request('https://x/api/mcp', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }) }), deps(withKey))).json() as Out).result;
+    const got = await call(true, 'get_markup', { id });
+    const img = got.content.find((c) => c.type === 'image')!;
+    expect(img.mimeType).toBe('image/jpeg');
+    expect(Buffer.from(img.data!, 'base64').toString()).toBe(`bytes of ${id}/marked.jpg`);
+    expect(got.content[0]!.text).toContain('the demo on a preview build (goals-app-git-journeys-x.vercel.app)');
+    const review = await call(true, 'review_inbox', {});
+    expect(review.content[0]!.text).toContain('## Home › Week at a glance');
+    expect(review.content.filter((c) => c.type === 'image').length).toBeGreaterThan(0);
+    const nokey = await call(false, 'get_markup', { id });
+    expect(nokey.content.some((c) => c.type === 'image')).toBe(false);
+    expect(nokey.content[0]!.text).toContain('SUPABASE_SERVICE_ROLE_KEY');
+  });
+});

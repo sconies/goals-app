@@ -582,6 +582,16 @@
       "text": "AI assistant tokens are made and revoked only by security-definer functions (okr_token_create, okr_token_revoke) that make the secret in the database, store only its SHA-256 hash and return it once. The public key can't read, add or change okr_api_tokens; the app lists token metadata (never the hash) with okr_token_list, and the MCP server finds a token with okr_token_find. The public key can't read okr_feedback; Workspace reads a workspace's with okr_feedback_list. AI assistants and Workspace's feedback keep working."
     },
     {
+      "id": "CONNECT-CLAUDE",
+      "area": "Feedback",
+      "text": "Connect Claude sits at the top of the builder inbox (backlog -2): a signed-in builder makes a builder token there (in the app, not the demo) and copies the exact set-up for a Claude cloud session (the host, and where the token goes) and for Claude Code, sees whether the server can send pictures (GET /api/mcp?check) and, if not, what to add where, and lists and revokes their own builder tokens (migration 0029: okr_builder_tokens, okr_builder_token_revoke, signed-in builders only, never a hash or secret). The inbox can also be read with a pasted builder token instead of the email sign-in, so a test round on the demo or a preview build needs only the token: markups and feedback through the token's database functions, pictures through the MCP server. A markup records the address it was sent from, so the inbox and the tools say when it came from a preview build or a laptop."
+    },
+    {
+      "id": "MCP-PICTURES",
+      "area": "Feedback",
+      "text": "A markup's picture comes back inside get_markup as MCP image content (the screen with the drawing, or the screen alone, or none), not as a link. review_inbox returns everything new (or with a given status) in one step: markups grouped by screen part, newest first, each group's newest with its picture, within a size budget, and feedback grouped by page; the server also offers it as the review_inbox prompt. The server reads pictures itself with SUPABASE_SERVICE_ROLE_KEY; without it, get_markup, review_inbox, the picture address and GET /api/mcp?check say plainly what to add where, and a check after each deploy fails."
+    },
+    {
       "id": "FEEDBACK-INBOX",
       "area": "Feedback",
       "text": "Feedback sent with a mood and a few words joins the builder inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Builders open it and triage it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again. Feedback always arrives New: the public key can only add feedback’s own columns, and only builders signed in to the inbox read every workspace’s feedback (okr_feedback_inbox) or change its status (okr_feedback_triage). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser."

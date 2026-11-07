@@ -1,5 +1,6 @@
 /* The Model Context Protocol over HTTP, stateless: each POST carries JSON-RPC messages and gets JSON back.
-   Implements what a tools-only server needs: initialize, ping, tools/list and tools/call. */
+   Implements initialize, ping, tools/list and tools/call, and one prompt (prompts/list, prompts/get): review_inbox,
+   which an assistant such as Claude Code offers as a command, for a builder to triage the inbox in one step. */
 import { callTool, TOOLS, type McpContext, type ToolResult } from './tools';
 
 /** Wraps each tool call, for the server's own telemetry: the context loading and the tool itself, in one span. */
@@ -9,6 +10,14 @@ export type TraceTool = (tool: string, run: () => Promise<ToolResult>) => Promis
 export const SERVER_INFO = { name: 'goals', title: 'Faro', version: '1.0.0' };
 export const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const INSTRUCTIONS = 'Faro: goals and weekly check-ins for one workspace, acting as the person whose token this is. Start with get_overview or find_goals. Writes follow the app’s rules and are logged as that person; use dry_run (or bulk_change without apply) to check first. Weeks count from the cycle start.';
+
+/** The prompts: a ready-made request a person picks in their assistant. */
+export const PROMPTS = [{
+  name: 'review_inbox',
+  title: 'Review Faro’s inbox',
+  description: 'Builders: look at everything new in the inbox (markups with their pictures, and feedback), grouped by screen part, and propose what to do with each.',
+  text: 'Call the review_inbox tool. For each group of markups, look at its picture and say in a line what the person wants changed and where, then propose one of: in hand (and what to build), won’t fix (with the reason), or a duplicate of another. Do the same for the feedback. List your proposals as one batch and ask me before changing any status with update_markup or update_feedback.',
+}];
 
 interface Rpc { jsonrpc: '2.0'; id?: string | number | null; method: string; params?: Record<string, unknown> }
 type Reply = { jsonrpc: '2.0'; id: string | number | null; result?: unknown; error?: { code: number; message: string } };
@@ -26,7 +35,7 @@ export async function handle(msg: unknown, context: () => Promise<McpContext>, t
       const asked = String(m.params?.protocolVersion ?? '');
       return ok(m.id, {
         protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
-        capabilities: { tools: { listChanged: false } },
+        capabilities: { tools: { listChanged: false }, prompts: { listChanged: false } },
         serverInfo: SERVER_INFO,
         instructions: INSTRUCTIONS,
       });
@@ -35,13 +44,20 @@ export async function handle(msg: unknown, context: () => Promise<McpContext>, t
       return isNote ? null : ok(m.id, {});
     case 'tools/list':
       return ok(m.id, { tools: TOOLS.map(({ name, title, description, inputSchema, annotations }) => ({ name, title, description, inputSchema, annotations: { title, ...annotations } })) });
+    case 'prompts/list':
+      return ok(m.id, { prompts: PROMPTS.map(({ name, title, description }) => ({ name, title, description, arguments: [] })) });
+    case 'prompts/get': {
+      const p = PROMPTS.find((x) => x.name === String(m.params?.name ?? ''));
+      if (!p) return fail(m.id, -32602, `Unknown prompt: ${String(m.params?.name ?? '')}`);
+      return ok(m.id, { description: p.description, messages: [{ role: 'user', content: { type: 'text', text: p.text } }] });
+    }
     case 'tools/call': {
       const name = String(m.params?.name ?? '');
       if (!TOOLS.some((t) => t.name === name)) return fail(m.id, -32602, `Unknown tool: ${name}`);
       const run = async () => callTool(name, (m.params?.arguments ?? {}) as Record<string, unknown>, await context());
       const r = trace ? await trace(name, run) : await run();
       return ok(m.id, {
-        content: [{ type: 'text', text: r.text }],
+        content: [{ type: 'text', text: r.text }, ...(r.images ?? []).map((i) => ({ type: 'image', data: i.data, mimeType: i.mimeType }))],
         ...(r.data !== undefined && r.data !== null && typeof r.data === 'object' && !Array.isArray(r.data) ? { structuredContent: r.data } : {}),
         isError: !!r.isError,
       });

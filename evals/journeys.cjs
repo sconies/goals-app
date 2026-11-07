@@ -1911,10 +1911,15 @@ journey('U41', ['MARKUP'], 'Mark up a screen on a phone and a desktop: draw, add
   await p.context().close();
 }, ['progress']);
 
+/** The builder token the fake database knows (a real one is made in the inbox, under Connect Claude). */
+const BUILDER_TOKEN = 'gk_' + 'B'.repeat(40);
+
 /** A database for the build whose database never answers (DOWN): just enough of Supabase (REST, Storage and Auth) for
     markups and feedback in the inbox, answered by Playwright. Keeps what was sent, and says what the inbox asked for. */
 async function fakeSupabase(ctx) {
-  const db = { markups: [], inserted: [], uploads: [], issued: [], patches: [], otp: [], signedOut: 0, fbPatches: [],
+  const db = { markups: [], inserted: [], uploads: [], issued: [], patches: [], otp: [], signedOut: 0, fbPatches: [], revoked: [], tokenReads: 0, pictureReads: [],
+    // A builder token Lane made (migration 0029's okr_builder_tokens lists it; okr_token_find knows its hash).
+    tokens: [{ id: 'tok_b1', workspace_id: 'acme', workspace_name: 'Acme', person_id: 'lane', person_name: 'Lane Hirschfield', name: 'Claude, reviewing markups', created_at: '2026-11-04T09:00:00.000Z', last_used_at: null }],
     // Feedback someone sent from another workspace two days ago (migration 0026's okr_feedback_inbox).
     feedback: [{ id: 'fb_j1', workspace_id: 'acme', workspace_name: 'Acme', person_id: 'mateo', person_name: 'Mateo Silva', path: '/check-in', mood: 'meh', text: 'The reason box is too small on a phone', at: '2026-11-04T10:00:00.000Z', status: 'new', fixed_in: null, wont_fix_reason: null, status_by: null, status_at: null }] };
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS', 'Access-Control-Expose-Headers': '*' };
@@ -1923,6 +1928,17 @@ async function fakeSupabase(ctx) {
   const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: 'u-lane', email: 'lanehirschfield@gmail.com', role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.c2lnbmF0dXJl`;
   const user = { id: 'u-lane', aud: 'authenticated', role: 'authenticated', email: 'lanehirschfield@gmail.com', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() };
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  const builderHash = require('crypto').createHash('sha256').update(BUILDER_TOKEN).digest('hex');
+  const asToken = (r) => { const b = JSON.parse(r.postData() || '{}'); return b.hash === builderHash; };
+  // The MCP server's picture and check answers (GET /api/mcp?picture=…, ?check), as on a deploy with the key set.
+  await ctx.route(/\/api\/mcp\?/, async (route) => {
+    const r = route.request();
+    const u = new URL(r.url());
+    if (u.searchParams.has('check')) return ok(route, { ok: true, database: true, pictures: true, problems: [] });
+    if (r.headers().authorization !== `Bearer ${BUILDER_TOKEN}`) return ok(route, { error: { message: 'Only a builder token reads markup pictures.' } }, 403);
+    db.pictureReads.push(u.searchParams.get('picture'));
+    return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'image/png' }, body: PNG });
+  });
   await ctx.route(/127\.0\.0\.1:\d+\//, async (route) => {
     const r = route.request();
     const u = new URL(r.url());
@@ -1932,6 +1948,22 @@ async function fakeSupabase(ctx) {
     if (path === '/rest/v1/rpc/okr_markup_new_id') { const id = 'mk_' + Math.random().toString(16).slice(2, 10).padEnd(8, '0') + Date.now().toString(16).slice(-8); db.issued.push(id); return ok(route, id); }
     if (path === '/rest/v1/rpc/okr_is_builder') return ok(route, (r.headers().authorization || '').includes(jwt));
     if (path === '/rest/v1/rpc/okr_feedback_inbox') return ok(route, (r.headers().authorization || '').includes(jwt) ? db.feedback : []);
+    // Connect Claude (migration 0029): the signed-in builder's tokens, and revoking one.
+    if (path === '/rest/v1/rpc/okr_builder_tokens') return (r.headers().authorization || '').includes(jwt) ? ok(route, db.tokens) : ok(route, { message: 'Only builders, signed in to the inbox, list builder tokens.' }, 400);
+    if (path === '/rest/v1/rpc/okr_builder_token_revoke') { const { token_id } = JSON.parse(r.postData() || '{}'); db.revoked.push(token_id); db.tokens = db.tokens.filter((t) => t.id !== token_id); return ok(route, true); }
+    // A builder token, on the public key (migrations 0024 and 0028).
+    if (path === '/rest/v1/rpc/okr_token_find') return ok(route, asToken(r) ? [{ id: 'tok_b1', workspace_id: 'acme', person_id: 'lane', name: 'Claude', builder: true }] : []);
+    if (path === '/rest/v1/rpc/okr_markups_for_token') { if (!asToken(r)) return ok(route, { message: 'Only a builder token can read markups.' }, 400); db.tokenReads++; return ok(route, [...db.markups].reverse()); }
+    if (path === '/rest/v1/rpc/okr_markup_for_token') { const b = JSON.parse(r.postData() || '{}'); return asToken(r) ? ok(route, db.markups.filter((x) => x.id === b.mid)) : ok(route, { message: 'Only a builder token can read markups.' }, 400); }
+    if (path === '/rest/v1/rpc/okr_markup_triage_for_token') {
+      const b = JSON.parse(r.postData() || '{}');
+      if (!asToken(r)) return ok(route, { message: 'Only a builder token can change markups.' }, 400);
+      db.patches.push(b.patch);
+      const m = db.markups.find((x) => x.id === b.mid);
+      Object.assign(m, b.patch);
+      return ok(route, [m]);
+    }
+    if (path === '/rest/v1/rpc/okr_feedback_for_token') return asToken(r) ? ok(route, db.feedback) : ok(route, { message: 'Only a builder token can read feedback.' }, 400);
     if (path === '/rest/v1/rpc/okr_feedback_triage') {
       if (!(r.headers().authorization || '').includes(jwt)) return ok(route, { message: 'Only builders, signed in to the inbox, change feedback.' }, 400);
       const { fid, patch } = JSON.parse(r.postData() || '{}');
@@ -1997,6 +2029,14 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in
   await row.waitFor({ timeout: 10000 });
   h.set('attention', await row.locator('.mk-status').innerText() === 'New' && (await row.innerText()).includes('The week strip should say which week it is') && (await row.innerText()).includes('the demo'), 'the markup is not listed as New, with its line and where it came from');
   await h.checkpoint('inbox');
+  // Connect Claude sits at the top of the inbox: in the demo it lists the builder's tokens (made in the app) and revokes one.
+  const connect = inbox.locator('.connect');
+  await see(connect, 'Claude, reviewing markups', 'Connect Claude does not list the builder’s tokens');
+  const atTop = await inbox.evaluate((el) => { const c = el.querySelector('.connect'); const l = el.querySelector('.mk-list'); return !!c && !!l && !!(c.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING); });
+  const setUp = (await connect.getByLabel('Claude Code command', { exact: true }).inputValue()).includes('/api/mcp --header "Authorization: Bearer gk_');
+  await h.click(connect.getByRole('button', { name: 'Revoke Claude, reviewing markups' }));
+  await see(p, 'Revoked “Claude, reviewing markups”', 'no word that the token was revoked');
+  h.set('finish', atTop && setUp && db.revoked[0] === 'tok_b1' && await see(connect, 'Pictures for Claude: ready').then(() => true, () => false), `Connect Claude at the top ${atTop}, set-up ${setUp}, revoked ${JSON.stringify(db.revoked)}`);
   await h.click(row);
   const detail = p.getByRole('dialog', { name: /^Markup: / });
   await detail.locator('.mk-layers img').first().waitFor();
@@ -2039,6 +2079,59 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in
   // Signing out: the inbox asks to sign in again.
   await h.click(inbox.getByRole('button', { name: 'Sign out' }));
   await inbox.getByLabel(/Sign in with your email/).waitFor();
+  await p.context().close();
+}, ['progress']);
+
+journey('U47', ['CONNECT-CLAUDE', 'MARKUP-INBOX'], 'A test round with only a builder token: a markup sent from the demo is read in the demo’s inbox with the token, no email sign-in, its picture coming from the server; then the token is forgotten', 12, async (h, device) => {
+  if (!DOWN) fail('U47 needs the build with a database address (DOWN)');
+  const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
+  const p = h.use(await newPage(device, 'rhea'));
+  const { db } = await fakeSupabase(p.context());
+  // Rhea marks up Home in the demo.
+  await p.goto(down('/'));
+  await p.locator('.page.home').waitFor();
+  await p.waitForTimeout(500);
+  await p.keyboard.press('Control+Shift+M');
+  await markupBar(p).waitFor({ timeout: 15000 });
+  const vp = DEVICES[device];
+  await drag(p, [vp.width * 0.3, vp.height * 0.3], [vp.width * 0.7, vp.height * 0.35]);
+  await markupBar(p).getByRole('button', { name: 'Next', exact: true }).click();
+  const send = p.getByRole('dialog', { name: 'Send the markup' });
+  await send.locator('.mk-preview img').waitFor();
+  await send.getByLabel('What should change?').fill('Say which week the strip is showing');
+  await send.getByRole('button', { name: 'Send', exact: true }).click();
+  await see(p, 'Sent. You’ll hear when it’s fixed.');
+  const sent = db.markups[0];
+  // The inbox, with no sign-in: a wrong token is refused in words, a builder token opens it.
+  await p.goto(down('/workspace'));
+  const inbox = p.locator('#inbox');
+  const field = inbox.getByLabel('Or read it with a builder token');
+  await field.waitFor();
+  h.set('entry', await field.isVisible(), 'no way to read the inbox with a token');
+  await h.fill(field, 'gk_' + 'X'.repeat(40));
+  await h.click(inbox.getByRole('button', { name: 'Use the token' }));
+  await see(inbox, 'That token isn’t valid or has been revoked.', 'a made-up token was not refused in words');
+  h.set('errors', db.tokenReads === 0, 'the inbox read markups with a made-up token');
+  await h.fill(field, BUILDER_TOKEN);
+  await h.click(inbox.getByRole('button', { name: 'Use the token' }));
+  const row = inbox.locator('.mk-row').first();
+  await row.waitFor({ timeout: 10000 });
+  const rowText = await row.innerText();
+  h.set('attention', rowText.includes('Say which week the strip is showing') && rowText.includes('the demo') && await row.locator('.mk-status').innerText() === 'New', `the markup from the demo is not listed as New: ${rowText.replace(/\n/g, ' | ')}`);
+  await see(inbox.locator('.connect'), 'You’re reading the inbox with a builder token', 'Connect Claude does not say the inbox is read with a token');
+  await h.checkpoint('inbox');
+  await h.click(row);
+  const detail = p.getByRole('dialog', { name: /^Markup: / });
+  await detail.locator('.mk-layers img').first().waitFor();
+  await h.click(detail.getByRole('button', { name: 'Mark in hand' }));
+  await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand');
+  await h.click(detail.getByRole('button', { name: 'Close' }));
+  h.set('logged', !!sent && sent.context.host === new URL(DOWN).host && db.pictureReads.includes(`${sent.id}/screen.png`) && sent.status === 'in-hand' && sent.status_by === 'A builder token' && db.otp.length === 0,
+    `host ${sent && sent.context.host}, pictures read ${JSON.stringify(db.pictureReads)}, stored ${JSON.stringify(sent && { status: sent.status, by: sent.status_by })}`);
+  // Forgetting the token: the inbox asks again, and the token is gone from this browser.
+  await h.click(inbox.getByRole('button', { name: 'Forget the token' }));
+  await field.waitFor();
+  h.set('finish', await p.evaluate(() => localStorage.getItem('faro-builder-token')) === null, 'the token is still kept in this browser');
   await p.context().close();
 }, ['progress']);
 

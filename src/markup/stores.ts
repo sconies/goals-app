@@ -2,11 +2,17 @@
    - signedInMarkups: the inbox, as a builder signed in with Supabase Auth. The database lets builders read and triage
      markups (migration 0024, okr_is_builder) and read the pictures, through links signed for them.
    - tokenMarkups: the MCP server, with a builder token, through the database's functions for it (okr_markups_for_token
-     and the others), on whatever key the server has. Picture links need Storage's own access: only a server holding
-     the service role key can sign them, so without it they're null and the tools point to the inbox instead. */
+     and the others), on whatever key the server has. Pictures need Storage's own access: only a server holding the
+     service role key can read or sign them, so without it the tools say plainly what to add where (PICTURES_NEED_KEY). */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { markupFromRow, type MarkupRow } from './model';
 import type { MarkupStore } from './ops';
+
+/** Reads one picture's bytes from the private bucket (Storage's own access: a signed-in builder, or the service role). */
+async function download(db: SupabaseClient, id: string, name: string): Promise<Uint8Array | null> {
+  const { data, error } = await db.storage.from('markups').download(`${id}/${name}`);
+  return error || !data ? null : new Uint8Array(await data.arrayBuffer());
+}
 
 const COLUMN: Record<string, string> = { status: 'status', fixedIn: 'fixed_in', wontFixReason: 'wont_fix_reason', statusBy: 'status_by', statusAt: 'status_at', issueUrl: 'issue_url' };
 const toRow = (patch: object) => Object.fromEntries(Object.entries(patch).map(([k, v]) => [COLUMN[k] ?? k, v]));
@@ -36,6 +42,7 @@ export function signedInMarkups(db: SupabaseClient): MarkupStore {
       const { data, error } = await db.storage.from('markups').createSignedUrl(`${id}/${name}`, seconds);
       return error ? null : data?.signedUrl ?? null;
     },
+    pictureBytes: (id, name) => download(db, id, name),
   };
 }
 
@@ -54,5 +61,7 @@ export function tokenMarkups(db: SupabaseClient, hash: string, signer?: Supabase
       const { data, error } = await signer.storage.from('markups').createSignedUrl(`${id}/${name}`, seconds);
       return error ? null : data?.signedUrl ?? null;
     },
+    // Only with the service role key: without it there is no pictureBytes, and the tools say what to add where.
+    ...(signer ? { pictureBytes: (id: string, name: string) => download(signer, id, name) } : {}),
   };
 }

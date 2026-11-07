@@ -48,6 +48,8 @@ export interface MarkupContext {
   appVersion: string;
   sessionId: string;
   userAgent?: string;
+  /** The address it was sent from (location.host): the live app, a preview build or a laptop. Older markups have none. */
+  host?: string;
 }
 
 /** A markup as it is sent and stored. Pictures are separate files named by its id. */
@@ -139,6 +141,25 @@ export function namedParts(m: Pick<Markup, 'parts'>): string[][] {
 }
 
 export const partText = (path: string[]) => path.join(' › ');
+
+/** The live app's address; anything else on Vercel is a preview build (handover, 7 Nov). */
+export const LIVE_HOST = 'goals-app-puce-five.vercel.app';
+
+/** Which build a markup came from, by its address: the live app, a preview build, a laptop, or unknown (older ones). */
+export function buildOf(host: string | undefined): 'live' | 'preview' | 'local' | 'unknown' {
+  if (!host) return 'unknown';
+  if (host === LIVE_HOST) return 'live';
+  if (/^(localhost|127\.0\.0\.1)(:|$)/.test(host)) return 'local';
+  return 'preview';
+}
+
+/** Where a markup was sent from, in words: “the demo”, “Acme”, with “on a preview build” or “on a laptop” when it
+    wasn't the live app, so a test round's markups are easy to tell apart. */
+export function sentFrom(m: Pick<Markup, 'demo' | 'workspaceName' | 'context'>): string {
+  const where = m.demo ? 'the demo' : m.workspaceName || 'a workspace';
+  const b = buildOf(m.context?.host);
+  return b === 'preview' ? `${where} on a preview build (${m.context.host})` : b === 'local' ? `${where} on a laptop` : where;
+}
 
 /* ---------- where it was sent from ---------- */
 

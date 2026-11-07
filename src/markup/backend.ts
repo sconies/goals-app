@@ -13,8 +13,9 @@ import { WHATS_NEW } from '../help/whatsNew';
 import type { Pictures } from './ink';
 import { MARKUP_REPO, markupFromRow, markupToRow, type Markup, type MarkupRow, type Raised } from './model';
 import { markupOps, type MarkupOps, type MarkupStore } from './ops';
-import { signedInMarkups } from './stores';
-import { feedbackOps, keptFixes, localFeedback, signedInFeedback, type FeedbackOps } from './feedback';
+import { signedInMarkups, tokenMarkups } from './stores';
+import { feedbackOps, keptFixes, localFeedback, signedInFeedback, tokenFeedback, type FeedbackOps } from './feedback';
+import { hashToken } from '../mcp/token';
 
 const env = import.meta.env;
 const DB = env.VITE_SUPABASE_URL && env.VITE_SUPABASE_KEY && /^https?:\/\//.test(env.VITE_SUPABASE_URL) ? { url: env.VITE_SUPABASE_URL as string, key: env.VITE_SUPABASE_KEY as string } : null;
@@ -139,6 +140,88 @@ export async function makeBuilderToken(workspaceId: string, personId: string, na
   return data as string;
 }
 
+/* ---------- Connect Claude: builder tokens, and reading the inbox with one ---------- */
+
+/** The MCP server's address, here. */
+export const mcpAddress = () => `${location.origin}/api/mcp`;
+
+/** One of the signed-in builder's live builder tokens (migration 0029); never its secret or hash. */
+export interface BuilderTokenRow { id: string; workspaceId: string; workspaceName: string; personId: string; personName: string; name: string; createdAt: string; lastUsedAt: string | null }
+
+export async function builderTokens(): Promise<BuilderTokenRow[]> {
+  const { data, error } = await (await builderClient()).rpc('okr_builder_tokens');
+  if (error) throw new Error(error.message.replace(/^.*?: /, ''));
+  return ((data ?? []) as Record<string, string | null>[]).map((r) => ({ id: r.id!, workspaceId: r.workspace_id!, workspaceName: r.workspace_name ?? '', personId: r.person_id!, personName: r.person_name ?? '', name: r.name ?? '', createdAt: r.created_at!, lastUsedAt: r.last_used_at ?? null }));
+}
+
+export async function revokeBuilderToken(id: string): Promise<boolean> {
+  const { data, error } = await (await builderClient()).rpc('okr_builder_token_revoke', { token_id: id });
+  if (error) throw new Error(error.message.replace(/^.*?: /, ''));
+  return data === true;
+}
+
+/** What the MCP server here can do (GET /api/mcp?check): null when there's no server to ask (a laptop, the evals). */
+export async function serverCheck(): Promise<{ ok: boolean; database: boolean; pictures: boolean; problems: string[] } | null> {
+  try {
+    const r = await fetch(`${mcpAddress()}?check`, { headers: { Accept: 'application/json' } });
+    if (!(r.headers.get('content-type') ?? '').includes('json')) return null;
+    const body = await r.json() as { ok?: unknown; pictures?: unknown };
+    return typeof body.ok === 'boolean' && typeof body.pictures === 'boolean' ? body as Awaited<ReturnType<typeof serverCheck>> : null;
+  } catch { return null; }
+}
+
+/** The builder token this browser reads the inbox with, without the email sign-in (kept until forgotten). */
+const TOKEN = 'faro-builder-token';
+export function savedBuilderToken(): string | null { try { return localStorage.getItem(TOKEN); } catch { return null; } }
+export function forgetBuilderToken() { try { localStorage.removeItem(TOKEN); } catch { /* nothing kept */ } }
+
+/** Checks a pasted builder token with the database, and keeps it in this browser. Throws, in words, when it isn't one. */
+export async function keepBuilderToken(token: string): Promise<void> {
+  const t = token.trim().replace(/^Bearer\s+/i, '');
+  if (!/^gk_[A-Za-z0-9]{20,}$/.test(t)) throw new Error('That isn’t a token: it starts gk_.');
+  const { data, error } = await (await anonClient()).rpc('okr_token_find', { hash: await hashToken(t) });
+  if (error) throw new Error('The goals database didn’t answer. Try again in a moment.');
+  const row = ((data ?? []) as { builder?: boolean }[])[0];
+  if (!row) throw new Error('That token isn’t valid or has been revoked.');
+  if (!row.builder) throw new Error('That’s an ordinary token. Reading the inbox needs a builder token, made under Connect Claude.');
+  try { localStorage.setItem(TOKEN, t); } catch { /* kept for this visit only */ }
+}
+
+/** A picture through the MCP server, which reads it with the service role key; as an address this page can show. */
+async function pictureThroughServer(token: string, id: string, name: string): Promise<string | null> {
+  const r = await fetch(`${mcpAddress()}?picture=${encodeURIComponent(id)}/${encodeURIComponent(name)}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (r.status === 503) throw new Error((await r.json().catch(() => null) as { error?: { message?: string } } | null)?.error?.message ?? 'The server can’t read pictures.');
+  if (!r.ok) return null;
+  // A data address, to show it on the page (nothing is saved as a file).
+  const b = await r.blob();
+  return new Promise<string>((res, rej) => { const f = new FileReader(); f.onload = () => res(String(f.result)); f.onerror = () => rej(f.error); f.readAsDataURL(b); });
+}
+
+/** The inbox's operations with a builder token: markups through the database's functions for it (as the MCP tools
+    use them), pictures through the MCP server. Reads the demo's and preview builds' markups with no email sign-in. */
+export async function tokenInbox(token: string): Promise<{ ops: MarkupOps; feedback: FeedbackOps; pictures: () => string | null }> {
+  const db = await anonClient();
+  const hash = await hashToken(token);
+  let missing: string | null = null;
+  const urls = new Map<string, string | null>();
+  const base = tokenMarkups(db, hash);
+  const store: MarkupStore = {
+    ...base,
+    async pictureUrl(id, name) {
+      // No thumbnails in the list: each would be a request to the server. Opening a markup shows its picture.
+      if (name === 'thumb.jpg') return null;
+      const key = `${id}/${name}`;
+      if (urls.has(key)) return urls.get(key)!;
+      try { const u = await pictureThroughServer(token, id, name); urls.set(key, u); return u; } catch (e) { missing = e instanceof Error ? e.message : String(e); return null; }
+    },
+  };
+  return {
+    ops: markupOps({ store, entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO, inboxLink: (id) => inboxAddress(id) }),
+    feedback: feedbackOps({ store: tokenFeedback(db, hash), entries: WHATS_NEW.map((e) => e.id) }),
+    pictures: () => missing,
+  };
+}
+
 /** The inbox's operations: as the signed-in builder, or on this browser's markups. */
 export async function inboxOps(): Promise<MarkupOps> {
   const store: MarkupStore = markupsShared() ? signedInMarkups(await builderClient()) : local.store;
@@ -188,6 +271,8 @@ const local = (() => {
       return next.markup;
     },
     async pictureUrl(id, name) {
+      // No thumbnails in the list: each would be a request to the server. Opening a markup shows its picture.
+      if (name === 'thumb.jpg') return null;
       const key = `${id}/${name}`;
       if (urls.has(key)) return urls.get(key)!;
       const b = (await get(id))?.pictures[name];
