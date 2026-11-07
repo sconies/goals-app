@@ -413,6 +413,42 @@ export const SHORT_MEANING: Record<DisplayStatus, string> = Object.fromEntries(O
 export const RESULT_TEXT: Record<ResultKind, string> = { completed: RESULT.completed.label, late: RESULT.late.label, missed: RESULT.missed.label };
 export const RESULT_MEANING: Record<ResultKind, string> = { completed: RESULT.completed.meaning, late: RESULT.late.meaning, missed: RESULT.missed.meaning };
 
+/**
+ * The words each status shape may stand beside: its status's own, and the words that share its shape (a stage's state,
+ * a result, a quarter). A shape beside none of its words disagrees with it, such as the At risk half-circle beside
+ * "Getting worse" on a goal that is on track: a flag that isn't a status uses the warning mark (design rules). The check
+ * on every screen (P3, P4) and the components' test read this.
+ */
+export const SHAPE_WORDS: Record<DisplayStatus, readonly string[]> = {
+  on: [STATUS.on.label, RESULT.completed.label, RESULT.late.label, QUARTER.met.label],
+  risk: [STATUS.risk.label, STAGE.risk.label],
+  off: [STATUS.off.label, STAGE.off.label, RESULT.missed.label, QUARTER.missed.label],
+  stale: [STATUS.stale.label],
+  none: [STATUS.none.label],
+  planned: [STATUS.planned.label, STAGE.planned.label],
+  done: [STATUS.done.label],
+};
+
+/**
+ * Whether a status shape agrees with the words beside it: they name its status (or a word that shares its shape). A
+ * word inside a longer one counts as the longer one: "Not met" is not "Met", and "Met late" is not "Late".
+ */
+export function shapeAgrees(k: DisplayStatus, beside: string): boolean {
+  const text = beside.toLowerCase();
+  const found: { at: number; end: number; word: string }[] = [];
+  for (const word of new Set(Object.values(SHAPE_WORDS).flat().map((w) => w.toLowerCase()))) {
+    for (let at = text.indexOf(word); at >= 0; at = text.indexOf(word, at + 1)) {
+      const end = at + word.length;
+      // Whole words only: "late" in "slate" or "on track" in "non tracked" don't count.
+      if (/[a-z]/.test(text[at - 1] ?? '') || /[a-z]/.test(text[end] ?? '')) continue;
+      found.push({ at, end, word });
+    }
+  }
+  const whole = found.filter((f) => !found.some((g) => g !== f && g.at <= f.at && g.end >= f.end && g.end - g.at > f.end - f.at));
+  const mine = new Set(SHAPE_WORDS[k].map((w) => w.toLowerCase()));
+  return whole.some((f) => mine.has(f.word));
+}
+
 /** A word in the middle of a sentence: "off track", "no recent update". */
 export const lower = (t: Pick<Term, 'label'>) => t.label.charAt(0).toLowerCase() + t.label.slice(1);
 /** For the AI assistant and anything a machine reads: the word people see, then the code: "Off track (off)". */

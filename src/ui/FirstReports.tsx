@@ -2,11 +2,15 @@
 import { useApp } from '../app/state';
 import { firstReports } from '../domain/progress';
 
-/** While goals are still waiting for their first check-in: how many are in, and who hasn't reported yet. */
-export function FirstReports() {
+/**
+ * While goals are still waiting for their first check-in: how many are in, and who hasn't reported yet. With `among`
+ * (Home: your goals and the ones you watch), only while one of those is still waiting, as only then does it qualify what
+ * the page lists. Goals says it whenever any goal is waiting.
+ */
+export function FirstReports({ among }: { among?: readonly string[] }) {
   const app = useApp();
   const f = firstReports(app.snapshot, app.cycle, app.week);
-  if (!f) return null;
+  if (!f || (among && !f.silent.some((id) => among.includes(id)))) return null;
   const names = f.waiting.map((w) => app.person(w.ownerId)?.name.split(' ')[0] ?? 'someone');
   const date = new Date(f.due + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
   return (

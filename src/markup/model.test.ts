@@ -4,7 +4,7 @@
    "You raised this". Plus the builder's operations on a store kept in memory. */
 import { WHATS_NEW } from '../help/whatsNew';
 import {
-  aboutOf, buildMarkup, groupMarkups, issueBody, issueTitle, MarkupError, namedParts, newIssueLink, partsUnder, placeOf, raisedThis, statusPatch, strokeBox,
+  aboutOf, buildMarkup, groupMarkups, issueBody, issueTitle, MarkupError, namedParts, newIssueLink, partsUnder, placeOf, raisedIn, raisedText, raisedThis, statusPatch, strokeBox,
   type Markup, type MarkupInput, type PartBox, type Stroke,
 } from './model';
 import { markupOps, type MarkupStore } from './ops';
@@ -156,6 +156,16 @@ describe('“You raised this”', () => {
     expect(raisedThis(entry, [{ id: 'mk_theirs', personId: 'sam' }], 'maya')).toBe(false);
     expect(raisedThis(entry, [{ id: 'mk_elsewhere', personId: 'maya', fixedIn: 'another-entry' }], 'maya')).toBe(false);
     expect(raisedThis({ id: 'x' }, [], 'maya')).toBe(false);
+  });
+  it('shows for feedback too, matched by person and feedback id, and says which it was', () => {
+    const fixes = { id: 'small-fixes', fixes: ['fb_maya', 'fb_sam', 'mk_mine'] };
+    const raised = [{ id: 'fb_maya', personId: 'maya', kind: 'feedback' as const }, { id: 'fb_sam', personId: 'sam', kind: 'feedback' as const }, { id: 'fb_old', personId: 'maya', kind: 'feedback' as const, fixedIn: 'small-fixes' }];
+    expect(raisedIn(fixes, raised, 'maya').map((r) => r.id)).toEqual(['fb_maya', 'fb_old']);
+    expect(raisedIn(fixes, raised, 'pat')).toEqual([]);
+    expect(raisedThis({ id: 'small-fixes' }, [{ id: 'fb_sam', personId: 'sam', kind: 'feedback' }], 'maya')).toBe(false);
+    expect(raisedText(raisedIn(fixes, raised, 'maya'))).toBe('Thank you: feedback you sent is fixed here.');
+    expect(raisedText([{ id: 'mk_mine', personId: 'maya' }])).toBe('Thank you: a markup you sent is fixed here.');
+    expect(raisedText([{ id: 'mk_mine', personId: 'maya' }, raised[0]!])).toBe('Thank you: a markup and feedback you sent are fixed here.');
   });
 });
 

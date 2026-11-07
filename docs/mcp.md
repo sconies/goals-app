@@ -49,7 +49,7 @@ Other assistants:
 | `list_removed` | Everything removed, stopped, ended or marked as left in the last 30 days, newest first, with its kind and ID for `restore_removed`: all of it for an admin, otherwise what you removed |
 | `list_views` | Your saved views and the pinned ones |
 | `list_tokens` | AI assistant tokens: all for an admin, otherwise your own |
-| `list_feedback` | Admins: feedback about the app |
+| `list_feedback` | Admins: this workspace's feedback about the app (Send feedback's mood and words), newest first. With a builder token, every workspace's, each with its status; see the builder inbox below |
 | `get_wrap_up` | At the end of a cycle: which goals are wrapped up, and how |
 | `export` | JSON, the brief, or CSV |
 | `get_help` | The app's own guide, as its Help pages show it: an article by `id` (for example `check-in`), a `search`, or every article |
@@ -106,8 +106,11 @@ Nothing is erased: each of these keeps the record, marked with when and by whom,
 | `list_markups` | Markups people sent (a picture of a screen with a drawing, and a line saying what should change), newest first, from every workspace and the demo. Filter by `status` (`new`, `in-hand`, `fixed`, `wont-fix`) or `workspace` |
 | `get_markup` | One markup in full: its line, the named screen parts under the drawing, its notes, where it was sent from (page, goal or review, screen size, theme, accent, app version), the steps before it and the visit's errors. With a link to its picture that works for ten minutes, when the server can sign one (see below); otherwise it points to the inbox |
 | `update_markup` | Set a markup's `status` (`fixed` needs `fixed_in`, the What's new entry's id; `wont-fix` needs a `reason`) and keep its GitHub issue's address (`issue_url`). The same rules as the inbox |
+| `list_feedback` | With a builder token: feedback from every workspace (a mood and a few words, the screen it came from, who sent it), newest first, each with its status: New, In hand, Fixed or Won't fix. Filter by `status` (`new`, `in-hand`, `fixed`, `wont-fix`) or `workspace` |
+| `get_feedback` | One piece of feedback in full: its words and mood, the screen, who sent it from which workspace and when, and its status, with the What's new entry that fixed it or why it won't be fixed, and who said so |
+| `update_feedback` | Set a piece of feedback's `status`: `fixed` needs `fixed_in`, the What's new entry's id (its sender then sees "You raised this" there); `wont-fix` needs a `reason`. The same rules as the inbox (`statusPatch` in `src/markup/model.ts`) |
 
-These need a **builder token**: a builder signs in to the inbox (Workspace → Inbox, an email link) and makes one there, acting as themselves in a workspace. An ordinary token, which an admin can make for anyone, gets "only builders" instead. A builder token stops counting as one if its email leaves `okr_builders`. The tools reach markups through the database's functions for builder tokens (`okr_markups_for_token`, `okr_markup_for_token`, `okr_markup_triage_for_token`, migration 0024), so they need no secret beyond the token.
+These need a **builder token**: a builder signs in to the inbox (Workspace → Inbox, an email link) and makes one there, acting as themselves in a workspace. An ordinary token, which an admin can make for anyone, gets "only builders" instead (an admin's `list_feedback` still lists their own workspace's feedback, without statuses). A builder token stops counting as one if its email leaves `okr_builders`. The tools reach markups through the database's functions for builder tokens (`okr_markups_for_token`, `okr_markup_for_token`, `okr_markup_triage_for_token`, migration 0024), and feedback the same way (`okr_feedback_for_token`, `okr_feedback_triage_for_token`, migration 0028), so they need no secret beyond the token. The inbox and the token change a status through one function (`okr_feedback_patch`), which no key can call on its own.
 
 Goal, plan and check-in tools take `dry_run: true` to check a change without saving it. Destructive tools are marked as such, so assistants ask before using them.
 

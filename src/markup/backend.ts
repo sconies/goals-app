@@ -6,14 +6,15 @@
    - Without one (local development, the evals' build, ?store=browser): markups are kept in this browser (IndexedDB),
      and the inbox shows them without signing in.
    Either way, the markups a person sent from this browser are remembered (ids only), so What's new can say "You raised
-   this"; in the real app the database also says which of theirs were fixed. */
+   this"; in the real app the database also says which of theirs were fixed. Feedback says it too: the app already has
+   the feedback a person sent, and the database (or, with none, this browser's inbox) says which was fixed where. */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { WHATS_NEW } from '../help/whatsNew';
 import type { Pictures } from './ink';
 import { MARKUP_REPO, markupFromRow, markupToRow, type Markup, type MarkupRow, type Raised } from './model';
 import { markupOps, type MarkupOps, type MarkupStore } from './ops';
 import { signedInMarkups } from './stores';
-import { feedbackOps, localFeedback, signedInFeedback, type FeedbackOps } from './feedback';
+import { feedbackOps, keptFixes, localFeedback, signedInFeedback, type FeedbackOps } from './feedback';
 
 const env = import.meta.env;
 const DB = env.VITE_SUPABASE_URL && env.VITE_SUPABASE_KEY && /^https?:\/\//.test(env.VITE_SUPABASE_URL) ? { url: env.VITE_SUPABASE_URL as string, key: env.VITE_SUPABASE_KEY as string } : null;
@@ -68,18 +69,33 @@ function remember(x: Mine) {
   try { localStorage.setItem(RAISED, JSON.stringify([...readMine().filter((y) => y.id !== x.id), x].slice(-200))); } catch { /* storage blocked: the database still knows */ }
 }
 
-/** The markups this person sent: remembered in this browser, and (in the real app) where the database says each one is. */
-export async function raisedBy(workspaceId: string, personId: string, demo: boolean): Promise<Raised[]> {
-  const mine: Raised[] = readMine().filter((x) => x.workspaceId === workspaceId && x.personId === personId).map((x) => ({ id: x.id, personId: x.personId }));
+/**
+ * What this person raised, so What's new can say "You raised this": the markups they sent (remembered in this browser)
+ * and the feedback they sent (`feedback`, as the app has it), each with where it was fixed: in the real app, as the
+ * database says (okr_markups_raised, okr_feedback_raised); with no database, as this browser's inbox marked it. An
+ * entry's `fixes` naming an id counts either way.
+ */
+export async function raisedBy(workspaceId: string, personId: string, demo: boolean, feedback: readonly { id: string; personId: string }[] = []): Promise<Raised[]> {
+  const mine: Raised[] = readMine().filter((x) => x.workspaceId === workspaceId && x.personId === personId).map((x) => ({ id: x.id, personId: x.personId, kind: 'markup' }));
+  const said: Raised[] = feedback.filter((f) => f.personId === personId).map((f) => ({ id: f.id, personId, kind: 'feedback' }));
   if (demo || !markupsShared()) {
-    if (!markupsShared()) for (const r of mine) { const m = await local.get(r.id).catch(() => null); if (m?.markup.fixedIn) r.fixedIn = m.markup.fixedIn; }
-    return mine;
+    if (!markupsShared()) {
+      for (const r of mine) { const m = await local.get(r.id).catch(() => null); if (m?.markup.fixedIn) r.fixedIn = m.markup.fixedIn; }
+      const fixes = keptFixes();
+      for (const r of said) if (fixes[r.id]) r.fixedIn = fixes[r.id];
+    }
+    return [...mine, ...said];
   }
-  try {
-    const { data } = await (await anonClient()).rpc('okr_markups_raised', { ws: workspaceId, person: personId });
-    const known = ((data ?? []) as { id: string; fixed_in: string | null }[]).map((r) => ({ id: r.id, personId, fixedIn: r.fixed_in }));
-    return [...known, ...mine.filter((x) => !known.some((k) => k.id === x.id))];
-  } catch { return mine; }
+  const db = await anonClient();
+  const known = async (fn: string, kind: Raised['kind']): Promise<Raised[]> => {
+    try {
+      const { data, error } = await db.rpc(fn, { ws: workspaceId, person: personId });
+      return error ? [] : ((data ?? []) as { id: string; fixed_in: string | null }[]).map((r) => ({ id: r.id, personId, fixedIn: r.fixed_in, kind }));
+    } catch { return []; }
+  };
+  const [markups, fixedFeedback] = await Promise.all([known('okr_markups_raised', 'markup'), known('okr_feedback_raised', 'feedback')]);
+  const all = [...markups, ...fixedFeedback];
+  return [...all, ...[...mine, ...said].filter((x) => !all.some((k) => k.id === x.id))];
 }
 
 /* ---------- builders: signing in to the inbox ---------- */

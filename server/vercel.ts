@@ -10,6 +10,7 @@ import { WHATS_NEW } from '../src/help/whatsNew';
 import { MARKUP_REPO } from '../src/markup/model';
 import { markupOps } from '../src/markup/ops';
 import { tokenMarkups } from '../src/markup/stores';
+import { feedbackOps, tokenFeedback } from '../src/markup/feedback';
 
 function deps(origin: string): Deps {
   const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
@@ -51,6 +52,8 @@ function deps(origin: string): Deps {
       store: tokenMarkups(db, hash, service ? db : null), entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO,
       inboxLink: (id) => `${origin}/workspace?markup=${id}`,
     }),
+    // Feedback's triage, for a builder token, the same way (migration 0028).
+    feedback: (hash) => feedbackOps({ store: tokenFeedback(db, hash), entries: WHATS_NEW.map((e) => e.id) }),
     deleteWorkspace: (ws) => store.deleteWorkspace(ws),
     // Recording (migration 0022): on unless the workspace has turned it off; before the migration there's no switch.
     async recording(id) {

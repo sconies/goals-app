@@ -68,7 +68,8 @@ module.exports = {
       await p.reload(); await p.waitForTimeout(300);
       fail(await bg() === DARK_BG && await look.getByRole('button', { name: 'Dark' }).getAttribute('aria-pressed') === 'true', '[SETTINGS] Dark is not kept after a reload');
       // No flash: hold the app's code back and look at the page that's drawn before it.
-      await p.route('**/assets/*.js', async (r) => { await new Promise((ok) => setTimeout(ok, 1200)); await r.continue(); });
+      // A script held back here may be answered already when it's let go (the page has moved on): that mustn't stop the run.
+      await p.route('**/assets/*.js', async (r) => { await new Promise((ok) => setTimeout(ok, 1200)); await r.continue().catch(() => {}); });
       await p.goto(url('/'), { waitUntil: 'commit' });
       await p.locator('.preboot').waitFor({ state: 'attached', timeout: 3000 });
       const early = await p.evaluate(() => ({ theme: document.documentElement.getAttribute('data-theme'), bg: getComputedStyle(document.body).backgroundColor, preboot: !!document.querySelector('.preboot') }));

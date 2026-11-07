@@ -370,7 +370,7 @@ function FeedbackDetail({ f, ops, by, onClose, onChanged }: { f: InboxFeedback; 
         </div>
         {said ? <p className="mk-said">{said}</p> : <p className="hint">Only a mood, no words.</p>}
         <Actions m={{ status: f.status, issueUrl: null }} busy={busy} form={form} setForm={setForm} onInHand={() => act({ status: 'in-hand', by }, 'Marked in hand')} onReopen={() => act({ status: 'new', by }, 'Marked new again')} />
-        {form === 'fixed' && <FixedForm hint="Unlike a markup, feedback isn’t linked to the entry, so whoever sent it isn’t told there." onFixed={(fixedIn) => act({ status: 'fixed', fixedIn, by }, 'Marked fixed')} onCancel={() => setForm(null)} />}
+        {form === 'fixed' && <FixedForm hint={`${f.personName || 'The sender'} sees “You raised this” on that entry. List the feedback’s id (${f.id}) in the entry’s fixes, too.`} onFixed={(fixedIn) => act({ status: 'fixed', fixedIn, by }, 'Marked fixed')} onCancel={() => setForm(null)} />}
         {form === 'wont-fix' && <WontFixForm onWontFix={(reason) => act({ status: 'wont-fix', reason, by }, 'Marked won’t fix')} onCancel={() => setForm(null)} />}
         {f.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${f.fixedIn}`}>{WHATS_NEW.find((e) => e.id === f.fixedIn)?.title ?? f.fixedIn}</Link>.</p>}
         {f.wontFixReason && <p className="small">Won’t fix: {f.wontFixReason}</p>}

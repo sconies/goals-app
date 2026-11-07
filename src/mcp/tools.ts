@@ -16,6 +16,8 @@ import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
 import { MARKUP_TOOLS } from './markupTools';
 import type { MarkupOps } from '../markup/ops';
+import { FEEDBACK_TOOLS } from './feedbackTools';
+import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey, normalKey } from '../domain/goalKey';
@@ -44,6 +46,8 @@ export interface McpContext {
   deleteWorkspace?: () => Promise<void>;
   /** The builder inbox (src/markup/ops.ts): only when the request carries the builder passcode and the server can read markups. */
   markups?: MarkupOps;
+  /** The builders' feedback triage (src/markup/feedback.ts): only with a builder token, as for markups. */
+  feedback?: FeedbackOps;
 }
 
 /** `cause`: what a failed tool threw, for the server's own telemetry (its class only); never sent to the assistant. */
@@ -330,7 +334,7 @@ const CORE_TOOLS: ToolDef[] = [
 
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
     requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts. */
-export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS];
+export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS, ...FEEDBACK_TOOLS];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
 export async function callTool(name: string, args: Record<string, unknown>, ctx: McpContext): Promise<ToolResult> {

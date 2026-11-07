@@ -6,6 +6,7 @@ import { fmt } from '../domain/format';
 import type { MetricGoal, RangeGoal } from '../domain/types';
 import type { ChartMarks } from '../domain/scorecard';
 import { StatusShape } from './bits';
+import { lower, STAGE } from '../domain/vocabulary';
 
 /** Measures its own width so charts draw at real size: text stays 12px at any width. Grows to fit a key under the plot. */
 function Sized({ height, children }: { height: number; children: (w: number) => ReactNode }) {
@@ -424,12 +425,17 @@ export function Spark({ goal, weeks, series }: { goal: MetricGoal | RangeGoal; w
 }
 
 const stageKind = (s: StageState) => (s.kind === 'planned' ? 'planned' : s.kind);
-const weeksLate = (n: number) => (n === 1 ? '1 week' : n + ' weeks') + ' late';
-/** "Expected week 45 · 3 weeks late, due week 42": what's late, by how much, and against which date. */
+const weeks = (n: number) => (n === 1 ? '1 week' : n + ' weeks');
+/**
+ * "Expected week 45 · 3 weeks late, due week 42": what's behind, by how much, and against which date. The words beside
+ * the stage's shape say its state (STAGE): a stage up to two weeks behind is slipping, not late, and one not due yet is
+ * on schedule.
+ */
 export const stageTag = (s: StageState) =>
-  s.kind === 'done' ? 'Done week ' + s.doneWeek + (s.weeksLate ? ' · ' + weeksLate(s.weeksLate) + ', due week ' + s.dueWeek : '')
-    : s.weeksLate > 0 ? 'Expected week ' + s.expectedWeek + ' · ' + weeksLate(s.weeksLate) + ', due week ' + s.dueWeek
-      : 'Due week ' + s.dueWeek;
+  s.kind === 'done' ? `${STAGE.done.label} week ${s.doneWeek}` + (s.weeksLate ? ` · ${weeks(s.weeksLate)} ${lower(STAGE.off)}, due week ${s.dueWeek}` : '')
+    : s.kind === 'off' ? `Expected week ${s.expectedWeek} · ${weeks(s.weeksLate)} ${lower(STAGE.off)}, due week ${s.dueWeek}`
+      : s.kind === 'risk' ? `Expected week ${s.expectedWeek} · ${lower(STAGE.risk)} ${weeks(s.weeksLate)}, due week ${s.dueWeek}`
+        : `Due week ${s.dueWeek} · ${lower(STAGE.planned)}`;
 
 /** Stages as rows: the name, then the stage's state as a shape and its words. On a narrow screen, how late goes on its own line. */
 export function StageList({ a }: { a: MilestoneAssessment }) {
