@@ -37,6 +37,30 @@ const SAMPLER = () => {
 };
 const sampled = (p) => p.evaluate(() => ({ anims: [...window.__pm.anims.values()], counts: window.__pm.counts, maxRunning: window.__pm.maxRunning, shift: window.__pm.shift }));
 
+/** Each row's goal, in order: the first link in it. */
+const keysOf = (p, rows) => p.$$eval(rows, (rs) => rs.map((r) => r.querySelector('a[href]')?.getAttribute('href')));
+
+/**
+ * The row slides an action starts. Re-rendering a list of over a hundred goals can take longer than any fixed pause
+ * (more so with the shards running side by side), so the slides aren't read at a set time after the click: a mutation
+ * observer, made after the app's FLIP watcher and so called straight after it in the same turn, notes every slide the
+ * moment the rows change. Then it waits up to 5 seconds for the order of the `rows` to change and returns the
+ * slides' total times in ms, or null when the order never changed.
+ */
+async function slidesOf(p, act, rows) {
+  const before = await keysOf(p, rows);
+  await p.evaluate(() => {
+    window.__flips = new Map();
+    const note = () => document.getAnimations().forEach((a) => {
+      if (a.id === 'flip' && !window.__flips.has(a)) { const t = a.effect.getTiming(); window.__flips.set(a, Number(t.duration) + (t.delay || 0)); }
+    });
+    new MutationObserver(note).observe(document.getElementById('main'), { childList: true, subtree: true });
+  });
+  await act();
+  const changed = await p.waitForFunction(([sel, was]) => JSON.stringify([...document.querySelectorAll(sel)].map((r) => r.querySelector('a[href]')?.getAttribute('href'))) !== was, [rows, JSON.stringify(before)], { timeout: 5000 }).then(() => true, () => false);
+  return changed ? p.evaluate(() => [...window.__flips.values()]) : null;
+}
+
 module.exports = {
   id: 'N6',
   area: 'print-motion',
@@ -202,10 +226,9 @@ module.exports = {
       await p.locator('.gtable tbody tr').first().waitFor();
       const order = () => p.$$eval('.gtable', (ts) => [...ts[0].querySelectorAll('tbody > tr:not(.story-row) .gt-name a')].map((a) => a.textContent));
       const before = await order();
-      await p.locator('.gtable').first().getByRole('button', { name: 'Goal', exact: true }).click();
-      await p.waitForTimeout(40);
-      const mid = await p.evaluate(() => document.getAnimations().filter((a) => a.id === 'flip').map((a) => Number(a.effect.getTiming().duration) + (a.effect.getTiming().delay || 0)));
-      if (reduced) fail(!mid.length, `[Motion] reduced: ${mid.length} rows slid when sorted`);
+      const mid = await slidesOf(p, () => p.locator('.gtable').first().getByRole('button', { name: 'Goal', exact: true }).click(), '.gtable tbody > tr:not(.story-row)');
+      if (!mid) fail(false, `[Motion] ${w}${reduced ? ' reduced' : ''}: sorting the table by Goal did not change the order`);
+      else if (reduced) fail(!mid.length, `[Motion] reduced: ${mid.length} rows slid when sorted`);
       else {
         fail(mid.length > 0, `[Motion] ${w}: sorting the table moved no rows`);
         fail(mid.every((d) => d <= LIMIT), `[Motion] ${w}: a row slides for ${Math.max(...mid)}ms`);
@@ -227,10 +250,12 @@ module.exports = {
     {
       const [c, p] = await at(390, 844, 'amara', '/goals?show=levels');
       await p.locator('.tree > li').first().waitFor();
-      await p.getByRole('tab', { name: 'By team' }).click();
-      await p.waitForTimeout(40);
-      const mid = await p.evaluate(() => document.getAnimations().filter((a) => a.id === 'flip').length);
-      fail(mid > 0, '[Motion] 390: switching the list from By level to By team moved no rows');
+      const mid = await slidesOf(p, () => p.getByRole('tab', { name: 'By team' }).click(), 'main .tree > li');
+      fail(!!mid, '[Motion] 390: By team lists the goals in the same order as By level, so nothing has to move');
+      if (mid) {
+        fail(mid.length > 0, '[Motion] 390: switching the list from By level to By team moved no rows');
+        fail(mid.every((d) => d <= LIMIT), `[Motion] 390: a goal slides for ${Math.max(...mid)}ms`);
+      }
       await p.waitForTimeout(400);
       const end = await p.evaluate(() => {
         const rows = [...document.querySelectorAll('main .tree > li')];
