@@ -4,7 +4,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **How items are ordered:** by what they unblock first, then value against effort. Effort: S (under a day), M (a release), L (more than one release).
 
-**In progress:** release 3, one spreadsheet format (approved 6 Nov).
+**In progress (7 Nov):** items 4, 5, 6 and 8 as one small-fixes batch, and the fix for issue #39 (eval check N6). Both are being finished by the old planning session.
 
 ## Up next, in order
 
@@ -35,6 +35,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 | Item | Shipped |
 |---|---|
+| Release 3: one spreadsheet format | PR #37, 7 Nov |
 | Release 2: one meaning for every status word | PR #32, 7 Nov |
 | Release 1b: remove, archive and undo anything | PR #31, 6 Nov |
 | Release 1: screen markup, builder inbox, server-made tokens | PR #31, 6 Nov |
