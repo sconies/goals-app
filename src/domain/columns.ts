@@ -1,0 +1,410 @@
+/* The one spreadsheet format (release 3). Every sheet and every column the app writes or reads is defined here, once:
+   its header, what it means, whether it says which record a row is (match), can be changed (edit), says what to do with
+   the row (action) or is worked out by the app (worked: written with the vocabulary's words, never read back), and how
+   it is written. The workbook, the zipped CSVs, a single CSV, the set-up template, the Data tables, the AI assistant's
+   tools and docs/export-format.md (src/domain/formatDoc.ts) are all made from it, and the import recognises a sheet by
+   its header row, never its name.
+
+   The words a column takes (a level, a type, a call…) are here too, with the ways people write them, so the export
+   writes one word and the import reads it back; a word it doesn't know is a problem to fix, never a quiet default. */
+import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf } from './asks';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel } from './checkin';
+import { planAsOf, planAt, planEnd, weekDate } from './plan';
+import { answerOf, saidIn, type Said } from './review';
+import type { GoalSummary } from './summary';
+import type { Ask, Cause, CheckIn, Cycle, Goal, Level, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
+import { ASK_KIND, FLAG, LABEL, LEFT, leftName, lower, QUARTER, STOPPED } from './vocabulary';
+
+export type Cell = string | number | null;
+
+export interface ExportInput {
+  ws: Pick<Workspace, 'id' | 'name'>;
+  snapshot: Snapshot;
+  cycle: Cycle;
+  week: number;
+  today: Date;
+  /** Only these goals (the current view); every goal in the cycle when left out. */
+  goals?: Goal[];
+}
+
+/** What a column is for. */
+export type Role = 'match' | 'edit' | 'action' | 'worked' | 'shown';
+/** How the README and docs say each role. */
+export const ROLE_WORD: Record<Role, string> = {
+  match: 'Matches the row',
+  edit: 'You can change it',
+  action: 'What to do with the row',
+  worked: 'Worked out',
+  shown: 'For reading',
+};
+/** What loading a file back does with a column of each role, unless the column says otherwise. */
+const ROLE_LOADED: Record<Role, string> = {
+  match: 'Matches the row to its record; it never changes',
+  edit: 'Changed when loaded back',
+  action: 'Done when loaded back, with the same rules and preview as the app',
+  worked: 'Worked out by the app; ignored when loaded back',
+  shown: 'For reading; not loaded back from this sheet',
+};
+
+/** What loading a column back does: its own words, or its role's. */
+export const roleLoaded = (c: { role: Role; loaded?: string }) => c.loaded ?? ROLE_LOADED[c.role];
+
+export interface Column<C> {
+  header: string;
+  role: Role;
+  /** What it means, in a sentence. */
+  means: string;
+  /** What loading it back does, when it isn't the role's usual. */
+  loaded?: string;
+  write: (c: C) => Cell;
+}
+
+/** Everything a row's writer can look up. */
+export interface Ctx {
+  x: ExportInput;
+  /** A person's name; someone who left reads "Name (left)". Empty when there's no one. */
+  name: (id: string | null | undefined) => string;
+  /** A person's email, or null. */
+  email: (id: string | null | undefined) => string | null;
+  team: (id: string | null | undefined) => string | null;
+  /** Any goal in the cycle, stopped ones included. */
+  goal: (id: string | null | undefined) => Goal | undefined;
+}
+export interface GoalRow { c: Ctx; s: GoalSummary; g: Goal }
+export interface PlanRow { c: Ctx; g: Extract<Goal, { kind: 'metric' }> }
+export interface CheckInRow { c: Ctx; g: Goal; ci: CheckIn }
+export interface PersonRow { c: Ctx; p: Person }
+export interface AskRow { c: Ctx; a: Ask }
+export interface NoteRow { c: Ctx; d: Said }
+
+/* ---------- the words a column takes ---------- */
+
+/** Lower case, single spaces, no punctuation but what a word needs. */
+const norm = (s: string) => s.trim().toLowerCase().replace(/[‐-―]/g, '-').replace(/\s+/g, ' ');
+
+export interface Words<C extends string> {
+  /** What the column is called in problems: "Level". */
+  what: string;
+  /** The word written for each code (the first one people can type). */
+  word: Record<C, string>;
+  /** Other ways people write each code, lower case. */
+  also: Partial<Record<C, string[]>>;
+  /** Old prefixes still read (from before this format), lower case. */
+  prefix?: Partial<Record<C, string[]>>;
+}
+/** A word's code; null for an empty cell; undefined for a word it doesn't know. */
+export function codeOf<C extends string>(w: Words<C>, raw: string): C | null | undefined {
+  const v = norm(raw);
+  if (!v) return null;
+  for (const [code, word] of Object.entries(w.word) as [C, string][]) if (norm(word) === v || (w.also[code] ?? []).includes(v) || code === v) return code;
+  for (const [code, list] of Object.entries(w.prefix ?? {}) as [C, string[]][]) if (list.some((p) => v.startsWith(p))) return code;
+  return undefined;
+}
+/** "Level “vp” isn’t one of: north star, svp or team." */
+export const unknownWord = <C extends string>(w: Words<C>, raw: string) => `${w.what} “${raw.trim()}” isn’t one of: ${oneOf(Object.values(w.word) as string[])}.`;
+export const oneOf = (list: string[]) => (list.length < 2 ? list.join('') : `${list.slice(0, -1).join(', ')} or ${list.at(-1)}`);
+/** "Goals, Plan and People" */
+export const andList = (list: string[]) => (list.length < 2 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
+
+export const LEVEL_WORDS: Words<Level> = { what: 'Level', word: { 'north-star': 'north star', svp: 'svp', team: 'team' }, also: { 'north-star': ['northstar', 'headline', 'north star goal'], svp: ['senior vp', 'senior'] }, prefix: { 'north-star': ['north'] } };
+export const TYPE_WORDS: Words<Goal['kind']> = { what: 'Type', word: { metric: 'metric', range: 'range', milestone: 'milestone' }, also: { metric: ['move a number', 'number'], range: ['keep a number in range', 'keep in range'], milestone: ['hit dated stages', 'stages'] }, prefix: { metric: ['metric', 'move'], range: ['range', 'keep'], milestone: ['mile', 'hit'] } };
+export const SHAPE_WORDS: Words<PlanShape> = { what: 'Plan', word: { straight: 'straight', back: 'back-loaded', stepped: 'stepped' }, also: { straight: ['linear', 'straight line'], back: ['back', 'backloaded', 'back loaded'], stepped: ['steps', 'step'] } };
+export const BOUND_WORDS: Words<'atMost' | 'atLeast'> = { what: 'Must stay', word: { atMost: 'at most', atLeast: 'at least' }, also: { atMost: ['atmost', 'max', 'maximum', '<=', '≤', 'below'], atLeast: ['atleast', 'min', 'minimum', '>=', '≥', 'above'] } };
+export const YES_WORDS: Words<'yes' | 'no'> = { what: 'Admin', word: { yes: 'yes', no: 'no' }, also: { yes: ['y', 'true', '1', 'x', 'admin'], no: ['n', 'false', '0'] } };
+export const CALL_WORDS: Words<Status> = {
+  what: 'Call',
+  word: { on: LABEL.on, risk: LABEL.risk, off: LABEL.off, done: LABEL.done },
+  // The colours people used to say.
+  also: { on: ['green'], risk: ['amber', 'yellow'], off: ['red'] },
+};
+const causeCodes = [...new Map([...CAUSES_BEHIND, ...CAUSES_AHEAD]).keys()];
+export const CAUSE_WORDS: Words<Cause> = { what: 'Cause', word: Object.fromEntries(causeCodes.map((k) => [k, causeLabel(k)])) as Record<Cause, string>, also: {} };
+export const RECOVERY_WORDS: Words<RecoveryState> = { what: 'Recovery', word: { plan: 'Plan', investigating: 'Still investigating', help: 'Needs a decision or help', target: 'Target should change' }, also: { help: ['help'], target: ['target'] } };
+/** A Goals row's Action: stop a goal with history (with a Reason), or delete one set up by mistake (domain/removal). */
+export const GOAL_ACTION_WORDS: Words<'stop' | 'delete'> = { what: 'Action', word: { stop: 'Stop', delete: 'Delete' }, also: { stop: [STOPPED.toLowerCase()], delete: ['deleted', 'remove'] } };
+/** A People row's Action: mark someone as left, handing their goals and asks to Takes over (domain/removal). */
+export const PERSON_ACTION_WORDS: Words<'left'> = { what: 'Action', word: { left: LEFT }, also: { left: ['leave', 'leaving', 'mark as left'] } };
+
+export { isEmail, normalEmail } from './people';
+
+/* ---------- the sheets ---------- */
+
+export type SheetKind = 'goals' | 'plan' | 'checkIns' | 'people' | 'results' | 'asks' | 'notes';
+export interface SheetSpec<C> {
+  kind: SheetKind;
+  name: string;
+  /** One row per… */
+  rowIs: string;
+  about: string;
+  /** Whether loading the file back reads it. */
+  loaded: boolean;
+  columns: Column<C>[];
+}
+
+const m = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: string): Column<C> => ({ header, role: 'match', means, write, ...(loaded ? { loaded } : {}) });
+const e = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: string): Column<C> => ({ header, role: 'edit', means, write, ...(loaded ? { loaded } : {}) });
+const w = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'worked', means, write });
+const sh = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'shown', means, write });
+const blank = () => null;
+const or = (v: string | number | null | undefined): Cell => (v == null || v === '' ? null : v);
+
+const metricOf = (g: Goal) => (g.kind === 'metric' ? g : null);
+const rangeOf = (g: Goal) => (g.kind === 'range' ? g : null);
+const parentOf = (r: GoalRow) => r.c.goal(r.g.parentId);
+const quarter = (n: number) => (r: GoalRow): Cell => {
+  const q = r.s.story.quarters.find((y) => y.quarter.n === n);
+  return !q || q.kind === 'none' ? null : `${QUARTER[q.kind].label}: ${q.text.replace(/^Q\d: /, '')}`;
+};
+/** A check-in's stages as the owner gave them (done, expected or on its due week), so loading it back changes nothing. */
+export function stagesText(g: Goal, c: CheckIn): string {
+  if (g.kind !== 'milestone' || !c.stages) return '';
+  return g.stages.map((st) => {
+    const u = c.stages!.find((x) => x.stageId === st.id);
+    return `${st.name}: ${u?.doneWeek != null ? 'done week ' + u.doneWeek : u?.forecastWeek != null ? 'expected week ' + u.forecastWeek : 'due week ' + st.dueWeek}`;
+  }).join('; ');
+}
+/** "Design@3; Pilot@7": a milestone goal's stages, as the Stages column says them. */
+export const stagesSpec = (g: Goal) => (g.kind === 'milestone' ? g.stages.map((x) => `${x.name}@${x.dueWeek}`).join('; ') : '');
+
+/** A goal's result and each quarter against the plan: worked out, on Goals and on Results. */
+const RESULT_COLUMNS: Column<GoalRow>[] = [
+  w('Result', 'Set once the goal is due, in the result words defined under Words.', (r) => or(r.s.story.result?.text)),
+  w('Q1', 'The first quarter against the owner’s plan: a quarter’s target is the plan’s number at its end.', quarter(1)),
+  w('Q2', 'The second quarter against the plan.', quarter(2)),
+  w('Q3', 'The third quarter against the plan.', quarter(3)),
+  w('Q4', 'The fourth quarter against the plan.', quarter(4)),
+];
+
+export const GOALS: SheetSpec<GoalRow> = {
+  kind: 'goals', name: 'Goals', rowIs: 'goal', loaded: true,
+  about: 'Every goal: what it is, who owns it, its plan, and where it stands. Add a row with no Key or ID for a new goal.',
+  columns: [
+    m('Key', 'The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal.', (r) => or(r.g.key), 'Matches the goal first, so a file from last cycle still finds its goals'),
+    m('ID', 'The goal’s identity in this cycle. Leave it empty for a new goal.', (r) => r.g.id, 'Matches the goal when there’s no Key'),
+    e('Goal', 'The goal’s name.', (r) => r.g.title),
+    { header: 'Action', role: 'action', means: `Empty to add or change the goal. ${GOAL_ACTION_WORDS.word.stop} stops a goal with check-ins (say why in Reason); ${GOAL_ACTION_WORDS.word.delete} deletes one with none, set up by mistake.`, write: blank },
+    e('Level', `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level]),
+    e('Team', 'The team it belongs to, by name.', (r) => or(r.c.team(r.g.teamId))),
+    e('Owner', 'Who owns it, by name. A name works when only one person has it; Owner email is exact.', (r) => or(r.c.name(r.g.ownerId))),
+    e('Owner email', 'Who owns it, by email: what tells two people with the same name apart.', (r) => r.c.email(r.g.ownerId), 'Changes the owner; when Owner and Owner email disagree, the one you changed counts'),
+    e('Type', `${oneOf(Object.values(TYPE_WORDS.word))}: move a number, keep one in range, or hit dated stages.`, (r) => TYPE_WORDS.word[r.g.kind], 'Sets a new goal’s type; it can’t change on an existing goal'),
+    e('Unit', 'Number and range goals: what the number counts (%, days, ms).', (r) => (r.g.kind === 'milestone' ? null : or(r.g.unit))),
+    e('Decimals', 'Number and range goals: how many decimal places the number has (0 to 3).', (r) => (r.g.kind === 'milestone' ? null : r.g.decimals)),
+    e('Start', 'Number goals: where the plan starts.', (r) => metricOf(r.g)?.plan.start ?? null, 'Changes the plan; needs a reason once check-ins have started'),
+    e('Target', 'Number goals: where the plan ends, by its due week.', (r) => metricOf(r.g)?.plan.target ?? null, 'Changes the plan; needs a reason once check-ins have started'),
+    e('Plan', `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => { const g = metricOf(r.g); return g ? SHAPE_WORDS.word[g.plan.shape] : null; }, 'Changes the plan; needs a reason once check-ins have started'),
+    e('Plan from week', 'Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).', (r) => { const g = metricOf(r.g); return g ? g.plan.fromWeek ?? 0 : null; }, 'Changes the plan; needs a reason once check-ins have started'),
+    e('Due week', 'Number goals: the week the target is due, counted from the cycle’s start.', (r) => { const g = metricOf(r.g); return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null; }, 'Changes the plan; needs a reason once check-ins have started'),
+    e('Limit', 'Range goals: the number it must stay within.', (r) => rangeOf(r.g)?.range.limit ?? null),
+    e('Must stay', `Range goals: ${oneOf(Object.values(BOUND_WORDS.word))} the limit.`, (r) => { const g = rangeOf(r.g); return g ? BOUND_WORDS.word[g.range.bound] : null; }),
+    e('Margin', 'Range goals: how close to the limit counts as at risk.', (r) => rangeOf(r.g)?.range.margin ?? null),
+    e('Stages', 'Milestone goals: each stage as Name@week, separated by semicolons.', (r) => or(stagesSpec(r.g))),
+    e('Feeds into', 'The goal this one feeds, by name.', (r) => or(parentOf(r)?.title)),
+    e('Feeds into key', 'The goal this one feeds, by key. Exact where names repeat.', (r) => or(parentOf(r)?.key), 'Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts'),
+    e('Why it helps', 'Why this goal should move the one it feeds: a hypothesis, not a proven cause.', (r) => or(r.g.whyHelps)),
+    e('Effect', 'The effect expected on the goal it feeds, in that goal’s unit.', (r) => r.g.effect),
+    e('Source', 'Where the number comes from, and who owns that source.', (r) => or(r.g.source)),
+    e('Definition', 'Exactly what is counted.', (r) => or(r.g.definition)),
+    e('Reason', 'Why the plan is changing, or why the goal stops. Written by you; empty in an export.', blank, 'Kept in the change log with the change'),
+    w('Status', 'Where the goal stands now, in the status words defined under Words below.', (r) => (r.g.stoppedAt ? STOPPED : r.s.statusLabel)),
+    w('Since', 'How long it has stood so.', (r) => or(r.s.story.since)),
+    w('Now', 'The latest number, or stages done.', (r) => or(r.s.now)),
+    w('Plan this week', 'Number goals: the plan’s number this week.', (r) => (r.s.planNow != null ? r.s.planNowText : null)),
+    w('Gap', 'How far it is from the plan, said the same whichever way is better.', (r) => or(r.s.gap)),
+    w('Last check-in week', 'The week of its latest check-in.', (r) => r.s.lastWeek),
+    w('Forecast', 'Where the recent trend takes it by its due week.', (r) => or(r.s.forecast)),
+    w('Why it’s off', 'The owner’s latest reason, when it’s behind.', (r) => or(r.s.story.why)),
+    w('Recovery plan', 'What the owner will do about it.', (r) => or(r.s.story.doing)),
+    w('By when', 'When it will be back on plan, or why there’s no date.', (r) => or(r.s.story.byWhen)),
+    w('Needs', 'The open asks for a decision or help.', (r) => or(r.s.story.needs)),
+    w('Next step', 'The owner’s next step.', (r) => or(r.s.story.next)),
+    w('Warnings', 'What the numbers would hide; each warning starts with its word, defined under Words.', (r) => or(r.s.story.warnings.join(' '))),
+    // The result and the quarters, as on Results: one definition, on both sheets.
+    ...RESULT_COLUMNS,
+  ],
+};
+
+/** The Plan sheet's fixed columns; a "Week N" column follows for every week to the last due week. */
+export const PLAN: SheetSpec<PlanRow> = {
+  kind: 'plan', name: 'Plan', rowIs: 'number goal', loaded: true,
+  about: 'The plan as numbers, one column per week. Type over any week to set the plan by hand.',
+  columns: [
+    m('Key', 'The goal’s key.', (r) => or(r.g.key), 'Matches the goal first'),
+    m('ID', 'The goal’s ID in this cycle.', (r) => r.g.id, 'Matches the goal when there’s no Key'),
+    sh('Goal', 'The goal’s name (change it on Goals).', (r) => r.g.title),
+    sh('Unit', 'What the number counts (change it on Goals).', (r) => or(r.g.unit)),
+    e('Start', 'Where the plan starts.', (r) => r.g.plan.start, 'Changes the plan; needs a reason once check-ins have started'),
+  ],
+};
+export const WEEK_COLUMN = { header: 'Week N', role: 'edit' as Role, means: 'The plan’s number that week, from the week after Plan from week to the due week. Empty before and after. If the plan changed, earlier check-ins were judged against the plan of their day (Plan that week on Check-ins).', loaded: 'Sets the plan numbers by hand; needs a reason once check-ins have started' };
+export const isWeekHeader = (h: string) => /^week \d+$/i.test(h.trim());
+export const planWeekValue = (r: PlanRow, week: number): Cell => {
+  const from = r.g.plan.fromWeek ?? 0, end = planEnd(r.g.plan, r.c.x.cycle.weeks);
+  return week <= from || week > end ? null : Number(planAt(r.g.plan, week, r.c.x.cycle.weeks).toFixed(r.g.decimals));
+};
+
+export const CHECK_INS: SheetSpec<CheckInRow> = {
+  kind: 'checkIns', name: 'Check-ins', rowIs: 'check-in', loaded: true,
+  about: 'Every check-in: the number or stages reported each week, the owner’s call and their account of it. Add a row with no ID for a new check-in, a past week included.',
+  columns: [
+    m('ID', 'The check-in’s own identity. Leave it empty to add one.', (r) => r.ci.id, 'Matches the check-in; with none, a row corrects that goal’s latest check-in for the week'),
+    m('Goal key', 'The goal’s key.', (r) => or(r.g.key), 'Matches the goal first'),
+    m('Goal ID', 'The goal’s ID in this cycle.', (r) => r.g.id, 'Matches the goal when there’s no Goal key'),
+    m('Goal', 'The goal’s name.', (r) => r.g.title, 'Matches the goal by name, only when there’s no Goal key or Goal ID'),
+    m('Week', 'The week it reports on, counted from the cycle’s start (week 1 onwards).', (r) => r.ci.week, 'Matches the week; a check-in’s week never changes'),
+    w('Week starting', 'The date that week starts.', (r) => weekDate(r.c.x.cycle, r.ci.week)),
+    e('Value', 'Number and range goals: the number that week.', (r) => r.ci.value),
+    e('Stages', 'Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons.', (r) => or(stagesText(r.g, r.ci))),
+    e('Call', `The owner’s status call: ${oneOf(Object.values(CALL_WORDS.word))}. Empty: the rules decide.`, (r) => CALL_WORDS.word[r.ci.status]),
+    e('Cause', `Why it’s ahead or behind: ${oneOf([...new Set(Object.values(CAUSE_WORDS.word))])}.`, (r) => or(r.ci.cause ? causeLabel(r.ci.cause) : null), 'Required when behind or well ahead, as in the app'),
+    e('Why', 'The owner’s reason, in their words.', (r) => or(r.ci.why), 'Required when behind or well ahead, as in the app'),
+    e('Why greener', `Why the owner’s call is ${lower(FLAG.greener)}.`, (r) => or(r.ci.greenerWhy)),
+    e('Path to green', 'What changes to get back on plan.', (r) => or(r.ci.pathToGreen?.what)),
+    e('Recovery', `Where getting back stands: ${oneOf(Object.values(RECOVERY_WORDS.word))}.`, (r) => (r.ci.pathToGreen ? RECOVERY_WORDS.word[r.ci.pathToGreen.state ?? 'plan'] : null)),
+    e('Back on plan by week', 'The week it’s back on plan by, when there’s a plan.', (r) => r.ci.pathToGreen?.byWeek ?? null),
+    e('Needs', 'A decision or help it needs, and from whom.', (r) => or(r.ci.pathToGreen?.needs)),
+    e('Next step', 'The owner’s next step.', (r) => or(r.ci.next)),
+    w('Calculated', 'What the rules said that week, in the status words.', (r) => LABEL[r.ci.calculated]),
+    w('Plan that week', 'Number goals: the plan’s number in that week, as it stood then.', (r) => (r.g.kind === 'metric' ? Number(planAt(planAsOf(r.g, r.ci.week), r.ci.week, r.c.x.cycle.weeks).toFixed(r.g.decimals)) : null)),
+    w('Posted at', 'When it was posted.', (r) => r.ci.postedAt),
+    w('Posted by', 'Who posted it.', (r) => or(r.c.name(r.ci.authorId))),
+    w('Posted by email', 'Who posted it, by email.', (r) => r.c.email(r.ci.authorId)),
+    w('Backfilled', '“yes” for history loaded later rather than posted in its week.', (r) => (r.ci.backfilled ? 'yes' : null)),
+  ],
+};
+
+export const PEOPLE: SheetSpec<PersonRow> = {
+  kind: 'people', name: 'People', rowIs: 'person', loaded: true,
+  about: 'Everyone in the workspace. Add a row, with an email, for someone new.',
+  columns: [
+    m('Email', 'Their email: what matches them, and tells two people with the same name apart. Required for someone new.', (r) => r.c.email(r.p.id), 'Matches the person; with their ID in the row, a new email replaces the old one'),
+    m('ID', 'The person’s own identity. It never changes.', (r) => r.p.id, 'Matches the person first'),
+    e('Name', 'Their full name.', (r) => r.p.name),
+    { header: 'Action', role: 'action', means: `Empty to add or change the person. ${PERSON_ACTION_WORDS.word.left} marks them as left; their goals and open asks go to Takes over.`, write: blank },
+    e('Job title', 'Their job title.', (r) => or(r.p.role)),
+    e('Team', 'Their team, by name.', (r) => or(r.c.team(r.p.teamId))),
+    e('Admin', '“yes” for an admin: they can add people, change settings and change any goal.', (r) => (r.p.admin ? 'yes' : null)),
+    e('Team objective', 'On the team lead’s row: what the team is for.', (r) => { const t = r.c.x.snapshot.teams.find((v) => v.id === r.p.teamId); return t && t.leadId === r.p.id ? or(t.objective) : null; }, 'Changes the team’s objective (on the lead’s row; empty there clears it)'),
+    e('Takes over', `With ${PERSON_ACTION_WORDS.word.left}: who takes over their goals, open asks and teams, by email (or a name only one person has). Empty in an export.`, blank, `Used with ${PERSON_ACTION_WORDS.word.left}`),
+  ],
+};
+
+export const RESULTS: SheetSpec<GoalRow> = {
+  kind: 'results', name: 'Results', rowIs: 'goal', loaded: false,
+  about: 'For year-end reporting: each goal’s result for the cycle and each quarter against the owner’s plan. A quarter’s target is the plan’s number at its end.',
+  columns: [
+    m('Key', 'The goal’s key.', (r) => or(r.g.key)),
+    m('ID', 'The goal’s ID in this cycle.', (r) => r.g.id),
+    sh('Goal', 'The goal’s name.', (r) => r.g.title),
+    sh('Level', 'Its level.', (r) => LEVEL_WORDS.word[r.g.level]),
+    sh('Team', 'Its team.', (r) => or(r.c.team(r.g.teamId))),
+    sh('Owner', 'Who owns it.', (r) => or(r.c.name(r.g.ownerId))),
+    sh('Owner email', 'Who owns it, by email.', (r) => r.c.email(r.g.ownerId)),
+    sh('Target', 'Its target.', (r) => or(r.s.target)),
+    sh('Due week', 'The week it’s due.', (r) => r.s.dueWeek),
+    w('Status', 'Where it stands now.', (r) => (r.g.stoppedAt ? STOPPED : r.s.statusLabel)),
+    w('Now', 'The latest number, or stages done.', (r) => or(r.s.now)),
+    ...RESULT_COLUMNS,
+  ],
+};
+
+export const ASKS: SheetSpec<AskRow> = {
+  kind: 'asks', name: 'Asks', rowIs: 'ask', loaded: false,
+  about: 'Every ask on the exported goals: a decision or help, an update, a question or an action, who asked whom, and where it stands. Asks are raised and answered in the app.',
+  columns: [
+    m('ID', 'The ask’s identity.', (r) => r.a.id),
+    sh('Kind', `${oneOf(Object.values(ASK_KIND_LABEL))}.`, (r) => ASK_KIND_LABEL[r.a.kind]),
+    sh('Ask', 'What was asked, in their words.', (r) => r.a.ask),
+    sh('Goals', 'The goals it’s about.', (r) => r.a.goalIds.map((id) => r.c.goal(id)?.title ?? id).join('; ')),
+    sh('Goal keys', 'Their keys.', (r) => or(r.a.goalIds.map((id) => r.c.goal(id)?.key ?? '').filter(Boolean).join('; '))),
+    sh('Goal IDs', 'Their IDs.', (r) => r.a.goalIds.join('; ')),
+    sh('Asked by', 'Who asked.', (r) => or(r.c.name(r.a.askedBy))),
+    sh('Asked of', 'Who must respond.', (r) => (r.a.recipientId ? or(r.c.name(r.a.recipientId)) : 'Anyone')),
+    w('Status', `Where it stands: ${oneOf(Object.values(ASK_STATUS_LABEL))}.`, (r) => ASK_STATUS_LABEL[r.a.status]),
+    sh('Due week', 'The week it’s due by, if any.', (r) => r.a.dueWeek),
+    sh('Review', 'The review it was raised in.', (r) => r.c.x.snapshot.reviews.find((v) => v.id === r.a.reviewId)?.name ?? null),
+    sh('Asked at', 'When.', (r) => r.a.createdAt),
+    sh('Answer', 'The answer, or the note it was marked done with.', (r) => or(r.a.answer)),
+    sh('Answered by', 'Who answered.', (r) => (r.a.answeredBy ? or(r.c.name(r.a.answeredBy)) : null)),
+    sh('Answered at', 'When.', (r) => r.a.answeredAt),
+  ],
+};
+
+export const NOTES: SheetSpec<NoteRow> = {
+  kind: 'notes', name: 'Notes', rowIs: 'note, question or action said in a review', loaded: false,
+  about: 'What was said in reviews: notes, questions and actions, with their answers.',
+  columns: [
+    m('Goal key', 'The goal’s key.', (r) => or(r.c.goal(r.d.goalId)?.key)),
+    m('Goal ID', 'The goal’s ID.', (r) => r.d.goalId),
+    sh('Goal', 'The goal’s name.', (r) => r.c.goal(r.d.goalId)?.title ?? ''),
+    sh('Week', 'The week it was said.', (r) => r.d.week),
+    sh('Kind', `Note, ${ASK_KIND.question.label.toLowerCase()} or ${ASK_KIND.action.label.toLowerCase()}.`, (r) => (r.d.kind === 'ask' ? ASK_KIND.question.label : r.d.kind === 'action' ? ASK_KIND.action.label : 'Note')),
+    sh('Said by', 'Who said it.', (r) => r.c.name(r.d.byId)),
+    sh('Text', 'What was said.', (r) => r.d.note),
+    sh('Who', 'Who does an action.', (r) => (r.d.kind === 'action' ? or(r.c.name(r.d.assigneeId ?? '')) : null)),
+    sh('Due week', 'When an action is due.', (r) => r.d.dueWeek ?? null),
+    sh('Review', 'The review it was said in.', (r) => r.c.x.snapshot.reviews.find((v) => v.id === r.d.reviewId)?.name ?? null),
+    sh('Answer', 'A question’s or action’s answer.', (r) => (r.d.ask ? answerOf(r.d)?.text ?? null : null)),
+    sh('At', 'When.', (r) => r.d.at),
+  ],
+};
+
+/** Every sheet, in the workbook's order (the README comes last, made from these). */
+export const SHEETS = [GOALS, PLAN, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES] as const;
+export const SHEET_NAMES = [...SHEETS.map((x) => x.name), 'README'] as const;
+export const specOf = (kind: SheetKind) => SHEETS.find((x) => x.kind === kind)! as SheetSpec<unknown>;
+export const headersOf = (kind: SheetKind) => specOf(kind).columns.map((c) => c.header);
+export const columnOf = (kind: SheetKind, header: string) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
+/** Whether a column of a sheet is one people change (the Data tables let them type into it). */
+export const isEditable = (kind: SheetKind, header: string) => (kind === 'plan' && isWeekHeader(header)) || ['edit', 'action'].includes(columnOf(kind, header)?.role ?? '');
+/** Whether a column is worked out by the app or only for reading: set apart (greyed) in a workbook. */
+export const isWorkedOut = (kind: SheetKind, header: string) => ['worked', 'shown'].includes(columnOf(kind, header)?.role ?? '');
+
+/**
+ * The columns that say which record a row is: always written in any export of a table, so it can be loaded back (the
+ * Data tables put them at the end, greyed, when the layout leaves them out).
+ */
+export const KEY_COLUMNS: Record<SheetKind, string[]> = {
+  goals: ['Key', 'ID'], plan: ['Key', 'ID'], checkIns: ['ID', 'Goal key', 'Goal ID', 'Week'], people: ['Email', 'ID'],
+  results: ['Key', 'ID'], asks: ['ID'], notes: ['Goal key', 'Goal ID'],
+};
+
+/**
+ * Which sheet a header row is, from its headers alone (a sheet's name is never trusted: a file saved from Data, a CSV
+ * named anything). Null for a sheet this format doesn't know, such as the README.
+ */
+export function sheetKindOf(header: readonly string[]): SheetKind | null {
+  const h = new Set(header.map((x) => x.trim().toLowerCase()).filter(Boolean));
+  const any = (...l: string[]) => l.some((x) => h.has(x));
+  if ([...h].some(isWeekHeader)) return 'plan';
+  if (h.has('week') && any('value', 'stages', 'call', 'cause', 'why')) return 'checkIns';
+  if (h.has('result') && any('q1', 'q2', 'q3', 'q4') && !h.has('type')) return 'results';
+  if (h.has('ask') && any('asked by', 'asked of')) return 'asks';
+  if (h.has('said by') || (h.has('text') && h.has('kind') && any('goal', 'goal id'))) return 'notes';
+  if (any('goal', 'key') && !h.has('name')) return any('goal', 'type', 'owner', 'owner email', 'target', 'level', 'action', 'status') ? 'goals' : null;
+  if (any('name', 'email') && !h.has('goal')) return 'people';
+  return null;
+}
+
+/* ---------- writing the rows ---------- */
+
+/** The lookups every writer uses, from what's exported. */
+export function contextOf(x: ExportInput, s: Snapshot): Ctx {
+  const people = new Map([...(x.snapshot.archive?.people ?? []).map((p) => [p.id, p] as const), ...x.snapshot.people.map((p) => [p.id, p] as const)]);
+  const left = new Set((x.snapshot.archive?.people ?? []).map((p) => p.id));
+  const goals = new Map([...s.goals, ...(x.snapshot.archive?.goals ?? [])].map((g) => [g.id, g]));
+  return {
+    x,
+    name: (id) => { const p = id ? people.get(id) : undefined; return !p ? '' : left.has(p.id) && !x.snapshot.people.some((v) => v.id === p.id) ? leftName(p.name) : p.name; },
+    email: (id) => (id ? people.get(id)?.email || null : null),
+    team: (id) => (id ? x.snapshot.teams.find((t) => t.id === id)?.name ?? null : null),
+    goal: (id) => (id ? goals.get(id) : undefined),
+  };
+}
+
+/** A sheet's rows, header first, from its columns. */
+export const rowsOf = <C,>(spec: SheetSpec<C>, items: C[]): Cell[][] => [spec.columns.map((c) => c.header), ...items.map((it) => spec.columns.map((c) => c.write(it)))];
+
+/** Every ask on these goals, and every note, question and action said about them in a review. */
+export const asksFor = (s: Snapshot, ids: Set<string>) => asksOf(s).filter((r) => r.goalIds.some((id) => ids.has(id)));
+export const notesFor = (s: Snapshot, ids: Set<string>) => saidIn(s).filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));

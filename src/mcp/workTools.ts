@@ -19,7 +19,7 @@ import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, ope
 import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, watchedGoals } from '../domain/review';
 import { weekProgress } from '../domain/progress';
 import { toCsv, workbook } from '../domain/export';
-import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, shownTable, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
+import { choosableColumns, exportedTable, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
 import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
@@ -66,7 +66,8 @@ const reviewOf = (ctx: McpContext, id: unknown) => {
 /** A person by ID or by name (whole or the start of it), for tools that name someone. */
 const personOf = (ctx: McpContext, ref: unknown) => {
   const t = String(ref ?? '').trim().toLowerCase();
-  const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
+  // By ID, by email (exact), by full name, then by the start of a name.
+  const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => !!t && (x.email ?? '').toLowerCase() === t) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
   if (!t || !p) throw new Error(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
   return p;
 };
@@ -231,14 +232,14 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'list_people',
     title: 'People and teams',
-    description: 'Everyone in the workspace with their job title, team and whether they’re an admin, and the teams.',
+    description: 'Everyone in the workspace with their email, job title, team and whether they’re an admin, and the teams.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
     async run(_a, ctx) {
       const team = (id: string | null) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
-      const people = ctx.snapshot.people.map((p) => ({ id: p.id, name: p.name, jobTitle: p.role, team: team(p.teamId), admin: p.admin, goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length }));
+      const people = ctx.snapshot.people.map((p) => ({ id: p.id, name: p.name, email: p.email ?? null, jobTitle: p.role, team: team(p.teamId), admin: p.admin, goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length }));
       const teams = ctx.snapshot.teams.map((t) => { const m = A.teamMembers(ax(ctx), t.id); return { id: t.id, name: t.name, lead: name(ctx, t.leadId), people: m.people.length, goals: m.goals.length }; });
-      return { data: { people, teams }, text: people.map((p) => `${p.id} · ${p.name}${p.jobTitle ? `, ${p.jobTitle}` : ''} · ${p.team ?? 'no team'}${p.admin ? ' · admin' : ''}`).join('\n') };
+      return { data: { people, teams }, text: people.map((p) => `${p.id} · ${p.name}${p.email ? ` <${p.email}>` : ''}${p.jobTitle ? `, ${p.jobTitle}` : ''} · ${p.team ?? 'no team'}${p.admin ? ' · admin' : ''}`).join('\n') };
     },
   },
   {
@@ -487,16 +488,17 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'save_person',
     title: 'Add or change a person',
-    description: 'Admins: add someone to the workspace, or change their name, job title, team or admin rights. There’s always at least one admin. Without person_id it adds a new person.',
+    description: 'Admins: add someone to the workspace, or change their name, email, job title, team or admin rights. There’s always at least one admin. Without person_id it adds a new person, who needs an email.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
-      person_id: str('The person to change. Leave out to add someone.'),
-      name: str('Their full name.'), job_title: str('Their job title.'), team: str('Their team (name or ID); empty string for none.'), admin: bool('Whether they’re an admin.'),
+      person_id: str('The person to change (their ID or email). Leave out to add someone.'),
+      name: str('Their full name.'), email: str('Their email: required for someone new.'), job_title: str('Their job title.'), team: str('Their team (name or ID); empty string for none.'), admin: bool('Whether they’re an admin.'),
     } },
     annotations: WRITE,
     async run(a, ctx) {
       const before = a.person_id ? personOf(ctx, a.person_id) : null;
       const nm = a.name !== undefined ? String(a.name).trim() : before?.name ?? '';
-      const p = { id: before?.id ?? ctx.newId('p'), name: nm, role: a.job_title !== undefined ? String(a.job_title).trim() : before?.role ?? '', initials: before && before.name === nm ? before.initials : A.initialsOf(nm), teamId: a.team !== undefined ? teamOf(ctx, a.team) : before?.teamId ?? ctx.actor.teamId ?? null, admin: a.admin !== undefined ? !!a.admin : before?.admin ?? false };
+      const email = a.email !== undefined ? String(a.email).trim().toLowerCase() : before?.email ?? '';
+      const p = { id: before?.id ?? ctx.newId('p'), name: nm, role: a.job_title !== undefined ? String(a.job_title).trim() : before?.role ?? '', initials: before && before.name === nm ? before.initials : A.initialsOf(nm), teamId: a.team !== undefined ? teamOf(ctx, a.team) : before?.teamId ?? ctx.actor.teamId ?? null, admin: a.admin !== undefined ? !!a.admin : before?.admin ?? false, ...(email ? { email } : {}) };
       const out = await save(ctx, A.savePerson(ax(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, 'Nothing to change: it already says that.');
       return { ...out, data: { id: p.id } };
     },
@@ -566,7 +568,7 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'export_table',
     title: 'Export a data table as shown',
-    description: 'One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.',
+    description: 'One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted, then any column that says which record a row is (a goal’s Key and ID, a person’s Email…) the layout leaves out, so the rows load back with bulk_change. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       view: str('The name of a saved layout: one of yours, or one pinned for everyone.'),
       table: str('Which data table, when not using a view.', { enum: TABLE_ORDER }),
@@ -577,7 +579,7 @@ export const WORK_TOOLS: ToolDef[] = [
     annotations: READ,
     async run(a, ctx) {
       const layout = layoutFrom(ctx, a);
-      const rows = shownTable(sheetOf(ctx, layout.table), layout);
+      const rows = exportedTable(sheetOf(ctx, layout.table), layout).rows;
       const [head = [], ...body] = rows;
       const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? 'row' : 'rows'}, ${head.length} columns`;
       if (a.format === 'json') return { data: { table: layout.table, columns: head, rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null]))) }, text: what };

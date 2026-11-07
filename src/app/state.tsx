@@ -532,7 +532,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         // The demo's data lives in this browser only, so its feedback is also sent where the people building the app read it.
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
-      previewChanges: (tables, via, reason) => planChanges({ tables, snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, via, reason }),
+      previewChanges: (tables, via, reason) => planChanges({ tables, snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, via, reason, full: snapshot }),
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');
         await commit(cs.commit);

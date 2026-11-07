@@ -5,7 +5,8 @@ import { addNote } from '../domain/actions';
 import { applyQuery, parseQuery } from '../domain/query';
 import type { Commit } from '../data/store';
 import { describe, planChanges, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
-import { aiBrief, toCsv, toJson, workbook } from '../domain/export';
+import { aiBrief, sheetNamed, toCsv, toJson, workbook } from '../domain/export';
+import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, SHEET_NAMES } from '../domain/columns';
 import { summariseAll } from '../domain/summary';
 import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
@@ -103,6 +104,7 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason });
   const errors = cs.issues.filter((x) => x.severity === 'error');
   const warnings = cs.issues.filter((x) => x.severity === 'warning');
+  const notes = cs.issues.filter((x) => x.severity === 'note');
   const data = {
     saved: false,
     summary: describe(cs),
@@ -110,13 +112,14 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     unchanged: cs.unchanged,
     problems: errors.map((x) => ({ sheet: x.sheet, row: x.row, goal: x.goal, message: x.message })),
     warnings: warnings.map((x) => ({ goal: x.goal, message: x.message })),
+    notes: notes.map((x) => ({ goal: x.goal, message: x.message })),
     needsReason: cs.needsReason,
   };
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
   if (errors.length) return { isError: true, data, text: `Not saved. Fix these and try again:\n${lines(errors)}` };
   if (cs.needsReason) return { isError: true, data, text: 'Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".' };
   if (!cs.items.length) return { data, text: 'Nothing to change: it already says that.' };
-  const what = `${describe(cs)}.${warnings.length ? `\nNote:\n${lines(warnings)}` : ''}`;
+  const what = `${describe(cs)}.${warnings.length ? `\nNote:\n${lines(warnings)}` : ''}${notes.length ? `\nRead as:\n${lines(notes)}` : ''}`;
   if (opts.dry || !cs.commit) return { data, text: `Checked, not saved (dry run). Would save: ${what}` };
   await ctx.save(cs.commit);
   return { data: { ...data, saved: true }, text: `Saved as ${ctx.actor.name}: ${what}` };
@@ -131,7 +134,8 @@ const goalRef = (ctx: McpContext, id: unknown) => {
 
 const GOAL_FIELDS = {
   title: str('The goal’s name.'),
-  owner: str('The owner’s full name, as in the workspace.'),
+  owner: str('The owner’s full name, as in the workspace (when only one person has it; owner_email is exact).'),
+  owner_email: str('The owner’s email: exact, even where two people share a name.'),
   team: str('The team’s name.'),
   level: str('How important it is for reporting.', { enum: ['north star', 'svp', 'team'] }),
   unit: str('Number goals: the unit, e.g. "%", "days", "USD".'),
@@ -149,7 +153,10 @@ const GOAL_FIELDS = {
   source: str('Where the number comes from.'),
   definition: str('Exactly what is counted.'),
 };
-const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
+const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
+
+/** The export tool's CSVs: one per sheet of the one format (domain/columns), by name: goals_csv, check_ins_csv… */
+const CSV_FORMATS = SHEET_NAMES.filter((n) => n !== 'README').map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
 
 const CORE_TOOLS: ToolDef[] = [
   {
@@ -294,33 +301,33 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'bulk_change',
     title: 'Change many goals at once',
-    description: 'Add or change many goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export (e.g. goals: [{"ID": "...", "Target": 90}], check_ins: [{"Goal ID": "...", "Week": 3, "Value": 41}], plan: [{"ID": "...", "Week 5": 45}]). A goal’s key (G-12) works wherever its ID does: in ID, Key, Goal ID, Goal key and Feeds into ID. Checks every row and returns what would change; nothing is saved unless "apply" is true and every row is valid.',
+    description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change; nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
     inputSchema: { type: 'object', additionalProperties: false, properties: {
-      goals: { type: 'array', items: { type: 'object' }, description: 'Rows for the Goals sheet. ID to change a goal; no ID to add one.' },
-      plan: { type: 'array', items: { type: 'object' }, description: 'Rows for the Plan sheet: ID and "Week N" columns.' },
-      check_ins: { type: 'array', items: { type: 'object' }, description: 'Rows for the Check-ins sheet: Goal ID, Week, Value or Stages, Call, Cause, Why, Path to green, Back on plan by week, Needs, Next step.' },
+      goals: { type: 'array', items: { type: 'object' }, description: 'Rows for the Goals sheet. Key (or ID) to change a goal; neither to add one.' },
+      plan: { type: 'array', items: { type: 'object' }, description: 'Rows for the Plan sheet: Key (or ID), Start and "Week N" columns.' },
+      check_ins: { type: 'array', items: { type: 'object' }, description: 'Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in.' },
+      people: { type: 'array', items: { type: 'object' }, description: 'Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left.' },
       reason: str('Why plans are changing, for any plan change that needs one.'),
       apply: bool('Save the changes. Leave out first to check them.'),
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins') }, { dry: !a.apply, reason: a.reason as string | undefined });
+      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people') }, { dry: !a.apply, reason: a.reason as string | undefined });
     },
   },
   {
     name: 'export',
     title: 'Export the goals',
-    description: 'Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or CSV of the goals or the check-ins.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['format'], properties: { format: str('Which export.', { enum: ['json', 'brief', 'goals_csv', 'check_ins_csv'] }) } },
+    description: 'Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or one sheet of the spreadsheet export as CSV: goals, plan, check-ins, people, results (each goal’s result and quarters), asks or notes. The CSVs load back with bulk_change.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['format'], properties: { format: str('Which export.', { enum: ['json', 'brief', ...CSV_FORMATS.map(([f]) => f)] }) } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today };
       if (a.format === 'json') { const j = toJson(x); return { data: j, text: JSON.stringify(j) }; }
       if (a.format === 'brief') return { text: aiBrief(x) };
-      const wb = workbook(x);
-      if (a.format === 'goals_csv') return { text: toCsv(wb[0]!.rows) };
-      if (a.format === 'check_ins_csv') return { text: toCsv(wb[2]!.rows) };
-      return { isError: true, text: 'format should be json, brief, goals_csv or check_ins_csv.' };
+      const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];
+      if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
+      return { isError: true, text: `format should be json, brief or one of ${CSV_FORMATS.map(([f]) => f).join(', ')}.` };
     },
   },
 ];

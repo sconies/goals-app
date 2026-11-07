@@ -254,6 +254,53 @@ describe('database save functions, as the public user', () => {
     });
   });
 
+  describe('people’s emails (0027)', () => {
+    const one = async <T,>(q: string, p: unknown[] = []) => (await db.query<T>(q, p)).rows[0]!;
+    const person = async (id: string) => personFromRow(await one<PersonRow>('select * from okr_people where id = $1', [id]));
+
+    it('keeps the email a new workspace’s people were set up with, and reads it back', async () => {
+      const p = await person(snap.people[1]!.id);
+      expect(p.email).toBe(snap.people[1]!.email);
+      expect(p.email).toMatch(/@example\.com$/);
+    });
+
+    it('saves an email, lower case only, and one per person in a workspace', async () => {
+      const [a, b] = await Promise.all(snap.people.slice(2, 4).map((p) => person(p.id)));
+      await commit({ people: [{ ...a!, email: 'chloe.wu+goals@example.com' }], changes: [] });
+      expect((await person(a!.id)).email).toBe('chloe.wu+goals@example.com');
+      // Not stored as typed: the app lower-cases it first, and the table refuses anything else.
+      await expect(commit({ people: [{ ...a!, email: 'Chloe.Wu@Example.com' }], changes: [] })).rejects.toThrow(/okr_people_email_check/);
+      await expect(commit({ people: [{ ...a!, email: 'not an email' }], changes: [] })).rejects.toThrow(/okr_people_email_check/);
+      // Two people in one workspace can't share an email.
+      await expect(commit({ people: [{ ...b!, email: 'chloe.wu+goals@example.com' }], changes: [] })).rejects.toThrow(/okr_people_ws_email/);
+    });
+
+    it('lets someone added before emails existed have none, and frees the email of someone deleted outright', async () => {
+      const a = await person(snap.people[2]!.id);
+      const without = { ...a, id: 'p_no_email', name: 'Old Timer', initials: 'OT', email: null };
+      await commit({ people: [without], changes: [] });
+      expect((await person('p_no_email')).email).toBeUndefined();
+      const twin = { ...without, id: 'p_twin', name: 'Twin', email: a.email };
+      await expect(commit({ people: [twin], changes: [] })).rejects.toThrow(/okr_people_ws_email/);
+      await commit({ people: [{ ...a, removedAt: now.toISOString(), removedBy: snap.people[0]!.id }], changes: [] });
+      await commit({ people: [twin], changes: [] });
+      expect((await person('p_twin')).email).toBe(a.email);
+      // Another workspace may have the same address for its own person.
+      await db.query(`insert into okr_people (id, workspace_id, name, role, initials, is_admin, email) values ('p_other_ws', 'ws_other_0027', 'Twin', '', 'T', false, $1)`, [a.email]);
+      expect(await count('okr_people', `email = '${a.email}'`)).toBe(3);
+    });
+
+    it('applies from the paste-in script on its own, as often as it’s run', async () => {
+      const paste = readFileSync(join(__dirname, '../../supabase/manual/apply-0027.sql'), 'utf8');
+      // The table the CI migrator keeps (scripts/migrate.mjs), which the paste-in script records itself in.
+      await db.exec('create table if not exists okr_schema_migrations (name text primary key, applied_at timestamptz not null default now())');
+      await db.exec(paste);
+      await db.exec(paste);
+      expect(await count('okr_schema_migrations', `name = '0027_person_email.sql'`)).toBe(1);
+      expect(paste.length).toBeLessThan(5000);
+    });
+  });
+
   it('deletes a workspace and everything in it, as the public user', async () => {
     await asAnon('select okr_delete_workspace($1)', [ws]);
     for (const t of ['okr_goals', 'okr_people', 'okr_check_ins', 'okr_changes', 'okr_stages', 'okr_cycles', 'okr_teams']) expect(await count(t)).toBe(0);

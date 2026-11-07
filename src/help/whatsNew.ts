@@ -34,6 +34,19 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home', 'status', 'needs-attention', 'feedback', 'inbox', 'ai-assistants'],
   },
   {
+    id: 'one-spreadsheet-format',
+    date: '2026-11-07',
+    title: 'One spreadsheet format, in and out',
+    points: [
+      'Export saves one workbook with every sheet (Goals, Plan, Check-ins, People, Results for year-end reporting, Asks and Notes) and a README for each column, or the same sheets as CSVs in a zip, or one table on its own. Whatever you export loads back on Import, and unedited it changes nothing.',
+      'Import, set-up, Data and the AI assistant all read the same format: each sheet by its header row, goals by their key (so last cycle’s file still finds them), people by email. Every column you can change counts, line breaks are kept, and a word the app doesn’t know is a problem to fix, never a guess.',
+      'An Action column in a spreadsheet stops a goal (with a reason), deletes one set up by mistake, or marks someone as left, with the same rules and preview as the app; Undo this import puts them back.',
+      'Everyone now has an email, and someone new needs one. Admins see the people still without one on Workspace, and can add them in one go.',
+      'A table saved from Data keeps each row’s key, ID or email at the end, in grey, whatever columns you hid, so it loads back.',
+    ],
+    articles: ['export', 'import', 'data', 'set-up', 'workspace'],
+  },
+  {
     id: 'one-meaning-for-every-word',
     date: '2026-11-06',
     title: 'One meaning for every status word',

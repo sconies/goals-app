@@ -234,12 +234,12 @@
     {
       "id": "EXPORT",
       "area": "Data",
-      "text": "Goals export as an Excel workbook (goals, plan by week, check-ins, notes and actions, people, a README), CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."
+      "text": "Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."
     },
     {
       "id": "BULK-IMPORT",
       "area": "Data",
-      "text": "A workbook or CSV can add or change goals, set plan numbers and add check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet."
+      "text": "A workbook, a zip of CSVs or one CSV can add or change people, goals, plan numbers and check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any, and admins add and change people. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet."
     },
     {
       "id": "BULK-EDIT",
@@ -617,6 +617,26 @@
       "text": "The owner or an admin stops a goal with check-ins, with a required reason: it leaves stats, reviews, Home, Watching and attention lists but stays on its page (marked Stopped, a shape and a word, as it stood but with no forecast: no “will it hit?” and no projection), in its history, in exports and in Activity; the goals feeding it move up to its parent and its open asks are withdrawn with a note. A goal with no check-ins is deleted instead."
     },
     {
+      "id": "ONE-FORMAT",
+      "area": "Data",
+      "text": "One spreadsheet format: every sheet and column is defined once (src/domain/columns.ts), with its header, its meaning, whether it matches the row, can be changed or is worked out, and how it is written and read. The workbook, the zipped CSVs, one CSV, the set-up template, set-up from a spreadsheet, Import, the Data tables, the AI assistant’s tools and docs/export-format.md (checked to be current) are all made from it. Sheets are known by their header rows, never their names; CSV is read in one RFC 4180 pass (quotes, line breaks in a cell, a byte-order mark) and the formula guard’s apostrophe is taken off; worked-out columns use the vocabulary’s words and are never read; a word a column doesn’t know is a problem, never a default."
+    },
+    {
+      "id": "ROUND-TRIP",
+      "area": "Data",
+      "text": "Whatever is exported loads straight back as no change: every demo workspace as a workbook and as zipped CSVs, a Data table saved with columns hidden (its key columns are always written, greyed, at the end), and the AI assistant’s export_table into bulk_change. An edited copy applies exactly its edits, a line break or a leading “-” included. Goals are matched by key, then ID, so last cycle’s file still finds its goals; people by email, then a name only one person has, noted in the preview; every column that can be changed counts, and one a table leaves out keeps what the record says."
+    },
+    {
+      "id": "IMPORT-ACTIONS",
+      "area": "Data",
+      "text": "A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams."
+    },
+    {
+      "id": "PERSON-EMAIL",
+      "area": "People",
+      "text": "Every person has an email, kept lower case and unique in the workspace (migration 0027): required when someone is added, in Workspace, set-up, a spreadsheet or the AI assistant. Exports write each person’s name and email, and imports match people by email. People added before emails are listed on Workspace for an admin to fill in, together. The example’s people have example emails (firstname.lastname@example.com)."
+    },
+    {
       "id": "IMPORT-UNDO",
       "area": "Removing",
       "text": "Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed."
@@ -782,6 +802,12 @@
       "title": "Undo an import: every row back as it was, and a row changed since skipped and listed",
       "who": "A goal owner",
       "budget": 8
+    },
+    {
+      "id": "U46",
+      "title": "An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing",
+      "who": "An admin",
+      "budget": 16
     }
   ],
   "easeCriteria": [

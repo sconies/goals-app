@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
-import { readSpreadsheet, templateSheets } from '../app/spreadsheet';
+import { readChanges, templateSheets } from '../app/spreadsheet';
 import { saveAndSay } from '../app/files';
 import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer';
+import type { Rec, Tables } from '../domain/sheets';
+import { isEmail, normalEmail } from '../domain/people';
 import type { Cycle } from '../domain/types';
 import { MONTH_NAMES, startMonth, yearStartFor, yearWeeks } from '../domain/year';
 import { yearName } from '../domain/yearName';
@@ -21,7 +23,7 @@ import { useMark } from '../telemetry/react';
 import { StageFields } from '../ui/GoalFields';
 import { FaroLogo } from '../ui/Brand';
 
-interface PersonRow { name: string; title: string; team: string; admin: boolean }
+interface PersonRow { name: string; email: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string }
 interface SetupDraft {
   step: number;
@@ -34,11 +36,12 @@ interface SetupDraft {
   template: string;
   outcome: GoalRow;
   goals: GoalRow[];
-  /** A Goals sheet from an uploaded spreadsheet, used instead of the outcome and goals steps. */
-  fileGoals: string;
+  /** The Goals, Plan and Check-ins sheets of an uploaded spreadsheet (the template, or a workbook exported from another
+      workspace), used instead of the outcome and goals steps. */
+  fileTables?: Tables;
 }
 
-const blankPerson = (): PersonRow => ({ name: '', title: '', team: '', admin: false });
+const blankPerson = (): PersonRow => ({ name: '', email: '', title: '', team: '', admin: false });
 const blankGoal = (owner = ''): GoalRow => ({ title: '', kind: 'metric', unit: '', start: '', target: '', owner });
 const YES = /^(y|yes|true|1|admin|sponsor|coach|goals coach)$/i;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -52,32 +55,43 @@ export function peopleFromTable(tsv: string): { rows: PersonRow[]; objectives: R
   const first = (table[0] ?? []).map((h) => h.toLowerCase());
   const hasHeader = first.includes('name');
   const col = (names: string[], fallback: number) => (hasHeader ? first.findIndex((h) => names.includes(h)) : fallback);
-  const ci = { name: col(['name'], 0), team: col(['team'], 1), admin: col(['admin', 'profile', 'role'], 2), title: col(['job title', 'title'], -1), objective: col(['team objective', 'objective'], -1) };
-  const objectives: Record<string, string> = {};
-  const rows = (hasHeader ? table.slice(1) : table).map((r) => {
+  const ci = { name: col(['name'], 0), team: col(['team'], 1), admin: col(['admin', 'profile', 'role'], 2), title: col(['job title', 'title'], -1), objective: col(['team objective', 'objective'], -1), email: col(['email', 'e-mail', 'email address'], -1) };
+  const recs = (hasHeader ? table.slice(1) : table).map((r) => {
     const get = (i: number) => (i >= 0 ? r[i] ?? '' : '');
-    if (get(ci.objective) && get(ci.team)) objectives[get(ci.team)] = get(ci.objective);
-    return { name: get(ci.name), team: get(ci.team), title: get(ci.title), admin: YES.test(get(ci.admin).trim()) };
-  }).filter((r) => r.name || r.team);
+    return { name: get(ci.name), team: get(ci.team), 'job title': get(ci.title), admin: get(ci.admin), 'team objective': get(ci.objective), email: get(ci.email) } as Rec;
+  });
+  return peopleFromRecords(recs);
+}
+
+/** A People sheet's rows (the one format's columns) as the set-up step's rows. */
+export function peopleFromRecords(recs: Rec[]): { rows: PersonRow[]; objectives: Record<string, string> } {
+  const objectives: Record<string, string> = {};
+  const rows = recs.map((r) => {
+    const get = (k: string) => (r[k] ?? '').trim();
+    if (get('team objective') && get('team')) objectives[get('team')] = get('team objective');
+    return { name: get('name'), email: normalEmail(get('email')), team: get('team'), title: get('job title'), admin: YES.test(get('admin') || get('profile')) };
+  }).filter((r) => r.name || r.team || r.email);
   return { rows, objectives };
 }
 
+/** The people as the one format's People sheet: you first, then everyone else (a row with no team takes yours). */
 function peopleTsv(me: PersonRow, rows: PersonRow[], objectives: Record<string, string>) {
-  const all = [me, ...rows.filter((r) => r.name.trim() || r.team.trim()).map((r) => ({ ...r, team: r.team.trim() || me.team }))];
-  return ['Name\tJob title\tTeam\tAdmin\tTeam objective', ...all.map((r) => [r.name, r.title, r.team, r.admin ? 'yes' : '', objectives[r.team] ?? ''].join('\t'))].join('\n');
+  const all = [me, ...rows.filter((r) => r.name.trim() || r.team.trim() || r.email.trim()).map((r) => ({ ...r, team: r.team.trim() || me.team }))];
+  const clean = (v: string) => v.replace(/[\t\n]+/g, ' ');
+  return ['Name\tEmail\tJob title\tTeam\tAdmin\tTeam objective', ...all.map((r) => [r.name, r.email, r.title, r.team, r.admin ? 'yes' : '', objectives[r.team] ?? ''].map(clean).join('\t'))].join('\n');
 }
 
 function goalsTsv(d: SetupDraft) {
-  if (d.template === 'file') return d.fileGoals;
-  if (d.template === 'later') return '';
+  if (d.template === 'file' || d.template === 'later') return '';
   const people = [d.me, ...d.people];
-  const teamOf = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === owner.trim().toLowerCase())?.team ?? d.me.team;
+  const person = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === owner.trim().toLowerCase());
+  // The owner by email, as the format matches people, with their name beside it.
   const row = (g: GoalRow, headline: boolean) => [
-    g.title, teamOf(g.owner), g.owner, g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
-    g.plan ?? 'straight', g.kind === 'range' ? g.limit ?? '' : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : '', '', '',
-  ].join('\t');
+    g.title, person(g.owner)?.team.trim() || d.me.team, person(g.owner)?.email ?? '', g.owner, g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
+    g.plan ?? 'straight', g.kind === 'range' ? g.limit ?? '' : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : 'team', '', '',
+  ].map((v) => v.replace(/[\t\n]+/g, ' ')).join('\t');
   const goals = d.goals.filter((g) => g.title.trim());
-  return ['Goal\tTeam\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
+  return ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
 }
 
 /** First run of the real app: what it does, then setting up. */
@@ -110,8 +124,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const nav = useNavigate();
   const [d, set, clear, restored] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
     step: 0, name: '', startDate: yearStartFor(setup.today, 0), reviewDay: 3,
-    me: { name: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
-    template: '', outcome: blankGoal(), goals: [], fileGoals: '',
+    me: { name: '', email: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
+    template: '', outcome: blankGoal(), goals: [],
   }));
   // Ids are global in the database, so the suffix is long enough that two workspaces never share one.
   const [suffix] = useState(() => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join(''));
@@ -120,27 +134,32 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const [fileNote, setFileNote] = useState('');
   const [cycleOpen, setCycleOpen] = useState(false);
 
-  const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(d.me, d.people, d.objectives), goals: goalsTsv(d), now: setup.today, idSuffix: suffix });
-  const issues = (t: ImportIssue['table'], blocking = true) => result.issues.filter((i) => i.table === t && (!blocking || !/using straight/.test(i.message)));
+  // A draft kept from before people had emails still opens.
+  const me = { ...d.me, email: d.me.email ?? '' };
+  const rowsOf = d.people.map((r) => ({ ...r, email: r.email ?? '' }));
+  const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(d.template === 'file' && d.fileTables ? { tables: d.fileTables } : {}), now: setup.today, idSuffix: suffix });
+  const issues = (t: ImportIssue['table']) => result.issues.filter((i) => (t === 'Goals' ? i.table !== 'People' : i.table === t));
   // peopleTsv drops empty rows, so map each table row to its line in the sheet: header 1, you 2, then the rest.
-  const filled = d.people.map((r, k) => (r.name.trim() || r.team.trim() ? k : -1)).filter((k) => k >= 0);
+  const filled = rowsOf.map((r, k) => (r.name.trim() || r.team.trim() || r.email.trim() ? k : -1)).filter((k) => k >= 0);
   const personIssue = (i: number) => { const at = filled.indexOf(i); return at < 0 ? undefined : issues('People').find((x) => x.row === at + 3)?.message; };
-  const goalIssue = (row: number) => issues('Goals').find((x) => x.row === row)?.message;
+  const goalIssue = (row: number) => issues('Goals').find((x) => x.table === 'Goals' && x.row === row)?.message;
+  const meIssue = issues('People').find((x) => x.row === 2)?.message;
+  const meEmail = normalEmail(me.email);
   const owners = [d.me, ...d.people].filter((p) => p.name.trim()).map((p) => p.name.trim());
   const skipGoalSteps = d.template === 'file' || d.template === 'later';
 
   const ok = [
     !!d.name.trim() && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate),
-    !!d.me.name.trim() && !!d.me.team.trim(),
+    !!d.me.name.trim() && !!d.me.team.trim() && isEmail(meEmail),
     !issues('People').length,
     !!d.template,
     !!d.outcome.title.trim() && !goalIssue(2),
     !issues('Goals').length,
-    !result.issues.filter((i) => !/using straight/.test(i.message)).length,
+    !result.issues.length,
   ];
   const problem = [
     !d.name.trim() ? 'Give the workspace a name.' : 'Pick the month the goal year starts.',
-    !d.me.name.trim() ? 'Add your name.' : 'Add your team.',
+    !d.me.name.trim() ? 'Add your name.' : !meEmail ? 'Add your email.' : !isEmail(meEmail) ? `“${me.email}” doesn’t look like an email.` : 'Add your team.',
     'Fix the rows marked in red, or clear them.',
     'Pick a starting point.',
     !d.outcome.title.trim() ? 'Name the outcome.' : goalIssue(2) ?? '',
@@ -175,13 +194,19 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
   const upload = async (file: File) => {
     try {
-      const got = await readSpreadsheet(file);
       const patch: Partial<SetupDraft> = {};
-      if (got.people) { const r = peopleFromTable(got.people); if (r.rows.length) { patch.people = r.rows; patch.objectives = r.objectives; } }
-      if (got.goals) { patch.fileGoals = got.goals; }
+      const t = (await readChanges(file)).tables;
+      const r = t.people ? peopleFromRecords(t.people) : null;
+      // You're already on the first row: the file's row for you (by email, or name) isn't added twice.
+      const others = r ? r.rows.filter((x) => !(meEmail && x.email === meEmail) && x.name.trim().toLowerCase() !== d.me.name.trim().toLowerCase()) : [];
+      if (r?.rows.length) { patch.people = others.length ? others : [blankPerson()]; patch.objectives = r.objectives; }
+      // The goals with their plans and past check-ins, for "Goals from your spreadsheet".
+      if (t.goals?.length) patch.fileTables = { goals: t.goals, ...(t.plan ? { plan: t.plan } : {}), ...(t.checkIns ? { checkIns: t.checkIns } : {}) };
+      else patch.fileTables = undefined;
       set(patch);
-      const n = got.people ? peopleFromTable(got.people).rows.length : 0;
-      setFileNote(`Read ${file.name}: ${n ? `${n} people` : 'no people sheet'}${got.goals ? ', plus a goals sheet you can use in the next step' : ''}.`);
+      const n = r?.rows.length ?? 0;
+      const extra = [t.plan?.length ? 'plan numbers' : '', t.checkIns?.length ? `${t.checkIns.length} check-ins` : ''].filter(Boolean).join(' and ');
+      setFileNote(`Read ${file.name}: ${n ? `${n} people` : 'no people sheet'}${t.goals?.length ? `, plus a goals sheet${extra ? ` with ${extra}` : ''} you can use in the next step` : ''}.`);
     } catch (e) {
       setFileNote(`Couldn’t read ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -203,7 +228,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const close = () => (onClose ? onClose() : nav(setup.hasWorkspaces ? '/workspace' : '/'));
   const shownStep = d.step + 1;
   useMark(STEP_MARKS[d.step] ?? null);
-  const updatePerson = (i: number, p: Partial<PersonRow>) => set({ people: d.people.map((x, k) => (k === i ? { ...x, ...p } : x)) });
+  const updatePerson = (i: number, p: Partial<PersonRow>) => set({ people: rowsOf.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const updateGoal = (i: number, p: Partial<GoalRow>) => set({ goals: d.goals.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const label = busy ? 'Creating…' : d.step === 6 ? 'Create workspace' : 'Next';
 
@@ -250,9 +275,10 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <h1 className="qtitle big">Who are you?</h1>
             <div className="pair">
               <div className="field"><label className="field"><span className="field-label">Your name</span><input className={'input' + (tried && !d.me.name.trim() ? ' invalid' : '')} autoFocus value={d.me.name} onChange={(e) => set({ me: { ...d.me, name: e.target.value } })} placeholder="e.g. Ana Silva" /></label>{err(!d.me.name.trim())}</div>
-              <div className="field"><label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && !d.me.team.trim() ? ' invalid' : '')} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>{err(!!d.me.name.trim() && !d.me.team.trim())}</div>
+              <div className="field"><label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && !d.me.team.trim() ? ' invalid' : '')} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>{err(!!d.me.name.trim() && isEmail(meEmail) && !d.me.team.trim())}</div>
             </div>
-            <p className="hint">You’ll be this workspace’s admin: you can add people, change settings and make others admins. Anyone can own goals, watch them and run reviews.</p>
+            <div className="field"><label className="field"><span className="field-label">Your email</span><input className={'input' + (tried && !isEmail(meEmail) ? ' invalid' : '')} type="email" autoComplete="email" value={me.email} onChange={(e) => set({ me: { ...me, email: e.target.value } })} placeholder="e.g. ana.silva@example.com" /></label>{err(!!d.me.name.trim() && !isEmail(meEmail))}{tried && meIssue && ok[1] && <span className="hint tone-off field-error" role="alert">{meIssue}</span>}</div>
+            <p className="hint">You’ll be this workspace’s admin: you can add people, change settings and make others admins. Anyone can own goals, watch them and run reviews. Emails tell people apart, in the app and in spreadsheets.</p>
           </section>
         )}
 
@@ -263,21 +289,23 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">Type them in, paste rows from a spreadsheet, or upload one. You can also add people later.</span>
             </div>
             <div className="people-grid" role="table" aria-label="People">
-              <div className="pg-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Team</span><span role="columnheader">Admin</span><span /></div>
-              {d.people.map((r, i) => {
+              <div className="pg-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Email</span><span role="columnheader">Team</span><span role="columnheader">Admin</span><span /></div>
+              {rowsOf.map((r, i) => {
                 const issue = personIssue(i);
                 const teamIssue = !!issue && /has no team/.test(issue);
+                const emailIssue = !!issue && /email/i.test(issue);
                 return (
                 <div key={i} className="pg-row" role="row">
-                  <input className={'input' + (issue && !teamIssue ? ' invalid' : '')} aria-invalid={issue && !teamIssue ? true : undefined} aria-label={`Person ${i + 1}: name`} value={r.name} placeholder="Name"
+                  <input className={'input' + (issue && !teamIssue && !emailIssue ? ' invalid' : '')} aria-invalid={issue && !teamIssue && !emailIssue ? true : undefined} aria-label={`Person ${i + 1}: name`} value={r.name} placeholder="Name"
                     onChange={(e) => updatePerson(i, { name: e.target.value })}
                     onPaste={(e) => {
                       const t = e.clipboardData.getData('text');
                       if (!/[\t\n]/.test(t)) return;
                       e.preventDefault();
                       const got = peopleFromTable(t);
-                      set({ people: [...d.people.slice(0, i), ...got.rows, ...d.people.slice(i + got.rows.length)].filter((x, k, arr) => x.name || x.team || k >= arr.length - 1), objectives: { ...d.objectives, ...got.objectives } });
+                      set({ people: [...rowsOf.slice(0, i), ...got.rows, ...rowsOf.slice(i + got.rows.length)].filter((x, k, arr) => x.name || x.team || x.email || k >= arr.length - 1), objectives: { ...d.objectives, ...got.objectives } });
                     }} />
+                  <input className={'input pg-email' + (emailIssue ? ' invalid' : '')} aria-invalid={emailIssue || undefined} aria-label={`Person ${i + 1}: email`} type="email" value={r.email} placeholder="Email" onChange={(e) => updatePerson(i, { email: e.target.value })} />
                   <input className={'input' + (teamIssue ? ' invalid' : '')} aria-invalid={teamIssue || undefined} aria-label={`Person ${i + 1}: team`} value={r.team} placeholder="Team" list="teams" onChange={(e) => updatePerson(i, { team: e.target.value })} />
                   <label className="pg-check"><input type="checkbox" aria-label={`Person ${i + 1}: admin`} checked={r.admin} onChange={(e) => updatePerson(i, { admin: e.target.checked })} /></label>
                   <button type="button" className="iconbtn" aria-label={`Remove person ${i + 1}`} onClick={() => set({ people: d.people.length > 1 ? d.people.filter((_, k) => k !== i) : [blankPerson()] })}><Icon name="close" /></button>
@@ -304,7 +332,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">A template gives you an outcome and the goals that usually feed it. You change the names and numbers next.</span>
             </div>
             <div className="optlist" role="radiogroup" aria-label="Starting point">
-              {d.fileGoals && <button type="button" role="radio" className="opt" aria-checked={d.template === 'file'} onClick={() => pickTemplate('file')}><span>Goals from your spreadsheet</span><span className="hint">As uploaded</span></button>}
+              {!!d.fileTables?.goals?.length && <button type="button" role="radio" className="opt" aria-checked={d.template === 'file'} onClick={() => pickTemplate('file')}><span>Goals from your spreadsheet</span><span className="hint">As uploaded{d.fileTables.checkIns?.length ? ', with their plans and check-ins' : ''}</span></button>}
               {TEMPLATES.map((t) => (
                 <button key={t.id} type="button" role="radio" className="opt" aria-checked={d.template === t.id} onClick={() => pickTemplate(t.id)}>
                   <span>{t.name}</span><span className="hint">{t.blurb}</span>
@@ -352,7 +380,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
               <dt>Goals</dt><dd>{result.snapshot.goals.length ? `${result.snapshot.goals.length}, listed below` : 'Set up later'}</dd>
               <dt>Goal year</dt><dd>{yearName(d.startDate, yearWeeks(d.startDate))}, starting in {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}; review on {DAYS[d.reviewDay]}s</dd>
-              <dt>You</dt><dd>{d.me.name}, admin</dd>
+              <dt>You</dt><dd>{d.me.name} ({meEmail}), admin</dd>
+              {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past check-ins, from your spreadsheet</dd></>}
             </dl>
             <div className="row" style={{ gap: 'var(--s3)' }}>
               <button type="button" className="linkish small" onClick={() => go(0)}>Change name or year</button>

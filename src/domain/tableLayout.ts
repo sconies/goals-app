@@ -1,7 +1,8 @@
 /* The data tables' layouts: which columns each table shows, in what order and how wide, with its search, filters and
    sort. A layout can be kept as a named table view (a saved view whose query starts with table=), opened again later,
    and the table exported exactly as it shows. The app's Data screen and the AI assistant's tools both use these. */
-import type { Cell, Table } from './export';
+import { KEY_COLUMNS, type Cell, type SheetKind } from './columns';
+import type { Table } from './export';
 import { applyTable, filterEntries, parseFilters, parseSort, type PropFilter, type TableSort } from './tableFilter';
 
 export type DataTable = 'goals' | 'checkIns' | 'plan' | 'requests' | 'people';
@@ -21,8 +22,10 @@ export interface TableSpec {
 }
 
 export const TABLES: Record<DataTable, TableSpec> = {
+  // A row's Action (stop, delete, mark as left) is done where its consequences are shown in full: on the goal, on
+  // Workspace, or from a spreadsheet's preview. The data tables leave those columns out.
   goals: {
-    sheet: 'Goals', label: 'Goals', name: 'Goal', always: ['Key'], hidden: [],
+    sheet: 'Goals', label: 'Goals', name: 'Goal', always: ['Key'], hidden: ['Action', 'Reason'],
     defaults: ['Key', 'Goal', 'Level', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target', 'Status', 'Now', 'Gap', 'Last check-in week', 'Feeds into'],
   },
   checkIns: {
@@ -34,8 +37,10 @@ export const TABLES: Record<DataTable, TableSpec> = {
     sheet: 'Asks', label: 'Asks', name: 'Ask', always: ['ID'], hidden: [],
     defaults: ['ID', 'Kind', 'Ask', 'Goals', 'Goal keys', 'Asked by', 'Asked of', 'Status', 'Due week', 'Asked at', 'Answer', 'Answered by'],
   },
-  people: { sheet: 'People', label: 'People', name: 'Name', always: ['ID'], hidden: ['Team objective'], defaults: null },
+  people: { sheet: 'People', label: 'People', name: 'Name', always: ['Email'], hidden: ['Action', 'Takes over', 'Team objective'], defaults: null },
 };
+/** The sheet of the one format each table is (domain/columns). */
+export const KIND_OF: Record<DataTable, SheetKind> = { goals: 'goals', checkIns: 'checkIns', plan: 'plan', requests: 'asks', people: 'people' };
 /** The tables, in the order the Data screen lists them. */
 export const TABLE_ORDER: DataTable[] = ['goals', 'checkIns', 'plan', 'requests', 'people'];
 export const isDataTable = (t: unknown): t is DataTable => typeof t === 'string' && t in TABLES;
@@ -134,11 +139,23 @@ export function layoutProblems(l: TableLayout | null, head?: readonly string[]):
  * The table as it shows: the visible columns in order, and the rows that pass the search and filters, sorted. Values
  * stay as they are (numbers as numbers), so a spreadsheet can work with them. Header row first.
  */
-export function shownTable(sheet: Table, l: TableLayout): Cell[][] {
+export function shownTable(sheet: Table, l: TableLayout, extra: readonly string[] = []): Cell[][] {
   const [head0, ...body] = sheet.rows;
   const head = (head0 ?? []).map((c) => (c == null ? '' : String(c)));
-  const cols = visibleColumns(l.table, head, l.cols).map((c) => head.indexOf(c));
+  const cols = [...visibleColumns(l.table, head, l.cols), ...extra].map((c) => head.indexOf(c));
   const rows = body.map((raw) => ({ raw, cells: raw.map((c) => (c == null ? '' : String(c))) }));
   const shown = applyTable(rows, head, l.q, l.filters, l.sort);
   return [cols.map((i) => head[i]!), ...shown.map((r) => cols.map((i) => r.raw[i] ?? null))];
+}
+
+/**
+ * The table as it shows, for saving: its columns as the layout has them, then any column that says which record a row
+ * is (a goal's key and ID, a person's email…) that the layout leaves out, at the end and set in grey, so the file loads
+ * back onto the same records whatever was hidden.
+ */
+export function exportedTable(sheet: Table, l: TableLayout): Table {
+  const head = (sheet.rows[0] ?? []).map((c) => String(c ?? ''));
+  const shown = visibleColumns(l.table, head, l.cols);
+  const keys = KEY_COLUMNS[KIND_OF[l.table]].filter((c) => head.includes(c) && !shown.includes(c));
+  return { name: TABLES[l.table].label, rows: shownTable(sheet, l, keys), muted: keys };
 }

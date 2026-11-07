@@ -172,7 +172,7 @@ describe('import', () => {
   it('explains bad rows instead of guessing', () => {
     const r = buildWorkspace({
       name: 'X', startDate: '2026-11-02', now: today, idSuffix: 'z',
-      people: 'Name\tTeam\nAna\tOps',
+      people: 'Name\tEmail\tTeam\nAna\tana@example.com\tOps',
       goals: 'Goal\tTeam\tOwner\tType\tStart\tTarget\nUptime\tOps\tNobody\tmetric\t1\t2\nLatency\tOps\tAna\tmetric\t5\t5\nWhat\tOps\tAna\tpie\t1\t2',
     });
     expect(r.issues.map((i) => `${i.table} ${i.row}`)).toEqual(['Goals 2', 'Goals 3', 'Goals 4']);
