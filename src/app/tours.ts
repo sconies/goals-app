@@ -1,5 +1,6 @@
 /* Walkthroughs: a user journey you do yourself, with a coach beside you. Each step points at the thing to use and
    moves on when you've done it. They run in the demo, as the person the journey is about. */
+import { LABEL, lower, STATUS } from '../domain/vocabulary';
 
 export interface TourStep {
   /** What to do, in a sentence or two. */
@@ -45,9 +46,9 @@ export const TOURS: Tour[] = [
   {
     id: 'quiet', title: 'Chase a goal with no recent update', role: 'Goal owner', personId: 'rhea', start: '/watching',
     steps: [
-      { say: 'Watching gathers the goals Rhea follows, among them everything feeding the self-service environments north star. No recent update means no check-in for two weeks, so its status can’t be trusted. Open that goal.', target: { selector: '.trow[data-tone="stale"]' }, doneWhen: { route: /^\/goals\/env/ } },
+      { say: `Watching gathers the goals Rhea follows, among them everything feeding the self-service environments north star. ${LABEL.stale}: ${lower(STATUS.stale)} means ${STATUS.stale.meaning.charAt(0).toLowerCase()}${STATUS.stale.meaning.slice(1, -1)}. Open that goal.`, target: { selector: '.trow[data-tone="stale"]' }, doneWhen: { route: /^\/goals\/env/ } },
       { say: 'It says when it was last heard of. Ask its owner for an update.', target: { selector: 'button', text: 'Ask' }, doneWhen: { text: 'Asked' } },
-      { say: 'The owner sees the ask on their Home, and it stays open until they check in. Nothing here goes quiet for long without someone noticing.' },
+      { say: 'The owner sees the ask on their Home, and it stays open until they check in. No goal is left without an update for long without someone noticing.' },
     ],
   },
   {

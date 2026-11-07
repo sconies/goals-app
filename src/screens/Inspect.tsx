@@ -8,7 +8,7 @@ import { reviewSession } from '../domain/review';
 import type { Decision, Goal } from '../domain/types';
 import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
-import { EDITED } from '../domain/words';
+import { EDITED } from '../domain/vocabulary';
 
 /* ---------- review order: fixed when a session starts, so moving between goals doesn't reshuffle it ---------- */
 const orderKey = (ws: string, review: string, week: number) => `goals-app-review:${ws}:${review}:${week}`;

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { openAsksFor } from '../domain/asks';
 import { goalHasCheckIns, hasHistory, leaving, personHistory } from '../domain/removal';
-import { leftName, MIN_STOP_REASON } from '../domain/words';
+import { leftName, MIN_STOP_REASON } from '../domain/vocabulary';
 import type { Goal, Person } from '../domain/types';
 import { Sheet } from './bits';
 

@@ -14,9 +14,11 @@ import { goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
 import { assessPosted, checkInsFor, LABEL, RANK } from './status';
 import { countWord, summaryFacts, type Direction } from './summaryFacts';
 import type { Ask, AskKind, Change, CheckIn, Cycle, Decision, DisplayStatus, Goal, Person, Snapshot } from './types';
+import { NO_REASON } from './checkin';
+import { ATTENTION, stagesBehind } from './vocabulary';
 
 const first = (s: Snapshot, id: string | null | undefined) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
-const said = (why: string | null | undefined) => !!why && why.trim() !== '' && why !== 'On plan.';
+const said = (why: string | null | undefined) => !!why && why.trim() !== '' && why !== NO_REASON;
 const lower = (k: DisplayStatus) => LABEL[k].toLowerCase();
 
 /* ---------- 1. the summary bar ---------- */
@@ -57,7 +59,7 @@ export function barFigures(goal: Goal, s: Snapshot, cycle: Cycle, week: number, 
   if (goal.kind === 'milestone' && a.kind === 'milestone') {
     const next = a.stages.filter((x) => x.kind !== 'done').sort((x, y) => x.dueWeek - y.dueWeek)[0];
     const against = a.calc === 'done' ? ['every stage done']
-      : a.late.length ? [`${a.late.length} ${a.late.length === 1 ? 'stage' : 'stages'} slipping`, ...(next ? [`${next.name}: week ${next.expectedWeek}, due ${next.dueWeek}`] : [])]
+      : a.late.length ? [stagesBehind(a.late.map((x) => x.kind as 'risk' | 'off')), ...(next ? [`${next.name}: week ${next.expectedWeek}, due ${next.dueWeek}`] : [])]
       : next ? [`on schedule`, `next: ${next.name}, week ${next.dueWeek}`] : ['on schedule'];
     return { now: `${a.doneCount} of ${a.stages.length} stages done`, nowValue: null, against, ...(stale ? { direction: null, directionText: null } : dir) };
   }
@@ -79,8 +81,8 @@ export interface WhyLine {
 export function whyLine(goal: Goal, s: Snapshot, att: GoalAttention): WhyLine {
   const st = att.status;
   const latest = st.latest;
-  if (!latest) return { text: st.status === 'stale' ? 'Nothing reported yet' : 'Waiting for its first check-in', by: null, handled: null, handledText: null };
-  // Gone quiet: the same words as the flag on Home and Watching (attention.ts), so the reason cut short there is here whole.
+  if (!latest) return { text: st.status === 'stale' ? `${LABEL.stale}: ${lower('none')} this cycle` : LABEL.none, by: null, handled: null, handledText: null };
+  // No recent update: the same words as the flag on Home and Watching (attention.ts), so the reason cut short there is here whole.
   if (st.status === 'stale') return { text: (att.flags.find((f) => f.kind === 'stale')?.detail ?? `No check-in for ${st.daysSinceCheckIn} days.`).replace(/\.$/, ''), by: null, handled: null, handledText: null };
   const by = `${first(s, latest.authorId)}, week ${latest.week}`;
   if (st.status === 'off' || st.status === 'risk') {
@@ -89,7 +91,7 @@ export function whyLine(goal: Goal, s: Snapshot, att: GoalAttention): WhyLine {
       text: said(latest.why) ? latest.why : 'No reason given yet',
       by: said(latest.why) ? by : null,
       handled,
-      handledText: att.handled ? `being handled: ${att.handled.text}` : 'no response yet',
+      handledText: att.handled ? `${ATTENTION.handled.label.toLowerCase()}: ${att.handled.text}` : 'no response yet',
     };
   }
   if (latest.next) return { text: `Next: ${latest.next}`, by, handled: null, handledText: null };

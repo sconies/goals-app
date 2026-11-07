@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { LABEL } from '../domain/status';
-import { COMMENT_REMOVED, EDITED, NOTE_REMOVED } from '../domain/words';
+import { COMMENT_REMOVED, EDITED, NOTE_REMOVED } from '../domain/vocabulary';
 import type { Change } from '../domain/types';
 import { Avatar, StatusShape, timeAgo } from './bits';
 import { CommentTools, ImportUndo } from './RemoveControls';

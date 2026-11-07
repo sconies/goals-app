@@ -11,6 +11,7 @@ import {
 } from '../domain/query';
 import type { Level, SavedView } from '../domain/types';
 import { Sheet } from '../ui/bits';
+import { ATTENTION, QUARTER } from '../domain/vocabulary';
 import { Icon } from '../ui/Icon';
 import { MenuButton, type MenuItem } from '../ui/MenuButton';
 
@@ -78,7 +79,7 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
         </label>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{chips.some((c) => c.key !== 'q') ? ` · ${chips.filter((c) => c.key !== 'q').length}` : ''}</button>
         {/* The most common question in a weekly scan, one press away. */}
-        <button type="button" className="btn quick-filter" aria-pressed={q.needs.includes('decision')} onClick={() => setQ((cur) => ({ ...cur, needs: cur.needs.includes('decision') ? cur.needs.filter((n) => n !== 'decision') : [...cur.needs, 'decision'] }))}>{NEED_OPTIONS.find(([k]) => k === 'decision')![1]}</button>
+        <button type="button" className="btn quick-filter" aria-pressed={q.needs.includes('decision')} onClick={() => setQ((cur) => (cur.needs.includes('decision') ? { ...cur, needs: cur.needs.filter((n) => n !== 'decision'), attention: cur.needs.length > 1 } : { ...cur, needs: [...cur.needs, 'decision'], attention: true }))}>{NEED_OPTIONS.find(([k]) => k === 'decision')![1]}</button>
         <label className="filter-sort inline-sort"><span className="sr">Sort</span>
           <select className="input" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">Sort: as grouped</option>
@@ -169,7 +170,7 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useGoalQuery();
   const [owner, setOwner] = useState('');
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  type ListKey = 'status' | 'needs' | 'level' | 'team' | 'kind' | 'result';
+  type ListKey = 'status' | 'level' | 'team' | 'kind' | 'result';
   const checks = <T extends string>(legend: string, opts: [T, string][], key: ListKey) => (
     <fieldset className="filter-group"><legend className="field-label">{legend}</legend>
       <span className="filter-options">{opts.map(([k, l]) => <label key={k} className="check"><input type="checkbox" checked={(q[key] as string[]).includes(k)} onChange={() => setQ((cur) => ({ ...cur, [key]: toggle(cur[key] as string[], k) }))} /> {l}</label>)}</span>
@@ -190,7 +191,12 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
           </select>
         </fieldset>
         {checks('Status', STATUS_OPTIONS, 'status')}
-        {checks('Needs attention', NEED_OPTIONS, 'needs')}
+        {/* The one Needs attention rule (domain/attention.ts), as Home, Watching and the map have it; narrowed by why, if you like. */}
+        <fieldset className="filter-group"><legend className="field-label">{ATTENTION.needs.label}</legend>
+          <label className="check"><input type="checkbox" checked={q.attention} onChange={(e) => { const on = e.target.checked; setQ((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] })); }} /> Only goals that need attention</label>
+          <span className="hint">Because… (any of these; leave them all clear for any reason)</span>
+          <span className="filter-options">{NEED_OPTIONS.map(([k, l]) => <label key={k} className="check"><input type="checkbox" checked={q.needs.includes(k)} onChange={() => setQ((cur) => { const needs = toggle(cur.needs, k); return { ...cur, needs, attention: cur.attention || needs.length > 0 }; })} /> {l}</label>)}</span>
+        </fieldset>
         {checks('Level', levels, 'level')}
         {checks('Team', app.snapshot.teams.map((t) => [t.id, t.name] as [string, string]), 'team')}
         <fieldset className="filter-group"><legend className="field-label">Owner</legend>
@@ -201,7 +207,7 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
       </div>
       {/* Used less often: folded, and open when one of them is set. */}
       <details className="disclose filter-more" open={!!(q.kind.length || q.due != null || q.quiet != null || q.quarter || q.result.length || q.feeds || q.helps)}>
-        <summary>More filters: type, due date, last check-in, last quarter, result, links</summary>
+        <summary>More filters: type, due date, no update for, last quarter, result, links</summary>
       <div className="filter-sheet">
         {checks('Type', KIND_OPTIONS, 'kind')}
         <fieldset className="filter-group"><legend className="field-label">Due</legend>
@@ -211,16 +217,17 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
             {[app.week + 2, app.week + 4, app.week + 8].filter((w) => w <= app.cycle.weeks).map((w) => <option key={w} value={w}>By week {w}</option>)}
           </select>
         </fieldset>
-        <fieldset className="filter-group"><legend className="field-label">Last check-in</legend>
-          <select className="input" aria-label="Last check-in" value={q.quiet == null ? '' : String(q.quiet)} onChange={(e) => setQ((cur) => ({ ...cur, quiet: e.target.value ? Number(e.target.value) : null }))}>
+        {/* Counted as the No recent update rule counts: days since the latest check-in was posted, in weeks. */}
+        <fieldset className="filter-group"><legend className="field-label">No update for</legend>
+          <select className="input" aria-label="No update for" value={q.quiet == null ? '' : String(q.quiet)} onChange={(e) => setQ((cur) => ({ ...cur, quiet: e.target.value ? Number(e.target.value) : null }))}>
             <option value="">Any time</option>
-            <option value="2">2 or more weeks ago</option>
-            <option value="4">4 or more weeks ago</option>
+            <option value="2">2 weeks or more</option>
+            <option value="4">4 weeks or more</option>
           </select>
         </fieldset>
         <fieldset className="filter-group"><legend className="field-label">Last quarter</legend>
           <select className="input" aria-label="Last quarter" value={q.quarter ?? ''} onChange={(e) => setQ((cur) => ({ ...cur, quarter: (e.target.value || null) as GoalQuery['quarter'] }))}>
-            <option value="">Met or missed</option><option value="met">Met its plan</option><option value="missed">Missed its plan</option>
+            <option value="">Any</option><option value="met">{QUARTER.met.label}</option><option value="missed">{QUARTER.missed.label}</option>
           </select>
         </fieldset>
         {checks('Result', RESULT_OPTIONS, 'result')}

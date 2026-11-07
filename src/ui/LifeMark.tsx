@@ -1,7 +1,7 @@
 /* Where a record is in its life, not how it's doing: Stopped (a goal), Ended (a review), Left (a person), Removed.
    Like a status it's always a shape and a word together (design rules), but its shapes are its own, so a status shape
    still only ever means a status. */
-import { ENDED, LEFT, REMOVED, STOPPED } from '../domain/words';
+import { ENDED, LEFT, REMOVED, STOPPED } from '../domain/vocabulary';
 
 export type Life = 'stopped' | 'ended' | 'left' | 'removed';
 const WORD: Record<Life, string> = { stopped: STOPPED, ended: ENDED, left: LEFT, removed: REMOVED };

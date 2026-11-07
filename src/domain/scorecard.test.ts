@@ -60,8 +60,8 @@ describe('the scorecard on made-up goals', () => {
     const card = goalScorecard(down, cycle, cs, 14, false);
     expect(card.cells.map((c) => c.label)).toEqual(['Vs plan', 'Vs last week', 'To target', 'Will it hit 18.0?']);
     const [plan, since, target, hit] = card.cells;
-    // Plan for week 14: 30 − 12 × 14/53 ≈ 26.8; actual 25.4, so 1.4 days ahead.
-    expect(plan!.value).toBe('1.4 days ahead');
+    // Plan for week 14: 30 − 12 × 14/53 ≈ 26.8; actual 25.4, so 1.4 days ahead of plan: the words every list says.
+    expect(plan!.value).toBe('1.4 days ahead of plan');
     expect(plan!.sub).toBe('plan 26.8 days');
     // Up 0.1 days, and lower is better: worse, with an upward arrow.
     expect(since).toMatchObject({ value: '0.1 days worse', sub: 'was 25.3 days in week 13', tone: 'bad', move: 'up' });
@@ -69,8 +69,8 @@ describe('the scorecard on made-up goals', () => {
     // Rising while it should fall: nowhere near.
     expect(hit).toMatchObject({ value: 'Very unlikely', likelihood: 'very-unlikely' });
     expect(hit!.sub).toMatch(/^likely \d+\.\d days by year end$/);
-    expect(card.gap).toBe('1.4 ahead of plan');
-    expect(card.marks?.now?.text).toBe('1.4 ahead');
+    expect(card.gap).toBe('1.4 days ahead of plan');
+    expect(card.marks?.now?.text).toBe('1.4 days ahead of plan');
     expect(card.marks?.end?.gapText).toMatch(/^\d+\.\d short$/);
     expect(card.marks?.end?.likelyText).toMatch(/^likely \d+\.\d$/);
   });
@@ -95,7 +95,7 @@ describe('the scorecard on made-up goals', () => {
     expect(card.cells.map((c) => c.label)).toEqual(['Vs plan', 'Vs last week', 'To target']);
     expect(card.cells.some((c) => c.likelihood)).toBe(false);
     expect(card.marks?.end).toBeNull();
-    expect(card.marks?.now?.text).toBe('1.4 ahead');
+    expect(card.marks?.now?.text).toBe('1.4 days ahead of plan');
     expect(projects(stopped, false)).toBe(false);
     expect(projects(down, false)).toBe(true);
     expect(projects(down, true)).toBe(false);
@@ -123,13 +123,13 @@ describe('the scorecard on the example', () => {
   };
   it('lead time for changes: behind plan and very unlikely to reach 24 hours', () => {
     const c = card('ns-lead');
-    expect(c.cells[0]!.value).toMatch(/^\d+ hours behind$/);
+    expect(c.cells[0]!.value).toMatch(/^\d+ hours behind plan$/);
     expect(c.cells[2]!.sub).toBe('target 24 hours');
     expect(c.cells[3]!.label).toBe('Will it hit 24?');
     expect(['Unlikely', 'Very unlikely']).toContain(c.cells[3]!.value);
   });
   it('dated stages: done, late, and the next one due', () => {
-    expect(card('lead-mq').cells.map((x) => x.label)).toEqual(['Stages done', 'Stages late', 'Next stage']);
+    expect(card('lead-mq').cells.map((x) => x.label)).toEqual(['Stages done', 'Stages behind', 'Next stage']);
     expect(card('lead-mq').cells[0]!.value).toBe('2 of 4');
   });
   it('every goal gets a card that never says a percentage chance', () => {

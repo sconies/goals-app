@@ -8,7 +8,13 @@ import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
 import { wrapUpOpen } from '../domain/cycle';
 import { dashboard } from '../domain/home';
-import { LABEL } from '../domain/status';
+import { ASK_STATUS, ATTENTION, choices, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
+import type { AskStatus, DisplayStatus } from '../domain/types';
+
+/** A status as the assistant reads it: the words people see, with the code beside them. */
+const said = (k: DisplayStatus) => withCode(STATUS[k]);
+/** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
+const askState = (r: { status: AskStatus; overdue: boolean }) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : '');
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, watchedGoals } from '../domain/review';
 import { weekProgress } from '../domain/progress';
@@ -78,7 +84,7 @@ const levelsOf = (v: unknown): Level[] => {
   return list as Level[];
 };
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
-  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, dueWeek: r.dueWeek, overdue: isOverdue(r, ctx.week), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
+  id: r.id, kind: r.kind, ask: r.kind === 'decision' ? askText(r, ctx.snapshot.people) : r.ask, status: r.status, statusLabel: ASK_STATUS[r.status].label, dueWeek: r.dueWeek, overdue: isOverdue(r, ctx.week), review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, askedBy: name(ctx, r.askedBy), askedOf: r.recipientId ? name(ctx, r.recipientId) : 'anyone',
   goals: r.goalIds.map((g) => { const x = ctx.snapshot.goals.find((y) => y.id === g); return { id: g, key: x?.key ?? null, title: x?.title ?? g }; }), raisedAt: r.createdAt,
   answer: r.answer, answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null, youCanAnswer: r.status === 'open' && canAnswer(r, ctx.actor), youCanMarkDone: r.status === 'open' && canMarkDone(r, ctx.actor),
 });
@@ -92,7 +98,7 @@ function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLayout {
   if (a.view != null) {
     const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
     const l = v ? parseLayout(v.params) : null;
-    if (!l) throw new Error(`There’s no table view called “${String(a.view)}” that you can see. Use list_views.`);
+    if (!l) throw new Error(`There’s no saved layout called “${String(a.view)}” that you can see. Use list_views.`);
     return l;
   }
   if (!isDataTable(a.table)) throw new Error(`Say which table: ${TABLE_ORDER.join(', ')}.`);
@@ -112,7 +118,7 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'get_my_work',
     title: 'What needs me',
-    description: 'What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention (new since anyone looked), those behind but already being handled, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, overdue ones marked), and the reviews they’re in.',
+    description: `What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}), those behind but already ${lower(ATTENTION.handled)}, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, ${lower(ASK_STATUS.overdue)} ones marked), and the reviews they’re in. Statuses are said as people see them, with the code: “${said('off')}”.`,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
     async run(_a, ctx) {
@@ -121,9 +127,9 @@ export const WORK_TOOLS: ToolDef[] = [
       // Check-ins due as Home counts them (one rule): goals still to post this week, never a goal that is done.
       const due = weekProgress(me, s, ctx.cycle, ctx.week, ctx.today).due.map((g) => ({ id: g.id, title: g.title }));
       // Needs attention is new information; a goal someone has looked at since its latest check-in is being handled.
-      const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length));
-      const attention = split.needs.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, why: a.flags.map((f) => f.detail) }));
-      const handled = split.handled.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, inHand: a.handled!.text, said: a.handled!.said || null, why: a.flags.map((f) => f.detail) }));
+      const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }));
+      const attention = split.needs.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, statusLabel: LABEL[a.status.status], why: a.flags.map((f) => f.detail), because: a.flags.map((f) => withCode({ label: f.label, code: f.kind })) }));
+      const handled = split.handled.map((a) => ({ id: a.goal.id, title: a.goal.title, status: a.status.status, statusLabel: LABEL[a.status.status], inHand: a.handled!.text, said: a.handled!.said || null, why: a.flags.map((f) => f.detail) }));
       // Every open ask waiting on them: one way to ask, so each kind is the same record with its own state.
       const waiting = openForPerson(me, s).filter((r) => r.goalIds.some((id) => s.goals.some((g) => g.id === id))).map((r) => requestData(ctx, r));
       const ofKind = (k: AskKind) => waiting.filter((r) => r.kind === k);
@@ -135,7 +141,7 @@ export const WORK_TOOLS: ToolDef[] = [
       // The strip at the top of Home: their goals by status, their on-time streak, what they watch, their next review.
       const d = dashboard(me, s, ctx.cycle, ctx.week, ctx.today);
       const glance = {
-        goals: { whose: d.scope, total: d.total, byStatus: d.counts.map((c) => ({ status: LABEL[c.status], n: c.n })) },
+        goals: { whose: d.scope, total: d.total, byStatus: d.counts.map((c) => ({ status: c.status, statusLabel: LABEL[c.status], n: c.n })) },
         onTimeStreakWeeks: d.streak,
         watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
         nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null,
@@ -143,15 +149,15 @@ export const WORK_TOOLS: ToolDef[] = [
       const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, yourReviews: reviews, wrapUpOpen: wrapUpOpen(ctx.cycle, ctx.week) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
-        `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} being handled.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
+        `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
         `Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(', ') : 'none'}.`,
         `Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join('; ') : 'none'}.`,
         `Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question} (${q.id})`).join('; ') : 'none'}.`,
         `Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by} (${x.id})`).join('; ') : 'none'}.`,
-        `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? ', overdue' : ''}` : ''} (${x.id})`).join('; ') : 'none'}.`,
+        `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? `, ${lower(ASK_STATUS.overdue)}` : ''}` : ''} (${x.id})`).join('; ') : 'none'}.`,
         // Each reason is a sentence with its own full stop: joined into one line, only the line's last one stays.
-        `Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.map(clause).join('. ')}`).join('; ') : 'none'}.`,
-        `Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === 'off' ? 'off track' : 'at risk'}): ${clause(g.inHand)}`).join('; ') : 'none'}.`,
+        `Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join('. ')}`).join('; ') : 'none'}.`,
+        `${ATTENTION.handled.label} (${ATTENTION.handled.meaning.replace(/\.$/, '').toLowerCase()}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join('; ') : 'none'}.`,
       ].join('\n');
       return { data, text };
     },
@@ -161,21 +167,22 @@ export const WORK_TOOLS: ToolDef[] = [
     title: 'Asks: decisions or help, updates, questions, actions',
     description: 'Every ask (one way to ask): a decision or help an owner needs, an update asked of an owner, a question for an owner, an action someone agreed to do. Each is open until it’s answered (an action: done) or withdrawn. Open ones by default; filter by kind, to those waiting on you, or to one goal’s.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
-      status: str('Which asks.', { enum: ['open', 'answered', 'done', 'withdrawn', 'all'] }),
+      status: str(`Which asks: the words or the code, any of ${choices(ASK_STATUS, ['open', 'answered', 'done', 'withdrawn'])}, or all.`),
       kind: str('Only one kind.', { enum: ['decision', 'update', 'question', 'action'] }),
       for_me: bool('Only asks waiting on you (or asked of anyone).'),
       goal_id: str('Only asks on a goal (its ID or key).'),
     } },
     annotations: READ,
     async run(a, ctx) {
-      const st = (a.status as string | undefined) ?? 'open';
+      const st = a.status == null || String(a.status).toLowerCase() === 'all' ? (a.status == null ? 'open' : 'all') : codeFrom(ASK_STATUS, a.status);
+      if (!st || st === 'overdue') throw new Error(`“${String(a.status)}” isn’t where an ask can stand. Use one of: ${choices(ASK_STATUS, ['open', 'answered', 'done', 'withdrawn'])}, or all.`);
       const list = asksOf(ctx.snapshot)
         .filter((r) => st === 'all' || r.status === st)
         .filter((r) => !a.kind || r.kind === a.kind)
         .filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id)
         .filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id))
         .map((r) => requestData(ctx, r));
-      return { data: { requests: list }, text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${r.status}${r.overdue ? ' (overdue)' : ''} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(', ')}${r.answer ? ` · answer: ${r.answer}` : ''}`), 'No asks match.') };
+      return { data: { requests: list }, text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${askState(r)} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(', ')}${r.answer ? ` · answer: ${r.answer}` : ''}`), 'No asks match.') };
     },
   },
   {
@@ -203,10 +210,10 @@ export const WORK_TOOLS: ToolDef[] = [
       const r = reviewOf(ctx, a.review_id);
       const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
       const ag = agendaOf(x);
-      const item = (g: (typeof ag.discuss)[number]) => ({ id: g.goal.id, title: g.goal.title, owner: name(ctx, g.goal.ownerId), status: g.status.status, why: g.flags.map((f) => f.detail), beingHandled: g.handled?.text ?? null });
-      const said = x.said.map((d) => ({ id: d.id, goalId: d.goalId, kind: d.kind, note: d.note, by: name(ctx, d.byId), ...(d.kind === 'action' ? { who: name(ctx, d.assigneeId ?? null), dueWeek: d.dueWeek ?? null } : {}), ...(d.ask ? { status: d.ask.status, answer: answerOf(d)?.text ?? null } : {}) }));
-      const data = { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total, toDiscuss: ag.discuss.map(item), healthy: ag.healthy.map(item), said };
-      return { data, text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}.${g.beingHandled ? ` Being handled: ${g.beingHandled}.` : ''} ${g.why.join(' ')}`), '- nothing')}\nHealthy: ${data.healthy.map((g) => g.title).join(', ') || 'none'}.` };
+      const item = (g: (typeof ag.discuss)[number]) => ({ id: g.goal.id, title: g.goal.title, owner: name(ctx, g.goal.ownerId), status: g.status.status, statusLabel: LABEL[g.status.status], why: g.flags.map((f) => f.detail), beingHandled: g.handled?.text ?? null });
+      const saidHere = x.said.map((d) => ({ id: d.id, goalId: d.goalId, kind: d.kind, note: d.note, by: name(ctx, d.byId), ...(d.kind === 'action' ? { who: name(ctx, d.assigneeId ?? null), dueWeek: d.dueWeek ?? null } : {}), ...(d.ask ? { status: d.ask.status, statusLabel: ASK_STATUS[d.ask.status].label, answer: answerOf(d)?.text ?? null } : {}) }));
+      const data = { id: r.id, name: r.name, week: x.week, date: x.date, reviewed: x.done, of: x.total, toDiscuss: ag.discuss.map(item), healthy: ag.healthy.map(item), said: saidHere };
+      return { data, text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ''} ${g.why.join(' ')}`), '- nothing')}\nNothing flagged: ${data.healthy.map((g) => g.title).join(', ') || 'none'}.` };
     },
   },
   {
@@ -257,7 +264,7 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'list_views',
     title: 'Saved views',
-    description: 'Your saved views and the ones pinned for everyone: views of the Goals screen, with each one’s query (use it with find_goals), and table views of the data tables, with their columns in order and widths (use them with export_table).',
+    description: 'Your saved views and the ones pinned for everyone: views of the Goals screen, with each one’s query (use it with find_goals), and saved layouts of Data’s tables, with their columns in order and widths (use them with export_table).',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ,
     async run(_a, ctx) {
@@ -553,9 +560,9 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'save_table_view',
     title: 'Save a data table’s layout',
-    description: 'Save a layout of one of the data tables (goals, checkIns, plan, requests, people) as a named table view, as the Data screen does: the columns to show, in order (the table’s name column always comes first), their widths in pixels, and its search, filters and sort. Without view_id it saves a new one; with it, it changes one of yours. Open it in the app from Data, or export it with export_table.',
+    description: 'Save a layout of one of Data’s tables (goals, checkIns, plan, requests, people) as a named saved layout, as the Data screen does: the columns to show, in order (the table’s name column always comes first), their widths in pixels, and its search, filters and sort. Without view_id it saves a new one; with it, it changes one of yours. Open it in the app from Data, or export it with export_table.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['name', 'table'], properties: {
-      view_id: str('The table view to change.'), name: str('Its name.'), table: str('Which data table.', { enum: TABLE_ORDER }),
+      view_id: str('The saved layout to change.'), name: str('Its name.'), table: str('Which data table.', { enum: TABLE_ORDER }),
       columns: ids('The columns to show, in order, by their names as the table heads them (e.g. "Key", "Owner", "Status"). Leave out for the usual columns.'),
       widths: { type: 'object', additionalProperties: { type: 'number' }, description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and ${MAX_WIDTH}.` },
       query: str('Search, filters and sort as the Data link carries them, e.g. "q=pipeline&f=Owner~is~Maya Chen&s=Week~desc". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.'),
@@ -564,16 +571,16 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const layout = layoutFrom(ctx, a);
       const out = A.saveTableView(ax(ctx), { id: a.view_id as string | undefined, name: String(a.name ?? ''), layout }, headOf(ctx, layout.table));
-      const r = await save(ctx, out.commit, `Saved the table view “${String(a.name).trim()}” (ID ${out.id})`, '');
+      const r = await save(ctx, out.commit, `Saved the layout “${String(a.name).trim()}” (ID ${out.id})`, '');
       return { ...r, data: { id: out.id } };
     },
   },
   {
     name: 'export_table',
     title: 'Export a data table as shown',
-    description: 'One of the data tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted. Give a saved table view by name, or the table with columns and a query. CSV by default, or rows as JSON.',
+    description: 'One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
-      view: str('The name of a saved table view: one of yours, or one pinned for everyone.'),
+      view: str('The name of a saved layout: one of yours, or one pinned for everyone.'),
       table: str('Which data table, when not using a view.', { enum: TABLE_ORDER }),
       columns: ids('The columns, in order. Leave out for the usual columns.'),
       query: str('Search, filters and sort, as for save_table_view.'),

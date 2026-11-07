@@ -11,6 +11,7 @@ import { summarise, type GoalSummary } from './summary';
 import { attentionFor } from './attention';
 import { isYear, type QuarterResult } from './year';
 import type { CheckIn, Cycle, Decision, DisplayStatus, Goal, Review, Snapshot } from './types';
+import { NO_REASON } from './checkin';
 
 export interface Fact { label: string; text: string }
 export interface Said { id: string; kind: Decision['kind']; label: string; note: string; by: string; week: number; review: string | null; who: string | null; dueWeek: number | null; answer: string | null }
@@ -64,7 +65,7 @@ export function goalSheet(goal: Goal, s: Snapshot, cycle: Cycle, week: number, t
     c: last,
     by: name(s, last.authorId),
     value: goal.kind === 'milestone' ? sum.now : last.value == null ? NO_VALUE : fmt(last.value, goal),
-    reason: [last.cause ? causeLabel(last.cause) : '', last.why && last.why !== 'On plan.' ? last.why : ''].filter(Boolean).join('. '),
+    reason: [last.cause ? causeLabel(last.cause) : '', last.why && last.why !== NO_REASON ? last.why : ''].filter(Boolean).join('. '),
   } : null;
   const open = openFor(goal.id, s).map((r) => ({ ask: askText(r, s.people), from: name(s, r.askedBy), to: name(s, r.recipientId), createdAt: r.createdAt, waiting: r.goalIds.length }));
   const ans = answeredSince(goal.id, last?.postedAt ?? null, s);

@@ -14,6 +14,7 @@ import { personChange, personProblems } from './people';
 import { asksOf, requestsAfterCheckIn } from './asks';
 import { initials } from './importer';
 import type { Change, CheckIn, Cycle, Diff, Goal, Ask, MetricGoal, MetricPlan, Person, RecoveryState, Snapshot, StageUpdate, Status } from './types';
+import { FLAG, LABEL, lower } from './vocabulary';
 
 /** A row as a header → value map (lower-case headers), and its row number in the sheet. */
 export type Rec = Record<string, string> & { __row?: string };
@@ -89,7 +90,9 @@ const has = (r: Rec, k: string) => Object.prototype.hasOwnProperty.call(r, k);
 const val = (r: Rec, k: string) => (r[k] ?? '').trim();
 const rowOf = (r: Rec, i: number) => Number(r.__row ?? i + 2);
 
-const CALLS: Record<string, Status> = { 'on track': 'on', on: 'on', green: 'on', 'at risk': 'risk', risk: 'risk', amber: 'risk', 'off track': 'off', off: 'off', red: 'off', done: 'done' };
+/** A call as a sheet, Data or the AI may write it: the vocabulary's word or its code, any case, or the colour people used to say. */
+const CALL_CODES: Status[] = ['on', 'risk', 'off', 'done'];
+const CALLS: Record<string, Status> = { ...Object.fromEntries(CALL_CODES.flatMap((k) => [[k, k], [LABEL[k].toLowerCase(), k]])), green: 'on', amber: 'risk', red: 'off' };
 const RECOVERY: Record<string, RecoveryState> = { plan: 'plan', 'still investigating': 'investigating', investigating: 'investigating', 'needs a decision or help': 'help', help: 'help', 'target should change': 'target', target: 'target' };
 const causeOf = (s: string) => {
   const v = norm(s);
@@ -402,7 +405,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     }
     const callRaw = norm(val(r, 'call'));
     const call = callRaw ? CALLS[callRaw] : null;
-    if (callRaw && !call) { err('Check-ins', row, g.title, `Call “${val(r, 'call')}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`); continue; }
+    if (callRaw && !call) { err('Check-ins', row, g.title, `Call “${val(r, 'call')}” should be ${CALL_CODES.map((k) => LABEL[k]).join(', ').replace(/, ([^,]+)$/, ' or $1')}, or empty to let the rules decide.`); continue; }
     // A row that says what's already there is left alone: history that hasn't changed isn't judged again.
     // A row for a week corrects that week's latest check-in (a spreadsheet has one row per goal and week).
     const existing = byId ?? checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
@@ -428,7 +431,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       // The same codes the check-in screens read, said in the spreadsheet's own column names.
       const hint: Record<Missing, string> = {
         value: 'a Value', 'value-not-number': 'a number in Value', 'value-impossible': 'a possible Value',
-        'greener-why': 'Why greener (the call is greener than the numbers)',
+        'greener-why': `Why greener (the call is ${lower(FLAG.greener)})`,
         'reason-behind': `a Cause and a Why of ${MIN_REASON} characters or more (it’s behind plan)`, 'reason-ahead': `a Cause and a Why of ${MIN_REASON} characters or more (it’s ahead of plan)`,
         path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
         target: MISSING_TEXT.target,

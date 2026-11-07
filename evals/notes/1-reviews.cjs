@@ -154,7 +154,7 @@ module.exports = {
       const st = await p.locator('.rv-line', { hasText: 'Merge queue check' }).locator('.session-state').innerText();
       fail(st.trim() === 'In progress · 1 of 2 reviewed', `List mid-session: Merge queue check says "${st}"`);
       await p.goto(url('/reviews/small'));
-      await p.getByRole('button', { name: /^Mark 1 goal on track reviewed/ }).click();
+      await p.getByRole('button', { name: /^Mark 1 goal with nothing flagged reviewed/ }).click();
       await p.locator('.review-home .session-record').waitFor({ timeout: 5000 }).catch(() => fail(false, `Finishing: ${p.url()} does not lead with what was said`));
       fail(/\/reviews\/small(\?|$)/.test(p.url()), `Finishing: landed on ${p.url()}, not the review`);
       const s = await p.evaluate(() => {

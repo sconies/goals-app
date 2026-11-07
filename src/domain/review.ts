@@ -1,6 +1,7 @@
 /* Goal reviews and watching: which goals a review walks or a person watches, when a review is held,
    and what has been covered in a review's session. */
-import { attentionFor, type GoalAttention } from './attention';
+import { attentionFor, needsAttention, type GoalAttention } from './attention';
+import { ASK_KIND, ASK_STATUS, SESSION } from './vocabulary';
 import { daysSince, weekDate } from './plan';
 import { checkInsFor, RANK } from './status';
 import { asksOf, isResolved } from './asks';
@@ -65,10 +66,11 @@ export function sessionDate(r: Review, cycle: Cycle, week: number): string {
 }
 
 /**
- * A goal the review can take as read: on track or done, with nothing flagged beyond a check-in being due.
- * Reviews walk the rest one at a time and acknowledge these together (Senior UX review, 2 Nov).
+ * A goal the review can take as read: it doesn't need attention (domain/attention.ts, the one rule Home, Watching and
+ * the Goals filter use) and isn't behind and being handled. Reviews walk the rest one at a time and acknowledge these
+ * together (Senior UX review, 2 Nov).
  */
-export const isHealthy = (a: GoalAttention) => (a.status.status === 'on' || a.status.status === 'done') && a.flags.every((f) => f.kind === 'due');
+export const isHealthy = (a: GoalAttention) => !needsAttention(a) && !a.handled;
 
 /**
  * What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
@@ -134,9 +136,9 @@ export function sessionState(s: ReviewSession): SessionState {
 
 /** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
 export function sessionStateText(st: SessionState): string {
-  if (st.kind === 'held') return `Held ${dayText(st.on)}`;
-  if (st.kind === 'in-progress') return `In progress · ${st.done} of ${st.total} reviewed`;
-  return 'Not started';
+  if (st.kind === 'held') return `${SESSION.held.label} ${dayText(st.on)}`;
+  if (st.kind === 'in-progress') return `${SESSION['in-progress'].label} · ${st.done} of ${st.total} reviewed`;
+  return SESSION['not-started'].label;
 }
 
 /**
@@ -196,7 +198,7 @@ export const DECISION_LABEL: Record<Decision['kind'], string> = {
   acknowledge: 'Seen, nothing to add',
   ask: 'Question for the owner',
   note: 'Note',
-  action: 'Action',
+  action: ASK_KIND.action.label,
 };
 
 /**
@@ -206,7 +208,7 @@ export const DECISION_LABEL: Record<Decision['kind'], string> = {
 export function answerOf(d: Said): { text: string; at: string; byId: string } | null {
   const a = d.ask;
   if (!a || !isResolved(a)) return null;
-  return { text: a.answer || (a.status === 'done' ? 'Done' : ''), at: a.answeredAt ?? a.updatedAt, byId: a.answeredBy ?? '' };
+  return { text: a.answer || (a.status === 'done' ? ASK_STATUS.done.label : ''), at: a.answeredAt ?? a.updatedAt, byId: a.answeredBy ?? '' };
 }
 
 /** The tree and level watches that cover a goal for a person, not counting a watch on the goal itself. */

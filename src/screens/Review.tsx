@@ -18,6 +18,7 @@ import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
 import { EndedReview, EndReview } from '../ui/RemoveControls';
+import { ASK_STATUS, lower } from '../domain/vocabulary';
 
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
 const goalsN = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
@@ -110,7 +111,7 @@ function SessionRecord({ s, title, reviewed }: { s: ReviewSession; title: string
         <div className="stack" style={{ gap: 'var(--s1)' }}>
           <h3 className="field-label">Actions · {actions.length}</h3>
           <ul className="record">{actions.map((d) => (
-            <li key={d.id}><span className="strong">{d.note}</span><span className="hint">{app.person(d.assigneeId ?? app.goal(d.goalId)?.ownerId ?? '')?.name ?? 'Someone'} · {d.dueWeek ? `by week ${d.dueWeek}, ${weekDates(app.cycle, d.dueWeek)}` : 'no date'} · {goalLink(d.goalId)}</span>{d.ask && <span className={'small' + (d.ask.status === 'open' && d.ask.dueWeek != null && d.ask.dueWeek < app.week ? ' tone-risk' : '')}>{d.ask.status === 'done' ? <><strong>Done</strong>{d.ask.answer ? `: ${d.ask.answer}` : ''}</> : d.ask.dueWeek != null && d.ask.dueWeek < app.week ? 'Open, past its week' : 'Open'}</span>}</li>
+            <li key={d.id}><span className="strong">{d.note}</span><span className="hint">{app.person(d.assigneeId ?? app.goal(d.goalId)?.ownerId ?? '')?.name ?? 'Someone'} · {d.dueWeek ? `by week ${d.dueWeek}, ${weekDates(app.cycle, d.dueWeek)}` : 'no date'} · {goalLink(d.goalId)}</span>{d.ask && <span className={'small' + (d.ask.status === 'open' && d.ask.dueWeek != null && d.ask.dueWeek < app.week ? ' tone-risk' : '')}>{d.ask.status === 'done' ? <><strong>{ASK_STATUS.done.label}</strong>{d.ask.answer ? `: ${d.ask.answer}` : ''}</> : d.ask.dueWeek != null && d.ask.dueWeek < app.week ? `${ASK_STATUS.open.label}, ${lower(ASK_STATUS.overdue)}` : ASK_STATUS.open.label}</span>}</li>
           ))}</ul>
         </div>
       )}
@@ -181,7 +182,7 @@ export function ReviewHome() {
     // Marking these finishes the session when they're all that's left: then this page leads with what was said.
     try {
       for (const a of healthyLeft) await app.reviewCall(a.goal, review, s.week, 'acknowledge', '');
-      app.toast(`${goalsN(healthyLeft.length)} on track marked reviewed`);
+      app.toast(`${goalsN(healthyLeft.length)} with nothing flagged marked reviewed`);
     } catch { /* the save already said what went wrong */ }
     setBusy(false);
   };
@@ -199,7 +200,7 @@ export function ReviewHome() {
     ? `${sessionStateText(st)} · next ${dayText(sessionDate(review, app.cycle, nextSessionWeek(review, s.week)))}`
     : st.kind === 'in-progress'
       ? `${dayText(s.date)} · ${s.done} of ${s.total} reviewed`
-      : [dayText(s.date), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} on track` : ''].filter(Boolean).join(' · ');
+      : [dayText(s.date), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} with nothing flagged` : ''].filter(Boolean).join(' · ');
 
   return (
     <div className="page narrow review-home" data-part="Review">
@@ -212,7 +213,7 @@ export function ReviewHome() {
           <span className="muted review-line">{line}</span>
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
             {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(walk.length)}`}</button>}
-            {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} on track reviewed</button>}
+            {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} with nothing flagged reviewed</button>}
             {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
             <Link className="btn ghost print-link" to={`/reviews/${review.id}/print`}><Icon name="print" /><span className="print-link-label">Print or save as PDF</span></Link>
@@ -228,9 +229,9 @@ export function ReviewHome() {
         </section>
       )}
       {!done && !walkAll && exceptions.length > 0 && healthyLeft.length > 0 && (
-        <section className="block healthy-group" data-part="On track, nothing new">
+        <section className="block healthy-group" data-part="Nothing flagged">
           <div className="healthy-head">
-            <h2 className="block-title">On track, nothing new · {healthyLeft.length}</h2>
+            <h2 className="block-title">Nothing flagged · {healthyLeft.length}</h2>
             {inIt && first && <button className="btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} reviewed</button>}
           </div>
           {/* Folded, and the rows exist only once opened, so a folded group doesn't hide unlabelled status shapes. */}

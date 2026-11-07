@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { GoalAttention } from '../domain/attention';
 import { GoalRow } from './goalRows';
 import { Icon } from './Icon';
+import { ATTENTION } from '../domain/vocabulary';
 
 /**
  * The status (shape and word) and what's in hand, e.g. "Action: Maya, due week 47". On Home it starts folded away.
@@ -16,7 +17,7 @@ export function HandledGroup({ list, folded }: { list: GoalAttention[]; folded?:
     // The rows are drawn only once it's opened, so nothing hidden sits in the page.
     return (
       <details className="disclose handled-fold" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-        <summary><Icon name="chevron-down" size={14} />Being handled · {list.length}<span className="handled-fold-hint">· behind, but someone has looked since the latest check-in</span></summary>
+        <summary><Icon name="chevron-down" size={14} />{ATTENTION.handled.label} · {list.length}<span className="handled-fold-hint">· {ATTENTION.handled.short} since the latest check-in</span></summary>
         {open && rows}
       </details>
     );
@@ -24,8 +25,8 @@ export function HandledGroup({ list, folded }: { list: GoalAttention[]; folded?:
   return (
     <section className="block handled-block">
       <div className="stack" style={{ gap: 'var(--s1)' }}>
-        <h2 className="block-title">Being handled <span className="hint">· {list.length}</span></h2>
-        <span className="hint">Behind, but someone has looked since the latest check-in. Back under Needs attention when there’s a new check-in or a new warning.</span>
+        <h2 className="block-title">{ATTENTION.handled.label} <span className="hint">· {list.length}</span></h2>
+        <span className="hint">{ATTENTION.handled.meaning.replace(/ and nothing new has happened\.$/, '.')} Back under {ATTENTION.needs.label} when there’s a new check-in or a new flag.</span>
       </div>
       {rows}
     </section>

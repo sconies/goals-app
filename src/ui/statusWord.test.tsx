@@ -20,10 +20,10 @@ describe('StatusWord', () => {
   });
 
   it('puts anything after the word, and can be a list item in a key', () => {
-    const { container } = render(<ul><StatusWord as="li" k="off" className="map-status"><span className="result-tag">Did not meet</span></StatusWord></ul>);
+    const { container } = render(<ul><StatusWord as="li" k="off" className="map-status"><span className="result-tag">Not met</span></StatusWord></ul>);
     const li = container.querySelector('li')!;
     expect(li.className).toBe('map-status tone-off');
-    expect(li.textContent).toBe('Off trackDid not meet');
+    expect(li.textContent).toBe('Off trackNot met');
     expect(li.firstElementChild?.tagName.toLowerCase()).toBe('svg');
   });
 });
@@ -39,6 +39,7 @@ describe('StatusLegend', () => {
   it('in full, says what each status means, with the results', () => {
     const { container } = render(<StatusLegend />);
     expect(container.querySelectorAll('summary .legend-key')).toHaveLength(4);
-    expect(container.querySelector('.legend-full')?.textContent).toMatch(/Completed late/);
+    expect(container.querySelector('.legend-full')?.textContent).toMatch(/Met late/);
+    expect(container.querySelector('.legend-full')?.textContent).not.toMatch(/Completed|Did not meet/);
   });
 });

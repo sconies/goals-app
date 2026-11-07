@@ -21686,6 +21686,656 @@ var init_plan = __esmMin((() => {
 	DAY$2 = 864e5;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 }));
+// src/domain/thresholds.ts
+var RULES;
+var init_thresholds = __esmMin((() => {
+	RULES = {
+		onTrack: .95,
+		atRisk: .8,
+		wellAhead: 1.2,
+		staleDays: 14,
+		/** A milestone stage more than this many weeks late is off track. */
+		lateWeeksOff: 2
+	};
+}));
+// src/domain/vocabulary.ts
+/** Stages behind their dates, each in its word: "2 stages late", "1 stage slipping", "1 stage late, 1 slipping". */
+function stagesBehind(kinds) {
+	const late = kinds.filter((k) => k === "off").length, slipping = kinds.filter((k) => k === "risk").length, n = kinds.length;
+	if (!n) return STAGE.planned.label;
+	const noun = `${n} ${n === 1 ? "stage" : "stages"}`;
+	if (!slipping) return `${noun} ${lower(STAGE.off)}`;
+	if (!late) return `${noun} ${lower(STAGE.risk)}`;
+	return `${noun}: ${late} ${lower(STAGE.off)}, ${slipping} ${lower(STAGE.risk)}`;
+}
+/** "9 hours behind plan", "3 pts ahead of plan", "On plan": `better` is the difference in the better direction, `amount` it said in the goal's units. */
+function gapPhrase(better, amount) {
+	return better === 0 ? GAP["on-plan"].label : `${amount} ${better > 0 ? GAP.ahead.label : GAP.behind.label}`;
+}
+/** A code or a label, any case, as its code: "Off track", "off track" and "off" are all `off`. Null when it's neither. */
+function codeFrom(terms, input) {
+	const s = String(input ?? "").trim().toLowerCase().replace(/\s*\([^)]*\)$/, "");
+	if (!s) return null;
+	for (const t of Object.values(terms)) if (t.code.toLowerCase() === s || t.label.toLowerCase() === s) return t.code;
+	const coded = /\(([^)]+)\)\s*$/.exec(String(input ?? ""));
+	return coded ? codeFrom(terms, coded[1]) : null;
+}
+var ALL, pct$2, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
+var init_vocabulary = __esmMin((() => {
+	init_thresholds();
+	ALL = [
+		"screens",
+		"exports",
+		"help",
+		"ai"
+	];
+	pct$2 = (n) => `${Math.round(n * 100)}%`;
+	term = (code, t) => ({
+		code,
+		where: ALL,
+		...t
+	});
+	STATUS = {
+		on: term("on", {
+			label: "On track",
+			short: "on plan so far",
+			meaning: `On plan so far: at least ${pct$2(RULES.onTrack)} of the progress planned by now.`,
+			long: `At least ${pct$2(RULES.onTrack)} of the progress planned by now, inside its limit, or every stage on schedule. If the recent trend says it will still finish short, it is flagged as getting worse.`,
+			rule: "status#goalStatus"
+		}),
+		risk: term("risk", {
+			label: "At risk",
+			short: "could miss without a change",
+			meaning: `Could miss without a change: ${pct$2(RULES.atRisk)}–${pct$2(RULES.onTrack)} of the planned progress, or close to a limit.`,
+			long: `${pct$2(RULES.atRisk)}–${pct$2(RULES.onTrack)} of the progress planned by now, inside a limit’s warning margin or over it for one week, or a stage up to ${RULES.lateWeeksOff} weeks late. The owner says how it gets back: its path to green.`,
+			rule: "status#goalStatus"
+		}),
+		off: term("off", {
+			label: "Off track",
+			short: "will miss without intervention",
+			meaning: `Will miss without intervention: under ${pct$2(RULES.atRisk)} of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running.`,
+			long: `Under ${pct$2(RULES.atRisk)} of the progress planned by now, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. It needs a decision, help or a new plan.`,
+			rule: "status#goalStatus"
+		}),
+		stale: term("stale", {
+			label: "No recent update",
+			short: `no check-in for ${RULES.staleDays / 7} weeks or more`,
+			meaning: `No check-in for ${RULES.staleDays} days or more, so its status can’t be trusted.`,
+			long: `The latest check-in was posted ${RULES.staleDays} days ago or more (or, with none at all, the goal began that long ago). Its last call, numbers and forecast are out of date until the owner checks in.`,
+			rule: "status#goalStatus",
+			retired: [
+				"No recent check-in",
+				"gone quiet",
+				"goes quiet",
+				"An update is overdue",
+				"update is overdue",
+				"no check-in for 2+ weeks",
+				"Quiet for"
+			]
+		}),
+		none: term("none", {
+			label: "No check-in yet",
+			short: "begun, with no check-in yet",
+			meaning: "Under way, with no check-in yet.",
+			long: `The goal has begun and nobody has checked in on it yet. ${RULES.staleDays} days after it began with still none, it has no recent update.`,
+			rule: "status#goalStatus",
+			retired: ["Waiting for its first check-in", "Nothing reported yet"]
+		}),
+		planned: term("planned", {
+			label: "Not started",
+			short: "starts next week",
+			meaning: "Hasn’t begun: its first week is still to come.",
+			long: "Week 0: the goal is set up and its first check-in is due in week 1.",
+			rule: "status#goalStatus"
+		}),
+		done: term("done", {
+			label: "Done",
+			short: "finished",
+			meaning: "Finished: the owner has called it done.",
+			long: "The owner called it done in a check-in (or, for dated stages, every stage is done). Done means finished wherever it is said: a goal, a stage or an action.",
+			rule: "status#goalStatus"
+		})
+	};
+	STATUS_ORDER = [
+		"off",
+		"risk",
+		"stale",
+		"none",
+		"on",
+		"planned",
+		"done"
+	];
+	statusFlag = (k) => ({
+		...STATUS[k],
+		code: k,
+		rule: "attention#attentionFor",
+		where: ALL,
+		same: `status.${k}`,
+		retired: void 0
+	});
+	FLAG = {
+		off: statusFlag("off"),
+		risk: statusFlag("risk"),
+		stale: statusFlag("stale"),
+		decision: term("decision", {
+			label: "Decision or help needed",
+			short: "waiting on someone",
+			meaning: "The owner is waiting on a decision or help that nobody has given yet.",
+			long: "An open ask for a decision or help on the goal (its own, or one it is linked to). It stops counting once it is answered or withdrawn.",
+			rule: "asks#openFor"
+		}),
+		"no-path": term("no-path", {
+			label: "No path to green",
+			short: "behind, with no way back said",
+			meaning: "Off track or at risk, and the owner hasn’t said how it gets back.",
+			long: "The latest check-in is off track or at risk and has no path to green: what changes, the week it is back on plan by, and any decision or help needed.",
+			rule: "attention#attentionFor",
+			retired: ["No recovery plan"]
+		}),
+		"missed-path": term("missed-path", {
+			label: "Missed its own date",
+			short: "past the owner’s own date",
+			meaning: "Still behind after the week the owner said it would be back on plan.",
+			long: "The path to green named a week to be back on plan by, that week has passed, and the goal is still off track or at risk.",
+			rule: "attention#attentionFor",
+			retired: ["Missed path to green"]
+		}),
+		trend: term("trend", {
+			label: "Getting worse",
+			short: "further behind each time",
+			meaning: "Further behind plan at each of the last two check-ins, or on track but heading short of its target.",
+			long: `A number further behind its plan (in the goal’s own units) at each of the last two of 3 check-ins; a number moving towards its limit two check-ins running; a stage expected later than it was at the check-in before; or on track today with the projection falling short of the target. The goal’s trend, its chart and its scorecard use the same rule.`,
+			rule: "trend#gapTrend",
+			retired: [
+				"Worsening trend",
+				"Falling further behind",
+				"Losing ground on the plan",
+				"and slipping",
+				"Moving towards the limit"
+			]
+		}),
+		greener: term("greener", {
+			label: "Greener than calculated",
+			short: "call better than the numbers",
+			meaning: "The owner’s call is better than the numbers say, with a reason.",
+			long: "The owner called it greener than the app calculates from the numbers. A greener call needs a reason, which is shown beside it.",
+			rule: "status#goalStatus",
+			retired: ["Called greener than the numbers", "greener than the numbers"]
+		}),
+		due: term("due", {
+			label: "Check-in due",
+			short: "none yet this week",
+			meaning: "No check-in yet this week. It doesn’t, on its own, make a goal need attention.",
+			long: "The goal has no check-in for this week yet, before the review. It is listed for the owner, but on its own it doesn’t make the goal need attention.",
+			rule: "attention#attentionFor",
+			where: [
+				"screens",
+				"help",
+				"ai"
+			]
+		})
+	};
+	ATTENTION_FLAGS = [
+		"off",
+		"missed-path",
+		"stale",
+		"decision",
+		"no-path",
+		"risk",
+		"trend",
+		"greener"
+	];
+	ATTENTION = {
+		needs: term("needs", {
+			label: "Needs attention",
+			short: "new, and nobody has picked it up",
+			meaning: "Flagged for something new that nobody has picked up yet.",
+			long: `A goal needs attention when it is ${ATTENTION_FLAGS.map((k) => FLAG[k].label.toLowerCase()).join(", ").replace(/, ([^,]+)$/, " or $1")}, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant.`,
+			rule: "attention#needsAttention"
+		}),
+		handled: term("handled", {
+			label: "Being handled",
+			short: "behind, and someone has looked",
+			meaning: "Behind, but someone has looked since the latest check-in and nothing new has happened.",
+			long: "Off track or at risk, and since its latest check-in someone other than the owner marked it reviewed or noted it, an action was agreed (and isn’t overdue), or its request was answered. A new check-in or a new flag makes it need attention again.",
+			rule: "attention#handledFor"
+		})
+	};
+	WARNING = {
+		slipped: term("slipped", {
+			label: "Date slipped",
+			short: "the way back moved later",
+			meaning: "The week the owner says it will be back on plan has moved later.",
+			long: "While it has been behind, the week its path to green names has moved later than the first one given.",
+			rule: "story#storyOf",
+			retired: ["Recovery date slipped"]
+		}),
+		"same-cause": term("same-cause", {
+			label: "Same cause again",
+			short: "one cause, three times",
+			meaning: "The same cause given at three check-ins running.",
+			long: "Behind, with the same cause given at each of its last three check-ins.",
+			rule: "story#storyOf"
+		}),
+		"missed-quarter": term("missed-quarter", {
+			label: "Last quarter not met",
+			short: "behind its quarter plan",
+			meaning: "It didn’t meet the plan for the quarter that has just ended.",
+			long: "In a goal year: at the end of the last quarter it was short of where its own plan said it would be.",
+			rule: "year#quarterResults"
+		})
+	};
+	RESULT = {
+		completed: term("completed", {
+			label: "Met",
+			short: "hit by its date",
+			meaning: "Hit the target by its due date.",
+			long: "Reached the target (stayed in range, or finished every stage) by its due week, or the owner called it done by then.",
+			rule: "story#goalResult",
+			retired: ["Completed"]
+		}),
+		late: term("late", {
+			label: "Met late",
+			short: "hit after its date",
+			meaning: "Hit the target, but after its due date.",
+			long: "Reached the target (or finished every stage) after its due week.",
+			rule: "story#goalResult",
+			retired: ["Completed late"]
+		}),
+		missed: term("missed", {
+			label: "Not met",
+			short: "its date passed",
+			meaning: "The due date passed without hitting the target.",
+			long: "Its due week passed without reaching the target (or staying in range, or finishing every stage).",
+			rule: "story#goalResult",
+			retired: ["Did not meet"]
+		}),
+		open: term("open", {
+			label: "Not finished yet",
+			short: "not due yet",
+			meaning: "Not due yet, and not done.",
+			long: "Its due week hasn’t passed and the owner hasn’t called it done, so it has no result yet.",
+			rule: "story#goalResult",
+			where: ["screens", "ai"]
+		})
+	};
+	QUARTER = {
+		met: term("met", {
+			label: "Met",
+			short: "at its plan",
+			meaning: "At the quarter’s end it was where its plan said, or better.",
+			long: "A quarter’s target is the plan’s number at its end (or the stages due by then, or staying in range). Met: it was there or better.",
+			rule: "year#quarterResults",
+			same: "result.completed"
+		}),
+		missed: term("missed", {
+			label: "Not met",
+			short: "short of its plan",
+			meaning: "At the quarter’s end it was short of its plan.",
+			long: "At the quarter’s end it was short of where its plan said it would be, or had no number to show.",
+			rule: "year#quarterResults",
+			same: "result.missed",
+			retired: ["Missed its plan", "Missed last quarter"]
+		}),
+		open: term("open", {
+			label: "In progress",
+			short: "still running",
+			meaning: "The quarter is still running.",
+			long: "The quarter hasn’t ended, so it is neither met nor not met yet.",
+			rule: "year#quarterResults"
+		})
+	};
+	OWNER_VIEW_LABEL = "Owner’s view";
+	OWNER_VIEW = {
+		hit: term("hit", {
+			label: "Hit it",
+			short: "in the owner’s words",
+			meaning: "The owner’s view at the wrap-up: it landed.",
+			long: "What the owner says at the wrap-up. It is their view, shown as “Owner’s view”, and never changes the result.",
+			rule: "cycle#suggestedResult"
+		}),
+		partly: term("partly", {
+			label: "Partly",
+			short: "in the owner’s words",
+			meaning: "The owner’s view at the wrap-up: some of it landed.",
+			long: "What the owner says at the wrap-up. It is their view, shown as “Owner’s view”, and never changes the result.",
+			rule: "cycle#suggestedResult"
+		}),
+		missed: term("missed", {
+			label: "Missed",
+			short: "in the owner’s words",
+			meaning: "The owner’s view at the wrap-up: it didn’t land.",
+			long: "What the owner says at the wrap-up. It is their view, shown as “Owner’s view”, and never changes the result.",
+			rule: "cycle#suggestedResult"
+		})
+	};
+	STAGE = {
+		done: term("done", {
+			label: "Done",
+			short: "finished",
+			meaning: "Finished, in the week the owner said.",
+			long: "The stage is finished, in the week the owner said it was.",
+			rule: "status#assessMilestone",
+			same: "status.done"
+		}),
+		planned: term("planned", {
+			label: "On schedule",
+			short: "not late",
+			meaning: "Not done yet, and not late.",
+			long: "Not done yet, and expected by its due week.",
+			rule: "status#assessMilestone"
+		}),
+		risk: term("risk", {
+			label: "Slipping",
+			short: `up to ${RULES.lateWeeksOff} weeks late`,
+			meaning: `Expected 1–${RULES.lateWeeksOff} weeks after its due week.`,
+			long: `Not done, and now expected 1–${RULES.lateWeeksOff} weeks after its due week. A stage slipping makes the goal at risk.`,
+			rule: "status#assessMilestone"
+		}),
+		off: term("off", {
+			label: "Late",
+			short: `over ${RULES.lateWeeksOff} weeks late`,
+			meaning: `Expected more than ${RULES.lateWeeksOff} weeks after its due week.`,
+			long: `Not done, and now expected more than ${RULES.lateWeeksOff} weeks after its due week. A late stage makes the goal off track.`,
+			rule: "status#assessMilestone"
+		})
+	};
+	ASK_KIND = {
+		decision: term("decision", {
+			label: "Decision or help",
+			short: "what an owner needs",
+			meaning: "What an owner needs from a named person, often raised in a check-in.",
+			long: "A decision or help an owner needs from someone. Open until it is answered or withdrawn.",
+			rule: "asks#asksOf"
+		}),
+		update: term("update", {
+			label: "Update",
+			short: "a check-in asked for",
+			meaning: "An update asked of a goal’s owner.",
+			long: "Someone asked the owner to check in. Open until they do (or answer it), or it is withdrawn.",
+			rule: "asks#asksOf"
+		}),
+		question: term("question", {
+			label: "Question",
+			short: "for the owner",
+			meaning: "A question for a goal’s owner.",
+			long: "A question for the owner, often from a review. Open until it is answered or withdrawn.",
+			rule: "asks#asksOf"
+		}),
+		action: term("action", {
+			label: "Action",
+			short: "something to do",
+			meaning: "Something someone agreed to do, by a week.",
+			long: "Something to do, agreed in a review, for someone, by a week. Marked done, never answered.",
+			rule: "asks#asksOf"
+		})
+	};
+	ASK_STATUS = {
+		open: term("open", {
+			label: "Open",
+			short: "waiting for a response",
+			meaning: "Waiting for the person asked to respond.",
+			long: "Nobody has answered it (an action: marked it done) or withdrawn it yet.",
+			rule: "asks#asksOf"
+		}),
+		answered: term("answered", {
+			label: "Answered",
+			short: "closed with an answer",
+			meaning: "The person asked has answered it.",
+			long: "Closed by its answer, which applies to every goal it is about.",
+			rule: "asks#isResolved"
+		}),
+		done: term("done", {
+			label: "Done",
+			short: "finished",
+			meaning: "Finished: the action was done.",
+			long: "An action marked done by whoever does it, whoever agreed it, or an admin.",
+			rule: "asks#isResolved",
+			same: "status.done"
+		}),
+		withdrawn: term("withdrawn", {
+			label: "Withdrawn",
+			short: "no longer needed",
+			meaning: "Taken back by whoever asked, or an admin.",
+			long: "No longer needed; the log keeps it.",
+			rule: "asks#asksOf"
+		}),
+		overdue: term("overdue", {
+			label: "Overdue",
+			short: "open past its week",
+			meaning: "Still open after the week it was due by.",
+			long: "An ask with a due week, still open after that week. Only asks are overdue; a goal without a recent check-in has no recent update.",
+			rule: "asks#isOverdue"
+		})
+	};
+	SESSION = {
+		"not-started": term("not-started", {
+			label: "Not started",
+			short: "nothing said yet",
+			meaning: "Hasn’t begun: nothing said or reviewed yet this session.",
+			long: "Nobody has marked a goal reviewed or said anything in this session yet.",
+			rule: "review#sessionState",
+			same: "status.planned"
+		}),
+		"in-progress": term("in-progress", {
+			label: "In progress",
+			short: "still running",
+			meaning: "Under way: some goals reviewed, not all.",
+			long: "Something has been said or reviewed, but not every goal in the session.",
+			rule: "review#sessionState",
+			same: "quarter.open"
+		}),
+		held: term("held", {
+			label: "Held",
+			short: "every goal reviewed",
+			meaning: "Every goal in the session has been marked reviewed.",
+			long: "Every goal in it has been marked reviewed; it was held on the day the last one was.",
+			rule: "review#sessionState"
+		})
+	};
+	TREND = {
+		worse: {
+			...FLAG.trend,
+			code: "worse",
+			same: "flag.trend",
+			retired: void 0
+		},
+		better: term("better", {
+			label: "Getting better",
+			short: "closer to plan each time",
+			meaning: "Closer to plan (or further from its limit, or a stage expected sooner) at each of the last two check-ins.",
+			long: `The opposite of getting worse, by the same rule: the gap to plan smaller (or the room to the limit larger) at each of the last two of 3 check-ins, or a stage expected sooner than at the check-in before.`,
+			rule: "trend#gapTrend",
+			retired: [
+				"Closing the gap",
+				"catching up",
+				"Gaining ground",
+				"Moving away from the limit"
+			]
+		}),
+		flat: term("flat", {
+			label: "No steady trend",
+			short: "not one way each time",
+			meaning: "Neither further behind nor closer at each of the last two check-ins.",
+			long: `Not the same way at each of the last two of 3 check-ins (or fewer than 3 to go on), so neither getting worse nor getting better.`,
+			rule: "trend#gapTrend",
+			where: ["screens", "ai"]
+		})
+	};
+	GAP = {
+		behind: term("behind", {
+			label: "behind plan",
+			short: "short of the plan",
+			meaning: "Short of the plan for its week, by the amount said: “9 hours behind plan”.",
+			long: "The latest number against the plan for its own week, in the goal’s units, said the same whichever way is better.",
+			rule: "format#gapText",
+			retired: [
+				"below week-",
+				"above week-",
+				"On the week-"
+			]
+		}),
+		ahead: term("ahead", {
+			label: "ahead of plan",
+			short: "better than the plan",
+			meaning: "Better than the plan for its week, by the amount said: “3 pts ahead of plan”.",
+			long: "The latest number against the plan for its own week, in the goal’s units, said the same whichever way is better.",
+			rule: "format#gapText"
+		}),
+		"on-plan": term("on-plan", {
+			label: "On plan",
+			short: "exactly the plan",
+			meaning: "Exactly the plan for its week, at the goal’s decimals.",
+			long: "The latest number is the plan for its week, as written to the goal’s decimals.",
+			rule: "format#gapText"
+		}),
+		reached: term("reached", {
+			label: "Target reached",
+			short: "there already",
+			meaning: "The latest number has reached the target (or every stage is done).",
+			long: "The latest number is at or past the target, or every stage is done. It is a gap, not a result: the result comes when the goal is due.",
+			rule: "format#gapText"
+		})
+	};
+	REMOVAL = {
+		left: term("left", {
+			label: "Left",
+			short: "left the workspace",
+			meaning: "A person who has left the workspace.",
+			long: "Out of pickers, counts, reviews and Home; named in history as “Name (left)”.",
+			rule: "removal#markPersonLeft"
+		}),
+		stopped: term("stopped", {
+			label: "Stopped",
+			short: "stopped early, with a reason",
+			meaning: "A goal stopped before the end of its year, with a reason. Not a status.",
+			long: "Out of every list, still on its own page, in exports and in Activity, with when, by whom and why.",
+			rule: "removal#stopGoal"
+		}),
+		ended: term("ended", {
+			label: "Ended",
+			short: "no longer due",
+			meaning: "A review that has ended: it keeps its notes and actions and is no longer due.",
+			long: "An ended review keeps everything said in it, and is no longer due or listed.",
+			rule: "removal#endReview"
+		}),
+		removed: term("removed", {
+			label: "Removed",
+			short: `restorable for 30 days`,
+			meaning: `Deleted, and still restorable for 30 days.`,
+			long: `Taken away, never erased: it can be undone, and restored for 30 days under Recently removed.`,
+			rule: "removal#recentlyRemoved"
+		}),
+		"comment-removed": term("comment-removed", {
+			label: "Comment removed",
+			short: "its place stays",
+			meaning: "What a thread shows where a comment was.",
+			long: "A removed comment keeps its place in the thread, with these words.",
+			rule: "removal#commentsOf"
+		}),
+		"note-removed": term("note-removed", {
+			label: "Note removed",
+			short: "its place stays",
+			meaning: "What a review’s record shows where a note was.",
+			long: "A removed review note keeps its place in the record, with these words.",
+			rule: "removal#commentsOf"
+		}),
+		edited: term("edited", {
+			label: "edited",
+			short: "changed after posting",
+			meaning: "Beside words corrected after they were posted.",
+			long: "The words were corrected after they were posted; the log keeps the before and after.",
+			rule: "removal#commentsOf"
+		})
+	};
+	leftName = (name) => `${name} (${REMOVAL.left.label.toLowerCase()})`;
+	LEFT = REMOVAL.left.label;
+	STOPPED = REMOVAL.stopped.label;
+	ENDED = REMOVAL.ended.label;
+	REMOVAL.removed.label;
+	COMMENT_REMOVED = REMOVAL["comment-removed"].label;
+	NOTE_REMOVED = REMOVAL["note-removed"].label;
+	REMOVAL.edited.label;
+	GROUPS$1 = {
+		status: {
+			title: "A goal’s status",
+			terms: STATUS
+		},
+		flag: {
+			title: "What needs attention, and why",
+			terms: FLAG
+		},
+		attention: {
+			title: "Needs attention and being handled",
+			terms: ATTENTION
+		},
+		warning: {
+			title: "Other warnings on a goal’s story",
+			terms: WARNING
+		},
+		trend: {
+			title: "Which way it’s heading",
+			terms: TREND
+		},
+		gap: {
+			title: "Against the plan",
+			terms: GAP
+		},
+		result: {
+			title: "A goal’s result, once it’s due",
+			terms: RESULT
+		},
+		quarter: {
+			title: "Each quarter of a goal year",
+			terms: QUARTER
+		},
+		ownerView: {
+			title: "The owner’s view at the wrap-up",
+			terms: OWNER_VIEW
+		},
+		stage: {
+			title: "A dated stage",
+			terms: STAGE
+		},
+		askKind: {
+			title: "Kinds of ask",
+			terms: ASK_KIND
+		},
+		askStatus: {
+			title: "Where an ask stands",
+			terms: ASK_STATUS
+		},
+		session: {
+			title: "A review’s session",
+			terms: SESSION
+		},
+		removal: {
+			title: "Removed, stopped and ended",
+			terms: REMOVAL
+		}
+	};
+	Object.keys(GROUPS$1).flatMap((group) => Object.values(GROUPS$1[group].terms).map((term) => ({
+		group,
+		term
+	})));
+	labels = (terms) => Object.fromEntries(Object.entries(terms).map(([k, t]) => [k, t.label]));
+	LABEL = labels(STATUS);
+	MEANING = Object.fromEntries(Object.entries(STATUS).map(([k, t]) => [k, t.meaning]));
+	Object.fromEntries(Object.entries(STATUS).map(([k, t]) => [k, t.short]));
+	RESULT_TEXT = {
+		completed: RESULT.completed.label,
+		late: RESULT.late.label,
+		missed: RESULT.missed.label
+	};
+	RESULT_MEANING = {
+		completed: RESULT.completed.meaning,
+		late: RESULT.late.meaning,
+		missed: RESULT.missed.meaning
+	};
+	lower = (t) => t.label.charAt(0).toLowerCase() + t.label.slice(1);
+	withCode = (t) => `${t.label} (${t.code})`;
+	choices = (terms, only) => (only ?? Object.keys(terms)).map((k) => withCode(terms[k])).join(", ");
+}));
 // src/domain/status.ts
 function assessMetric(goal, weeks, week, actual, history) {
 	const { start, target } = goal.plan;
@@ -21876,11 +22526,11 @@ function goalStatus(goal, cycle, checkIns, today) {
 	const latest = own.length ? own.reduce((a, b) => b.postedAt > a.postedAt ? b : a) : null;
 	const calc = assessPosted(goal, cycle, checkIns, week).calc;
 	const days = latest ? daysSince(latest.postedAt, today) : null;
+	const quiet = daysWithoutUpdate(goal, cycle, latest, today);
 	let status;
 	if (latest?.status === "done") status = "done";
 	else if (week === 0) status = "planned";
-	else if (latest && days != null && days < RULES.staleDays) status = latest.status;
-	else if (!latest && daysSince(goal.createdAt && goal.createdAt.slice(0, 10) > cycle.startDate ? goal.createdAt : cycle.startDate, today) < RULES.staleDays) status = "none";
+	else if (quiet < RULES.staleDays) status = latest ? latest.status : "none";
 	else status = "stale";
 	const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
 	return {
@@ -21892,9 +22542,20 @@ function goalStatus(goal, cycle, checkIns, today) {
 		week
 	};
 }
-var RANK, LABEL, RULES, byGoalCache;
+/**
+* Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
+* added if later). The one rule for "no recent update": stale at RULES.staleDays, and the Goals filter "No update for
+* N weeks" counts the same days in weeks.
+*/
+function daysWithoutUpdate(goal, cycle, latest, today) {
+	if (latest) return daysSince(latest.postedAt, today);
+	return daysSince(goal.createdAt && goal.createdAt.slice(0, 10) > cycle.startDate ? goal.createdAt : cycle.startDate, today);
+}
+var RANK, byGoalCache;
 var init_status = __esmMin((() => {
 	init_plan();
+	init_thresholds();
+	init_vocabulary();
 	RANK = {
 		done: 0,
 		planned: 0,
@@ -21903,23 +22564,6 @@ var init_status = __esmMin((() => {
 		risk: 2,
 		stale: 2,
 		off: 3
-	};
-	LABEL = {
-		on: "On track",
-		risk: "At risk",
-		off: "Off track",
-		done: "Done",
-		stale: "No recent update",
-		planned: "Not started",
-		none: "No check-in"
-	};
-	RULES = {
-		onTrack: .95,
-		atRisk: .8,
-		wellAhead: 1.2,
-		staleDays: 14,
-		/** A milestone stage more than this many weeks late is off track. */
-		lateWeeksOff: 2
 	};
 	byGoalCache = /* @__PURE__ */ new WeakMap();
 }));
@@ -22027,8 +22671,8 @@ function markDone(r, note, by, now, newId) {
 		},
 		changes: r.goalIds.map((g) => change$1(r, g, by, now, newId("chg"), "done", "Marked the action done", [{
 			field: "Action",
-			from: "Open",
-			to: "Done"
+			from: ASK_STATUS.open.label,
+			to: ASK_STATUS.done.label
 		}, ...note.trim() ? [{
 			field: "Note",
 			from: "—",
@@ -22037,7 +22681,7 @@ function markDone(r, note, by, now, newId) {
 	};
 }
 /** Withdraw it; or, for a goal linked to someone else's decision or help, stop waiting on it. */
-function withdrawAsk(r, goalId, by, now, newId, why = "Withdrawn") {
+function withdrawAsk(r, goalId, by, now, newId, why = ASK_STATUS.withdrawn.label) {
 	const own = r.goalIds[0] === goalId || r.kind !== "decision";
 	const request = own ? {
 		...r,
@@ -22338,18 +22982,14 @@ function liveNotes(changes) {
 var norm$3, ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf, openAsksFor, openFor, openForPerson, openUpdateAsk, isOverdue, isResolved, canAnswer, canMarkDone, change$1, FIELD, UPDATE_ASK, normaliseAsk, isLegacyUpdateAsk, updateAskText;
 var init_asks = __esmMin((() => {
 	init_status();
+	init_vocabulary();
 	norm$3 = (s) => s.trim().toLowerCase();
-	ASK_KIND_LABEL = {
-		decision: "Decision or help",
-		update: "Update",
-		question: "Question",
-		action: "Action"
-	};
+	ASK_KIND_LABEL = labels(ASK_KIND);
 	ASK_STATUS_LABEL = {
-		open: "Open",
-		answered: "Answered",
-		done: "Done",
-		withdrawn: "Withdrawn"
+		open: ASK_STATUS.open.label,
+		answered: ASK_STATUS.answered.label,
+		done: ASK_STATUS.done.label,
+		withdrawn: ASK_STATUS.withdrawn.label
 	};
 	asksOf = (s) => s.requests ?? (s.goals && s.checkIns ? requestsFromCheckIns(s, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null) : []);
 	openAsksFor = (goalId, s, kinds) => asksOf(s).filter((r) => r.status === "open" && r.goalIds.includes(goalId) && (!kinds || kinds.includes(r.kind)));
@@ -22392,7 +23032,7 @@ var init_asks = __esmMin((() => {
 		...r
 	});
 	isLegacyUpdateAsk = (c) => c.entity === "note" && c.action === "noted" && (c.summary === "Asked for an update" || (c.diffs[0]?.to ?? "").includes("could you post an update"));
-	updateAskText = (ownerFirstName, lastWeek) => `${ownerFirstName ?? "Hi"}, could you post an update? ${lastWeek != null ? `The last check-in was week ${lastWeek}.` : "There’s no check-in yet."}`;
+	updateAskText = (ownerFirstName, lastWeek) => `${ownerFirstName ?? "Hi"}, could you post an update? ${lastWeek != null ? `The last check-in was week ${lastWeek}.` : `There’s ${lower(STATUS.none)}.`}`;
 }));
 // src/domain/goalKey.ts
 /** "G-12" → 12; anything else → null. Lower case and a missing dash are forgiven ("g12"). */
@@ -23100,27 +23740,27 @@ function targetText(g) {
 /** Short words for the gap against plan, and its tone for colour. */
 function gapText(g, a) {
 	if (a.calc === "planned") return {
-		short: "Not started",
+		short: LABEL.planned,
 		long: "It starts this week",
 		tone: "stale"
 	};
 	if (a.calc === "none") return {
-		short: g.kind === "milestone" ? "No check-in yet" : NO_VALUE$1,
-		long: "Waiting for the first check-in",
+		short: g.kind === "milestone" ? LABEL.none : NO_VALUE$1,
+		long: LABEL.none,
 		tone: "stale"
 	};
 	if (a.kind === "metric" && g.kind === "metric") {
 		const actual = a.actual;
 		if (a.ratio == null) return {
-			short: a.behind ? "Going backwards" : "On plan",
+			short: a.behind ? "Going backwards" : GAP["on-plan"].label,
 			long: "No change planned yet",
 			tone: a.behind ? "risk" : "on"
 		};
 		const pct = Math.round(a.ratio * 100);
-		const diff = Number((actual - a.plan).toFixed(g.decimals));
+		const better = Number(((actual - a.plan) * (Math.sign(g.plan.target - g.plan.start) || 1)).toFixed(g.decimals));
 		return {
-			short: diff === 0 ? `On the week-${a.week} plan` : `${fmtDiff(diff, g)} ${diff > 0 ? "above" : "below"} week-${a.week} plan`,
-			long: `${pct}% of the planned improvement so far (plan for this week: ${fmt(a.plan, g)})`,
+			short: gapPhrase(better, fmtDiff(better, g)),
+			long: `${pct}% of the planned improvement so far (plan for week ${a.week}: ${fmt(a.plan, g)})`,
 			tone: a.ahead ? "ahead" : a.calc === "risk" || a.calc === "off" ? a.calc : "on"
 		};
 	}
@@ -23155,19 +23795,19 @@ function gapText(g, a) {
 	}
 	if (a.kind === "milestone") {
 		if (a.calc === "done") return {
-			short: "Done",
+			short: GAP.reached.label,
 			long: "Every stage is done",
 			tone: "on"
 		};
 		const first = a.late[0];
 		if (first) return {
-			short: a.calc === "off" ? "Late" : "Slipping",
+			short: a.calc === "off" ? STAGE.off.label : STAGE.risk.label,
 			long: first.name + ": expected week " + first.expectedWeek + ", " + first.weeksLate + (first.weeksLate === 1 ? " week" : " weeks") + " late",
 			tone: a.calc === "off" ? "off" : "risk"
 		};
 		return {
-			short: "On schedule",
-			long: "Every stage on schedule",
+			short: STAGE.planned.label,
+			long: "Every stage " + STAGE.planned.label.toLowerCase(),
 			tone: "on"
 		};
 	}
@@ -23179,6 +23819,7 @@ function gapText(g, a) {
 }
 var NO_VALUE$1, weekLabel, LEVEL_LABEL;
 var init_format = __esmMin((() => {
+	init_vocabulary();
 	NO_VALUE$1 = "No value yet";
 	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
 	LEVEL_LABEL = {
@@ -23849,17 +24490,14 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 }
 var DAY, addDays, wrapUpOpen, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
+	init_vocabulary();
 	init_year();
 	init_yearName();
 	init_status();
 	DAY = 864e5;
 	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
 	wrapUpOpen = (cycle, week) => week >= cycle.weeks - 1;
-	RESULT_LABEL = {
-		hit: "Hit it",
-		partly: "Partly",
-		missed: "Missed"
-	};
+	RESULT_LABEL = labels(OWNER_VIEW);
 }));
 // src/domain/people.ts
 /** What's wrong with saving `p` (empty if nothing): a name, a unique name, and always at least one admin. */
@@ -23916,62 +24554,148 @@ var norm$2;
 var init_people = __esmMin((() => {
 	norm$2 = (s) => s.trim().toLowerCase();
 }));
-// src/domain/attention.ts
+// src/domain/trend.ts
 /**
-* A worsening trend the status may not show yet: progress against plan has fallen at the
-* last two check-ins, a range value has moved towards its limit twice running, or a
-* milestone stage's expected week has slipped since the previous check-in.
+* Which way a series is heading. `gaps` are the last check-ins' distance from where they should be, oldest first,
+* unrounded, positive when better: ahead of plan, room inside a limit. Only the last TREND_SPAN count.
+*   Getting worse: lower at each of the last two steps, and, with `behindOnly`, short now. A number held flat while the
+*     plan moves on is further behind at each check-in, so it is getting worse, even before the gap shows a whole unit.
+*   Getting better: higher at each of the last two steps.
+*   Anything else, or fewer than TREND_SPAN check-ins: no clear change.
 */
-function worseningTrend(goal, cycle, checkIns) {
+function gapTrend(gaps, behindOnly = false) {
+	const g = gaps.slice(-3);
+	if (g.length < 3) return "flat";
+	const steps = g.slice(1).map((v, i) => v - g[i]);
+	if (steps.every((d) => d < -1e-9) && (!behindOnly || g[g.length - 1] < -1e-9)) return "worse";
+	if (steps.every((d) => d > 1e-9)) return "better";
+	return "flat";
+}
+/** A number goal's gap to the plan of each check-in's own week, in its units, positive when ahead (whichever way is
+better): `gap` at the goal's decimals, to say; `raw` unrounded, for the trend. */
+function planGaps(goal, cycle, valued) {
+	const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
+	return valued.filter((c) => c.value != null).map((c) => {
+		const plan = planAt(goalAsOf(goal, c.week).plan, c.week, cycle.weeks);
+		const raw = (c.value - plan) * dir;
+		return {
+			c,
+			plan,
+			raw,
+			gap: Number(raw.toFixed(goal.decimals))
+		};
+	});
+}
+/** Stages at the latest check-in against the one before: worse when any is expected later, better when only sooner. */
+function stagesTrend(goal, own) {
+	const withStages = own.filter((c) => c.stages);
+	if (withStages.length < 2) return {
+		word: "flat",
+		slipped: null
+	};
+	const prev = withStages[withStages.length - 2], last = withStages[withStages.length - 1];
+	const before = assessMilestone(goal, prev.week, prev.stages), now = assessMilestone(goal, last.week, last.stages);
+	const later = now.stages.find((s, i) => s.kind !== "done" && s.expectedWeek > (before.stages[i]?.expectedWeek ?? s.expectedWeek));
+	if (later) return {
+		word: "worse",
+		slipped: {
+			name: later.name,
+			week: later.expectedWeek
+		}
+	};
+	return {
+		word: now.stages.some((s, i) => s.kind === "done" && before.stages[i]?.kind !== "done" && (s.doneWeek ?? 0) < (before.stages[i]?.expectedWeek ?? 0) || s.kind !== "done" && s.expectedWeek < (before.stages[i]?.expectedWeek ?? s.expectedWeek)) ? "better" : "flat",
+		slipped: null
+	};
+}
+/** Whether a goal is getting worse or better over its last check-ins: the rule behind the "Getting worse" flag. */
+function goalTrend(goal, cycle, checkIns) {
 	const own = checkInsFor(goal, checkIns);
 	if (goal.kind === "metric") {
-		const pts = own.filter((c) => c.value != null).map((c) => ({
-			week: c.week,
-			value: c.value
-		}));
-		if (pts.length < 3) return null;
-		const [a, b, c] = pts.slice(-3).map((p, i, arr) => assessMetric(goal, cycle.weeks, p.week, p.value, pts.slice(0, pts.length - arr.length + i)).ratio);
-		if (a == null || b == null || c == null) return null;
-		if (c < b && b < a && c < 1) return `Progress against plan has fallen two check-ins running: ${Math.round(a * 100)}% → ${Math.round(b * 100)}% → ${Math.round(c * 100)}%.`;
-		const last = assessMetric(goal, cycle.weeks, pts[pts.length - 1].week, pts[pts.length - 1].value, pts.slice(0, -1));
-		if (last.forecastMisses && last.projection && last.calc === "on") return `On track today, but the recent trend heads for ${rangeText(last.projection, goal, isShare(goal))} by week ${last.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.`;
-		return null;
+		const valued = own.filter((c) => c.value != null);
+		const gaps = planGaps(goal, cycle, valued);
+		const word = gapTrend(gaps.map((x) => x.raw), true);
+		if (word === "worse") {
+			const last = gaps.slice(-3);
+			const n = (v) => Math.abs(v).toFixed(goal.decimals);
+			return {
+				word,
+				detail: `Further behind plan at each of the last two check-ins: ${last.map((x) => x.gap < 0 ? n(x.gap) + " behind" : x.gap > 0 ? n(x.gap) + " ahead" : "on plan").join(" → ")}${goal.unit ? ` (${goal.unit === "%" ? "pts" : goal.unit})` : ""}.`
+			};
+		}
+		if (valued.length >= 3) {
+			const pts = valued.map((c) => ({
+				week: c.week,
+				value: c.value
+			}));
+			const at = assessMetric(goal, cycle.weeks, pts[pts.length - 1].week, pts[pts.length - 1].value, pts.slice(0, -1));
+			if (at.forecastMisses && at.projection && at.calc === "on") return {
+				word: "worse",
+				detail: `${LABEL.on} today, but the recent trend heads for ${rangeText(at.projection, goal, isShare(goal))} by week ${at.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.`
+			};
+		}
+		return {
+			word,
+			detail: null
+		};
 	}
 	if (goal.kind === "range") {
 		const v = own.filter((c) => c.value != null).map((c) => c.value).slice(-3);
-		if (v.length < 3) return null;
-		const toward = goal.range.bound === "atMost" ? (x, y) => y > x : (x, y) => y < x;
-		if (toward(v[0], v[1]) && toward(v[1], v[2]) && !assessRange(goal, 1, v[2], v[1]).out) return `Moving towards the limit two weeks running: ${v.map((x) => fmt(x, goal)).join(" → ")} (limit ${fmt(goal.range.limit, goal)}).`;
-		return null;
+		const safe = goal.range.bound === "atMost" ? -1 : 1;
+		const word = gapTrend(v.map((x) => (x - goal.range.limit) * safe));
+		if (word !== "worse") return {
+			word,
+			detail: null
+		};
+		return {
+			word,
+			detail: `${assessRange(goal, 1, v[v.length - 1], null).out ? "Further past" : "Closer to"} the limit at each of the last two check-ins: ${v.map((x) => fmt(x, goal)).join(" → ")} (limit ${fmt(goal.range.limit, goal)}).`
+		};
 	}
-	const withStages = own.filter((c) => c.stages);
-	if (withStages.length < 2) return null;
-	const prev = withStages[withStages.length - 2], last = withStages[withStages.length - 1];
-	const before = assessMilestone(goal, prev.week, prev.stages);
-	const slipped = assessMilestone(goal, last.week, last.stages).stages.find((s, i) => s.kind !== "done" && s.expectedWeek > (before.stages[i]?.expectedWeek ?? s.expectedWeek));
-	return slipped ? `${slipped.name} slipped to ${weekLabel(slipped.expectedWeek, cycle.weeks)} at the last check-in.` : null;
+	const t = stagesTrend(goal, own);
+	return {
+		word: t.word,
+		detail: t.slipped ? `${t.slipped.name} is expected later than at the check-in before: now ${weekLabel(t.slipped.week, cycle.weeks)}.` : null
+	};
+}
+var init_trend = __esmMin((() => {
+	init_checkin();
+	init_format();
+	init_plan();
+	init_status();
+	init_thresholds();
+	init_vocabulary();
+}));
+// src/domain/attention.ts
+/** A worsening trend the status may not show yet (domain/trend.ts, the one trend rule): its sentence, or null. */
+function worseningTrend(goal, cycle, checkIns) {
+	const t = goalTrend(goal, cycle, checkIns);
+	return t.word === "worse" ? t.detail : null;
 }
 function flagsFor(goal, s, cycle, today) {
 	const status = goalStatus(goal, cycle, s.checkIns, today);
 	const { latest, week } = status;
 	const flags = [];
-	const add = (kind, label, detail, tone) => flags.push({
+	const add = (kind, detail, tone) => flags.push({
 		kind,
-		label,
+		label: FLAG[kind].label,
 		detail,
 		tone
 	});
 	const ptg = latest?.pathToGreen ?? null;
 	const behind = status.status === "off" || status.status === "risk";
-	if (status.status === "off") add("off", "Off track", latest?.why && latest.why !== "On plan." ? latest.why : "The owner called it off track.", "off");
-	if (status.status === "stale") add("stale", LABEL.stale, latest ? `No check-in for ${status.daysSinceCheckIn} days; the last was week ${latest.week} (${LABEL[latest.status].toLowerCase()}).` : "No check-in yet this cycle.", "stale");
-	if (behind && ptg && ptg.byWeek != null && ptg.byWeek < week) add("missed-path", "Missed path to green", `Was due back on plan by week ${ptg.byWeek}: ${ptg.what}`, "off");
-	if (behind && !ptg) add("no-path", "No path to green", "It is behind and the owner has not said how it gets back.", "off");
-	if (status.status === "risk") add("risk", "At risk", latest?.why && latest.why !== "On plan." ? latest.why : "The owner called it at risk.", "risk");
+	const why = latest?.why && latest.why !== "On plan." ? latest.why : null;
+	if (status.status === "off") add("off", why ?? `The owner called it ${lower(FLAG.off)}.`, "off");
+	if (status.status === "stale") add("stale", latest ? `No check-in for ${status.daysSinceCheckIn} days; the last was week ${latest.week} (${LABEL[latest.status].toLowerCase()}).` : "No check-in this cycle yet.", "stale");
+	if (behind && ptg && ptg.byWeek != null && ptg.byWeek < week) add("missed-path", `Said it would be back on plan by week ${ptg.byWeek}: ${ptg.what}`, "off");
+	const waiting = status.status !== "done" ? openFor(goal.id, s) : [];
+	if (waiting.length) add("decision", `Waiting on ${waiting.map((r) => askText(r, s.people)).join("; ")}.`, behind ? "off" : "risk");
+	if (behind && !ptg) add("no-path", "It is behind and the owner has not said how it gets back.", "off");
+	if (status.status === "risk") add("risk", why ?? `The owner called it ${lower(FLAG.risk)}.`, "risk");
 	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
-	if (trend) add("trend", "Worsening trend", trend, "risk");
-	if (status.greener && latest && status.status !== "stale") add("greener", "Greener than calculated", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= 1 && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", "Check-in due", `Due before the review in week ${week}.`, "info");
+	if (trend) add("trend", trend, "risk");
+	if (status.greener && latest && status.status !== "stale") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
+	if (week >= 1 && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
 		status,
@@ -24054,7 +24778,7 @@ function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.ch
 /** A list of goals' attention split into what needs attention (new information) and what is being handled. */
 function splitAttention(list) {
 	return {
-		needs: list.filter((a) => !a.handled),
+		needs: list.filter(needsAttention),
 		handled: list.filter((a) => !!a.handled)
 	};
 }
@@ -24065,23 +24789,15 @@ function splitAttention(list) {
 function attentionList(s, cycle, today, opts = {}) {
 	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort(attentionOrder);
 }
-var WEIGHT, HANDLED_ORDER, LOOKS, attentionOrder;
+var WEIGHT, HANDLED_ORDER, LOOKS, needsAttention, attentionOrder;
 var init_attention = __esmMin((() => {
 	init_status();
-	init_format();
-	init_checkin();
-	init_plan();
 	init_asks();
-	WEIGHT = {
-		off: 100,
-		"missed-path": 90,
-		stale: 80,
-		"no-path": 70,
-		risk: 60,
-		trend: 50,
-		greener: 30,
-		due: 10
-	};
+	init_plan();
+	init_trend();
+	init_vocabulary();
+	init_checkin();
+	WEIGHT = Object.fromEntries([...ATTENTION_FLAGS, "due"].map((k, i, all) => [k, (all.length - i) * 10]));
 	HANDLED_ORDER = [
 		"action",
 		"answered",
@@ -24092,6 +24808,7 @@ var init_attention = __esmMin((() => {
 		note: "noted",
 		acknowledge: "reviewed"
 	};
+	needsAttention = (a) => !a.handled && a.flags.some((f) => f.kind !== "due");
 	attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
 }));
 // src/domain/review.ts
@@ -24189,9 +24906,9 @@ function sessionState(s) {
 }
 /** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
 function sessionStateText(st) {
-	if (st.kind === "held") return `Held ${dayText(st.on)}`;
-	if (st.kind === "in-progress") return `In progress · ${st.done} of ${st.total} reviewed`;
-	return "Not started";
+	if (st.kind === "held") return `${SESSION.held.label} ${dayText(st.on)}`;
+	if (st.kind === "in-progress") return `${SESSION["in-progress"].label} · ${st.done} of ${st.total} reviewed`;
+	return SESSION["not-started"].label;
 }
 /**
 * When a review was last held before its current session: the latest earlier session in which anything was said
@@ -24238,7 +24955,7 @@ function answerOf(d) {
 	const a = d.ask;
 	if (!a || !isResolved(a)) return null;
 	return {
-		text: a.answer || (a.status === "done" ? "Done" : ""),
+		text: a.answer || (a.status === "done" ? ASK_STATUS.done.label : ""),
 		at: a.answeredAt ?? a.updatedAt,
 		byId: a.answeredBy ?? ""
 	};
@@ -24246,10 +24963,11 @@ function answerOf(d) {
 var isHealthy, tier, dayText;
 var init_review = __esmMin((() => {
 	init_attention();
+	init_vocabulary();
 	init_plan();
 	init_status();
 	init_asks();
-	isHealthy = (a) => (a.status.status === "on" || a.status.status === "done") && a.flags.every((f) => f.kind === "due");
+	isHealthy = (a) => !needsAttention(a) && !a.handled;
 	tier = (a) => a.handled ? 1 : isHealthy(a) ? 2 : 0;
 	dayText = (iso) => (/* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z")).toLocaleDateString("en-GB", {
 		weekday: "short",
@@ -24257,6 +24975,7 @@ var init_review = __esmMin((() => {
 		month: "short",
 		timeZone: "UTC"
 	});
+	ASK_KIND.action.label;
 }));
 // src/domain/tableFilter.ts
 /** Does one cell value pass the filter? */
@@ -25519,6 +26238,8 @@ function shapeOf(s) {
 }
 var PEOPLE_COLUMNS, GOAL_COLUMNS, initials, yes;
 var init_importer = __esmMin((() => {
+	init_goal();
+	init_year();
 	PEOPLE_COLUMNS = [
 		"Name",
 		"Job title",
@@ -25602,6 +26323,8 @@ function headingSentence(goal, p, misses, when, share = false) {
 var CURRENCY, SYMBOL;
 var init_chartStory = __esmMin((() => {
 	init_plan();
+	init_trend();
+	init_vocabulary();
 	CURRENCY = /^([£$€]|USD|GBP|EUR)\s?([km]?)$/i;
 	SYMBOL = {
 		USD: "$",
@@ -25638,6 +26361,7 @@ function forecastText(goal, a, weeks, cycle) {
 	};
 }
 var init_tree = __esmMin((() => {
+	init_status();
 	init_checkin();
 	init_chartStory();
 }));
@@ -26111,9 +26835,9 @@ function planChanges(input) {
 			}
 		}
 		const callRaw = norm$1(val(r, "call"));
-		const call = callRaw ? CALLS[callRaw] : null;
+		const call = callRaw ? CALLS$1[callRaw] : null;
 		if (callRaw && !call) {
-			err("Check-ins", row, g.title, `Call “${val(r, "call")}” should be On track, At risk, Off track or Done, or empty to let the rules decide.`);
+			err("Check-ins", row, g.title, `Call “${val(r, "call")}” should be ${CALL_CODES.map((k) => LABEL[k]).join(", ").replace(/, ([^,]+)$/, " or $1")}, or empty to let the rules decide.`);
 			continue;
 		}
 		const existing = byId ?? checkInsFor(g, s.checkIns).filter((c) => c.week === w).pop() ?? null;
@@ -26155,7 +26879,7 @@ function planChanges(input) {
 				value: "a Value",
 				"value-not-number": "a number in Value",
 				"value-impossible": "a possible Value",
-				"greener-why": "Why greener (the call is greener than the numbers)",
+				"greener-why": `Why greener (the call is ${lower(FLAG.greener)})`,
 				"reason-behind": `a Cause and a Why of 10 characters or more (it’s behind plan)`,
 				"reason-ahead": `a Cause and a Why of 10 characters or more (it’s ahead of plan)`,
 				path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
@@ -26302,7 +27026,7 @@ function planChanges(input) {
 	}
 	return result;
 }
-var VIA_LABEL, norm$1, has, val, rowOf, CALLS, RECOVERY$1, causeOf;
+var VIA_LABEL, norm$1, has, val, rowOf, CALL_CODES, CALLS$1, RECOVERY$1, causeOf;
 var init_changeset = __esmMin((() => {
 	init_changes();
 	init_checkin();
@@ -26314,6 +27038,7 @@ var init_changeset = __esmMin((() => {
 	init_goalKey();
 	init_people();
 	init_asks();
+	init_vocabulary();
 	VIA_LABEL = {
 		spreadsheet: "Spreadsheet",
 		bulk: "Bulk edit",
@@ -26324,17 +27049,17 @@ var init_changeset = __esmMin((() => {
 	has = (r, k) => Object.prototype.hasOwnProperty.call(r, k);
 	val = (r, k) => (r[k] ?? "").trim();
 	rowOf = (r, i) => Number(r.__row ?? i + 2);
-	CALLS = {
-		"on track": "on",
-		on: "on",
+	CALL_CODES = [
+		"on",
+		"risk",
+		"off",
+		"done"
+	];
+	CALLS$1 = {
+		...Object.fromEntries(CALL_CODES.flatMap((k) => [[k, k], [LABEL[k].toLowerCase(), k]])),
 		green: "on",
-		"at risk": "risk",
-		risk: "risk",
 		amber: "risk",
-		"off track": "off",
-		off: "off",
-		red: "off",
-		done: "done"
+		red: "off"
 	};
 	RECOVERY$1 = {
 		plan: "plan",
@@ -26705,29 +27430,32 @@ var SupabaseStore = class {
 // src/domain/query.ts
 init_actions();
 init_format();
+init_attention();
 init_status();
+init_vocabulary();
 init_year();
 var STATUS_OPTIONS = [
-	["off", LABEL.off],
-	["risk", LABEL.risk],
-	["stale", LABEL.stale],
-	["on", LABEL.on],
-	["done", LABEL.done],
-	["planned", "Not started"]
-];
-var NEED_OPTIONS = [
-	["decision", "Decision or help needed"],
-	["no-recovery", "No recovery plan"],
-	["slipped", "Recovery date slipped"],
-	["missed-date", "Missed its own date"],
-	["greener", "Called greener than the numbers"]
-];
+	"off",
+	"risk",
+	"stale",
+	"on",
+	"done",
+	"none",
+	"planned"
+].map((k) => [k, LABEL[k]]);
+/** "Needs attention because …": each flag that makes a goal need attention, in its vocabulary words. */
+var NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
+/** Links and saved views from before release 2 said these; they still open the same goals. */
+var OLD_NEEDS = {
+	"no-recovery": "no-path",
+	"missed-date": "missed-path"
+};
 var RESULT_OPTIONS = [
-	["completed", "Completed"],
-	["late", "Completed late"],
-	["missed", "Did not meet"],
-	["open", "Not finished yet"]
-];
+	"completed",
+	"late",
+	"missed",
+	"open"
+].map((k) => [k, RESULT[k].label]);
 var KIND_OPTIONS = [
 	["metric", "Move a number"],
 	["range", "Keep in range"],
@@ -26765,7 +27493,7 @@ function parseQuery(p) {
 		team: (p.get("team") ?? "").split(",").filter(Boolean),
 		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
 		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
-		needs: list$1(p.get("needs"), NEED_OPTIONS.map(([k]) => k)),
+		...needsOf(p),
 		due: due === "quarter" ? "quarter" : int$3(due),
 		quiet: int$3(p.get("quiet")),
 		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
@@ -26774,6 +27502,15 @@ function parseQuery(p) {
 		helps: p.get("helps") === "1",
 		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
 		dir: dir === "desc" ? -1 : 1
+	};
+}
+/** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
+function needsOf(p) {
+	const raw = (p.get("needs") ?? "").split(",").filter(Boolean);
+	const needs = [...new Set(raw.map((v) => v in OLD_NEEDS ? OLD_NEEDS[v] : NEED_OPTIONS.some(([k]) => k === v) ? v : void 0).filter((v) => !!v))];
+	return {
+		attention: p.get("attention") === "1" || raw.some((v) => v in OLD_NEEDS || NEED_OPTIONS.some(([k]) => k === v)),
+		needs
 	};
 }
 /** The goal and every goal that feeds it, all the way down. */
@@ -26806,21 +27543,20 @@ function matches(s, q, ctx, tree) {
 		].join(" ").toLowerCase();
 		if (!q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
 	}
-	const status = s.status === "none" ? "planned" : s.status;
-	if (q.status.length && !q.status.includes(status)) return false;
+	if (q.status.length && !q.status.includes(s.status)) return false;
 	if (q.level.length && !q.level.includes(g.level)) return false;
 	if (q.team.length && !q.team.includes(g.teamId)) return false;
 	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
 	if (q.kind.length && !q.kind.includes(g.kind)) return false;
-	if (q.needs.length) {
-		const has = (n) => n === "decision" ? !!s.story.needs && (s.status === "off" || s.status === "risk") : s.story.flags.includes(n);
-		if (!q.needs.some(has)) return false;
+	if (q.attention || q.needs.length) {
+		if (!needsAttention(s.attention)) return false;
+		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
 	}
 	if (q.due != null) {
 		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
 		if (s.dueWeek > by) return false;
 	}
-	if (q.quiet != null && s.lastWeek != null && ctx.week - s.lastWeek < q.quiet) return false;
+	if (q.quiet != null && s.quietDays < q.quiet * 7) return false;
 	if (q.quarter) {
 		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
 	}
@@ -26842,7 +27578,7 @@ var LEVEL_RANK = {
 	team: 2
 };
 /** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
-function compare(q, week) {
+function compare(q, _week) {
 	const key = q.sort ?? "worst";
 	const worst = (a, b) => RANK[b.status] - RANK[a.status];
 	const name = (a, b) => a.goal.title.localeCompare(b.goal.title);
@@ -26853,7 +27589,7 @@ function compare(q, week) {
 		team: (a, b) => a.team.localeCompare(b.team),
 		level: (a, b) => LEVEL_RANK[a.goal.level] - LEVEL_RANK[b.goal.level],
 		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
-		last: (a, b) => week - (b.lastWeek ?? -99) - (week - (a.lastWeek ?? -99)),
+		last: (a, b) => b.quietDays - a.quietDays,
 		due: (a, b) => a.dueWeek - b.dueWeek
 	};
 	return (a, b) => q.dir * by[key](a, b) || worst(a, b) || name(a, b);
@@ -26870,35 +27606,18 @@ init_checkin();
 init_format();
 init_plan();
 init_status();
+init_attention();
+init_vocabulary();
 init_asks();
 init_tree();
 init_year();
-var MEANING = {
-	on: `On plan so far: at least ${RULES.onTrack * 100}% of the progress planned by now. If the recent trend says it will still finish short, the goal says so beside its status.`,
-	risk: `Could miss without a change: ${RULES.atRisk * 100}–${RULES.onTrack * 100}% of the planned progress, or close to a limit. There’s a plan to get it back.`,
-	off: `Will miss without intervention: under ${RULES.atRisk * 100}% of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. Needs a decision, help or a new plan.`,
-	stale: `No recent update: no check-in for ${RULES.staleDays / 7} weeks or more, so its status can’t be trusted.`,
-	none: "Waiting for its first check-in.",
-	planned: "Not started: it starts this week.",
-	done: "Done: the owner has called it complete."
-};
-var RESULT_TEXT = {
-	completed: "Completed",
-	late: "Completed late",
-	missed: "Did not meet"
-};
-var RESULT_MEANING = {
-	completed: "Hit the target by its due date.",
-	late: "Hit the target, but after its due date.",
-	missed: "The due date passed without hitting the target."
-};
 /** The week a goal is due: its plan's end, its last stage, or the end of the cycle. */
 function dueWeekOf(g, cycle) {
 	if (g.kind === "metric") return planEnd(g.plan, cycle.weeks);
 	if (g.kind === "milestone") return Math.max(1, ...g.stages.map((s) => s.dueWeek));
 	return cycle.weeks;
 }
-/** Completed, Completed late or Did not meet; null while the goal isn't due yet and isn't complete. */
+/** Met, Met late or Not met (the vocabulary's RESULT); null while the goal isn't due yet and isn't complete. */
 function goalResult(g, cycle, checkIns, week) {
 	const own = checkInsFor(g, checkIns);
 	const due = dueWeekOf(g, cycle);
@@ -26906,7 +27625,7 @@ function goalResult(g, cycle, checkIns, week) {
 		kind,
 		dueWeek: due,
 		week: at,
-		text: kind === "completed" ? `Completed${at != null ? ` in week ${at}` : ""}` : kind === "late" ? `Completed late: week ${at}, due week ${due}` : `Did not meet: due week ${due}`
+		text: kind === "completed" ? `${RESULT_TEXT.completed}${at != null ? ` in week ${at}` : ""}` : kind === "late" ? `${RESULT_TEXT.late}: week ${at}, due week ${due}` : `${RESULT_TEXT.missed}: due week ${due}`
 	});
 	let hit = null;
 	if (g.kind === "metric") {
@@ -26937,6 +27656,13 @@ function goalResult(g, cycle, checkIns, week) {
 	if (hit != null) return make(hit <= due ? "completed" : "late", hit);
 	return week > due ? make("missed", null) : null;
 }
+var STORY_FLAGS = [
+	"stale",
+	"missed-path",
+	"no-path",
+	"trend",
+	"greener"
+];
 var BEHIND = ["off", "risk"];
 function storyOf(g, s, cycle, week, today) {
 	const st = goalStatus(g, cycle, s.checkIns, today);
@@ -26960,7 +27686,7 @@ function storyOf(g, s, cycle, week, today) {
 		const n = own.length - k;
 		since = n >= 2 ? `Since week ${from}, ${n} check-ins running` : `Since week ${from}`;
 	}
-	if (status === "stale") since = last ? `No check-in for ${st.daysSinceCheckIn} days; last heard in week ${last.week}` : "No check-in yet";
+	if (status === "stale") since = last ? `No check-in for ${st.daysSinceCheckIn} days; last heard in week ${last.week}` : "No check-in this cycle";
 	const due = dueWeekOf(g, cycle);
 	let where = "";
 	if (g.kind === "metric" && a.kind === "metric") {
@@ -26999,19 +27725,19 @@ function storyOf(g, s, cycle, week, today) {
 		const open = openFor(g.id, s);
 		needs = open.map((r) => askText(r, s.people) + (r.goalIds[0] !== g.id ? ` (the same request as ${s.goals.find((x) => x.id === r.goalIds[0])?.title ?? "another goal"})` : "")).join("; ") || null;
 		if (ptg && (ptg.state ?? "plan") === "help" && !open.length && answeredSince(g.id, last?.postedAt ?? null, s)) byWhen = "Answer given: the owner’s next check-in says what it changes";
-		if (!ptg) warn("no-recovery", "No recovery plan: it is behind and the owner hasn’t said how it gets back.");
-		if (ptg && ptg.byWeek != null && ptg.byWeek < week) warn("missed-date", `Missed its own date: said it would be back on plan by week ${ptg.byWeek}.`);
 		let k = own.length - 1;
 		while (k > 0 && BEHIND.includes(own[k - 1].status)) k--;
 		const firstDate = own.slice(k).map((c) => c.pathToGreen?.byWeek).find((w) => w != null);
-		if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warn("slipped", `The date has slipped: first said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
+		if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warn("slipped", `${WARNING.slipped.label}. First said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
 		const run = own.slice(k);
-		if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warn("same-cause", `The same cause three check-ins running: ${causeLabel(last.cause).toLowerCase()}.`);
+		if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warn("same-cause", `${WARNING["same-cause"].label}. ${causeLabel(last.cause)}, three check-ins running.`);
 	}
-	if (st.greener && last && status !== "stale") warn("greener", `Called ${LABEL[last.status].toLowerCase()}, but the numbers say ${LABEL[last.calculated].toLowerCase()}${last.greenerWhy ? `: ${last.greenerWhy}` : "."}`);
-	if (status === "stale" && last) warn("overdue", `Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}. An update is overdue.`);
-	if (fc?.warn && !behind && status !== "done") warn("trend", "Called on track, but the recent trend misses the target.");
-	if (lastEnded?.kind === "missed" && !result) warn("missed-quarter", `Missed its ${lastEnded.text.replace(/^Q(\d): /, "Q$1 plan: ")}.`);
+	for (const f of flagsFor(g, s, cycle, today).flags) {
+		if (!STORY_FLAGS.includes(f.kind)) continue;
+		const detail = f.kind === "stale" && last ? `Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}, in week ${last.week}.` : f.detail;
+		warn(f.kind, `${FLAG[f.kind].label}. ${detail}`);
+	}
+	if (lastEnded?.kind === "missed" && !result) warn("missed-quarter", `${WARNING["missed-quarter"].label}. ${lastEnded.text}.`);
 	const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
 	const feeds = parent ? `Feeds ${parent.title}${parent.level !== "team" ? ` (${LEVEL_LABEL[parent.level]})` : ""}` : null;
 	const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
@@ -27046,6 +27772,8 @@ init_checkin();
 init_format();
 init_plan();
 init_status();
+init_attention();
+init_vocabulary();
 init_tree();
 function summarise(goal, s, cycle, today, week) {
 	const st = goalStatus(goal, cycle, s.checkIns, today);
@@ -27075,10 +27803,12 @@ function summarise(goal, s, cycle, today, week) {
 		planThen: a.kind === "metric" && a.actual != null && goal.kind === "metric" ? `${fmt(a.plan, goal)} in week ${a.week}` : null,
 		target: targetText(goal),
 		dueWeek: goal.kind === "metric" ? planEnd(goal.plan, cycle.weeks) : goal.kind === "milestone" ? Math.max(0, ...goal.stages.map((x) => x.dueWeek)) : cycle.weeks,
-		gap: st.status === "stale" ? "No recent check-in" : gap.short,
+		gap: st.status === "stale" ? LABEL.stale : gap.short,
 		gapTone: st.status === "stale" ? "stale" : gap.tone,
 		lastWeek: last?.week ?? null,
 		lastPostedAt: last?.postedAt ?? null,
+		quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
+		attention: attentionFor(goal, s, cycle, today),
 		forecast: st.status === "stale" ? null : forecastText(goal, a, cycle.weeks, cycle)?.text ?? null,
 		projection: st.status === "stale" || a.kind !== "metric" ? null : a.projection,
 		feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
@@ -27093,24 +27823,6 @@ function summarise(goal, s, cycle, today, week) {
 function summariseAll(goals, s, cycle, today, week) {
 	return goals.map((g) => summarise(g, s, cycle, today, week));
 }
-var STATUS_ORDER = [
-	"off",
-	"risk",
-	"stale",
-	"none",
-	"on",
-	"planned",
-	"done"
-];
-// src/domain/words.ts
-/** A person who has left the workspace. */
-var LEFT = "Left";
-/** A goal stopped before the end of its cycle. */
-var STOPPED = "Stopped";
-/** A review that has ended. */
-var ENDED = "Ended";
-/** A person who left, as history names them: "Maya Patel (left)". */
-var leftName = (name) => `${name} (left)`;
 // src/domain/export.ts
 init_goal();
 init_asks();
@@ -27120,7 +27832,7 @@ init_plan();
 init_year();
 init_review();
 init_attention();
-init_status();
+init_vocabulary();
 var EXPORT_FORMAT = "goals-app.export";
 var levelWord = {
 	"north-star": "north star",
@@ -27298,7 +28010,7 @@ function goalRow(s, all) {
 			4
 		].map((n) => {
 			const q = s.story.quarters.find((y) => y.quarter.n === n);
-			return !q || q.kind === "none" ? null : `${q.kind === "met" ? "Met" : q.kind === "missed" ? "Missed" : "Open"}: ${q.text.replace(/^Q\d: /, "")}`;
+			return !q || q.kind === "none" ? null : `${QUARTER[q.kind].label}: ${q.text.replace(/^Q\d: /, "")}`;
 		})
 	];
 }
@@ -27366,6 +28078,41 @@ function planRows(x, sums) {
 		];
 	})];
 }
+var STATUS_WORDS = [
+	"on",
+	"risk",
+	"off",
+	"stale",
+	"none",
+	"planned",
+	"done"
+];
+var GAP_WORD = {
+	behind: GROUPS$1.gap.terms.behind.label,
+	ahead: GROUPS$1.gap.terms.ahead.label
+};
+/** The groups of words a workbook defines, in order. */
+var DEFINED = [
+	"status",
+	"flag",
+	"attention",
+	"warning",
+	"trend",
+	"gap",
+	"result",
+	"quarter",
+	"stage",
+	"askStatus"
+];
+/** Every word an export uses for a state, defined: read from the vocabulary (domain/vocabulary.ts), never restated. */
+function definitions() {
+	return DEFINED.flatMap((k) => Object.values(GROUPS$1[k].terms).filter((t) => t.where.includes("exports") && !t.same?.startsWith("status.")).map((t) => [
+		"Words",
+		t.label,
+		t.long,
+		GROUPS$1[k].title
+	]));
+}
 var README = [
 	[
 		"Sheet",
@@ -27418,31 +28165,35 @@ var README = [
 	[
 		"Goals",
 		"Status",
-		"On track: will hit the target if it carries on (95%+ of planned progress). At risk: could miss without a change (80–95%, or near a limit); the owner has said how it gets back. Off track: will miss without intervention (under 80%, a stage over two weeks late, or over a limit two weeks running). No recent update: no check-in for two weeks or more.",
+		`What the goal’s status is now: ${STATUS_WORDS.map((k) => STATUS[k].label).join(", ")}. Each is defined under Words, below.`,
 		"Ignored"
 	],
 	[
 		"Goals",
 		"Result",
-		"Completed: hit the target by its due date. Completed late: hit it after the due date. Did not meet: the due date passed without hitting it.",
+		`Set once a goal is due: ${[
+			"completed",
+			"late",
+			"missed"
+		].map((k) => RESULT[k].label).join(", ")}. Defined under Words.`,
 		"Ignored"
 	],
 	[
 		"Goals",
 		"Why it’s off, Recovery plan, By when, Needs, Next step, Warnings",
-		"The owner’s latest account when a goal is behind, and anything the numbers would hide (a date that slipped, no recovery plan, a call greener than the numbers)",
+		"The owner’s latest account when a goal is behind, and what the numbers would hide: each warning starts with its word, defined under Words.",
 		"Ignored"
 	],
 	[
 		"Goals",
 		"Since, Now, Plan this week, Gap, Last check-in week, Forecast",
-		"Worked out by the app when exported",
+		`Worked out by the app when exported. The gap is said the same whichever way is better: “9 hours ${GAP_WORD.behind}”, “3 pts ${GAP_WORD.ahead}”.`,
 		"Ignored"
 	],
 	[
 		"Goals",
 		"Q1, Q2, Q3, Q4",
-		"Each quarter against the owner’s plan: Met, Missed, or Open while it runs. A quarter’s target is the plan’s number at its end.",
+		`Each quarter against the owner’s plan: ${QUARTER.met.label}, ${QUARTER.missed.label}, or ${QUARTER.open.label} while it runs. A quarter’s target is the plan’s number at its end.`,
 		"Ignored"
 	],
 	[
@@ -27466,8 +28217,13 @@ var README = [
 	[
 		"Check-ins",
 		"Call",
-		"The owner’s status call: On track, At risk, Off track or Done. Empty: the rules decide",
-		"Used as the call; a call greener than the numbers needs Why greener"
+		`The owner’s status call: ${[
+			"on",
+			"risk",
+			"off",
+			"done"
+		].map((k) => LABEL[k]).join(", ")}. Empty: the rules decide`,
+		`Used as the call; a call ${lower(FLAG.greener)} needs Why greener`
 	],
 	[
 		"Check-ins",
@@ -27579,7 +28335,7 @@ function workbook(x) {
 				d.goalId,
 				goalTitle(d.goalId),
 				d.week,
-				d.kind === "ask" ? "Question" : d.kind === "action" ? "Action" : "Note",
+				d.kind === "ask" ? ASK_KIND.question.label : d.kind === "action" ? ASK_KIND.action.label : "Note",
 				name(d.byId),
 				d.note,
 				d.kind === "action" ? name(d.assigneeId ?? "") || null : null,
@@ -27619,7 +28375,15 @@ function workbook(x) {
 			rows: [
 				[`${x.ws.name}, ${x.cycle.name}. Exported ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`],
 				[],
-				...README
+				...README,
+				[],
+				[
+					"Words",
+					"Word",
+					"What it means",
+					"Kind"
+				],
+				...definitions()
 			]
 		}
 	];
@@ -27641,7 +28405,11 @@ function toJson(x) {
 		format: EXPORT_FORMAT,
 		version: 1,
 		exportedAt: x.today.toISOString(),
-		about: "Goals, their status and the owner’s account of it, plans and weekly check-ins. \"status\" is the owner’s latest call, or stale after 14 days without a check-in; statusMeaning says what it means. \"story\" says why a goal is off, what the owner will do and by when. \"result\" is set once a goal is due: completed, late or missed. Weeks count from the cycle start (week 0).",
+		about: `Goals, their status and the owner’s account of it, plans and weekly check-ins. Every state is a code with the words people read beside it: "status" is a code (${STATUS_WORDS.map((k) => withCode(STATUS[k])).join(", ")}) and "statusLabel" its words; "words" defines every code and word. "story" says why a goal is off, what the owner will do and by when; "needsAttention" is the one rule Home, reviews and the AI use. "result" is set once a goal is due. Weeks count from the cycle start (week 0).`,
+		words: Object.fromEntries(DEFINED.map((k) => [k, Object.fromEntries(Object.values(GROUPS$1[k].terms).map((t) => [t.code, {
+			label: t.label,
+			meaning: t.meaning
+		}]))])),
 		workspace: {
 			id: x.ws.id,
 			name: x.ws.name
@@ -27758,13 +28526,24 @@ function toJson(x) {
 					needs: s.story.needs,
 					nextStep: s.story.next,
 					warnings: s.story.warnings,
+					warningKinds: s.story.flags,
 					feeds: s.story.feeds
+				},
+				needsAttention: {
+					needs: needsAttention(s.attention),
+					beingHandled: s.attention.handled?.text ?? null,
+					flags: s.attention.flags.filter((f) => f.kind !== "due").map((f) => ({
+						kind: f.kind,
+						label: f.label,
+						detail: f.detail
+					}))
 				},
 				quarters: s.story.quarters.filter((q) => q.kind !== "none").map((q) => ({
 					quarter: q.quarter.label,
 					months: q.quarter.months,
 					weeks: [q.quarter.from, q.quarter.to],
 					result: q.kind,
+					resultLabel: q.kind === "none" ? null : QUARTER[q.kind].label,
 					text: q.text
 				})),
 				result: s.story.result ? {
@@ -27781,7 +28560,9 @@ function toJson(x) {
 					stages: c.stages,
 					planThatWeek: g.kind === "metric" ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
 					call: c.status,
+					callLabel: LABEL[c.status],
 					calculated: c.calculated,
+					calculatedLabel: LABEL[c.calculated],
 					cause: c.cause,
 					why: c.why || null,
 					whyGreener: c.greenerWhy || null,
@@ -27815,6 +28596,7 @@ function toJson(x) {
 			} : {},
 			...d.ask ? {
 				status: d.ask.status,
+				statusLabel: ASK_STATUS[d.ask.status].label,
 				answer: answerOf(d)?.text ?? null
 			} : {},
 			at: d.at
@@ -27830,14 +28612,18 @@ function storyBlock(sm, cycleWeeks, handled) {
 	out.push(`### ${g.title}${g.key ? ` (${g.key})` : ""}`);
 	out.push(`**${LABEL[sm.status]}**${tags ? ` · ${tags}` : ""} · ${sm.owner}, ${sm.team}${st.feeds ? ` · ${st.feeds}` : ""}`);
 	out.push("");
-	if (handled) out.push(`- **Being handled:** ${handled.text}${handled.said ? `: ${handled.said}` : "."}`);
+	if (handled) out.push(`- **${ATTENTION.handled.label}:** ${handled.text}${handled.said ? `: ${handled.said}` : "."}`);
 	out.push(`- **Where it is:** ${st.where}`);
 	if (st.outlook) out.push(`- **Where it’s heading:** ${st.outlook}`);
 	if (sm.status === "stale") {
 		out.push(`- **What we know:** nothing new. ${st.warnings.join(" ")}`);
 		return [...out, ""];
 	}
-	out.push(`- **Why it’s ${sm.status === "off" ? "off track" : "at risk"}:** ${st.why ?? "Not given."}`);
+	if (sm.status === "off" || sm.status === "risk") out.push(`- **Why it’s ${lower(STATUS[sm.status])}:** ${st.why ?? "Not given."}`);
+	else {
+		for (const f of sm.attention.flags.filter((x) => x.kind !== "due")) out.push(`- **${f.label}:** ${f.detail}`);
+		return [...out, ""];
+	}
 	out.push(`- **Recovery plan:** ${st.doing ?? "Not given."}`);
 	out.push(`- **Owner’s date:** ${st.byWhen?.replace(/^Owner’s date: b/, "B") ?? "No date given."}`);
 	if (st.needs) out.push(`- **Needs:** ${st.needs}`);
@@ -27845,21 +28631,23 @@ function storyBlock(sm, cycleWeeks, handled) {
 	for (const w of st.warnings) out.push(`- **Watch out:** ${w}`);
 	return [...out, ""];
 }
-/** A report a leader can read top to bottom: the decisions waiting on people, then every goal that's off, at risk or quiet told in full, results, then the rest. */
+/** A report a leader can read top to bottom: the decisions waiting on people, then every goal that needs attention told in full, what's being handled, results, then the rest. */
 function aiBrief(x) {
 	const { goals, sums } = prepare(x);
 	const by = new Map(sums.map((s) => [s.goal.id, s]));
 	const count = (k) => sums.filter((s) => s.status === k).length;
 	const out = [];
-	const handled = /* @__PURE__ */ new Map();
-	for (const s of sums) {
-		const h = ["off", "risk"].includes(s.status) ? handledFor(s.goal, x.snapshot, x.cycle, x.today) : null;
-		if (h) handled.set(s.goal.id, h);
-	}
-	const off = sums.filter((s) => s.status === "off" && !handled.has(s.goal.id)), risk = sums.filter((s) => s.status === "risk" && !handled.has(s.goal.id)), quiet = sums.filter((s) => s.status === "stale");
+	const needs = sums.filter((s) => needsAttention(s.attention));
+	const handled = new Map(sums.filter((s) => s.attention.handled).map((s) => [s.goal.id, s.attention.handled]));
+	const off = needs.filter((s) => s.status === "off"), risk = needs.filter((s) => s.status === "risk"), quiet = needs.filter((s) => s.status === "stale");
+	const others = needs.filter((s) => ![
+		"off",
+		"risk",
+		"stale"
+	].includes(s.status));
 	const inHand = sums.filter((s) => handled.has(s.goal.id));
 	const results = sums.filter((s) => s.story.result);
-	const asks = sums.filter((s) => s.story.needs && ["off", "risk"].includes(s.status));
+	const asks = sums.filter((s) => s.attention.flags.some((f) => f.kind === "decision") && s.story.needs);
 	const flagged = sums.filter((s) => s.story.warnings.length && s.status !== "stale");
 	out.push(`# Goals: ${x.ws.name}`);
 	out.push("");
@@ -27867,23 +28655,30 @@ function aiBrief(x) {
 	out.push("");
 	const lead = [
 		`${sums.length} goals`,
-		off.length ? `${off.length} off track` : "",
-		risk.length ? `${risk.length} at risk` : "",
-		inHand.length ? `${inHand.length} behind and being handled` : "",
-		quiet.length ? `${quiet.length} with no recent update` : "",
-		count("on") ? `${count("on")} on track` : "",
-		count("done") ? `${count("done")} done` : ""
+		needs.length ? `${needs.length} ${needs.length === 1 ? "needs" : "need"} attention` : "",
+		...[
+			"off",
+			"risk",
+			"stale"
+		].map((k) => {
+			const n = needs.filter((s) => s.status === k).length;
+			return n ? `${n} ${k === "stale" ? "with " : ""}${lower(STATUS[k])}` : "";
+		}),
+		inHand.length ? `${inHand.length} behind and ${lower(ATTENTION.handled)}` : "",
+		count("on") ? `${count("on")} ${lower(STATUS.on)}` : "",
+		count("done") ? `${count("done")} ${lower(STATUS.done)}` : ""
 	].filter(Boolean);
 	out.push(`**${lead.join(", ")}.**${asks.length ? ` ${asks.length} ${asks.length === 1 ? "owner needs" : "owners need"} a decision or help.` : ""}${flagged.length ? ` ${flagged.length} ${flagged.length === 1 ? "goal has" : "goals have"} a warning below.` : ""}`);
 	out.push("");
 	out.push("## How to read the status");
-	out.push("The status is the owner’s call each week, checked against the numbers; if the call is greener than the numbers, it says so.");
+	out.push(`The status is the owner’s call each week, checked against the numbers; a call ${lower(FLAG.greener)} says so.`);
 	for (const k of [
 		"on",
 		"risk",
 		"off",
 		"stale"
 	]) out.push(`- **${LABEL[k]}:** ${MEANING[k]}`);
+	out.push(`- **${ATTENTION.needs.label}:** ${ATTENTION.needs.long}`);
 	for (const k of [
 		"completed",
 		"late",
@@ -27891,36 +28686,31 @@ function aiBrief(x) {
 	]) out.push(`- **${RESULT_TEXT[k]}:** ${RESULT_MEANING[k]}`);
 	out.push("");
 	if (asks.length) {
-		out.push("## Decisions and help needed");
+		out.push(`## ${FLAG.decision.label}`);
 		for (const s of asks) out.push(`- **${s.story.needs}** · for ${s.goal.title} (${s.owner}, ${LABEL[s.status].toLowerCase()})`);
 		out.push("");
 	}
-	if (off.length) {
-		out.push("## Off track: will miss without intervention");
+	const section = (k, list) => {
+		if (!list.length) return;
+		out.push(`## ${STATUS[k].label}: ${STATUS[k].short}`);
 		out.push("");
-		for (const s of off) out.push(...storyBlock(s, x.cycle.weeks));
-	}
-	if (risk.length) {
-		out.push("## At risk: could miss without a change");
+		for (const s of list) out.push(...storyBlock(s, x.cycle.weeks));
+	};
+	section("off", off);
+	section("risk", risk);
+	if (others.length) {
+		out.push(`## Also ${lower(ATTENTION.needs)}`);
 		out.push("");
-		for (const s of risk) out.push(...storyBlock(s, x.cycle.weeks));
+		for (const s of others) out.push(...storyBlock(s, x.cycle.weeks));
 	}
 	if (inHand.length) {
-		out.push("## Being handled: behind, but someone has looked since the latest check-in");
-		out.push("Nothing new since: no new check-in and no new warning. They need attention again when either comes.");
+		out.push(`## ${ATTENTION.handled.label}: behind, but someone has looked since the latest check-in`);
+		out.push("Nothing new since: no new check-in and no new flag. They need attention again when either comes.");
 		out.push("");
 		for (const s of inHand) out.push(...storyBlock(s, x.cycle.weeks, handled.get(s.goal.id)));
 	}
-	if (quiet.length) {
-		out.push("## No recent update: no check-in for two weeks or more");
-		out.push("");
-		for (const s of quiet) out.push(...storyBlock(s, x.cycle.weeks));
-	}
-	const otherWarnings = sums.filter((s) => [
-		"on",
-		"done",
-		"none"
-	].includes(s.status) && s.story.warnings.length);
+	section("stale", quiet);
+	const otherWarnings = sums.filter((s) => !needs.includes(s) && !handled.has(s.goal.id) && s.story.warnings.length);
 	if (otherWarnings.length) {
 		out.push("## Worth a look");
 		for (const s of otherWarnings) out.push(`- **${s.goal.title}** (${s.owner}): ${s.story.warnings.join(" ")}`);
@@ -27951,10 +28741,10 @@ function aiBrief(x) {
 					r: s.story.quarters.find((y) => y.quarter.n === q.n)
 				})).filter((y) => y.r && (y.r.kind === "met" || y.r.kind === "missed"));
 				const missed = rs.filter((y) => y.r.kind === "missed");
-				out.push(`- **${q.label} (${q.months}):** ${rs.length - missed.length} of ${rs.length} met their plan.${missed.length ? ` Missed: ${missed.map((y) => `${y.s.goal.title} (${y.r.text.replace(/^Q\d: /, "")})`).join("; ")}.` : ""}`);
+				out.push(`- **${q.label} (${q.months}):** ${QUARTER.met.label} ${rs.length - missed.length} of ${rs.length}.${missed.length ? ` ${QUARTER.missed.label}: ${missed.map((y) => `${y.s.goal.title} (${y.r.text.replace(/^Q\d: /, "")})`).join("; ")}.` : ""}`);
 			}
 			const now = quarterOf(x.cycle, x.week);
-			out.push(`- **${now.label} (${now.months}):** in progress, week ${x.week - now.from + 1} of ${now.to - now.from + 1}.`);
+			out.push(`- **${now.label} (${now.months}):** ${lower(QUARTER.open)}, week ${x.week - now.from + 1} of ${now.to - now.from + 1}.`);
 			out.push("");
 		}
 	}
@@ -27980,7 +28770,7 @@ function aiBrief(x) {
 		const name = (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? "someone";
 		for (const a of open) {
 			const g = goals.find((y) => y.id === a.goalIds[0]);
-			out.push(a.kind === "question" ? `- Question for ${name(a.recipientId)} on ${g.title}${a.week ? ` (week ${a.week})` : ""}, not answered yet: ${a.ask}` : `- Action for ${name(a.recipientId)}${a.dueWeek ? ` by week ${a.dueWeek}${isOverdue(a, x.week) ? ", overdue" : ""}` : ""} on ${g.title}: ${a.ask}`);
+			out.push(a.kind === "question" ? `- Question for ${name(a.recipientId)} on ${g.title}${a.week ? ` (week ${a.week})` : ""}, not answered yet: ${a.ask}` : `- Action for ${name(a.recipientId)}${a.dueWeek ? ` by week ${a.dueWeek}${isOverdue(a, x.week) ? `, ${lower(ASK_STATUS.overdue)}` : ""}` : ""} on ${g.title}: ${a.ask}`);
 		}
 		out.push("");
 	}
@@ -28007,6 +28797,15 @@ init_checkin();
 init_format();
 init_plan();
 init_status();
+init_thresholds();
+init_trend();
+init_vocabulary();
+/** The trend's word as the summary bar's arrow reads it. */
+var DIRECTION = {
+	worse: "worsening",
+	better: "recovering",
+	flat: "flat"
+};
 var COUNT_WORDS = [
 	"no",
 	"one",
@@ -28065,19 +28864,12 @@ function metricFacts(goal, cycle, all, own, week, stale) {
 		out.push({
 			key: "plan",
 			label: "Against plan",
-			value: diff === 0 ? "On plan" : `${fmtDiff(diff, goal)} ${ahead ? "ahead of" : "behind"} plan`,
+			value: gapPhrase(diff === 0 ? 0 : ahead ? 1 : -1, fmtDiff(diff, goal)),
 			detail: `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${a.week}${a.ratio != null ? ` · ${pct$1(a.ratio)} of the planned progress` : ""}`,
 			tone: a.calc === "risk" || a.calc === "off" ? "bad" : diff === 0 || a.calc !== "on" ? "flat" : "good"
 		});
 	}
-	const span = valued.slice(-3).map((c) => {
-		const p = planAt(goalAsOf(goal, c.week).plan, c.week, cycle.weeks);
-		return {
-			c,
-			plan: p,
-			gap: round$1((c.value - p) * dir, goal.decimals)
-		};
-	});
+	const span = planGaps(goal, cycle, valued).slice(-3);
 	if (span.length < 2) out.push({
 		key: "trend",
 		label: "Trend",
@@ -28087,20 +28879,19 @@ function metricFacts(goal, cycle, all, own, week, stale) {
 		direction: "flat"
 	});
 	else {
-		const unit = 10 ** -goal.decimals;
 		const latest = span[span.length - 1];
-		const move = round$1(latest.gap - span[0].gap, goal.decimals);
-		const direction = move <= -unit ? "worsening" : move >= unit ? "recovering" : "flat";
+		const word = gapTrend(span.map((x) => x.raw), true);
+		const direction = DIRECTION[word];
 		const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
 		const num = (v) => Math.abs(v).toFixed(goal.decimals);
 		const words = fmtDiff(2, goal).replace(/^[0-9.]+ ?/, "");
 		const tail = words ? " " + words : "";
-		const value = span.every((x) => x.gap === 0) ? "On plan at each check-in" : behind ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} behind plan` : ahead ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ahead of plan` : span.map((x, i) => x.gap === 0 ? "on plan" : `${num(x.gap)}${i === span.length - 1 ? tail : ""} ${x.gap > 0 ? "ahead" : "behind"}`).join(" → ") + (latest.gap > 0 ? " of plan" : latest.gap < 0 ? " plan" : "");
+		const value = span.every((x) => x.gap === 0) ? `${GAP["on-plan"].label} at each check-in` : behind ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ${GAP.behind.label}` : ahead ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ${GAP.ahead.label}` : span.map((x, i) => x.gap === 0 ? GAP["on-plan"].label.toLowerCase() : `${num(x.gap)}${i === span.length - 1 ? tail : ""} ${x.gap > 0 ? "ahead" : "behind"}`).join(" → ") + (latest.gap > 0 ? " of plan" : latest.gap < 0 ? " plan" : "");
 		let held = 1;
 		for (let k = valued.length - 2; k >= 0 && valued[k].value === latest.c.value; k--) held++;
 		const heldFrom = valued[valued.length - held];
 		const planMoved = (latest.plan - planAt(goalAsOf(goal, heldFrom.week).plan, heldFrom.week, cycle.weeks)) * dir > 0;
-		const detail = held >= 2 && planMoved ? `Flat at ${fmt(latest.c.value, goal)} for ${countWord(held)} weeks while the plan ${dir > 0 ? "rises" : "falls"}` : `${direction === "worsening" ? behind ? "Falling further behind" : "Losing ground on the plan" : direction === "recovering" ? behind ? "Closing the gap" : "Gaining ground on the plan" : "Holding steady against the plan"}, ${weekSpan(span.map((x) => x.c))}`;
+		const detail = held >= 2 && planMoved ? `Flat at ${fmt(latest.c.value, goal)} for ${countWord(held)} weeks while the plan ${dir > 0 ? "rises" : "falls"}` : `${TREND[word].label}, ${weekSpan(span.map((x) => x.c))}`;
 		out.push({
 			key: "trend",
 			label: "Trend",
@@ -28207,14 +28998,14 @@ function rangeFacts(goal, cycle, own, stale) {
 		direction: "flat"
 	});
 	else {
-		const move = round$1((span[span.length - 1].value - span[0].value) * safe, goal.decimals);
+		const word = gapTrend(span.map((c) => (c.value - limit) * safe));
 		out.push({
 			key: "trend",
 			label: "Trend",
 			value: span.map((c) => fmt(c.value, goal)).join(" → "),
-			detail: `${move === 0 ? "Holding steady" : move > 0 ? "Moving away from the limit" : "Moving towards the limit"}, ${weekSpan(span)}`,
-			tone: move === 0 ? "flat" : move > 0 ? "good" : "bad",
-			direction: move === 0 ? "flat" : move > 0 ? "recovering" : "worsening"
+			detail: `${TREND[word].label}, ${weekSpan(span)}`,
+			tone: word === "worse" ? "bad" : word === "better" ? "good" : "flat",
+			direction: DIRECTION[word]
 		});
 	}
 	out.push(sinceFact(goal, own, safe));
@@ -28262,7 +29053,7 @@ function milestoneFacts(goal, own, week, stale) {
 	out.push({
 		key: "plan",
 		label: "Against plan",
-		value: m.calc === "done" ? "Every stage done" : m.late.length ? `${plural$1(m.late.length, "stage")} late` : "On schedule",
+		value: m.calc === "done" ? "Every stage done" : stagesBehind(m.late.map((s) => s.kind)),
 		detail: `${m.doneCount} of ${plural$1(m.stages.length, "stage")} done; ${m.dueCount} due by week ${week}`,
 		tone: m.late.length ? "bad" : "good"
 	});
@@ -28277,14 +29068,14 @@ function milestoneFacts(goal, own, week, stale) {
 	});
 	else {
 		const late = span.map((c) => weeksLateAt(goal, c));
-		const move = late[late.length - 1] - late[0];
+		const word = stagesTrend(goal, own).word;
 		out.push({
 			key: "trend",
 			label: "Trend",
 			value: late.every((n) => n === 0) ? "On time at every check-in" : `${late.join(" → ")} weeks late`,
-			detail: `${move > 0 ? "Slipping" : move < 0 ? "Recovering" : "Holding steady"}, ${weekSpan(span)}`,
-			tone: move > 0 ? "bad" : move < 0 ? "good" : late[late.length - 1] ? "bad" : "flat",
-			direction: move > 0 ? "worsening" : move < 0 ? "recovering" : "flat"
+			detail: `${TREND[word].label}, ${weekSpan(span)}`,
+			tone: word === "worse" ? "bad" : word === "better" ? "good" : late[late.length - 1] ? "bad" : "flat",
+			direction: DIRECTION[word]
 		});
 	}
 	const prev = own.length > 1 ? own[own.length - 2] : null;
@@ -28344,6 +29135,7 @@ function milestoneFacts(goal, own, week, stale) {
 init_format();
 init_plan();
 init_status();
+init_vocabulary();
 var LIKELIHOOD_WORD = {
 	likely: "Likely",
 	possible: "Possible",
@@ -28397,7 +29189,7 @@ function sinceCell(goal, cycle, checkIns, week, stale, better) {
 	if (!f) return {
 		key: "since",
 		label,
-		value: "No check-in yet",
+		value: LABEL.none,
 		sub: "nothing to compare",
 		tone: "flat"
 	};
@@ -28448,7 +29240,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 	});
 	else {
 		const diff = round((a.actual - a.plan) * better, goal.decimals);
-		const value = diff === 0 ? "On plan" : `${amount(diff, goal)} ${diff > 0 ? "ahead" : "behind"}`;
+		const value = gapPhrase(diff, amount(diff, goal));
 		const tone = diff === 0 ? "flat" : diff > 0 ? "good" : "bad";
 		cells.push({
 			key: "plan",
@@ -28457,12 +29249,12 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 			sub: `plan ${fmt(a.plan, goal)}${a.week < week ? ` in week ${a.week}` : ""}`,
 			tone
 		});
-		gap = diff === 0 ? "on plan" : `${bare(diff, goal)} ${diff > 0 ? "ahead of" : "behind"} plan`;
+		gap = value;
 		now = {
 			week: a.week,
 			actual: a.actual,
 			plan: a.plan,
-			text: diff === 0 ? "on plan" : `${bare(diff, goal)} ${diff > 0 ? "ahead" : "behind"}`,
+			text: value,
 			tone
 		};
 	}
@@ -28480,7 +29272,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 		cells.push({
 			key: "target",
 			label: "To target",
-			value: left <= 0 ? "Reached" : `${amount(left, goal)} to go`,
+			value: left <= 0 ? GAP.reached.label : `${amount(left, goal)} to go`,
 			sub: `target ${fmt(target, goal)}${by}`,
 			tone: left <= 0 ? "good" : "flat"
 		});
@@ -28491,7 +29283,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 		key: "hit",
 		label,
 		value: "Can’t say",
-		sub: "no recent check-in to go on",
+		sub: `${lower(STATUS.stale)} to go on`,
 		tone: "flat"
 	});
 	else if (!a.projection) cells.push({
@@ -28586,7 +29378,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 		key: "hit",
 		label,
 		value: "Can’t say",
-		sub: "no recent check-in to go on",
+		sub: `${lower(STATUS.stale)} to go on`,
 		tone: "flat"
 	});
 	else if (!pr) cells.push({
@@ -28636,9 +29428,9 @@ function milestoneCard(goal, checkIns, week) {
 			},
 			{
 				key: "late",
-				label: "Stages late",
+				label: "Stages behind",
 				value: late.length ? String(late.length) : "None",
-				sub: late.length ? `up to ${most} ${most === 1 ? "week" : "weeks"} late` : "on schedule",
+				sub: late.length ? `${stagesBehind(late.map((s) => s.kind)).replace(/^\d+ stages?:? ?/, "")}, up to ${most} ${most === 1 ? "week" : "weeks"}` : lower(STAGE.planned),
 				tone: late.length ? "bad" : "good"
 			},
 			next ? {
@@ -28655,7 +29447,7 @@ function milestoneCard(goal, checkIns, week) {
 				tone: "good"
 			}
 		],
-		gap: m.calc === "done" ? "every stage done" : late.length ? `${late.length} ${late.length === 1 ? "stage" : "stages"} late` : "on schedule",
+		gap: m.calc === "done" ? GAP.reached.label : stagesBehind(late.map((s) => s.kind)),
 		marks: null
 	};
 }
@@ -28863,13 +29655,13 @@ init_review();
 init_status();
 /** Splits goals' attention into the Watching groups. The order of the list is kept within each group. */
 function groupWatched(all) {
-	const behind = (a) => a.status.status === "off" || a.status.status === "risk";
+	const needs = all.filter(needsAttention);
 	return {
 		all,
-		needs: all.filter((a) => behind(a) && !a.handled),
-		handled: all.filter((a) => behind(a) && !!a.handled),
-		quiet: all.filter((a) => a.status.status === "stale"),
-		fine: all.filter((a) => !behind(a) && a.status.status !== "stale")
+		needs,
+		handled: all.filter((a) => !!a.handled),
+		quiet: needs.filter((a) => a.status.status === "stale"),
+		fine: all.filter((a) => !needsAttention(a) && !a.handled)
 	};
 }
 /** The next session of a review the person takes part in, today's included. */
@@ -28912,7 +29704,10 @@ function dashboard(personId, s, cycle, week, today) {
 }
 // src/help/guide.ts
 init_checkin();
-init_status();
+init_thresholds();
+init_vocabulary();
+/** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
+var define = (t) => `${t.label}: ${t.long}`;
 /** The Help page's sections, in order. */
 var GROUPS = [
 	{
@@ -29000,15 +29795,17 @@ var ARTICLES = [
 					"risk",
 					"off",
 					"stale",
+					"none",
+					"planned",
 					"done"
-				].map((k) => MEANING[k].startsWith(LABEL[k]) ? MEANING[k] : `${LABEL[k]}: ${MEANING[k]}`)
+				].map((k) => define(STATUS[k]))
 			},
 			{
 				heading: "The shapes",
 				list: [
 					`${LABEL.on}: a filled circle.`,
 					`${LABEL.risk}: a half-filled circle.`,
-					`${LABEL.off}: an open ring. Off track goals also get a quiet wash over the whole row or card.`,
+					`${LABEL.off}: an open ring. ${LABEL.off} goals also get a quiet wash over the whole row or card.`,
 					`${LABEL.stale}: a dashed ring.`,
 					`${LABEL.done}: a circle with a tick.`
 				]
@@ -29016,14 +29813,26 @@ var ARTICLES = [
 			{
 				heading: "Results, once a goal is due",
 				list: [
-					"completed",
-					"late",
-					"missed"
-				].map((k) => `${RESULT_TEXT[k]}: ${RESULT_MEANING[k]}`)
+					...[
+						"completed",
+						"late",
+						"missed"
+					].map((k) => define(RESULT[k])),
+					`Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs.`,
+					`At the wrap-up the owner says how it landed in their own words, shown as “${OWNER_VIEW_LABEL}”. It never changes the result.`
+				]
+			},
+			{
+				heading: "Against the plan",
+				list: [
+					`The gap reads the same whichever way is better: “9 hours ${GAP.behind.label}”, “3 pts ${GAP.ahead.label}”, or ${GAP["on-plan"].label}. ${define(GAP.reached)}`,
+					`A dated stage is ${lower(STAGE.planned)}, ${lower(STAGE.risk)} (${STAGE.risk.short}), ${lower(STAGE.off)} (${STAGE.off.short}) or ${lower(STAGE.done)}.`,
+					`${define(TREND.worse)}`
+				]
 			},
 			{
 				heading: "Whose call it is",
-				text: [`The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call greener than the numbers needs a reason, and is flagged.`, `A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A stage up to ${RULES.lateWeeksOff} weeks late is at risk; later than that is off track.`]
+				text: [`The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call ${lower(FLAG.greener)} needs a reason, and is flagged.`, `A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A stage up to ${RULES.lateWeeksOff} weeks late is ${lower(STATUS.risk)}; later than that is ${lower(STATUS.off)}.`]
 			},
 			{
 				heading: "Where to see it",
@@ -29050,7 +29859,9 @@ var ARTICLES = [
 			"STALE",
 			"GREENER",
 			"DESIGN-RULES",
-			"A11Y"
+			"A11Y",
+			"ONE-VOCABULARY",
+			"ONE-TREND"
 		],
 		keywords: [
 			"legend",
@@ -29059,14 +29870,23 @@ var ARTICLES = [
 			"at risk",
 			"off track",
 			"no recent update",
+			"no check-in yet",
+			"not started",
 			"done",
 			"colour",
 			"shape",
-			"completed late",
-			"did not meet",
+			"met",
+			"met late",
+			"not met",
+			"target reached",
+			"slipping",
+			"late",
+			"getting worse",
 			"red",
 			"amber",
-			"green"
+			"green",
+			"completed",
+			"quiet"
 		],
 		related: [
 			"check-in",
@@ -29183,7 +30003,7 @@ var ARTICLES = [
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
 					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
-					"The status is your call. Change it if the numbers don’t tell the whole story; a call greener than the numbers needs a reason."
+					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`
 				]
 			},
 			{
@@ -29361,7 +30181,7 @@ var ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team).",
-					"Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention, what has gone quiet, then what is on track or done, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.",
+					"Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention (a goal with no recent update included), then what has nothing flagged, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.",
 					"For a goal with no recent update, ask its owner for an update. It’s an ask, open on their Home until they check in; whoever asked can withdraw it.",
 					"Stop watching from the same place you started."
 				]
@@ -29385,7 +30205,7 @@ var ARTICLES = [
 			"unwatch",
 			"ask for an update",
 			"quiet",
-			"gone quiet"
+			"no recent update"
 		],
 		related: [
 			"needs-attention",
@@ -29474,7 +30294,7 @@ var ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition.",
-				"Filters cover status, level, team, owner and type; what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers); due date; weeks since the last check-in; last quarter met or missed; result; a goal’s tree; and also-helps links.",
+				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Decision or help needed is one press. Each active filter shows as words you can remove.",
 				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest.",
 				"Everything is in the link: Copy link shares exactly what you see. Save view keeps it as a tab of your own; rename or delete it from Views."
@@ -29503,24 +30323,46 @@ var ARTICLES = [
 		title: "Needs attention, and being handled",
 		summary: "Needs attention means something new since anyone looked. A goal that is behind but already in hand is shown as being handled.",
 		group: "goals",
-		sections: [{
-			heading: "What it’s for",
-			text: ["Keeping attention on the exceptions: what is off track, quiet or slipping, and that nobody has picked up yet."]
-		}, {
-			heading: "How to use it",
-			list: [
-				"A goal is flagged when it is off track, has no recent update, is getting worse, has no path to green or has missed one. The reason is one line.",
-				"An off track or at risk goal is being handled when, since its latest check-in, someone else marked it reviewed or noted it, an action was agreed (and isn’t overdue), or its request was answered.",
-				"A new check-in, or a new warning, makes it need attention again.",
-				"Home, Watching, Goals (Needs attention) and the review agenda all list the two apart, and say what is in hand: for example, “Action: Farah, due week 46”."
-			]
-		}],
+		sections: [
+			{
+				heading: "What it’s for",
+				text: ["Keeping attention on the exceptions: what is behind, without a recent update or getting worse, and that nobody has picked up yet."]
+			},
+			{
+				heading: "What it means",
+				text: [ATTENTION.needs.long, define(ATTENTION.handled)]
+			},
+			{
+				heading: "Why a goal is flagged",
+				list: [...[
+					"off",
+					"risk",
+					"stale"
+				].map((k) => `${STATUS[k].label}: ${STATUS[k].meaning}`), ...[
+					"decision",
+					"no-path",
+					"missed-path",
+					"trend",
+					"greener",
+					"due"
+				].map((k) => define(FLAG[k]))]
+			},
+			{
+				heading: "How to use it",
+				list: [
+					"Each flag is one line with its reason, in numbers where there are numbers.",
+					`A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
+					"Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”."
+				]
+			}
+		],
 		routes: ["/goals?show=attention"],
 		screens: [],
 		reqs: [
 			"ATTENTION",
 			"ATTENTION-HANDLED",
-			"EXCEPTIONS-FIRST"
+			"EXCEPTIONS-FIRST",
+			"ONE-ATTENTION-RULE"
 		],
 		keywords: [
 			"attention",
@@ -29530,6 +30372,10 @@ var ARTICLES = [
 			"warning",
 			"slipping",
 			"worse",
+			"getting worse",
+			"decision",
+			"path to green",
+			"greener",
 			"red"
 		],
 		related: [
@@ -29626,7 +30472,7 @@ var ARTICLES = [
 					"First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.",
 					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go), and Will it hit the target.",
 					"Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.",
-					"A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages late and Next stage: when it now lands, and the week it was due if it’s late.",
+					"A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages behind (slipping or late) and Next stage: when it now lands, and the week it was due if it’s late.",
 					"One main button, for what you’d most likely do next: answer something asked of you, check in when it’s due, ask a quiet goal’s owner for an update, or watch it. The “…” menu has Share image, Copy link, Print or save as PDF, Change this goal, and Stop this goal (with check-ins, asking why) or Delete this goal (with none).",
 					"As you scroll, the bar shrinks to one line on a solid panel at the top: the status, the number and the gap to plan (“Off track · 37 hours · 9 behind plan”), and the “…” menu. On a phone the bar takes the place of the app’s header."
 				]
@@ -29638,7 +30484,7 @@ var ARTICLES = [
 					"One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.",
 					"Every section under the chart has a heading and one line saying what it answers, with a rule between sections.",
-					"Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call greener than the numbers, or a trend that will miss the target while the goal is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); gone quiet, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
+					"Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
 					"What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done.",
 					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
 					"What feeds it: how the goals feeding it stand (“Fed by four goals: 2 off track, 1 at risk”), then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
@@ -29664,7 +30510,7 @@ var ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				list: ["The owner checks in and changes the goal; admins can change any goal.", "Anyone can watch, comment, share, or ask the owner for an update when it has gone quiet."]
+				list: ["The owner checks in and changes the goal; admins can change any goal.", `Anyone can watch, comment, share, or ask the owner for an update when it has ${lower(STATUS.stale)}.`]
 			}
 		],
 		routes: ["/goals/:goalId"],
@@ -30713,6 +31559,25 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "one-meaning-for-every-word",
+		date: "2026-11-06",
+		title: "One meaning for every status word",
+		points: [
+			"Needs attention is one rule everywhere: Home, Watching, the map’s “Only what needs attention”, the Goals filter, reviews and the AI assistant all pick the same goals. It covers off track, at risk, no recent update, getting worse, no path to green or a missed one, a decision waiting, and a call greener than calculated, unless someone is already handling it. The Goals filter can narrow it to why.",
+			"Results say Met, Met late or Not met, and so does each quarter. At the wrap-up, the owner’s own words are labelled as their view, so they’re never read as the result.",
+			"The gap reads the same in every list, the scorecard, the review, exports and the AI: “9 hours behind plan”, “3 pts ahead of plan”, or On plan. A stage up to two weeks behind is slipping; more is late.",
+			"A goal without a check-in for two weeks has no recent update, wherever you look, and the “No update for” filter counts it the same way. One with none yet says No check-in yet, and has a lane of its own on the Board.",
+			"Getting worse is one rule for the flag, the goal’s story, its trend and the words under its chart. A group’s status is the worst one in it, never one it doesn’t have.",
+			"The AI assistant says the words you see, with the code beside them (“Off track (off)”), and takes either. The export defines every word on its README sheet."
+		],
+		articles: [
+			"status",
+			"needs-attention",
+			"goals-filters",
+			"watching"
+		]
+	},
+	{
 		id: "remove-and-undo",
 		date: "2026-11-06",
 		title: "Take anything away again, and undo it",
@@ -31230,6 +32095,7 @@ function newsDate(date) {
 init_asks();
 init_status();
 init_tableLayout();
+init_vocabulary();
 var no = (msg) => {
 	throw new NotAllowed(msg);
 };
@@ -32113,11 +32979,15 @@ function restoreRemoved(x, kind, id) {
 init_actions();
 init_attention();
 init_cycle();
-init_status();
+init_vocabulary();
 init_asks();
 init_review();
 init_tableLayout();
 init_goalKey();
+/** A status as the assistant reads it: the words people see, with the code beside them. */
+var said = (k) => withCode(STATUS[k]);
+/** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
+var askState = (r) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : "");
 var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -32221,6 +33091,7 @@ var requestData = (ctx, r) => ({
 	kind: r.kind,
 	ask: r.kind === "decision" ? askText(r, ctx.snapshot.people) : r.ask,
 	status: r.status,
+	statusLabel: ASK_STATUS[r.status].label,
 	dueWeek: r.dueWeek,
 	overdue: isOverdue(r, ctx.week),
 	review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null,
@@ -32255,7 +33126,7 @@ function layoutFrom(ctx, a) {
 	if (a.view != null) {
 		const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
 		const l = v ? parseLayout(v.params) : null;
-		if (!l) throw new Error(`There’s no table view called “${String(a.view)}” that you can see. Use list_views.`);
+		if (!l) throw new Error(`There’s no saved layout called “${String(a.view)}” that you can see. Use list_views.`);
 		return l;
 	}
 	if (!isDataTable(a.table)) throw new Error(`Say which table: ${TABLE_ORDER.join(", ")}.`);
@@ -32276,7 +33147,7 @@ var WORK_TOOLS = [
 	{
 		name: "get_my_work",
 		title: "What needs me",
-		description: "What needs the person this week, as their Home shows it: their goals with no check-in yet this week or that need attention (new since anyone looked), those behind but already being handled, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, overdue ones marked), and the reviews they’re in.",
+		description: `What needs the person this week, as their Home shows it: their goals with a check-in due this week or that need attention (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}), those behind but already ${lower(ATTENTION.handled)}, every open ask waiting on them (decisions or help, questions, asks for an update, actions, grouped by kind, ${lower(ASK_STATUS.overdue)} ones marked), and the reviews they’re in. Statuses are said as people see them, with the code: “${said("off")}”.`,
 		inputSchema: {
 			type: "object",
 			properties: {},
@@ -32290,17 +33161,23 @@ var WORK_TOOLS = [
 				id: g.id,
 				title: g.title
 			}));
-			const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }).filter((a) => a.flags.length));
+			const split = splitAttention(attentionList(s, ctx.cycle, ctx.today, { goals: mine }));
 			const attention = split.needs.map((a) => ({
 				id: a.goal.id,
 				title: a.goal.title,
 				status: a.status.status,
-				why: a.flags.map((f) => f.detail)
+				statusLabel: LABEL[a.status.status],
+				why: a.flags.map((f) => f.detail),
+				because: a.flags.map((f) => withCode({
+					label: f.label,
+					code: f.kind
+				}))
 			}));
 			const handled = split.handled.map((a) => ({
 				id: a.goal.id,
 				title: a.goal.title,
 				status: a.status.status,
+				statusLabel: LABEL[a.status.status],
 				inHand: a.handled.text,
 				said: a.handled.said || null,
 				why: a.flags.map((f) => f.detail)
@@ -32347,7 +33224,8 @@ var WORK_TOOLS = [
 					whose: d.scope,
 					total: d.total,
 					byStatus: d.counts.map((c) => ({
-						status: LABEL[c.status],
+						status: c.status,
+						statusLabel: LABEL[c.status],
 						n: c.n
 					}))
 				},
@@ -32384,14 +33262,14 @@ var WORK_TOOLS = [
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
-					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} being handled.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
+					`${d.scope === "mine" ? "Your goals" : "All goals"}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(", ") || "none"}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? "week" : "weeks"}.` : ""}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ""}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ""}`,
 					`Check-ins to post: ${due.length ? due.map((g) => `${g.title} (${g.id})`).join(", ") : "none"}.`,
 					`Decisions or help waiting on you: ${requests.length ? requests.map((r) => `${r.ask} (${r.id})`).join("; ") : "none"}.`,
 					`Questions for you: ${questions.length ? questions.map((q) => `${q.goal}: ${q.question} (${q.id})`).join("; ") : "none"}.`,
 					`Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by} (${x.id})`).join("; ") : "none"}.`,
-					`Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? ", overdue" : ""}` : ""} (${x.id})`).join("; ") : "none"}.`,
-					`Your goals needing attention: ${attention.length ? attention.map((g) => `${g.title}: ${g.why.map(clause).join(". ")}`).join("; ") : "none"}.`,
-					`Being handled (behind, but someone has looked since the latest check-in): ${handled.length ? handled.map((g) => `${g.title} (${g.status === "off" ? "off track" : "at risk"}): ${clause(g.inHand)}`).join("; ") : "none"}.`
+					`Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? `, ${lower(ASK_STATUS.overdue)}` : ""}` : ""} (${x.id})`).join("; ") : "none"}.`,
+					`Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join(". ")}`).join("; ") : "none"}.`,
+					`${ATTENTION.handled.label} (${ATTENTION.handled.meaning.replace(/\.$/, "").toLowerCase()}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join("; ") : "none"}.`
 				].join("\n")
 			};
 		}
@@ -32404,13 +33282,12 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$3("Which asks.", { enum: [
+				status: str$3(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
-					"withdrawn",
-					"all"
-				] }),
+					"withdrawn"
+				])}, or all.`),
 				kind: str$3("Only one kind.", { enum: [
 					"decision",
 					"update",
@@ -32423,11 +33300,17 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$1,
 		async run(a, ctx) {
-			const st = a.status ?? "open";
+			const st = a.status == null || String(a.status).toLowerCase() === "all" ? a.status == null ? "open" : "all" : codeFrom(ASK_STATUS, a.status);
+			if (!st || st === "overdue") throw new Error(`“${String(a.status)}” isn’t where an ask can stand. Use one of: ${choices(ASK_STATUS, [
+				"open",
+				"answered",
+				"done",
+				"withdrawn"
+			])}, or all.`);
 			const list = asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$1(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
 			return {
 				data: { requests: list },
-				text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${r.status}${r.overdue ? " (overdue)" : ""} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(", ")}${r.answer ? ` · answer: ${r.answer}` : ""}`), "No asks match.")
+				text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${askState(r)} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(", ")}${r.answer ? ` · answer: ${r.answer}` : ""}`), "No asks match.")
 			};
 		}
 	},
@@ -32488,10 +33371,11 @@ var WORK_TOOLS = [
 				title: g.goal.title,
 				owner: name(ctx, g.goal.ownerId),
 				status: g.status.status,
+				statusLabel: LABEL[g.status.status],
 				why: g.flags.map((f) => f.detail),
 				beingHandled: g.handled?.text ?? null
 			});
-			const said = x.said.map((d) => ({
+			const saidHere = x.said.map((d) => ({
 				id: d.id,
 				goalId: d.goalId,
 				kind: d.kind,
@@ -32503,6 +33387,7 @@ var WORK_TOOLS = [
 				} : {},
 				...d.ask ? {
 					status: d.ask.status,
+					statusLabel: ASK_STATUS[d.ask.status].label,
 					answer: answerOf(d)?.text ?? null
 				} : {}
 			}));
@@ -32515,11 +33400,11 @@ var WORK_TOOLS = [
 				of: x.total,
 				toDiscuss: ag.discuss.map(item),
 				healthy: ag.healthy.map(item),
-				said
+				said: saidHere
 			};
 			return {
 				data,
-				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${g.status}.${g.beingHandled ? ` Being handled: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nHealthy: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
+				text: `${r.name}, week ${x.week} (${x.date}): ${x.done} of ${x.total} reviewed.\nTo discuss:\n${lines(data.toDiscuss.map((g) => `- ${g.title} (${g.id}), ${g.owner}: ${said(g.status)}.${g.beingHandled ? ` ${ATTENTION.handled.label}: ${g.beingHandled}.` : ""} ${g.why.join(" ")}`), "- nothing")}\nNothing flagged: ${data.healthy.map((g) => g.title).join(", ") || "none"}.`
 			};
 		}
 	},
@@ -32639,7 +33524,7 @@ var WORK_TOOLS = [
 	{
 		name: "list_views",
 		title: "Saved views",
-		description: "Your saved views and the ones pinned for everyone: views of the Goals screen, with each one’s query (use it with find_goals), and table views of the data tables, with their columns in order and widths (use them with export_table).",
+		description: "Your saved views and the ones pinned for everyone: views of the Goals screen, with each one’s query (use it with find_goals), and saved layouts of Data’s tables, with their columns in order and widths (use them with export_table).",
 		inputSchema: {
 			type: "object",
 			properties: {},
@@ -33282,13 +34167,13 @@ var WORK_TOOLS = [
 	{
 		name: "save_table_view",
 		title: "Save a data table’s layout",
-		description: "Save a layout of one of the data tables (goals, checkIns, plan, requests, people) as a named table view, as the Data screen does: the columns to show, in order (the table’s name column always comes first), their widths in pixels, and its search, filters and sort. Without view_id it saves a new one; with it, it changes one of yours. Open it in the app from Data, or export it with export_table.",
+		description: "Save a layout of one of Data’s tables (goals, checkIns, plan, requests, people) as a named saved layout, as the Data screen does: the columns to show, in order (the table’s name column always comes first), their widths in pixels, and its search, filters and sort. Without view_id it saves a new one; with it, it changes one of yours. Open it in the app from Data, or export it with export_table.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$3("The table view to change."),
+				view_id: str$3("The saved layout to change."),
 				name: str$3("Its name."),
 				table: str$3("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
@@ -33309,7 +34194,7 @@ var WORK_TOOLS = [
 				layout
 			}, headOf(ctx, layout.table));
 			return {
-				...await save$1(ctx, out.commit, `Saved the table view “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$1(ctx, out.commit, `Saved the layout “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -33317,12 +34202,12 @@ var WORK_TOOLS = [
 	{
 		name: "export_table",
 		title: "Export a data table as shown",
-		description: "One of the data tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted. Give a saved table view by name, or the table with columns and a query. CSV by default, or rows as JSON.",
+		description: "One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				view: str$3("The name of a saved table view: one of yours, or one pinned for everyone."),
+				view: str$3("The name of a saved layout: one of yours, or one pinned for everyone."),
 				table: str$3("Which data table, when not using a view.", { enum: TABLE_ORDER }),
 				columns: ids("The columns, in order. Leave out for the usual columns."),
 				query: str$3("Search, filters and sort, as for save_table_view."),
@@ -33873,6 +34758,7 @@ var MARKUP_TOOLS = [
 init_actions();
 init_goalKey();
 init_status();
+init_vocabulary();
 var str$1 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -34105,7 +34991,7 @@ var REMOVE_TOOLS = [
 		async run(a, ctx) {
 			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
 			const out = endReview(ax(ctx), String(a.review_id ?? ""));
-			return save(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : "Ended"} the review “${r?.name ?? ""}”`);
+			return save(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
 		}
 	},
 	{
@@ -34168,7 +35054,7 @@ var REMOVE_TOOLS = [
 	{
 		name: "delete_comment",
 		title: "Remove a comment or review note",
-		description: "Remove a comment, or a note said in a review: whoever wrote it, or an admin. Its place in the thread then says “Comment removed” (or “Note removed”), so the thread still reads.",
+		description: `Remove a comment, or a note said in a review: whoever wrote it, or an admin. Its place in the thread then says “${COMMENT_REMOVED}” (or “${NOTE_REMOVED}”), so the thread still reads.`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -34231,6 +35117,8 @@ var REMOVE_TOOLS = [
 // src/mcp/tools.ts
 init_actions();
 init_status();
+init_attention();
+init_vocabulary();
 init_goalKey();
 init_tableLayout();
 var str = (description, extra = {}) => ({
@@ -34259,6 +35147,20 @@ var STATUSES = [
 	"done",
 	"planned"
 ];
+var CALLS = [
+	"on",
+	"risk",
+	"off",
+	"done"
+];
+/** The words a tool says for a status, with the code beside them for anything that reads it: "Off track (off)". */
+var statusWords = (k) => withCode(STATUS[k]);
+/** A status the assistant gave: the code or the words, any case ("off", "Off track", "Off track (off)"). */
+function statusIn(v, only = STATUSES) {
+	const k = codeFrom(STATUS, v);
+	if (!k || !only.includes(k)) throw new Error(`“${String(v)}” isn’t a status here. Use one of: ${choices(STATUS, only)}.`);
+	return k;
+}
 var LEVELS = [
 	"north-star",
 	"svp",
@@ -34446,17 +35348,18 @@ var TOOLS = [
 		{
 			name: "find_goals",
 			title: "Find goals",
-			description: "List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.",
+			description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals that need attention (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
 			inputSchema: {
 				type: "object",
 				additionalProperties: false,
 				properties: {
 					text: str("Words in the goal’s name, or its key (G-12)."),
 					owner: str("Part of the owner’s name."),
-					status: str("Only goals with this status.", { enum: STATUSES }),
+					status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
+					needs_attention: bool(`Only goals that need attention: ${ATTENTION.needs.long}`),
 					level: str("Only goals at this level.", { enum: LEVELS }),
 					mine: bool("Only goals you own."),
-					query: str("A Goals link’s query string, e.g. \"status=off,risk&needs=decision,slipped&due=quarter&sort=gap\". Keys: q, status (off, risk, stale, on, done, planned), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), needs (decision, no-recovery, slipped, missed-date, greener), due (quarter or a week), quiet (weeks), qtr (met, missed), result (completed, late, missed, open), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse)."),
+					query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: only goals that need attention), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 					view: str("The name of a saved view: one of yours, or one pinned for everyone.")
 				}
 			},
@@ -34473,7 +35376,8 @@ var TOOLS = [
 					if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
 					query = parseQuery(new URLSearchParams(v.params));
 				}
-				let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+				const status = a.status ? statusIn(a.status) : null;
+				let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!status || s.status === status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id) && (!a.needs_attention || needsAttention(s.attention)));
 				if (query) list = applyQuery(list, query, {
 					goals: ctx.snapshot.goals,
 					cycle: ctx.cycle,
@@ -34488,6 +35392,12 @@ var TOOLS = [
 					owner: s.owner,
 					team: s.team,
 					status: s.status,
+					statusLabel: LABEL[s.status],
+					needsAttention: needsAttention(s.attention),
+					because: s.attention.flags.filter((f) => f.kind !== "due").map((f) => withCode({
+						label: f.label,
+						code: f.kind
+					})),
 					now: s.now,
 					planThisWeek: s.planNow != null ? s.planNowText : null,
 					target: s.target,
@@ -34502,7 +35412,7 @@ var TOOLS = [
 						weeks: ctx.cycle.weeks,
 						goals: data
 					},
-					text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}`).join("\n") : "No goals match."
+					text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(", ")}` : ""}`).join("\n") : "No goals match."
 				};
 			}
 		},
@@ -34540,7 +35450,7 @@ var TOOLS = [
 					id: k.id,
 					by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? "—",
 					at: k.at,
-					text: k.removedAt ? "Comment removed" : k.text,
+					text: k.removedAt ? COMMENT_REMOVED : k.text,
 					edited: !!k.editedAt,
 					removed: !!k.removedAt
 				}));
@@ -34570,12 +35480,7 @@ var TOOLS = [
 					week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
 					value: num("Number goals: the value for the week."),
 					stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
-					call: str("The owner’s status call. Leave out to let the rules decide.", { enum: [
-						"On track",
-						"At risk",
-						"Off track",
-						"Done"
-					] }),
+					call: str(`The owner’s status call, in the words or the code: ${choices(STATUS, CALLS)}. Leave out to let the rules decide.`),
 					cause: str("Why it’s behind or ahead.", { enum: [
 						"Plan too aggressive",
 						"Delivery slower",
@@ -34587,7 +35492,7 @@ var TOOLS = [
 						"One-off, won’t last"
 					] }),
 					why: str("In a sentence (10 characters or more)."),
-					why_greener: str("If the call is greener than the numbers: why."),
+					why_greener: str(`If the call is ${FLAG.greener.label.toLowerCase()}: why.`),
 					path_to_green: str("How it gets back on plan."),
 					recovery: str("Where the owner is with recovery.", { enum: [
 						"Plan",
@@ -34612,7 +35517,8 @@ var TOOLS = [
 				return change(ctx, { checkIns: [row({
 					...a,
 					goal_id: g.id,
-					week: a.week ?? ctx.week
+					week: a.week ?? ctx.week,
+					call: a.call == null || a.call === "" ? void 0 : statusIn(a.call, CALLS)
 				}, {
 					goal_id: "goal id",
 					week: "week",

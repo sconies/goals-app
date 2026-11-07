@@ -9,6 +9,9 @@ import { aiBrief, toCsv, toJson, workbook } from '../domain/export';
 import { summariseAll } from '../domain/summary';
 import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
+import { needsAttention } from '../domain/attention';
+import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, LABEL, QUARTER, RESULT, STATUS, withCode } from '../domain/vocabulary';
+import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
 import { MARKUP_TOOLS } from './markupTools';
 import type { MarkupOps } from '../markup/ops';
@@ -59,6 +62,15 @@ const num = (description: string) => ({ type: 'number', description });
 const int = (description: string) => ({ type: 'integer', description });
 const bool = (description: string) => ({ type: 'boolean', description });
 const STATUSES: DisplayStatus[] = ['off', 'risk', 'stale', 'none', 'on', 'done', 'planned'];
+const CALLS = ['on', 'risk', 'off', 'done'] as const;
+/** The words a tool says for a status, with the code beside them for anything that reads it: "Off track (off)". */
+export const statusWords = (k: DisplayStatus) => withCode(STATUS[k]);
+/** A status the assistant gave: the code or the words, any case ("off", "Off track", "Off track (off)"). */
+function statusIn(v: unknown, only: readonly DisplayStatus[] = STATUSES): DisplayStatus {
+  const k = codeFrom(STATUS, v);
+  if (!k || !only.includes(k)) throw new Error(`“${String(v)}” isn’t a status here. Use one of: ${choices(STATUS, only)}.`);
+  return k;
+}
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 const DRY = bool('Check the change without saving it. Use it to see what would change, or what is missing.');
 
@@ -150,14 +162,15 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'find_goals',
     title: 'Find goals',
-    description: 'List goals in the current cycle with their key (G-12), ID, status, latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, or just your own; or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.',
+    description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords('off')}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals that need attention (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       text: str('Words in the goal’s name, or its key (G-12).'),
       owner: str('Part of the owner’s name.'),
-      status: str('Only goals with this status.', { enum: STATUSES }),
+      status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
+      needs_attention: bool(`Only goals that need attention: ${ATTENTION.needs.long}`),
       level: str('Only goals at this level.', { enum: LEVELS }),
       mine: bool('Only goals you own.'),
-      query: str('A Goals link’s query string, e.g. "status=off,risk&needs=decision,slipped&due=quarter&sort=gap". Keys: q, status (off, risk, stale, on, done, planned), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), needs (decision, no-recovery, slipped, missed-date, greener), due (quarter or a week), quiet (weeks), qtr (met, missed), result (completed, late, missed, open), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).'),
+      query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: only goals that need attention), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
     } },
     annotations: { readOnlyHint: true, openWorldHint: false },
@@ -170,12 +183,13 @@ const CORE_TOOLS: ToolDef[] = [
         if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
         query = parseQuery(new URLSearchParams(v.params));
       }
+      const status = a.status ? statusIn(a.status) : null;
       let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week)
-        .filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!a.status || s.status === a.status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id));
+        .filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!status || s.status === status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id) && (!a.needs_attention || needsAttention(s.attention)));
       // The same search, filters and sort as the Goals screen (domain/query.ts).
       if (query) list = applyQuery(list, query, { goals: ctx.snapshot.goals, cycle: ctx.cycle, week: ctx.week });
-      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
-      return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: data }, text: data.length ? data.map((g) => `${g.key ? g.key + ' · ' : ''}${g.id} · ${g.title} · ${g.owner} · ${g.status} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ''} · ${g.gap}`).join('\n') : 'No goals match.' };
+      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, statusLabel: LABEL[s.status], needsAttention: needsAttention(s.attention), because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
+      return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: data }, text: data.length ? data.map((g) => `${g.key ? g.key + ' · ' : ''}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ''} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(', ')}` : ''}`).join('\n') : 'No goals match.' };
     },
   },
   {
@@ -191,7 +205,7 @@ const CORE_TOOLS: ToolDef[] = [
       const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === 'stale';
       const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({ label: c.label, value: c.value, detail: c.sub }));
       // Comments as they read now: edited ones say so, and a removed one is only its place in the thread.
-      const comments = [...commentsOf(ctx.snapshot.changes).values()].filter((k) => k.goalId === g.id).map((k) => ({ id: k.id, by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? '—', at: k.at, text: k.removedAt ? 'Comment removed' : k.text, edited: !!k.editedAt, removed: !!k.removedAt }));
+      const comments = [...commentsOf(ctx.snapshot.changes).values()].filter((k) => k.goalId === g.id).map((k) => ({ id: k.id, by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? '—', at: k.at, text: k.removedAt ? COMMENT_REMOVED : k.text, edited: !!k.editedAt, removed: !!k.removedAt }));
       const data = { cycle: j.cycle, goal: j.goals[0], scorecard, notes: j.notes, comments };
       return { data, text: JSON.stringify(data, null, 2) };
     },
@@ -205,10 +219,10 @@ const CORE_TOOLS: ToolDef[] = [
       week: int('The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later.'),
       value: num('Number goals: the value for the week.'),
       stages: str('Milestone goals: e.g. "Pilot: done week 6; Rollout: expected week 9".'),
-      call: str('The owner’s status call. Leave out to let the rules decide.', { enum: ['On track', 'At risk', 'Off track', 'Done'] }),
+      call: str(`The owner’s status call, in the words or the code: ${choices(STATUS, CALLS)}. Leave out to let the rules decide.`),
       cause: str('Why it’s behind or ahead.', { enum: ['Plan too aggressive', 'Delivery slower', 'Blocked by a dependency', 'External factor', 'Data problem', 'Plan too cautious', 'Change landed early', 'One-off, won’t last'] }),
       why: str('In a sentence (10 characters or more).'),
-      why_greener: str('If the call is greener than the numbers: why.'),
+      why_greener: str(`If the call is ${FLAG.greener.label.toLowerCase()}: why.`),
       path_to_green: str('How it gets back on plan.'),
       recovery: str('Where the owner is with recovery.', { enum: ['Plan', 'Still investigating', 'Needs a decision or help', 'Target should change'] }),
       back_on_plan_by_week: int('With a plan: the week it is back on plan by.'),
@@ -219,7 +233,7 @@ const CORE_TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
+      const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week, call: a.call == null || a.call === '' ? undefined : statusIn(a.call, CALLS) }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
       return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run });
     },
   },

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useApp } from '../app/state';
 import { cycleDeletable, REMOVED_LABEL, type Removed } from '../domain/removal';
-import { RESTORE_DAYS } from '../domain/words';
+import { RESTORE_DAYS } from '../domain/vocabulary';
 import { whenText } from './ChangeItem';
 
 /** Everything removed in the last 30 days, newest first: what it was, who removed it, when, and Restore. */

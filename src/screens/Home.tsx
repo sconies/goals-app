@@ -10,7 +10,7 @@ import { weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
 import { periodWord, shortPeriod } from '../domain/year';
-import { LABEL } from '../domain/status';
+import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { statusChange } from '../domain/tree';
 import type { AskKind } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo, WarnMark } from '../ui/bits';
@@ -92,8 +92,8 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
                 const resume = myReview.done > 0 && discuss.length > 0;
                 return (
                   <>
-                    <h2 className="hero-title">{discuss.length ? `${discuss.length} ${discuss.length === 1 ? 'goal' : 'goals'} to discuss` : `${healthy.length} on track to mark reviewed`}</h2>
-                    <span className="muted">{mine.length && !allIn ? 'Your check-ins are in. ' : ''}{discuss.length && healthy.length ? `${healthy.length} more ${healthy.length === 1 ? 'is' : 'are'} on track with nothing flagged: mark them together at the end.` : 'Worst and stalest first, one at a time.'}</span>
+                    <h2 className="hero-title">{discuss.length ? `${discuss.length} ${discuss.length === 1 ? 'goal' : 'goals'} to discuss` : `${healthy.length} with nothing flagged to mark reviewed`}</h2>
+                    <span className="muted">{mine.length && !allIn ? 'Your check-ins are in. ' : ''}{discuss.length && healthy.length ? `${healthy.length} more ${healthy.length === 1 ? 'has' : 'have'} nothing flagged: mark them together at the end.` : 'Worst and stalest first, one at a time.'}</span>
                     <div className="row" style={{ marginTop: 8 }}>
                       {resume && next
                         ? <Link className="btn primary big-btn" to={`/goals/${next.goal.id}?review=${myReview.review.id}`} onClick={() => saveReviewOrder(app.ws.id, myReview.review.id, myReview.week, discuss.map((a) => a.goal.id))}>Continue: {next.goal.title}</Link>
@@ -233,15 +233,14 @@ function WatchedGoals() {
   const watched = watchedGoals(app.viewer.id, app.snapshot).filter((g) => g.ownerId !== app.viewer.id);
   if (!watched.length) return null;
   const groups = groupWatched(watched.map((g) => app.attentionOf(g)).sort(attentionOrder));
-  const exceptions = [...groups.needs, ...groups.quiet];
+  const exceptions = groups.needs;
   const worse = exceptions.filter((a) => { const moved = statusChange(a.goal, app.snapshot.checkIns); return moved?.worse && moved.week >= app.week - 1; }).length;
   // Nothing new needs attention: the first few you watch, with how fresh they are, so Home still shows them.
   const shown = exceptions.length ? exceptions.slice(0, 4) : groups.fine.slice(0, 3);
   const parts = [
-    groups.needs.length ? `${groups.needs.length} need${groups.needs.length === 1 ? 's' : ''} attention` : 'Nothing new needs attention',
-    groups.handled.length ? `${groups.handled.length} being handled` : '',
-    groups.quiet.length ? `${groups.quiet.length} with no recent update` : '',
-    groups.fine.length ? `${groups.fine.length} on track or done` : '',
+    groups.needs.length ? `${groups.needs.length} need${groups.needs.length === 1 ? 's' : ''} attention${groups.quiet.length ? ` (${groups.quiet.length} with ${LABEL.stale.toLowerCase()})` : ''}` : 'Nothing new needs attention',
+    groups.handled.length ? `${groups.handled.length} ${ATTENTION.handled.label.toLowerCase()}` : '',
+    groups.fine.length ? `${groups.fine.length} with nothing flagged` : '',
   ].filter(Boolean);
   return (
     <section className="block home-watch" data-part="Goals you watch">

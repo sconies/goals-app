@@ -17,7 +17,7 @@ import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/ch
 import { ACTIONS } from '../mcp/parity';
 import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
-import { leftName, UNDO_MS } from '../domain/words';
+import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, UNDO_MS } from '../domain/vocabulary';
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
     which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too). */
@@ -555,11 +555,11 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       stopGoal: async (goal, reason) => { await removal(() => R.stopGoal(ax(), goal.id, reason), () => `Stopped ${goal.title}`); },
       deleteGoal: async (goal) => { await removal(() => R.deleteGoal(ax(), goal.id), () => `Deleted ${goal.title}`); },
       deleteCheckIn: async (c) => { await removal(() => R.deleteCheckIn(ax(), c.id), () => `Deleted the check-in for week ${c.week}`); },
-      endReview: async (id) => { await removal(() => R.endReview(ax(), id), (o) => `${o.deleted ? 'Deleted' : 'Ended'} the review “${sc.reviews.find((r) => r.id === id)?.name ?? ''}”`); },
+      endReview: async (id) => { await removal(() => R.endReview(ax(), id), (o) => `${o.deleted ? 'Deleted' : ENDED} the review “${sc.reviews.find((r) => r.id === id)?.name ?? ''}”`); },
       deleteReview: async (id) => { await removal(() => R.deleteReview(ax(), id), () => `Deleted the review “${sc.reviews.find((r) => r.id === id)?.name ?? ''}”`); },
       editComment: async (id, text) => { await act(() => R.editComment(ax(), id, text)); },
-      deleteComment: async (id) => { await removal(() => R.deleteComment(ax(), id), () => 'Comment removed'); },
-      deleteNote: async (id) => { await removal(() => R.deleteNote(ax(), id), () => 'Note removed'); },
+      deleteComment: async (id) => { await removal(() => R.deleteComment(ax(), id), () => COMMENT_REMOVED); },
+      deleteNote: async (id) => { await removal(() => R.deleteNote(ax(), id), () => NOTE_REMOVED); },
       deleteCycle: async (id) => { await removal(() => R.deleteCycle(ax(), id), () => `Deleted the cycle ${snapshot.cycles.find((c) => c.id === id)?.name ?? ''}`); },
       undoImport: async (importId) => { const out = await act(() => R.undoImport(ax(), importId)); return { restored: out.restored, skipped: out.skipped }; },
       restoreRemoved: async (kind, id) => { await act(() => R.restoreRemoved(ax(), kind, id)); },

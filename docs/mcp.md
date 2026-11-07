@@ -39,7 +39,7 @@ Other assistants:
 |---|---|
 | `get_overview` | A brief of the cycle: what needs attention and why, every goal by what it feeds, open questions, weekly numbers |
 | `get_my_work` | What needs the person this week, as their Home shows it: check-ins due, goals needing attention, and every open ask waiting on them by kind (decisions or help, questions, asks for an update, actions, overdue ones marked), their reviews |
-| `find_goals` | Goals with status, latest number, plan, target and gap. Filter by name, owner, status, level or your own. Or pass `query`, a Goals link's query string (for example `status=off,risk&needs=decision&sort=gap`), or `view`, the name of a saved view |
+| `find_goals` | Goals with status, latest number, plan, target and gap. Filter by name, owner, status, level or your own. Or `needs_attention` for the same goals Home and reviews list. Or pass `query`, a Goals link's query string (for example `status=off,risk&attention=1&needs=decision&sort=gap`), or `view`, the name of a saved view. Statuses are said as people see them with the code beside them, “Off track (off)”; a status or call given to a tool may be either |
 | `get_goal` | One goal in full: plan by week, every check-in with reasons (and their IDs), notes and actions, and its comments with their IDs (edited ones say so; a removed one reads “Comment removed”) |
 | `list_requests` | Every ask (one way to ask): a decision or help, an update, a question or an action; open, answered, done or withdrawn; by kind; yours to answer; one goal's |
 | `list_reviews` / `get_review` | Every review, and one review's current agenda: goals to discuss with why, healthy ones, and what's been said |

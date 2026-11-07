@@ -58,7 +58,7 @@ module.exports = {
         chk(/^(At risk|Off track)$/.test(f.status) && f.shape, `${at}: bar status “${f.status}”`);
         chk(/^\d+%$/.test(f.now), `${at}: bar number “${f.now}”`);
         const cells = f.cells;
-        chk(/^(\d+ pts? (behind|ahead)|On plan)$/.test(cells['vs plan']?.value) && /^plan \d+%$/.test(cells['vs plan']?.sub) && /^target \d+%/.test(cells['to target']?.sub) && !!cells['vs last week'] && /^(Likely|Possible|Unlikely|Very unlikely)$/.test(Object.entries(cells).find(([k]) => /^will it hit/.test(k))?.[1].value), `${at}: scorecard ${JSON.stringify(cells)}`);
+        chk(/^(\d+ pts? (behind plan|ahead of plan)|On plan)$/.test(cells['vs plan']?.value) && /^plan \d+%$/.test(cells['vs plan']?.sub) && /^target \d+%/.test(cells['to target']?.sub) && !!cells['vs last week'] && /^(Likely|Possible|Unlikely|Very unlikely)$/.test(Object.entries(cells).find(([k]) => /^will it hit/.test(k))?.[1].value), `${at}: scorecard ${JSON.stringify(cells)}`);
         chk(f.why.length > 20 && /^(Being handled|No response yet)/.test(f.handled), `${at}: Why opens with “${f.why}” “${f.handled}”`);
         chk(f.ptg && f.ptg.inMain && !f.ptg.inSide && /Path to green/.test(f.ptg.text) && /Owner’s date: back on plan by/.test(f.ptg.text), `${at}: path to green not in the main column (${JSON.stringify(f.ptg)})`);
         if (w >= 1100) chk(f.heads.length >= 1 && f.heads.every((x) => ['Asked of you', 'Actions', 'Last time we talked'].includes(x)), `${at}: side headings ${f.heads.join(' / ')}`);
@@ -86,7 +86,7 @@ module.exports = {
     chk(/^must stay at most \d/.test(f.cells['vs the limit']?.sub) && /^(Inside it|Inside, near it|Outside it)$/.test(f.cells['vs the limit']?.value) && /of room|over|at the limit/.test(f.cells['room to the limit']?.value) && !!f.cells['vs last week'], `ns-cfr: scorecard ${JSON.stringify(f.cells)}`);
     await p.goto(p.url().replace('/goals/ns-cfr', '/goals/lead-mq')); await p.locator('.goal-bar').waitFor();
     f = await bar(p);
-    chk(/^\d of \d stages done$/.test(f.now) && /^\d+$/.test(f.cells['stages late']?.value) && /^Week \d+$/.test(f.cells['next stage']?.value), `lead-mq: bar says ${f.now} / ${JSON.stringify(f.cells)}`);
+    chk(/^\d of \d stages done$/.test(f.now) && /^\d+$/.test(f.cells['stages behind']?.value) && /^Week \d+$/.test(f.cells['next stage']?.value), `lead-mq: bar says ${f.now} / ${JSON.stringify(f.cells)}`);
     chk(f.heads[0] === 'Asked of you', `lead-mq as Daniel (the decision is asked of him): first side heading “${f.heads[0]}”`);
     // (e) Arriving from outside on a goal that feeds another, Back names that goal; About says what it feeds.
     const back = (await p.locator('.goal-page > .backlink').innerText()).trim();

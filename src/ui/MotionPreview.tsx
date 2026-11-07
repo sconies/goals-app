@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { CountNumber } from './Count';
 import { StatusShape } from './bits';
 import { STORY_MS } from './motion';
+import { LABEL } from '../domain/vocabulary';
 
 const PLAN = [[8, 70], [44, 62], [80, 54], [116, 46], [152, 38], [188, 30], [224, 22]];
 const ACT = [[8, 72], [44, 66], [80, 63], [116, 58], [152, 56], [188, 52]];
@@ -19,7 +20,7 @@ export function MotionPreview({ pace, countOn, replayKey }: { pace: number; coun
       <div key={key} className="motion-preview-stage">
         <header className="goal-bar" data-tone="off">
           <div className="bar-2">
-            <span className="bar-status status-word tone-off"><StatusShape k="off" /> Off track</span>
+            <span className="bar-status status-word tone-off"><StatusShape k="off" /> {LABEL.off}</span>
             <span className="bar-now"><CountNumber value={83} from={countOn ? 61 : null} format={(v) => `${Math.round(v)}%`} duration={STORY_MS * pace} /></span>
           </div>
         </header>

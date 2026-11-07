@@ -15,6 +15,7 @@ import { Spark, StageSpark } from './charts';
 import { Chip, LevelTag, Sheet, StatusWord } from './bits';
 import { Icon } from './Icon';
 import { valueSeries } from '../domain/plan';
+import { LABEL as STATUS_WORD } from '../domain/vocabulary';
 
 type App = ReturnType<typeof useApp>;
 
@@ -22,7 +23,7 @@ type App = ReturnType<typeof useApp>;
 export function freshness(g: Goal, app: App): { text: string; stale: boolean } {
   const own = checkInsFor(g, app.snapshot.checkIns);
   const last = own[own.length - 1];
-  if (!last) return { text: 'No check-in yet', stale: app.week > 1 };
+  if (!last) return { text: STATUS_WORD.none, stale: app.week > 1 };
   const d = daysSince(last.postedAt, app.today);
   const stale = app.statusOf(g).status === 'stale';
   return { text: stale ? `No check-in for ${d} days` : d < 1 ? 'Checked in today' : d === 1 ? 'Checked in yesterday' : `Checked in ${d} days ago`, stale };

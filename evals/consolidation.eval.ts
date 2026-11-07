@@ -45,7 +45,8 @@ function glossary() {
 
 describe('One word for each concept', () => {
   const g = glossary();
-  const files = ['src/screens', 'src/ui', 'src/app', 'src/domain'].flatMap(sources);
+  // The AI assistant's tools and words too (src/mcp): one vocabulary, release 2.
+  const files = ['src/screens', 'src/ui', 'src/app', 'src/domain', 'src/mcp'].flatMap(sources);
 
   it(W('the glossary names each term once, says what it means, and lists words not to use'), () => {
     expect(g.rows.length).toBeGreaterThan(15);

@@ -1,5 +1,6 @@
 /* Closing the cycle: each owner wraps up their goals (how it landed, what we learned, carry on or stop),
    everyone sees the summary, and an admin starts the next cycle with the goals that carry on. */
+import { OWNER_VIEW_LABEL } from '../domain/vocabulary';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -72,7 +73,7 @@ export function WrapUp() {
           <span className="hint">{done.length} of {all.length} wrapped up</span>
         </div>
         {done.length > 0 && (
-          <p className="lede">{RESULTS.map((r) => [r, done.filter((g) => retroOf(g)!.result === r).length] as const).filter(([, n]) => n).map(([r, n]) => `${n} ${RESULT_LABEL[r].toLowerCase()}`).join(' · ')}</p>
+          <p className="lede">{OWNER_VIEW_LABEL}: {RESULTS.map((r) => [r, done.filter((g) => retroOf(g)!.result === r).length] as const).filter(([, n]) => n).map(([r, n]) => `${n} ${RESULT_LABEL[r].toLowerCase()}`).join(' · ')}</p>
         )}
         <ul className="retro-list">
           {[...done, ...left].map((g) => {
@@ -87,7 +88,8 @@ export function WrapUp() {
                   {r ? <span className="small">{r.learned}</span> : <span className="hint">Not wrapped up yet.</span>}
                 </span>
                 <span className="stack" style={{ gap: 'var(--s1)', alignItems: 'flex-end' }}>
-                  {r ? <span className={'result-tag result-' + r.result}>{RESULT_LABEL[r.result]}</span> : <Chip k={app.statusOf(g).status} />}
+                  {/* The owner's own words, labelled as theirs, so they're never read as the goal's result (Met, Not met). */}
+                  {r ? <span className="stack" style={{ gap: 0, alignItems: 'flex-end' }}><span className="hint">{OWNER_VIEW_LABEL}</span><span className={'result-tag result-' + r.result}>{RESULT_LABEL[r.result]}</span></span> : <Chip k={app.statusOf(g).status} />}
                   {r && <span className="hint">{r.next === 'carry' ? 'Carries on' : 'Stops'}</span>}
                   {canWrite && <Link className="linkish small" to={`/retro/${g.id}`}>{r ? 'Change' : 'Wrap up'}</Link>}
                 </span>
@@ -164,7 +166,7 @@ function RetroForm({ goal }: { goal: Goal }) {
           <h1 className="qtitle big">{goal.title}</h1>
           <span className="row" style={{ gap: 'var(--s2)' }}><Chip k={st.status} /><span className="strong">{nowText(goal, app)}</span>{st.status !== 'stale' && gap && <span className={'small tone-' + gap.tone}>{gap.short}</span>}</span>
         </div>
-        <div className="field"><span className="field-label" id="res-l">How did it land?</span>
+        <div className="field"><span className="field-label" id="res-l">How did it land? ({OWNER_VIEW_LABEL.toLowerCase().replace(/^owner’s/, 'your')})</span>
           <div className="seg full" role="group" aria-labelledby="res-l">{RESULTS.map((r) => <button key={r} type="button" aria-pressed={result === r} onClick={() => setResult(r)}>{RESULT_LABEL[r]}</button>)}</div>
           {!before && <span className="hint">Picked from where it ended. Change it if the numbers don’t tell the whole story.</span>}
         </div>

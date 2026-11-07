@@ -36,13 +36,14 @@ describe('the four facts a goal leads with', () => {
     // Plans 36, 40, 44 against 37, 39, 40: one point ahead, then one and four behind. Never a share of plan (5 Nov).
     const t = fact(summaryFacts(up, cycle, ups, 6).facts, 'trend');
     expect(t.value).toBe('1 ahead → 1 behind → 4 pts behind plan');
-    expect(t.detail).toBe('Losing ground on the plan, weeks 4–6');
+    // Further behind plan at each check-in, and behind now: the one trend rule's Getting worse (trend.ts).
+    expect(t.detail).toBe('Getting worse, weeks 4–6');
     expect(t.tone).toBe('bad');
     expect(t.direction).toBe('worsening');
     // Behind all three times: "1 → 2 → 3 pts behind plan", falling further behind.
     const behind = fact(summaryFacts(up, cycle, [ci('up', 4, { value: 35 }), ci('up', 5, { value: 38 }), ci('up', 6, { value: 41 })], 6).facts, 'trend');
     expect(behind.value).toBe('1 → 2 → 3 pts behind plan');
-    expect(behind.detail).toBe('Falling further behind, weeks 4–6');
+    expect(behind.detail).toBe('Getting worse, weeks 4–6');
     // The same number while the plan rises is said once, plainly: flat, not a collapse.
     const flat = fact(summaryFacts(up, cycle, [ci('up', 4, { value: 35 }), ci('up', 5, { value: 38 }), ci('up', 6, { value: 38 })], 6).facts, 'trend');
     expect(flat.detail).toBe('Flat at 38% for two weeks while the plan rises');
@@ -79,7 +80,7 @@ describe('the four facts a goal leads with', () => {
     const { facts } = summaryFacts(cfr, cycle, [ci('cfr', 3, { value: 10 }), ci('cfr', 5, { value: 10.8 }), ci('cfr', 6, { value: 11.4 })], 6);
     expect(fact(facts, 'plan')).toMatchObject({ label: 'Against the limit', value: '0.6 pts inside the limit', tone: 'flat' });
     expect(fact(facts, 'trend').value).toBe('10.0% → 10.8% → 11.4%');
-    expect(fact(facts, 'trend').detail).toBe('Moving towards the limit, weeks 3–6');
+    expect(fact(facts, 'trend').detail).toBe('Getting worse, weeks 3–6');
     expect(fact(facts, 'since').value).toBe('Up 0.6 pts');
     expect(fact(facts, 'since').tone).toBe('bad');
     expect(fact(facts, 'projection').detail).toMatch(/^Outside the 12\.0% limit/);
@@ -92,7 +93,7 @@ describe('the four facts a goal leads with', () => {
     const { facts } = summaryFacts(ms, cycle, cs, 5);
     expect(fact(facts, 'plan')).toMatchObject({ value: '1 stage late', detail: '1 of 3 stages done; 1 due by week 5', tone: 'bad' });
     expect(fact(facts, 'trend').value).toBe('0 → 1 → 3 weeks late');
-    expect(fact(facts, 'trend').detail).toBe('Slipping, weeks 3–5');
+    expect(fact(facts, 'trend').detail).toBe('Getting worse, weeks 3–5');
     expect(fact(facts, 'since').value).toBe('Build slipped 2 weeks');
     expect(fact(facts, 'since').detail).toBe('Since week 4: Build moved from week 7 to week 9');
     expect(fact(facts, 'projection').value).toBe('Finishes week 9, 1 week late');

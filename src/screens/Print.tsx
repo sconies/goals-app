@@ -11,6 +11,8 @@ import { periodLabel, quarterOf } from '../domain/year';
 import { Chip, Empty, LevelTag } from '../ui/bits';
 import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList } from '../ui/charts';
 import { Icon } from '../ui/Icon';
+import { QUARTER } from '../domain/vocabulary';
+import { FLAG } from '../domain/vocabulary';
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const longDay = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -118,7 +120,7 @@ function GoalPrintView() {
                 <span className="ps-line"><Chip k={sh.latest.c.status} /> <strong>Week {sh.latest.c.week}: {sh.latest.value}</strong>. {sh.latest.by}, {day(sh.latest.c.postedAt)}.</span>
                 {sh.latest.reason && !whyShown && <span>{sh.latest.reason}</span>}
                 {sh.latest.c.next && <span className="hint">Next: {sh.latest.c.next}</span>}
-                {sh.latest.c.greenerWhy && <span className="hint">Called greener than the numbers: {sh.latest.c.greenerWhy}</span>}
+                {sh.latest.c.greenerWhy && <span className="hint">{FLAG.greener.label}: {sh.latest.c.greenerWhy}</span>}
               </div>
             ) : <span className="hint">No check-ins yet.</span>}
           </section>
@@ -152,7 +154,7 @@ function GoalPrintView() {
             <ol className="ps-quarters">
               {sh.quarters.map((q) => (
                 <li key={q.quarter.n}>
-                  <span className="ps-q-head"><strong>{q.quarter.label}</strong><span className="q-result"><QuarterMark kind={q.kind} done={q.quarter.n === nowQ.n ? (app.week - nowQ.from + 1) / (nowQ.to - nowQ.from + 1) : 0} />{q.kind === 'met' ? 'Met' : q.kind === 'missed' ? 'Missed' : q.kind === 'open' ? (q.quarter.n === nowQ.n ? 'Now' : 'To come') : 'None due'}</span></span>
+                  <span className="ps-q-head"><strong>{q.quarter.label}</strong><span className="q-result"><QuarterMark kind={q.kind} done={q.quarter.n === nowQ.n ? (app.week - nowQ.from + 1) / (nowQ.to - nowQ.from + 1) : 0} />{q.kind === 'met' || q.kind === 'missed' ? QUARTER[q.kind].label : q.kind === 'open' ? (q.quarter.n === nowQ.n ? QUARTER.open.label : 'To come') : 'None due'}</span></span>
                   {q.kind !== 'none' && <span className="small">{quarterWords(q.text, true)}</span>}
                 </li>
               ))}
@@ -209,8 +211,8 @@ export function ReviewPrint() {
           </section>
         ))}
         {healthy.length > 0 && (
-          <section className="ps-block" aria-label="On track, nothing new">
-            <h2 className="ps-h">On track, nothing new · {healthy.length}</h2>
+          <section className="ps-block" aria-label="Nothing flagged">
+            <h2 className="ps-h">Nothing flagged · {healthy.length}</h2>
             <ul className="ps-rows">
               {healthy.map((i) => <li key={i.goal.id} className="ps-row-2"><Chip k={i.status} /><span className="ps-row-body"><span className="ps-row-title">{i.goal.title}</span><span className="hint">{i.owner}{i.covered ? ' · Reviewed' : ''} · {fmtWhere(i.facts)}</span></span></li>)}
             </ul>

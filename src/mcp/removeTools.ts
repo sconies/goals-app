@@ -8,6 +8,7 @@ import { findGoal, isKey } from '../domain/goalKey';
 import * as R from '../domain/removal';
 import { checkInsFor } from '../domain/status';
 import type { McpContext, ToolDef, ToolResult } from './tools';
+import { COMMENT_REMOVED, ENDED, NOTE_REMOVED } from '../domain/vocabulary';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });
@@ -133,7 +134,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
       const out = R.endReview(ax(ctx), String(a.review_id ?? ''));
-      return save(ctx, out.commit, `${out.deleted ? 'Deleted (it was never held)' : 'Ended'} the review “${r?.name ?? ''}”`);
+      return save(ctx, out.commit, `${out.deleted ? 'Deleted (it was never held)' : ENDED} the review “${r?.name ?? ''}”`);
     },
   },
   {
@@ -171,7 +172,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
   {
     name: 'delete_comment',
     title: 'Remove a comment or review note',
-    description: 'Remove a comment, or a note said in a review: whoever wrote it, or an admin. Its place in the thread then says “Comment removed” (or “Note removed”), so the thread still reads.',
+    description: `Remove a comment, or a note said in a review: whoever wrote it, or an admin. Its place in the thread then says “${COMMENT_REMOVED}” (or “${NOTE_REMOVED}”), so the thread still reads.`,
     inputSchema: { type: 'object', additionalProperties: false, required: ['comment_id'], properties: { comment_id: str('The comment’s or note’s ID.') } },
     annotations: REMOVE,
     async run(a, ctx) {

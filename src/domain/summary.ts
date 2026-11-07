@@ -3,10 +3,13 @@
 import { causeLabel } from './checkin';
 import { fmt, gapText, kindLabel, LEVEL_LABEL, nowText, targetText } from './format';
 import { planAt, planEnd, valueSeries, weekDate, type Point, type Projection } from './plan';
-import { assessPosted, checkInsFor, goalStatus, LABEL, RANK } from './status';
+import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus, LABEL, RANK } from './status';
+import { attentionFor, type GoalAttention } from './attention';
+import { STATUS_ORDER } from './vocabulary';
 import { forecastText } from './tree';
 import { storyOf, type Story } from './story';
 import type { CheckIn, Cycle, DisplayStatus, Goal, Snapshot } from './types';
+import { NO_REASON } from './checkin';
 
 export interface GoalSummary {
   goal: Goal;
@@ -30,6 +33,10 @@ export interface GoalSummary {
   gapTone: 'on' | 'risk' | 'off' | 'ahead' | 'stale';
   lastWeek: number | null;
   lastPostedAt: string | null;
+  /** Days since the latest check-in was posted (or since the goal began): the one rule behind No recent update. */
+  quietDays: number;
+  /** What needs attention on it, and whether it's being handled (domain/attention.ts): the one Needs attention rule. */
+  attention: GoalAttention;
   forecast: string | null;
   /** Where the recent trend takes a number goal by its due week, as a range (none for a goal gone quiet). */
   projection: Projection | null;
@@ -69,14 +76,16 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
     planThen: a.kind === 'metric' && a.actual != null && goal.kind === 'metric' ? `${fmt(a.plan, goal)} in week ${a.week}` : null,
     target: targetText(goal),
     dueWeek: goal.kind === 'metric' ? planEnd(goal.plan, cycle.weeks) : goal.kind === 'milestone' ? Math.max(0, ...goal.stages.map((x) => x.dueWeek)) : cycle.weeks,
-    gap: st.status === 'stale' ? 'No recent check-in' : gap.short,
+    gap: st.status === 'stale' ? LABEL.stale : gap.short,
     gapTone: st.status === 'stale' ? 'stale' : gap.tone,
     lastWeek: last?.week ?? null,
     lastPostedAt: last?.postedAt ?? null,
+    quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
+    attention: attentionFor(goal, s, cycle, today),
     forecast: st.status === 'stale' ? null : forecastText(goal, a, cycle.weeks, cycle)?.text ?? null,
     projection: st.status === 'stale' || a.kind !== 'metric' ? null : a.projection,
     feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
-    why: behind && last ? [last.cause ? causeLabel(last.cause) : '', last.why].filter((x) => x && x !== 'On plan.').join(': ') : '',
+    why: behind && last ? [last.cause ? causeLabel(last.cause) : '', last.why].filter((x) => x && x !== NO_REASON).join(': ') : '',
     pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : '') : '',
     needs: behind ? ptg?.needs ?? '' : '',
     series: valueSeries(own),
@@ -96,6 +105,6 @@ export function weeklyCalls(checkIns: CheckIn[]): Map<number, CheckIn> {
   return m;
 }
 
-export const STATUS_ORDER: DisplayStatus[] = ['off', 'risk', 'stale', 'none', 'on', 'planned', 'done'];
+export { STATUS_ORDER };
 export const byStatus = (a: GoalSummary, b: GoalSummary) => RANK[b.status] - RANK[a.status] || a.goal.title.localeCompare(b.goal.title);
 export const weekStarting = (cycle: Cycle, week: number) => weekDate(cycle, week);

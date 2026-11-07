@@ -2,7 +2,7 @@
    status and the number, each a label, a value and one muted line, and the same numbers marked on the chart.
      A number to move:      vs plan · vs last week · to target · will it hit the target?
      A number to keep in:   vs the limit · vs last week · room to the limit · will it stay within?
-     Dated stages:          stages done · stages late · next stage
+     Dated stages:          stages done · stages behind · next stage
    Every number comes from the rules that already own it (status for the plan and the projection, summaryFacts for the
    change since the last check-in, plan for the range); this module only says them, and decides one thing of its own:
    how likely the target is, as a word, from where the target sits against the projected range (`likelihood`).
@@ -12,6 +12,7 @@ import { planEnd, projectionFor, valueSeries } from './plan';
 import { assessMilestone, assessPosted, checkInsFor } from './status';
 import { summaryFacts } from './summaryFacts';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
+import { GAP, gapPhrase, LABEL, lower, STAGE, stagesBehind, STATUS } from './vocabulary';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 
@@ -51,7 +52,7 @@ export interface ScoreCell {
   key: 'plan' | 'since' | 'target' | 'hit' | 'limit' | 'room' | 'done' | 'late' | 'next';
   /** "Vs plan", "Will it hit 24?" */
   label: string;
-  /** "9 hours behind", "Unlikely". */
+  /** "9 hours behind plan", "Unlikely". */
   value: string;
   /** One muted line: "plan 28 hours", "was 36 hours in week 44". */
   sub: string;
@@ -100,7 +101,7 @@ export function byWeekWords(cycle: Cycle, due: number): string {
 function sinceCell(goal: MetricGoal | RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: number, stale: boolean, better: 1 | -1): ScoreCell {
   const f = summaryFacts(goal, cycle, checkIns, week, stale).facts.find((x) => x.key === 'since');
   const label = stale ? 'Last change' : 'Vs last week';
-  if (!f) return { key: 'since', label, value: 'No check-in yet', sub: 'nothing to compare', tone: 'flat' };
+  if (!f) return { key: 'since', label, value: LABEL.none, sub: 'nothing to compare', tone: 'flat' };
   if (f.delta == null || !f.from) return { key: 'since', label, value: f.value, sub: f.value === 'First check-in' ? 'nothing to compare yet' : 'no number to compare', tone: 'flat' };
   const was = `was ${fmt(f.from.value, goal)} in week ${f.from.week}`;
   if (f.delta === 0) return { key: 'since', label, value: 'No change', sub: was, tone: 'flat' };
@@ -122,12 +123,13 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
   if (a.actual == null) cells.push({ key: 'plan', label: 'Vs plan', value: NO_VALUE, sub: `plan ${fmt(a.plan, goal)}`, tone: 'flat' });
   else {
     const diff = round((a.actual - a.plan) * better, goal.decimals);
-    const value = diff === 0 ? 'On plan' : `${amount(diff, goal)} ${diff > 0 ? 'ahead' : 'behind'}`;
+    // The gap as every list, export and the AI say it: "9 hours behind plan", "3 pts ahead of plan", "On plan".
+    const value = gapPhrase(diff, amount(diff, goal));
     const tone: CellTone = diff === 0 ? 'flat' : diff > 0 ? 'good' : 'bad';
     cells.push({ key: 'plan', label: 'Vs plan', value, sub: `plan ${fmt(a.plan, goal)}${a.week < week ? ` in week ${a.week}` : ''}`, tone });
-    // As short as one line needs, as the chart says it: "9 behind plan" beside "37 hours".
-    gap = diff === 0 ? 'on plan' : `${bare(diff, goal)} ${diff > 0 ? 'ahead of' : 'behind'} plan`;
-    now = { week: a.week, actual: a.actual, plan: a.plan, text: diff === 0 ? 'on plan' : `${bare(diff, goal)} ${diff > 0 ? 'ahead' : 'behind'}`, tone };
+    // The one-line bar once the page has scrolled, and the chart's mark at now, say the same words.
+    gap = value;
+    now = { week: a.week, actual: a.actual, plan: a.plan, text: value, tone };
   }
 
   cells.push(sinceCell(goal, cycle, checkIns, week, stale, better));
@@ -137,13 +139,13 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
   if (a.actual == null) cells.push({ key: 'target', label: 'To target', value: NO_VALUE, sub: `target ${fmt(target, goal)}${by}`, tone: 'flat' });
   else {
     const left = round((target - a.actual) * better, goal.decimals);
-    cells.push({ key: 'target', label: 'To target', value: left <= 0 ? 'Reached' : `${amount(left, goal)} to go`, sub: `target ${fmt(target, goal)}${by}`, tone: left <= 0 ? 'good' : 'flat' });
+    cells.push({ key: 'target', label: 'To target', value: left <= 0 ? GAP.reached.label : `${amount(left, goal)} to go`, sub: `target ${fmt(target, goal)}${by}`, tone: left <= 0 ? 'good' : 'flat' });
   }
 
   // Will it hit the target: where the target sits against the projected range.
   const label = `Will it hit ${markWord(target, goal)}?`;
   let end: ChartMarks['end'] = null;
-  if (stale) cells.push({ key: 'hit', label, value: 'Can’t say', sub: 'no recent check-in to go on', tone: 'flat' });
+  if (stale) cells.push({ key: 'hit', label, value: 'Can’t say', sub: `${lower(STATUS.stale)} to go on`, tone: 'flat' });
   else if (!a.projection) cells.push({ key: 'hit', label, value: 'Too early to say', sub: 'needs three weeks of numbers', tone: 'flat' });
   else {
     // Already held to what the number can be (a share within 0–100%, a count not below zero): plan.ts projectionFor.
@@ -181,7 +183,7 @@ function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: num
   const label = a.out ? 'Back within by the end?' : 'Will it stay within?';
   const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
   const pr = stale ? null : projectionFor(goal, valueSeries(own), cycle.weeks);
-  if (stale) cells.push({ key: 'hit', label, value: 'Can’t say', sub: 'no recent check-in to go on', tone: 'flat' });
+  if (stale) cells.push({ key: 'hit', label, value: 'Can’t say', sub: `${lower(STATUS.stale)} to go on`, tone: 'flat' });
   else if (!pr) cells.push({ key: 'hit', label, value: 'Too early to say', sub: 'needs three weeks of numbers', tone: 'flat' });
   else {
     // Staying within is the same question as reaching a target: ending on the limit's safe side.
@@ -201,13 +203,14 @@ function milestoneCard(goal: MilestoneGoal, checkIns: CheckIn[], week: number): 
   const lastDone = Math.max(0, ...m.stages.map((s) => s.doneWeek ?? 0));
   const cells: ScoreCell[] = [
     { key: 'done', label: 'Stages done', value: `${m.doneCount} of ${n}`, sub: `${m.dueCount} due by week ${week}`, tone: m.doneCount >= m.dueCount ? 'good' : 'flat' },
-    { key: 'late', label: 'Stages late', value: late.length ? String(late.length) : 'None', sub: late.length ? `up to ${most} ${most === 1 ? 'week' : 'weeks'} late` : 'on schedule', tone: late.length ? 'bad' : 'good' },
+    // Behind their dates, each in its word: up to two weeks behind is slipping, more is late (the vocabulary's STAGE).
+    { key: 'late', label: 'Stages behind', value: late.length ? String(late.length) : 'None', sub: late.length ? `${stagesBehind(late.map((s) => s.kind as 'risk' | 'off')).replace(/^\d+ stages?:? ?/, '')}, up to ${most} ${most === 1 ? 'week' : 'weeks'}` : lower(STAGE.planned), tone: late.length ? 'bad' : 'good' },
     next
       // When the next stage now lands; a stage running late names the week it was due.
       ? { key: 'next', label: 'Next stage', value: `Week ${Math.max(next.dueWeek, next.expectedWeek)}`, sub: `${next.name}${next.expectedWeek > next.dueWeek ? `, due week ${next.dueWeek}` : ''}`, tone: next.expectedWeek > next.dueWeek ? 'bad' : 'flat' }
       : { key: 'next', label: 'Next stage', value: 'All done', sub: `last done in week ${lastDone}`, tone: 'good' },
   ];
-  const gap = m.calc === 'done' ? 'every stage done' : late.length ? `${late.length} ${late.length === 1 ? 'stage' : 'stages'} late` : 'on schedule';
+  const gap = m.calc === 'done' ? GAP.reached.label : stagesBehind(late.map((s) => s.kind as 'risk' | 'off'));
   return { cells, gap, marks: null };
 }
 

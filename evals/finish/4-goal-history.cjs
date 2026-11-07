@@ -182,7 +182,7 @@ module.exports = {
     if (qr.noShape) fails.push(`${qr.noShape} quarter results without a shape`);
     if (qr.missedBg.some((b) => b !== 'rgba(0, 0, 0, 0)')) fails.push(`missed quarters tinted ${qr.missedBg}`);
     if (qr.threeLines) fails.push(`${qr.threeLines} quarter texts over two lines at 1280`);
-    if (!/Met.*Missed.*In progress.*Nothing due/.test(qr.qlegend)) fails.push(`quarter key reads “${qr.qlegend}”`);
+    if (!/Met.*Not met.*In progress.*Nothing due/.test(qr.qlegend)) fails.push(`quarter key reads “${qr.qlegend}”`);
     if (qr.footerKeys) fails.push('History repeats the status key in the footer');
     await c.close();
 

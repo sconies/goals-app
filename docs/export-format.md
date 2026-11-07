@@ -33,6 +33,7 @@ The Goals sheet or the Check-ins sheet, with the same columns as in the workbook
   "cycle": { "id": "…", "name": "…", "startDate": "2026-09-07", "weeks": 13, "currentWeek": 7 },
   "people": [{ "id": "…", "name": "…", "jobTitle": "…", "team": "…", "admin": false }],
   "teams": [{ "id": "…", "name": "…", "objective": "…" }],
+  "words": { "status": { "off": { "label": "Off track", "meaning": "…" }, … }, "flag": { … }, "result": { … }, … },  // every code and its words (src/domain/vocabulary.ts)
   "goals": [{
     "id": "…", "title": "…", "level": "north-star | svp | team", "type": "metric | range | milestone",
     "team": "…", "owner": "…", "ownerId": "…", "feedsIntoId": "… or null", "whyItHelps": "…",
@@ -41,8 +42,10 @@ The Goals sheet or the Check-ins sheet, with the same columns as in the workbook
     // range:     "unit", "decimals", "range": { mustStay: "atMost | atLeast", limit, margin }
     // milestone: "stages": [{ id, name, dueWeek }]
     "now": { "status": "on | risk | off | done | stale | none | planned", "statusLabel": "…", "value": 29.4, "text": "29.4 days",
-             "planThisWeek": 27.7, "gap": "…", "lastCheckInWeek": 6, "forecast": "…", "why": "…", "pathToGreen": "…", "needs": "…" },
-    "checkIns": [{ "week": 6, "weekStarting": "2026-10-19", "value": 29.4, "stages": null, "call": "risk", "calculated": "risk",
+             "planThisWeek": 27.7, "gap": "9 hours behind plan", "lastCheckInWeek": 6, "forecast": "…", "why": "…", "pathToGreen": "…", "needs": "…" },
+    "needsAttention": { "needs": true, "beingHandled": null, "flags": [{ "kind": "no-path", "label": "No path to green", "detail": "…" }] },
+    "result": { "kind": "completed | late | missed", "label": "Met | Met late | Not met", "dueWeek": 53, "week": 52 },
+    "checkIns": [{ "week": 6, "weekStarting": "2026-10-19", "value": 29.4, "stages": null, "call": "risk", "callLabel": "At risk", "calculated": "risk", "calculatedLabel": "At risk",
                    "cause": "slower", "why": "…", "whyGreener": null, "pathToGreen": { "what": "…", "byWeek": 9, "needs": null, "state": "plan" },
                    "next": "…", "postedAt": "…", "postedBy": "…", "backfilled": false }]
   }],
@@ -50,7 +53,7 @@ The Goals sheet or the Check-ins sheet, with the same columns as in the workbook
 }
 ```
 
-`version` changes only when a field is removed or changes meaning. New fields can be added without changing it.
+`version` changes only when a field is removed or changes meaning. New fields can be added without changing it. Codes (`status`, `call`, `result.kind`, a quarter's `result`) never change; the words beside them (`statusLabel`, `callLabel`, `label`, `resultLabel`) are the vocabulary's, defined under `words`.
 
 ## Brief for an AI chat (Markdown)
 

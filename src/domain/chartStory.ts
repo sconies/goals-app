@@ -6,6 +6,8 @@ import type { Cycle, MetricGoal, RangeGoal } from './types';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 import { planAt, weekDates } from './plan';
+import { gapTrend } from './trend';
+import { GAP, lower, TREND } from './vocabulary';
 
 const CURRENCY = /^([£$€]|USD|GBP|EUR)\s?([km]?)$/i;
 const SYMBOL: Record<string, string> = { USD: '$', GBP: '£', EUR: '€' };
@@ -38,7 +40,7 @@ export function sayDiff(v: number, g: Numeric): string {
 
 const ago = (weeks: number) => (weeks <= 1 ? 'last week' : `${weeks === 2 ? 'two' : weeks === 3 ? 'three' : weeks === 4 ? 'four' : String(weeks)} weeks ago`);
 
-/** "£61k behind plan and catching up: it was £94k behind three weeks ago." */
+/** "£61k behind plan and getting better: it was £94k behind two weeks ago." Which way it's heading is the one trend rule (trend.ts). */
 export function standingSentence(goal: MetricGoal, points: { week: number; value: number }[], weeks: number): string | null {
   const valued = points.filter((p) => Number.isFinite(p.value));
   const last = valued[valued.length - 1];
@@ -47,7 +49,7 @@ export function standingSentence(goal: MetricGoal, points: { week: number; value
   const gapAt = (p: { week: number; value: number }) => (p.value - planAt(goal.plan, p.week, weeks)) * dir;
   const unit = 10 ** -goal.decimals;
   const now = gapAt(last);
-  const where = Math.abs(now) < unit / 2 ? 'On plan' : `${sayDiff(now, goal)} ${now < 0 ? 'behind' : 'ahead of'} plan`;
+  const where = Math.abs(now) < unit / 2 ? GAP['on-plan'].label : `${sayDiff(now, goal)} ${now < 0 ? GAP.behind.label : GAP.ahead.label}`;
   const earlier = valued.length >= 2 ? valued[Math.max(0, valued.length - 3)]! : null;
   if (!earlier || earlier.week === last.week) return `${where}.`;
   const then = gapAt(earlier);
@@ -55,9 +57,9 @@ export function standingSentence(goal: MetricGoal, points: { week: number; value
   const when = ago(last.week - earlier.week);
   const thenWords = Math.abs(then) < unit / 2 ? 'on plan' : `${sayDiff(then, goal)} ${then < 0 ? 'behind' : 'ahead'}`;
   if (Math.abs(move) < unit) return `${where}, about the same as ${when}.`;
-  if (now < 0) return move > 0 ? `${where} and catching up: it was ${thenWords} ${when}.` : `${where} and slipping${then < 0 ? ' further' : ''}: it was ${thenWords} ${when}.`;
-  if (now > 0) return move > 0 ? `${where} and pulling ${then > 0 ? 'further ' : ''}ahead: it was ${thenWords} ${when}.` : `${where}, though the lead is shrinking: it was ${thenWords} ${when}.`;
-  return `${where} again: it was ${thenWords} ${when}.`;
+  const word = gapTrend(valued.slice(-3).map(gapAt), true);
+  if (word !== 'flat') return `${where} and ${lower(TREND[word])}: it was ${thenWords} ${when}.`;
+  return `${where}; it was ${thenWords} ${when}.`;
 }
 
 /** The last day of the week a goal is due, said as a date: "by 3 Jan". */
@@ -84,7 +86,7 @@ export function headingSentence(goal: MetricGoal, p: { likely: number; low: numb
   return `On its recent trend it ends at about ${likely} ${when}${range}, ${outcome}. Projected by the app from the last eight weeks, not the owner’s date.`;
 }
 
-/** A dated-stages goal: "3 weeks late and slipping: it was on time two weeks ago." */
+/** A dated-stages goal: "3 weeks late and getting worse: it was on time two weeks ago." */
 export function stagesSentence(late: { week: number; late: number }[]): string | null {
   const last = late[late.length - 1];
   if (!last) return null;
@@ -95,7 +97,7 @@ export function stagesSentence(late: { week: number; late: number }[]): string |
   const when = ago(last.week - earlier.week);
   const then = earlier.late === 0 ? 'on time' : `${w(earlier.late)} late`;
   if (earlier.late === last.late) return `${where}, the same as ${when}.`;
-  return last.late > earlier.late ? `${where} and slipping: it was ${then} ${when}.` : `${where} and recovering: it was ${then} ${when}.`;
+  return `${where} and ${lower(TREND[last.late > earlier.late ? 'worse' : 'better'])}: it was ${then} ${when}.`;
 }
 
 /** A goal that stays inside a limit: "Inside the limit at 4.2 hours, and moving towards it: it was 3.1 hours two weeks ago." */
@@ -107,7 +109,7 @@ export function rangeSentence(goal: RangeGoal, points: { week: number; value: nu
   if (!earlier || towards == null || earlier.week === last.week) return `${where}.`;
   const when = ago(last.week - earlier.week);
   if (earlier.value === last.value) return `${where}, the same as ${when}.`;
-  const move = inside ? (towards ? 'and moving towards it' : 'and moving away from it') : (towards ? 'and getting further past it' : 'and coming back towards it');
+  const move = `and ${lower(TREND[towards ? 'worse' : 'better'])}`;
   return `${where}, ${move}: it was ${sayAmount(earlier.value, goal)} ${when}.`;
 }
 
