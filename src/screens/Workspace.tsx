@@ -5,7 +5,7 @@ import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { initials } from '../domain/importer';
-import { personProblems } from '../domain/people';
+import { normalEmail, personProblems } from '../domain/people';
 import type { Person, Team } from '../domain/types';
 import { teamMembers } from '../domain/actions';
 import { newId } from '../data/store';
@@ -90,6 +90,7 @@ export function WorkspaceHome() {
           {admin && <button className="btn" onClick={() => setEditing('new')}>Add a person</button>}
         </div>
         <p className="hint">{admin ? 'You’re an admin: you can add people, change their details and make others admins.' : `Admins can add people: ${admins.map((p) => p.name).join(', ') || 'no one yet'}.`}</p>
+        {admin && <MissingEmails />}
         <div className="row directory-find">
           <label className="field" style={{ flex: '2 1 220px' }}><span className="sr">Find a person</span><input className="input" type="search" placeholder="Find by name, role or team" value={q} onChange={(e) => { setQ(e.target.value); setLimit(60); }} /></label>
           <label className="field" style={{ flex: '1 1 160px' }}><span className="sr">Team</span>
@@ -295,17 +296,70 @@ function RemoveTeamSheet({ team, onClose }: { team: Team; onClose: () => void })
   );
 }
 
+/**
+ * For admins: the people added before everyone had an email. An email tells two people with the same name apart, in the
+ * app, in a spreadsheet and for the AI assistant. Typed here and saved together, through the bulk-change engine.
+ */
+function MissingEmails() {
+  const app = useApp();
+  const missing = app.snapshot.people.filter((p) => !p.email);
+  const [typed, setTyped] = useState<Record<string, string>>({});
+  const [problems, setProblems] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [limit, setLimit] = useState(20);
+  if (!missing.length) return null;
+  const filled = missing.filter((p) => (typed[p.id] ?? '').trim());
+  const save = async () => {
+    if (!filled.length) { setProblems({ '': 'Type at least one email first.' }); return; }
+    const rows = filled.map((p, i) => ({ __row: String(i + 2), id: p.id, email: typed[p.id]!.trim() }));
+    const cs = app.previewChanges({ people: rows }, 'bulk');
+    const errs = cs.issues.filter((x) => x.severity === 'error');
+    if (errs.length) { setProblems(Object.fromEntries(errs.map((x) => [filled[x.row - 2]?.id ?? '', x.message]))); return; }
+    setBusy(true);
+    try {
+      await app.applyChanges(cs);
+      app.toast(`Saved ${filled.length} ${filled.length === 1 ? 'email' : 'emails'}`);
+      setTyped({});
+      setProblems({});
+    } catch { /* the save already said what went wrong */ }
+    setBusy(false);
+  };
+  return (
+    <section className="missing-emails stack" aria-labelledby="missing-emails" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
+      <h3 id="missing-emails" className="label">People without an email · {missing.length}</h3>
+      <p className="hint">An email tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant. Everyone added now has one; add these when you can.</p>
+      <ul className="record email-list">
+        {missing.slice(0, limit).map((p) => (
+          <li key={p.id} className="email-row">
+            <label className="field">
+              <span className="small"><span className="strong">{p.name}</span>{p.role ? <span className="muted"> · {p.role}</span> : null}</span>
+              <input className={'input' + (problems[p.id] ? ' invalid' : '')} aria-invalid={problems[p.id] ? true : undefined} type="email" autoComplete="off" aria-label={`${p.name}: email`} placeholder="name@company.com" value={typed[p.id] ?? ''} onChange={(e) => setTyped({ ...typed, [p.id]: e.target.value })} />
+            </label>
+            {problems[p.id] && <span className="hint tone-off" role="alert">{problems[p.id]}</span>}
+          </li>
+        ))}
+      </ul>
+      {missing.length > limit && <button type="button" className="linkish small" onClick={() => setLimit((n) => n + 20)}>Show {Math.min(20, missing.length - limit)} more</button>}
+      {problems[''] && <span className="hint tone-off" role="alert">{problems['']}</span>}
+      <div><button type="button" className="btn" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : filled.length ? `Save ${filled.length} ${filled.length === 1 ? 'email' : 'emails'}` : 'Save emails'}</button></div>
+    </section>
+  );
+}
+
 function PersonSheet({ person, onClose, onLeave }: { person: Person | null; onClose: () => void; onLeave: (p: Person) => void }) {
   const app = useApp();
-  const [p, setP] = useState<Person>(person ?? { id: newId('p'), name: '', role: '', initials: '', teamId: app.viewer.teamId ?? app.snapshot.teams[0]?.id ?? null, admin: false });
+  const [p, setP] = useState<Person>(person ?? { id: newId('p'), name: '', role: '', initials: '', teamId: app.viewer.teamId ?? app.snapshot.teams[0]?.id ?? null, admin: false, email: '' });
   const [tried, setTried] = useState(false);
   const self = person?.id === app.viewer.id;
   const dup = app.snapshot.people.find((x) => x.id !== p.id && !!p.name.trim() && x.name.trim().toLowerCase() === p.name.trim().toLowerCase());
   const lastAdmin = !!person?.admin && app.snapshot.people.filter((x) => x.admin).length === 1;
+  // An email is needed for anyone new; someone added before emails existed can be saved without one until it's known.
+  const clean: Person = { ...p, name: p.name.trim(), role: p.role.trim(), initials: initials(p.name.trim()), ...(normalEmail(p.email) ? { email: normalEmail(p.email) } : person?.email ? {} : { email: undefined }) };
+  const emailProblem = personProblems(clean, app.snapshot.people, person).find((x) => /email/i.test(x));
   const save = async () => {
     setTried(true);
-    if (personProblems(p, app.snapshot.people, person).length) return;
-    await app.savePerson({ ...p, name: p.name.trim(), role: p.role.trim(), initials: initials(p.name.trim()) }, person);
+    if (personProblems(clean, app.snapshot.people, person).length) return;
+    await app.savePerson(clean, person);
     app.toast(person ? 'Saved' : `Added ${p.name.trim()}`);
     onClose();
   };
@@ -318,6 +372,12 @@ function PersonSheet({ person, onClose, onLeave }: { person: Person | null; onCl
           </label>
           {tried && !p.name.trim() && <span className="hint tone-off" role="alert">Add a name.</span>}
           {tried && dup && <span className="hint tone-off" role="alert">{dup.name} is already here. Add a middle initial so people can tell you apart.</span>}
+        </div>
+        <div className="field">
+          <label className="field"><span className="field-label">Email{person && !person.email ? <span className="hint"> not added yet</span> : null}</span>
+            <input className={'input' + (tried && emailProblem ? ' invalid' : '')} aria-invalid={tried && emailProblem ? true : undefined} type="email" autoComplete="off" value={p.email ?? ''} onChange={(e) => setP({ ...p, email: e.target.value })} placeholder="name@company.com" />
+          </label>
+          {tried && emailProblem && <span className="hint tone-off" role="alert">{emailProblem}</span>}
         </div>
         <label className="field"><span className="field-label">Job title <span className="hint">optional</span></span>
           <input className="input" value={p.role} onChange={(e) => setP({ ...p, role: e.target.value })} />

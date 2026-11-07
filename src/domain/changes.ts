@@ -28,10 +28,16 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     'Data source': g.source || '—',
     Definition: g.definition || '—',
   };
+  // Every field a form or a spreadsheet can change has a line here, so no change goes unlogged (or unapplied).
+  if (g.kind !== 'milestone') {
+    f.Unit = g.unit || '—';
+    f.Decimals = String(g.decimals);
+  }
   if (g.kind === 'metric') {
     f.Start = fmt(g.plan.start, g);
     f.Target = fmt(g.plan.target, g);
     f['Plan shape'] = shapeName[g.plan.shape];
+    f['Plan from week'] = g.plan.fromWeek ? `Week ${g.plan.fromWeek}` : '—';
     f['Target due'] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : '—';
     f['Plan numbers'] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(', ') : '—';
   }

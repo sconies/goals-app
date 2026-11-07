@@ -69,6 +69,8 @@ const ALLOWED: { file: string; word: string; why: string }[] = [
   { file: 'src/ui/AiAssistants.tsx', word: 'Done', why: 'The button that closes the assistants sheet, not a status.' },
   { file: 'src/ui/ResearchBar.tsx', word: 'Done', why: 'A research session’s outcome as the tester reports it (Done, Stuck, Gave up), not a goal’s status.' },
   { file: 'src/screens/Home.tsx', word: 'Open', why: 'The verb on a button that opens a goal, not an ask’s state.' },
+  { file: 'src/domain/columns.ts', word: 'Action', why: 'The one format’s Action column (what to do with a row: stop or delete a goal, mark someone as left), not an ask’s kind.' },
+  { file: 'src/domain/tableLayout.ts', word: 'Action', why: 'The data tables leave the one format’s Action column out, by its header; not an ask’s kind.' },
   { file: 'src/ui/Shell.tsx', word: 'Open', why: 'Marks the workspace that is open now in the switcher, not an ask’s state.' },
 ];
 

@@ -95,7 +95,9 @@ module.exports = {
     await p.locator('.data-export > summary').click();
     let [dl] = await Promise.all([p.waitForEvent('download', { timeout: 8000 }), p.getByRole('button', { name: 'CSV, as shown' }).click()]);
     const csv = fs.readFileSync(await dl.path(), 'utf8').replace(/^﻿/, '').trim().split(/\r?\n/);
-    if (csv[0] !== shown.join(',')) fails.push(`[TABLE-LAYOUTS] CSV header "${csv[0].slice(0, 60)}" isn't the table's "${shown.join(',').slice(0, 60)}"`);
+    // As shown, then the columns that say which record each row is, when the layout leaves them out (release 3: so it loads back).
+    const keyCols = ['Key', 'ID'].filter((k) => !shown.includes(k));
+    if (csv[0] !== [...shown, ...keyCols].join(',')) fails.push(`[TABLE-LAYOUTS] CSV header "${csv[0].slice(-60)}" isn't the table's, then its keys: "${[...shown, ...keyCols].join(',').slice(-60)}"`);
     const ki = shown.indexOf('Key');
     const csvKeys = csv.slice(1).map((l) => l.split(',')[ki]);
     if (csvKeys.join(' ') !== 'G-49 G-41') fails.push(`[TABLE-LAYOUTS] CSV rows are ${csvKeys.join(' ')} (want Mateo's goals, G-49 G-41)`);

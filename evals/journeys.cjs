@@ -450,6 +450,10 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   await h.fill(p.getByLabel('Your name'), 'Grace Achterberg');
   await h.fill(p.getByLabel('Your team'), 'Leadership');
   await see(p, 'You’ll be this workspace’s admin');
+  // An email tells people apart: a missing one is explained before going on.
+  await p.getByRole('button', { name: 'Next' }).click();
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Add your email' }).isVisible(), 'a missing email is not explained');
+  await h.fill(p.getByLabel('Your email'), 'grace.achterberg@example.com');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await see(p, 'Who else is on it?');
   // A second person with your name is explained on their row before anything is saved; a row with no team takes yours.
@@ -506,8 +510,10 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   await h.click(p.getByRole('button', { name: 'Next' }));
   await h.fill(p.getByLabel('Your name'), 'Rosa Lind');
   await h.fill(p.getByLabel('Your team'), 'Growth');
+  await h.fill(p.getByLabel('Your email'), 'rosa.lind@example.com');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await p.getByLabel('Person 1: name').fill('Omar Haddad');
+  await p.getByLabel('Person 1: email').fill('omar.haddad@example.com');
   await p.getByLabel('Person 1: team').fill('Growth');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await h.click(p.getByRole('radio', { name: /Product team/ }));
@@ -750,6 +756,7 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
   await p.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Add a name' }).isVisible(), 'a person without a name is not explained');
   await h.fill(p.getByRole('dialog').getByLabel('Name'), 'Ines Karim');
+  await h.fill(p.getByRole('dialog').getByLabel(/^Email/), 'ines.karim@example.com');
   await h.fill(p.getByRole('dialog').getByLabel(/Job title/), 'Head of SRE');
   await h.click(p.getByRole('dialog').getByRole('checkbox', { name: /Admin/ }));
   await h.checkpoint('add person');
@@ -2167,6 +2174,93 @@ journey('U45', ['IMPORT-UNDO', 'BULK-EDIT'], 'Undo an import: every row back as 
   const undone = s1.changes.find((c) => c.action === 'undone' && c.entityId === imp);
   h.set('logged', !!undone && undone.diffs.some((d) => d.field === 'Skipped' && /Changes shipped with automated integration tests/.test(d.to)), 'the undo is not logged with the row it skipped');
   h.set('attention', true);
+  h.set('progress', true);
+  await p.context().close();
+});
+
+/** A downloaded workbook as sheets of rows (line breaks kept), and those sheets saved as a workbook again: what someone
+    editing it in Excel does, done with the same libraries the app uses. */
+async function readWorkbook(file) {
+  const read = require('read-excel-file/node');
+  return (await read(file)).map((s) => ({ name: s.sheet, rows: s.data }));
+}
+async function writeWorkbook(sheets, file) {
+  const write = require('write-excel-file/node');
+  await write(sheets.map((s) => ({ sheet: s.name, data: s.rows.map((r) => r.map((c) => (c == null || c === '' ? null : { value: c }))) })), {}).toFile(file);
+}
+
+journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'IMPORT-UNDO'], 'An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/goals'));
+  // Export, from the Goals screen (on the smallest phones it's in the Import or export menu).
+  const direct = p.locator('button:visible', { hasText: /^Export/ }).first();
+  await h.inView(direct.or(p.locator('summary[aria-label="Import or export"]')), 'entry', 'Export on the Goals screen');
+  if (await direct.isVisible().catch(() => false)) await h.click(direct);
+  else { await h.click(p.locator('summary[aria-label="Import or export"]')); await h.click(p.locator('.view-menu-list').getByRole('button', { name: 'Export', exact: true })); }
+  const sheet = p.getByRole('dialog', { name: 'Export goals' });
+  await sheet.waitFor();
+  await see(sheet, 'Results', 'the workbook does not say it has every sheet');
+  await see(sheet, 'CSV files', 'the zipped CSVs are not offered beside the workbook');
+  await h.checkpoint('export choices');
+  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(sheet.getByRole('button', { name: /Excel workbook/ }))]);
+  const file = path.join(OUT, `U46-${device}.xlsx`);
+  await xlsx.saveAs(file);
+  const book = await readWorkbook(file);
+  h.set('finish', ['Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes', 'README'].every((n) => book.some((s) => s.name === n)), `the workbook has ${book.map((s) => s.name).join(', ')}`);
+  // In Excel: stop one goal (with a reason) and give another a new owner by email; a line break in a Why.
+  const s0 = await h.snapshot();
+  const goals = book.find((s) => s.name === 'Goals').rows;
+  const col = (name) => goals[0].indexOf(name);
+  const stop = s0.goals.find((g) => g.ownerId === 'mateo' && s0.checkIns.some((c) => c.goalId === g.id) && !s0.goals.some((c) => c.parentId === g.id));
+  const move = s0.goals.find((g) => g.ownerId === 'tariq' && g.id !== stop.id);
+  const stopRow = goals.find((r) => r[col('Key')] === stop.key);
+  stopRow[col('Action')] = 'Stop';
+  stopRow[col('Reason')] = 'Folded into the incident review goal for the rest of the year.';
+  goals.find((r) => r[col('Key')] === move.key)[col('Owner email')] = 'rhea.kapoor@example.com';
+  const edited = path.join(OUT, `U46-${device}-edited.xlsx`);
+  await writeWorkbook(book, edited);
+  await p.keyboard.press('Escape');
+  // Load it back on Import: exactly those two changes, the stop shown as such, before anything is saved.
+  await h.click(p.getByRole('link', { name: 'Import' }).first());
+  await see(p, 'Import from a spreadsheet');
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
+  await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
+  await see(p, 'Read Goals, Plan, Check-ins and People', 'the preview does not say which sheets it read');
+  h.set('attention', await p.getByText(stop.title).first().isVisible() && await p.getByText(move.title).first().isVisible(), 'the preview does not name both goals');
+  await p.locator('.change-goal summary').first().click();
+  await h.checkpoint('import preview');
+  h.set('errors', (await h.snapshot()).goals.find((g) => g.id === stop.id) && !(await h.snapshot()).changes.some((c) => c.action === 'stopped'), 'something was saved before Save');
+  await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
+  await p.waitForURL(/\/goals$/);
+  const s1 = await h.snapshot();
+  const stopped = (s1.goals.find((g) => g.id === stop.id) || {});
+  const moved = s1.goals.find((g) => g.id === move.id);
+  h.set('finish', !!stopped.stoppedAt && stopped.stopReason === 'Folded into the incident review goal for the rest of the year.' && moved.ownerId === 'rhea', `stopped ${!!stopped.stoppedAt}, owner ${moved.ownerId}`);
+  const imp = s1.changes.filter((c) => c.action === 'imported').pop();
+  h.set('logged', !!imp && /Loaded a spreadsheet: 1 goal changed, 1 goal stopped/.test(imp.summary) && s1.changes.some((c) => c.importId === imp.entityId && c.action === 'stopped'), 'the import and the stop were not logged together');
+  // Undo it from Activity: both put back.
+  await p.goto(url('/activity?kind=imports'));
+  await h.click(p.getByRole('button', { name: 'Undo this import' }).first());
+  await h.click(p.getByRole('button', { name: 'Undo the import' }));
+  await see(p, 'Undid the import', 'the undo does not say it was done');
+  const s2 = await h.snapshot();
+  h.set('finish', !s2.goals.find((g) => g.id === stop.id).stoppedAt && s2.goals.find((g) => g.id === move.id).ownerId === 'tariq', 'the undo did not put both goals back');
+  // Workspace: someone added before emails existed is listed, and their email saved.
+  await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    const wen = s.people.find((x) => x.id === 'wen');
+    await window.__goalsStore.commit('platform-org', { people: [{ ...wen, email: null }], changes: [] });
+  });
+  await p.goto(url('/workspace'));
+  const list = p.getByRole('region', { name: /People without an email/ }).or(p.locator('section.missing-emails'));
+  await list.first().waitFor();
+  await see(p, 'People without an email · 1', 'Workspace does not list the person without an email');
+  await h.fill(p.getByLabel('Wen Zhao: email'), 'Wen.Zhao@example.com');
+  await h.checkpoint('missing emails');
+  await h.click(p.getByRole('button', { name: 'Save 1 email' }));
+  await see(p, 'Saved 1 email');
+  const s3 = await h.snapshot();
+  h.set('logged', s3.people.find((x) => x.id === 'wen').email === 'wen.zhao@example.com' && s3.changes.some((c) => c.entity === 'person' && c.entityId === 'wen' && c.diffs.some((d) => d.field === 'Email')), 'the email was not saved, lower case, and logged');
   h.set('progress', true);
   await p.context().close();
 });

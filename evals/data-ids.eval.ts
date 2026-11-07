@@ -205,7 +205,8 @@ describe('data-table layouts', () => {
     const listed = (await rhea.call('list_views')).data!.views.find((v: { name: string }) => v.name === 'Mateo’s goals');
     expect(listed).toMatchObject({ table: 'goals', columns: ['Key', 'Owner', 'Status'], widths: { Owner: 180 } });
     const csv = await rhea.call('export_table', { view: 'Mateo’s goals' });
-    expect(csv.text.split('\r\n').slice(0, 2)).toEqual(['Goal,Key,Owner,Status', expect.stringMatching(/^Mean time to restore service \(P1 and P2\),G-41,Mateo Fernández,/)]);
+    // The view's columns, then the goal's ID (a column that says which record a row is), so it loads back.
+    expect(csv.text.split('\r\n').slice(0, 2)).toEqual(['Goal,Key,Owner,Status,ID', expect.stringMatching(/^Mean time to restore service \(P1 and P2\),G-41,Mateo Fernández,/)]);
     expect((await rhea.call('export_table', { table: 'goals', columns: ['Mood'] })).text).toMatch(/no column called “Mood”/);
     // A table view isn't one of the Goals screen's views.
     expect((await rhea.call('find_goals', { view: 'Mateo’s goals' })).error).toBe(true);

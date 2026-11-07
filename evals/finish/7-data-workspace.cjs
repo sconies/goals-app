@@ -187,16 +187,17 @@ module.exports = {
     if (bar[0] !== 'rgb(33, 150, 142)/6' || bar[1] !== 'rgb(210, 206, 196)/4') fails.push(`[W5] progress: ${bar.slice(0, 2).join(', ')}`);
     await r.getByLabel('Name').first().fill('Test space');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(200);
-    await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform');
+    await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform'); await r.getByLabel('Your email').fill('ana.silva@example.com');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
     await r.getByLabel('Person 1: name').fill('Ana Silva');
     await r.evaluate(() => document.activeElement?.blur());
     await r.waitForTimeout(150);
-    const pg = await r.evaluate(() => { const row = document.querySelector('.pg-row'); const [n, t] = row.querySelectorAll('.input'); const chk = row.querySelector('.pg-check').getBoundingClientRect(); const issue = row.querySelector('.pg-issue')?.getBoundingClientRect(); return { focus: document.querySelector('.focus').getBoundingClientRect().width, n: n.getBoundingClientRect().width, t: t.getBoundingClientRect().width, chk: [Math.round(chk.width), Math.round(chk.height)], red: getComputedStyle(n).borderTopColor, issueW: issue ? issue.width : 0, ph: t.placeholder }; });
-    if (pg.focus > 801 || pg.focus < 760 || pg.n < 300 || pg.t < 200) fails.push(`[W4] 1280 people step ${Math.round(pg.focus)}px: Name ${Math.round(pg.n)}, Team ${Math.round(pg.t)}`);
+    const pg = await r.evaluate(() => { const row = document.querySelector('.pg-row'); const [n, em, t] = row.querySelectorAll('.input'); const chk = row.querySelector('.pg-check').getBoundingClientRect(); const issue = row.querySelector('.pg-issue')?.getBoundingClientRect(); return { focus: document.querySelector('.focus').getBoundingClientRect().width, n: n.getBoundingClientRect().width, em: em.getBoundingClientRect().width, t: t.getBoundingClientRect().width, chk: [Math.round(chk.width), Math.round(chk.height)], red: getComputedStyle(n).borderTopColor, issueW: issue ? issue.width : 0, ph: t.placeholder }; });
+    // Name, email and team side by side (release 3: everyone has an email): each wide enough to read what's typed.
+    if (pg.focus > 801 || pg.focus < 760 || pg.n < 200 || pg.em < 200 || pg.t < 140) fails.push(`[W4] 1280 people step ${Math.round(pg.focus)}px: Name ${Math.round(pg.n)}, Email ${Math.round(pg.em)}, Team ${Math.round(pg.t)}`);
     if (pg.chk.join('x') !== '44x44' || pg.ph !== 'Team') fails.push(`[W11, W4] Admin cell ${pg.chk.join('x')}, Team placeholder "${pg.ph}"`);
-    if (pg.red !== 'rgb(200, 55, 43)' || pg.issueW > pg.n + pg.t + 9) fails.push(`[W6] a duplicate name: border ${pg.red}, message ${Math.round(pg.issueW)}px wide`);
-    await r.getByLabel('Person 1: name').fill('Cat Lee');
+    if (pg.red !== 'rgb(200, 55, 43)' || pg.issueW > pg.n + pg.em + pg.t + 17) fails.push(`[W6] a duplicate name: border ${pg.red}, message ${Math.round(pg.issueW)}px wide`);
+    await r.getByLabel('Person 1: name').fill('Cat Lee'); await r.getByLabel('Person 1: email').fill('cat.lee@example.com');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
     await r.locator('.opt[role="radio"]').nth(1).click(); await r.waitForTimeout(150);
     const op = await r.evaluate(() => { const o = document.querySelector('.opt[role="radio"][aria-checked="true"]'); const b = getComputedStyle(o, '::before'); return { sh: getComputedStyle(o).boxShadow, ol: getComputedStyle(o).outlineStyle, circle: [b.width, b.height, b.borderTopLeftRadius].join(' ') }; });
@@ -205,7 +206,7 @@ module.exports = {
     [c, r] = await open(360, 740, 'grace', '/workspace/new');
     await r.getByLabel('Name').first().fill('Test space');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(200);
-    await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform');
+    await r.getByLabel('Your name').fill('Ana Silva'); await r.getByLabel('Your team').fill('Platform'); await r.getByLabel('Your email').fill('ana.silva@example.com');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
     const pp = await r.evaluate(() => { const row = document.querySelector('.pg-row'); const [n, t] = [...row.querySelectorAll('.input')].map((e) => e.getBoundingClientRect()); const c2 = row.querySelector('.pg-check').getBoundingClientRect(); return { stacked: t.top >= n.bottom + 7, same: Math.abs(n.width - t.width) < 1, third: c2.top >= t.bottom }; });
     if (!pp.stacked || !pp.same || !pp.third) fails.push(`[W4] 360 people rows: ${JSON.stringify(pp)}`);

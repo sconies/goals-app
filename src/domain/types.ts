@@ -13,6 +13,9 @@ export interface Person {
   initials: string;
   teamId: Id | null;
   admin: boolean;
+  /** Their email, lower case: how a spreadsheet, the import and the AI assistant tell people apart (two people can share a
+      name). Required when someone is added; people added before emails existed have none until an admin fills it in. */
+  email?: string | null;
   /** Marked as left (domain/removal): gone from pickers, counts, reviews and Home; history keeps their name, "Name (left)". */
   leftAt?: string | null;
   leftBy?: Id | null;
@@ -234,6 +237,9 @@ export interface ImportUndo {
   checkIns: { id: Id; before: CheckIn | null }[];
   people: { id: Id; before: Person | null }[];
   requests: { id: Id; before: Ask | null }[];
+  /** Reviews and teams a row's Action changed (someone marked as left leaves their reviews and hands over their teams). */
+  reviews?: { id: Id; before: Review | null }[];
+  teams?: { id: Id; before: Team | null }[];
 }
 
 /**

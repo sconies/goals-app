@@ -12,7 +12,7 @@ const when = (k: string, v: string | null | undefined) => (v ? { [k]: new Date(v
 const who = (k: string, v: string | null | undefined) => (v ? { [k]: v } : {});
 export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string; recording?: boolean | null }
 export interface TeamRow extends W { id: string; name: string; lead_id: string | null; objective: string }
-export interface PersonRow extends W, Removal { id: string; name: string; role: string; initials: string; team_id: string | null; is_admin: boolean; left_at?: string | null; left_by?: string | null }
+export interface PersonRow extends W, Removal { id: string; name: string; role: string; initials: string; team_id: string | null; is_admin: boolean; left_at?: string | null; left_by?: string | null; email?: string | null }
 export interface CycleRow extends W, Removal { id: string; name: string; start_date: string; weeks: number; review_day: number }
 export interface StageRow extends W { id: string; goal_id: string; name: string; due_week: number }
 export interface GoalRow extends W, Removal {
@@ -46,8 +46,10 @@ export const workspaceToRow = (w: Workspace): WorkspaceRow => ({ id: w.id, name:
 export const workspaceFromRow = (r: WorkspaceRow): Workspace => ({ id: r.id, name: r.name, kind: r.kind, createdAt: iso(r.created_at), ...(r.recording === false ? { recording: false } : {}) });
 export const teamToRow = (ws: string, t: Team, withLead = true): TeamRow => ({ workspace_id: ws, id: t.id, name: t.name, lead_id: withLead && t.leadId ? t.leadId : null, objective: t.objective });
 export const teamFromRow = (r: TeamRow): Team => ({ id: r.id, name: r.name, leadId: r.lead_id ?? '', objective: r.objective });
-export const personToRow = (ws: string, p: Person): PersonRow => ({ workspace_id: ws, id: p.id, name: p.name, role: p.role, initials: p.initials, team_id: p.teamId, is_admin: p.admin, ...set({ left_at: p.leftAt, left_by: p.leftBy, removed_at: p.removedAt, removed_by: p.removedBy }) });
-export const personFromRow = (r: PersonRow): Person => ({ id: r.id, name: r.name, role: r.role, initials: r.initials, teamId: r.team_id, admin: !!r.is_admin, ...when('leftAt', r.left_at), ...who('leftBy', r.left_by), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
+// The email (migration 0027) is written only when the person has one (an email removed is written as null), so rows for
+// people without one look exactly as before, and a database without the column yet takes the row as it is.
+export const personToRow = (ws: string, p: Person): PersonRow => ({ workspace_id: ws, id: p.id, name: p.name, role: p.role, initials: p.initials, team_id: p.teamId, is_admin: p.admin, ...set({ email: p.email, left_at: p.leftAt, left_by: p.leftBy, removed_at: p.removedAt, removed_by: p.removedBy }) });
+export const personFromRow = (r: PersonRow): Person => ({ id: r.id, name: r.name, role: r.role, initials: r.initials, teamId: r.team_id, admin: !!r.is_admin, ...(r.email ? { email: r.email } : {}), ...when('leftAt', r.left_at), ...who('leftBy', r.left_by), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
 export const cycleToRow = (ws: string, c: Cycle): CycleRow => ({ workspace_id: ws, id: c.id, name: c.name, start_date: c.startDate, weeks: c.weeks, review_day: c.reviewDay, ...set({ removed_at: c.removedAt, removed_by: c.removedBy }) });
 export const cycleFromRow = (r: CycleRow): Cycle => ({ id: r.id, name: r.name, startDate: r.start_date.slice(0, 10), weeks: Number(r.weeks), reviewDay: Number(r.review_day ?? 3), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
 

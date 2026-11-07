@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-06 23:35 UTC.
+Run 2026-11-07 09:45 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -12,16 +12,16 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 2 | What needs me? Home shows what’s due, off track, stale or slipping | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 1) |
 | 3 | Weekly review: walk the goals worst first and record what was said | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 18) |
 | 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 12 · 11 (budget 13) |
-| 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 10 · 10 (budget 15) |
+| 5 | Load your own data and switch between it and the example | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 11 · 11 (budget 15) |
 | 6 | Understand a goal and its change history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 3) |
 | 7 | An owner changes a target with a reason; a watcher sees it | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 13 · 13 (budget 16) |
 | 8 | Watching: see what has gone quiet and chase it | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 3 (budget 5) |
 | 9 | Follow goals you don’t own: watch a tree or a level | **8.9** | ✗ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 6) |
 | 10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
-| 11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 12 · 12 (budget 14) |
+| 11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 13 · 13 (budget 14) |
 | 12 | Demo: switch person, look around, start over | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 4) |
 | 13 | Anyone sets up a review: name, cadence, goals, people | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 10) |
-| 14 | An admin adds a person and makes them an admin | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
+| 14 | An admin adds a person and makes them an admin | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 8) |
 | 15 | Call it greener than the numbers, with a reason, in the status sheet | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 8) |
 | 16 | Home by responsibility: every ask waiting on you in one place, and one navigation | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 2 · 2 (budget 4) |
 | 17 | Demo data sets, presenting without the bar, and deleting a workspace | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 12) |
@@ -53,6 +53,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 43 | An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 10) |
 | 44 | An owner stops a goal with history, then deletes a goal set up by mistake and undoes it | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 11) |
 | 45 | Undo an import: every row back as it was, and a row changed since skipped and listed | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 8) |
+| 46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 8 · 8 (budget 16) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -71,7 +72,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**121 of 121 pass**. Spec scenarios 237/237.
+**123 of 125 pass**, 2 fail. Spec scenarios 253/253.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -121,8 +122,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **ADMIN** Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed. | People | 0 | U5, U10, U14 |
 | ✅ | **RETRO** From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged. | Cycles | 0 | U10 |
 | ✅ | **VIEWS** The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. | Views | 0 | U19 |
-| ✅ | **EXPORT** Goals export as an Excel workbook (goals, plan by week, check-ins, notes and actions, people, a README), CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens. | Data | 0 | U19 |
-| ✅ | **BULK-IMPORT** A workbook or CSV can add or change goals, set plan numbers and add check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet. | Data | 0 | U20 |
+| ✅ | **EXPORT** Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens. | Data | 0 | U19 |
+| ✅ | **BULK-IMPORT** A workbook, a zip of CSVs or one CSV can add or change people, goals, plan numbers and check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any, and admins add and change people. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet. | Data | 0 | U20 |
 | ✅ | **BULK-EDIT** An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log. | Data | 0 | U21, U45 |
 | ✅ | **MCP-TOKENS** An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused. | AI assistants | 0 | U22 |
 | ✅ | **MCP-PARITY** Everything a person can do in the app, their AI assistant can do through the MCP server, with exactly that person's rights and the app's rules, logged as them via the assistant: reading every screen (what needs them, goals, reviews, requests, watching, people, activity, views, tokens, the wrap-up) and every action (check-ins, goals, plans, comments, asks for an update, answering, linking and withdrawing requests, review calls, reviews, watching, people, wrap-ups, the next cycle, views, tokens, feedback, deleting the workspace). Only workspace set-up and switching stay in the app. A parity map is checked against the app's actions and screens. | AI assistants | 12 | — |
@@ -169,8 +170,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **WORKSPACE-ADMIN** Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. | Workspace | 6 | N4 |
 | ✅ | **TABLE-LAYOUTS** In the data tables, columns can be reordered and resized, the layout saved and reopened, and the table exported as shown. | Data | 5 | N5 |
 | ✅ | **READABLE-IDS** Every goal has a short, readable key (G-1, G-2 … per workspace) that never changes, shown on the goal, in tables, exports and links, and accepted by the AI assistant and imports. | Data | 11 | N5 |
-| ✅ | **PRINT-EXPORT** A goal and a review each have a print-ready one-page view (save as PDF) with everything critical: status, numbers against plan, chart, path to green, latest check-in, requests and actions. | Export | 4 | N6 |
-| ✅ | **MOTION-ALIVE** The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; interface motion is under 250ms, the goal page's story (its chart and headline number) up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion. | Interface | 3 | N6 |
+| ❌ | **PRINT-EXPORT** A goal and a review each have a print-ready one-page view (save as PDF) with everything critical: status, numbers against plan, chart, path to green, latest check-in, requests and actions. | Export | 4 | N6 |
+| ❌ | **MOTION-ALIVE** The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; interface motion is under 250ms, the goal page's story (its chart and headline number) up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion. | Interface | 3 | N6 |
 | ✅ | **HELP-GUIDE** The app has its own guide: one article per screen or feature saying what it is for, how to use it and who can, reachable from the sidebar, the phone's More sheet and the icon rail, searchable, and opened for the page you are on by a Help link on every page. Every screen, route and requirement has an article (checked by a test), and an AI assistant can read it through the MCP server. | Help | 5 | N7 |
 | ✅ | **WHATS-NEW** What's new lists each release newest first, with a date, a title, a few plain lines for people and links to the guide. A quiet dot beside Help, and one dismissible line on Home, show a release the person hasn't seen until they open What's new, remembered across reloads. CI refuses a change to the app without an entry, and an AI assistant can read the entries. | Help | 4 | N7 |
 | ✅ | **TELEMETRY-SIGNALS** The app records traces, logs and metrics in its own database in OpenTelemetry's shape (32-hex trace ids, 16-hex span ids, parent, kind, start and end, status, attributes and resource; logs with timestamp, severity and body), using semantic-convention names. One trace per thing a person does: the action, the save's RPC timed from the client as a CLIENT span (db.system, db.operation), and the page that shows the result. Pages, errors, failed saves (a rule saying no told apart from a network or database fault) and slow loads are recorded. The MCP server records a SERVER span per tool call and joins the caller's trace from a W3C traceparent header. When the tables are missing, the database is down or there is none, the app works exactly as before, with no console errors and no retry storm. | Observability | 4 | N8 |
@@ -195,7 +196,11 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **UNDO-REMOVE** Every removal shows a message with an Undo button for 10 seconds, which puts back every record it changed (what it handed over or moved included). Admins restore anything removed, stopped, ended or marked as left in the last 30 days from Recently removed on Workspace, which shows the kind, the name, who removed it, when, and Restore; after 30 days it leaves the list but the row stays. The AI assistant has list_removed and restore_removed. | Removing | 1 | U43, U44 |
 | ✅ | **PERSON-LEFT** An admin marks someone as left from a dialog that first asks who takes over their goals and their open asks (as asker and as responder); they vanish from pickers, counts, review people and Home, their token no longer works, and history keeps their name as “Name (left)”. Someone with no goals, check-ins, notes or asks is deleted outright instead. | Removing | 1 | U43 |
 | ✅ | **GOAL-STOP** The owner or an admin stops a goal with check-ins, with a required reason: it leaves stats, reviews, Home, Watching and attention lists but stays on its page (marked Stopped, a shape and a word, as it stood but with no forecast: no “will it hit?” and no projection), in its history, in exports and in Activity; the goals feeding it move up to its parent and its open asks are withdrawn with a note. A goal with no check-ins is deleted instead. | Removing | 1 | U44 |
-| ✅ | **IMPORT-UNDO** Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed. | Removing | 1 | U45 |
+| ✅ | **ONE-FORMAT** One spreadsheet format: every sheet and column is defined once (src/domain/columns.ts), with its header, its meaning, whether it matches the row, can be changed or is worked out, and how it is written and read. The workbook, the zipped CSVs, one CSV, the set-up template, set-up from a spreadsheet, Import, the Data tables, the AI assistant’s tools and docs/export-format.md (checked to be current) are all made from it. Sheets are known by their header rows, never their names; CSV is read in one RFC 4180 pass (quotes, line breaks in a cell, a byte-order mark) and the formula guard’s apostrophe is taken off; worked-out columns use the vocabulary’s words and are never read; a word a column doesn’t know is a problem, never a default. | Data | 6 | U46 |
+| ✅ | **ROUND-TRIP** Whatever is exported loads straight back as no change: every demo workspace as a workbook and as zipped CSVs, a Data table saved with columns hidden (its key columns are always written, greyed, at the end), and the AI assistant’s export_table into bulk_change. An edited copy applies exactly its edits, a line break or a leading “-” included. Goals are matched by key, then ID, so last cycle’s file still finds its goals; people by email, then a name only one person has, noted in the preview; every column that can be changed counts, and one a table leaves out keeps what the record says. | Data | 5 | U46 |
+| ✅ | **IMPORT-ACTIONS** A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams. | Data | 2 | U46 |
+| ✅ | **PERSON-EMAIL** Every person has an email, kept lower case and unique in the workspace (migration 0027): required when someone is added, in Workspace, set-up, a spreadsheet or the AI assistant. Exports write each person’s name and email, and imports match people by email. People added before emails are listed on Workspace for an admin to fill in, together. The example’s people have example emails (firstname.lastname@example.com). | People | 3 | U46 |
+| ✅ | **IMPORT-UNDO** Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed. | Removing | 1 | U45, U46 |
 
 ## Platform checks
 
@@ -212,7 +217,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **N3** Review notes, attention-home
 - ✅ **N4** Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours
 - ✅ **N5** Review notes, data-ids
-- ✅ **N6** Review notes, print-motion
+- ❌ **N6** Review notes, print-motion: [Motion] 390: switching the list from By level to By team moved no rows
 - ✅ **N7** Help and what’s new: reachable everywhere, searchable, opened for the page you’re on, and an unread dot that clears
 - ✅ **N8** Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send
 - ✅ **N9** The flagship goal page: five journeys at 390 and 1280; status once, no repeats, the chart in the first screen, motion and Share

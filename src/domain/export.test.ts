@@ -13,7 +13,7 @@ const input = { ws: { id: 'ws', name: 'Platform' }, snapshot: s, cycle, week, to
 describe('exports', () => {
   it('writes a workbook whose goal and check-in sheets use the import’s column names', () => {
     const wb = workbook(input);
-    expect(wb.map((t) => t.name)).toEqual(['Goals', 'Plan', 'Check-ins', 'Notes and actions', 'Asks', 'People', 'README']);
+    expect(wb.map((t) => t.name)).toEqual(['Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes', 'README']);
     const goals = wb[0]!.rows;
     expect(goals[0]!.slice(0, GOAL_EXPORT_COLUMNS.length)).toEqual([...GOAL_EXPORT_COLUMNS]);
     expect(goals.length - 1).toBe(s.goals.length);
@@ -26,7 +26,8 @@ describe('exports', () => {
     const head = wb[0]!.rows[0]!;
     for (const row of wb[0]!.rows.slice(1)) {
       const g = s.goals.find((x) => x.id === row[head.indexOf('ID')])!;
-      expect(row[0]).toBe(g.key);
+      expect(row[head.indexOf('Key')]).toBe(g.key);
+      expect(row[head.indexOf('Owner email')]).toBe(s.people.find((p) => p.id === g.ownerId)!.email);
       const sum = summarise(g, s, cycle, today, week);
       expect(row[head.indexOf('Status')]).toBe(sum.statusLabel);
       expect(row[head.indexOf('Gap')]).toBe(sum.gap);
