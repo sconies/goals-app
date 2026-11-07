@@ -15,11 +15,24 @@ export interface NewsEntry {
   points: string[];
   /** Guide articles that explain it. */
   articles: string[];
-  /** The markups (mk_…) this release fixes: whoever sent one sees “You raised this” on the entry. */
+  /** The markups (mk_…) and feedback (by its id) this release fixes: whoever sent one sees “You raised this” on the entry. */
   fixes?: string[];
 }
 
 export const WHATS_NEW: NewsEntry[] = [
+  {
+    id: 'shapes-match-words',
+    date: '2026-11-07',
+    title: 'Every shape matches its word, and feedback hears back',
+    points: [
+      'On Home and in Goals’ Needs attention, a goal’s shape always matches its status. A goal on track that is getting worse, or called greener than calculated, keeps its on-track circle, and the flag is said in words beside the warning mark, as on the goal’s page.',
+      'A dated stage says its state beside its shape: on schedule, slipping, late or done.',
+      'When a release fixes feedback you sent with a mood and a few words, its entry here says “You raised this”, as it does for a markup.',
+      'On a phone, someone who owns no goals sees the goals they watch on the first screen. Home shows the note about goals waiting for their first check-in only while one you own or watch is waiting; Goals always does.',
+      'For the people building Faro: with a builder token, an AI assistant lists, opens and triages feedback as it does markups, with the inbox’s rules.',
+    ],
+    articles: ['home', 'status', 'needs-attention', 'feedback', 'inbox', 'ai-assistants'],
+  },
   {
     id: 'one-meaning-for-every-word',
     date: '2026-11-06',

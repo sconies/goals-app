@@ -22332,6 +22332,7 @@ var init_vocabulary = __esmMin((() => {
 		late: RESULT.late.meaning,
 		missed: RESULT.missed.meaning
 	};
+	STATUS.on.label, RESULT.completed.label, RESULT.late.label, QUARTER.met.label, STATUS.risk.label, STAGE.risk.label, STATUS.off.label, STAGE.off.label, RESULT.missed.label, QUARTER.missed.label, STATUS.stale.label, STATUS.none.label, STATUS.planned.label, STAGE.planned.label, STATUS.done.label;
 	lower = (t) => t.label.charAt(0).toLowerCase() + t.label.slice(1);
 	withCode = (t) => `${t.label} (${t.code})`;
 	choices = (terms, only) => (only ?? Object.keys(terms)).map((k) => withCode(terms[k])).join(", ");
@@ -23133,7 +23134,7 @@ var when$1 = (k, v) => v ? { [k]: new Date(v).toISOString() } : {};
 var who = (k, v) => v ? { [k]: v } : {};
 /** Postgres numerics can arrive as strings; timestamps in any ISO form. Normalise both. */
 var num$1 = (v) => v == null ? null : Number(v);
-var iso$1 = (v) => new Date(v).toISOString();
+var iso$2 = (v) => new Date(v).toISOString();
 var workspaceToRow = (w) => ({
 	id: w.id,
 	name: w.name,
@@ -23144,7 +23145,7 @@ var workspaceFromRow = (r) => ({
 	id: r.id,
 	name: r.name,
 	kind: r.kind,
-	createdAt: iso$1(r.created_at),
+	createdAt: iso$2(r.created_at),
 	...r.recording === false ? { recording: false } : {}
 });
 var teamToRow = (ws, t, withLead = true) => ({
@@ -23289,7 +23290,7 @@ function goalFromRows(r, stageRows) {
 		...r.why_helps ? { whyHelps: r.why_helps } : {},
 		source: r.source,
 		definition: r.definition,
-		createdAt: iso$1(r.created_at),
+		createdAt: iso$2(r.created_at),
 		...r.pending ? { pending: r.pending } : {},
 		...r.version != null ? { version: Number(r.version) } : {},
 		...r.also_helps?.length ? { alsoHelps: r.also_helps } : {},
@@ -23379,7 +23380,7 @@ var checkInFromRow = (r) => ({
 	goalId: r.goal_id,
 	authorId: r.author_id,
 	week: Number(r.week),
-	postedAt: iso$1(r.posted_at),
+	postedAt: iso$2(r.posted_at),
 	value: num$1(r.value),
 	stages: r.stages,
 	status: r.status,
@@ -23427,7 +23428,7 @@ var decisionFromRow = (r) => ({
 	week: Number(r.week),
 	kind: r.kind,
 	byId: r.by_id,
-	at: iso$1(r.at),
+	at: iso$2(r.at),
 	note: r.note,
 	...r.assignee_id ? { assigneeId: r.assignee_id } : {},
 	...r.due_week != null ? { dueWeek: Number(r.due_week) } : {},
@@ -23453,7 +23454,7 @@ var changeToRow = (ws, c) => ({
 });
 var changeFromRow = (r) => ({
 	id: r.id,
-	at: iso$1(r.at),
+	at: iso$2(r.at),
 	actorId: r.actor_id,
 	goalId: r.goal_id,
 	entity: r.entity,
@@ -23512,7 +23513,7 @@ var reviewFromRow = (r) => ({
 	},
 	people: r.people ?? [],
 	createdBy: r.created_by,
-	createdAt: iso$1(r.created_at),
+	createdAt: iso$2(r.created_at),
 	...r.version != null ? { version: Number(r.version) } : {},
 	...when$1("endedAt", r.ended_at),
 	...who("endedBy", r.ended_by),
@@ -23538,7 +23539,7 @@ var retroFromRow = (r) => ({
 	learned: r.learned,
 	next: r.next,
 	byId: r.by_id,
-	at: iso$1(r.at)
+	at: iso$2(r.at)
 });
 var feedbackToRow = (ws, f) => ({
 	workspace_id: ws,
@@ -23555,7 +23556,7 @@ var feedbackFromRow = (r) => ({
 	path: r.path,
 	mood: r.mood,
 	text: r.text,
-	at: iso$1(r.at)
+	at: iso$2(r.at)
 });
 var tokenToRow = (ws, t) => ({
 	workspace_id: ws,
@@ -23586,9 +23587,9 @@ var viewFromRow = (r) => ({
 	name: r.name,
 	params: r.params ?? "",
 	pinned: !!r.pinned,
-	createdAt: iso$1(r.created_at),
-	updatedAt: iso$1(r.updated_at),
-	deletedAt: r.deleted_at ? iso$1(r.deleted_at) : null,
+	createdAt: iso$2(r.created_at),
+	updatedAt: iso$2(r.updated_at),
+	deletedAt: r.deleted_at ? iso$2(r.deleted_at) : null,
 	...who("deletedBy", r.deleted_by)
 });
 var requestToRow = (ws, r) => ({
@@ -23624,9 +23625,9 @@ var requestFromRow = (r) => ({
 	checkInId: r.check_in_id,
 	answer: r.answer,
 	answeredBy: r.answered_by,
-	answeredAt: r.answered_at ? iso$1(r.answered_at) : null,
-	createdAt: iso$1(r.created_at),
-	updatedAt: iso$1(r.updated_at)
+	answeredAt: r.answered_at ? iso$2(r.answered_at) : null,
+	createdAt: iso$2(r.created_at),
+	updatedAt: iso$2(r.updated_at)
 });
 var tokenFromRow = (r) => ({
 	id: r.id,
@@ -23634,9 +23635,9 @@ var tokenFromRow = (r) => ({
 	name: r.name,
 	...r.token_hash ? { tokenHash: r.token_hash } : {},
 	createdBy: r.created_by,
-	createdAt: iso$1(r.created_at),
-	lastUsedAt: r.last_used_at ? iso$1(r.last_used_at) : null,
-	revokedAt: r.revoked_at ? iso$1(r.revoked_at) : null
+	createdAt: iso$2(r.created_at),
+	lastUsedAt: r.last_used_at ? iso$2(r.last_used_at) : null,
+	revokedAt: r.revoked_at ? iso$2(r.revoked_at) : null
 });
 /** One save as the payload okr_commit takes: rows for each table, stages per milestone, and what the save expects. */
 function commitPayload(ws, c) {
@@ -29753,8 +29754,9 @@ var ARTICLES = [
 				list: [
 					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
 					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in.",
-					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and the note about goals still waiting for their first check-in comes after your own goals.",
-					"Your goals come next, with what needs attention first and what is being handled folded away. Goals you watch follow.",
+					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it.",
+					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
+					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
 					"After a release you haven’t seen, a quiet line says what’s new. Open it, or dismiss it with the cross."
 				]
@@ -29766,7 +29768,11 @@ var ARTICLES = [
 		],
 		routes: ["/"],
 		screens: ["Home"],
-		reqs: ["HOME-DASHBOARD", "PROFILES"],
+		reqs: [
+			"HOME-DASHBOARD",
+			"PROFILES",
+			"SHAPE-MATCHES-WORD"
+		],
 		keywords: [
 			"dashboard",
 			"start",
@@ -29807,7 +29813,8 @@ var ARTICLES = [
 					`${LABEL.risk}: a half-filled circle.`,
 					`${LABEL.off}: an open ring. ${LABEL.off} goals also get a quiet wash over the whole row or card.`,
 					`${LABEL.stale}: a dashed ring.`,
-					`${LABEL.done}: a circle with a tick.`
+					`${LABEL.done}: a circle with a tick.`,
+					"A shape always means its own word, wherever it is: a goal’s shape comes from its status, never from what flags it. A flag that isn’t a status, such as getting worse or a call greener than calculated, is said in words beside a small warning mark."
 				]
 			},
 			{
@@ -30350,7 +30357,7 @@ var ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Each flag is one line with its reason, in numbers where there are numbers.",
+					"Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.",
 					`A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
 					"Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”."
 				]
@@ -31285,7 +31292,7 @@ var ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only admins make tokens. An admin or the token’s own person can revoke one. A builder makes a builder token in the inbox, so their assistant can read and triage markups too."]
+				text: ["Only admins make tokens. An admin or the token’s own person can revoke one. A builder makes a builder token in the inbox, so their assistant can read and triage markups and feedback too."]
 			}
 		],
 		routes: [],
@@ -31324,7 +31331,7 @@ var ARTICLES = [
 					"The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.",
 					"Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.",
 					"Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.",
-					"Or skip the picture: choose how it’s working and add a few words, as before. It goes to the same inbox as markups, where the people building Faro mark it in hand, fixed or won’t fix."
+					"Or skip the picture: choose how it’s working and add a few words, as before. It goes to the same inbox as markups, where the people building Faro mark it in hand, fixed or won’t fix. When a release fixes it, its entry in What’s new says “You raised this” too."
 				]
 			},
 			{
@@ -31343,7 +31350,7 @@ var ARTICLES = [
 		],
 		routes: [],
 		screens: [],
-		reqs: ["MARKUP"],
+		reqs: ["MARKUP", "FEEDBACK-RAISED"],
 		keywords: [
 			"feedback",
 			"markup",
@@ -31384,14 +31391,14 @@ var ARTICLES = [
 					"Open one to see its picture (hide the drawing to see the screen beneath), the parts its marks are on, its notes, the steps before it as a timeline, any errors, and where it was sent from.",
 					"Mark it in hand. Open GitHub issue opens a new issue on GitHub filled in with the line, the page, the parts, the steps and a link back here: press Submit there, then paste the issue’s address back with Paste issue link.",
 					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.",
-					"Make a builder token, so your AI assistant can list, open and change markups too."
+					"Make a builder token, so your AI assistant can list, open and change markups and feedback too, with the same rules."
 				]
 			},
 			{
 				heading: "Feedback",
 				list: [
 					"Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.",
-					"It has the same statuses: open it to mark it in hand, fixed in a What’s new entry, or won’t fix with a reason, or new again. It has no picture and no GitHub issue.",
+					"It has the same statuses: open it to mark it in hand, fixed in a What’s new entry (its sender then sees “You raised this” there; list its id in the entry’s fixes too), or won’t fix with a reason, or new again. It has no picture and no GitHub issue.",
 					"Feedback always arrives as New. Only builders read everyone’s and change its status; a workspace’s admins still read their own on Workspace."
 				]
 			},
@@ -31402,7 +31409,11 @@ var ARTICLES = [
 		],
 		routes: [],
 		screens: [],
-		reqs: ["MARKUP-INBOX", "FEEDBACK-INBOX"],
+		reqs: [
+			"MARKUP-INBOX",
+			"FEEDBACK-INBOX",
+			"MCP-FEEDBACK"
+		],
 		keywords: [
 			"inbox",
 			"markups",
@@ -31558,6 +31569,26 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "shapes-match-words",
+		date: "2026-11-07",
+		title: "Every shape matches its word, and feedback hears back",
+		points: [
+			"On Home and in Goals’ Needs attention, a goal’s shape always matches its status. A goal on track that is getting worse, or called greener than calculated, keeps its on-track circle, and the flag is said in words beside the warning mark, as on the goal’s page.",
+			"A dated stage says its state beside its shape: on schedule, slipping, late or done.",
+			"When a release fixes feedback you sent with a mood and a few words, its entry here says “You raised this”, as it does for a markup.",
+			"On a phone, someone who owns no goals sees the goals they watch on the first screen. Home shows the note about goals waiting for their first check-in only while one you own or watch is waiting; Goals always does.",
+			"For the people building Faro: with a builder token, an AI assistant lists, opens and triages feedback as it does markups, with the inbox’s rules."
+		],
+		articles: [
+			"home",
+			"status",
+			"needs-attention",
+			"feedback",
+			"inbox",
+			"ai-assistants"
+		]
+	},
 	{
 		id: "one-meaning-for-every-word",
 		date: "2026-11-06",
@@ -32988,7 +33019,7 @@ init_goalKey();
 var said = (k) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 var askState = (r) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : "");
-var str$3 = (description, extra = {}) => ({
+var str$4 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -33011,7 +33042,7 @@ var LEVELS$1 = [
 	"svp",
 	"team"
 ];
-var READ$1 = {
+var READ$2 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -33153,7 +33184,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(_a, ctx) {
 			const s = ctx.snapshot, me = ctx.actor.id;
 			const mine = s.goals.filter((g) => g.ownerId === me);
@@ -33282,23 +33313,23 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$3(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$4(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$3("Only one kind.", { enum: [
+				kind: str$4("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$3("Only asks on a goal (its ID or key).")
+				goal_id: str$4("Only asks on a goal (its ID or key).")
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			const st = a.status == null || String(a.status).toLowerCase() === "all" ? a.status == null ? "open" : "all" : codeFrom(ASK_STATUS, a.status);
 			if (!st || st === "overdue") throw new Error(`“${String(a.status)}” isn’t where an ask can stand. Use one of: ${choices(ASK_STATUS, [
@@ -33323,7 +33354,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(_a, ctx) {
 			const list = ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -33359,9 +33390,9 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$3("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$4("The review’s ID, from list_reviews.") }
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			const r = reviewOf(ctx, a.review_id);
 			const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -33417,7 +33448,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(_a, ctx) {
 			const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
 				id: w.id,
@@ -33447,7 +33478,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(_a, ctx) {
 			const team = (id) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
 			const people = ctx.snapshot.people.map((p) => ({
@@ -33484,11 +33515,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$3("An Activity link’s query string."),
+				query: str$4("An Activity link’s query string."),
 				limit: int$2("How many changes, newest first (default 50, at most 500).")
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
 			if (q.goal) q.goal = goalOf$1(ctx, q.goal).id;
@@ -33530,7 +33561,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
 				const l = isTableView(v) ? parseLayout(v.params) : null;
@@ -33563,7 +33594,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
 				id: t.id,
@@ -33579,34 +33610,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "list_feedback",
-		title: "Feedback about the app",
-		description: "Admins: what people said through the feedback button, newest first.",
-		inputSchema: {
-			type: "object",
-			properties: {},
-			additionalProperties: false
-		},
-		annotations: READ$1,
-		async run(_a, ctx) {
-			if (!ctx.actor.admin) return {
-				isError: true,
-				text: "Only admins can read the feedback."
-			};
-			const list = [...ctx.snapshot.feedback ?? []].sort((x, y) => x.at < y.at ? 1 : -1).map((f) => ({
-				at: f.at,
-				by: name(ctx, f.personId),
-				mood: f.mood,
-				screen: f.path,
-				text: f.text
-			}));
-			return {
-				data: { feedback: list },
-				text: lines(list.map((f) => `${f.at.slice(0, 10)} · ${f.by} · ${f.mood} · ${f.screen} · ${f.text}`), "No feedback yet.")
-			};
-		}
-	},
-	{
 		name: "get_wrap_up",
 		title: "The cycle’s wrap-up",
 		description: "At the end of a cycle: which goals are wrapped up (result, what was learned, carry on or stop) and which are still to do.",
@@ -33615,7 +33618,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(_a, ctx) {
 			const retros = ctx.snapshot.retros ?? [];
 			const list = ctx.snapshot.goals.map((g) => {
@@ -33649,11 +33652,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$3("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$3("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$4("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$4("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a) {
 			const brief = (x) => ({
 				id: x.id,
@@ -33693,11 +33696,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$3("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$4("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$2("How many entries, newest first (default all).")
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a) {
 			const since = a.since ? String(a.since) : void 0;
 			if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return {
@@ -33727,8 +33730,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$3("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$3("The answer, decision or help offered.")
+				request_id: str$4("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$4("The answer, decision or help offered.")
 			}
 		},
 		annotations: WRITE$1,
@@ -33746,8 +33749,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$3("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$3("Optional: what was done.")
+				request_id: str$4("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$4("Optional: what was done.")
 			}
 		},
 		annotations: WRITE$1,
@@ -33764,8 +33767,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$3("The goal’s ID or its key, e.g. G-12."),
-				question: str$3("The question.")
+				goal_id: str$4("The goal’s ID or its key, e.g. G-12."),
+				question: str$4("The question.")
 			}
 		},
 		annotations: WRITE$1,
@@ -33783,8 +33786,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$3("The request’s ID."),
-				goal_id: str$3("The goal that waits on it (its ID or key).")
+				request_id: str$4("The request’s ID."),
+				goal_id: str$4("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE$1,
@@ -33801,8 +33804,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$3("The ask’s ID."),
-				goal_id: str$3("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$4("The ask’s ID."),
+				goal_id: str$4("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
 		annotations: WRITE$1,
@@ -33819,7 +33822,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$3("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$4("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE$1,
@@ -33838,7 +33841,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$3("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$4("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE$1,
 		async run(a, ctx) {
@@ -33858,16 +33861,16 @@ var WORK_TOOLS = [
 				"kind"
 			],
 			properties: {
-				review_id: str$3("The review’s ID."),
-				goal_id: str$3("The goal’s ID or its key, e.g. G-12."),
-				kind: str$3("What it is.", { enum: [
+				review_id: str$4("The review’s ID."),
+				goal_id: str$4("The goal’s ID or its key, e.g. G-12."),
+				kind: str$4("What it is.", { enum: [
 					"acknowledge",
 					"note",
 					"ask",
 					"action"
 				] }),
-				text: str$3("The note, question or action. Optional when acknowledging."),
-				who: str$3("Actions: who does it (name or ID). Defaults to the goal’s owner."),
+				text: str$4("The note, question or action. Optional when acknowledging."),
+				who: str$4("Actions: who does it (name or ID). Defaults to the goal’s owner."),
 				due_week: int$2("Actions: the week it’s due by.")
 			}
 		},
@@ -33902,9 +33905,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$3("Its ID, from get_review."),
-				text: str$3("The new wording."),
-				who: str$3("Actions: who does it."),
+				call_id: str$4("Its ID, from get_review."),
+				text: str$4("The new wording."),
+				who: str$4("Actions: who does it."),
 				due_week: int$2("Actions: the week it’s due by (0 for none).")
 			}
 		},
@@ -33935,10 +33938,10 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				review_id: str$3("The review to change. Leave out to set up a new one."),
-				name: str$3("Its name, e.g. \"Platform weekly review\"."),
+				review_id: str$4("The review to change. Leave out to set up a new one."),
+				name: str$4("Its name, e.g. \"Platform weekly review\"."),
 				every_weeks: int$2("Held every 1, 2 or 4 weeks."),
-				weekday: str$3("The weekday.", { enum: [
+				weekday: str$4("The weekday.", { enum: [
 					"Monday",
 					"Tuesday",
 					"Wednesday",
@@ -34003,12 +34006,12 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "ref"],
 			properties: {
-				kind: str$3("What to watch.", { enum: [
+				kind: str$4("What to watch.", { enum: [
 					"goal",
 					"tree",
 					"level"
 				] }),
-				ref: str$3("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
+				ref: str$4("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
 			}
 		},
 		annotations: {
@@ -34028,7 +34031,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["watch_id"],
-			properties: { watch_id: str$3("The watch’s ID, from list_watching.") }
+			properties: { watch_id: str$4("The watch’s ID, from list_watching.") }
 		},
 		annotations: WRITE$1,
 		async run(a, ctx) {
@@ -34043,10 +34046,10 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$3("The person to change. Leave out to add someone."),
-				name: str$3("Their full name."),
-				job_title: str$3("Their job title."),
-				team: str$3("Their team (name or ID); empty string for none."),
+				person_id: str$4("The person to change. Leave out to add someone."),
+				name: str$4("Their full name."),
+				job_title: str$4("Their job title."),
+				team: str$4("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
@@ -34082,14 +34085,14 @@ var WORK_TOOLS = [
 				"next"
 			],
 			properties: {
-				goal_id: str$3("The goal’s ID or its key, e.g. G-12."),
-				result: str$3("How it landed.", { enum: [
+				goal_id: str$4("The goal’s ID or its key, e.g. G-12."),
+				result: str$4("How it landed.", { enum: [
 					"hit",
 					"partly",
 					"missed"
 				] }),
-				learned: str$3("One thing worth knowing next time (a sentence)."),
-				next: str$3("Next cycle.", { enum: ["carry", "stop"] })
+				learned: str$4("One thing worth knowing next time (a sentence)."),
+				next: str$4("Next cycle.", { enum: ["carry", "stop"] })
 			}
 		},
 		annotations: {
@@ -34146,9 +34149,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$3("The view to change."),
-				name: str$3("Its name."),
-				query: str$3("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$4("The view to change."),
+				name: str$4("Its name."),
+				query: str$4("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
 		annotations: WRITE$1,
@@ -34173,16 +34176,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$3("The saved layout to change."),
-				name: str$3("Its name."),
-				table: str$3("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$4("The saved layout to change."),
+				name: str$4("Its name."),
+				table: str$4("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$3("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$4("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34207,14 +34210,14 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				view: str$3("The name of a saved layout: one of yours, or one pinned for everyone."),
-				table: str$3("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+				view: str$4("The name of a saved layout: one of yours, or one pinned for everyone."),
+				table: str$4("Which data table, when not using a view.", { enum: TABLE_ORDER }),
 				columns: ids("The columns, in order. Leave out for the usual columns."),
-				query: str$3("Search, filters and sort, as for save_table_view."),
-				format: str$3("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+				query: str$4("Search, filters and sort, as for save_table_view."),
+				format: str$4("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			const layout = layoutFrom(ctx, a);
 			const rows = shownTable(sheetOf(ctx, layout.table), layout);
@@ -34246,7 +34249,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$3("The view’s ID, from list_views.") }
+			properties: { view_id: str$4("The view’s ID, from list_views.") }
 		},
 		annotations: {
 			...WRITE$1,
@@ -34266,7 +34269,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$3("The view’s ID."),
+				view_id: str$4("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
@@ -34287,8 +34290,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$3("Who it acts as (name or ID)."),
-				name: str$3("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$4("Who it acts as (name or ID)."),
+				name: str$4("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
 		annotations: WRITE$1,
@@ -34316,7 +34319,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$3("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$4("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
 			...WRITE$1,
@@ -34336,12 +34339,12 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["mood", "text"],
 			properties: {
-				mood: str$3("How it felt.", { enum: [
+				mood: str$4("How it felt.", { enum: [
 					"good",
 					"meh",
 					"bad"
 				] }),
-				text: str$3("What happened, or what would help.")
+				text: str$4("What happened, or what would help.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34357,7 +34360,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$3("The new name.") }
+			properties: { name: str$4("The new name.") }
 		},
 		annotations: {
 			...WRITE$1,
@@ -34400,9 +34403,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$3("The team to change (name or ID). Leave out to add a team."),
-				name: str$3("The team’s name."),
-				lead: str$3("The team lead (a person’s name or ID); empty string for none.")
+				team: str$4("The team to change (name or ID). Leave out to add a team."),
+				name: str$4("The team’s name."),
+				lead: str$4("The team lead (a person’s name or ID); empty string for none.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34429,8 +34432,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$3("The team to remove (name or ID)."),
-				move_to: str$3("Where its people and goals go (a team’s name or ID).")
+				team: str$4("The team to remove (name or ID)."),
+				move_to: str$4("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -34455,7 +34458,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$3("The workspace’s exact name.") }
+			properties: { confirm_name: str$4("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -34623,12 +34626,12 @@ function newIssueLink(repo, m, o = {}) {
 	return url;
 }
 // src/mcp/markupTools.ts
-var str$2 = (description, extra = {}) => ({
+var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var READ = {
+var READ$1 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -34646,15 +34649,15 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$2("Only markups with this status.", { enum: STATUSES$1 }),
-				workspace: str$2("Only this workspace’s (its id)."),
+				status: str$3("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$3("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
 				}
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const rows = (await inbox(ctx).list({
 				...a.workspace ? { workspaceId: String(a.workspace) } : {},
@@ -34686,9 +34689,9 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["id"],
-			properties: { id: str$2("The markup’s id (mk_…), from list_markups.") }
+			properties: { id: str$3("The markup’s id (mk_…), from list_markups.") }
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const m = await inbox(ctx).open(String(a.id ?? ""));
 			const notes = m.strokes.flatMap((s) => s.kind === "note" && s.text ? [`${s.n}. ${s.text}`] : []);
@@ -34720,11 +34723,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$2("The markup’s id (mk_…)."),
-				status: str$2("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$2("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$2("With wont-fix: why it won’t be fixed."),
-				issue_url: str$2("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+				id: str$3("The markup’s id (mk_…)."),
+				status: str$3("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$3("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$3("With wont-fix: why it won’t be fixed."),
+				issue_url: str$3("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
 			}
 		},
 		annotations: {
@@ -34750,6 +34753,153 @@ var MARKUP_TOOLS = [
 			return {
 				data: { markup: m },
 				text: `${id} is ${STATUS_WORD[m.status]}${m.fixedIn ? `, fixed in ${m.fixedIn}` : ""}${m.issueUrl ? `, issue ${m.issueUrl}` : ""}.`
+			};
+		}
+	}
+];
+// src/mcp/feedbackTools.ts
+var str$2 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var READ = {
+	readOnlyHint: true,
+	openWorldHint: false
+};
+var BUILDERS_ONLY = "Only builders (the people building Faro) triage feedback, with a builder token: sign in to the inbox on Workspace and make one there.";
+/** The builders' feedback operations, when this request may use them; otherwise why not, for the assistant to say. */
+function triage(ctx) {
+	if (!ctx.feedback) throw new Error(BUILDERS_ONLY);
+	return ctx.feedback;
+}
+/** One line: "fb_1 · In hand · It gets in the way · “The reason box is too small” · /check-in · Mateo, Acme, 2026-11-06". */
+var line = (f) => `${f.id} · ${STATUS_WORD[f.status]} · ${MOOD_WORD[f.mood]} · “${f.text || "(no words)"}” · ${f.path || "/"} · ${f.personName || f.personId}, ${f.workspaceName || f.workspaceId}, ${f.at.slice(0, 10)}`;
+var outcome = (f) => `${STATUS_WORD[f.status]}${f.fixedIn ? `, fixed in ${f.fixedIn}` : ""}${f.wontFixReason ? `: ${f.wontFixReason}` : ""}`;
+var FEEDBACK_TOOLS = [
+	{
+		name: "list_feedback",
+		title: "Feedback about the app",
+		description: "What people said through Send feedback (a mood and a few words), newest first. Admins: this workspace’s. Builders, with a builder token: every workspace’s, each with its status (new, in-hand, fixed, wont-fix); filter by status or workspace.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				status: str$2("Builders: only feedback with this status.", { enum: STATUSES$1 }),
+				workspace: str$2("Builders: only this workspace’s (its id)."),
+				limit: {
+					type: "integer",
+					description: "At most this many (default 50)."
+				}
+			}
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			if (ctx.feedback) {
+				const list = await ctx.feedback.list(Number(a.limit ?? 50), {
+					...a.workspace ? { workspaceId: String(a.workspace) } : {},
+					...a.status ? { status: a.status } : {}
+				});
+				return {
+					data: { feedback: list.map((f) => ({
+						id: f.id,
+						status: f.status,
+						mood: f.mood,
+						text: f.text,
+						screen: f.path,
+						by: f.personName,
+						from: f.workspaceName,
+						at: f.at,
+						fixedIn: f.fixedIn,
+						wontFixReason: f.wontFixReason
+					})) },
+					text: list.length ? list.map(line).join("\n") : "No feedback."
+				};
+			}
+			if (a.status || a.workspace) return {
+				isError: true,
+				text: `${BUILDERS_ONLY} An admin’s token lists this workspace’s feedback, without statuses.`
+			};
+			if (!ctx.actor.admin) return {
+				isError: true,
+				text: "Only admins can read the feedback."
+			};
+			const who = (id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
+			const list = [...ctx.snapshot.feedback ?? []].sort((x, y) => x.at < y.at ? 1 : -1).slice(0, a.limit ? Number(a.limit) : void 0).map((f) => ({
+				id: f.id,
+				at: f.at,
+				by: who(f.personId),
+				mood: f.mood,
+				screen: f.path,
+				text: f.text
+			}));
+			return {
+				data: { feedback: list },
+				text: list.length ? list.map((f) => `${f.at.slice(0, 10)} · ${f.by} · ${f.mood} · ${f.screen} · ${f.text}`).join("\n") : "No feedback yet."
+			};
+		}
+	},
+	{
+		name: "get_feedback",
+		title: "Open a piece of feedback",
+		description: "Builders: one piece of feedback in full: its words and mood, the screen it was sent from, who sent it from which workspace and when, and its status (with the What’s new entry that fixed it, or why it won’t be fixed, and who said so).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["id"],
+			properties: { id: str$2("The feedback’s id, from list_feedback.") }
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			const f = await triage(ctx).open(String(a.id ?? ""));
+			const text = [
+				`${f.id} · ${outcome(f)}`,
+				`“${f.text || "(no words)"}”, saying ${MOOD_WORD[f.mood]}.`,
+				`From ${f.personName || f.personId || "someone"} in ${f.workspaceName || f.workspaceId}, ${f.at}, on ${f.path || "/"}.`,
+				...f.statusBy ? [`Status set by ${f.statusBy}${f.statusAt ? `, ${f.statusAt}` : ""}.`] : []
+			].join("\n");
+			return {
+				data: { feedback: f },
+				text
+			};
+		}
+	},
+	{
+		name: "update_feedback",
+		title: "Change a piece of feedback",
+		description: "Builders: set a piece of feedback’s status, with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["id", "status"],
+			properties: {
+				id: str$2("The feedback’s id."),
+				status: str$2("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$2("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$2("With wont-fix: why it won’t be fixed.")
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const ops = triage(ctx);
+			const id = String(a.id ?? "");
+			const t = await ops.setStatus(id, {
+				status: a.status,
+				fixedIn: a.fixed_in,
+				reason: a.reason,
+				by: `${ctx.actor.name} via AI assistant (MCP)`
+			});
+			return {
+				data: { feedback: {
+					id,
+					...t
+				} },
+				text: `${id} is ${outcome(t)}`.replace(/([^.])$/, "$1.")
 			};
 		}
 	}
@@ -35783,7 +35933,8 @@ var TOOLS = [
 	],
 	...WORK_TOOLS,
 	...REMOVE_TOOLS,
-	...MARKUP_TOOLS
+	...MARKUP_TOOLS,
+	...FEEDBACK_TOOLS
 ];
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
 async function callTool(name, args, ctx) {
@@ -36037,7 +36188,7 @@ function sanitise(attrs) {
 /** A name the code chose (a span's, a log's body, a metric's): never free text. */
 var RECORD_NAME = /^[A-Za-z][\w .:/*-]{0,119}$/;
 var safeName = (n) => RECORD_NAME.test(n) ? n : "unnamed";
-var iso = (ms) => new Date(ms).toISOString();
+var iso$1 = (ms) => new Date(ms).toISOString();
 var ctx = (a) => ({
 	workspace_id: typeof a["app.workspace.id"] === "string" ? a["app.workspace.id"] : null,
 	session_id: typeof a["session.id"] === "string" ? a["session.id"] : null
@@ -36051,8 +36202,8 @@ function spanRow(s) {
 		parent_span_id: s.parentSpanId ?? null,
 		name: safeName(s.name),
 		kind: s.kind ?? "INTERNAL",
-		start_time: iso(s.startMs),
-		end_time: iso(end),
+		start_time: iso$1(s.startMs),
+		end_time: iso$1(end),
 		duration_ms: Math.round((end - s.startMs) * 1e3) / 1e3,
 		status_code: s.status ?? "UNSET",
 		status_message: s.statusMessage && RECORD_NAME.test(s.statusMessage) ? s.statusMessage : null,
@@ -36294,7 +36445,8 @@ async function serve(req, deps) {
 				return secret;
 			},
 			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {},
-			...deps.markups && found.builder ? { markups: deps.markups(hash) } : {}
+			...deps.markups && found.builder ? { markups: deps.markups(hash) } : {},
+			...deps.feedback && found.builder ? { feedback: deps.feedback(hash) } : {}
 		};
 		return ctx;
 	};
@@ -36430,6 +36582,85 @@ function tokenMarkups(db, hash, signer) {
 		}
 	};
 }
+// src/markup/feedback.ts
+var iso = (v) => v ? new Date(v).toISOString() : null;
+var triageFromRow = (r) => ({
+	status: r.status ?? "new",
+	fixedIn: r.fixed_in ?? null,
+	wontFixReason: r.wont_fix_reason ?? null,
+	statusBy: r.status_by ?? null,
+	statusAt: iso(r.status_at)
+});
+var feedbackFromInboxRow = (r) => ({
+	id: r.id,
+	workspaceId: r.workspace_id,
+	workspaceName: r.workspace_name ?? "",
+	personId: r.person_id,
+	personName: r.person_name ?? "",
+	path: r.path ?? "",
+	mood: r.mood,
+	text: r.text ?? "",
+	at: iso(r.at) ?? r.at,
+	...triageFromRow(r)
+});
+var triageToRow = (t) => ({
+	status: t.status,
+	fixed_in: t.fixedIn,
+	wont_fix_reason: t.wontFixReason,
+	status_by: t.statusBy,
+	status_at: t.statusAt
+});
+function feedbackOps(o) {
+	return {
+		list: (limit = 200, q) => o.store.list(Math.min(Math.max(limit, 1), 500), q),
+		async open(id) {
+			const f = await o.store.get(id);
+			if (!f) throw new MarkupError(`There’s no feedback ${id}.`);
+			return f;
+		},
+		/** The same rules as a markup's status: fixed names a What's new entry, won't fix says why. */
+		async setStatus(id, c) {
+			const t = await o.store.update(id, statusPatch(c, (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString(), o.entries));
+			if (!t) throw new MarkupError("That feedback isn’t there any more.");
+			return t;
+		}
+	};
+}
+/** The MCP server, with a builder token: through the database's functions for it (migration 0028), on whatever key it has. */
+function tokenFeedback(db, hash) {
+	const read = async (args) => {
+		const { data, error } = await db.rpc("okr_feedback_for_token", {
+			hash,
+			ws: args.ws ?? null,
+			st: args.st ?? null,
+			fid: args.fid ?? null,
+			lim: args.lim
+		});
+		if (error) throw new Error("Feedback: " + error.message);
+		return (data ?? []).map(feedbackFromInboxRow);
+	};
+	return {
+		list: (limit, q) => read({
+			ws: q?.workspaceId,
+			st: q?.status,
+			lim: limit
+		}),
+		get: async (id) => (await read({
+			fid: id,
+			lim: 1
+		}))[0] ?? null,
+		async update(id, t) {
+			const { data, error } = await db.rpc("okr_feedback_triage_for_token", {
+				hash,
+				fid: id,
+				patch: triageToRow(t)
+			});
+			if (error) throw new Error("Saving the feedback: " + error.message.replace(/^.*?: /, ""));
+			const row = (data ?? [])[0];
+			return row ? triageFromRow(row) : null;
+		}
+	};
+}
 // server/vercel.ts
 function deps(origin) {
 	const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
@@ -36469,6 +36700,10 @@ function deps(origin) {
 			entries: WHATS_NEW.map((e) => e.id),
 			repo: MARKUP_REPO,
 			inboxLink: (id) => `${origin}/workspace?markup=${id}`
+		}),
+		feedback: (hash) => feedbackOps({
+			store: tokenFeedback(db, hash),
+			entries: WHATS_NEW.map((e) => e.id)
 		}),
 		deleteWorkspace: (ws) => store.deleteWorkspace(ws),
 		async recording(id) {

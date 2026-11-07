@@ -16,11 +16,13 @@ import { useCountUp } from './motion';
 export function StatusShape({ k }: { k: DisplayStatus }) {
   const first = useRef(k);
   const cls = 'status-shape' + (first.current !== k ? ' shape-swap' : '');
-  if (k === 'on') return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor" stroke="currentColor" strokeWidth="2" /></svg>;
-  if (k === 'risk') return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" /></svg>;
-  if (k === 'off') return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>;
-  if (k === 'done') return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="currentColor" /><path d="m5 8.2 2 2 4-4.4" fill="none" stroke="var(--surface)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-  return <svg key={k} className={cls} viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 2.5" /></svg>;
+  // data-status names the status the shape stands for, so a check can hold it to the word beside it (SHAPE_WORDS).
+  const at = { className: cls, viewBox: '0 0 16 16', 'aria-hidden': true, 'data-status': k } as const;
+  if (k === 'on') return <svg key={k} {...at}><circle cx="8" cy="8" r="6" fill="currentColor" stroke="currentColor" strokeWidth="2" /></svg>;
+  if (k === 'risk') return <svg key={k} {...at}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" /></svg>;
+  if (k === 'off') return <svg key={k} {...at}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>;
+  if (k === 'done') return <svg key={k} {...at}><circle cx="8" cy="8" r="7" fill="currentColor" /><path d="m5 8.2 2 2 4-4.4" fill="none" stroke="var(--surface)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg key={k} {...at}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 2.5" /></svg>;
 }
 
 /** A small warning mark: the app's own shape, not an emoji. */
@@ -133,27 +135,38 @@ export function Steps({ at, of, label }: { at: number; of: number; label?: strin
   );
 }
 
-const flagStatus = (f: Flag): DisplayStatus => (f.tone === 'off' ? 'off' : f.tone === 'risk' ? 'risk' : f.tone === 'stale' ? 'stale' : 'planned');
-
 /**
  * A flag as words with a mark: no filled pill, so a list stays calm. The status shapes mean a status, so only a goal gone
  * quiet uses one (its word says so); every other flag (a trend, a missed date, no recovery plan) uses the warning mark.
  */
 export function FlagPill({ f }: { f: Flag }) {
-  return <span className={'flag flag-' + f.kind} data-tone={f.tone}>{f.kind === 'stale' ? <StatusShape k={flagStatus(f)} /> : f.tone === 'off' || f.tone === 'risk' ? <WarnMark /> : null}{f.label}</span>;
+  return <span className={'flag flag-' + f.kind} data-tone={f.tone}>{f.kind === 'stale' ? <StatusShape k="stale" /> : f.tone === 'off' || f.tone === 'risk' ? <WarnMark /> : null}{f.label}</span>;
 }
 
-/** One goal that needs someone, as a list row: status icon, name, the reason in one line, one action. */
+/**
+ * One goal that needs someone, as a list row: its status (shape, and its word leading the reason), its name, what else
+ * flags it, the reason in a line or two, and one action. The shape and the word come from the goal's status, never from
+ * what flags it: an on-track goal that is getting worse keeps the On track shape, and says Getting worse beside the
+ * warning mark, as the goal's page does.
+ */
 export function AttentionCard({ a, action, to }: { a: GoalAttention; action?: ReactNode; to: string }) {
   const flags = a.flags.filter((f) => f.kind !== 'due');
   const top = flags[0] ?? a.flags[0];
   if (!top) return null;
+  const k = a.status.status;
+  // Off track, at risk and no recent update are flags that say the status's own word: the status says them already.
+  // Two words of why at most, the status's own among them, so the reason still has room in two lines on a phone.
+  const others = flags.filter((f) => f.kind !== k).slice(0, flags.some((f) => f.kind === k) ? 1 : 2);
   return (
-    <div className="arow" data-tone={top.tone}>
-      <span className="arow-icon" data-tone={top.tone}><StatusShape k={flagStatus(top)} /></span>
+    <div className="arow" data-tone={k}>
+      <span className={'arow-icon tone-' + k}><StatusShape k={k} /></span>
       <Link to={to} className="arow-main">
         <span className="arow-title">{a.goal.title}</span>
-        <span className="arow-why" title={top.detail}><span className="arow-flags">{flags.slice(0, 2).map((f) => f.label).join(' · ')}</span>{flags.length ? ' — ' : ''}{top.detail}</span>
+        <span className="arow-why" title={top.detail}>
+          <span className={'arow-status tone-' + k}>{LABEL[k]}</span>
+          {others.length > 0 && <>{' · '}<span className="arow-flags"><WarnMark />{others.map((f) => f.label).join(' · ')}</span></>}
+          {' — '}{top.detail}
+        </span>
       </Link>
       {action && <div className="arow-action">{action}</div>}
     </div>

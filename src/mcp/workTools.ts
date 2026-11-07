@@ -287,18 +287,6 @@ export const WORK_TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'list_feedback',
-    title: 'Feedback about the app',
-    description: 'Admins: what people said through the feedback button, newest first.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: READ,
-    async run(_a, ctx) {
-      if (!ctx.actor.admin) return { isError: true, text: 'Only admins can read the feedback.' };
-      const list = [...(ctx.snapshot.feedback ?? [])].sort((x, y) => (x.at < y.at ? 1 : -1)).map((f) => ({ at: f.at, by: name(ctx, f.personId), mood: f.mood, screen: f.path, text: f.text }));
-      return { data: { feedback: list }, text: lines(list.map((f) => `${f.at.slice(0, 10)} · ${f.by} · ${f.mood} · ${f.screen} · ${f.text}`), 'No feedback yet.') };
-    },
-  },
-  {
     name: 'get_wrap_up',
     title: 'The cycle’s wrap-up',
     description: 'At the end of a cycle: which goals are wrapped up (result, what was learned, carry on or stop) and which are still to do.',

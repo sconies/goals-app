@@ -6,6 +6,7 @@ import { applyAppearance } from './app/appearance';
 import { telemetry } from './telemetry';
 import { installBrowser } from './telemetry/browser';
 import { tracedStore } from './telemetry/store';
+import { shapeAgrees } from './domain/vocabulary';
 import './styles.css';
 import './styles/finish/home-watching.css';
 import './styles/finish/forms-checkin.css';
@@ -67,6 +68,10 @@ function inspectable(s: BrowserStore): BrowserStore {
   (window as unknown as { __goalsStore?: Pick<Store, 'load' | 'workspaces' | 'commit'> }).__goalsStore = { load: (id) => s.load(id), workspaces: () => s.workspaces(), commit: (id, c) => s.commit(id, c) };
   return s;
 }
+
+/* The one rule for whether a status shape agrees with the words beside it (domain/vocabulary.ts), for the check that
+   holds every screen to it (evals P3 and P4): rules live once, so the check asks the app rather than restating it. */
+(window as unknown as { __shapeAgrees?: typeof shapeAgrees }).__shapeAgrees = shapeAgrees;
 
 const today = clock();
 const root = createRoot(document.getElementById('root')!);

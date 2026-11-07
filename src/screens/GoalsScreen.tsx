@@ -9,7 +9,7 @@ import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
 import { worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
-import { AttentionCard, Chip, Empty, EmptyResult, StatusShape } from '../ui/bits';
+import { AttentionCard, Chip, Empty, EmptyResult } from '../ui/bits';
 import { GoalRow, TreeCard, TreeRows } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { HandledGroup } from '../ui/HandledGroup';
@@ -170,7 +170,7 @@ export function GoalsScreen() {
       <FirstReports />
       {refined && shown.length === 0 && <EmptyResult title="No goals match" action={<button type="button" className="btn" onClick={() => { const p = new URLSearchParams(); for (const k of ['today', 'store', 'view']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>Clear search and filters</button>}>Remove a filter above, or clear them all.</EmptyResult>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
-      {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><StatusShape k="done" /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
+      {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><Icon name="check-circle" size={15} /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
@@ -207,7 +207,7 @@ export function GoalsScreen() {
 
       {!alt && !refined && show === 'attention' && (att.length
         ? <div className="alist">{att.map((a) => <AttentionCard key={a.goal.id} a={a} to={'/goals/' + a.goal.id} />)}</div>
-        : <div className="calm"><StatusShape k="done" /> Nothing new is off track, stale or slipping.</div>)}
+        : <div className="calm"><Icon name="check-circle" size={15} /> Nothing new is off track, stale or slipping.</div>)}
       {!alt && !refined && show === 'attention' && <HandledGroup list={handled} />}
 
       {!alt && !refined && show === 'levels' && LEVELS.map((l) => {

@@ -344,13 +344,26 @@ export function newIssueLink(repo: string, m: Markup, o: { inboxUrl?: string | n
 
 /* ---------- closing the loop ---------- */
 
-/** What the app knows about a markup this person sent: its id, and (once the builders have marked it) where it was fixed. */
-export interface Raised { id: string; personId: string; fixedIn?: string | null }
+/**
+ * What the app knows about a markup or a piece of feedback this person sent: its id, and (once the builders have marked
+ * it) where it was fixed. `kind` says which it is (a markup when not said).
+ */
+export interface Raised { id: string; personId: string; fixedIn?: string | null; kind?: 'markup' | 'feedback' }
 
 /**
- * Whether a What's new entry fixed something this person raised: one of the markups they sent is listed in the entry's
- * `fixes`, or was marked fixed in it. Matched by person and markup id, so someone else's markup on the same browser doesn't count.
+ * What a What's new entry fixed of what this person raised: the markups and feedback they sent that are listed in the
+ * entry's `fixes`, or were marked fixed in it. Matched by person and id, so someone else's on the same browser doesn't count.
  */
-export function raisedThis(entry: { id: string; fixes?: string[] }, raised: Raised[], personId: string): boolean {
-  return raised.some((r) => r.personId === personId && ((entry.fixes ?? []).includes(r.id) || r.fixedIn === entry.id));
+export function raisedIn(entry: { id: string; fixes?: string[] }, raised: Raised[], personId: string): Raised[] {
+  return raised.filter((r) => r.personId === personId && ((entry.fixes ?? []).includes(r.id) || r.fixedIn === entry.id));
+}
+
+/** Whether a What's new entry fixed something this person raised (raisedIn). */
+export const raisedThis = (entry: { id: string; fixes?: string[] }, raised: Raised[], personId: string): boolean => raisedIn(entry, raised, personId).length > 0;
+
+/** "Thank you: a markup you sent is fixed here." The words for what an entry fixed of yours. */
+export function raisedText(mine: Raised[]): string {
+  const markups = mine.filter((r) => r.kind !== 'feedback').length, feedback = mine.length - markups;
+  const what = markups && feedback ? 'a markup and feedback you sent are' : feedback ? 'feedback you sent is' : 'a markup you sent is';
+  return `Thank you: ${what} fixed here.`;
 }

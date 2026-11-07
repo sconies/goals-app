@@ -342,6 +342,11 @@
       "text": "The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge."
     },
     {
+      "id": "SHAPE-MATCHES-WORD",
+      "area": "Design",
+      "text": "A status shape always agrees with the word beside it, everywhere: the shape comes from the goal’s status (or a stage’s state, a result or a quarter that shares its shape, as src/domain/vocabulary.ts SHAPE_WORDS says), never from what flags it. An on-track goal flagged only for Getting worse or Greener than calculated keeps the On track shape on Home and in the Goals screen’s Needs attention, and says the flag in its own words beside the warning mark, as the goal’s page does. The design checks (P3, P4, P6) hold every status shape on every screen to its word with the app’s own rule (shapeAgrees)."
+    },
+    {
       "id": "GOAL-MAP",
       "area": "Views",
       "text": "A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold and framed when the map opens. Selecting a goal shows its story beside the map. On a phone the same map is indented, one goal per row."
@@ -580,6 +585,16 @@
       "id": "FEEDBACK-INBOX",
       "area": "Feedback",
       "text": "Feedback sent with a mood and a few words joins the builder inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Builders open it and triage it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again. Feedback always arrives New: the public key can only add feedback’s own columns, and only builders signed in to the inbox read every workspace’s feedback (okr_feedback_inbox) or change its status (okr_feedback_triage). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser."
+    },
+    {
+      "id": "MCP-FEEDBACK",
+      "area": "Feedback",
+      "text": "The AI triages feedback as it does markups (migration 0028). With a builder token, list_feedback lists every workspace’s feedback, newest first, each with its status (New, In hand, Fixed, Won’t fix), filtered by status or workspace; get_feedback opens one; update_feedback changes its status with the inbox’s rules (fixed names a What’s new entry, won’t fix needs a reason). They go through security-definer functions for builder tokens (okr_feedback_for_token, okr_feedback_triage_for_token), which share one change with the inbox (okr_feedback_patch, callable by no key on its own), so no new secret is needed. An ordinary token is told it needs a builder token; an admin’s list_feedback still lists their own workspace’s feedback."
+    },
+    {
+      "id": "FEEDBACK-RAISED",
+      "area": "Feedback",
+      "text": "What’s new says “You raised this” to whoever sent feedback that an entry fixed, as it does for markups: the entry names the feedback’s id in its fixes, or a builder marked the feedback fixed in that entry. It is matched by person and feedback id, so nobody else’s feedback counts. The database tells a person which of their own feedback was fixed where (okr_feedback_raised, ids and statuses only, as okr_markups_raised does for markups); with no database, the inbox in this browser does."
     },
     {
       "id": "REMOVE-ANYTHING",
