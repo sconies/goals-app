@@ -4,7 +4,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **How items are ordered:** by what they unblock first, then value against effort. Effort: S (under a day), M (a release), L (more than one release).
 
-**In progress (7 Nov):** the fix for issue #39 (eval check N6), being finished by the old planning session.
+**In progress (7 Nov):** nothing; the next build starts from item -1.
 
 ## Up next, in order
 
@@ -32,6 +32,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 | Item | Shipped |
 |---|---|
 | Small fixes: shapes match their words (4), the AI triages feedback (5), "You raised this" for feedback (6), Oskar's watched goals on a phone's first screen (8) | PR #38, 7 Nov |
+| Eval check N6 reads row slides when the rows change (issue #39) | PR #38, 7 Nov |
 | Release 3: one spreadsheet format | PR #37, 7 Nov |
 | Release 2: one meaning for every status word | PR #32, 7 Nov |
 | Release 1b: remove, archive and undo anything | PR #31, 6 Nov |
