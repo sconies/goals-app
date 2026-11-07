@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { applyCommit } from '../data/store';
-import { planChanges, records, sheetKind, type ChangeInput, type Rec } from './changeset';
+import { planChanges, records, type ChangeInput, type Rec } from './changeset';
+import { sheetKindOf } from './columns';
 import { toCsv, workbook } from './export';
 import { parseTable } from './importer';
 import { currentWeek, planAt } from './plan';
@@ -18,6 +19,8 @@ const base = (actor: string, tables: ChangeInput['tables'], extra: Partial<Chang
   tables, snapshot: s, cycle, week, actor: person(actor), now: today.toISOString(), newId: (p) => `${p}_t${++n}`, via: 'spreadsheet', ...extra,
 });
 const rec = (o: Record<string, string>): Rec => ({ __row: '2', ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k.toLowerCase(), v])) });
+/** Problems and things to check: how a row was read (an owner found by name) is a note, not either. */
+const real = (cs: ReturnType<typeof planChanges>) => cs.issues.filter((i) => i.severity !== 'note');
 const tsvOf = (rows: (string | number | null)[][]) => rows.map((r) => r.map((c) => (c == null ? '' : String(c))).join('\t')).join('\n');
 
 describe('bulk changes', () => {
@@ -49,10 +52,12 @@ describe('bulk changes', () => {
     expect(refused.issues.map((i) => i.message)).toEqual([expect.stringMatching(/Only Tariq Haddad \(its owner\) or an admin/)]);
   });
 
-  it('tells which sheet is which from its name or header', () => {
-    expect(sheetKind('Check-ins', 'Goal ID\tWeek\tValue')).toBe('checkIns');
-    expect(sheetKind('Sheet1', 'ID\tGoal\tUnit\tStart\tWeek 1\tWeek 2')).toBe('plan');
-    expect(sheetKind('Sheet1', 'ID\tGoal\tOwner')).toBe('goals');
+  it('tells which sheet is which from its header alone', () => {
+    expect(sheetKindOf(['Goal ID', 'Week', 'Value'])).toBe('checkIns');
+    expect(sheetKindOf(['ID', 'Goal', 'Unit', 'Start', 'Week 1', 'Week 2'])).toBe('plan');
+    expect(sheetKindOf(['ID', 'Goal', 'Owner'])).toBe('goals');
+    expect(sheetKindOf(['Email', 'ID', 'Name', 'Job title', 'Team', 'Admin'])).toBe('people');
+    expect(sheetKindOf(['ID', 'Kind', 'Ask', 'Goals', 'Asked by'])).toBe('asks');
   });
 
   it('adds a new goal and changes an existing one, logging both', () => {
@@ -60,7 +65,9 @@ describe('bulk changes', () => {
       rec({ Goal: 'Runbooks with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: '20', Target: '90', 'Feeds into': 'Change failure rate' }),
       { ...rec({ ID: 'ns-ai', Level: 'svp' }), __row: '3' },
     ] }));
-    expect(cs.issues).toEqual([]);
+    expect(real(cs)).toEqual([]);
+    // Matched by a name only one person has, and said so.
+    expect(cs.issues).toEqual([expect.objectContaining({ severity: 'note', message: expect.stringMatching(/“Mateo Fernández” matched by name/) })]);
     expect(cs.counts).toEqual(expect.objectContaining({ newGoals: 1, goals: 1 }));
     const after = applyCommit(s, cs.commit!);
     const fresh = after.goals.find((g) => g.title === 'Runbooks with an owner')!;
@@ -77,7 +84,7 @@ describe('bulk changes', () => {
     const mateo = planChanges(base('mateo', { goals: row }));
     expect(mateo.issues[0]!.message).toMatch(/Only Tariq Haddad \(its owner\) or an admin/);
     expect(mateo.commit).toBeNull();
-    expect(planChanges(base('mateo', { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Start: '1', Target: '2' })] })).issues[0]!.message).toMatch(/goals you own/);
+    expect(real(planChanges(base('mateo', { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Start: '1', Target: '2' })] })))[0]!.message).toMatch(/goals you own/);
   });
 
   it('asks for a reason when a plan changes after check-ins started', () => {
@@ -131,7 +138,7 @@ describe('bulk changes', () => {
   it('replaces a week already posted, and says whose it was', () => {
     const g = s.goals.find((x) => x.id === 'ns-ai') as MetricGoal;
     const v = planAt(g.planHistory?.[0]?.plan ?? g.plan, 6, cycle.weeks).toFixed(3);
-    const cs = planChanges(base('amara', { checkIns: [rec({ 'Goal ID': 'ns-ai', Week: '6', Value: v, Call: 'On track' })] }));
+    const cs = planChanges(base('amara', { checkIns: [rec({ 'Goal ID': 'ns-ai', Week: '6', Value: v, Call: 'On track', Why: 'Recounted from the review tool.' })] }));
     expect(cs.counts.replaced).toBe(1);
     expect(cs.issues.find((i) => i.severity === 'warning')!.message).toMatch(/Replaces Tariq Haddad’s check-in for week 6/);
   });
@@ -166,10 +173,14 @@ describe('changing a goal’s owner', () => {
     expect(ownerAfter(planChanges(base('amara', { goals: [rec({ id: goal.id, 'owner id': 'rhea' })] }, { snapshot: withTwin, via: 'bulk' })))).toBe('rhea');
   });
 
-  it('refuses a name two people share, rather than guessing, and says to use the ID', () => {
-    const cs = planChanges(base('amara', { goals: [rec({ id: goal.id, owner: 'Rhea Kapoor' })] }, { snapshot: withTwin }));
+  it('refuses a name two people share, rather than guessing, and says to use their email', () => {
+    const twinMail = { ...withTwin, people: withTwin.people.map((p) => (p.id === 'rhea2' ? { ...p, email: 'rhea.kapoor2@example.com' } : p)) };
+    const cs = planChanges(base('amara', { goals: [rec({ id: goal.id, owner: 'Rhea Kapoor' })] }, { snapshot: twinMail }));
     expect(cs.commit).toBeNull();
-    expect(cs.issues[0]?.message).toMatch(/2 people are called “Rhea Kapoor”.*Owner ID.*rhea or rhea2/);
+    expect(cs.issues[0]?.message).toMatch(/2 people are called “Rhea Kapoor”. Use their email instead \(rhea.kapoor@example.com or rhea.kapoor2@example.com\)/);
+    // By email, there's no doubt.
+    const byEmail = planChanges(base('amara', { goals: [rec({ id: goal.id, owner: 'Rhea Kapoor', 'owner email': 'rhea.kapoor2@example.com' })] }, { snapshot: twinMail }));
+    expect(ownerAfter(byEmail)).toBe('rhea2');
   });
 
   it('still takes a name only one person has, or an ID typed in Owner', () => {

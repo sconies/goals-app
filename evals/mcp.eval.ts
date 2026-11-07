@@ -179,9 +179,11 @@ describe('AI assistants can do what the person can', () => {
   it(R('people: admins add and change people; there is always an admin'), async () => {
     expect((await (await as('mateo')).call('save_person', { name: 'New Person' })).text).toMatch(/Only admins/);
     const grace = await as('grace');
-    const added = await grace.call('save_person', { name: 'Ada Lovelace', job_title: 'Staff engineer', team: 'Site Reliability Engineering' });
+    // Someone new needs an email: it tells people apart in the app, in spreadsheets and here.
+    expect((await grace.call('save_person', { name: 'Ada Lovelace', job_title: 'Staff engineer', team: 'Site Reliability Engineering' })).text).toMatch(/Add their email/);
+    const added = await grace.call('save_person', { name: 'Ada Lovelace', email: 'Ada.Lovelace@example.com', job_title: 'Staff engineer', team: 'Site Reliability Engineering' });
     const p = grace.data().people.find((x) => x.id === added.data!.id)!;
-    expect([p.name, p.initials, p.teamId, p.admin]).toEqual(['Ada Lovelace', 'AL', 'sre', false]);
+    expect([p.name, p.initials, p.teamId, p.admin, p.email]).toEqual(['Ada Lovelace', 'AL', 'sre', false, 'ada.lovelace@example.com']);
     expect((await grace.call('save_person', { name: 'Ada Lovelace' })).text).toMatch(/already here/);
     await grace.call('save_person', { person_id: p.id, admin: true });
     expect(grace.data().people.find((x) => x.id === p.id)!.admin).toBe(true);

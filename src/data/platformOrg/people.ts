@@ -142,4 +142,9 @@ const initialsOf = (name: string) => {
   return ((w[0]?.[0] ?? '') + (w.length > 1 ? w[w.length - 1]![0] : '')).toUpperCase();
 };
 
-export const PEOPLE: Person[] = ROWS.map(([id, name, role, teamId, admin]) => ({ id, name, role, initials: initialsOf(name), teamId, admin: !!admin }));
+/** An example email, firstname.lastname@example.com, without accents: every person in the example has one. */
+export const exampleEmail = (name: string) => {
+  const w = name.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z\s-]/g, '').split(/\s+/).filter(Boolean);
+  return `${w[0]}.${w.slice(1).join('-') || 'x'}@example.com`;
+};
+export const PEOPLE: Person[] = ROWS.map(([id, name, role, teamId, admin]) => ({ id, name, role, initials: initialsOf(name), teamId, admin: !!admin, email: exampleEmail(name) }));

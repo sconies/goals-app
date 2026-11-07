@@ -6,6 +6,7 @@ import { describe, type ChangeSet, type Item } from '../domain/changeset';
 import { fmt } from '../domain/format';
 import { planAt } from '../domain/plan';
 import type { Diff, Goal } from '../domain/types';
+import { LEFT, STOPPED } from '../domain/vocabulary';
 import { Icon } from './Icon';
 
 /** What a change set will do, its problems, and Save. Used by Import and Data. */
@@ -16,6 +17,8 @@ export function Preview({ cs, name, reason, setReason, busy, onApply, onAgain, a
   const why = useRef<HTMLTextAreaElement>(null);
   const errors = cs.issues.filter((i) => i.severity === 'error');
   const warnings = cs.issues.filter((i) => i.severity === 'warning');
+  // How rows were read: an owner found by their name rather than their email, say.
+  const notes = cs.issues.filter((i) => i.severity === 'note');
   const groups = new Map<string, Item[]>();
   for (const it of cs.items) groups.set(it.goal, [...(groups.get(it.goal) ?? []), it]);
   const total = cs.items.length;
@@ -49,6 +52,13 @@ export function Preview({ cs, name, reason, setReason, busy, onApply, onAgain, a
         <section className="block">
           <h2 className="block-title tone-risk">Check before saving</h2>
           <ul className="issue-list">{warnings.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.goal ? ` · ${x.goal}` : ''}</span><span>{x.message}</span></li>)}</ul>
+        </section>
+      )}
+
+      {notes.length > 0 && (
+        <section className="block" aria-label="How rows were read">
+          <h2 className="block-title">How rows were read</h2>
+          <ul className="issue-list">{notes.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.goal ? ` · ${x.goal}` : ''}</span><span>{x.message}</span></li>)}</ul>
         </section>
       )}
 
@@ -105,4 +115,7 @@ function PlanDiff({ d, goal, weeks }: { d: Diff; goal?: Goal; weeks: number }) {
   );
 }
 
-const KIND: Record<Item['kind'], string> = { 'new goal': 'New goal', goal: 'Details', plan: 'Plan', 'check-in': 'Check-in', 'replaces check-in': 'Replaces a check-in', person: 'Person' };
+const KIND: Record<Item['kind'], string> = {
+  'new goal': 'New goal', goal: 'Details', plan: 'Plan', 'check-in': 'Check-in', 'replaces check-in': 'Replaces a check-in', person: 'Person', 'new person': 'New person', team: 'Team',
+  'stop goal': STOPPED, 'delete goal': 'Deleted', 'person left': LEFT,
+};

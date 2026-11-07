@@ -10,7 +10,8 @@ import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { saveAndSay } from '../app/files';
 import type { ChangeSet, Rec, Tables } from '../domain/changeset';
-import { GOAL_DERIVED_COLUMNS, toCsv, workbook, type Cell } from '../domain/export';
+import { toCsv, workbook, type Cell } from '../domain/export';
+import { BOUND_WORDS, CAUSE_WORDS, isEditable, LEVEL_WORDS, RECOVERY_WORDS, SHAPE_WORDS } from '../domain/columns';
 import { Chip, Sheet } from '../ui/bits';
 import { LABEL } from '../domain/status';
 import type { DisplayStatus, SavedView } from '../domain/types';
@@ -23,7 +24,7 @@ import {
   type ColumnKind, type PropFilter, type TableSort,
 } from '../domain/tableFilter';
 import {
-  choosableColumns, clampWidth, isTableView, layoutParams, MAX_WIDTH, minWidth, parseLayout, shownTable, TABLE_ORDER, TABLES, visibleColumns,
+  choosableColumns, clampWidth, exportedTable, isTableView, layoutParams, MAX_WIDTH, minWidth, parseLayout, TABLE_ORDER, TABLES, visibleColumns,
   type DataTable, type TableLayout,
 } from '../domain/tableLayout';
 import { Icon } from '../ui/Icon';
@@ -33,18 +34,18 @@ type Tab = DataTable;
 const TABS: [Tab, string][] = TABLE_ORDER.map((t) => [t, TABLES[t].label]);
 const PAGE = 100;
 
-/** Columns people can change; everything else (IDs, keys, what the app works out) is shown but not editable. */
+/** Columns people can change, as the one format says (domain/columns); everything else (keys, what the app works out)
+    is shown but not editable. A goal's type is set when it's made. Asks are raised and answered in the app. */
 const EDITABLE: Record<Tab, (col: string) => boolean> = {
-  people: (c) => ['Name', 'Job title', 'Team', 'Admin'].includes(c),
-  goals: (c) => !['Key', 'ID', 'Type', 'Feeds into ID', ...GOAL_DERIVED_COLUMNS].includes(c),
-  checkIns: (c) => ['Value', 'Stages', 'Call', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step'].includes(c),
-  plan: (c) => /^Week \d+$/.test(c),
-  // Requests are raised in check-ins and answered on the goal; here they're for looking across.
+  people: (c) => isEditable('people', c) || c === 'Email',
+  goals: (c) => isEditable('goals', c) && c !== 'Type',
+  checkIns: (c) => isEditable('checkIns', c),
+  plan: (c) => isEditable('plan', c),
   requests: () => false,
 };
 const NAME = Object.fromEntries(TABLE_ORDER.map((t) => [t, TABLES[t].name])) as Record<Tab, string>;
 /** IDs and keys: set quietly, in the ID face. */
-const ID_COLS = ['ID', 'Key', 'Goal key', 'Goal keys'];
+const ID_COLS = ['ID', 'Key', 'Goal key', 'Goal keys', 'Email', 'Owner email', 'Posted by email', 'Feeds into key'];
 
 const text = (v: Cell | undefined) => (v == null ? '' : String(v));
 /** A goal's status word back to its status, so the cell can show the shape beside the word (the words come from the rules). */
@@ -150,10 +151,13 @@ export function DataTables() {
   /* ---------- export, as shown ---------- */
   const exportAs = async (kind: 'csv' | 'xlsx') => {
     const sheet = book.find((x) => x.name === TABLES[tab].sheet)!;
-    const out = shownTable(sheet, current);
+    // As shown, with the columns that say which record each row is added at the end (greyed), so it loads back.
+    const t = exportedTable(sheet, current);
+    const out = t.rows;
     const name = { workspace: app.ws.name, what: TABLES[tab].label, scope: activeView?.name ?? '', date: app.today };
-    await saveAndSay(app.toast, name, kind === 'csv' ? { kind: 'csv', text: toCsv(out) } : { kind: 'xlsx', sheets: [{ name: TABLES[tab].label, rows: out }] },
-      `Exported ${out.length - 1} ${out.length === 2 ? 'row' : 'rows'} and ${out[0]?.length ?? 0} columns, as shown`);
+    const keys = t.muted?.length ? `, plus ${t.muted.join(', ')} so it loads back` : '';
+    await saveAndSay(app.toast, name, kind === 'csv' ? { kind: 'csv', text: toCsv(out) } : { kind: 'xlsx', sheets: [{ name: TABLES[tab].label, rows: out, muted: t.muted }] },
+      `Exported ${out.length - 1} ${out.length === 2 ? 'row' : 'rows'} and ${(out[0]?.length ?? 0) - (t.muted?.length ?? 0)} columns, as shown${keys}`);
   };
 
   // The Saved layouts and Export menus open on whichever side of their button has room.
@@ -174,12 +178,18 @@ export function DataTables() {
   const { headRef, dragging, dragged, startDrag, startResize, resizeKey } = useColumnMoves(tab, order, (cols) => setLay({ cols }), widthOf, setWidth);
 
   // Choices for the cells that have a fixed set of answers; the engine checks the rest.
+  // The words come from the one format's columns (domain/columns), so what's chosen here reads back the same.
   const options: Record<string, string[]> = {
     Owner: app.snapshot.people.map((p) => p.name),
+    'Owner email': app.snapshot.people.map((p) => p.email ?? '').filter(Boolean),
     Team: ['', ...app.snapshot.teams.map((t) => t.name)],
-    Level: ['north star', 'svp', 'team'],
+    Level: Object.values(LEVEL_WORDS.word),
+    Plan: Object.values(SHAPE_WORDS.word),
+    'Must stay': Object.values(BOUND_WORDS.word),
     Admin: ['', 'yes'],
-    Call: (['on', 'risk', 'off', 'done'] as const).map((k) => STATUS_WORD[k]),
+    Call: ['', ...(['on', 'risk', 'off', 'done'] as const).map((k) => STATUS_WORD[k])],
+    Cause: ['', ...new Set(Object.values(CAUSE_WORDS.word))],
+    Recovery: ['', ...Object.values(RECOVERY_WORDS.word)],
   };
 
   const [cs, setCs] = useState<ChangeSet | null>(null);

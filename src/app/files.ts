@@ -3,14 +3,17 @@
    `platform-engineering-goals-year-2026-2026-11-05.xlsx`; the scope is left out when there isn't one.
    The spreadsheet library loads only when someone saves a workbook, so the app stays small. */
 
-/** A sheet of a workbook: its name and its rows, the first row being the header (set in bold). */
-export interface SheetOut { name: string; rows: (string | number | null)[][] }
+/** A sheet of a workbook: its name and its rows, the first row being the header (set in bold), and the columns set apart
+    in grey (worked out by the app, or there only so the table can be loaded back). */
+export interface SheetOut { name: string; rows: (string | number | null)[][]; muted?: string[] }
 
 export type FileContent =
   | { kind: 'csv'; text: string }
   | { kind: 'json'; text: string }
   | { kind: 'md'; text: string }
   | { kind: 'xlsx'; sheets: SheetOut[] }
+  /** A zip of CSVs: the workbook's sheets, one file each, with the same headers. */
+  | { kind: 'zip'; files: { name: string; text: string }[] }
   | { kind: 'png'; blob: Blob };
 
 export interface FileName {
@@ -24,12 +27,13 @@ export interface FileName {
   date: Date;
 }
 
-const EXT: Record<FileContent['kind'], string> = { csv: 'csv', json: 'json', md: 'md', xlsx: 'xlsx', png: 'png' };
+const EXT: Record<FileContent['kind'], string> = { csv: 'csv', json: 'json', md: 'md', xlsx: 'xlsx', zip: 'zip', png: 'png' };
 const TYPE: Record<FileContent['kind'], string> = {
   csv: 'text/csv;charset=utf-8',
   json: 'application/json',
   md: 'text/markdown;charset=utf-8',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  zip: 'application/zip',
   png: 'image/png',
 };
 
@@ -42,19 +46,46 @@ export function fileName(n: FileName, kind: FileContent['kind']): string {
   return `${parts.join('-')}.${EXT[kind]}`;
 }
 
+/** Grey, for the columns a workbook sets apart. */
+const MUTED = '#6b6f76';
+const BOM = String.fromCharCode(0xfeff);
+
+/**
+ * Sheets as the workbook library takes them: the header in bold, muted columns in grey, and a cell with line breaks
+ * wrapped, so they show. Shared by saving and by the round-trip tests.
+ */
+export function excelSheets(sheets: SheetOut[]) {
+  return sheets.map((t) => {
+    const head = (t.rows[0] ?? []).map((c) => String(c ?? ''));
+    const muted = new Set((t.muted ?? []).map((h) => head.indexOf(h)).filter((i) => i >= 0));
+    return {
+      sheet: t.name.slice(0, 31),
+      data: t.rows.map((r, i) => r.map((c, k) => (c == null || c === '' ? null : {
+        value: c,
+        ...(i === 0 && t.name !== 'README' ? { fontWeight: 'bold' as const } : {}),
+        ...(muted.has(k) ? { textColor: MUTED } : {}),
+        ...(typeof c === 'string' && /\n/.test(c) ? { wrap: true } : {}),
+      }))),
+    };
+  });
+}
+
+/** A CSV's bytes, with a byte-order mark so Excel reads its accents and symbols as they are. */
+export const csvBytes = (text: string) => new TextEncoder().encode(BOM + text);
+
 async function blobOf(content: FileContent): Promise<Blob> {
   if (content.kind === 'png') return content.blob;
+  if (content.kind === 'zip') {
+    const { zipFiles } = await import('./zip');
+    return new Blob([zipFiles(content.files.map((f) => ({ name: f.name, data: csvBytes(f.text) }))) as BlobPart], { type: TYPE.zip });
+  }
   if (content.kind !== 'xlsx') {
     // A byte-order mark, so Excel reads a CSV's accents and symbols as they are.
     return new Blob([content.kind === 'csv' ? '﻿' + content.text : content.text], { type: TYPE[content.kind] });
   }
   const { default: writeXlsxFile } = await import('write-excel-file/browser');
-  const sheets = content.sheets.map((t) => ({
-    sheet: t.name.slice(0, 31),
-    data: t.rows.map((r, i) => r.map((c) => (c == null || c === '' ? null : { value: c, ...(i === 0 && t.name !== 'README' ? { fontWeight: 'bold' as const } : {}) }))),
-  }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (writeXlsxFile as any)(sheets).toBlob() as Promise<Blob>;
+  return (writeXlsxFile as any)(excelSheets(content.sheets)).toBlob() as Promise<Blob>;
 }
 
 /** Saves a file to the person's device under the one naming rule, and returns the name it was saved as. Throws if it can't. */

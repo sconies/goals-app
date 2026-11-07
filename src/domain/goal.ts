@@ -20,6 +20,9 @@ export interface GoalDraft {
   endWeek: string;
   /** Plan numbers typed by hand, by checkpoint week. Empty means the shape decides. */
   points: Record<string, string>;
+  /** The week the plan starts from, when it's being set (a spreadsheet's Plan from week). Left out: as it was, or this
+      week for a new goal set up mid-cycle. */
+  fromWeek?: string;
   source: string;
   definition: string;
   unit: string;
@@ -89,7 +92,7 @@ export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
 /** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
 export function planChanged(a: Goal, b: Goal): boolean {
   if (a.kind !== b.kind) return true;
-  if (a.kind === 'metric' && b.kind === 'metric') return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
+  if (a.kind === 'metric' && b.kind === 'metric') return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.fromWeek ?? 0) !== (b.plan.fromWeek ?? 0) || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
   if (a.kind === 'range' && b.kind === 'range') return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.margin !== b.range.margin;
   if (a.kind === 'milestone' && b.kind === 'milestone') return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
   return false;
@@ -118,7 +121,8 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
     const end = parseNumber(d.endWeek);
     const shaped: MetricPlan = {
       start: num(d.start), target: num(d.target), shape: d.shape,
-      ...(existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}),
+      ...(d.fromWeek != null && d.fromWeek.trim() !== '' ? (num(d.fromWeek) ? { fromWeek: num(d.fromWeek) } : {})
+        : existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}),
       ...(end != null && end !== cycle.weeks ? { endWeek: end } : {}),
     };
     const plan = withPoints(shaped, d.points, cycle.weeks);

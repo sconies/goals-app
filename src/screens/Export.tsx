@@ -1,8 +1,10 @@
-/* Export: the goals as a workbook, CSV, JSON or a brief for an AI chat. Everything in the cycle, or just what's shown. */
+/* Export: the goals as a workbook (every sheet of the one format, the default), the same sheets as zipped CSVs, one table
+   as a CSV, JSON or a brief for an AI chat. Everything in the cycle, or just what's shown. */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useApp } from '../app/state';
 import { saveFile, saveFailed, type FileContent } from '../app/files';
-import { aiBrief, toCsv, toJson, workbook, type ExportInput } from '../domain/export';
+import { andList, SHEET_NAMES } from '../domain/columns';
+import { aiBrief, csvFiles, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../domain/export';
 import type { Goal } from '../domain/types';
 import { Sheet } from '../ui/bits';
 
@@ -25,6 +27,8 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   // Filtered, the export starts from what's shown; everything is one click away (round 3 review).
   const [scope, setScope] = useState<'all' | 'view'>(partial ? 'view' : 'all');
   const [busy, setBusy] = useState<string | null>(null);
+  // One table on its own, as a CSV.
+  const [one, setOne] = useState<string>('Goals');
   const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined };
   // Every file is named the same way: workspace, what it holds, which goals (the view, or the whole cycle), the day.
   const name = (what: string) => ({ workspace: app.ws.name, what, scope: scope === 'view' ? viewName : app.cycle.name, date: app.today });
@@ -61,16 +65,18 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
         {/* Every format the same way: what it is on the left, its buttons in one column on the right. */}
         <div className="optlist export-list">
           <div className="opt static">
-            <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Goals, the plan by week, every check-in, review notes and actions, and people. You can edit it and load it back.</span></span>
+            <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Every sheet: {andList(SHEET_NAMES.slice(0, -1) as unknown as string[])}, and a README that explains each column. Edit it and load it back on Import.</span></span>
             <span className="export-actions">
               <button type="button" className="btn sm" aria-label="Save .xlsx: Excel workbook" disabled={!!busy} onClick={() => void run('xlsx', () => save('goals', { kind: 'xlsx', sheets: workbook(input) }), 'Workbook saved')}>{busy === 'xlsx' ? 'Saving…' : 'Save .xlsx'}</button>
             </span>
           </div>
           <div className="opt static">
-            <span className="stack" style={{ gap: 2 }}><span className="strong">CSV</span><span className="hint">One table per file, for other tools.</span></span>
+            <span className="stack" style={{ gap: 2 }}><span className="strong">CSV files</span><span className="hint">The same sheets as CSVs, one file each with the same headers, in a zip. Or one table on its own. Each loads back like the workbook.</span></span>
             <span className="export-actions">
-              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('csv-g', () => save('goals', { kind: 'csv', text: toCsv(workbook(input)[0]!.rows) }), 'Goals saved as CSV')}>Goals</button>
-              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void run('csv-c', () => save('check-ins', { kind: 'csv', text: toCsv(workbook(input)[2]!.rows) }), 'Check-ins saved as CSV')}>Check-ins</button>
+              <button type="button" className="btn sm" aria-label="Save .zip: every sheet as a CSV" disabled={!!busy} onClick={() => void run('zip', () => save('goals-csv', { kind: 'zip', files: csvFiles(workbook(input)) }), 'CSV files saved')}>{busy === 'zip' ? 'Saving…' : 'Save .zip'}</button>
+              <label className="sr" htmlFor="export-one">One table</label>
+              <select id="export-one" className="input sm" value={one} onChange={(e) => setOne(e.target.value)}>{SHEET_NAMES.map((n) => <option key={n} value={n}>{n}</option>)}</select>
+              <button type="button" className="btn sm" aria-label={`Save .csv: ${one}`} disabled={!!busy} onClick={() => void run('csv', () => save(one, { kind: 'csv', text: toCsv(sheetNamed(workbook(input), one).rows) }), `${one} saved as CSV`)}>Save .csv</button>
             </span>
           </div>
           <div className="opt static">

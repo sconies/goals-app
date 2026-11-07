@@ -208,24 +208,26 @@
 /* [W23] "Change" never sits alone on a line. */
 .focus-onboard .nowrap { white-space: nowrap; }
 
-/* [W4, W11] Who else is on it: Name and Team share the room 3:2; Admin and Remove are 44px targets. */
-.focus-onboard .pg-head, .focus-onboard .pg-row { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 44px 44px; }
+/* [W4, W11] Who else is on it: Name, Email and Team share the room 3:3:2 (release 3: everyone has an email); Admin
+   and Remove are 44px targets. */
+.focus-onboard .pg-head, .focus-onboard .pg-row { grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr) 44px 44px; }
 .focus-onboard .pg-head { display: grid; }
-.focus-onboard .pg-head > :nth-child(3) { text-align: center; }
+.focus-onboard .pg-head > :nth-child(4) { text-align: center; }
 .focus-onboard .pg-row > .input:first-child, .focus-onboard .pg-row > .iconbtn { grid-column: auto; grid-row: auto; }
 .focus-onboard .pg-check { width: 44px; height: 44px; min-width: 44px; min-height: 44px; justify-content: center; }
 .focus-onboard .pg-row > .iconbtn { width: 44px; height: 44px; }
-/* [W6] A row's problem: under Name and Team, 4px below the row. */
-.focus-onboard .pg-issue { grid-column: 1 / 3; margin-top: -4px; }
-/* Phones: Name, then Team, full width; Admin and Remove on a third line. */
+/* [W6] A row's problem: under Name, Email and Team, 4px below the row. */
+.focus-onboard .pg-issue { grid-column: 1 / 4; margin-top: -4px; }
+/* Phones: Name, Email, then Team, full width; Admin and Remove on a fourth line. */
 @media (max-width: 640px) {
   .focus-onboard .pg-head { display: none; }
   .focus-onboard .pg-row { grid-template-columns: minmax(0, 1fr) 44px; row-gap: var(--s2); }
   .focus-onboard .pg-row > .input:first-child { grid-column: 1 / -1; grid-row: 1; }
   .focus-onboard .pg-row > .input:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
-  .focus-onboard .pg-row > .pg-check { grid-column: 1; grid-row: 3; width: auto; justify-content: flex-start; }
-  .focus-onboard .pg-row > .iconbtn { grid-column: 2; grid-row: 3; }
-  .focus-onboard .pg-issue { grid-column: 1 / -1; grid-row: 4; }
+  .focus-onboard .pg-row > .input:nth-child(3) { grid-column: 1 / -1; grid-row: 3; }
+  .focus-onboard .pg-row > .pg-check { grid-column: 1; grid-row: 4; width: auto; justify-content: flex-start; }
+  .focus-onboard .pg-row > .iconbtn { grid-column: 2; grid-row: 4; }
+  .focus-onboard .pg-issue { grid-column: 1 / -1; grid-row: 5; }
 }
 
 /* [W18] Choosing one option: a radio circle on the left, and the chosen row ringed inside the list's own corners. */

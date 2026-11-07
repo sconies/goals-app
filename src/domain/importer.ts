@@ -1,14 +1,17 @@
-/* Load your own data: people and goals pasted from a spreadsheet (tab-separated) or a CSV file.
-   Every row is checked with the same rules as the app's own forms before anything is saved. */
-import { withKeys } from './goalKey';
-import { blankGoal, buildGoal, validateGoal, type GoalDraft } from './goal';
+/* Set-up from a spreadsheet: people, teams, goals, their plans and past check-ins, pasted from a spreadsheet, typed into
+   the set-up steps, or read from a file (the set-up template, or a whole workbook exported from another workspace).
+   It is the bulk-change engine in "create" mode (domain/changeset): the same columns, the same rules and the same
+   problems as the Import screen, with every row new. Nothing is saved until every row is right. */
+import { planChanges, type Tables } from './changeset';
+import { GOALS, PEOPLE } from './columns';
 import { currentWeek } from './plan';
+import { parseDelimited, recordsOf } from './sheets';
 import { yearWeeks } from './year';
 import { yearName } from './yearName';
-import type { Cycle, Goal, Level, Person, PlanShape, Snapshot, Team } from './types';
+import type { Cycle, Person, Snapshot } from './types';
 
 export interface ImportIssue {
-  table: 'People' | 'Goals';
+  table: 'People' | 'Goals' | 'Plan' | 'Check-ins';
   row: number;
   message: string;
 }
@@ -18,151 +21,78 @@ export interface ImportResult {
   issues: ImportIssue[];
 }
 
-export const PEOPLE_COLUMNS = ['Name', 'Job title', 'Team', 'Admin', 'Team objective'] as const;
-export const GOAL_COLUMNS = ['Goal', 'Team', 'Owner', 'Type', 'Unit', 'Start', 'Target', 'Plan', 'Limit', 'Must stay', 'Margin', 'Stages', 'Feeds into', 'Level', 'Effect', 'Source'] as const;
+/** The set-up template's columns: the one format's, the ones a new workspace needs (domain/columns). */
+const pick = (all: string[], want: string[]) => want.filter((c) => all.includes(c));
+export const PEOPLE_COLUMNS = pick(PEOPLE.columns.map((c) => c.header), ['Name', 'Email', 'Job title', 'Team', 'Admin', 'Team objective']);
+export const GOAL_COLUMNS = pick(GOALS.columns.map((c) => c.header), ['Key', 'Goal', 'Level', 'Team', 'Owner email', 'Owner', 'Type', 'Unit', 'Start', 'Target', 'Plan', 'Due week', 'Limit', 'Must stay', 'Margin', 'Stages', 'Feeds into', 'Why it helps', 'Effect', 'Source', 'Definition']);
 
-export const PEOPLE_TEMPLATE = [
-  PEOPLE_COLUMNS.join('\t'),
-  'Ana Silva\tVP Engineering\tLeadership\tyes\t',
-  'Ben Ortiz\tPlatform lead\tPlatform\t\tMake every deploy safe and fast',
-  'Chloe Wu\tEngineering manager\tPlatform\t\t',
-  'Dev Patel\tEngineer\tPlatform\t\t',
-].join('\n');
+const tsv = (rows: string[][]) => rows.map((r) => r.join('\t')).join('\n');
+const byHeader = (cols: string[], o: Record<string, string | undefined>) => cols.map((c) => o[c] ?? '');
 
-export const GOALS_TEMPLATE = [
-  GOAL_COLUMNS.join('\t'),
-  'Deploy lead time\tPlatform\tBen Ortiz\tmetric\tdays\t5\t1\tback-loaded\t\t\t\t\t\tnorth star\t\tCI dashboard',
-  'Deploys rolled back\tPlatform\tBen Ortiz\trange\t%\t\t\t\t5\tat most\t1\t\tDeploy lead time\t\t\tCI dashboard',
-  'Canary releases live\tPlatform\tBen Ortiz\tmilestone\t\t\t\t\t\t\t\tDesign@2; Pilot@6; All services@10\tDeploy lead time\t\t1\tJira PLAT epics',
-].join('\n');
+export const PEOPLE_TEMPLATE = tsv([
+  PEOPLE_COLUMNS,
+  ...[
+    { Name: 'Ana Silva', Email: 'ana.silva@example.com', 'Job title': 'VP Engineering', Team: 'Leadership', Admin: 'yes' },
+    { Name: 'Ben Ortiz', Email: 'ben.ortiz@example.com', 'Job title': 'Platform lead', Team: 'Platform', 'Team objective': 'Make every deploy safe and fast' },
+    { Name: 'Chloe Wu', Email: 'chloe.wu@example.com', 'Job title': 'Engineering manager', Team: 'Platform' },
+    { Name: 'Dev Patel', Email: 'dev.patel@example.com', 'Job title': 'Engineer', Team: 'Platform' },
+  ].map((o) => byHeader(PEOPLE_COLUMNS, o)),
+]);
 
-/** Split CSV or tab-separated text into rows, honouring quoted cells. */
-export function parseTable(text: string): string[][] {
-  const t = text.replace(/\r\n?/g, '\n').trim();
-  if (!t) return [];
-  const sep = t.split('\n')[0]!.includes('\t') ? '\t' : ',';
-  const rows: string[][] = [];
-  let row: string[] = [], cell = '', quoted = false;
-  for (let i = 0; i < t.length; i++) {
-    const ch = t[i]!;
-    if (quoted) {
-      if (ch === '"' && t[i + 1] === '"') { cell += '"'; i++; }
-      else if (ch === '"') quoted = false;
-      else cell += ch;
-    } else if (ch === '"' && cell === '') quoted = true;
-    else if (ch === sep) { row.push(cell.trim()); cell = ''; }
-    else if (ch === '\n') { row.push(cell.trim()); rows.push(row); row = []; cell = ''; }
-    else cell += ch;
-  }
-  row.push(cell.trim());
-  rows.push(row);
-  return rows.filter((r) => r.some((c) => c !== ''));
-}
+export const GOALS_TEMPLATE = tsv([
+  GOAL_COLUMNS,
+  ...[
+    { Goal: 'Deploy lead time', Level: 'north star', Team: 'Platform', 'Owner email': 'ben.ortiz@example.com', Owner: 'Ben Ortiz', Type: 'metric', Unit: 'days', Start: '5', Target: '1', Plan: 'back-loaded', Source: 'CI dashboard' },
+    { Goal: 'Deploys rolled back', Level: 'team', Team: 'Platform', 'Owner email': 'ben.ortiz@example.com', Owner: 'Ben Ortiz', Type: 'range', Unit: '%', Limit: '5', 'Must stay': 'at most', Margin: '1', 'Feeds into': 'Deploy lead time', Source: 'CI dashboard' },
+    { Goal: 'Canary releases live', Level: 'team', Team: 'Platform', 'Owner email': 'ben.ortiz@example.com', Owner: 'Ben Ortiz', Type: 'milestone', Stages: 'Design@2; Pilot@6; All services@10', 'Feeds into': 'Deploy lead time', Effect: '1', Source: 'Jira PLAT epics' },
+  ].map((o) => byHeader(GOAL_COLUMNS, o)),
+]);
 
-/** Rows as objects keyed by lower-case header. */
-function records(text: string): { header: string[]; rows: Record<string, string>[] } {
-  const [head, ...body] = parseTable(text);
-  const header = (head ?? []).map((h) => h.toLowerCase());
-  return { header, rows: body.map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] ?? '']))) };
-}
+/** CSV or tab-separated text as rows: the one reader (domain/sheets), kept under its old name for the set-up screens. */
+export const parseTable = (text: string): string[][] => parseDelimited(text).map((r) => r.map((c) => c.trim()));
+
+/** Initials from a name: the first letters of its first two words. */
+export const initials = (name: string) => name.split(/\s+/).filter(Boolean).map((w) => w[0]!.toUpperCase()).slice(0, 2).join('') || '?';
 
 const slug = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'x';
-export const initials = (name: string) => name.split(/\s+/).filter(Boolean).map((w) => w[0]!.toUpperCase()).slice(0, 2).join('') || '?';
-/** Old spreadsheets had a Profile column; sponsors and coaches there become admins. */
-const OLD_ADMIN_PROFILES = ['sponsor', 'coach', 'goals coach'];
+const SHORT: Record<string, string> = { p: 'p', team: 't', goal: 'g' };
 
-export function levelOf(r: Record<string, string>): Level {
-  const v = (r['level'] ?? '').toLowerCase().replace(/[^a-z]/g, '');
-  if (v.startsWith('north') || yes(r['headline'] ?? '')) return 'north-star';
-  if (v === 'svp' || v.startsWith('senior')) return 'svp';
-  return 'team';
-}
-export const yes = (s: string) => /^(y|yes|true|1|x)$/i.test(s.trim());
-
-export function shapeOf(s: string): PlanShape | null {
-  const v = s.trim().toLowerCase();
-  if (!v || v.startsWith('straight') || v === 'linear') return 'straight';
-  if (v.startsWith('back')) return 'back';
-  if (v.startsWith('step')) return 'stepped';
-  return null;
-}
-
-export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; now: Date; idSuffix: string; reviewDay?: number; weeks?: number }): ImportResult {
-  const issues: ImportIssue[] = [];
+/**
+ * A new workspace from people and goals (tab-separated or CSV text), or from a file's sheets (`tables`: its Goals, Plan
+ * and Check-ins; its people come in `people`, as the set-up steps show them). The person on the first row is whoever is
+ * setting up: its first admin.
+ */
+export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; tables?: Tables; now: Date; idSuffix: string; reviewDay?: number; weeks?: number }): ImportResult {
   const weeks = input.weeks ?? yearWeeks(input.startDate);
   const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: weeks >= 48 ? yearName(input.startDate, weeks) : input.name.trim() || 'My cycle', startDate: input.startDate, weeks, reviewDay: input.reviewDay ?? 3 };
+  const people = recordsOf(parseDelimited(input.people));
+  const issues: ImportIssue[] = [];
+  const head = (parseDelimited(input.people)[0] ?? []).map((h) => h.trim().toLowerCase());
+  if (!head.includes('name') || !head.includes('team')) issues.push({ table: 'People', row: 1, message: 'The header row needs at least “Name”, “Email” and “Team”.' });
+  const goals = input.tables?.goals ?? (input.goals.trim() ? recordsOf(parseDelimited(input.goals)) : []);
+  const goalHead = input.tables?.goals ? Object.keys(input.tables.goals[0] ?? {}) : (parseDelimited(input.goals)[0] ?? []).map((h) => h.trim().toLowerCase());
+  if (goals.length && (!goalHead.includes('goal') || !(goalHead.includes('owner') || goalHead.includes('owner email')))) issues.push({ table: 'Goals', row: 1, message: 'The header row needs at least “Goal”, “Team” and “Owner email” (or “Owner”).' });
 
-  // People and teams
-  const p = records(input.people);
-  if (!p.header.includes('name') || !p.header.includes('team')) issues.push({ table: 'People', row: 1, message: 'The header row needs at least “Name” and “Team”.' });
-  const people: Person[] = [], teams: Team[] = [];
+  // Readable IDs, unique within the workspace and long enough that two workspaces never share one.
   const ids = new Set<string>();
-  const unique = (base: string) => { let id = `${base}-${input.idSuffix}`, n = 2; while (ids.has(id)) id = `${base}-${n++}-${input.idSuffix}`; ids.add(id); return id; };
-  p.rows.forEach((r, i) => {
-    const row = i + 2;
-    const name = r['name'] ?? '', teamName = r['team'] ?? '';
-    if (!name) return issues.push({ table: 'People', row, message: 'Name is empty.' });
-    if (!teamName) return issues.push({ table: 'People', row, message: `${name} has no team.` });
-    const admin = yes(r['admin'] ?? '') || OLD_ADMIN_PROFILES.includes((r['profile'] ?? '').toLowerCase());
-    let team = teams.find((t) => t.name.toLowerCase() === teamName.toLowerCase());
-    if (!team) { team = { id: unique('t-' + slug(teamName)), name: teamName, leadId: '', objective: '' }; teams.push(team); }
-    if (!team.objective && r['team objective']) team.objective = r['team objective'];
-    const person: Person = { id: unique('p-' + slug(name)), name, role: r['job title'] || '', initials: initials(name), teamId: team.id, admin };
-    if (people.some((x) => x.name.toLowerCase() === name.toLowerCase())) issues.push({ table: 'People', row, message: `${name} appears twice; owners are matched by name, so names must be unique.` });
-    people.push(person);
+  let n = 0;
+  const newId = (prefix: string, hint?: string) => {
+    const base = hint ? `${SHORT[prefix] ?? prefix}-${slug(hint)}` : `${prefix}-${++n}`;
+    let id = `${base}-${input.idSuffix}`, k = 2;
+    while (ids.has(id)) id = `${base}-${k++}-${input.idSuffix}`;
+    ids.add(id);
+    return id;
+  };
+  const empty: Snapshot = { people: [], teams: [], cycles: [cycle], goals: [], checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [], requests: [] };
+  const setter: Person = { id: 'setting-up', name: '', role: '', initials: '', teamId: null, admin: true };
+  const cs = planChanges({
+    tables: { people, goals, ...(input.tables?.plan ? { plan: input.tables.plan } : {}), ...(input.tables?.checkIns ? { checkIns: input.tables.checkIns } : {}) },
+    snapshot: empty, cycle, week: Math.max(0, currentWeek(cycle, input.now)), actor: setter, now: input.now.toISOString(), newId, via: 'setup', mode: 'create',
   });
-  for (const t of teams) if (!t.leadId) t.leadId = people.find((x) => x.teamId === t.id)?.id ?? '';
+  for (const i of cs.issues) if (i.severity === 'error') issues.push({ table: i.sheet, row: i.row, message: i.goal && !i.message.includes(i.goal) ? `“${i.goal}”: ${i.message}` : i.message });
   if (!people.length && !issues.length) issues.push({ table: 'People', row: 1, message: 'Add at least one person.' });
-
-  // Goals
-  const g = records(input.goals);
-  const goals: Goal[] = [];
-  const parentOf = new Map<string, { title: string; row: number }>();
-  if (input.goals.trim() && (!g.header.includes('goal') || !g.header.includes('owner'))) issues.push({ table: 'Goals', row: 1, message: 'The header row needs at least “Goal”, “Team” and “Owner”.' });
-  g.rows.forEach((r, i) => {
-    const row = i + 2;
-    const title = r['goal'] ?? '';
-    const owner = people.find((x) => x.name.toLowerCase() === (r['owner'] ?? '').toLowerCase());
-    const team = teams.find((t) => t.name.toLowerCase() === (r['team'] ?? '').toLowerCase()) ?? teams.find((t) => t.id === owner?.teamId);
-    if (!owner) return issues.push({ table: 'Goals', row, message: `Owner “${r['owner'] ?? ''}” isn’t in the people list.` });
-    if (!team) return issues.push({ table: 'Goals', row, message: `Team “${r['team'] ?? ''}” isn’t in the people list.` });
-    const kindRaw = (r['type'] || 'metric').toLowerCase();
-    const kind = kindRaw.startsWith('mile') ? 'milestone' : kindRaw.startsWith('range') || kindRaw.startsWith('keep') ? 'range' : kindRaw.startsWith('metric') || kindRaw.startsWith('move') ? 'metric' : null;
-    if (!kind) return issues.push({ table: 'Goals', row, message: `Type “${r['type']}” should be metric, range or milestone.` });
-    const shape = shapeOf(r['plan'] ?? '');
-    if (!shape) issues.push({ table: 'Goals', row, message: `Plan “${r['plan']}” should be straight, back-loaded or stepped; using straight.` });
-    const stages = (r['stages'] ?? '').split(/;|\n/).map((x) => x.trim()).filter(Boolean).map((x, k) => {
-      const m = /^(.*?)\s*@\s*(?:wk|week)?\s*(\d+)\s*$/i.exec(x);
-      return { id: 's' + (k + 1), name: m ? m[1]!.trim() : x, dueWeek: m ? m[2]! : '' };
-    });
-    const unit = (r['unit'] ?? '').trim();
-    const d: GoalDraft = {
-      ...blankGoal(team.id, owner.id, ''),
-      kind, title, level: levelOf(r), io: levelOf(r) === 'north-star' ? 'output' : 'input',
-      effect: r['effect'] ?? '', source: r['source'] ?? '', definition: '',
-      unit: kind === 'milestone' ? '' : unit, decimals: String(Math.min(3, Math.max(0, ...[r['start'], r['target'], r['limit']].map((v) => ((v ?? '').split('.')[1] ?? '').length)))),
-      start: r['start'] ?? '', target: r['target'] ?? '', shape: shape ?? 'straight',
-      bound: /least|min|≥|>=/i.test(r['must stay'] ?? '') ? 'atLeast' : 'atMost', limit: r['limit'] ?? '', margin: r['margin'] || '0',
-      stages: stages.length ? stages : [{ id: 's1', name: '', dueWeek: '' }],
-    };
-    const errs = validateGoal(d, cycle);
-    const msgs = Object.values(errs);
-    if (msgs.length) return issues.push({ table: 'Goals', row, message: `“${title || 'Untitled'}”: ${msgs.join(' ')}` });
-    const id = unique('g-' + slug(title));
-    // A goal set up mid-year starts from today's number this week, like one made with New goal: earlier weeks and quarters aren't its to miss.
-    goals.push(buildGoal(d, cycle, { id, createdAt: new Date(input.now.getTime() + i).toISOString() }, null, false, Math.max(0, currentWeek(cycle, input.now))));
-    if (r['feeds into']) parentOf.set(id, { title: r['feeds into'], row });
-  });
-  for (const [id, { title, row }] of parentOf) {
-    const parent = goals.find((x) => x.title.toLowerCase() === title.toLowerCase());
-    const goal = goals.find((x) => x.id === id)!;
-    if (!parent) issues.push({ table: 'Goals', row, message: `“${goal.title}” feeds into “${title}”, which isn’t in the goals list.` });
-    else if (parent.id === id) issues.push({ table: 'Goals', row, message: `“${goal.title}” can’t feed into itself.` });
-    else goal.parentId = parent.id;
-  }
-
-  // Keys G-1, G-2 … in the order of the rows.
-  return { snapshot: { people, teams, cycles: [cycle], goals: withKeys(goals), checkIns: [], decisions: [], changes: [], watches: [], reviews: [], retros: [] }, issues };
+  const c = cs.created!;
+  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues };
 }
 
 /** Today's Monday, as an ISO date: the default start of a new cycle. */
@@ -171,4 +101,3 @@ export function thisMonday(today: Date): string {
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
   return d.toISOString().slice(0, 10);
 }
-

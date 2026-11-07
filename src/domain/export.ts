@@ -1,9 +1,9 @@
-/* Exports: the same goals as a workbook (for Excel), CSV, JSON (for scripts and AIs) and a short brief in
-   Markdown (to paste into any AI chat). Pure functions; the app turns them into files.
-   The Goals, Plan and Check-ins sheets use the import's column names, so an export can be edited and loaded back. */
+/* Exports: the goals as a workbook (for Excel), a zipped set of CSVs, one CSV, JSON (for scripts and AIs) and a short
+   brief in Markdown (to paste into any AI chat). Pure functions; the app turns them into files.
+   The workbook and the CSVs are the one spreadsheet format (domain/columns.ts): every sheet and column is defined there
+   once, so whatever is exported can be edited and loaded back, and loads back unedited as no change at all. */
 import { planHistoryOf } from './goal';
-import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf, isOverdue } from './asks';
-import { causeLabel } from './checkin';
+import { asksOf, isOverdue } from './asks';
 import { LEVEL_LABEL } from './format';
 import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
 import { isYear, periodLabel, quarterOf, quarters } from './year';
@@ -11,31 +11,26 @@ import { answerOf, saidIn } from './review';
 import { needsAttention, type Handled } from './attention';
 import { summariseAll, type GoalSummary } from './summary';
 import {
-  ASK_KIND, ASK_STATUS, ATTENTION, FLAG, GROUPS, LABEL, leftName, lower, MEANING, QUARTER, RESULT, RESULT_MEANING, RESULT_TEXT, STATUS, STOPPED, withCode, type GroupKey, type Term,
+  ASK_STATUS, ATTENTION, FLAG, GROUPS, LABEL, lower, MEANING, QUARTER, RESULT_MEANING, RESULT_TEXT, STATUS, STOPPED, withCode, type GroupKey, type Term,
 } from './vocabulary';
-import type { CheckIn, Cycle, Goal, Snapshot, Workspace } from './types';
+import {
+  ASKS, asksFor, CHECK_INS, contextOf, GOALS, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN, planWeekValue, RESULTS, roleLoaded, ROLE_WORD, rowsOf, SHEETS, WEEK_COLUMN,
+  type Cell, type Ctx, type ExportInput, type SheetKind,
+} from './columns';
+import type { Goal, Snapshot } from './types';
 import { NO_REASON } from './checkin';
 
-export type Cell = string | number | null;
-export interface Table { name: string; rows: Cell[][] }
-
-export interface ExportInput {
-  ws: Pick<Workspace, 'id' | 'name'>;
-  snapshot: Snapshot;
-  cycle: Cycle;
-  week: number;
-  today: Date;
-  /** Only these goals (the current view); every goal in the cycle when left out. */
-  goals?: Goal[];
-}
+export type { Cell, ExportInput } from './columns';
+/** A sheet: its name, its rows (the header first), and the columns set apart in grey: worked out, or only for reading. */
+export interface Table { name: string; rows: Cell[][]; muted?: string[] }
 
 export const EXPORT_FORMAT = 'goals-app.export';
 export const EXPORT_VERSION = 1;
 
-const levelWord = { 'north-star': 'north star', svp: 'svp', team: 'team' } as const;
-const shapeWord = { straight: 'straight', back: 'back-loaded', stepped: 'stepped' } as const;
-const kindWord = { metric: 'metric', range: 'range', milestone: 'milestone' } as const;
-const RECOVERY = { plan: 'Plan', investigating: 'Still investigating', help: 'Needs a decision or help', target: 'Target should change' } as const;
+/** The Goals sheet's columns that describe the goal, and those the app works out (domain/columns). */
+export const GOAL_EXPORT_COLUMNS = GOALS.columns.filter((c) => c.role !== 'worked').map((c) => c.header);
+export const GOAL_DERIVED_COLUMNS = GOALS.columns.filter((c) => c.role === 'worked').map((c) => c.header);
+export const CHECKIN_EXPORT_COLUMNS = CHECK_INS.columns.map((c) => c.header);
 
 /**
  * The goals an export carries and their summaries. A whole-cycle export (the workbook, CSV, JSON) keeps stopped goals,
@@ -46,82 +41,13 @@ function prepare(x: ExportInput, withStopped = false) {
   const s: Snapshot = a?.goals.length ? { ...x.snapshot, goals: [...x.snapshot.goals, ...a.goals], checkIns: [...x.snapshot.checkIns, ...a.checkIns], decisions: [...x.snapshot.decisions, ...a.decisions] } : x.snapshot;
   const goals = x.goals ?? s.goals;
   const sums = summariseAll(goals, s, x.cycle, x.today, x.week);
-  // People who left are still named in what they did, as "Name (left)".
-  const name = (id: string) => x.snapshot.people.find((p) => p.id === id)?.name ?? (() => { const p = x.snapshot.archive?.people.find((v) => v.id === id); return p ? leftName(p.name) : ''; })();
-  return { goals, sums, name, s };
-}
-
-/** A check-in's stages as the owner gave them (done, expected or on its due week), so loading the file back changes
-    nothing: an overdue stage with no new date is still "due week …", not the week the rules expect it. */
-function stagesText(g: Goal, c: CheckIn): string {
-  if (g.kind !== 'milestone' || !c.stages) return '';
-  return g.stages.map((st) => {
-    const u = c.stages!.find((x) => x.stageId === st.id);
-    return `${st.name}: ${u?.doneWeek != null ? 'done week ' + u.doneWeek : u?.forecastWeek != null ? 'expected week ' + u.forecastWeek : 'due week ' + st.dueWeek}`;
-  }).join('; ');
+  const c = contextOf(x, s);
+  return { goals, sums, name: c.name, s, c };
 }
 
 /* ---------- workbook ---------- */
 
-/** The goal's readable key comes first (G-12); its ID, the identity the app keeps, next. Either matches it on the way back. */
-export const GOAL_EXPORT_COLUMNS = ['Key', 'ID', 'Goal', 'Level', 'Team', 'Owner', 'Type', 'Unit', 'Decimals', 'Start', 'Target', 'Plan', 'Plan from week', 'Due week', 'Limit', 'Must stay', 'Margin', 'Stages', 'Feeds into', 'Feeds into ID', 'Why it helps', 'Effect', 'Source', 'Definition'] as const;
-export const GOAL_DERIVED_COLUMNS = ['Status', 'Result', 'Since', 'Now', 'Plan this week', 'Gap', 'Last check-in week', 'Forecast', 'Why it’s off', 'Recovery plan', 'By when', 'Needs', 'Next step', 'Warnings', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
-export const CHECKIN_EXPORT_COLUMNS = ['ID', 'Goal key', 'Goal ID', 'Goal', 'Week', 'Week starting', 'Value', 'Stages', 'Call', 'Calculated', 'Plan that week', 'Cause', 'Why', 'Why greener', 'Path to green', 'Recovery', 'Back on plan by week', 'Needs', 'Next step', 'Posted at', 'Posted by', 'Backfilled'] as const;
-
-function goalRow(s: GoalSummary, all: Goal[]): Cell[] {
-  const g = s.goal;
-  const parent = g.parentId ? all.find((x) => x.id === g.parentId) : null;
-  const m = g.kind === 'metric' ? g : null, r = g.kind === 'range' ? g : null;
-  return [
-    g.key ?? null, g.id, g.title, levelWord[g.level], s.team, s.owner, kindWord[g.kind],
-    g.kind === 'milestone' ? null : g.unit, g.kind === 'milestone' ? null : g.decimals,
-    m ? m.plan.start : null, m ? m.plan.target : null, m ? shapeWord[m.plan.shape] : null, m ? m.plan.fromWeek ?? 0 : null, m ? m.plan.endWeek ?? null : null,
-    r ? r.range.limit : null, r ? (r.range.bound === 'atMost' ? 'at most' : 'at least') : null, r ? r.range.margin : null,
-    g.kind === 'milestone' ? g.stages.map((x) => `${x.name}@${x.dueWeek}`).join('; ') : null,
-    parent?.title ?? null, parent?.id ?? null, g.whyHelps || null, g.effect, g.source || null, g.definition || null,
-    g.stoppedAt ? STOPPED : s.statusLabel, s.story.result?.text ?? null, s.story.since, s.now, s.planNow != null ? s.planNowText : null, s.gap, s.lastWeek, s.forecast,
-    s.story.why, s.story.doing, s.story.byWhen, s.story.needs, s.story.next, s.story.warnings.join(' ') || null,
-    ...[1, 2, 3, 4].map((n) => { const q = s.story.quarters.find((y) => y.quarter.n === n); return !q || q.kind === 'none' ? null : `${QUARTER[q.kind].label}: ${q.text.replace(/^Q\d: /, '')}`; }),
-  ];
-}
-
-function checkInRows(x: ExportInput, sums: GoalSummary[], name: (id: string) => string): Cell[][] {
-  const rows: Cell[][] = [];
-  for (const s of sums) {
-    const g = s.goal;
-    for (const c of s.checkIns) {
-      const ptg = c.pathToGreen;
-      rows.push([
-        c.id, g.key ?? null, g.id, g.title, c.week, weekDate(x.cycle, c.week), c.value, stagesText(g, c) || null,
-        LABEL[c.status], LABEL[c.calculated], g.kind === 'metric' ? Number(planAt(planAsOf(g, c.week), c.week, x.cycle.weeks).toFixed(g.decimals)) : null,
-        c.cause ? causeLabel(c.cause) : null, c.why || null, c.greenerWhy || null,
-        ptg?.what || null, ptg ? RECOVERY[ptg.state ?? 'plan'] : null, ptg?.byWeek ?? null, ptg?.needs || null,
-        c.next || null, c.postedAt, name(c.authorId) || null, c.backfilled ? 'yes' : null,
-      ]);
-    }
-  }
-  // By goal, then week, then when it was posted.
-  const [gi, wi, pi] = (['Goal', 'Week', 'Posted at'] as const).map((c) => CHECKIN_EXPORT_COLUMNS.indexOf(c)) as [number, number, number];
-  return rows.sort((a, b) => String(a[gi]).localeCompare(String(b[gi])) || Number(a[wi]) - Number(b[wi]) || String(a[pi]).localeCompare(String(b[pi])));
-}
-
-/** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
-function planRows(x: ExportInput, sums: GoalSummary[]): Cell[][] {
-  const metric = sums.map((s) => s.goal).filter((g): g is Extract<Goal, { kind: 'metric' }> => g.kind === 'metric');
-  const last = Math.max(x.cycle.weeks, ...metric.map((g) => planEnd(g.plan, x.cycle.weeks)));
-  const weeks = Array.from({ length: last }, (_, i) => i + 1);
-  return [
-    ['Key', 'ID', 'Goal', 'Unit', 'Start', ...weeks.map((w) => `Week ${w}`)],
-    ...metric.map((g) => {
-      const end = planEnd(g.plan, x.cycle.weeks);
-      const from = g.plan.fromWeek ?? 0;
-      return [g.key ?? null, g.id, g.title, g.unit, g.plan.start, ...weeks.map((w) => (w <= from || w > end ? null : Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals))))];
-    }),
-  ];
-}
-
 const STATUS_WORDS = ['on', 'risk', 'off', 'stale', 'none', 'planned', 'done'] as const;
-const GAP_WORD = { behind: GROUPS.gap.terms.behind.label, ahead: GROUPS.gap.terms.ahead.label };
 /** The groups of words a workbook defines, in order. */
 const DEFINED: GroupKey[] = ['status', 'flag', 'attention', 'warning', 'trend', 'gap', 'result', 'quarter', 'stage', 'askStatus'];
 
@@ -130,60 +56,65 @@ export function definitions(): Cell[][] {
   return DEFINED.flatMap((k) => Object.values(GROUPS[k].terms as Record<string, Term>).filter((t) => t.where.includes('exports') && !t.same?.startsWith('status.')).map((t) => ['Words', t.label, t.long, GROUPS[k].title]));
 }
 
-const README: Cell[][] = [
-  ['Sheet', 'Column', 'What it means', 'When loaded back'],
-  ['Goals', 'Key', 'The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal: it gets the next one.', 'Matches the goal, like ID'],
-  ['Goals', 'ID', 'The goal’s identity. Keep it to update the goal; leave it empty for a new goal.', 'Matches the goal'],
-  ['Goals', 'Level', 'north star, svp or team', 'Changes the level'],
-  ['Goals', 'Type', 'metric (move a number), range (keep a number in range) or milestone (hit dated stages)', 'Can’t change on an existing goal'],
-  ['Goals', 'Start, Target, Plan, Due week', 'Number goals: where it starts, the target, the plan’s shape (straight, back-loaded, stepped) and the week the target is due', 'Changes the plan; needs a reason once check-ins have started'],
-  ['Goals', 'Limit, Must stay, Margin', 'Range goals: the limit, at most or at least, and how close counts as at risk', 'Changes the range'],
-  ['Goals', 'Stages', 'Milestone goals: Name@week, separated by semicolons', 'Changes the stages'],
-  ['Goals', 'Status', `What the goal’s status is now: ${STATUS_WORDS.map((k) => STATUS[k].label).join(', ')}. Each is defined under Words, below.`, 'Ignored'],
-  ['Goals', 'Result', `Set once a goal is due: ${(['completed', 'late', 'missed'] as const).map((k) => RESULT[k].label).join(', ')}. Defined under Words.`, 'Ignored'],
-  ['Goals', 'Why it’s off, Recovery plan, By when, Needs, Next step, Warnings', 'The owner’s latest account when a goal is behind, and what the numbers would hide: each warning starts with its word, defined under Words.', 'Ignored'],
-  ['Goals', 'Since, Now, Plan this week, Gap, Last check-in week, Forecast', `Worked out by the app when exported. The gap is said the same whichever way is better: “9 hours ${GAP_WORD.behind}”, “3 pts ${GAP_WORD.ahead}”.`, 'Ignored'],
-  ['Goals', 'Q1, Q2, Q3, Q4', `Each quarter against the owner’s plan: ${QUARTER.met.label}, ${QUARTER.missed.label}, or ${QUARTER.open.label} while it runs. A quarter’s target is the plan’s number at its end.`, 'Ignored'],
-  ['Plan', 'Week N', 'The current plan for each week. If the plan changed, earlier check-ins were judged against the plan of their day: see Plan that week on Check-ins. Type over any week to set the plan by hand', 'Sets the plan numbers'],
-  ['Check-ins', 'ID', 'The check-in’s own identity. It never changes. Keep it to correct that check-in; leave it empty to add one.', 'Matches the check-in'],
-  ['Check-ins', 'Goal key or Goal ID, Week, Value or Stages', 'One row per check-in: a goal and week, and what was reported', 'Adds a check-in, or corrects the one with that ID (or that week’s latest when there’s no ID)'],
-  ['Check-ins', 'Call', `The owner’s status call: ${(['on', 'risk', 'off', 'done'] as const).map((k) => LABEL[k]).join(', ')}. Empty: the rules decide`, `Used as the call; a call ${lower(FLAG.greener)} needs Why greener`],
-  ['Check-ins', 'Cause, Why, Path to green, Back on plan by week, Needs', 'Why it’s ahead or behind, and how it gets back', 'Required when behind, as in the app'],
-  ['Check-ins', 'Calculated, Plan that week, Posted at, Posted by, Backfilled', 'Recorded by the app', 'Ignored'],
-  ['Requests', 'All columns', 'Requests for a decision or help: who asked whom, for which goals, and whether it was answered', 'Not loaded back; requests are raised in check-ins'],
-  ['People', 'ID', 'The person’s own identity. It never changes.', 'Matches the person (in Data)'],
-  ['People', 'Name, Job title, Team, Admin, Team objective', 'Who’s who', 'Changed in Data; not loaded back from a file yet'],
-];
-
-/** Every ask on the exported goals (a decision or help, an update, a question, an action): where each stands, with every goal it's about. */
-function askRows(x: ExportInput, ids: Set<string>, name: (id: string) => string): Cell[][] {
-  const title = (id: string) => x.snapshot.goals.find((g) => g.id === id)?.title ?? id;
-  const list = asksOf(x.snapshot).filter((r) => r.goalIds.some((id) => ids.has(id)));
-  return [
-    ['ID', 'Kind', 'Ask', 'Goals', 'Goal keys', 'Goal IDs', 'Asked by', 'Asked of', 'Status', 'Due week', 'Review', 'Asked at', 'Answer', 'Answered by', 'Answered at'],
-    ...list.map((r) => [r.id, ASK_KIND_LABEL[r.kind], r.ask, r.goalIds.map(title).join('; '), r.goalIds.map((id) => x.snapshot.goals.find((g) => g.id === id)?.key ?? '').filter(Boolean).join('; ') || null, r.goalIds.join('; '), name(r.askedBy) || null, r.recipientId ? name(r.recipientId) || null : 'Anyone', ASK_STATUS_LABEL[r.status], r.dueWeek, x.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null, r.createdAt, r.answer || null, r.answeredBy ? name(r.answeredBy) || null : null, r.answeredAt]),
+/** The README: every sheet and every column, what it means and what loading it back does, made from domain/columns. */
+export function readme(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'>): Cell[][] {
+  const rows: Cell[][] = [
+    [`${x.ws.name}, ${x.cycle.name}. Exported ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`],
+    ['Change any column marked “You can change it”, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are.'],
+    [],
+    ['Sheet', 'Column', 'Kind', 'What it means', 'When loaded back'],
   ];
+  for (const sheet of SHEETS) {
+    rows.push([sheet.name, null, null, `One row per ${sheet.rowIs}. ${sheet.about}`, sheet.loaded ? 'Loaded back' : 'Not loaded back']);
+    for (const col of sheet.columns) rows.push([sheet.name, col.header, ROLE_WORD[col.role], col.means, sheet.loaded ? roleLoaded(col) : 'Not loaded back']);
+    if (sheet.kind === 'plan') rows.push([sheet.name, WEEK_COLUMN.header, ROLE_WORD[WEEK_COLUMN.role], WEEK_COLUMN.means, WEEK_COLUMN.loaded]);
+  }
+  return [...rows, [], ['Words', 'Word', 'What it means', 'Kind'], ...definitions()];
 }
 
+const muted = (kind: SheetKind, head: Cell[]) => head.map(String).filter((h) => isWorkedOut(kind, h));
+
+/** The plan as numbers, one row per number goal and one column per week (every week to its due week). */
+function planRows(x: ExportInput, sums: GoalSummary[], c: Ctx): Cell[][] {
+  const metric = sums.map((s) => s.goal).filter((g): g is Extract<Goal, { kind: 'metric' }> => g.kind === 'metric');
+  const last = Math.max(x.cycle.weeks, ...metric.map((g) => planEnd(g.plan, x.cycle.weeks)));
+  const weeks = Array.from({ length: last }, (_, i) => i + 1);
+  const [head, ...body] = rowsOf(PLAN, metric.map((g) => ({ c, g })));
+  return [[...head!, ...weeks.map((w) => `Week ${w}`)], ...body.map((r, i) => [...r, ...weeks.map((w) => planWeekValue({ c, g: metric[i]! }, w))])];
+}
+
+/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes and the README. */
 export function workbook(x: ExportInput): Table[] {
-  const { goals, sums, name, s } = prepare(x, true);
+  const { goals, sums, s, c } = prepare(x, true);
   const ids = new Set(goals.map((g) => g.id));
-  const notes = saidIn(s).filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));
-  const goalTitle = (id: string) => goals.find((g) => g.id === id)?.title ?? '';
+  const goalRows = sums.map((v) => ({ c, s: v, g: v.goal }));
+  // By goal, then week, then when it was posted.
+  const checkIns = sums.flatMap((v) => v.checkIns.map((ci) => ({ c, g: v.goal, ci })))
+    .sort((a, b) => a.g.title.localeCompare(b.g.title) || a.ci.week - b.ci.week || a.ci.postedAt.localeCompare(b.ci.postedAt));
+  const book: [SheetKind, Cell[][]][] = [
+    ['goals', rowsOf(GOALS, goalRows)],
+    ['plan', planRows(x, sums, c)],
+    ['checkIns', rowsOf(CHECK_INS, checkIns)],
+    ['people', rowsOf(PEOPLE, x.snapshot.people.map((p) => ({ c, p })))],
+    ['results', rowsOf(RESULTS, goalRows)],
+    ['asks', rowsOf(ASKS, asksFor(x.snapshot, ids).map((a) => ({ c, a })))],
+    ['notes', rowsOf(NOTES, notesFor(s, ids).map((d) => ({ c, d })))],
+  ];
   return [
-    { name: 'Goals', rows: [[...GOAL_EXPORT_COLUMNS, ...GOAL_DERIVED_COLUMNS], ...sums.map((v) => goalRow(v, s.goals))] },
-    { name: 'Plan', rows: planRows(x, sums) },
-    { name: 'Check-ins', rows: [[...CHECKIN_EXPORT_COLUMNS], ...checkInRows(x, sums, name)] },
-    { name: 'Notes and actions', rows: [['Goal key', 'Goal ID', 'Goal', 'Week', 'Kind', 'Said by', 'Text', 'Who', 'Due week', 'Review', 'Answer', 'At'], ...notes.map((d) => [goals.find((g) => g.id === d.goalId)?.key ?? null, d.goalId, goalTitle(d.goalId), d.week, d.kind === 'ask' ? ASK_KIND.question.label : d.kind === 'action' ? ASK_KIND.action.label : 'Note', name(d.byId), d.note, d.kind === 'action' ? name(d.assigneeId ?? '') || null : null, d.dueWeek ?? null, x.snapshot.reviews.find((r) => r.id === d.reviewId)?.name ?? null, d.ask ? answerOf(d)?.text ?? null : null, d.at])] },
-    { name: 'Asks', rows: askRows(x, ids, name) },
-    { name: 'People', rows: [['ID', 'Name', 'Job title', 'Team', 'Admin', 'Team objective'], ...x.snapshot.people.map((p) => { const t = x.snapshot.teams.find((t) => t.id === p.teamId); return [p.id, p.name, p.role || null, t?.name ?? null, p.admin ? 'yes' : null, t && t.leadId === p.id ? t.objective || null : null]; })] },
-    { name: 'README', rows: [[`${x.ws.name}, ${x.cycle.name}. Exported ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`], [], ...README, [], ['Words', 'Word', 'What it means', 'Kind'], ...definitions()] },
+    ...book.map(([kind, rows]) => ({ name: SHEETS.find((v) => v.kind === kind)!.name, rows, muted: muted(kind, rows[0] ?? []) })),
+    { name: 'README', rows: readme(x) },
   ];
 }
+
+/** One sheet of a workbook, by name (Goals, Plan, Check-ins…). */
+export const sheetNamed = (book: Table[], name: string): Table => book.find((t) => t.name === name) ?? { name, rows: [] };
 
 /* ---------- CSV ---------- */
 
-/** RFC 4180 CSV. A leading =, +, - or @ is quoted with an apostrophe so a spreadsheet won't run it as a formula. */
+/**
+ * RFC 4180 CSV. A text cell starting with =, +, -, @, a tab or a carriage return gets an apostrophe in front, so a
+ * spreadsheet won't run it as a formula; the import takes it off again (domain/sheets unguard).
+ */
 export function toCsv(rows: Cell[][]): string {
   const cell = (v: Cell) => {
     if (v == null) return '';
@@ -194,10 +125,13 @@ export function toCsv(rows: Cell[][]): string {
   return rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 
+/** The workbook as CSVs, one file per sheet with the same headers, named after it: what the zipped export holds. */
+export const csvFiles = (book: Table[]) => book.map((t) => ({ name: `${t.name}.csv`, text: toCsv(t.rows) }));
+
 /* ---------- JSON ---------- */
 
 export function toJson(x: ExportInput) {
-  const { sums, name } = prepare(x, true);
+  const { sums, name, c } = prepare(x, true);
   const team = (id: string | null) => x.snapshot.teams.find((t) => t.id === id)?.name ?? null;
   return {
     format: EXPORT_FORMAT,
@@ -207,12 +141,12 @@ export function toJson(x: ExportInput) {
     words: Object.fromEntries(DEFINED.map((k) => [k, Object.fromEntries(Object.values(GROUPS[k].terms as Record<string, Term>).map((t) => [t.code, { label: t.label, meaning: t.meaning }]))])),
     workspace: { id: x.ws.id, name: x.ws.name },
     cycle: { id: x.cycle.id, name: x.cycle.name, startDate: x.cycle.startDate, weeks: x.cycle.weeks, currentWeek: x.week, ...(isYear(x.cycle) ? { quarter: quarterOf(x.cycle, x.week).label, quarters: quarters(x.cycle).map((q) => ({ label: q.label, months: q.months, from: q.from, to: q.to })) } : {}) },
-    people: x.snapshot.people.map((p) => ({ id: p.id, name: p.name, jobTitle: p.role || null, team: team(p.teamId), admin: p.admin })),
+    people: x.snapshot.people.map((p) => ({ id: p.id, name: p.name, email: p.email || null, jobTitle: p.role || null, team: team(p.teamId), admin: p.admin })),
     teams: x.snapshot.teams.map((t) => ({ id: t.id, name: t.name, objective: t.objective || null })),
     goals: sums.map((s) => {
       const g = s.goal;
       return {
-        id: g.id, key: g.key ?? null, title: g.title, level: g.level, type: g.kind, team: s.team, owner: s.owner, ownerId: g.ownerId,
+        id: g.id, key: g.key ?? null, title: g.title, level: g.level, type: g.kind, team: c.team(g.teamId), owner: c.name(g.ownerId) || null, ownerId: g.ownerId, ownerEmail: c.email(g.ownerId),
         feedsIntoId: g.parentId, whyItHelps: g.whyHelps || null, source: g.source || null, definition: g.definition || null,
         ...(g.kind === 'metric' ? {
           unit: g.unit, decimals: g.decimals,
