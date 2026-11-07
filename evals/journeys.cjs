@@ -117,6 +117,9 @@ function harness(device) {
     },
     async inView(loc, k, label) {
       const first = loc.first();
+      // Wait for it to be drawn first: read straight away, a page still settling (a slow machine, the shards side by
+      // side) has no box for it yet, which read as "below the fold" (U14 on 7 Nov).
+      await first.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
       const box = await first.boundingBox().catch(() => null);
       // The fold is the top of the phone's tab bar, not the bottom of the screen: anything under the bar can't be seen.
       // (Unless the thing is in the tab bar itself.)

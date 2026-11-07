@@ -1,22 +1,27 @@
 /* The shard plan: which journeys and which platform checks run in which shard, so every check runs in exactly one.
    Shared by evals/journeys.cjs (to pick what to run) and evals/run.mjs (to print and verify the plan).
 
-   Journeys go round-robin by position (journey i is in shard k when i % n === k - 1). Platform checks (P1–P4, P6–P10, P15 and
-   every F/N module) are placed by weight: heaviest first, each into the shard with the least work so far, counting its
-   journeys. The weights are measured seconds (from a four-shard run); a check that isn't listed counts as DEFAULT.
+   Journeys and platform checks (P1–P4, P6–P10, P15 and every F/N module) are placed by weight: heaviest first, each
+   into the shard with the least work so far. The weights are measured seconds (from a four-shard run); a journey that
+   isn't listed counts as JOURNEY_SECONDS and a check as DEFAULT.
    P5 is not placed: it is computed from the console errors of every journey, in every shard, when the results merge. */
 const fs = require('fs');
 const path = require('path');
 
-const JOURNEY_SECONDS = 9.5; // a journey on a phone and a desktop, on average
-/** Journeys measured as well above the average (a phone and a desktop together, seconds): they still go round-robin,
-    but count for what they take when the platform checks are placed. */
-const JOURNEY_WEIGHTS = { U41: 16, U42: 18, U43: 30, U44: 48, U45: 27, U46: 40 };
+const JOURNEY_SECONDS = 15; // a journey on a phone and a desktop, when it hasn't been measured yet
+/** Each journey, a phone and a desktop together, and each platform check, in seconds, as measured in a four-shard run
+    on 7 Nov (evals/out/results.json: platform[].seconds; journeys' phone.ms + desktop.ms). Re-measure when a shard
+    finishes much later than the others. */
+const JOURNEY_WEIGHTS = {
+  U1: 43, U2: 4, U3: 46, U4: 14, U5: 10, U6: 14, U7: 21, U8: 12, U9: 14, U10: 13, U11: 8, U12: 6, U13: 12, U14: 14, U15: 6, U16: 6,
+  U17: 12, U18: 10, U19: 38, U20: 13, U21: 24, U22: 7, U23: 32, U24: 23, U25: 17, U26: 8, U27: 12, U28: 6, U29: 14, U30: 15, U31: 16,
+  U32: 20, U33: 23, U34: 24, U35: 19, U36: 18, U37: 16, U38: 61, U39: 17, U40: 22, U41: 23, U42: 23, U43: 23, U44: 32, U45: 19, U46: 48, U47: 15,
+};
 const DEFAULT = 30;
 const WEIGHTS = {
-  P1: 3, P2: 22, P3: 28, P4: 20, P6: 21, P7: 14, P8: 3, P9: 41, P10: 6, P15: 8,
-  F1: 38, F2: 27, F3: 29, F4: 19, F5: 21, F6: 29, F7: 26, F8: 41,
-  N1: 23, N2: 32, N3: 16, N4: 45, N5: 14, N6: 26, N7: 240, N8: 34, N9: 29,
+  P1: 1, P2: 13, P3: 64, P4: 63, P6: 28, P7: 15, P8: 5, P9: 50, P10: 6, P15: 2,
+  F1: 32, F2: 18, F3: 25, F4: 29, F5: 17, F6: 36, F7: 29, F8: 34,
+  N1: 21, N2: 98, N3: 18, N4: 62, N5: 19, N6: 32, N7: 256, N8: 34, N9: 43,
 };
 
 /** Ids of the per-area modules (evals/finish, evals/notes), in the order journeys.cjs runs them. */
@@ -29,17 +34,22 @@ function checkIds() {
   return ['P1', 'P2', 'P3', 'P4', 'P6', 'P7', 'P8', 'P9', 'P10', 'P15', ...moduleIds()];
 }
 
-/** The plan for n shards: [{ k, journeys: [ids], checks: [ids], seconds }]. Deterministic. */
+/** The plan for n shards: [{ k, journeys: [ids], checks: [ids], seconds }]. Deterministic. Everything (journeys and
+    checks) goes heaviest first into the shard with the least work so far, so the shards end close together: placing
+    journeys round-robin left one shard two minutes behind the rest. */
 function plan(n, journeyIds) {
   const shards = Array.from({ length: n }, (_, i) => ({ k: i + 1, journeys: [], checks: [], seconds: 0 }));
-  journeyIds.forEach((id, i) => { const s = shards[i % n]; s.journeys.push(id); s.seconds += JOURNEY_WEIGHTS[id] ?? JOURNEY_SECONDS; });
-  const units = checkIds().map((id) => ({ id, w: WEIGHTS[id] ?? DEFAULT })).sort((a, b) => b.w - a.w || a.id.localeCompare(b.id, 'en', { numeric: true }));
+  const order = (a, b) => a.localeCompare(b, 'en', { numeric: true });
+  const units = [
+    ...journeyIds.map((id) => ({ id, w: JOURNEY_WEIGHTS[id] ?? JOURNEY_SECONDS, journey: true })),
+    ...checkIds().map((id) => ({ id, w: WEIGHTS[id] ?? DEFAULT, journey: false })),
+  ].sort((a, b) => b.w - a.w || order(a.id, b.id));
   for (const u of units) {
     const s = shards.reduce((best, x) => (x.seconds < best.seconds ? x : best));
-    s.checks.push(u.id); s.seconds += u.w;
+    (u.journey ? s.journeys : s.checks).push(u.id); s.seconds += u.w;
   }
-  const order = (a, b) => a.localeCompare(b, 'en', { numeric: true });
-  shards.forEach((s) => s.checks.sort(order));
+  // Journeys run in the order journeys.cjs lists them.
+  shards.forEach((s) => { s.journeys.sort((a, b) => journeyIds.indexOf(a) - journeyIds.indexOf(b)); s.checks.sort(order); });
   return shards;
 }
 

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /* Status is a shape plus a word, always together (design rules). StatusWord is the one way a list's status slot is drawn. */
 import { render } from '@testing-library/react';
 import { LABEL } from '../domain/status';

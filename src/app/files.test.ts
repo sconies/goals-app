@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /* Every download goes through saveFile: one naming rule, one way of saving, one way of saying it failed. */
 import { fileName, saveAndSay, saveFile, slug } from './files';
 

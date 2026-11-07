@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Feedback } from '../domain/types';
 import { feedbackFromInboxRow, feedbackOps, keptFixes, localFeedback } from './feedback';

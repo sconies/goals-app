@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /* Faro's teal is the default accent (6 Nov), with the earlier colours kept as choices, and a saved choice still counts. */
 import { ACCENTS, applyAppearance, setAppearance } from './appearance';
 

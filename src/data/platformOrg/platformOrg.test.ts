@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /* The Platform Engineering example is a believable organisation, and every record in it follows the app's own rules. */
 import { describe, expect, it } from 'vitest';
 import { draftFrom, emptyDraft, evaluate } from '../../domain/checkin';
