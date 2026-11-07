@@ -1,10 +1,12 @@
 /* The builder inbox, on Workspace: markups people sent, newest first, grouped when they're about the same part of the
    same page, each with its status as a shape and a word (New, In hand, Fixed, Won't fix). A markup opens with its
    picture (the drawing can be hidden), the parts it names, the steps before it, errors, and where it came from.
-   Builders sign in here with an email link (Supabase Auth) and triage: mark it in hand, open its GitHub issue (a
+   Builders sign in here with an email link (Supabase Auth), or read it with a builder token (backlog -2: enough for a
+   test round on the demo or a preview build), and triage: mark it in hand, open its GitHub issue (a
    pre-filled link; paste the issue's address back), mark it fixed in a What's new entry, or say why it won't be fixed.
    Admins who aren't builders can't read it until sign-in comes (release 4). With no database, it shows the markups
    kept in this browser, without signing in.
+   Connect Claude sits at the top (src/markup/Connect.tsx): builder tokens and the exact set-up for Claude.
    Feedback sent with a mood and a few words joins it (Lane, 6 Nov; migration 0026): listed among the markups, newest
    first, and triaged with the same states and rules (src/markup/feedback.ts). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -12,10 +14,11 @@ import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { WHATS_NEW } from '../help/whatsNew';
 import { Sheet, timeAgo } from '../ui/bits';
-import { builderClient, builderSession, inboxFeedback, inboxOps, makeBuilderToken, markupsShared, sendSignInLink, signOutBuilder, type BuilderSession } from './backend';
+import { builderClient, builderSession, forgetBuilderToken, inboxFeedback, inboxOps, keepBuilderToken, markupsShared, savedBuilderToken, sendSignInLink, signOutBuilder, tokenInbox, type BuilderSession } from './backend';
+import { ConnectClaude } from './Connect';
 import type { FeedbackOps, InboxFeedback } from './feedback';
 import { PartPath } from './Markup';
-import { MOOD_WORD, STATUS_WORD, groupMarkups, namedParts, problemText, stepText, type Markup, type MarkupStatus } from './model';
+import { MOOD_WORD, STATUS_WORD, groupMarkups, namedParts, problemText, sentFrom, stepText, type Markup, type MarkupStatus } from './model';
 import type { ListedMarkup, MarkupOps, OpenedMarkup } from './ops';
 
 /** A markup's status: its shape and its word, always together. Diamonds, so they're never read as a goal's status. */
@@ -34,7 +37,7 @@ export function MarkupStatusMark({ status }: { status: MarkupStatus }) {
   );
 }
 
-type Access = { kind: 'loading' } | { kind: 'local' } | { kind: 'signed-out' } | { kind: 'signed-in'; session: BuilderSession } | { kind: 'error'; text: string };
+type Access = { kind: 'loading' } | { kind: 'local' } | { kind: 'signed-out' } | { kind: 'signed-in'; session: BuilderSession } | { kind: 'token' } | { kind: 'error'; text: string };
 
 export default function Inbox() {
   const app = useApp();
@@ -47,6 +50,8 @@ export default function Inbox() {
   const [fbOps, setFbOps] = useState<FeedbackOps | null>(null);
   const [feedback, setFeedback] = useState<InboxFeedback[]>([]);
   const [openFb, setOpenFb] = useState<string | null>(null);
+  // With a builder token, pictures come through the server; this says why not, when it can't send them.
+  const [pictureProblem, setPictureProblem] = useState<(() => string | null) | null>(null);
   // With no database, the inbox's feedback is this workspace's, as the app has it now.
   const appNow = useRef(app);
   appNow.current = app;
@@ -61,9 +66,18 @@ export default function Inbox() {
     if (!shared) { setOps(await inboxOps()); setFbOps(await inboxFeedback(here)); return; }
     try {
       const session = await builderSession();
+      const token = session?.builder ? null : savedBuilderToken();
+      if (token) {
+        // No email sign-in needed: a builder token reads the inbox (the demo's and preview builds' markups included).
+        const t = await tokenInbox(token);
+        setAccess({ kind: 'token' });
+        setOps(t.ops); setFbOps(t.feedback); setPictureProblem(() => t.pictures);
+        return;
+      }
       setAccess(session ? { kind: 'signed-in', session } : { kind: 'signed-out' });
       setOps(session?.builder ? await inboxOps() : null);
       setFbOps(session?.builder ? await inboxFeedback(here) : null);
+      setPictureProblem(null);
     } catch (e) { setAccess({ kind: 'error', text: e instanceof Error ? e.message : String(e) }); }
   }, [shared, here]);
   useEffect(() => {
@@ -95,7 +109,7 @@ export default function Inbox() {
   ].sort((a, b) => b.at.localeCompare(a.at)), [groups, feedback]);
   const newCount = (list ?? []).filter((m) => m.status === 'new').length + feedback.filter((f) => f.status === 'new').length;
   const openedFb = openFb ? feedback.find((f) => f.id === openFb) ?? null : null;
-  const builderName = access.kind === 'signed-in' ? access.session.email : 'This browser';
+  const builderName = access.kind === 'signed-in' ? access.session.email : access.kind === 'token' ? 'A builder token' : 'This browser';
   const open = (id: string | null) => {
     setOpenId(id);
     const next = new URLSearchParams(params);
@@ -108,11 +122,13 @@ export default function Inbox() {
       <div className="row between">
         <h2 className="block-title" id="inbox-title">Inbox{list ? <span className="hint count-after">· {newCount} new</span> : null}</h2>
         {access.kind === 'signed-in' && <button type="button" className="btn sm ghost" onClick={async () => { await signOutBuilder(); setList(null); void refresh(); }}>Sign out</button>}
+        {access.kind === 'token' && <button type="button" className="btn sm ghost" onClick={() => { forgetBuilderToken(); setList(null); setOps(null); setFbOps(null); void refresh(); }}>Forget the token</button>}
       </div>
       <p className="hint">What people send with Send feedback: markups (a picture of a screen with their drawing, and a line saying what should change) and feedback (a mood and a few words). {shared ? 'For the people building Faro, who sign in here.' : 'No database is set up, so these are the markups sent from this browser and this workspace’s feedback.'}</p>
       {access.kind === 'loading' && <p className="hint" role="status">Checking who’s signed in…</p>}
       {access.kind === 'error' && <p className="hint tone-off" role="alert">{access.text}</p>}
-      {access.kind === 'signed-out' && <SignIn />}
+      {(access.kind === 'local' || access.kind === 'token' || (access.kind === 'signed-in' && access.session.builder)) && <ConnectClaude as={access.kind === 'signed-in' ? 'signed-in' : access.kind} />}
+      {access.kind === 'signed-out' && <SignIn onToken={() => void refresh()} />}
       {access.kind === 'signed-in' && !access.session.builder && (
         <p className="hint" role="status">You’re signed in as {access.session.email}, which isn’t on the builders list. Until sign-in comes to the whole app, only builders read markups; admins will see their own workspace’s then.</p>
       )}
@@ -132,7 +148,7 @@ export default function Inbox() {
                   <span className="stack mk-row-text">
                     <span className="mk-line">{m.line}</span>
                     <span className="tiny muted">{namedParts(m)[0] ? <PartPath path={namedParts(m)[0]!} /> : m.route}</span>
-                    <span className="tiny muted">{m.personName || 'Someone'}, {m.demo ? 'the demo' : m.workspaceName}, {timeAgo(m.createdAt, app.today)}{g.markups.length > 1 ? <strong className="mk-count"> · {g.markups.length} on this part</strong> : null}</span>
+                    <span className="tiny muted">{m.personName || 'Someone'}, {sentFrom(m, { host: false })}, {timeAgo(m.createdAt, app.today)}{g.markups.length > 1 ? <strong className="mk-count"> · {g.markups.length} on this part</strong> : null}</span>
                   </span>
                 </button>
               </li>
@@ -140,20 +156,20 @@ export default function Inbox() {
           })}
         </ul>
       )}
-      {access.kind === 'signed-in' && access.session.builder && app.mode === 'live' && <BuilderToken />}
-      {ops && openId && <Detail id={openId} ops={ops} by={builderName} siblings={groups.find((g) => g.markups.some((m) => m.id === openId))?.markups ?? []} onOpen={open} onChanged={load} />}
+      {ops && openId && <Detail id={openId} ops={ops} by={builderName} pictureProblem={pictureProblem} siblings={groups.find((g) => g.markups.some((m) => m.id === openId))?.markups ?? []} onOpen={open} onChanged={load} />}
       {fbOps && openedFb && <FeedbackDetail f={openedFb} ops={fbOps} by={builderName} onClose={() => setOpenFb(null)} onChanged={(id, t) => setFeedback((xs) => xs.map((x) => (x.id === id ? { ...x, ...t } : x)))} />}
     </section>
   );
 }
 
-function SignIn() {
+function SignIn({ onToken }: { onToken: () => void }) {
   const app = useApp();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   if (sent) return <p className="hint" role="status">Check your email: the link in it signs you in and brings you back here, in this browser.</p>;
   return (
+    <>
     <form className="stack inbox-signin" style={{ gap: 'var(--s2)' }} onSubmit={async (e) => {
       e.preventDefault();
       if (!/^\S+@\S+\.\S+$/.test(email.trim()) || busy) return;
@@ -167,34 +183,35 @@ function SignIn() {
       <div><button type="submit" className="btn" aria-disabled={busy || undefined}>{busy ? 'Sending…' : 'Email me a sign-in link'}</button></div>
       <span className="hint">Only the inbox signs in; the rest of the app doesn’t change. <Link to="/help/inbox">About the inbox</Link></span>
     </form>
+    <UseToken onToken={onToken} />
+    </>
   );
 }
 
-/** A builder token, so a builder's AI assistant can use the markup tools (list_markups, get_markup, update_markup). */
-function BuilderToken() {
-  const app = useApp();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [token, setToken] = useState<string | null>(null);
-  if (!open) return <p className="hint"><button type="button" className="linkish" onClick={() => setOpen(true)}>Make a builder token for your AI assistant</button></p>;
-  if (token) return (
-    <div className="stack" style={{ gap: 'var(--s2)' }}>
-      <p className="hint tone-risk" role="status">Copy it now: it isn’t shown again. It acts as {app.viewer.name} in {app.ws.name} and can read and triage markups.</p>
-      <input className="input mono" readOnly value={token} aria-label="Builder token" onFocus={(e) => e.target.select()} />
-    </div>
-  );
+/** Reading the inbox with a builder token instead of the email sign-in: enough for a test round on the demo or a
+    preview build. The token stays in this browser until Forget the token. */
+function UseToken({ onToken }: { onToken: () => void }) {
+  const [token, setToken] = useState('');
+  const [problem, setProblem] = useState('');
+  const [busy, setBusy] = useState(false);
   return (
-    <form className="row" style={{ gap: 'var(--s2)', alignItems: 'flex-end' }} onSubmit={async (e) => {
+    <form className="stack inbox-signin" style={{ gap: 'var(--s2)' }} onSubmit={async (e) => {
       e.preventDefault();
-      try { setToken(await makeBuilderToken(app.ws.id, app.viewer.id, name)); } catch (err) { app.toast(err instanceof Error ? err.message : String(err), 'error'); }
+      if (!token.trim() || busy) return;
+      setBusy(true); setProblem('');
+      try { await keepBuilderToken(token); onToken(); } catch (err) { setProblem(err instanceof Error ? err.message : String(err)); }
+      setBusy(false);
     }}>
-      <label className="field" style={{ flex: 1 }}><span className="field-label">What it’s for</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Claude on my laptop" /></label>
-      <button type="submit" className="btn" disabled={name.trim().length < 2}>Make it</button>
+      <label className="field"><span className="field-label">Or read it with a builder token</span>
+        <input className="input mono" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="gk_…" aria-invalid={problem ? true : undefined} />
+      </label>
+      {problem && <span className="hint tone-off" role="alert">{problem}</span>}
+      <div><button type="submit" className="btn" aria-disabled={busy || !token.trim() || undefined}>{busy ? 'Checking…' : 'Use the token'}</button></div>
     </form>
   );
 }
 
-function Detail({ id, ops, by, siblings, onOpen, onChanged }: { id: string; ops: MarkupOps; by: string; siblings: Markup[]; onOpen: (id: string | null) => void; onChanged: () => void }) {
+function Detail({ id, ops, by, siblings, pictureProblem, onOpen, onChanged }: { id: string; ops: MarkupOps; by: string; siblings: Markup[]; pictureProblem: (() => string | null) | null; onOpen: (id: string | null) => void; onChanged: () => void }) {
   const app = useApp();
   const [m, setM] = useState<OpenedMarkup | null>(null);
   const [failed, setFailed] = useState('');
@@ -226,7 +243,7 @@ function Detail({ id, ops, by, siblings, onOpen, onChanged }: { id: string; ops:
         <div className="stack mk-detail" style={{ gap: 'var(--s4)' }}>
           <div className="row between" style={{ flexWrap: 'wrap', gap: 'var(--s2)' }}>
             <MarkupStatusMark status={m.status} />
-            <span className="tiny muted">{m.personName || 'Someone'}, {m.demo ? 'from the demo' : `in ${m.workspaceName}`}, {timeAgo(m.createdAt, app.today)}{m.mood ? ` · ${MOOD_WORD[m.mood]}` : ''}</span>
+            <span className="tiny muted">{m.personName || 'Someone'}, {m.demo ? 'from ' : 'in '}{sentFrom(m)}, {timeAgo(m.createdAt, app.today)}{m.mood ? ` · ${MOOD_WORD[m.mood]}` : ''}</span>
           </div>
           <p className="mk-said">{m.line}</p>
           <figure className="mk-figure">
@@ -235,7 +252,7 @@ function Detail({ id, ops, by, siblings, onOpen, onChanged }: { id: string; ops:
                 <img src={m.urls.screen} alt={`The screen ${m.personName || 'they'} marked up, on ${m.route}`} />
                 {ink && m.urls.ink && <img className="mk-ink-layer" src={m.urls.ink} alt="" />}
               </span>
-            ) : <span className="hint">The picture isn’t there.</span>}
+            ) : <span className="hint" role={pictureProblem?.() ? 'alert' : undefined}>{pictureProblem?.() ?? 'The picture isn’t there.'}</span>}
             {m.urls.ink && <label className="check"><input type="checkbox" checked={ink} onChange={(e) => setInk(e.target.checked)} /><span>Show the drawing</span></label>}
           </figure>
           <Actions m={m} busy={busy} form={form} setForm={setForm} onInHand={() => act(() => ops.setStatus(id, { status: 'in-hand', by }), 'Marked in hand')} onIssue={openIssue} onReopen={() => act(() => ops.setStatus(id, { status: 'new', by }), 'Marked new again')} />

@@ -32813,7 +32813,7 @@ var ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only admins make tokens. An admin or the token’s own person can revoke one. A builder makes a builder token in the inbox, so their assistant can read and triage markups and feedback too."]
+				text: ["Only admins make tokens. An admin or the token’s own person can revoke one. A builder makes a builder token under Connect Claude, at the top of the inbox, so their assistant can read and triage markups and feedback too, pictures included."]
 			}
 		],
 		routes: [],
@@ -32911,8 +32911,17 @@ var ARTICLES = [
 					"Markups about the same part of the same page are grouped, with a count.",
 					"Open one to see its picture (hide the drawing to see the screen beneath), the parts its marks are on, its notes, the steps before it as a timeline, any errors, and where it was sent from.",
 					"Mark it in hand. Open GitHub issue opens a new issue on GitHub filled in with the line, the page, the parts, the steps and a link back here: press Submit there, then paste the issue’s address back with Paste issue link.",
-					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.",
-					"Make a builder token, so your AI assistant can list, open and change markups and feedback too, with the same rules."
+					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed."
+				]
+			},
+			{
+				heading: "Connect Claude",
+				list: [
+					"Connect Claude is at the top of the inbox. Make a builder token there (in the app, not the demo), then copy the set-up: for a Claude cloud session, the host and where the token goes; for Claude Code, one command.",
+					"Claude then reviews the inbox in one step, with review_inbox: new markups grouped by the part of the screen they’re about, each with its picture, and new feedback by page. It sees the pictures without opening anything.",
+					"Pictures need the database’s service role key on the server. When it’s missing, Connect Claude says so, with what to add where.",
+					"Your builder tokens are listed there, with when each was last used. Revoke one when you’re done with it.",
+					"For a test round, you don’t need the email sign-in: paste a builder token under “Or read it with a builder token”. The inbox shows every markup, including those sent from the demo or a preview build, and says which. Forget the token when you’re done."
 				]
 			},
 			{
@@ -32933,7 +32942,9 @@ var ARTICLES = [
 		reqs: [
 			"MARKUP-INBOX",
 			"FEEDBACK-INBOX",
-			"MCP-FEEDBACK"
+			"MCP-FEEDBACK",
+			"CONNECT-CLAUDE",
+			"MCP-PICTURES"
 		],
 		keywords: [
 			"inbox",
@@ -32947,7 +32958,11 @@ var ARTICLES = [
 			"won’t fix",
 			"in hand",
 			"feedback",
-			"mood"
+			"mood",
+			"connect claude",
+			"builder token",
+			"review inbox",
+			"pictures"
 		],
 		related: [
 			"feedback",
@@ -33090,6 +33105,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "connect-claude",
+		date: "2026-11-07",
+		title: "Reviewing the inbox with Claude is easy",
+		points: [
+			"For the people building Faro: Connect Claude, at the top of the inbox, makes a builder token and shows the exact set-up for a Claude cloud session or Claude Code. Your builder tokens are listed there to revoke.",
+			"Claude sees a markup’s picture inside its answer, without opening a link, and reviews everything new in one step: markups grouped by the part of the screen they’re about, and feedback by page.",
+			"If the server can’t read pictures yet, the inbox says what to add where.",
+			"A test round needs only a builder token: paste it in the inbox instead of signing in by email. Markups sent from the demo or a preview build say so."
+		],
+		articles: ["inbox", "ai-assistants"]
+	},
 	{
 		id: "shapes-match-words",
 		date: "2026-11-07",
@@ -35176,6 +35203,20 @@ function namedParts(m) {
 	return seen.sort((a, b) => b.n - a.n || a.first - b.first).map((s) => s.path);
 }
 var partText = (path) => path.join(" › ");
+/** Which build a markup came from, by its address: the live app, a preview build, a laptop, or unknown (older ones). */
+function buildOf(host) {
+	if (!host) return "unknown";
+	if (host === "goals-app-puce-five.vercel.app") return "live";
+	if (/^(localhost|127\.0\.0\.1)(:|$)/.test(host)) return "local";
+	return "preview";
+}
+/** Where a markup was sent from, in words: “the demo”, “Acme”, with “on a preview build” or “on a laptop” when it
+wasn't the live app, so a test round's markups are easy to tell apart. */
+function sentFrom(m, o = {}) {
+	const where = m.demo ? "the demo" : m.workspaceName || "a workspace";
+	const b = buildOf(m.context?.host);
+	return b === "preview" ? `${where} on a preview build${o.host === false ? "" : ` (${m.context.host})`}` : b === "local" ? `${where} on a laptop` : where;
+}
 var MarkupError = class extends Error {};
 var markupFromRow = (r) => ({
 	id: r.id,
@@ -35221,6 +35262,22 @@ function statusPatch(c, now, entries) {
 	};
 }
 var ISSUE_URL = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+$/;
+function groupMarkups(list) {
+	const groups = /* @__PURE__ */ new Map();
+	for (const m of [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))) {
+		const part = namedParts(m)[0] ?? null;
+		const key = `${m.route}\u0000${part ? part.join("\0") : ""}`;
+		const g = groups.get(key);
+		if (g) g.markups.push(m);
+		else groups.set(key, {
+			key,
+			route: m.route,
+			part,
+			markups: [m]
+		});
+	}
+	return [...groups.values()];
+}
 /** Where a markup was sent from, in words: the part most drawn on, or the page. */
 function placeOf(m) {
 	const p = namedParts(m)[0];
@@ -35296,6 +35353,48 @@ var READ$1 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
+/** Which picture get_markup sends: the screen with the drawing on it (default), the screen alone, or none. */
+var PICTURE_NAMES = {
+	marked: ["marked.jpg", "screen.png"],
+	screen: ["screen.png", "marked.jpg"],
+	none: []
+};
+/** The most picture bytes one answer carries, so it stays well inside what the server can send back. */
+var PICTURE_BUDGET = 3e6;
+/** A markup's picture as an image, or the plain reason there isn't one (no key, or none kept). */
+async function pictureOf(ops, m, names) {
+	if (!names.length) return {
+		image: null,
+		picture: null,
+		note: null
+	};
+	try {
+		const p = await ops.picture(m, names);
+		return p ? {
+			image: {
+				data: p.data,
+				mimeType: p.mimeType
+			},
+			picture: p,
+			note: null
+		} : {
+			image: null,
+			picture: null,
+			note: "It has no picture."
+		};
+	} catch (e) {
+		if (e instanceof MarkupError) return {
+			image: null,
+			picture: null,
+			note: e.message
+		};
+		return {
+			image: null,
+			picture: null,
+			note: "Its picture couldn’t be read just now."
+		};
+	}
+}
 /** The inbox, when this request may use it; otherwise why not, for the assistant to say. */
 function inbox(ctx) {
 	if (!ctx.markups) throw new Error("Only builders (the people building Faro) can read markups, with a builder token: sign in to the inbox on Workspace and make one there.");
@@ -35330,7 +35429,7 @@ var MARKUP_TOOLS = [
 				line: m.line,
 				place: placeOf(m),
 				route: m.route,
-				from: m.demo ? "the demo" : m.workspaceName,
+				from: sentFrom(m),
 				by: m.personName,
 				at: m.createdAt,
 				issueUrl: m.issueUrl,
@@ -35345,20 +35444,25 @@ var MARKUP_TOOLS = [
 	{
 		name: "get_markup",
 		title: "Open a markup",
-		description: "Builders: one markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version), the steps before it and the errors on that visit, with links to its pictures that work for ten minutes.",
+		description: "Builders: one markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version, the demo or a preview build), the steps before it and the errors on that visit. Its picture (the screen with the drawing on it) comes back in the answer as an image.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			required: ["id"],
-			properties: { id: str$3("The markup’s id (mk_…), from list_markups.") }
+			properties: {
+				id: str$3("The markup’s id (mk_…), from list_markups or review_inbox."),
+				picture: str$3("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
+			}
 		},
 		annotations: READ$1,
 		async run(a, ctx) {
-			const m = await inbox(ctx).open(String(a.id ?? ""));
+			const ops = inbox(ctx);
+			const m = await ops.open(String(a.id ?? ""));
+			const pic = await pictureOf(ops, m, PICTURE_NAMES[String(a.picture ?? "marked")] ?? PICTURE_NAMES.marked);
 			const notes = m.strokes.flatMap((s) => s.kind === "note" && s.text ? [`${s.n}. ${s.text}`] : []);
 			const text = [
 				`${m.id} · ${STATUS_WORD[m.status]} · “${m.line}”`,
-				`From ${m.personName || "someone"} in ${m.demo ? "the demo" : m.workspaceName}, ${m.createdAt}${m.mood ? `, saying ${MOOD_WORD[m.mood]}` : ""}.`,
+				`From ${m.personName || "someone"} in ${sentFrom(m)}, ${m.createdAt}${m.mood ? `, saying ${MOOD_WORD[m.mood]}` : ""}.`,
 				`Page ${m.path} (${m.route})${m.goalId ? `, goal ${m.goalId}` : ""}${m.reviewId ? `, review ${m.reviewId}` : ""}. Screen ${m.context.viewport.w}×${m.context.viewport.h}, ${m.context.theme}, accent ${m.context.accent}, version ${m.context.appVersion}.`,
 				`Parts: ${namedParts(m).map(partText).join("; ") || "none named"}.`,
 				...notes.length ? [`Notes: ${notes.join(" ")}`] : [],
@@ -35367,11 +35471,121 @@ var MARKUP_TOOLS = [
 				...m.issueUrl ? [`Issue: ${m.issueUrl}`] : [],
 				...m.fixedIn ? [`Fixed in What’s new entry ${m.fixedIn}.`] : [],
 				...m.wontFixReason ? [`Won’t fix: ${m.wontFixReason}`] : [],
-				m.urls.marked || m.urls.screen ? `Picture (works for ten minutes): ${m.urls.marked ?? m.urls.screen}` : "Picture: open it in Faro’s inbox (Workspace, signed in as a builder). This server can’t sign picture links without the database’s service role key."
+				pic.picture ? `Picture: ${pic.picture.name === "marked.jpg" ? "the screen with the drawing on it" : "the screen"}, below.` : pic.note ? `Picture: ${pic.note}` : "Picture: not asked for."
 			].join("\n");
+			const { urls, ...rest } = m;
 			return {
-				data: { markup: m },
-				text
+				data: {
+					markup: {
+						...rest,
+						picture: pic.picture ? {
+							name: pic.picture.name,
+							mimeType: pic.picture.mimeType,
+							bytes: pic.picture.bytes
+						} : null,
+						...pic.note ? { pictureNote: pic.note } : {}
+					},
+					urls
+				},
+				text,
+				...pic.image ? { images: [pic.image] } : {}
+			};
+		}
+	},
+	{
+		name: "review_inbox",
+		title: "Review the inbox",
+		description: "Builders: everything new in the inbox in one step, ready to triage: new markups grouped by the screen part they are about (newest first, with a count), each with its line, notes, who sent it and from where, and new feedback grouped by page. The newest markup of each group comes with its picture as an image. Then use update_markup and update_feedback.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				status: str$3("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
+				workspace: str$3("Only this workspace’s (its id)."),
+				pictures: {
+					type: "integer",
+					description: "How many groups get a picture (default 6, at most 12; 0 for none)."
+				}
+			}
+		},
+		annotations: READ$1,
+		async run(a, ctx) {
+			const ops = inbox(ctx);
+			const status = a.status ?? "new";
+			const ws = a.workspace ? { workspaceId: String(a.workspace) } : {};
+			const [markups, feedback] = await Promise.all([ops.list({
+				...ws,
+				status,
+				limit: 200
+			}), ctx.feedback ? ctx.feedback.list(200, {
+				...ws,
+				status
+			}) : Promise.resolve([])]);
+			const groups = groupMarkups(markups);
+			const want = Math.min(Math.max(Number(a.pictures ?? 6), 0), 12);
+			const images = [];
+			let budget = PICTURE_BUDGET;
+			let pictureNote = null;
+			const out = [`${STATUS_WORD[status]} in the inbox: ${markups.length} markup${markups.length === 1 ? "" : "s"} on ${groups.length} part${groups.length === 1 ? "" : "s"}, ${feedback.length} piece${feedback.length === 1 ? "" : "s"} of feedback.`];
+			const rows = [];
+			for (const [i, g] of groups.entries()) {
+				const where = g.part ? partText(g.part) : `${g.route || "Somewhere in the app"} (no named part)`;
+				let shown = null;
+				if (i < want && !pictureNote) {
+					const pic = await pictureOf(ops, g.markups[0], PICTURE_NAMES.marked);
+					if (pic.picture && pic.picture.bytes <= budget) {
+						images.push(pic.image);
+						budget -= pic.picture.bytes;
+						shown = g.markups[0].id;
+					} else if (pic.note && /SERVICE_ROLE_KEY/.test(pic.note)) pictureNote = pic.note;
+				}
+				out.push("", `## ${where} · ${g.route} · ${g.markups.length} markup${g.markups.length === 1 ? "" : "s"}${shown ? ` · picture ${images.length} is ${shown}` : ""}`);
+				for (const m of g.markups) {
+					const notes = m.strokes.flatMap((s) => s.kind === "note" && s.text ? [`${s.n}. ${s.text}`] : []);
+					out.push(`- ${m.id} · “${m.line}”${notes.length ? ` · notes: ${notes.join(" ")}` : ""} · ${m.personName || "someone"}, ${sentFrom(m)}, ${m.createdAt.slice(0, 16).replace("T", " ")}${m.mood ? ` · ${MOOD_WORD[m.mood]}` : ""}${m.issueUrl ? ` · ${m.issueUrl}` : ""}`);
+				}
+				rows.push({
+					part: g.part,
+					route: g.route,
+					picture: shown,
+					markups: g.markups.map((m) => ({
+						id: m.id,
+						line: m.line,
+						by: m.personName,
+						from: sentFrom(m),
+						at: m.createdAt,
+						notes: m.strokes.flatMap((s) => s.kind === "note" && s.text ? [s.text] : [])
+					}))
+				});
+			}
+			const byPage = /* @__PURE__ */ new Map();
+			for (const f of feedback) byPage.set(f.path || "/", [...byPage.get(f.path || "/") ?? [], f]);
+			for (const [page, fs] of byPage) {
+				out.push("", `## Feedback on ${page} · ${fs.length}`);
+				for (const f of fs) out.push(`- ${f.id} · ${MOOD_WORD[f.mood]} · “${f.text || "(no words)"}” · ${f.personName || f.personId}, ${f.workspaceName || f.workspaceId}, ${f.at.slice(0, 10)}`);
+			}
+			if (!ctx.feedback) out.push("", "Feedback: this token can’t triage feedback.");
+			if (pictureNote) out.push("", `Pictures: ${pictureNote}`);
+			else if (groups.length > images.length && want > 0) out.push("", "For a picture not shown here, use get_markup with the markup’s id.");
+			if (!markups.length && !feedback.length) out.push("", "Nothing to review.");
+			else out.push("", "Next: update_markup and update_feedback (in-hand, fixed with fixed_in, or wont-fix with a reason).");
+			return {
+				data: {
+					status,
+					groups: rows,
+					feedback: feedback.map((f) => ({
+						id: f.id,
+						mood: f.mood,
+						text: f.text,
+						page: f.path,
+						by: f.personName,
+						from: f.workspaceName,
+						at: f.at
+					})),
+					...pictureNote ? { pictureNote } : {}
+				},
+				text: out.join("\n"),
+				...images.length ? { images } : {}
 			};
 		}
 	},
@@ -36644,6 +36858,13 @@ var PROTOCOL_VERSIONS = [
 	"2024-11-05"
 ];
 var INSTRUCTIONS = "Faro: goals and weekly check-ins for one workspace, acting as the person whose token this is. Start with get_overview or find_goals. Writes follow the app’s rules and are logged as that person; use dry_run (or bulk_change without apply) to check first. Weeks count from the cycle start.";
+/** The prompts: a ready-made request a person picks in their assistant. */
+var PROMPTS = [{
+	name: "review_inbox",
+	title: "Review Faro’s inbox",
+	description: "Builders: look at everything new in the inbox (markups with their pictures, and feedback), grouped by screen part, and propose what to do with each.",
+	text: "Call the review_inbox tool. For each group of markups, look at its picture and say in a line what the person wants changed and where, then propose one of: in hand (and what to build), won’t fix (with the reason), or a duplicate of another. Do the same for the feedback. List your proposals as one batch and ask me before changing any status with update_markup or update_feedback."
+}];
 var ok = (id, result) => ({
 	jsonrpc: "2.0",
 	id: id ?? null,
@@ -36667,7 +36888,10 @@ async function handle(msg, context, trace) {
 			const asked = String(m.params?.protocolVersion ?? "");
 			return ok(m.id, {
 				protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
-				capabilities: { tools: { listChanged: false } },
+				capabilities: {
+					tools: { listChanged: false },
+					prompts: { listChanged: false }
+				},
 				serverInfo: SERVER_INFO,
 				instructions: INSTRUCTIONS
 			});
@@ -36683,6 +36907,26 @@ async function handle(msg, context, trace) {
 				...annotations
 			}
 		})) });
+		case "prompts/list": return ok(m.id, { prompts: PROMPTS.map(({ name, title, description }) => ({
+			name,
+			title,
+			description,
+			arguments: []
+		})) });
+		case "prompts/get": {
+			const p = PROMPTS.find((x) => x.name === String(m.params?.name ?? ""));
+			if (!p) return fail(m.id, -32602, `Unknown prompt: ${String(m.params?.name ?? "")}`);
+			return ok(m.id, {
+				description: p.description,
+				messages: [{
+					role: "user",
+					content: {
+						type: "text",
+						text: p.text
+					}
+				}]
+			});
+		}
 		case "tools/call": {
 			const name = String(m.params?.name ?? "");
 			if (!TOOLS.some((t) => t.name === name)) return fail(m.id, -32602, `Unknown tool: ${name}`);
@@ -36692,7 +36936,11 @@ async function handle(msg, context, trace) {
 				content: [{
 					type: "text",
 					text: r.text
-				}],
+				}, ...(r.images ?? []).map((i) => ({
+					type: "image",
+					data: i.data,
+					mimeType: i.mimeType
+				}))],
 				...r.data !== void 0 && r.data !== null && typeof r.data === "object" && !Array.isArray(r.data) ? { structuredContent: r.data } : {},
 				isError: !!r.isError
 			});
@@ -36958,6 +37206,108 @@ var SpanCollector = class {
 		}
 	}
 };
+// src/markup/ops.ts
+/** What to say, plainly, when the server can't read markups' pictures: what to add, and where. */
+var PICTURES_NEED_KEY = "The server can’t read markup pictures: it has no SUPABASE_SERVICE_ROLE_KEY. To fix it, add it in Vercel (the goals-app project, Settings, Environment Variables, for Production and Preview), with the service_role key from Supabase (Project Settings, API Keys), then redeploy.";
+/** The pictures a markup can have (src/markup/ink.ts makePictures). */
+var PICTURE_FILES = [
+	"screen.png",
+	"ink.png",
+	"marked.jpg",
+	"thumb.jpg"
+];
+/** A picture's type, from its name. */
+var pictureType = (name) => name.endsWith(".png") ? "image/png" : "image/jpeg";
+/** Bytes as base64, the same in the browser and on the server. */
+function base64(bytes) {
+	let s = "";
+	for (let i = 0; i < bytes.length; i += 32768) s += String.fromCharCode(...bytes.subarray(i, i + 32768));
+	return btoa(s);
+}
+function markupOps(o) {
+	const now = () => (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString();
+	const must = async (id) => {
+		const m = await o.store.get(id);
+		if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+		return m;
+	};
+	const pic = (m, name) => m.pictures.includes(name) ? o.store.pictureUrl(m.id, name, 600).catch(() => null) : Promise.resolve(null);
+	return {
+		async list(q = {}) {
+			const list = await o.store.list({
+				...q,
+				limit: Math.min(Math.max(q.limit ?? 200, 1), 500)
+			});
+			return Promise.all(list.map(async (m) => ({
+				...m,
+				thumbUrl: await pic(m, "thumb.jpg")
+			})));
+		},
+		/** One picture's bytes, by markup id and picture name (for the inbox opened with a builder token). Null when the
+		markup has no picture by that name; throws PICTURES_NEED_KEY when pictures can't be read here. */
+		async pictureFile(id, name) {
+			if (!PICTURE_FILES.includes(name)) throw new MarkupError(`A markup’s pictures are ${PICTURE_FILES.join(", ")}.`);
+			const m = await must(id);
+			if (!o.store.pictureBytes) throw new MarkupError(PICTURES_NEED_KEY);
+			return m.pictures.includes(name) ? o.store.pictureBytes(id, name) : null;
+		},
+		/** Whether pictures can be read here (for an assistant), or why not. */
+		picturesReady: () => !!o.store.pictureBytes,
+		/** One of a markup's pictures, for an assistant: the first of `names` the markup has. Null when it has none of
+		them; throws PICTURES_NEED_KEY when pictures can't be read here. */
+		async picture(m, names = ["marked.jpg", "screen.png"]) {
+			if (!o.store.pictureBytes) throw new MarkupError(PICTURES_NEED_KEY);
+			for (const name of names) {
+				if (!m.pictures.includes(name)) continue;
+				const b = await o.store.pictureBytes(m.id, name);
+				if (b) return {
+					name,
+					data: base64(b),
+					mimeType: pictureType(name),
+					bytes: b.length
+				};
+			}
+			return null;
+		},
+		async open(id) {
+			const m = await must(id);
+			const [screen, ink, marked] = await Promise.all([
+				"screen.png",
+				"ink.png",
+				"marked.jpg"
+			].map((n) => pic(m, n)));
+			return {
+				...m,
+				urls: {
+					screen: screen ?? null,
+					ink: ink ?? null,
+					marked: marked ?? null
+				}
+			};
+		},
+		async setStatus(id, c) {
+			await must(id);
+			const m = await o.store.update(id, statusPatch(c, now(), o.entries));
+			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+			return m;
+		},
+		/** Keeps the address of the issue the builder opened. */
+		async setIssueUrl(id, url) {
+			const u = url.trim().replace(/[?#].*$/, "");
+			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+			await must(id);
+			const m = await o.store.update(id, { issueUrl: u });
+			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+			return m;
+		},
+		/** The pre-filled new-issue link: title, line, page, parts, steps and a link back to the markup in the inbox. The
+		builder presses Submit on GitHub, then pastes the issue's address back. */
+		async issueLink(id) {
+			const m = await must(id);
+			return newIssueLink(o.repo, m, { inboxUrl: o.inboxLink?.(m.id) ?? null });
+		}
+	};
+}
 // server/mcp.ts
 init_cycle();
 init_plan();
@@ -36965,7 +37315,7 @@ init_plan();
 var TELEMETRY_WAIT_MS = 1500;
 var CORS = {
 	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "POST, OPTIONS",
+	"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 	"Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, traceparent, tracestate",
 	"Access-Control-Expose-Headers": "Mcp-Session-Id"
 };
@@ -36991,13 +37341,30 @@ async function serve(req, deps) {
 		status: 204,
 		headers: CORS
 	});
-	if (req.method !== "POST") return rpcError(405, "This MCP server answers POST requests only (no event stream).", { Allow: "POST, OPTIONS" });
+	const params = new URL(req.url).searchParams;
+	if (req.method === "GET" && params.has("check")) {
+		const c = deps.check ? await deps.check().catch((e) => ({
+			ok: false,
+			database: false,
+			pictures: false,
+			problems: [e instanceof Error ? e.message : String(e)]
+		})) : {
+			ok: false,
+			database: false,
+			pictures: false,
+			problems: ["This server can’t check itself."]
+		};
+		return json(c, c.ok ? 200 : 503);
+	}
+	const picture = req.method === "GET" ? params.get("picture") : null;
+	if (req.method !== "POST" && picture === null) return rpcError(405, "This MCP server answers POST requests only (no event stream).", { Allow: "GET, POST, OPTIONS" });
 	const auth = req.headers.get("authorization") ?? "";
-	const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1] ?? new URL(req.url).searchParams.get("token") ?? "";
+	const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1] ?? params.get("token") ?? "";
 	if (!token) return rpcError(401, "Add your personal token: Authorization: Bearer gk_… An admin makes one under Workspace → AI assistants.", { "WWW-Authenticate": "Bearer" });
 	const hash = await hashToken(token);
 	const found = await deps.findToken(hash);
 	if (!found) return rpcError(401, "That token isn’t valid or has been revoked. Ask an admin for a new one.", { "WWW-Authenticate": "Bearer error=\"invalid_token\"" });
+	if (picture !== null) return pictureResponse(picture, found.builder ? deps.markups?.(hash) : void 0);
 	let body;
 	try {
 		body = await req.json();
@@ -37148,6 +37515,27 @@ async function serve(req, deps) {
 	await sendSpans(deps, spans.rows, found.workspaceId, ctx);
 	return res;
 }
+/** GET /api/mcp?picture=<markup id>/<picture name>, with a builder token: the picture itself, for the inbox opened with
+a token (backlog -2). Plain words when the token isn't a builder's or the server has no key to read pictures. */
+async function pictureResponse(path, ops) {
+	if (!ops) return rpcError(403, "Only a builder token reads markup pictures. A builder makes one in Faro’s inbox, under Connect Claude.");
+	const [id = "", name = ""] = path.split("/");
+	try {
+		const bytes = await ops.pictureFile(id, name);
+		if (!bytes) return rpcError(404, `Markup ${id} has no picture ${name}.`);
+		return new Response(bytes, {
+			status: 200,
+			headers: {
+				"Content-Type": pictureType(name),
+				"Cache-Control": "private, max-age=600",
+				...CORS
+			}
+		});
+	} catch (e) {
+		const text = e instanceof Error ? e.message : String(e);
+		return rpcError(text === "The server can’t read markup pictures: it has no SUPABASE_SERVICE_ROLE_KEY. To fix it, add it in Vercel (the goals-app project, Settings, Environment Variables, for Production and Preview), with the service_role key from Supabase (Project Settings, API Keys), then redeploy." ? 503 : 404, text);
+	}
+}
 /** Stores the request's spans when the workspace records (as it was at the end of the request: a call that turned
 recording off sends nothing). Never fails the request, and never holds it up for long. */
 async function sendSpans(deps, rows, workspaceId, ctx) {
@@ -37161,65 +37549,12 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 		clearTimeout(timer);
 	} catch {}
 }
-function markupOps(o) {
-	const now = () => (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString();
-	const must = async (id) => {
-		const m = await o.store.get(id);
-		if (!m) throw new MarkupError(`There’s no markup ${id}.`);
-		return m;
-	};
-	const pic = (m, name) => m.pictures.includes(name) ? o.store.pictureUrl(m.id, name, 600).catch(() => null) : Promise.resolve(null);
-	return {
-		async list(q = {}) {
-			const list = await o.store.list({
-				...q,
-				limit: Math.min(Math.max(q.limit ?? 200, 1), 500)
-			});
-			return Promise.all(list.map(async (m) => ({
-				...m,
-				thumbUrl: await pic(m, "thumb.jpg")
-			})));
-		},
-		async open(id) {
-			const m = await must(id);
-			const [screen, ink, marked] = await Promise.all([
-				"screen.png",
-				"ink.png",
-				"marked.jpg"
-			].map((n) => pic(m, n)));
-			return {
-				...m,
-				urls: {
-					screen: screen ?? null,
-					ink: ink ?? null,
-					marked: marked ?? null
-				}
-			};
-		},
-		async setStatus(id, c) {
-			await must(id);
-			const m = await o.store.update(id, statusPatch(c, now(), o.entries));
-			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
-			return m;
-		},
-		/** Keeps the address of the issue the builder opened. */
-		async setIssueUrl(id, url) {
-			const u = url.trim().replace(/[?#].*$/, "");
-			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
-			await must(id);
-			const m = await o.store.update(id, { issueUrl: u });
-			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
-			return m;
-		},
-		/** The pre-filled new-issue link: title, line, page, parts, steps and a link back to the markup in the inbox. The
-		builder presses Submit on GitHub, then pastes the issue's address back. */
-		async issueLink(id) {
-			const m = await must(id);
-			return newIssueLink(o.repo, m, { inboxUrl: o.inboxLink?.(m.id) ?? null });
-		}
-	};
-}
 // src/markup/stores.ts
+/** Reads one picture's bytes from the private bucket (Storage's own access: a signed-in builder, or the service role). */
+async function download(db, id, name) {
+	const { data, error } = await db.storage.from("markups").download(`${id}/${name}`);
+	return error || !data ? null : new Uint8Array(await data.arrayBuffer());
+}
 var COLUMN = {
 	status: "status",
 	fixedIn: "fixed_in",
@@ -37256,7 +37591,8 @@ function tokenMarkups(db, hash, signer) {
 			if (!signer) return null;
 			const { data, error } = await signer.storage.from("markups").createSignedUrl(`${id}/${name}`, seconds);
 			return error ? null : data?.signedUrl ?? null;
-		}
+		},
+		...signer ? { pictureBytes: (id, name) => download(signer, id, name) } : {}
 	};
 }
 // src/markup/feedback.ts
@@ -37383,6 +37719,25 @@ function deps(origin) {
 			entries: WHATS_NEW.map((e) => e.id)
 		}),
 		deleteWorkspace: (ws) => store.deleteWorkspace(ws),
+		async check() {
+			const problems = [];
+			const { error } = await db.rpc("okr_token_find", { hash: "0".repeat(64) });
+			const database = !error;
+			if (error) problems.push(`The server can’t reach the goals database: ${error.message}`);
+			let pictures = false;
+			if (!service) problems.push(PICTURES_NEED_KEY);
+			else {
+				const { error: refused } = await db.storage.from("markups").list("", { limit: 1 });
+				pictures = !refused;
+				if (refused) problems.push(`SUPABASE_SERVICE_ROLE_KEY is set, but Storage refused it (${refused.message}). Check it is the service_role key of this Supabase project, then redeploy.`);
+			}
+			return {
+				ok: database && pictures,
+				database,
+				pictures,
+				problems
+			};
+		},
 		async recording(id) {
 			const { data, error } = await db.from("okr_workspaces").select("recording").eq("id", id).maybeSingle();
 			return error ? true : data?.recording !== false;

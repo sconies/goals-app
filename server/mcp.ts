@@ -14,7 +14,7 @@ import { parseTraceparent, type SpanContext } from '../src/telemetry/ids';
 import type { SpanRow } from '../src/telemetry/model';
 import { SpanCollector } from '../src/telemetry/server';
 import type { McpContext } from '../src/mcp/tools';
-import type { MarkupOps } from '../src/markup/ops';
+import { PICTURES_NEED_KEY, pictureType, type MarkupOps } from '../src/markup/ops';
 import type { FeedbackOps } from '../src/markup/feedback';
 
 export interface Deps {
@@ -35,17 +35,23 @@ export interface Deps {
   markups?(tokenHash: string): MarkupOps;
   /** The builders' feedback triage (src/markup/feedback.ts) for a builder token, given its hash. Only builder tokens get it. */
   feedback?(tokenHash: string): FeedbackOps;
+  /** What the server can do, for the check after each deploy (GET /api/mcp?check): whether it reaches the database,
+      and whether it can read markup pictures (it needs SUPABASE_SERVICE_ROLE_KEY). */
+  check?(): Promise<ServerCheck>;
   /** Where the server's own spans go. Without it, nothing is recorded. */
   telemetry?(spans: SpanRow[]): Promise<void>;
   now?: () => Date;
 }
+
+/** What GET /api/mcp?check answers: ok only when everything works. `problems` says, plainly, what to fix where. */
+export interface ServerCheck { ok: boolean; database: boolean; pictures: boolean; problems: string[] }
 
 /** The longest the end of a request waits for its spans to be stored. */
 const TELEMETRY_WAIT_MS = 1500;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version, traceparent, tracestate',
   'Access-Control-Expose-Headers': 'Mcp-Session-Id',
 };
@@ -55,15 +61,23 @@ const rpcError = (status: number, message: string, extra: Record<string, string>
 
 export async function serve(req: Request, deps: Deps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
-  if (req.method !== 'POST') return rpcError(405, 'This MCP server answers POST requests only (no event stream).', { Allow: 'POST, OPTIONS' });
+  const params = new URL(req.url).searchParams;
+  // The check after each deploy: no token needed, and it says only what works, never a secret.
+  if (req.method === 'GET' && params.has('check')) {
+    const c = deps.check ? await deps.check().catch((e: unknown): ServerCheck => ({ ok: false, database: false, pictures: false, problems: [e instanceof Error ? e.message : String(e)] })) : { ok: false, database: false, pictures: false, problems: ['This server can’t check itself.'] };
+    return json(c, c.ok ? 200 : 503);
+  }
+  const picture = req.method === 'GET' ? params.get('picture') : null;
+  if (req.method !== 'POST' && picture === null) return rpcError(405, 'This MCP server answers POST requests only (no event stream).', { Allow: 'GET, POST, OPTIONS' });
 
   // The token: an Authorization header, or ?token= for assistants that only take a URL.
   const auth = req.headers.get('authorization') ?? '';
-  const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1] ?? new URL(req.url).searchParams.get('token') ?? '';
+  const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1] ?? params.get('token') ?? '';
   if (!token) return rpcError(401, 'Add your personal token: Authorization: Bearer gk_… An admin makes one under Workspace → AI assistants.', { 'WWW-Authenticate': 'Bearer' });
   const hash = await hashToken(token);
   const found = await deps.findToken(hash);
   if (!found) return rpcError(401, 'That token isn’t valid or has been revoked. Ask an admin for a new one.', { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
+  if (picture !== null) return pictureResponse(picture, found.builder ? deps.markups?.(hash) : undefined);
 
   let body: unknown;
   try { body = await req.json(); } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400); }
@@ -151,6 +165,21 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   }
   await sendSpans(deps, spans.rows, found.workspaceId, ctx);
   return res;
+}
+
+/** GET /api/mcp?picture=<markup id>/<picture name>, with a builder token: the picture itself, for the inbox opened with
+    a token (backlog -2). Plain words when the token isn't a builder's or the server has no key to read pictures. */
+async function pictureResponse(path: string, ops: MarkupOps | undefined): Promise<Response> {
+  if (!ops) return rpcError(403, 'Only a builder token reads markup pictures. A builder makes one in Faro’s inbox, under Connect Claude.');
+  const [id = '', name = ''] = path.split('/');
+  try {
+    const bytes = await ops.pictureFile(id, name);
+    if (!bytes) return rpcError(404, `Markup ${id} has no picture ${name}.`);
+    return new Response(bytes as BodyInit, { status: 200, headers: { 'Content-Type': pictureType(name), 'Cache-Control': 'private, max-age=600', ...CORS } });
+  } catch (e) {
+    const text = e instanceof Error ? e.message : String(e);
+    return rpcError(text === PICTURES_NEED_KEY ? 503 : 404, text);
+  }
 }
 
 /** Stores the request's spans when the workspace records (as it was at the end of the request: a call that turned

@@ -50,8 +50,11 @@ export interface McpContext {
   feedback?: FeedbackOps;
 }
 
-/** `cause`: what a failed tool threw, for the server's own telemetry (its class only); never sent to the assistant. */
-export interface ToolResult { text: string; data?: unknown; isError?: boolean; cause?: unknown }
+/** A picture a tool sends back, as MCP image content: base64 bytes and their type. */
+export interface ToolImage { data: string; mimeType: string }
+/** `cause`: what a failed tool threw, for the server's own telemetry (its class only); never sent to the assistant.
+    `images`: pictures sent after the text, so the assistant sees them without opening anything (backlog -2). */
+export interface ToolResult { text: string; data?: unknown; isError?: boolean; cause?: unknown; images?: ToolImage[] }
 type Schema = { type: 'object'; properties: Record<string, unknown>; required?: string[]; additionalProperties?: boolean };
 export interface ToolDef {
   name: string;

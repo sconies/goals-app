@@ -1,0 +1,33 @@
+# After each Vercel deploy (Vercel reports it to GitHub as a deployment status), ask the MCP server what it can do:
+# GET /api/mcp?check. It fails when the server can't reach the database or can't read markup pictures, which needs
+# SUPABASE_SERVICE_ROLE_KEY on Vercel (backlog -2). It never sees a secret: the answer says only what works and, if
+# not, what to add where. Runs from the default branch's copy of this file.
+name: After deploy
+
+on: deployment_status
+
+jobs:
+  check:
+    name: The MCP server can read the database and pictures
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask the server
+        env:
+          SITE: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+        run: |
+          url="${SITE%/}/api/mcp?check"
+          echo "Checking $url"
+          code=$(curl -sS -o body.json -w '%{http_code}' --retry 3 --retry-delay 5 "$url" || echo 000)
+          if ! jq -e '.ok | type == "boolean"' body.json >/dev/null 2>&1; then
+            echo "::warning::$url didn't answer as Faro's MCP server (HTTP $code), so it couldn't be checked. Vercel's deployment protection may be in the way."
+            exit 0
+          fi
+          jq . body.json
+          echo "### After deploy: $url" >> "$GITHUB_STEP_SUMMARY"
+          jq -r '"- Database: \(if .database then "answers" else "doesn’t answer" end)\n- Markup pictures: \(if .pictures then "the server reads them" else "can’t be read" end)", (.problems[] | "- " + .)' body.json >> "$GITHUB_STEP_SUMMARY"
+          if [ "$(jq -r .ok body.json)" != "true" ]; then
+            jq -r '.problems[] | "::error::" + .' body.json
+            exit 1
+          fi

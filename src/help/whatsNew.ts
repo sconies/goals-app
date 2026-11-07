@@ -21,6 +21,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'connect-claude',
+    date: '2026-11-07',
+    title: 'Reviewing the inbox with Claude is easy',
+    points: [
+      'For the people building Faro: Connect Claude, at the top of the inbox, makes a builder token and shows the exact set-up for a Claude cloud session or Claude Code. Your builder tokens are listed there to revoke.',
+      'Claude sees a markup’s picture inside its answer, without opening a link, and reviews everything new in one step: markups grouped by the part of the screen they’re about, and feedback by page.',
+      'If the server can’t read pictures yet, the inbox says what to add where.',
+      'A test round needs only a builder token: paste it in the inbox instead of signing in by email. Markups sent from the demo or a preview build say so.',
+    ],
+    articles: ['inbox', 'ai-assistants'],
+  },
+  {
     id: 'shapes-match-words',
     date: '2026-11-07',
     title: 'Every shape matches its word, and feedback hears back',

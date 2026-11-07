@@ -1,5 +1,6 @@
 /* The Vercel function at /api/mcp. Built into api/mcp.js by `npm run build:mcp` (one self-contained file).
-   It reads and writes Supabase with SUPABASE_SERVICE_ROLE_KEY when set, otherwise the app's public key, and records a
+   It reads and writes Supabase with SUPABASE_SERVICE_ROLE_KEY when set, otherwise the app's public key (then markup
+   pictures can't be read, and the tools and GET /api/mcp?check say so), and records a
    span per tool call in the telemetry tables (migration 0022) when the workspace records. Tokens are found, noted as
    used and made through the database's functions (migration 0024), which work with either key. */
 import { createClient } from '@supabase/supabase-js';
@@ -8,7 +9,7 @@ import { tokenFromRow, type TokenRow } from '../src/data/rows';
 import { serve, type Deps } from './mcp';
 import { WHATS_NEW } from '../src/help/whatsNew';
 import { MARKUP_REPO } from '../src/markup/model';
-import { markupOps } from '../src/markup/ops';
+import { markupOps, PICTURES_NEED_KEY } from '../src/markup/ops';
 import { tokenMarkups } from '../src/markup/stores';
 import { feedbackOps, tokenFeedback } from '../src/markup/feedback';
 
@@ -46,8 +47,8 @@ function deps(origin: string): Deps {
       if (error) await db.from('okr_api_tokens').update({ last_used_at: at }).eq('id', id);
     },
     issueToken: (ws, c) => store.issueToken(ws, c),
-    // The markup tools, for a builder token, through the database's functions for it (no new secret). Picture links
-    // need Storage's own access, so they come only when the service role key is set.
+    // The markup tools, for a builder token, through the database's functions for it (no new secret). Pictures need
+    // Storage's own access, so they come only when the service role key is set; without it the tools say so plainly.
     markups: (hash) => markupOps({
       store: tokenMarkups(db, hash, service ? db : null), entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO,
       inboxLink: (id) => `${origin}/workspace?markup=${id}`,
@@ -55,6 +56,21 @@ function deps(origin: string): Deps {
     // Feedback's triage, for a builder token, the same way (migration 0028).
     feedback: (hash) => feedbackOps({ store: tokenFeedback(db, hash), entries: WHATS_NEW.map((e) => e.id) }),
     deleteWorkspace: (ws) => store.deleteWorkspace(ws),
+    // The check after each deploy (GET /api/mcp?check): the database answers, and pictures can be read.
+    async check() {
+      const problems: string[] = [];
+      const { error } = await db.rpc('okr_token_find', { hash: '0'.repeat(64) });
+      const database = !error;
+      if (error) problems.push(`The server can’t reach the goals database: ${error.message}`);
+      let pictures = false;
+      if (!service) problems.push(PICTURES_NEED_KEY);
+      else {
+        const { error: refused } = await db.storage.from('markups').list('', { limit: 1 });
+        pictures = !refused;
+        if (refused) problems.push(`SUPABASE_SERVICE_ROLE_KEY is set, but Storage refused it (${refused.message}). Check it is the service_role key of this Supabase project, then redeploy.`);
+      }
+      return { ok: database && pictures, database, pictures, problems };
+    },
     // Recording (migration 0022): on unless the workspace has turned it off; before the migration there's no switch.
     async recording(id) {
       const { data, error } = await db.from('okr_workspaces').select('recording').eq('id', id).maybeSingle();
