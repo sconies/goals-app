@@ -178,3 +178,10 @@ describe('the Platform Engineering example', () => {
     expect(localStorage.getItem('goals-app-workspace')).toBe('platform-org');
   });
 });
+
+describe('the example saved for an eval build (backlog -1)', () => {
+  it('is the same after a trip through JSON, so loading the saved one gives what building it would', () => {
+    const built = buildPlatformOrg(new Date('2026-11-05T12:00:00.000Z'));
+    expect(JSON.parse(JSON.stringify(built))).toEqual(built);
+  });
+});

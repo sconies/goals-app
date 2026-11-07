@@ -22,9 +22,9 @@ const story = (a) => /^(gp-|pm-draw|pm-dot-in|pm-shape-swap|pm-pulse|rise\b)|cou
 /** A page in a fresh browser, in a workspace, as a person. */
 async function at(browser, url, { w, h, touch, ws = 'platform-org', who, route, reduced = false, perms = [] }) {
   const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch, isMobile: !!touch && w < 800, reducedMotion: reduced ? 'reduce' : 'no-preference', permissions: perms });
+  // Set before the app starts, so the page loads once rather than Home first.
+  await c.addInitScript(([ws, who]) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-workspace', ws); localStorage.setItem('goals-app-viewer:' + ws, who); sessionStorage.setItem('viewer-set', '1'); } }, [ws, who]);
   const p = await c.newPage();
-  await p.goto(url('/'));
-  await p.evaluate(([ws, who]) => { localStorage.setItem('goals-app-workspace', ws); localStorage.setItem('goals-app-viewer:' + ws, who); }, [ws, who]);
   await p.goto(url(route));
   await p.locator('.goal-bar, .need, main h1').first().waitFor();
   await p.waitForTimeout(450);

@@ -3,7 +3,7 @@
    Usage: BASE=http://localhost:4318 [DOWN=http://localhost:4319] node evals/journeys.cjs
    ONLY=U1,U2[,PLATFORM]  run just these journeys (PLATFORM: and the platform checks)
    CHECKS=P6,F3           run just these platform checks (and no others)
-   FINISH=F1,N3           run just these per-area modules
+   FINISH=F1,N3           run just these per-area modules (and no journeys, unless ONLY names some)
    SHARD=k/n              run shard k of n: journeys by position, platform checks as evals/shards.cjs places them; writes
                           out/journeys-k.json (P5 is left to the merge, which has every shard's console errors) */
 const { chromium } = require('playwright');
@@ -2504,9 +2504,11 @@ async function finishChecks(add) {
   {
     const open = async (w, h, who, route, touch) => {
       const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch, isMobile: !!touch && w < 800 });
+      // Who's looking is set before the app starts (as newPage does), so the page loads once, not twice: opening Home
+      // first just to set it cost every check a whole extra load of the app and its example.
+      if (who) await c.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, who);
       const r = await c.newPage();
-      await r.goto(url('/')); if (who) await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
-      await r.goto(url(route)); await r.waitForTimeout(400);
+      await r.goto(url(route));
       // The example is built as the page opens: wait for the page itself first. On a slower machine (the CI runners) the
       // shell can still be empty here, with nothing moving yet, so the wait below ended at once and the measuring
       // landed part-way through the page's entrance: WA 10 read 27px for a 24px gap, the rows still 3px into their rise.
@@ -2827,7 +2829,9 @@ async function platformChecks() {
     shardPlan = require('./shards.cjs').plan(n, ids)[k - 1];
     console.log(`Shard ${k}/${n}: journeys ${shardPlan.journeys.join(' ') || '–'} · checks ${shardPlan.checks.join(' ') || '–'}`);
   }
-  for (const j of J.filter((x) => (!only.length || only.includes(x.id)) && (!shardPlan || shardPlan.journeys.includes(x.id)))) {
+  // FINISH or CHECKS on their own run just those checks: before, they ran every journey too, one after another (10 minutes).
+  const checksAlone = !only.length && !shardPlan && (!!process.env.FINISH || picked.length > 0);
+  for (const j of J.filter((x) => !checksAlone && (!only.length || only.includes(x.id)) && (!shardPlan || shardPlan.journeys.includes(x.id)))) {
     const per = {};
     for (const device of Object.keys(DEVICES)) {
       const started = Date.now();
@@ -2870,7 +2874,7 @@ async function platformChecks() {
     console.log(`${consoleErrors.length ? 'FAIL' : 'PASS'} P5 No console or page errors${consoleErrors.length ? '\n     ' + consoleErrors.slice(0, 4).join('\n     ') : ''}`);
   }
   await browser.close();
-  const file = shardPlan ? `journeys-${SHARD[0]}.json` : 'journeys.json';
+  const file = process.env.OUT_FILE || (shardPlan ? `journeys-${SHARD[0]}.json` : 'journeys.json');
   fs.writeFileSync(path.join(OUT, file), JSON.stringify({ shard: shardPlan ? { k: SHARD[0], n: SHARD[1], journeys: shardPlan.journeys, checks: shardPlan.checks } : undefined, journeys, platform, consoleErrors }, null, 2));
   process.exit(journeys.every((r) => r.pass) && platform.every((x) => x.pass) ? 0 : 1);
 })();
