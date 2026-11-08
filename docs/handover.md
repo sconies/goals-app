@@ -38,7 +38,7 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
 - **Keep this session's context small.** Don't subscribe to PR activity or relay CI and bot notices: each build session watches its own PR and reports once, when it's ready or blocked. Read build reports, decide, merge.
 - **Merging:** Lane approves each merge (or pre-approves, e.g. "merge when green"). When he pre-approves, merge from here once the build reports green; build sessions won't merge on a relayed approval.
-- **Start a fresh planning session** when this one gets long: update this handover first.
+- **Recommend a fresh planning session unprompted** as soon as this one starts to fill up (about half full): update this handover, then give Lane a ready-to-paste prompt (CLAUDE.md, "Fresh planning sessions").
 
 ## How we work (Lane, 7 November)
 
