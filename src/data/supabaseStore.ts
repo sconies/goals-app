@@ -5,7 +5,8 @@ import type { Snapshot, Workspace } from '../domain/types';
 import {
   changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows, requestFromRow, requestToRow, type RequestRow,
   personFromRow, personToRow, teamFromRow, teamToRow, workspaceFromRow, workspaceToRow,
-  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, type ViewRow, viewFromRow, viewToRow, commitPayload } from './rows';
+  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, type ViewRow, viewFromRow, viewToRow, commitPayload,
+  type MetricRow, type GoalMetricRow, metricFromRow, metricLinkFromRow, metricToRow, metricLinkToRow } from './rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from './store';
 
 /** A database function that isn't there yet: its migration hasn't been applied. */
@@ -64,7 +65,7 @@ export class SupabaseStore implements Store {
   }
 
   async load(ws: string): Promise<Snapshot> {
-    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests] = await Promise.all([
+    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests, metrics, metricLinks] = await Promise.all([
       this.all<TeamRow>('okr_teams', ws), this.all<PersonRow>('okr_people', ws), this.all<CycleRow>('okr_cycles', ws),
       this.all<GoalRow>('okr_goals', ws), this.all<StageRow>('okr_stages', ws), this.all<CheckInRow>('okr_check_ins', ws),
       this.all<DecisionRow>('okr_decisions', ws), this.all<ChangeRow>('okr_changes', ws),
@@ -77,6 +78,9 @@ export class SupabaseStore implements Store {
       this.all<ViewRow>('okr_views', ws).catch(() => [] as ViewRow[]),
       // Requests arrive with migration 0017; until then they're read from each goal's latest check-in.
       this.all<RequestRow>('okr_requests', ws).catch(() => null),
+      // The metric library arrives with migration 0033; until then there is none.
+      this.all<MetricRow>('okr_metrics', ws).catch(() => null),
+      this.all<GoalMetricRow>('okr_goal_metrics', ws).catch(() => null),
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     // Questions, actions and asks for an update saved before one ask model (migration 0023 converts them) read as asks.
@@ -96,6 +100,8 @@ export class SupabaseStore implements Store {
       tokens: tokens.map(tokenFromRow),
       views: views.map(viewFromRow),
       ...(requests ? { requests: requests.map(requestFromRow) } : {}),
+      ...(metrics?.length ? { metrics: metrics.map(metricFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)) } : {}),
+      ...(metricLinks?.length ? { metricLinks: metricLinks.map(metricLinkFromRow) } : {}),
     });
   }
 
@@ -188,6 +194,8 @@ export class SupabaseStore implements Store {
     if (c.tokens?.length) await this.must(this.db.from('okr_api_tokens').upsert(c.tokens.map((x) => tokenToRow(ws, x))), 'Saving the token');
     if (c.views?.length) await this.must(this.db.from('okr_views').upsert(c.views.map((x) => viewToRow(ws, x))), 'Saving the view');
     if (c.requests?.length) await this.must(this.db.from('okr_requests').upsert(c.requests.map((x) => requestToRow(ws, x))), 'Saving the request');
+    if (c.metrics?.length) await this.must(this.db.from('okr_metrics').upsert(c.metrics.map((x) => metricToRow(ws, x))), 'Saving the metric');
+    if (c.metricLinks?.length) await this.must(this.db.from('okr_goal_metrics').upsert(c.metricLinks.map((x) => metricLinkToRow(ws, x))), 'Saving what measures the goal');
     for (const id of c.unwatch ?? []) await this.must(this.db.from('okr_watches').delete().eq('id', id), 'Stopping watching');
     await this.teamsAndName(ws, c);
     if (c.changes.length) await this.must(this.db.from('okr_changes').insert(c.changes.map((x) => changeToRow(ws, x))), 'Logging the change');
@@ -212,6 +220,8 @@ export class SupabaseStore implements Store {
     await chunk('okr_watches', s.watches.map((w) => watchToRow(ws, w)), 'Adding watches');
     await chunk('okr_retros', (s.retros ?? []).map((r) => retroToRow(ws, r)), 'Adding retros');
     if (s.requests?.length) await chunk('okr_requests', s.requests.map((r) => requestToRow(ws, r)), 'Adding requests');
+    if (s.metrics?.length) await chunk('okr_metrics', s.metrics.map((m) => metricToRow(ws, m)), 'Adding metrics');
+    if (s.metricLinks?.length) await chunk('okr_goal_metrics', s.metricLinks.map((l) => metricLinkToRow(ws, l)), 'Adding what measures each goal');
     await chunk('okr_changes', s.changes.map((c) => changeToRow(ws, c)), 'Adding the change log');
   }
 

@@ -7,7 +7,7 @@ import { Navigate, useLocation } from 'react-router';
 import APP from 'virtual:faro-modules/app';
 import { useApp } from '../app/state';
 import type { Cell } from '../domain/export';
-import type { Goal } from '../domain/types';
+import type { Goal, GoalKind } from '../domain/types';
 import { MODULES, modulesOn } from './registry';
 import type { PlaceName } from './module';
 
@@ -21,7 +21,17 @@ export interface PlaceProps {
   'data.tools': { table: string; asShown: () => { rows: Cell[][]; muted?: string[]; scope: string } };
   /** Goals' view bar, after the layouts: the goals shown now. */
   'goals.tools': { goals: Goal[]; viewName: string };
+  /**
+   * New goal and goal edit, with the goal's own fields: what measures the goal (backlog 0b). Given the goal as saved
+   * (null while it's new) and the form's kind, unit and team as typed. `onChange` says what to save with it: a metric and
+   * a slice, null for none, or undefined to leave it as it is. The form saves it after the goal (app.linkGoalMetric or
+   * app.unlinkGoalMetric). Nothing renders here unless a module fills it.
+   */
+  'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | null | undefined) => void };
 }
+
+/** What a goal form saves after the goal, from the goal.measure place: a metric, for a team or the whole company (null). */
+export interface MeasurePick { metricId: string; teamId: string | null }
 
 export interface ModuleRoute {
   /** As React Router writes it; listed in the module's module.json too, and each has a Help article. */

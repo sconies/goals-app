@@ -52,6 +52,9 @@ export function scopeToCycle(s: Snapshot, cycle: Cycle): Snapshot {
     reviews: reviews.filter((r) => !r.endedAt),
     watches: (s.watches ?? []).filter((w) => !w.removedAt && here.has(w.personId)),
     views: (s.views ?? []).filter((v) => !v.deletedAt),
+    // The metric library spans cycles: removed metrics leave it, and so do links to goals outside this cycle.
+    ...(s.metrics ? { metrics: s.metrics.filter((m) => !m.removedAt) } : {}),
+    ...(s.metricLinks ? { metricLinks: s.metricLinks.filter((l) => !l.removedAt && ids.has(l.goalId) && (s.metrics ?? []).some((m) => m.id === l.metricId && !m.removedAt)) } : {}),
     retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
     // Data from before requests existed: each goal's open request is read from its latest check-in.
     requests: (s.requests ?? requestsFromCheckIns({ ...s, goals }, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id))),

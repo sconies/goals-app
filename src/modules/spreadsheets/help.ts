@@ -12,7 +12,7 @@ const help: Article[] = [
       { heading: 'How to use it', list: [
         'On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the blank template to start from nothing.',
         'Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.',
-        'Each sheet is known by its header row, whatever the file or sheet is called. Results, Asks, Notes and the README are for reading, and left out.',
+        'Each sheet is known by its header row, whatever the file or sheet is called. Results, Asks, Notes, Metrics and the README are for reading, and left out.',
         'Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.',
         'Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored. A word a column doesn’t know, such as a level of “vp”, is a problem to fix, never a guess.',
         'The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over, by email). The same rules as the app apply, and the preview shows what each does.',

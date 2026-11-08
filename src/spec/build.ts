@@ -113,7 +113,7 @@ function rulesIndex(): string {
     '',
     'Every core rule lives in `src/domain`: pure functions, with no database, screen or network code. The app, the import, the reviews and the AI assistant all call the same ones. Read them in this order; each builds on the ones before.',
     '',
-    table(['Rule', 'What it decides'], RULE_LIST.map((r) => [`[${r.title}](${r.id}.md)`, cell(r.summary)])),
+    table(['Rule', 'What it decides'], RULE_LIST.filter((r) => !r.module).map((r) => [`[${r.title}](${r.id}.md)`, cell(r.summary)])),
     '',
     '## The numbers the rules turn on',
     '',
@@ -274,8 +274,22 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
     '## Rules, conformance and rebuild stage',
     '',
     stage ? `Its rebuild stage: [stage ${stage.n}](../../rebuild/${stage.file}) (${stage.status === 'drill' ? 'with a drill' : 'an outline, with no drill yet'}).` : `${UNCLEAR} it has no rebuild stage: add \`rebuild\` to its module.json (CI fails until it has one).`,
-    `${UNCLEAR} it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.`,
+    ...(RULE_LIST.some((x) => x.module === m.id)
+      ? [`Its rules: ${RULE_LIST.filter((x) => x.module === m.id).map((x) => `[${x.title}](rules.md)`).join(', ')}, in plain words with worked examples (run against the code by the spec’s own test). ${UNCLEAR} it has no conformance rows of its own yet.`]
+      : [`${UNCLEAR} it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.`]),
+    ...(m.growth?.length ? ['', `What was left out on purpose, and how it could grow: [growth notes](growth.md).`] : []),
     '',
+  ].join('\n');
+}
+
+/** A module's growth notes: what it deliberately leaves out, why, and how the internal rebuild could add it. */
+function growthPage(m: ModuleFacts): string {
+  return GENERATED(`src/modules/${m.id}/module.json`) + [
+    `# ${m.name}: growth notes`,
+    '',
+    `What the ${m.name.toLowerCase()} deliberately leaves out, so a rebuild knows these are choices, not gaps, and how each could be added later. None of them is needed for the rules in [its rules page](rules.md) to hold.`,
+    '',
+    ...m.growth!.flatMap((g) => [`## ${g.idea}`, '', `**Why it was left out:** ${g.why}`, '', `**How it could grow:** ${g.how}`, '']),
   ].join('\n');
 }
 
@@ -369,8 +383,11 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
     'spec/core/requirements.md': requirementsPage(r, mods, tests),
     'spec/modules/README.md': modulesIndex(mods),
   };
-  for (const rule of RULE_LIST) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText);
-  for (const m of mods) out[`spec/modules/${m.id}/README.md`] = modulePage(m, r, tests, stages(mods).find((s) => s.module === m.id));
+  for (const rule of RULE_LIST) out[rule.module ? `spec/modules/${rule.module}/rules.md` : `spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText);
+  for (const m of mods) {
+    out[`spec/modules/${m.id}/README.md`] = modulePage(m, r, tests, stages(mods).find((s) => s.module === m.id));
+    if (m.growth?.length) out[`spec/modules/${m.id}/growth.md`] = growthPage(m);
+  }
   const { buildPlatformOrg } = await import('../data/platformOrg/generate');
   const w = conformanceWorkspace(buildPlatformOrg(new Date(CHECK_IN_MOMENT)));
   const files = conformanceFiles(w);

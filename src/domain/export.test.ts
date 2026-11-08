@@ -13,7 +13,7 @@ const input = { ws: { id: 'ws', name: 'Platform' }, snapshot: s, cycle, week, to
 describe('exports', () => {
   it('writes a workbook whose goal and check-in sheets use the import’s column names', () => {
     const wb = workbook(input);
-    expect(wb.map((t) => t.name)).toEqual(['Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes', 'README']);
+    expect(wb.map((t) => t.name)).toEqual(['Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes', 'Metrics', 'README']);
     const goals = wb[0]!.rows;
     expect(goals[0]!.slice(0, GOAL_EXPORT_COLUMNS.length)).toEqual([...GOAL_EXPORT_COLUMNS]);
     expect(goals.length - 1).toBe(s.goals.length);

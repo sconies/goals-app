@@ -150,7 +150,8 @@ module.exports = {
       chk(m.sortBtns >= 4 && m.chev, `L&T 11: ${m.sortBtns} sortable headers, ${m.chev ? 'a' : 'no'} chevron on the sorted column`);
       // A header sets the same Sort as the toolbar: sorting by Goal, the select says Name.
       await p.locator('.gtable').first().getByRole('button', { name: 'Goal' }).click();
-      await p.waitForTimeout(300);
+      // Waits for the re-render rather than a fixed 300 ms, which a loaded machine (four shards at once) can miss.
+      await p.waitForFunction(() => document.querySelector('.inline-sort select')?.selectedOptions[0]?.textContent === 'Sort: Name', null, { timeout: 5000 }).catch(() => undefined);
       const sel = await p.evaluate(() => document.querySelector('.inline-sort select').selectedOptions[0].textContent);
       chk(sel === 'Sort: Name', `L&T 11: after sorting by the Goal header the Sort select says “${sel}”`);
       await c.close();
