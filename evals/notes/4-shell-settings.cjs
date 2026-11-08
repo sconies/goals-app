@@ -349,7 +349,7 @@ module.exports = {
         const href = await p.evaluate(() => { const l = document.querySelector('link[rel="icon"]'); return l && l.getAttribute('type') === 'image/svg+xml' ? l.href : null; });
         const r = href ? await p.request.get(href) : null;
         const body = r ? await r.text() : '';
-        fail(!!r && r.ok() && /image\/svg\+xml/.test(r.headers()['content-type'] || '') && /<svg[\s\S]*#F7AE2E/i.test(body), `[BRAND] ${at}: favicon ${href || 'not linked'} → ${r ? r.status() + ' ' + r.headers()['content-type'] : 'none'}`);
+        fail(!!r && r.ok() && /image\/svg\+xml/.test(r.headers()['content-type'] || '') && /<svg[\s\S]*#(F7AE2E|FFC24A)/i.test(body), `[BRAND] ${at}: favicon ${href || 'not linked'} → ${r ? r.status() + ' ' + r.headers()['content-type'] : 'none'}`);
       }
       fail(!!(await p.locator('meta[name="theme-color"]').count()), '[BRAND] no theme-color');
       // The home-screen icon (backlog I): a manifest named Faro, with 192 and 512 icons, any and maskable, and an apple-touch icon, all served.

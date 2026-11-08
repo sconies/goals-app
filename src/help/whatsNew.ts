@@ -23,7 +23,7 @@ export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'home-screen-icon-and-splash',
     date: '2026-11-08',
-    title: 'An icon you can see, a lighthouse to open with, and a first page that says what Faro is for',
+    title: 'A clearer icon, a lighthouse, a new first page',
     points: [
       'Faro’s icon is now a deep-teal tile with the F in white and a bright amber beam and teal bar, so it stands out on your phone’s home screen and in the browser tab, on light and dark backgrounds.',
       'Faro can be added to your home screen like an app, and opens full screen. Help says how, for Android and iPhone.',
