@@ -33983,6 +33983,35 @@ var RULE_PAGES = [
 		"spreadsheets, bulk edits and the AI assistant’s changes, checked by the same rules"
 	]
 ];
+/** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
+build, because the company's platform provides the machinery. [file, title, what it says]. */
+var INTERNAL_PAGES = [
+	[
+		"r1-sign-in-and-access",
+		"R1. Sign-in and access",
+		"who can see and change what, workspace membership, AI and builder tokens, who may read a sent markup"
+	],
+	[
+		"r2-single-sign-on",
+		"R2. Company single sign-on",
+		"signing in through the company’s identity provider, and leavers losing access the day they leave"
+	],
+	[
+		"r3-time-zones",
+		"R3. Time zones",
+		"real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone"
+	],
+	[
+		"r4-scale-and-safety",
+		"R4. Scale and safety",
+		"15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key"
+	],
+	[
+		"observability",
+		"Observability, as an idea",
+		"not a requirement: what Faro records today, and what the internal app might take from it"
+	]
+];
 function systemOverview() {
 	const mods = [...MODULES].sort((a, b) => a.id.localeCompare(b.id));
 	return [
@@ -34017,6 +34046,11 @@ function systemOverview() {
 		"",
 		"- [Rebuild Faro stage by stage](spec/rebuild/README.md): each stage’s entry and exit criteria, which stages have a drill today, where a rebuild is written and how it is scored",
 		"- [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data",
+		"",
+		"## Requirements for the internal app (spec only)",
+		"",
+		"- [What Faro doesn’t build](spec/requirements/internal/README.md): rules the internal rebuild must meet that its own platform provides the machinery for, each with why, the rule, worked examples, acceptance checks and the nearest rebuild stage",
+		...INTERNAL_PAGES.map(([id, title, what]) => `- [${title}](spec/requirements/internal/${id}.md): ${what}`),
 		"",
 		"## Feature modules",
 		"",

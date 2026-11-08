@@ -17,6 +17,16 @@ How to rebuild Faro from this folder and `llms.txt` alone, one stage at a time, 
 
 **What is an outline:** every other stage. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).
 
+## What Faro doesn’t build
+
+Some things the internal app must do, Faro leaves to the platform it is rebuilt on, so no stage builds them from Faro’s code. They are written as requirements, each with acceptance checks and the stage it lands nearest to: [the requirements for the internal app](../requirements/internal/README.md).
+
+- [R1. Sign-in and access](../requirements/internal/r1-sign-in-and-access.md): who can see and change what, workspace membership, AI and builder tokens, who may read a sent markup
+- [R2. Company single sign-on](../requirements/internal/r2-single-sign-on.md): signing in through the company’s identity provider, and leavers losing access the day they leave
+- [R3. Time zones](../requirements/internal/r3-time-zones.md): real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone
+- [R4. Scale and safety](../requirements/internal/r4-scale-and-safety.md): 15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key
+- [Observability, as an idea](../requirements/internal/observability.md): not a requirement: what Faro records today, and what the internal app might take from it
+
 ## The drill: a fresh session rebuilds a stage from the kit alone
 
 The drill is the test of the kit, not of the rebuild: whatever the session had to guess shows where the kit is short, and goes back into it.
