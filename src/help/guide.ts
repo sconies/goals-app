@@ -8,6 +8,7 @@ import { CAUSES_AHEAD, CAUSES_BEHIND } from '../domain/checkin';
 import { RULES } from '../domain/thresholds';
 import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
+import { PROTOTYPE_LINE } from './about';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
 const define = (t: { label: string; long: string }) => `${t.label}: ${t.long}`;
@@ -156,11 +157,11 @@ const CORE_ARTICLES: Article[] = [
     summary: 'The demo is a full copy of the app with one example organisation, Platform Engineering (about 100 people), kept in your browser, that you can change and reset freely.',
     group: 'start',
     sections: [
-      { heading: 'What it’s for', text: ['Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.', 'The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.'] },
+      { heading: 'What it’s for', text: [PROTOTYPE_LINE, 'Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.', 'The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.'] },
       { heading: 'How to use it', list: [
         'Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.',
         'Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on.',
-        'Start over resets the example. You can also present without the controls, or leave.',
+        'Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.',
         'Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.',
         'Your changes are kept in this browser, on top of the example as it was built. If the browser won’t keep them (it’s full, or a private window blocks storage), a note at the top of the page says so: they last until you reload.',
       ] },
@@ -168,7 +169,7 @@ const CORE_ARTICLES: Article[] = [
     routes: ['/research'],
     screens: ['Research'],
     reqs: ['DEMO-MODE', 'WALKTHROUGHS', 'RESEARCH', 'DEMO-FEEDBACK', 'PERSIST', 'DEMO-STORAGE'],
-    keywords: ['example', 'try', 'walkthrough', 'tour', 'reset', 'start over', 'present', 'research', 'switch person'],
+    keywords: ['example', 'try', 'walkthrough', 'tour', 'reset', 'start over', 'present', 'research', 'switch person', 'prototype', 'model', 'product', 'price', 'buy'],
     related: ['home', 'set-up'],
   },
 

@@ -8,6 +8,7 @@ import { TOURS, writeTour } from '../app/tours';
 import { isExample } from '../data/examples';
 import type { Person } from '../domain/types';
 import { Avatar, Sheet } from './bits';
+import { PROTOTYPE_LINE } from '../help/about';
 
 /** What someone does, by role: the thing to pick in a demo, with the name second. */
 export function personaOf(p: Person, app: ReturnType<typeof useApp>): { role: string; does: string } {
@@ -86,6 +87,8 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
   return (
     <Sheet open onClose={onClose} title={title} wide>
       {children}
+      {/* Said plainly, once (demo review, 8 Nov, item 13). The same words are in Help, under The demo. */}
+      <p className="hint demo-what">{PROTOTYPE_LINE}</p>
       {/* People and walkthroughs side by side on a desktop; everything else below, in one row of short sections. */}
       <div className="demo-grid">
         <section className="stack demo-people" style={{ gap: 4 }} aria-label="See it as">

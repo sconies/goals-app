@@ -141,7 +141,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
     d.kind === 'metric' ? (num(d.start) && num(d.target) ? `${num(d.start)} to ${num(d.target)}` : '')
       : d.kind === 'range' ? (num(d.limit) ? `${d.bound === 'atMost' ? 'At most' : 'At least'} ${num(d.limit)}` : '')
         : ((n) => (n === 1 ? '1 stage' : `${n} stages`))(d.stages.filter((s) => s.name.trim()).length),
-    [app.snapshot.teams.find((t) => t.id === d.teamId)?.name, owner?.name].filter(Boolean).join(' · '),
+    // What it feeds first, then the team named as a team, so "CI/CD" never reads as what it feeds (demo review, 8 Nov).
+    [parent ? `Feeds ${parent.title}` : 'Feeds nothing', ((t) => (t ? `${t} team` : ''))(app.snapshot.teams.find((t) => t.id === d.teamId)?.name), owner?.name].filter(Boolean).join(' · '),
   ];
 
   return (

@@ -570,6 +570,8 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
   await h.checkpoint('demo home');
   await h.inView(p.locator('.demo-entry:visible').first(), 'entry', 'the demo controls');
   const panel = await demoPanel(p, h);
+  // Demo review, 8 Nov, item 13: the panel says plainly what Faro is.
+  if (!/Faro is a prototype/.test(await panel.innerText()) || !/nothing here is for sale/.test(await panel.innerText())) fail('the Demo panel doesn’t say Faro is a prototype with nothing for sale');
   // People are offered by what they do, with the name second.
   h.set('attention', await panel.getByRole('button', { name: /^Leader/ }).first().isVisible() && await panel.getByRole('button', { name: /^Goal owner/ }).first().isVisible(), 'the demo panel does not lead with roles');
   await h.click(panel.getByRole('button', { name: /Amara/ }).first());
@@ -1557,6 +1559,9 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await p.waitForURL(/kind=checkins/, { timeout: 3000 }).catch(() => {});
   await h.click(p.getByRole('button', { name: /^Filters/ }));
   await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByLabel('Only my changes'));
+  // Demo review, 8 Nov, item 12: no filter is offered greyed out with no reason.
+  const greyed = await p.getByRole('dialog', { name: 'Filter activity' }).evaluate((d) => [...d.querySelectorAll('input:disabled, select:disabled, button:disabled')].filter((e) => !e.closest('label, .field')?.querySelector('.hint') && !e.getAttribute('title')).map((e) => e.closest('label')?.textContent.trim() || e.outerHTML.slice(0, 60)));
+  if (greyed.length) fail('Activity filters offered greyed out with no reason: ' + greyed.join(', '));
   await h.click(p.getByRole('button', { name: 'Show the changes' }));
   await p.waitForURL(/who=grace/, { timeout: 3000 }).catch(() => {});
   h.set('finish', /kind=checkins/.test(p.url()) && /who=grace/.test(p.url()), 'the activity filters are not in the link');
