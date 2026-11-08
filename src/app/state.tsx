@@ -12,6 +12,7 @@ import { findGoal, nextKey, withKeys } from '../domain/goalKey';
 import { requestsAfterCheckIn } from '../domain/asks';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
+import { MODULES } from '../core/registry';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
@@ -60,6 +61,8 @@ export interface AppState {
   removeTeam(id: string, moveTo?: string | null): Promise<void>;
   /** Admins: turn on or off recording of how the app is used in the open workspace. Off, nothing is sent. */
   setRecording(on: boolean): Promise<void>;
+  /** Admins: switch a feature module on or off in the open workspace (docs/architecture.md). */
+  setModule(id: string, on: boolean): Promise<void>;
   snapshot: Snapshot;
   /** Every goal in the workspace, in every cycle (snapshot has this cycle's): for what reaches past it, like a team's goals. */
   allGoals: Goal[];
@@ -467,6 +470,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         // At once, before anything else is recorded: off means nothing more is sent for this workspace.
         telemetry.setContext({ recording: on });
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, recording: on } : w)));
+      },
+      setModule: async (id, on) => {
+        const out = await act(() => A.setModule(ax(), ws, MODULES, id, on));
+        if (!out?.modulesOff) return;
+        const off = out.modulesOff;
+        setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w)));
       },
       setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),

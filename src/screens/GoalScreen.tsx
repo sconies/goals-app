@@ -5,6 +5,7 @@
    last week, to target, will it hit); the chart marks those numbers where they are; Why opens with the owner's reason;
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
+import { Place } from '../core/app';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -208,16 +209,18 @@ function GoalView({ goal }: { goal: Goal }) {
   const feeding = !review && children.length > 0 && <FeedsSection key="feeds" feeding={children} feeds={feeds} />;
   const quarters = !review && isYear(cycle) && <QuarterStrip key="quarters" goal={goal} />;
   const activity = !review && <ActivitySection key="activity" goal={goal} focusComposer={tabComments && !alias} />;
+  // Modules' sections (the goal.sections place), before Activity.
+  const modules = !review && <Place key="modules" name="goal.sections" goal={goal} />;
   const about = !review && <AboutSection key="about" goal={goal} detailsRef={aboutRef} open={aboutOpen ?? firstVisit} onToggle={setAboutOpen} />;
   const evidence = review && (
     <section key="evidence" className="block review-evidence" aria-labelledby="g-chart" data-part="Chart and recent check-ins"><h2 className="block-title" id="g-chart">Chart and recent check-ins</h2>{chart}<CheckInRows goal={goal} limit={4} /></section>
   );
 
-  const main = review ? [evidence] : [chart, whySection, doing, feeding, quarters, activity, about];
+  const main = review ? [evidence] : [chart, whySection, doing, feeding, quarters, modules, activity, about];
   const side = review ? [askedSection, talked] : [askedSection, contextLine, actionsSide, talked];
   // On a phone the chart comes first in the first screen: a first look's line on what the number measures waits under it.
   const firstOnly = !postedText && !since;
-  const phone = review ? [askedSection, evidence, talked] : [askedSection, firstOnly ? null : contextLine, chart, firstOnly ? contextLine : null, whySection, doing, talked, feeding, quarters, activity, about];
+  const phone = review ? [askedSection, evidence, talked] : [askedSection, firstOnly ? null : contextLine, chart, firstOnly ? contextLine : null, whySection, doing, talked, feeding, quarters, modules, activity, about];
 
   return (
     <div className={'page goal-page' + (review ? ' in-review' : '')} ref={page} data-part="Goal page">

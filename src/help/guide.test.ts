@@ -5,16 +5,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ARTICLES, GROUPS, articleById, articleForPath, guideRoutes, searchGuide } from './guide';
 import { WHATS_NEW, newsAfter, newsSince } from './whatsNew';
+import { appRoutes, screenFiles } from '../core/sources';
 
 const root = path.join(__dirname, '..', '..');
-const app = fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8');
-const routes = [...app.matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]!);
+// App.tsx's routes and the modules' (src/core/sources.ts).
+const routes = appRoutes(root);
 /** Routes with no article of their own: the not-found page. */
 const NO_ARTICLE = new Set(['*']);
 
 describe('The guide covers the whole app', () => {
-  it('has an article listing every screen file in src/screens', () => {
-    const screens = fs.readdirSync(path.join(root, 'src/screens')).filter((f) => f.endsWith('.tsx')).map((f) => f.replace('.tsx', ''));
+  it('has an article listing every screen file in src/screens and in each module', () => {
+    const screens = screenFiles(root).map((f) => f.name);
     const listed = new Set(ARTICLES.flatMap((a) => a.screens));
     expect(screens.filter((s) => !listed.has(s))).toEqual([]);
     // …and names only screens that exist.

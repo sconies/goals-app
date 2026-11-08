@@ -13,7 +13,11 @@
    EVALS_PORT=4902 serves on 4902 and the ports after it instead of 4318 on: shard k uses EVALS_PORT + 3k for the app,
    +1 for the copy whose database never answers, and +2 for that dead database (one, shared, at EVALS_PORT + 2).
    So two checkouts, or two runs, can go side by side if their EVALS_PORT is at least 3 × shards + 1 apart.
-   ONLY=U1,U2[,PLATFORM] and FINISH=F3,N1 run one process, as before, and print the scorecard of what ran. */
+   ONLY=U1,U2[,PLATFORM] and FINISH=F3,N1 run one process, as before, and print the scorecard of what ran.
+
+   FARO_WITHOUT=spreadsheets[,other] builds Faro with those feature modules left out (vite.modules.ts), and anything
+   that needs them, and leaves out the journeys and checks their module.json lists: CI runs the smoke gate this way
+   for each module, to prove the core works without it. */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -42,6 +46,7 @@ const oneShard = (/^(\d+)\/(\d+)$/.exec(flag('--shard') || '') || []).slice(1).m
 const subset = !!(process.env.ONLY || process.env.FINISH || process.env.CHECKS);
 const N = Math.max(1, Number(process.env.EVALS_SHARDS || 4));
 
+
 const sh = (cmd, a, env = {}) => spawnSync(cmd, a, { cwd: root, stdio: 'inherit', env: { ...process.env, ...env } });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const clock = () => { const t = Date.now(); return () => Math.round((Date.now() - t) / 1000); };
@@ -51,6 +56,18 @@ const natural = (a, b) => a.localeCompare(b, 'en', { numeric: true });
 const find = (dir, re) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? find(path.join(dir, e.name), re) : re.test(e.name) ? [path.join(dir, e.name)] : []));
 /** The journeys in journeys.cjs, in order: the same ids the shards are planned from. */
 const journeyIds = () => [...fs.readFileSync(path.join(root, 'evals', 'journeys.cjs'), 'utf8').matchAll(/^journey\('(U\d+)'/gm)].map((m) => m[1]);
+
+/** The journeys and checks of the modules this build leaves out (FARO_WITHOUT, and whatever needs those). */
+function leftOutChecks() {
+  const without = (process.env.FARO_WITHOUT || '').split(',').map((x) => x.trim()).filter(Boolean);
+  if (!without.length) return { modules: [], ids: new Set() };
+  const dir = path.join(root, 'src', 'modules');
+  const all = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'module.json'))).map((d) => read(path.join(dir, d, 'module.json')));
+  const left = new Set(without);
+  for (let changed = true; changed;) { changed = false; for (const m of all) if (!left.has(m.id) && (m.needs || []).some((n) => left.has(n))) { left.add(m.id); changed = true; } }
+  return { modules: [...left], ids: new Set(all.filter((m) => left.has(m.id)).flatMap((m) => m.journeys || [])) };
+}
+const LEFT_OUT = leftOutChecks();
 
 /* ---------------- build, serve, run ---------------- */
 
@@ -254,6 +271,12 @@ if (changed) {
     const ids = [...new Set([...SMOKE_JOURNEYS, ...SMOKE_CHECKS, ...t.ids])];
     quick = { name: 'Changed', journeys: ids.filter((x) => /^U/.test(x)), checks: ids.filter((x) => !/^U/.test(x)), down: true };
   }
+}
+
+if (quick && LEFT_OUT.modules.length) {
+  const skipped = [...quick.journeys, ...quick.checks].filter((id) => LEFT_OUT.ids.has(id));
+  console.log(`▸ Without ${LEFT_OUT.modules.join(', ')}: leaving out ${skipped.join(' ') || 'no journeys or checks of this run'}`);
+  quick = { ...quick, name: `${quick.name} without ${LEFT_OUT.modules.join(', ')}`, journeys: quick.journeys.filter((id) => !LEFT_OUT.ids.has(id)), checks: quick.checks.filter((id) => !LEFT_OUT.ids.has(id)) };
 }
 
 if (quick) {

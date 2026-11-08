@@ -7,6 +7,7 @@
    (a method of AppState, the same names src/mcp/parity.ts maps to MCP tools), or a mark a screen sets as it moves
    between steps of its own (MARKS below). Routes are taken from the flow's guide article where that article's routes
    are the flow's, so they're written once. */
+import { moduleById } from '../core/registry';
 import type { AppState } from '../app/state';
 import { articleById } from './guide';
 
@@ -38,6 +39,8 @@ export interface Flow {
   title: string;
   /** The guide article that explains it (src/help/guide.ts). */
   article: string;
+  /** A feature module's flow: there only when this build has the module (src/core/registry.ts). */
+  module?: string;
   steps: FlowStep[];
   /** Marks that mean the person closed it without finishing (a sheet closed). */
   closedBy?: Mark[];
@@ -46,7 +49,8 @@ export interface Flow {
 /** An article's own routes: a flow that covers exactly what an article explains uses them, rather than restating them. */
 const routesOf = (article: string) => articleById(article)?.routes ?? [];
 
-export const FLOWS: Flow[] = [
+/** Every flow, the modules' included; FLOWS is those this build has. */
+const ALL_FLOWS: Flow[] = [
   {
     id: 'check-in', title: 'Check in on a goal', article: 'check-in',
     steps: [
@@ -96,7 +100,7 @@ export const FLOWS: Flow[] = [
     closedBy: ['respond.close'],
   },
   {
-    id: 'import', title: 'Load numbers from a spreadsheet', article: 'import',
+    id: 'import', title: 'Load numbers from a spreadsheet', article: 'import', module: 'spreadsheets',
     steps: [
       { id: 'open', title: 'Open Import', routes: routesOf('import') },
       { id: 'read', title: 'Check what the file would change', marks: ['import.read'] },
@@ -125,5 +129,7 @@ export const FLOWS: Flow[] = [
     ],
   },
 ];
+
+export const FLOWS: Flow[] = ALL_FLOWS.filter((f) => !f.module || !!moduleById(f.module));
 
 export const flowById = (id: string) => FLOWS.find((f) => f.id === id);

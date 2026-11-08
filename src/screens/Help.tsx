@@ -4,7 +4,14 @@
    HomeNews is the one quiet line on Home after a release the person hasn't seen. */
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
-import { ARTICLES, GROUPS, articleById, articleForPath, searchGuide, type Article } from '../help/guide';
+import { ARTICLES, GROUPS, articleById as anyArticle, articleForPath, searchGuide, type Article } from '../help/guide';
+import { useModules } from '../core/app';
+
+/** A module's articles show only while it's on here (src/core/app.tsx); the core's always do. */
+function useShown() {
+  const { on } = useModules();
+  return (a: Article | undefined): a is Article => !!a && (!a.module || on.has(a.module));
+}
 import { WHATS_NEW, latestNews, newsDate } from '../help/whatsNew';
 import { markWhatsNewSeen, useUnreadNews } from '../help/seen';
 import { BackLink } from '../ui/BackLink';
@@ -28,8 +35,9 @@ function ArticleRow({ a }: { a: Article }) {
 
 export function HelpHome() {
   const [params, setParams] = useSearchParams();
+  const shown = useShown();
   const q = params.get('q') ?? '';
-  const found = q.trim() ? searchGuide(q) : null;
+  const found = q.trim() ? searchGuide(q).filter(shown) : null;
   const latest = latestNews();
   const unread = useUnreadNews().length > 0;
   return (
@@ -59,7 +67,7 @@ export function HelpHome() {
       ) : GROUPS.map((g) => (
         <section key={g.id} className="block" aria-labelledby={'help-' + g.id}>
           <h2 className="block-title" id={'help-' + g.id}>{g.title}</h2>
-          <ul className="help-list">{ARTICLES.filter((a) => a.group === g.id).map((a) => <ArticleRow key={a.id} a={a} />)}</ul>
+          <ul className="help-list">{ARTICLES.filter((a) => a.group === g.id && shown(a)).map((a) => <ArticleRow key={a.id} a={a} />)}</ul>
         </section>
       ))}
     </div>
@@ -68,7 +76,9 @@ export function HelpHome() {
 
 export function HelpArticle() {
   const { id = '' } = useParams();
-  const a = articleById(id);
+  const shown = useShown();
+  const found = anyArticle(id);
+  const a = shown(found) ? found : undefined;
   if (!a) {
     return (
       <div className="page narrow help-page">
@@ -77,7 +87,7 @@ export function HelpArticle() {
       </div>
     );
   }
-  const related = a.related.map((r) => articleById(r)).filter((x): x is Article => !!x);
+  const related = a.related.map((r) => anyArticle(r)).filter(shown);
   const group = GROUPS.find((g) => g.id === a.group);
   return (
     <div className="page narrow help-page help-article">
@@ -107,6 +117,7 @@ export function HelpArticle() {
 
 export function WhatsNew() {
   const app = useApp();
+  const shown = useShown();
   // Seeing this page is seeing what's new: the dot beside Help and the line on Home go.
   useEffect(() => { markWhatsNewSeen(); }, []);
   // The markups and feedback this person sent, so an entry that fixed one says so.
@@ -122,7 +133,7 @@ export function WhatsNew() {
       </div>
       <ol className="news-list">
         {WHATS_NEW.map((e) => {
-          const read = e.articles.map((id) => articleById(id)).filter((x): x is Article => !!x);
+          const read = e.articles.map((id) => anyArticle(id)).filter(shown);
           const mine = raisedIn(e, raised, app.viewer.id);
           return (
             <li key={e.id} id={e.id} className="news">

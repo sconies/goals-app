@@ -7,11 +7,12 @@ import path from 'node:path';
 import { ACTIONS } from '../mcp/parity';
 import { FLOWS, MARKS } from './flows';
 import { articleById } from './guide';
+import { appRoutes, screenFiles } from '../core/sources';
 
 const root = path.join(__dirname, '..', '..');
-const app = fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8');
-const routes = [...app.matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]!);
-const screens = fs.readdirSync(path.join(root, 'src/screens')).filter((f) => f.endsWith('.tsx')).map((f) => fs.readFileSync(path.join(root, 'src/screens', f), 'utf8')).join('\n');
+// App.tsx's routes and screens, and the modules' (src/core/sources.ts).
+const routes = appRoutes(root);
+const screens = screenFiles(root).map((f) => fs.readFileSync(f.file, 'utf8')).join('\n');
 
 describe('The named flows', () => {
   it('have unique ids, a title, an article that exists, and at least two steps with unique ids', () => {

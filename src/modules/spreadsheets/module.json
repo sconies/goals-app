@@ -1,0 +1,16 @@
+{
+  "id": "spreadsheets",
+  "name": "Spreadsheets",
+  "summary": "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
+  "needs": [],
+  "routes": ["/data/import"],
+  "redirects": [["/import", "/data/import"]],
+  "navigation": [],
+  "places": ["data.tools", "goals.tools"],
+  "tables": [],
+  "aiTools": ["export", "export_table"],
+  "help": ["import", "export"],
+  "requirements": ["EXPORT", "BULK-IMPORT", "IMPORT-ACTIONS", "SPREADSHEETS-ON-DATA"],
+  "journeys": ["U19", "U20", "U46", "U48", "F7", "F8", "N5"],
+  "elsewhere": []
+}

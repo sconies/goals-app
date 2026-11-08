@@ -106,6 +106,15 @@ export function workbook(x: ExportInput): Table[] {
   ];
 }
 
+/**
+ * The blank template: the same workbook with every sheet's headers, its worked-out columns greyed and the README, and
+ * no rows. Filled in and loaded back, it adds what it says, as any workbook would.
+ */
+export function blankWorkbook(x: ExportInput): Table[] {
+  const none = { ...x.snapshot, people: [], goals: [], checkIns: [], decisions: [], changes: [], requests: [], retros: [], reviews: [], watches: [] };
+  return workbook({ ...x, snapshot: none, goals: undefined });
+}
+
 /** One sheet of a workbook, by name (Goals, Plan, Check-ins…). */
 export const sheetNamed = (book: Table[], name: string): Table => book.find((t) => t.name === name) ?? { name, rows: [] };
 

@@ -1019,11 +1019,16 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   await p.context().close();
 }, ['errors']);
 
-journey('U20', ['BULK-IMPORT'], 'Load a spreadsheet: a new goal, then its past weeks, with every change shown before saving', 14, async (h, device) => {
+journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'mateo'));
-  await p.goto(url('/goals'));
-  await h.inView(p.getByRole('link', { name: 'Import' }), 'entry', 'Import on the Goals screen');
-  await h.click(p.getByRole('link', { name: 'Import' }));
+  // Spreadsheets live on Data (the spreadsheets module): its menu opens Import.
+  await p.goto(url('/data'));
+  const menu = p.locator('.data-export > summary');
+  await h.inView(menu, 'entry', 'Spreadsheets on Data');
+  h.set('parity', (await menu.innerText()).trim() === 'Spreadsheets', `Data's menu says “${(await menu.innerText()).trim()}”`);
+  await h.click(menu);
+  await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
+  await p.waitForURL(/\/data\/import/);
   await see(p, 'Import from a spreadsheet');
   await h.checkpoint('import');
   const csv = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
@@ -1034,8 +1039,10 @@ journey('U20', ['BULK-IMPORT'], 'Load a spreadsheet: a new goal, then its past w
   await h.checkpoint('preview');
   await h.click(p.getByRole('button', { name: 'Save 1 change' }));
   await see(p, 'Saved: 1 new goal');
-  // Its past weeks: a week in the future is refused, and nothing saves until it's fixed.
+  // Its past weeks, by the old address (it leads to Data's Import): a week in the future is refused, and nothing saves
+  // until it's fixed.
   await p.goto(url('/import'));
+  await p.waitForURL(/\/data\/import/);
   await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\nRunbooks with an owner,${NOW + 2},20\n`));
   await see(p, 'hasn’t happened yet', 'a future week was not refused');
   h.set('errors', await p.getByRole('button', { name: /^Save/ }).isDisabled(), 'Save was allowed with a row that needs fixing');
@@ -2299,11 +2306,10 @@ async function writeWorkbook(sheets, file) {
 journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'IMPORT-UNDO'], 'An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/goals'));
-  // Export, from the Goals screen (on the smallest phones it's in the Import or export menu).
-  const direct = p.locator('button:visible', { hasText: /^Export/ }).first();
-  await h.inView(direct.or(p.locator('summary[aria-label="Import or export"]')), 'entry', 'Export on the Goals screen');
-  if (await direct.isVisible().catch(() => false)) await h.click(direct);
-  else { await h.click(p.locator('summary[aria-label="Import or export"]')); await h.click(p.locator('.view-menu-list').getByRole('button', { name: 'Export', exact: true })); }
+  // Export these goals, from the Goals screen (on the smallest phones, its icon).
+  const direct = p.getByRole('button', { name: 'Export these goals' });
+  await h.inView(direct, 'entry', 'Export these goals on the Goals screen');
+  await h.click(direct);
   const sheet = p.getByRole('dialog', { name: 'Export goals' });
   await sheet.waitFor();
   await see(sheet, 'Results', 'the workbook does not say it has every sheet');
@@ -2327,8 +2333,10 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   const edited = path.join(OUT, `U46-${device}-edited.xlsx`);
   await writeWorkbook(book, edited);
   await p.keyboard.press('Escape');
-  // Load it back on Import: exactly those two changes, the stop shown as such, before anything is saved.
-  await h.click(p.getByRole('link', { name: 'Import' }).first());
+  // Load it back on Data's Import: exactly those two changes, the stop shown as such, before anything is saved.
+  await p.goto(url('/data'));
+  await h.click(p.locator('.data-export > summary'));
+  await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
   await see(p, 'Import from a spreadsheet');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
@@ -2371,6 +2379,53 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   h.set('progress', true);
   await p.context().close();
 });
+
+journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/workspace'));
+  // An admin setting, down the Workspace page with the others: 'entry' is judged on everyday journeys, not this one.
+  const box = p.getByRole('checkbox', { name: /^Spreadsheets/ });
+  await box.scrollIntoViewIfNeeded();
+  h.set('attention', await box.isChecked() && await p.getByRole('region', { name: 'Features' }).or(p.locator('section.features-block')).first().getByText('Download the goals as an Excel workbook').isVisible(), 'Features does not show Spreadsheets as on, with what it does');
+  await h.checkpoint('features');
+  await h.click(box);
+  await see(p, 'Spreadsheets is off in');
+  // Gone from Data and Goals; the address and the old link find nothing; Help no longer lists its articles.
+  await p.goto(url('/data'));
+  await p.locator('.data-tools').waitFor();
+  const dataGone = !(await p.locator('.data-export').count());
+  await p.goto(url('/goals'));
+  await p.locator('.goals-toolbar').waitFor();
+  const goalsGone = !(await p.getByRole('button', { name: 'Export these goals' }).count());
+  await p.goto(url('/data/import'));
+  await see(p, 'Page not found', 'Import still opens with spreadsheets off');
+  await p.goto(url('/import'));
+  await see(p, 'Page not found', 'the old Import link still leads somewhere with spreadsheets off');
+  await p.goto(url('/help'));
+  await see(p, 'Data in and out');
+  const helpGone = !(await p.getByRole('link', { name: 'Importing from a spreadsheet' }).count());
+  h.set('finish', dataGone && goalsGone && helpGone, `with spreadsheets off: Data's menu ${dataGone ? 'gone' : 'still there'}, Goals' export ${goalsGone ? 'gone' : 'still there'}, Help's article ${helpGone ? 'gone' : 'still listed'}`);
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'grace' && c.summary === 'Switched off Spreadsheets' && c.diffs.some((d) => d.field === 'Spreadsheets' && d.to === 'Off')), 'the switch was not logged');
+  // Back on: everything is back.
+  await p.goto(url('/workspace'));
+  await box.scrollIntoViewIfNeeded();
+  await h.click(box);
+  await see(p, 'Spreadsheets is on in');
+  await p.goto(url('/data'));
+  await p.locator('.data-export > summary').waitFor();
+  await p.goto(url('/import'));
+  await p.waitForURL(/\/data\/import/);
+  await see(p, 'Import from a spreadsheet', 'Import did not come back');
+  h.set('progress', true);
+  h.set('errors', true);
+  // Someone who isn't an admin sees no switches.
+  await viewAs(p, 'Oskar');
+  await p.goto(url('/workspace'));
+  await p.locator('.page-head').waitFor();
+  if (await p.getByRole('checkbox', { name: /^Spreadsheets/ }).count()) fail('someone who isn’t an admin was offered the Features switches');
+  await p.context().close();
+}, ['entry']);
 
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
@@ -2638,7 +2693,7 @@ async function platformChecks() {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?view=table'], ['rhea', '/goals?view=board'], ['rhea', '/goals?view=history'], ['rhea', '/goals?view=cards'], ['rhea', '/goals?view=map'],
-      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();

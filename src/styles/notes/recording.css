@@ -3,6 +3,6 @@
 .record-points { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: var(--s2); line-height: 1.5rem; max-width: 68ch; }
 .record-points li::marker { color: var(--muted); }
 .record-points strong { font-weight: 600; }
-.check.record-check { align-items: flex-start; }
-.check.record-check > input { flex: 0 0 auto; align-self: flex-start; margin-top: 2px; }
-@media (pointer: coarse) { .check.record-check { min-height: 44px; padding-block: 4px; } }
+.check.record-check, .check.feature-check { align-items: flex-start; }
+.check.record-check > input, .check.feature-check > input { flex: 0 0 auto; align-self: flex-start; margin-top: 2px; }
+@media (pointer: coarse) { .check.record-check, .check.feature-check { min-height: 44px; padding-block: 4px; } }

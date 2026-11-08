@@ -31,6 +31,8 @@ export interface Deps {
   deleteWorkspace?(workspaceId: string): Promise<void>;
   /** Whether the workspace records how it is used (migration 0022). Unknown counts as on. */
   recording?(workspaceId: string): Promise<boolean>;
+  /** The feature modules switched off in the workspace (migration 0030). Unknown counts as none. */
+  modulesOff?(workspaceId: string): Promise<string[]>;
   /** The builder inbox (src/markup/ops.ts) for a builder token, given its hash. Only builder tokens get it. */
   markups?(tokenHash: string): MarkupOps;
   /** The builders' feedback triage (src/markup/feedback.ts) for a builder token, given its hash. Only builder tokens get it. */
@@ -108,9 +110,10 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   let ctx: McpContext | null = null;
   const context = async (): Promise<McpContext> => {
     if (ctx) return ctx;
-    const [loaded, name, recording] = await Promise.all([
+    const [loaded, name, recording, modulesOff] = await Promise.all([
       db('select', () => deps.load(found.workspaceId)), deps.workspaceName(found.workspaceId),
       deps.recording ? deps.recording(found.workspaceId).catch(() => true) : Promise.resolve(true),
+      deps.modulesOff ? deps.modulesOff(found.workspaceId).catch(() => []) : Promise.resolve([] as string[]),
     ]);
     let all = loaded;
     const cycle = currentCycle(all.cycles, now);
@@ -119,7 +122,7 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
     // Someone marked as left (or deleted) no longer acts in the workspace, through the app or an assistant.
     if (!actor || actor.leftAt || actor.removedAt) throw new Error('The person this token belongs to is no longer in the workspace.');
     ctx = {
-      ws: { id: found.workspaceId, name, kind: found.workspaceId === EXAMPLE.id ? 'example' : 'own', ...(recording === false ? { recording: false } : {}) }, snapshot: scopeToCycle(all, cycle), cycle, week: currentWeek(cycle, now), today: now, actor,
+      ws: { id: found.workspaceId, name, kind: found.workspaceId === EXAMPLE.id ? 'example' : 'own', ...(recording === false ? { recording: false } : {}), ...(modulesOff.length ? { modulesOff } : {}) }, snapshot: scopeToCycle(all, cycle), cycle, week: currentWeek(cycle, now), today: now, actor,
       now: now.toISOString(), newId, allGoals: all.goals, full: all,
       // Each save says what it was based on, and the context moves on with it, so later calls see it.
       save: async (c) => {
@@ -130,6 +133,7 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
         ctx!.full = all;
         if (c.workspace) ctx!.ws = { ...ctx!.ws, name: c.workspace.name };
         if (c.recording !== undefined) ctx!.ws = { ...ctx!.ws, recording: c.recording };
+        if (c.modulesOff !== undefined) ctx!.ws = { ...ctx!.ws, modulesOff: c.modulesOff };
       },
       issueToken: async (c) => {
         let saved = c;

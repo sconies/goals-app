@@ -18,14 +18,15 @@ const askState = (r: { status: AskStatus; overdue: boolean }) => withCode(ASK_ST
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, watchedGoals } from '../domain/review';
 import { weekProgress } from '../domain/progress';
-import { toCsv, workbook } from '../domain/export';
-import { choosableColumns, exportedTable, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
+import { workbook } from '../domain/export';
+import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
 import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsDate, newsSince } from '../help/whatsNew';
 import { canUndoImport, importUndone } from '../domain/removal';
 import type { McpContext, ToolDef, ToolResult } from './tools';
+import { MODULES, modulesOn } from '../core/registry';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });
@@ -92,10 +93,11 @@ const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({
 const lines = (l: string[], none: string) => (l.length ? l.join('\n') : none);
 
 /** A data table's sheet, from the same workbook the Data screen and the exports use. */
-const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today }).find((x) => x.name === TABLES[t].sheet)!;
+/** A Data table's sheet of the workbook, for this context (the spreadsheets module's export_table reads it too). */
+export const sheetOf = (ctx: McpContext, t: DataTable) => workbook({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today }).find((x) => x.name === TABLES[t].sheet)!;
 const headOf = (ctx: McpContext, t: DataTable) => (sheetOf(ctx, t).rows[0] ?? []).map((c) => String(c ?? ''));
 /** A table layout from a tool's arguments: a saved table view by name, or a table with columns, widths and a query. */
-function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLayout {
+export function layoutFrom(ctx: McpContext, a: Record<string, unknown>): TableLayout {
   if (a.view != null) {
     const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
     const l = v ? parseLayout(v.params) : null;
@@ -566,27 +568,6 @@ export const WORK_TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'export_table',
-    title: 'Export a data table as shown',
-    description: 'One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted, then any column that says which record a row is (a goal’s Key and ID, a person’s Email…) the layout leaves out, so the rows load back with bulk_change. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.',
-    inputSchema: { type: 'object', additionalProperties: false, properties: {
-      view: str('The name of a saved layout: one of yours, or one pinned for everyone.'),
-      table: str('Which data table, when not using a view.', { enum: TABLE_ORDER }),
-      columns: ids('The columns, in order. Leave out for the usual columns.'),
-      query: str('Search, filters and sort, as for save_table_view.'),
-      format: str('CSV text, or rows as JSON.', { enum: ['csv', 'json'] }),
-    } },
-    annotations: READ,
-    async run(a, ctx) {
-      const layout = layoutFrom(ctx, a);
-      const rows = exportedTable(sheetOf(ctx, layout.table), layout).rows;
-      const [head = [], ...body] = rows;
-      const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? 'row' : 'rows'}, ${head.length} columns`;
-      if (a.format === 'json') return { data: { table: layout.table, columns: head, rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null]))) }, text: what };
-      return { data: { table: layout.table, columns: head, count: body.length }, text: toCsv(rows) };
-    },
-  },
-  {
     name: 'delete_view',
     title: 'Delete a saved view',
     description: 'Delete one of your views; an admin can also delete a pinned one.',
@@ -656,6 +637,21 @@ export const WORK_TOOLS: ToolDef[] = [
       const on = a.on;
       const res = await save(ctx, A.setRecording(ax(ctx), ctx.ws, on), on ? 'Turned recording back on for this workspace' : 'Turned recording off for this workspace: nothing more is recorded or sent', `Nothing to change: recording is already ${on ? 'on' : 'off'}.`);
       return { ...res, data: { recording: ctx.ws.recording !== false } };
+    },
+  },
+  {
+    name: 'set_feature',
+    title: 'Switch a feature on or off',
+    description: `Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: ${MODULES.map((m) => `${m.id} (${m.name}: ${m.summary})`).join('; ') || 'none in this build'}.`,
+    inputSchema: { type: 'object', additionalProperties: false, required: ['feature', 'on'], properties: { feature: str('The feature’s id.', { enum: MODULES.map((m) => m.id) }), on: bool('true to switch it on, false to switch it off.') } },
+    annotations: { ...WRITE, idempotentHint: true },
+    async run(a, ctx) {
+      if (typeof a.on !== 'boolean') throw new Error('Say on: true to switch it on, or on: false to switch it off.');
+      const id = String(a.feature ?? '');
+      const m = MODULES.find((x) => x.id === id);
+      const res = await save(ctx, A.setModule(ax(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? 'Switched on' : 'Switched off'} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? 'on' : 'off'}.`);
+      const r = modulesOn(ctx.ws);
+      return { ...res, data: { on: [...r.on], off: [...r.off.keys()] } };
     },
   },
   {

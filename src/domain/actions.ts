@@ -2,7 +2,7 @@
    save and the change-log entries. The app (app/state.tsx) and the AI assistants' MCP server (mcp/tools.ts) both call
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
-import type { Commit } from '../data/store';
+import type { Commit } from './commit';
 import type { Lookup } from './changes';
 import { nextCycle, RESULT_LABEL, wrapUpOpen } from './cycle';
 import { personChange, personProblems } from './people';
@@ -387,6 +387,29 @@ export function setRecording(x: ActionContext, ws: { id: string; recording?: boo
   const was = ws.recording !== false;
   if (was === on) return null;
   return { recording: on, changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited', summary: on ? 'Turned recording back on' : 'Turned recording off', diffs: [{ field: 'Recording', from: was ? 'On' : 'Off', to: on ? 'On' : 'Off' }] }] };
+}
+
+/**
+ * Admins: switch a feature module on or off in this workspace (docs/architecture.md). `modules` is every module this
+ * build has, so a module that needs this one can be named in the log as going off with it. Null when it already is.
+ */
+export function setModule(x: ActionContext, ws: { id: string; modulesOff?: string[] }, modules: readonly { id: string; name: string; needs: string[] }[], id: string, on: boolean): Commit | null {
+  if (!x.actor.admin) no('Only admins can switch features on or off.');
+  const m = modules.find((k) => k.id === id);
+  if (!m) no(`There’s no feature called ${id}.`);
+  const was = ws.modulesOff ?? [];
+  if (was.includes(id) === !on) return null;
+  const off = on ? was.filter((k) => k !== id) : [...was, id].sort();
+  // What needs it goes off with it (and comes back with it), however deep: said in the log, so nobody wonders why.
+  const needing = (root: string): string[] => modules.filter((k) => k.needs.includes(root)).flatMap((k) => [k.name, ...needing(k.id)]);
+  const also = [...new Set(needing(id))];
+  const name = m!.name;
+  return {
+    modulesOff: off,
+    changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited',
+      summary: `${on ? 'Switched on' : 'Switched off'} ${name}${also.length ? `, and with it ${also.join(', ')}` : ''}`,
+      diffs: [{ field: name, from: on ? 'Off' : 'On', to: on ? 'On' : 'Off' }] }],
+  };
 }
 
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */

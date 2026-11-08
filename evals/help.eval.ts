@@ -3,6 +3,7 @@
    and an AI assistant reads both through the MCP server. */
 import fs from 'node:fs';
 import path from 'node:path';
+import { appRoutes, leftOut, screenFiles } from '../src/core/sources';
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
 import { applyCommit } from '../src/data/store';
@@ -18,6 +19,8 @@ import { decide } from '../scripts/check-whats-new.mjs';
 const G = (text: string) => `[HELP-GUIDE] ${text}`;
 const N = (text: string) => `[WHATS-NEW] ${text}`;
 const root = path.join(__dirname, '..');
+/** What this build leaves out (FARO_WITHOUT), excused from the checks that the guide is complete. */
+const gone = leftOut(root);
 const OCT = new Date('2026-11-05T12:00:00Z');
 
 async function assistant(personId = 'rhea') {
@@ -43,12 +46,14 @@ async function assistant(personId = 'rhea') {
 
 describe('Help: what everything does', () => {
   it(G('every screen file, every route and every requirement has an article'), () => {
-    const screens = fs.readdirSync(path.join(root, 'src/screens')).filter((f) => f.endsWith('.tsx')).map((f) => f.replace('.tsx', ''));
+    // The core's screens and routes, and those of the modules this build has (src/core/sources.ts).
+    const screens = screenFiles(root).map((f) => f.name);
     expect(screens.filter((s) => !ARTICLES.some((a) => a.screens.includes(s)))).toEqual([]);
-    const routes = [...fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8').matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]!).filter((r) => r !== '*');
+    const routes = appRoutes(root).filter((r) => r !== '*');
     expect(routes.filter((r) => !guideRoutes().includes(r))).toEqual([]);
     const reqs = (JSON.parse(fs.readFileSync(path.join(root, 'evals/requirements.json'), 'utf8')) as { requirements: { id: string }[] }).requirements.map((r) => r.id);
-    expect(reqs.filter((r) => !ARTICLES.some((a) => a.reqs.includes(r)))).toEqual([]);
+    // A module left out of this build (FARO_WITHOUT) takes its articles with it: its requirements are excused.
+    expect(reqs.filter((r) => !gone.requirements.has(r) && !ARTICLES.some((a) => a.reqs.includes(r)))).toEqual([]);
   });
 
   it(G('the Help link on a page opens that page’s article, the most specific one'), () => {
@@ -62,7 +67,7 @@ describe('Help: what everything does', () => {
   it(G('search finds articles by what they cover, and every link in the guide leads somewhere'), () => {
     expect(searchGuide('accent colour')[0]?.id).toBe('settings');
     expect(searchGuide('quarter results met missed')[0]?.id).toBe('history');
-    for (const a of ARTICLES) for (const r of a.related) expect(articleById(r), `${a.id} → ${r}`).toBeDefined();
+    for (const a of ARTICLES) for (const r of a.related.filter((x) => !gone.help.has(x))) expect(articleById(r), `${a.id} → ${r}`).toBeDefined();
   });
 
   it(G('the status article reads its words and numbers from the status rules, not a copy'), () => {
@@ -96,7 +101,7 @@ describe('What’s new', () => {
       if (i) expect(e.date <= WHATS_NEW[i - 1]!.date).toBe(true);
       expect(e.points.length).toBeGreaterThanOrEqual(2);
       expect(e.points.length).toBeLessThanOrEqual(6);
-      expect(e.articles.every((a) => !!articleById(a))).toBe(true);
+      expect(e.articles.every((a) => gone.help.has(a) || !!articleById(a))).toBe(true);
     });
     // The release that brought Help and What's new is listed (newer releases go above it).
     expect(WHATS_NEW.some((e) => e.id === 'help-and-whats-new')).toBe(true);

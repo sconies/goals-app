@@ -6,7 +6,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { logRow, metricRow, spanRow } from '../telemetry/model';
-import { commitPayload, workspaceToRow } from './rows';
+import { commitPayload, workspaceFromRow, workspaceToRow, type WorkspaceRow } from './rows';
 
 const dir = join(__dirname, '../../supabase/migrations');
 const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
@@ -72,6 +72,21 @@ describe('telemetry tables (0022)', () => {
     // Back on.
     await asAnon('select okr_commit($1, $2::jsonb)', ['ws_off', JSON.stringify(commitPayload('ws_off', { ...c, recording: true, changes: [{ ...c.changes[0]!, id: 'chg_rec2' }] }))]);
     await insert('okr_telemetry_spans', off);
+  });
+
+  it('saves the feature modules switched off with okr_commit (0030), and reads them back with the workspace', async () => {
+    const at = now.toISOString();
+    const c = { modulesOff: ['spreadsheets'], changes: [{ id: 'chg_mod', at, actorId: 'p', goalId: null, entity: 'workspace' as const, entityId: 'ws_off', action: 'edited' as const, summary: 'Switched off Spreadsheets', diffs: [] }] };
+    await asAnon('select okr_commit($1, $2::jsonb)', ['ws_off', JSON.stringify(commitPayload('ws_off', c))]);
+    const row = (await db.query<WorkspaceRow>(`select * from okr_workspaces where id = 'ws_off'`)).rows[0]!;
+    expect(workspaceFromRow(row).modulesOff).toEqual(['spreadsheets']);
+    // Back on: an empty list.
+    await asAnon('select okr_commit($1, $2::jsonb)', ['ws_off', JSON.stringify(commitPayload('ws_off', { ...c, modulesOff: [], changes: [{ ...c.changes[0]!, id: 'chg_mod2' }] }))]);
+    expect(workspaceFromRow((await db.query<WorkspaceRow>(`select * from okr_workspaces where id = 'ws_off'`)).rows[0]!).modulesOff).toBeUndefined();
+    // A save that doesn't say leaves it alone.
+    await asAnon('select okr_commit($1, $2::jsonb)', ['ws_off', JSON.stringify(commitPayload('ws_off', { modulesOff: ['spreadsheets'], changes: [] }))]);
+    await asAnon('select okr_commit($1, $2::jsonb)', ['ws_off', JSON.stringify(commitPayload('ws_off', { changes: [] }))]);
+    expect(workspaceFromRow((await db.query<WorkspaceRow>(`select * from okr_workspaces where id = 'ws_off'`)).rows[0]!).modulesOff).toEqual(['spreadsheets']);
   });
 
   it('treats a workspace created without saying as recording', async () => {

@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "lint:layers": "node scripts/check-layers.mjs",
+    "modules": "node scripts/modules.mjs",
     "evals": "node evals/run.mjs",
     "evals:smoke": "node evals/run.mjs --smoke",
     "evals:changed": "node evals/run.mjs --changed",

@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, matchPath, useLocation } from 'react-router';
+import { useModules } from '../core/app';
 import { useApp, useToasts } from '../app/state';
 import { shortPeriod } from '../domain/year';
 import { weekProgress } from '../domain/progress';
@@ -181,6 +182,10 @@ export function Shell({ children }: { children: ReactNode }) {
   const side = sideFor(ownsGoals);
   const tabs = tabsFor(ownsGoals);
   const views = useViews();
+  // Feature modules (src/core/app.tsx): their navigation items, and the page you're on if it's one of theirs.
+  const { screens } = useModules();
+  const moduleNav = screens.flatMap((m) => m.navigation ?? []);
+  const moduleRoute = screens.flatMap((m) => m.routes ?? []).find((r) => matchPath(r.path, pathname));
   // A release this person hasn't seen: a quiet dot beside Help (and on More, on a phone) until they open What's new.
   const unread = useUnreadNews().length > 0;
   // Presenting: the demo without its "Viewing as" bar or Demo tag. Start it with /demo?present (and ?present=0 to stop).
@@ -202,7 +207,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const moreGoals = [...(ownsGoals ? [{ key: 'mine', to: '/goals?show=mine', label: 'Mine', hint: 'The goals you own' }] : []), ...(!tabs.includes('watching') ? [{ key: 'watching', to: '/watching', label: 'Watching', hint: 'The goals you follow' }] : []), ...views.slice(0, SIDE_VIEWS).map((v) => ({ key: v.id, to: '/goals?' + v.params, label: v.name, hint: v.pinned ? 'Pinned for everyone' : 'Your saved view' }))];
   const work = useRef<HTMLElement>(null);
   const at = goalsAt(pathname, search, views);
-  const title = at === 'watching' ? 'Watching' : at === 'mine' ? 'Mine' : pathname === '/settings' ? 'Settings' : pathname === '/whats-new' ? 'What’s new' : pathname.startsWith('/help') ? 'Help' : [...side, ...tabs].filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : pathname.startsWith('/research') ? 'Research' : pathname.startsWith('/import') ? 'Import' : pathname.startsWith('/quick-check-in') ? 'Check-in' : 'Goals');
+  const title = moduleRoute?.title ? moduleRoute.title : at === 'watching' ? 'Watching' : at === 'mine' ? 'Mine' : pathname === '/settings' ? 'Settings' : pathname === '/whats-new' ? 'What’s new' : pathname.startsWith('/help') ? 'Help' : [...side, ...tabs].filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : pathname.startsWith('/research') ? 'Research' : pathname.startsWith('/quick-check-in') ? 'Check-in' : 'Goals');
   // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
   useEffect(() => {
     const vv = window.visualViewport;
@@ -228,7 +233,7 @@ export function Shell({ children }: { children: ReactNode }) {
   // Walking a review (a goal page with ?review=) is in Reviews, so Reviews is the current place in the nav.
   const navAt = /[?&]review=/.test(search) ? '/reviews/walk' : at === 'watching' ? '/watching' : pathname;
   const sideAt = /[?&]review=/.test(search) ? null : at;
-  const focusMode = /^\/check-in(\/|$)|^\/quick-check-in$|^\/import$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
+  const focusMode = !!moduleRoute?.focus || /^\/check-in(\/|$)|^\/quick-check-in$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   const icons = look.sidebar === 'icons';
   const wsName = app.ws.name.replace(/^Example:\s*/, '');
   // On a goal's own page, on a phone, its summary bar takes the header's place; the header's controls go with it.
@@ -272,10 +277,14 @@ export function Shell({ children }: { children: ReactNode }) {
           {side.map((id) => id === 'goals'
             ? <GoalsSection key={id} owns={ownsGoals} at={sideAt} navAt={navAt} />
             : (
-              <Link key={id} to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, navAt) ? 'page' : undefined}>
-                {NAV[id].icon}<span>{NAV[id].label}</span>
-                {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
-              </Link>
+              <Fragment key={id}>
+                {/* The modules' items come after the core's places, before New goal. */}
+                {id === 'new' && moduleNav.map((n) => <Link key={n.id} to={n.to} className="nav" title={n.label} aria-current={navAt === n.to || navAt.startsWith(n.to + '/') ? 'page' : undefined}>{n.icon}<span>{n.label}</span></Link>)}
+                <Link to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, navAt) ? 'page' : undefined}>
+                  {NAV[id].icon}<span>{NAV[id].label}</span>
+                  {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
+                </Link>
+              </Fragment>
             ))}
           {app.mode === 'demo' && !present && <DemoEntry onOpen={() => setSheet('demo')} />}
           <Link to="/settings" className="nav settings-nav" title="Settings" aria-current={pathname === '/settings' ? 'page' : undefined}>{NAV.settings.icon}<span>Settings</span></Link>
@@ -328,7 +337,7 @@ export function Shell({ children }: { children: ReactNode }) {
           {more.map((id) => (
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
-          <Link className="menuitem" to="/import" onClick={() => setSheet(null)}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 10V2m0 0 3 3M8 2 5 5M3 12.5h10" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Import</span><span className="tiny muted">Goals, plans and past numbers from a spreadsheet</span></span></Link>
+          {moduleNav.map((n) => <Link key={n.id} to={n.to} className="menuitem" onClick={() => setSheet(null)}>{n.icon}<span className="strong">{n.label}</span></Link>)}
           <Link className="menuitem" to="/settings" onClick={() => setSheet(null)}><Icon name="settings" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, your AI assistants</span></span></Link>
           <Link className="menuitem more-help" to="/help" onClick={() => setSheet(null)}><Icon name="help" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Help{unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}</span><span className="tiny muted">What everything does, and what’s new</span></span></Link>
           {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.5 2" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Demo controls</span><span className="tiny muted">See it as someone else, walkthroughs, research, reset</span></span></button>}

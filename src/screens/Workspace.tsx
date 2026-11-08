@@ -4,6 +4,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
+import { Place, useModules } from '../core/app';
 import { initials } from '../domain/importer';
 import { normalEmail, personProblems } from '../domain/people';
 import type { Person, Team } from '../domain/types';
@@ -79,6 +80,9 @@ export function WorkspaceHome() {
         <Teams />
         {admin ? <AiAssistants /> : <section className="block"><h2 className="block-title">AI assistants</h2><p className="hint">Your tokens for an AI assistant are in <Link to="/settings">Settings</Link>.</p></section>}
         {admin && <Recording />}
+        {admin && <Features />}
+        {/* Modules' own settings (the workspace.settings place). */}
+        <Place name="workspace.settings" />
         {admin && <FeedbackList />}
         {admin && <RecentlyRemoved />}
         {admin && <CycleList />}
@@ -425,6 +429,46 @@ function Recording() {
         </span>
       </label>
       <p className="hint"><Link to="/help/recording">What’s recorded, exactly</Link></p>
+    </section>
+  );
+}
+
+/** For admins: the feature modules this workspace uses (docs/architecture.md), each switched on or off for everyone. */
+function Features() {
+  const app = useApp();
+  const { installed, on, off } = useModules();
+  const [busy, setBusy] = useState<string | null>(null);
+  if (!installed.length) return null;
+  const nameOf = (id: string) => installed.find((m) => m.id === id)?.name ?? id;
+  const flip = async (id: string, next: boolean) => {
+    if (busy) return;
+    setBusy(id);
+    try {
+      await app.setModule(id, next);
+      app.toast(next ? `${nameOf(id)} is on in ${app.ws.name}.` : `${nameOf(id)} is off in ${app.ws.name}. Nothing it saved is lost.`);
+    } catch { /* the rule's message is shown */ }
+    setBusy(null);
+  };
+  return (
+    <section className="block features-block" aria-labelledby="ws-features">
+      <h2 className="block-title" id="ws-features">Features</h2>
+      <p className="hint">Parts of Faro this workspace can use. Switch one off and it leaves every screen here, for everyone; nothing it saved is lost, and switching it back on brings it all back.</p>
+      {installed.map((m) => {
+        const why = off.get(m.id);
+        const switched = (app.ws.modulesOff ?? []).includes(m.id);
+        return (
+          <label key={m.id} className="check feature-check">
+            <input type="checkbox" checked={!switched} disabled={!!busy} onChange={(e) => void flip(m.id, e.target.checked)} />
+            <span className="stack" style={{ gap: 0 }}>
+              <span>{m.name}</span>
+              <span className="hint">{m.summary}</span>
+              {!switched && why?.kind === 'needs' && <span className="hint">Off until {why.missing.map(nameOf).join(' and ')} is on: it needs {why.missing.length === 1 ? 'it' : 'them'}.</span>}
+              {on.has(m.id) && m.needs.length > 0 && <span className="hint">Needs {m.needs.map(nameOf).join(' and ')}.</span>}
+            </span>
+          </label>
+        );
+      })}
+      <p className="hint"><Link to="/help/features">About features</Link></p>
     </section>
   );
 }

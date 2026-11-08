@@ -17,7 +17,6 @@ import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Empty } from './ui/bits';
 import { Shell } from './ui/Shell';
-import { Import } from './screens/Import';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { Research } from './screens/Research';
 import { Settings } from './screens/Settings';
@@ -26,10 +25,13 @@ import { MotionLayer } from './ui/Count';
 import { MotionLab } from './ui/MotionLab';
 import { HelpArticle, HelpHome, WhatsNew } from './screens/Help';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
+import { Moved, useModules } from './core/app';
 
 export function Routed() {
   const app = useApp();
   const { pathname } = useLocation();
+  // The feature modules that are on here add their routes, and lead their old addresses on (src/core/app.tsx).
+  const modules = useModules();
   if (!app.viewerChosen) return <WhoAreYou />;
   return (
     <Shell>
@@ -41,7 +43,6 @@ export function Routed() {
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
         <Route path="/quick-check-in" element={<QuickCheckIn />} />
-        <Route path="/import" element={<Import />} />
         <Route path="/research" element={<Research />} />
         <Route path="/check-in/:goalId" element={<CheckInFlow />} />
         <Route path="/review" element={<ReviewRedirect />} />
@@ -68,6 +69,8 @@ export function Routed() {
         <Route path="/help/:id" element={<HelpArticle />} />
         <Route path="/whats-new" element={<WhatsNew />} />
         <Route path="/ready" element={<Ready />} />
+        {modules.screens.flatMap((m) => (m.routes ?? []).map((r) => <Route key={r.path} path={r.path} element={r.element} />))}
+        {modules.redirects.map(([from, to]) => <Route key={from} path={from} element={<Moved to={to} />} />)}
         <Route path="*" element={<div className="page narrow"><Empty title="Page not found" /></div>} />
       </Routes>
       </ErrorBoundary>

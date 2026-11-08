@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-07 17:10 UTC.
+Run 2026-11-08 02:10 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -27,7 +27,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 17 | Demo data sets, presenting without the bar, and deleting a workspace | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 12) |
 | 18 | Set a goal for the year and its plan numbers by hand | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 12) |
 | 19 | See the same goals as a table, board, history grid or cards, and export them | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
-| 20 | Load a spreadsheet: a new goal, then its past weeks, with every change shown before saving | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 14) |
+| 20 | Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 15) |
 | 21 | Type the week’s numbers in one table, and change several goals at once | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 10 (budget 14) |
 | 22 | An admin gives a teammate a token for an AI assistant, then revokes it | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 10) |
 | 23 | See the year in quarters: where we are, each quarter met or missed, and the year’s history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 6) |
@@ -53,8 +53,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 43 | An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 10) |
 | 44 | An owner stops a goal with history, then deletes a goal set up by mistake and undoes it | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 11) |
 | 45 | Undo an import: every row back as it was, and a row changed since skipped and listed | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 8) |
-| 46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 8 · 8 (budget 16) |
+| 46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 16) |
 | 47 | A test round with only a builder token: a markup sent from the demo is read in the demo’s inbox with the token, no email sign-in, its picture coming from the server; then the token is forgotten | **10** | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 8 · 8 (budget 12) |
+| 48 | An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back | **0** | – | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | 2 · 2 (budget 10) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -67,9 +68,13 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - **a11y**: No serious accessibility issues; primary buttons are at least 44px tall on a phone
 - **logged**: The change it makes is in the change log with who, when and before → after
 
+### What cost points
+
+- **U48** An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back: phone: locator.click: Timeout 30000ms exceeded.
+
 ## Requirements
 
-**130 of 130 pass**. Spec scenarios 261/261.
+**129 of 132 pass**, 3 fail. Spec scenarios 267/267.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -119,6 +124,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **ADMIN** Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed. | People | 0 | U5, U10, U14 |
 | ✅ | **RETRO** From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged. | Cycles | 0 | U10 |
 | ✅ | **VIEWS** The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. | Views | 0 | U19 |
+| ❌ | **SPREADSHEETS-ON-DATA** Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template (every sheet’s headers and README, no rows), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets). | Data | 2 | U20, U48 |
 | ✅ | **EXPORT** Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens. | Data | 0 | U19 |
 | ✅ | **BULK-IMPORT** A workbook, a zip of CSVs or one CSV can add or change people, goals, plan numbers and check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any, and admins add and change people. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet. | Data | 0 | U20 |
 | ✅ | **BULK-EDIT** An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log. | Data | 0 | U21, U45 |
@@ -132,7 +138,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **ASK-UNDO** Asking a quiet goal's owner for an update shows next to its status as asked, and when, until they check in. Whoever asked can undo it; undoing is logged and takes it off the owner's Home. Asking twice before they check in asks once. | Watching | 0 | U38 |
 | ✅ | **STICKY-HEAD** In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop. | Goals | 0 | U38 |
 | ✅ | **ONE-ACCOUNT** When something changed, the owner gives one short account on one screen after the number: what changed, what happens next and by when, starting from last week's words. Progress is stable, the button says Continue until the step that posts, and Still true still posts last week's account in one press. | Check-ins | 0 | U39 |
-| ✅ | **EVERY-WIDTH** Every main screen works at every width from a 360px phone, through a tablet held either way and a laptop, to a 3440px monitor: no sideways scroll, nothing cut off at the edge, navigation always there, and prose kept to a readable width. | Platform | 0 | P9 |
+| ❌ | **EVERY-WIDTH** Every main screen works at every width from a 360px phone, through a tablet held either way and a laptop, to a 3440px monitor: no sideways scroll, nothing cut off at the edge, navigation always there, and prose kept to a readable width. | Platform | 0 | P9 |
 | ✅ | **OTHER-CAUSE** When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause. | Check-ins | 0 | U40 |
 | ✅ | **DEMO-FEEDBACK** Feedback sent from the demo reaches the people building the app: it is kept with the research notes, with the screen, the person being played and how they felt, and one id per visitor. The thanks says where it went. | Research | 0 | U40 |
 | ✅ | **FIT-AND-FINISH** The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge. | Platform | 0 | P10 |
@@ -203,6 +209,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **IMPORT-ACTIONS** A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams. | Data | 2 | U46 |
 | ✅ | **PERSON-EMAIL** Every person has an email, kept lower case and unique in the workspace (migration 0027): required when someone is added, in Workspace, set-up, a spreadsheet or the AI assistant. Exports write each person’s name and email, and imports match people by email. People added before emails are listed on Workspace for an admin to fill in, together. The example’s people have example emails (firstname.lastname@example.com). | People | 3 | U46 |
 | ✅ | **IMPORT-UNDO** Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed. | Removing | 1 | U45, U46 |
+| ❌ | **MODULES** Faro is a small core with named extension points (routes, navigation, Home blocks, goal-page sections, settings, places on core screens, database tables, AI tools, Help articles, requirements and journeys) and feature modules, one folder each with a module.json a generator can read, saying what it adds and what it needs. An admin switches each module on or off for a workspace on Workspace, Features (migration 0030): off, it leaves every screen, its AI tools refuse, and what needs it goes off too; nothing it saved is lost, and each switch is logged. CI builds Faro with each module left out and runs the core journeys, and a lint keeps src/domain free of database, screen and network code and the core from importing a module. | Architecture | 4 | U48 |
 
 ## Platform checks
 
@@ -231,7 +238,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **P6** Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules, and every status shape beside its own word
 - ✅ **P7** Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold
 - ✅ **P8** The goals start in the first screen: the Goals header stays short on a phone and a desktop
-- ✅ **P9** Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width
+- ❌ **P9** Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width: 1024px rhea /: no navigation
 - ✅ **P10** Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge
 - ✅ **P15** A comment in the demo survives a reload, only the saves are stored, and a browser that refuses says so
 

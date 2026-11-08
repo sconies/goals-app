@@ -30,15 +30,80 @@ Faro is one product with one data model, and its features all read the same goal
 
 They would also make Faro harder for another AI to understand and rebuild. A module can still be lifted out into its own service later if a real need appears, because its boundary is already clean.
 
+## How it's built (item 0, 8 Nov)
+
+### The core and its extension points
+
+The core is everything outside `src/modules`. It offers these extension points, and never imports a module:
+
+| Extension point | How a module uses it | Where the core reads it |
+|---|---|---|
+| Routes | `routes` in `app.tsx` (path, element, `focus`, `title`); old addresses in module.json `redirects` | `src/App.tsx`, `src/ui/Shell.tsx` (title, focus mode) |
+| Navigation | `navigation` in `app.tsx`: sidebar items after the core's, before New goal; also in More on a phone | `src/ui/Shell.tsx` |
+| Home blocks | the `home.blocks` place | `src/screens/Home.tsx`, after Watching |
+| Goal-page sections | the `goal.sections` place, given the goal | `src/screens/GoalScreen.tsx`, before Activity |
+| Settings | the `workspace.settings` place | `src/screens/Workspace.tsx`, the side column |
+| Places on other core screens | `data.tools` (Data's toolbar, given the open table as laid out) and `goals.tools` (Goals' view bar, given the goals shown) | `src/screens/DataTables.tsx`, `src/screens/GoalsScreen.tsx` |
+| Database tables | module.json `tables`: name, migration, purpose. Migrations still live in `supabase/migrations` | the manifest test checks the migration exists |
+| AI tools | `tools.ts` default-exports `ToolDef[]` | `src/mcp/tools.ts` adds them to `TOOLS`; `callTool` refuses one whose module is off in the workspace |
+| Help articles | `help.ts` default-exports `Article[]`, each with `after` (the article it follows) | `src/help/guide.ts` merges them into `ARTICLES`; Help hides a switched-off module's articles |
+| Requirements | module.json `requirements`: ids in `evals/requirements.json` | the scorecard, as for any requirement |
+| Journeys | module.json `journeys`: the U, F and N checks that need the module | `evals/run.mjs` leaves them out when the module is; `evals/touches.cjs` runs them when its folder changes |
+
+The places and what each one is given are typed in `src/core/app.tsx` (`PlaceProps`). A core screen renders `<Place name="…" … />`. To add a place, add its name to `PLACES` in `src/core/module.ts` and its props to `PlaceProps`, then render it on the screen.
+
+### A module
+
+One folder, `src/modules/<id>/`:
+
+| File | What it is |
+|---|---|
+| `module.json` | The facts, as plain data (`ModuleFacts` in `src/core/module.ts`): id, name, summary, `needs`, routes, redirects, navigation, places, tables, aiTools, help, requirements, journeys. Generators read this without running anything (`npm run modules` lists them) |
+| `app.tsx` | Optional. Default-exports an `AppModule`: its routes, navigation and what it puts in each place |
+| `help.ts` | Optional. Its Help articles. Pure data |
+| `tools.ts` | Optional. Its AI tools |
+| anything else | Its screens and code. A capitalised `.tsx` counts as a screen, so it needs a Help article and an MCP parity entry |
+
+The build makes the registry (`vite.modules.ts`): every folder with a module.json is installed. The core reads them through `virtual:faro-modules` (facts), `/help`, `/tools` and `/app`. Use `src/core/registry.ts` (no screens; the server uses it too) and `src/core/app.tsx` (`useModules`, `Place`).
+
+### Switching per workspace
+
+- `Workspace.modulesOff` lists the modules an admin has switched off, by id (`okr_workspaces.modules_off`, migration 0030).
+- A module is on when it is installed, not switched off, and everything in its `needs` is on (`resolveModules`).
+- The rule is `domain/actions setModule`: admins only, and the change is logged.
+- Admins switch modules on Workspace, under Features, or with the `set_feature` AI tool.
+- Off, a module has no route, navigation item, place, Help article, walkthrough or named flow, and its AI tools say it's off. Nothing it saved is deleted.
+
+### What keeps it so
+
+- **The layers lint** (`npm run lint:layers`, `scripts/check-layers.mjs`; also in `npm test` and CI):
+  - `src/domain` imports only `src/domain` and uses no browser, network or storage;
+  - nothing outside `src/modules` imports a module;
+  - a module imports another only if it lists it in `needs`.
+- **The manifest test** (`src/core/module.test.ts`) checks each module.json against its code: routes, places, help, tools, requirements, journeys and migrations.
+- **CI's "Core journeys without <module>" job** builds Faro with `FARO_WITHOUT=<module>` (that module, and anything that needs it, left out of the bundle). It then runs the smoke gate without the module's journeys. It runs for every folder in `src/modules`.
+
+### Adding a module
+
+1. Make `src/modules/<id>/module.json`. Copy `src/modules/spreadsheets/module.json` and change every field.
+2. Put its code in the folder. Wire it in through `app.tsx`, `help.ts` and `tools.ts`, never by editing a core screen. If it needs a place that doesn't exist yet, add the place to the core as above.
+3. Give each route a Help article (in `help.ts`). Add its requirements to `evals/requirements.json` and write its journeys.
+4. If it has tables, add a migration in `supabase/migrations`, and list the tables in module.json.
+5. Run `npm test` and `npm run lint:layers`. Then run `FARO_WITHOUT=<id> npm run evals:smoke` to prove the core works without it.
+
+Moving an existing feature works the same way. Move its files into the folder, then replace the core's direct imports with places, routes and tools. Spreadsheets (Data's Spreadsheets menu, Import at `/data/import`, Goals' Export these goals, the `export` and `export_table` tools) is the worked example.
+
 ## Where it stands
 
-Today Faro is a monolith with partial boundaries:
+- **Done (item 0, 8 Nov):**
+  - the pattern above;
+  - spreadsheets, the first module;
+  - the layers lint;
+  - the CI job that runs the core without each module;
+  - the three rules files that reached into the data layer: `Commit` now lives in `src/domain/commit.ts`.
+- **Still to move,** one at a time, markup first and reviews last:
+  - markup, which lives mostly in one folder;
+  - reviews, which touch about 90 files across nine folders;
+  - asks, Watching and the map.
 
-- Markup lives mostly in one folder.
-- Reviews touch about 90 files across nine folders.
-- Three rules files reach into the data layer.
-
-Moving to modules is item 0 in `docs/backlog.md`. The order is:
-
-1. Set up the pattern first.
-2. Move existing features over one at a time, markup first and reviews last.
+  Each move takes its screens, Help, tools and journeys into its folder.

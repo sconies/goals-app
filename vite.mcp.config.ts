@@ -1,7 +1,10 @@
 /* Builds the MCP server (server/vercel.ts) into one self-contained file, api/mcp.js, which Vercel runs as /api/mcp. */
 import { defineConfig } from 'vite';
+import { faroModules } from './vite.modules.ts';
 
 export default defineConfig({
+  // The modules' AI tools and Help articles come through the module registry, as in the app.
+  plugins: [faroModules()],
   ssr: { noExternal: true, target: 'node' },
   build: {
     ssr: 'server/vercel.ts',

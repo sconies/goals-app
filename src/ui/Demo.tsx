@@ -1,5 +1,6 @@
 /* The demo's controls, kept out of the way: one quiet "Demo" control opens a panel to switch role, take a
    walkthrough, research the app, reset the example, or leave. Nothing else on screen changes. */
+import { useModules } from '../core/app';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
@@ -47,6 +48,7 @@ export function DemoEntry({ onOpen, compact }: { onOpen: () => void; compact?: b
 
 export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { onClose: () => void; onPresent: () => void; title?: string; children?: ReactNode }) {
   const app = useApp();
+  const modules = useModules();
   const nav = useNavigate();
   const [resetting, setResetting] = useState(false);
   const cast = demoCast(app);
@@ -79,7 +81,8 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
   const teamName = (p: Person) => app.team(p.teamId ?? '')?.name ?? 'No team';
   const matching = others.filter((p) => !q || `${p.name} ${p.role} ${teamName(p)}`.toLowerCase().includes(q));
   const byTeam = [...new Set(matching.map(teamName))].sort((a, b) => a.localeCompare(b)).map((t) => [t, matching.filter((p) => teamName(p) === t).sort((a, b) => a.name.localeCompare(b.name))] as const);
-  const tours = TOURS.filter((t) => app.ws.kind !== 'example' || app.person(t.personId));
+  // A module's walkthrough only while the module is on here.
+  const tours = TOURS.filter((t) => (app.ws.kind !== 'example' || app.person(t.personId)) && (!t.module || modules.on.has(t.module)));
   return (
     <Sheet open onClose={onClose} title={title} wide>
       {children}

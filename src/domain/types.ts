@@ -323,6 +323,8 @@ export interface Workspace {
   createdAt: string;
   /** Whether the app records how it is used here (src/telemetry): on unless an admin has turned it off. */
   recording?: boolean;
+  /** Feature modules an admin has switched off here, by id (docs/architecture.md). Everything else is on. */
+  modulesOff?: string[];
 }
 
 export interface Snapshot {

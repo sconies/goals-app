@@ -16,6 +16,10 @@ const RULES = [
   // Shared by every screen: the full suite.
   [/^(src\/(App|main)\.tsx|src\/styles\.css|src\/styles\/[^/]+\.css|src\/app\/state\.tsx|src\/ui\/|src\/domain\/(vocabulary|status|types|plan|cycle|year)\.ts|src\/data\/(store|examples)\.ts|src\/data\/platformOrg\/|index\.html|vite\.config\.ts|package(-lock)?\.json)/, [FULL]],
   [/^evals\/(journeys\.cjs|run\.mjs|shards\.cjs|touches\.cjs)$/, [FULL]],
+  // The module pattern itself (the registry, the places on core screens, the build's module list): everything.
+  [/^(src\/core\/|vite\.(modules|mcp\.config)\.ts$)/, [FULL]],
+  // A feature module: the journeys and checks its module.json lists, and the design check.
+  [/^src\/modules\/([^/]+)\//, (m) => { try { return [...require(`../src/modules/${m[1]}/module.json`).journeys, 'P6']; } catch { return [FULL]; } }],
   // One area each.
   [/^src\/markup\/|^src\/styles\/notes\/markup\.css/, ['U41', 'U42', 'U47', 'P6']],
   [/^src\/telemetry\//, ['N8']],
@@ -28,7 +32,7 @@ const RULES = [
   [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalCards|GoalFilters|GoalHistory)\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6']],
   [/^src\/screens\/GoalMap\.tsx|^src\/domain\/(map|tree)\.ts/, ['U26', 'U30', 'U34', 'F6']],
   [/^src\/screens\/(Review|Retro)\.tsx|^src\/domain\/review\.ts/, ['U3', 'U10', 'U13', 'U36', 'F6', 'N1']],
-  [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit|Import|Export)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],
+  [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],
   [/^src\/screens\/(Workspace|Settings|Onboarding|Start)\.tsx|^src\/app\/appearance\.ts/, ['U5', 'U11', 'U14', 'U17', 'U22', 'U43', 'F7', 'N4']],
   [/^src\/screens\/Activity\.tsx|^src\/domain\/activity\.ts/, ['U6', 'U35']],
   [/^src\/screens\/Print\.tsx|^src\/domain\/onePager\.ts/, ['N6']],
