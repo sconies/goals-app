@@ -2,17 +2,18 @@
 
 About 25 minutes in the talk. The point is to show **how a feature gets added with AI**: start from a manager's request, agree requirements with the room, refine them, then watch an AI build it on a tested foundation, inside the rules the project already has.
 
-**Draft:** this is finished once the back end (backlog 0b) has merged and the rehearsal on Monday has run. The rehearsal's result is kept on the branch `demo/metrics-live-fallback` (not merged).
+The back end (backlog 0b) is on main (PR #52). The rehearsal's result is kept on the branch `demo/metrics-live-fallback` (never merged): REHEARSAL_RESULT
 
-## Before you start (5 minutes before the talk)
-- Open three tabs: the demo (`/demo`, Data page), this file, and a **new Claude Code session on the goals-app repository** (claude.ai/code), environment **goals-app**, mode **Auto** so it doesn't stop for permissions.
-- Check the fallback branch's preview link opens.
+## Before you start (15 minutes before the talk)
+- Work through `docs/live-build/checklist.md`.
+- Open three tabs: the demo (`/demo`, Data page), this file, and a **new Claude Code session on the goals-app repository** (claude.ai/code), environment **goals-app**, mode **Auto** so it doesn't stop for permissions. Auto has to be chosen when the session starts.
+- Check the fallback preview link opens.
 
 ## 1. The request (2 minutes)
 
 Say: *"My manager asked: every goal should say exactly what it measures, defined once, so two teams' 'build time' are the same thing. That's a metric library."*
 
-Show that the foundation is already there: in the demo, Data has no Metrics page yet, but ask the AI assistant (or show `src/modules/metrics/README.md`) and it lists about 10 metrics already defined and linked to goals. *"The data and the rules exist and are tested. What's missing is the screens. We'll add them now."*
+Show that the foundation is already there: in the demo, Data has a Metrics sheet but no Metrics page; show `src/modules/metrics/README.md` and the Metrics sheet in the workbook (Data → Spreadsheets → download): it lists 13 metrics already defined, 12 of them measuring a goal. *"The data and the rules exist and are tested. What's missing is the screens. We'll add them now."*
 
 ## 2. Requirements on screen (3 minutes)
 
