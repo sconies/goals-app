@@ -30,8 +30,9 @@ export const WHATS_NEW: NewsEntry[] = [
       'Where lower is better, a gap says “over”, not “short”, and a number shown equal to its plan counts as met.',
       'Goals says what Needs attention counts; reviews past their date say so; walking a review counts the whole review.',
       'Data lists goals in key order and says why a cell doesn’t apply. The demo’s reasons read less alike, and the Demo panel says plainly that Faro is a prototype.',
+      'The map says it’s drawing while it loads, and a goal’s number counts up from last week’s, never through numbers it didn’t have.',
     ],
-    articles: ['demo', 'check-in', 'goal-page', 'needs-attention', 'reviews', 'data'],
+    articles: ['demo', 'check-in', 'goal-page', 'needs-attention', 'reviews', 'data', 'goal-map'],
   },
   {
     id: 'describe-system',
