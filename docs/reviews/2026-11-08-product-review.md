@@ -20,5 +20,6 @@ The same outside reviewer's view of what Faro needs to become a habit. Judged by
 ## Not doing
 - Removing count-up animation outright: Lane's requirement is that numbers change visibly when a check-in posts. The fault is passing through wrong values on page load; D item 16 fixes that.
 - Merging List and Table: no evidence; they serve different jobs.
-- Density mode, check-in heatmap, badges, kudos and a Friday Wins wall: they fight "calm, low density, one main action" and risk dishonest reporting.
+- A per-person check-in heatmap (weekly cadence gives ~52 squares, invites comparing people, rewards filling squares over honest numbers); in its place a per-team and per-goal **check-in rhythm strip** joins L (Lane, 8 Nov).
+- Density mode, badges, kudos and a Friday Wins wall: they fight "calm, low density, one main action" and risk dishonest reporting.
 - Motion lab behind a Labs switch: harmless either way.
