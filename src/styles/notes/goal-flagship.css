@@ -190,7 +190,9 @@
 .chart.draw .c-fc, .chart.draw .c-band, .chart.draw .c-ptg { animation: pm-draw calc(.5s * var(--pace)) calc(1.3s * var(--pace)) ease-out both; }
 .chart.draw .c-ptg-dot { animation: pm-dot-in calc(.3s * var(--pace)) calc(1.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
 .chart.draw .c-today { animation: gp-now calc(.4s * var(--pace)) calc(1.1s * var(--pace)) ease-out both; }
-.chart .c-dot.landed, .chart .c-breach.landed { animation: gp-land calc(.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+/* A posted point drops into place: within 250ms, or at the story's pace when the story is on (backlog T). */
+.chart .c-dot.landed, .chart .c-breach.landed { animation: gp-land .24s ease-out both; transform-box: fill-box; transform-origin: center; }
+:root[data-story] .chart .c-dot.landed, :root[data-story] .chart .c-breach.landed { animation-duration: calc(.6s * var(--pace)); }
 .chart.hit .c-target { stroke-dasharray: none; stroke-width: 2.5; }
 :root[data-story] .chart.hit .c-target { animation: gp-lit calc(.6s * var(--pace)) ease-out both; }
 

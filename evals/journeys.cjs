@@ -916,7 +916,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Give the review a name' }).isVisible(), 'an unnamed review is not explained');
   await h.fill(p.getByLabel('Name', { exact: true }), 'SRE fortnightly');
   await h.click(p.getByRole('button', { name: 'Every 4 weeks' }));
-  await p.getByLabel('On').selectOption('4');
+  await p.getByRole('combobox', { name: /^On/ }).selectOption('4');
   await h.click(p.getByRole('button', { name: 'North star', exact: true }));
   // People are found by name, as goals are (re-review, 8 Nov, backlog T): the list narrows to the match.
   await h.fill(p.getByLabel('Find a person by name or team'), 'Mateo');

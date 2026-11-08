@@ -266,10 +266,8 @@ function attentionCounts(att: GoalAttention[], handled: GoalAttention[]): string
   const behind = ATTENTION_FLAGS.filter((k): k is 'off' | 'risk' | 'stale' => k in STATUS && k !== 'greener').sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b));
   const named = behind.filter((k) => by.get(k)).map((k) => `${by.get(k)} ${STATUS[k].label.toLowerCase()}`);
   const rest = att.length - behind.reduce((n, k) => n + (by.get(k) ?? 0), 0);
-  const parts = [...named, ...(rest ? [`${rest} on track but flagged for something else, such as getting worse, a missed date or an ask waiting for an answer`] : [])];
+  const parts = [...named, ...(rest ? [`${rest} on track but flagged for something else (getting worse, a missed date, an ask waiting)`] : [])];
   const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
-  const also = handled.length
-    ? ` Not counted: ${handled.length} more ${handled.length === 1 ? 'is' : 'are'} being handled, because someone has looked since the latest check-in. ${handled.length === 1 ? 'It is' : 'They are'} listed after the others, so the table and board show ${att.length + handled.length}.`
-    : '';
-  return `${att.length} ${att.length === 1 ? 'goal' : 'goals'} flagged for something new that nobody has picked up yet: ${list}.${also} Home counts every goal by its status instead.`;
+  const also = handled.length ? ` Not counted: ${handled.length} being handled, so the board shows ${att.length + handled.length}.` : '';
+  return `${att.length} ${att.length === 1 ? 'goal' : 'goals'} flagged for something new that nobody has picked up yet: ${list}.${also} Home counts goals by status.`;
 }
