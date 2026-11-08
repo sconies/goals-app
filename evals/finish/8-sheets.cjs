@@ -147,14 +147,9 @@ module.exports = {
       await p.waitForTimeout(1200);
       const r = await p.evaluate(() => { const b = document.querySelector('.coach-ring').getBoundingClientRect(); return { top: b.top, bottom: b.bottom, vh: innerHeight }; });
       if (r.top < 16 || r.bottom > r.vh - 16) fails.push(`Chase step 1 at 1280×700: the ring is at y ${round(r.top)}–${round(r.bottom)} in a ${r.vh}px window`);
-      // #26: "Skip this step" starts at the coach text's left edge.
-      const x = await p.evaluate(() => {
-        const say = document.querySelector('.coach-say').getBoundingClientRect().left;
-        const btn = document.querySelector('.coach-skip');
-        const range = document.createRange(); range.selectNodeContents(btn);
-        return { say, skip: range.getBoundingClientRect().left };
-      });
-      if (Math.abs(x.skip - x.say) > 2) fails.push(`coach: "Skip this step" text starts ${round(x.skip - x.say)}px in from the coach text`);
+      // #26, and the re-review (8 Nov, backlog T): every step before the last has a Next button, so a presenter can step through.
+      const next = await p.locator('.coach .coach-next').filter({ hasText: /^Next$/ }).count();
+      if (next !== 1) fails.push(`coach: step 1 has ${next} Next buttons, not one`);
       await c.close();
     });
 

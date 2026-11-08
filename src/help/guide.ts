@@ -69,7 +69,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Home is where you start each week. It leads with the one thing most worth doing now, so you don’t have to hunt for it.'] },
       { heading: 'How to use it', list: [
-        'The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it. The streak counts weeks with every check-in in before the review; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.',
+        'The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it. The streak counts weeks with every check-in in before the review; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.',
         'Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in.',
         'Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it.',
         'Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.',
@@ -165,7 +165,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: [PROTOTYPE_LINE, 'Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.', 'The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.'] },
       { heading: 'How to use it', list: [
         'Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.',
-        'Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on. From a workspace you set up in the demo, they open the example, whose people and goals they follow.',
+        'Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.',
         'Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.',
         'In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.',
         'Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.',
@@ -467,7 +467,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'Choose New goal. Name it the way your team would say it.',
         'Pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.',
-        'For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over.',
+        'For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.',
         'Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.',
         'Check and publish. The owner is then offered the first check-in.',
         'A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.',
@@ -659,7 +659,7 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'workspace',
     title: 'Running the workspace',
-    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams and the Inbox for everyone, and Cycles, Access, Features, Privacy and Recently removed for admins.',
+    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams, the Inbox and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.',
     group: 'you',
     sections: [
       { heading: 'Finding your way', list: [
@@ -677,7 +677,7 @@ const CORE_ARTICLES: Article[] = [
         'People: the directory. See Workspace: People.',
         'Teams: find a team, with its lead and counts. See Workspace: Teams.',
         'Inbox: the markups and feedback people send, worked like an inbox. See The inbox.',
-        'Cycles, Access, Features, Privacy and Recently removed: for admins. Each has its own article.',
+        'Privacy: what the app records, for everyone to read; only admins switch it. Cycles, Access, Features and Recently removed: for admins. Each has its own article.',
       ] },
       { heading: 'Who can', list: ['Everyone sees Overview, People, Teams and the Inbox. Someone who isn’t an admin and opens an admins’ section is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.', 'Anyone can read the inbox and change a markup’s or feedback’s status: Faro holds no real data. The internal app keeps it to the people who look after the app.'] },
       { heading: 'For the people building Faro', list: ['Sections are an extension point: a feature module adds its own with `sections` in its app.tsx and module.json, and it appears in the menu, at /workspace/<id>, for as long as the module is on.'] },
@@ -842,7 +842,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Turning it off', list: [
         'Everyone is recorded by default. Settings says whether it is on where you are.',
-        'An admin can turn it off for the whole workspace on Workspace, under Privacy. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
+        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it off there, for the whole workspace. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
       ] },
     ],
     routes: ['/workspace/privacy'],

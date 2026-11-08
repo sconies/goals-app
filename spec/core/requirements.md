@@ -808,7 +808,7 @@ A leader's attention goes to the exceptions. A weekly review walks the goals tha
 Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch.
 
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
-- **Tests:** `evals/attention.eval.ts` (4)
+- **Tests:** `evals/attention.eval.ts` (5)
 - **Journeys and checks:** N3
 
 ## Interface

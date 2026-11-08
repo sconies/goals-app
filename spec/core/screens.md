@@ -173,8 +173,8 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/Workspace.tsx](../../src/screens/Workspace.tsx)
 
-- `/workspace` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams and the Inbox for everyone, and Cycles, Access, Features, Privacy and Recently removed for admins. Help: “Running the workspace” (`workspace`).
-- `/workspace/overview` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams and the Inbox for everyone, and Cycles, Access, Features, Privacy and Recently removed for admins. Help: “Running the workspace” (`workspace`).
+- `/workspace` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams, the Inbox and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins. Help: “Running the workspace” (`workspace`).
+- `/workspace/overview` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams, the Inbox and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins. Help: “Running the workspace” (`workspace`).
 - `/workspace/people` (`WorkspaceHome`): The directory of everyone in the workspace: find someone by name, job title or team; admins add people, change their details, make admins and mark people as left. Help: “Workspace: People” (`workspace-people`).
 - `/workspace/teams` (`WorkspaceHome`): The workspace’s teams, each with its lead and how many people and goals it has. Admins add, rename and remove them. Help: “Workspace: Teams” (`workspace-teams`).
 - `/workspace/inbox` (`WorkspaceHome`): Every markup and piece of feedback people send, on Workspace, open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed. Help: “The inbox” (`inbox`).

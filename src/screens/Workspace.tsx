@@ -5,8 +5,9 @@
      People            the directory: find someone, add a person (admins), people without an email (admins)
      Teams             find a team, with its lead and counts; add, rename and remove (admins)
      Inbox             markups and feedback, open to anyone, worked like an inbox (src/markup/Inbox.tsx)
-     Cycles, Access (admins and AI tokens), Features, Privacy (what the app records), Recently removed: admins only.
-   People who aren't admins see Overview, People, Teams and Inbox. Sections are the settings extension point: a module
+     Privacy (what the app records): everyone reads it; only admins switch it.
+     Cycles, Access (admins and AI tokens), Features, Recently removed: admins only.
+   People who aren't admins see Overview, People, Teams, Inbox and Privacy. Sections are the settings extension point: a module
    adds its own (AppModule `sections`, src/core/app.tsx). Old addresses (/workspace?inbox=1&markup=…, #people) lead to
    the section they meant. */
 import { createContext, lazy, Suspense, useContext, useState, type ReactNode } from 'react';
@@ -41,7 +42,8 @@ const CORE: WorkspaceSection[] = [
   { id: 'cycles', label: 'Cycles', summary: 'The workspace’s cycles. One nobody has checked in to can be deleted.', admins: true, element: <CyclesSection /> },
   { id: 'access', label: 'Access', summary: 'Who the admins are, and the tokens AI assistants use.', admins: true, element: <AccessSection /> },
   { id: 'features', label: 'Features', summary: 'Parts of Faro this workspace uses, each switched on or off for everyone.', admins: true, element: <FeaturesSection /> },
-  { id: 'privacy', label: 'Privacy', summary: 'What the app records about how it’s used here, and the switch for it.', admins: true, element: <PrivacySection /> },
+  // Everyone can read what is recorded about them; only admins switch it (re-review, 8 Nov, backlog T).
+  { id: 'privacy', label: 'Privacy', summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
   { id: 'removed', label: 'Recently removed', summary: 'Anything removed in the last 30 days, with Restore.', admins: true, element: <RemovedSection /> },
 ];
 
@@ -651,10 +653,12 @@ function PersonSheet({ person, onClose, onLeave }: { person: Person | null; onCl
   );
 }
 
-/** For admins: the workspace's recording switch. On for everyone by default; off, nothing is recorded or sent from it. */
+/** The workspace's recording: what is recorded, for everyone to read, and for admins the switch. On for everyone by
+    default; off, nothing is recorded or sent from it. */
 function Recording() {
   const app = useApp();
   const on = app.ws.recording !== false;
+  const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
   const [busy, setBusy] = useState(false);
   const flip = async (next: boolean) => {
     if (busy) return;
@@ -668,13 +672,20 @@ function Recording() {
   return (
     <section className="block recording-block" aria-label="What the app records">
       <p className="hint">How people use the app here: the pages they open, the buttons they press, where they stop in a task, errors and slow pages. Never anything anyone types. Kept for 90 days, then only daily totals; only the people who build the app can read it.</p>
-      <label className="check record-check">
-        <input type="checkbox" checked={on} disabled={busy} onChange={(e) => void flip(e.target.checked)} />
-        <span className="stack" style={{ gap: 0 }}>
-          <span>Record how the app is used in {app.ws.name}</span>
-          <span className="hint">{on ? 'On for everyone here. Turn it off and nothing more is sent.' : 'Off: nothing is recorded or sent from this workspace.'}</span>
-        </span>
-      </label>
+      {app.viewer.admin ? (
+        <label className="check record-check">
+          <input type="checkbox" checked={on} disabled={busy} onChange={(e) => void flip(e.target.checked)} />
+          <span className="stack" style={{ gap: 0 }}>
+            <span>Record how the app is used in {app.ws.name}</span>
+            <span className="hint">{on ? 'On for everyone here. Turn it off and nothing more is sent.' : 'Off: nothing is recorded or sent from this workspace.'}</span>
+          </span>
+        </label>
+      ) : (
+        <p className="record-state">
+          <span className="strong">{on ? `Recording is on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}: nothing is recorded or sent.`}</span>{' '}
+          <span className="hint">Only admins change it{admins.length ? `: ${admins.join(', ')}` : ''}.</span>
+        </p>
+      )}
       <p className="hint"><Link to="/help/recording">What’s recorded, exactly</Link></p>
     </section>
   );

@@ -280,6 +280,7 @@ export function ReviewEdit() {
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
+  const [who, setWho] = useState('');
   const set = (p: Partial<ReviewT>) => setDraft(p);
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const covered = useMemo(() => goalsIn(r.scope, app.snapshot.goals), [r.scope, app.snapshot.goals]);
@@ -343,8 +344,11 @@ export function ReviewEdit() {
         </section>
         <section className="stack" style={{ gap: 'var(--s3)' }} aria-labelledby="ppl-h">
           <h2 className="block-title" id="ppl-h">Who takes part</h2>
+          {/* Found by name or team, as the goals are (re-review, 8 Nov, backlog T); whoever is picked stays listed. */}
+          <input className="input" value={who} onChange={(e) => setWho(e.target.value)} placeholder="Find a person by name or team" aria-label="Find a person by name or team" />
+          <span className="hint">{r.people.length === 1 ? '1 person' : `${r.people.length} people`} so far{r.people.length ? `: ${r.people.map((id) => app.person(id)?.name).filter(Boolean).join(', ')}` : ''}.</span>
           <div className="optlist" role="group" aria-labelledby="ppl-h">
-            {app.snapshot.people.map((p) => <button key={p.id} type="button" role="checkbox" className="opt" aria-checked={r.people.includes(p.id)} disabled={!!existing && p.id === existing.createdBy && r.people.includes(p.id) && app.viewer.id !== existing.createdBy && !app.viewer.admin} onClick={() => set({ people: toggle(r.people, p.id) })}><Picked on={r.people.includes(p.id)}><Avatar p={p} size="sm" />{p.name}</Picked><span className="hint">{app.team(p.teamId ?? '')?.name ?? ''}</span></button>)}
+            {app.snapshot.people.filter((p) => !who.trim() || r.people.includes(p.id) || `${p.name} ${app.team(p.teamId ?? '')?.name ?? ''}`.toLowerCase().includes(who.trim().toLowerCase())).map((p) => <button key={p.id} type="button" role="checkbox" className="opt" aria-checked={r.people.includes(p.id)} disabled={!!existing && p.id === existing.createdBy && r.people.includes(p.id) && app.viewer.id !== existing.createdBy && !app.viewer.admin} onClick={() => set({ people: toggle(r.people, p.id) })}><Picked on={r.people.includes(p.id)}><Avatar p={p} size="sm" />{p.name}</Picked><span className="hint">{app.team(p.teamId ?? '')?.name ?? ''}</span></button>)}
           </div>
         </section>
         <div className="focus-foot">

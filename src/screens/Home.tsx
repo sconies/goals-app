@@ -6,7 +6,7 @@ import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
 import { dashboard, groupWatched, type Dashboard } from '../domain/home';
 import { daysToReview, onTimeStreak, reviewDate, weekCompletion, weekProgress, WEEKDAY } from '../domain/progress';
-import { agendaOf, dayText, reviewedLabel, reviewSession, watchedGoals } from '../domain/review';
+import { agendaOf, dayText, daysPast, pastText, reviewedLabel, reviewSession, watchedGoals } from '../domain/review';
 import { weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
@@ -100,7 +100,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
             <>
               {/* Every check-in posted: said plainly before the review takes over as the week's one action. */}
               {allIn && <span className="hero-allset"><Icon name="check-circle" size={14} />{p.goals.length === 1 ? `Your check-in is posted for week ${app.week}` : `All ${p.goals.length} check-ins posted for week ${app.week}`}</span>}
-              <span className="eyebrow">{myReview.review.name}</span>
+              <span className="eyebrow">{myReview.review.name}{daysPast(myReview, app.today) ? ` · ${dayText(myReview.date)}, ${pastText(daysPast(myReview, app.today))}` : ''}</span>
               {/* The same agenda as the review itself: what needs judgment, and what can be covered together (product review, 3 Nov). */}
               {(() => {
                 const { discuss, healthy } = agendaOf(myReview);
@@ -350,11 +350,20 @@ function DashStrip({ d, streakNote }: { d: Dashboard; streakNote: string }) {
           <span className="dash-sub">{streakNote}</span>
         </div>
       )}
+      {d.missed[0] ? (
+        // A session past its date and not held comes first: the next one mustn't hide it (re-review, 8 Nov, backlog T).
+        <Link className="dash-cell dash-review dash-missed" to={`/reviews/${d.missed[0].id}`}>
+          <span className="dash-label"><WarnMark />Not held yet{d.missed.length > 1 ? ` · ${d.missed.length} reviews` : ''}</span>
+          <span className="dash-value" title={`${d.missed[0].name}, ${dayText(d.missed[0].date)}, ${pastText(d.missed[0].daysPast)}`}>{d.missed[0].name}</span>
+          <span className="dash-sub">{dayText(d.missed[0].date)} · {pastText(d.missed[0].daysPast)}</span>
+        </Link>
+      ) : (
       <Link className="dash-cell dash-review" to={d.next ? `/reviews/${d.next.id}` : '/reviews'}>
         <span className="dash-label">Next review{d.next && <span className="dash-label-when"> · {d.next.weekday}</span>}</span>
         <span className="dash-value" title={d.next ? `${d.next.name}, ${d.next.weekday} ${when}` : undefined}>{d.next ? d.next.name : 'None you’re in'}</span>
         <span className="dash-sub">{d.next ? `${d.next.weekday} · ${when}` : 'See every review'}</span>
       </Link>
+      )}
     </section>
   );
 }

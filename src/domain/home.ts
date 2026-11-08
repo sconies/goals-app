@@ -3,7 +3,7 @@
 import { attentionFor, needsAttention, type GoalAttention } from './attention';
 import { daysSince } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
-import { sessionDate, sessionWeek, watchedGoals } from './review';
+import { daysPast, reviewSession, sessionDate, sessionWeek, watchedGoals } from './review';
 import { goalStatus } from './status';
 import { STATUS_ORDER } from './summary';
 import type { Cycle, DisplayStatus, Goal, Snapshot } from './types';
@@ -47,6 +47,17 @@ export function nextReview(personId: string, s: Snapshot, cycle: Cycle, week: nu
   return next[0] ?? null;
 }
 
+/** A session of a review the person is in, past its date this week and not held (re-review, 8 Nov, backlog T). */
+export interface MissedReview { id: string; name: string; week: number; date: string; daysPast: number }
+
+/** This week's sessions the person is in that are past their date and not held, longest past first. */
+export function missedReviews(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): MissedReview[] {
+  return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
+    const sx = reviewSession(r, s, cycle, today, week);
+    return { id: r.id, name: r.name, week: sx.week, date: sx.date, daysPast: daysPast(sx, today) };
+  }).filter((x) => x.daysPast > 0).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
+}
+
 export interface Dashboard {
   /** Whose goals the counts are: the person's own, or every goal when they own none (a leader). */
   scope: 'mine' | 'all';
@@ -58,6 +69,8 @@ export interface Dashboard {
   /** The goals they watch, grouped; null when they watch nothing. */
   watching: WatchGroups | null;
   next: NextReview | null;
+  /** Sessions past their date and not held: shown before the next review, so a missed one isn't hidden by it. */
+  missed: MissedReview[];
 }
 
 export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Dashboard {
@@ -73,5 +86,6 @@ export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: num
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
     watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
     next: nextReview(personId, s, cycle, week, today),
+    missed: missedReviews(personId, s, cycle, week, today),
   };
 }

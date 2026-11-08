@@ -107,10 +107,9 @@ export function Coach() {
           {state.step > 0 && <button type="button" className="btn sm" onClick={() => writeTour({ id: tour.id, step: state.step - 1 })}>Back</button>}
           {last
             ? <button type="button" className="btn sm" onClick={() => writeTour(null)}>Finish</button>
-            // Nothing to do here when the demo has moved on (the alternative is showing): Next, not Skip.
-            : missing
-              ? <button type="button" className="btn sm coach-next" onClick={() => writeTour({ id: tour.id, step: state.step + 1 })}>Next</button>
-              : <button type="button" className="btn ghost sm coach-skip" onClick={() => writeTour({ id: tour.id, step: state.step + 1 })}>Skip this step</button>}
+            // Doing the step moves on by itself; Next moves on without doing it (re-review, 8 Nov, backlog T: there was
+            // only Back and Skip, so a presenter couldn't simply step through).
+            : <button type="button" className="btn sm coach-next" onClick={() => writeTour({ id: tour.id, step: state.step + 1 })}>Next</button>}
         </span>
       </aside>
     </>

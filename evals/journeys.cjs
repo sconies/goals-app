@@ -903,7 +903,7 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
 }, ['errors']);
 
 
-journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a review: name, cadence, goals, people', 10, async (h, device) => {
+journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a review: name, cadence, goals, people', 11, async (h, device) => {
   const p = h.use(await newPage(device, 'jun'));
   await p.goto(url('/'));
   await navTo(h, p, 'Reviews');
@@ -917,6 +917,10 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await h.click(p.getByRole('button', { name: 'Every 4 weeks' }));
   await p.getByLabel('On').selectOption('4');
   await h.click(p.getByRole('button', { name: 'North star', exact: true }));
+  // People are found by name, as goals are (re-review, 8 Nov, backlog T): the list narrows to the match.
+  await h.fill(p.getByLabel('Find a person by name or team'), 'Mateo');
+  const listed = await p.getByRole('group', { name: 'Who takes part' }).getByRole('checkbox').count();
+  h.set('attention', listed <= 3, `finding “Mateo” left ${listed} people in the list`);
   await h.click(p.getByRole('checkbox', { name: /Mateo Fernández/ }));
   await see(p, /[2-9] goals so far/, 'the form counts the goals picked');
   await h.checkpoint('set up');
@@ -2314,7 +2318,7 @@ function seed75() {
 }
 
 
-journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Inbox, and old links still land', 14, async (h, device) => {
+journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams, Inbox and Privacy (read-only), and old links still land', 14, async (h, device) => {
   const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['inbox', 'Inbox'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'grace'));
@@ -2359,14 +2363,18 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.goto(BASE + '/demo/workspace?today=' + TODAY + '#people');
   const toPeople = await p.waitForURL(/\/workspace\/people/, { timeout: 5000 }).then(() => true, () => false);
   h.set('errors', toInbox && toPeople, `old links: the inbox’s ${toInbox}, #people ${toPeople}`);
-  // Someone who isn't an admin: Overview, People, Teams and Inbox, and an admins' section says whose it is.
+  // Someone who isn't an admin: Overview, People, Teams, Inbox and Privacy, and an admins' section says whose it is.
   await viewAs(p, 'Oskar');
   await p.goto(url('/workspace'));
   await menu.waitFor();
   const theirs = (await menu.getByRole('link').allInnerTexts()).map((x) => x.split(/\n| · /)[0].trim());
   await p.goto(url('/workspace/access'));
   const told = await see(p, 'Access is for the workspace’s admins.').then(() => true, () => false);
-  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Inbox']) && told && await p.getByRole('button', { name: 'Make a token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}`);
+  // Privacy reads for everyone, what the app records about them; only admins have its switch (re-review, 8 Nov, backlog T).
+  await p.goto(url('/workspace/privacy'));
+  const reads = await see(p, 'Only admins change it').then(() => true, () => false);
+  const noSwitch = await p.getByRole('checkbox', { name: /Record how the app is used/ }).count() === 0;
+  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Inbox', 'Privacy']) && told && reads && noSwitch && await p.getByRole('button', { name: 'Make a token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}`);
   await p.context().close();
 }, ['logged']);
 
@@ -2720,6 +2728,9 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await see(p, 'Page not found', 'Import still opens with spreadsheets off');
   await p.goto(url('/import'));
   await see(p, 'Page not found', 'the old Import link still leads somewhere with spreadsheets off');
+  // A page that isn't there offers the way home, and it works (re-review, 8 Nov, backlog T).
+  await p.getByRole('link', { name: 'Go to Home' }).click();
+  await p.locator('.page.home').waitFor({ timeout: 5000 }).catch(() => fail('the not-found page has no way home'));
   await p.goto(url('/help'));
   await see(p, 'Data in and out');
   const helpGone = !(await p.getByRole('link', { name: 'Importing from a spreadsheet' }).count());
