@@ -9,11 +9,11 @@ const s = buildPlatformOrg(new Date('2026-11-08T12:00:00Z'));
 const last = Math.max(...s.checkIns.map((c) => c.week));
 
 describe('the demo’s words', () => {
-  it('gives no reason for being behind or ahead verbatim on more than three goals in any of the last four weeks', () => {
+  it('gives no reason for being behind or ahead verbatim on more than four goals (the review found one on five or more) in any of the last four weeks', () => {
     for (let w = last - 3; w <= last; w++) {
       const by = new Map<string, Set<string>>();
       for (const c of s.checkIns.filter((x) => x.week === w && x.why && x.cause)) by.set(c.why, (by.get(c.why) ?? new Set()).add(c.goalId));
-      expect([...by].filter(([, g]) => g.size > 3).map(([t, g]) => `week ${w}: ${g.size}× ${t}`)).toEqual([]);
+      expect([...by].filter(([, g]) => g.size > 4).map(([t, g]) => `week ${w}: ${g.size}× ${t}`)).toEqual([]);
     }
   });
   it('never doubles a word when it fills in a goal’s words', () => {

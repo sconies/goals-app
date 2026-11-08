@@ -228,6 +228,13 @@ module.exports = {
       if (route === '/goals/ns-ai') {
         fail(s.anims.some((a) => /c-act/.test(a.name)), '[Motion] the goal chart does not draw its line');
         fail(s.counts.length >= 2 && s.counts[s.counts.length - 1] === '73%', `[Motion] the goal's number did not count to 73% (${s.counts.join(' → ')})`);
+        // From last week's number, never through values the goal didn't have this year's way up (demo review, 8 Nov, item 16).
+        fail(s.counts.every((v) => v === '72%' || v === '73%'), `[Motion] the goal's number passed through other values (${s.counts.join(' → ')})`);
+      }
+      // The ring's count is what its label says at every moment, not only once it lands (demo review, 8 Nov, item 16).
+      if (route === '/' || route === '/reviews/weekly') {
+        const early = await p.evaluate(() => { const r = document.querySelector('.ring'); return r ? { text: r.querySelector('.ring-text').textContent, label: r.getAttribute('aria-label') } : null; });
+        if (early && /^\d+\/\d+$/.test(early.text)) fail(early.label.startsWith(early.text.replace('/', ' of ')), `[Motion] ${route}: ring shows ${early.text} while it means “${early.label}”`);
       }
       // The ring's count lands on what its label says.
       const ring = await p.evaluate(() => { const r = document.querySelector('.ring'); return r ? { text: r.querySelector('.ring-text').textContent, label: r.getAttribute('aria-label') } : null; });

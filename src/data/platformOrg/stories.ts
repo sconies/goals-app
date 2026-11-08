@@ -47,8 +47,6 @@ export const BEHIND: Record<Exclude<Theme, 'early' | 'cautious' | 'oneoff' | 'ta
     { cause: 'blocked', why: 'Blocked on {dep}: we need their change before we can switch {thing} on.' },
     { cause: 'blocked', why: '{dep} reprioritised, and our dependency moved to their next sprint.' },
     { cause: 'blocked', why: 'Waiting on {dep} to sign off the design before the rollout can go wider.' },
-    { cause: 'blocked', why: 'The next step for {thing} needs a change from {dep}, and it isn’t scheduled yet.' },
-    { cause: 'blocked', why: 'Half of {thing} is done; the rest waits on {dep}’s release, now planned for next month.' },
   ],
   data: [
     { cause: 'data', why: 'The dashboard double-counted retries this week; the real number is closer to plan.' },
@@ -65,17 +63,11 @@ export const BEHIND: Record<Exclude<Theme, 'early' | 'cautious' | 'oneoff' | 'ta
     { cause: 'slower', why: 'Fewer changes landed this week than planned; two were reverted and redone.' },
     { cause: 'slower', why: 'A little behind: two pull requests for {thing} slipped to Monday.' },
     { cause: 'slower', why: 'Steady, but under the planned pace. Nothing is blocked; it’s just taking longer.' },
-    { cause: 'slower', why: 'Code review on {thing} is the bottleneck: changes wait two or three days for a reviewer.' },
-    { cause: 'slower', why: 'Two people were pulled onto a release for a week, so {thing} moved less than planned.' },
-    { cause: 'slower', why: 'Testing found more edge cases in {thing} than we expected; each one is small, but they add up.' },
   ],
   recovery: [
     { cause: 'slower', why: 'Recovering: back to the planned pace for three weeks, though the earlier gap hasn’t closed yet.' },
     { cause: 'slower', why: 'The fix for {thing} landed and the number is moving again. Expect it back on plan in a few weeks.' },
     { cause: 'other', why: 'Closing the gap a little each week. The trend is right; the total isn’t there yet.' },
-    { cause: 'slower', why: 'Better than last week on {thing}, still short of the line. Another two weeks at this pace closes it.' },
-    { cause: 'other', why: 'The changes to {thing} are working; the number lags them by a week or two.' },
-    { cause: 'slower', why: 'Back to full strength on {thing}, catching up on what the slow weeks left behind.' },
   ],
 };
 
@@ -84,15 +76,11 @@ export const AHEAD: Record<'early' | 'cautious' | 'oneoff' | 'tailwind', Said[]>
   early: [
     { cause: 'early', why: '{Thing} landed earlier than planned, so the number jumped ahead.' },
     { cause: 'early', why: 'The rollout finished two weeks early once the last team moved over.' },
-    { cause: 'early', why: '{Thing} went faster than planned: the hardest part turned out to be the easiest.' },
-    { cause: 'early', why: 'Ahead on {thing}: the last teams moved without needing our help.' },
   ],
   cautious: [
     { cause: 'cautious', why: 'The plan was cautious: teams adopted faster than we expected once they saw the results.' },
     { cause: 'cautious', why: 'Still ahead. We planned for resistance that didn’t come.' },
     { cause: 'cautious', why: 'Ahead again this week. Worth raising the target at the next plan review.' },
-    { cause: 'cautious', why: '{Thing} keeps beating the plan; teams are asking for it before we reach them.' },
-    { cause: 'cautious', why: 'Comfortably ahead on {thing}. The plan allowed for setbacks that didn’t happen.' },
   ],
   oneoff: [
     { cause: 'oneoff', why: 'A one-off: a large batch landed this week. Expect the pace to settle.' },
@@ -101,6 +89,35 @@ export const AHEAD: Record<'early' | 'cautious' | 'oneoff' | 'tailwind', Said[]>
   tailwind: [
     { cause: 'external', why: 'A tailwind from {dep}: their launch pulled adoption forward.' },
     { cause: 'external', why: 'The new laptops shipped with the tooling pre-installed, which helped more than expected.' },
+  ],
+};
+
+/**
+ * More phrasings, offered only where a goal has no words of its own for the phase (demo review, 8 Nov): kept apart so
+ * the lists above, and the stories the hand-written goals tell from them, stay as they were.
+ */
+export const MORE: Partial<Record<Theme, Said[]>> = {
+  blocked: [
+    { cause: 'blocked', why: 'The next step for {thing} needs a change from {dep}, and it isn’t scheduled yet.' },
+    { cause: 'blocked', why: 'Half of {thing} is done; the rest waits on {dep}’s release, now planned for next month.' },
+  ],
+  slower: [
+    { cause: 'slower', why: 'Code review on {thing} is the bottleneck: changes wait two or three days for a reviewer.' },
+    { cause: 'slower', why: 'Two people were pulled onto a release for a week, so {thing} moved less than planned.' },
+    { cause: 'slower', why: 'Testing found more edge cases in {thing} than we expected; each one is small, but they add up.' },
+  ],
+  recovery: [
+    { cause: 'slower', why: 'Better than last week on {thing}, still short of the line. Another two weeks at this pace closes it.' },
+    { cause: 'other', why: 'The changes to {thing} are working; the number lags them by a week or two.' },
+    { cause: 'slower', why: 'Back to full strength on {thing}, catching up on what the slow weeks left behind.' },
+  ],
+  early: [
+    { cause: 'early', why: '{Thing} went faster than planned: the hardest part turned out to be the easiest.' },
+    { cause: 'early', why: 'Ahead on {thing}: the last teams moved without needing our help.' },
+  ],
+  cautious: [
+    { cause: 'cautious', why: '{Thing} keeps beating the plan; teams are asking for it before we reach them.' },
+    { cause: 'cautious', why: 'Comfortably ahead on {thing}. The plan allowed for setbacks that didn’t happen.' },
   ],
 };
 

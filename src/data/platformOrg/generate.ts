@@ -19,7 +19,7 @@ import { demoYear, yearName } from './year';
 import { CLOSED, COMMENTS, HELD, REVIEWS, SAID, UNDER_WAY, UPDATE_ASKS, VIEWS, WATCHES } from './conversation';
 import { GOALS, type GoalSpec, type Phase } from './goals';
 import { PEOPLE, TEAMS } from './people';
-import { AHEAD, BEHIND, fill, PATHS, STEADY, type Said, type Theme } from './stories';
+import { AHEAD, BEHIND, fill, MORE, PATHS, STEADY, type Said, type Theme } from './stories';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -146,18 +146,29 @@ export function buildPlatformOrg(today: Date): Snapshot {
     const all = [...own, ...own, ...pool];
     const recent = recentSaid.get(s.id) ?? [];
     const week = usedInWeek.get(w) ?? new Map<string, number>();
-    // From where the draw lands, the phrasing used least this week (own words count as unused), not said lately.
+    // From where the draw lands, the cheapest phrasing (below).
     const start = Math.floor(R.next() * all.length);
-    const uses = (x: Said) => (pool.includes(x) ? week.get(x.why) ?? 0 : 0);
     let x = all[start]!;
-    let best = Infinity;
-    for (let i = 0; i < all.length; i++) {
-      const y = all[(start + i) % all.length]!;
-      const cost = uses(y) * 2 + (recent.includes(y.why) ? 3 : 0);
-      if (cost < best) { best = cost; x = y; }
+    if (own.length) {
+      // A phase with the owner's own words is a hand-written story: chosen as it always was, never the same words two
+      // weeks running, so the goals the walkthroughs and checks follow tell the same story.
+      for (let i = 0; x.why === recent.at(-1) && i < 5; i++) x = all[(all.indexOf(x) + 1 + i) % all.length]!;
+    } else {
+      // Stock phrasings only: from where the draw lands, the one used least by other goals this week and not said by
+      // this goal in its last three check-ins.
+      const uses = (y: Said) => week.get(y.why) ?? 0;
+      const theme = kind === 'ahead' ? (['early', 'cautious', 'oneoff', 'tailwind'] as const).find((t) => t === phase.theme) ?? 'oneoff' : isBehindTheme(phase.theme) ? phase.theme : 'slower';
+      const wider = [...all, ...(MORE[theme] ?? [])];
+      const from = Math.floor((start / all.length) * wider.length);
+      let best = Infinity;
+      for (let i = 0; i < wider.length; i++) {
+        const y = wider[(from + i) % wider.length]!;
+        const cost = uses(y) * 2 + (recent.includes(y.why) ? 3 : 0);
+        if (cost < best) { best = cost; x = y; }
+      }
     }
     recentSaid.set(s.id, [...recent, x.why].slice(-3));
-    if (pool.includes(x)) { week.set(x.why, (week.get(x.why) ?? 0) + 1); usedInWeek.set(w, week); }
+    if (!own.length) { week.set(x.why, (week.get(x.why) ?? 0) + 1); usedInWeek.set(w, week); }
     return { cause: x.cause, why: fill(x.why, words) };
   };
 

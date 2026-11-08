@@ -227,7 +227,7 @@ function GoalView({ goal }: { goal: Goal }) {
       <ReviewBar goalId={goal.id} />
       <GoalBack />
       <GoalBar goal={goal} status={status} figures={figures} card={card} actions={actions} askedLine={askedLine}
-        statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own[0]?.value ?? null : null} />
+        statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own.filter((c) => c.value != null).at(-2)?.value ?? null : null} />
 
       {published && (
         <section className="first-checkin" aria-label="First check-in">
