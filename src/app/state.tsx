@@ -18,7 +18,7 @@ import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/ch
 import { ACTIONS } from '../mcp/parity';
 import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
-import { forgetDemoBrowser } from './demoBrowser';
+import { forgetDemoBrowser, forgetWorkspaceBrowser } from './demoBrowser';
 import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, UNDO_MS } from '../domain/vocabulary';
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
@@ -453,6 +453,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       deleteWorkspace: async () => {
         if (ws.kind === 'example') throw new Error('Examples can be reset, not deleted.');
         await store.deleteWorkspace(ws.id);
+        forgetWorkspaceBrowser(ws.id);
         const rest = workspaces.filter((w) => w.id !== ws.id);
         setWorkspaces(rest);
         const next = rest[0]?.id ?? null;

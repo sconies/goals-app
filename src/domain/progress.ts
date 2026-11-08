@@ -1,6 +1,6 @@
 /* Small, honest progress signals: this week's check-ins and the on-time streak.
    They count only what the owner did themselves, as the research recommends. */
-import { weekDate } from './plan';
+import { firstWeekFrom, weekDate } from './plan';
 import { goalStatus } from './status';
 import type { Cycle, Goal, Snapshot } from './types';
 
@@ -8,14 +8,20 @@ export interface WeekProgress {
   goals: Goal[];
   done: Goal[];
   due: Goal[];
+  /** Set up after this week's review day: their first check-in is due next week (firstDueWeek). */
+  upcoming: Goal[];
 }
+
+/** The first week a goal's check-in is due: the week it was set up in, or the next one when it was set up after that week's review day. */
+export const firstDueWeek = (g: Pick<Goal, 'createdAt'>, cycle: Cycle) => firstWeekFrom(cycle, g.createdAt, cycle.reviewDay);
 
 /** The person's goals this week: which are checked in and which are still due. */
 export function weekProgress(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): WeekProgress {
   const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== 'done');
   const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
-  // Week 0 is the baseline week: the first check-ins are due in week 1.
-  return { goals, done, due: week < 1 ? [] : goals.filter((g) => !done.includes(g)) };
+  // Week 0 is the baseline week: the first check-ins are due in week 1, and a goal set up after this week's review starts next week.
+  const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
+  return { goals, done, upcoming, due: week < 1 ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g)) };
 }
 
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
@@ -23,6 +29,12 @@ export function reviewDate(cycle: Cycle, week: number): string {
   const d = new Date(weekDate(cycle, week) + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
   return d.toISOString().slice(0, 10);
+}
+
+/** The review a goal set up today first reports to: its week, and its date as an ISO date ("first check-ins are due before Thursday 12 Nov"). */
+export function firstReview(cycle: Cycle, today: Date): { week: number; date: string } {
+  const week = firstWeekFrom(cycle, today.toISOString(), cycle.reviewDay);
+  return { week, date: reviewDate(cycle, week) };
 }
 
 /**
@@ -33,7 +45,7 @@ export function onTimeStreak(personId: string, s: Snapshot, cycle: Cycle, week: 
   const goals = s.goals.filter((g) => g.ownerId === personId);
   if (!goals.length) return 0;
   const onTime = (w: number) =>
-    goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+    goals.some((g) => firstDueWeek(g, cycle) <= w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
   // Checked in this week, but after the review: the streak is broken, whatever came before.
   if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
   let streak = 0;
@@ -56,7 +68,7 @@ export const WEEKDAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
  * can just mean nobody has reported. Shown as "2 of 4 first check-ins in" until every goal has one (product review, 3 Nov).
  */
 export function firstReports(s: Snapshot, cycle: Cycle, week: number): { total: number; reported: number; waiting: { ownerId: string; goals: number }[]; silent: string[]; due: string } | null {
-  const live = s.goals.filter((g) => (g.kind !== 'metric' || (g.plan.fromWeek ?? 0) < Math.max(1, week)));
+  const live = s.goals.filter((g) => firstDueWeek(g, cycle) <= week && (g.kind !== 'metric' || (g.plan.fromWeek ?? 0) < Math.max(1, week)));
   const silent = live.filter((g) => !s.checkIns.some((c) => c.goalId === g.id));
   if (week < 1 || !live.length || !silent.length) return null;
   const by = new Map<string, number>();

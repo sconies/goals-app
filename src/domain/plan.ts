@@ -21,6 +21,19 @@ export function daysSince(iso: string, today: Date): number {
   return daysBetween(iso, today);
 }
 
+/**
+ * The first week whose given weekday (0 = Monday) falls on or after a date: the week a goal's first check-in is due,
+ * and the week of a review's first session, when either is set up part way through a week (setup review, 8 Nov). Set up
+ * on Sunday, after Thursday's review, both start the next week, so nothing is late on day one. Week 1 at the earliest.
+ */
+export function firstWeekFrom(cycle: Cycle, iso: string | undefined, weekday: number): number {
+  const day = (iso ?? '').slice(0, 10);
+  if (!day || day <= cycle.startDate) return 1;
+  const w = currentWeek(cycle, new Date(day + 'T12:00:00Z'));
+  const due = new Date(Date.parse(weekDate(cycle, w) + 'T00:00:00Z') + weekday * DAY).toISOString().slice(0, 10);
+  return Math.max(1, due < day ? w + 1 : w);
+}
+
 /** The ISO date of a week's checkpoint. */
 export function weekDate(cycle: Cycle, week: number): string {
   const t = Date.parse(cycle.startDate + 'T00:00:00Z') + week * 7 * DAY;

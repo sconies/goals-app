@@ -1,5 +1,6 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
+import { nameProblem } from './thresholds';
 import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
 import type { Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape } from './types';
 
@@ -60,7 +61,8 @@ export type GoalErrors = Partial<Record<'title' | 'teamId' | 'ownerId' | 'start'
 
 export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
   const e: GoalErrors = {};
-  if (d.title.trim().length < 3) e.title = 'Give the goal a name of at least three characters.';
+  const named = nameProblem(d.title, 'goal');
+  if (named) e.title = named;
   if (!d.teamId) e.teamId = 'Choose a team.';
   if (!d.ownerId) e.ownerId = 'Choose an owner.';
   if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = 'Enter a number, or leave it empty.';

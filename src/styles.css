@@ -421,12 +421,16 @@ svg.chart { display: block; overflow: visible; }
 
 /* people table in the import */
 .people-grid { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.pg-head, .pg-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 56px 36px; gap: 8px; align-items: center; padding: 8px 12px; }
+.pg-head, .pg-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1fr) 56px 36px; gap: 8px; align-items: center; padding: 8px 12px; }
 .pg-head { font-size: 0.75rem; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding-top: 12px; padding-bottom: 8px; }
 .pg-row { border-top: 1px solid var(--line-2); }
 .pg-row:first-of-type { border-top: 0; }
 .pg-row .input { min-height: 36px; }
 .pg-issue { grid-column: 1 / -1; }
+.pg-team { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pg-team .input { width: 100%; }
+.pg-team .linkish { align-self: flex-start; }
+.pg-fix { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 
 /* ---------- tablet: icon sidebar ---------- */
 @container app (max-width: 1100px) and (min-width: 761px) {

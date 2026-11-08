@@ -2,7 +2,7 @@
    and what has been covered in a review's session. */
 import { attentionFor, needsAttention, type GoalAttention } from './attention';
 import { ASK_KIND, ASK_STATUS, SESSION } from './vocabulary';
-import { daysSince, weekDate } from './plan';
+import { daysSince, firstWeekFrom, weekDate } from './plan';
 import { checkInsFor, RANK } from './status';
 import { asksOf, isResolved } from './asks';
 import type { Ask, Cycle, Decision, Goal, Level, Review, Snapshot, Watch } from './types';
@@ -52,9 +52,10 @@ export function watchOf(personId: string, goal: Goal, s: Snapshot): Watch | 'via
 }
 
 /** The week of a review's current session: this week if it's held this week, otherwise the next week it is. */
-export function sessionWeek(r: Review, week: number): number {
+export function sessionWeek(r: Review, week: number, cycle?: Cycle): number {
   const n = Math.max(1, r.everyWeeks);
-  const w = Math.max(1, week);
+  // A review's first session is the first one on or after the day it was set up, never one already past.
+  const w = Math.max(1, week, cycle ? firstWeekFrom(cycle, r.createdAt, r.weekday) : 1);
   return w % n === 0 ? w : w + (n - (w % n));
 }
 
@@ -100,7 +101,7 @@ export interface ReviewSession {
 const tier = (a: GoalAttention) => (a.handled ? 1 : isHealthy(a) ? 2 : 0);
 
 export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date, week: number): ReviewSession {
-  const w = sessionWeek(r, week);
+  const w = sessionWeek(r, week, cycle);
   const lastCheckIn = (g: Goal) => { const own = checkInsFor(g, s.checkIns); const last = own[own.length - 1]; return last ? daysSince(last.postedAt, today) : 999; };
   const items = goalsIn(r.scope, s.goals)
     .map((g) => attentionFor(g, s, cycle, today))

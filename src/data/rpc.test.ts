@@ -302,8 +302,12 @@ describe('database save functions, as the public user', () => {
   });
 
   it('deletes a workspace and everything in it, as the public user', async () => {
+    // Set-up makes the weekly review and the pinned views; the app records how it is used there (setup review, 8 Nov, item 11).
+    expect(await count('okr_reviews')).toBeGreaterThan(0);
+    expect(await count('okr_views')).toBeGreaterThanOrEqual(3);
+    await db.query(`insert into okr_telemetry_logs ("timestamp", severity_number, severity_text, body, workspace_id) values (now(), 9, 'INFO', 'page', $1)`, [ws]);
     await asAnon('select okr_delete_workspace($1)', [ws]);
-    for (const t of ['okr_goals', 'okr_people', 'okr_check_ins', 'okr_changes', 'okr_stages', 'okr_cycles', 'okr_teams']) expect(await count(t)).toBe(0);
+    for (const t of ['okr_goals', 'okr_people', 'okr_check_ins', 'okr_changes', 'okr_stages', 'okr_cycles', 'okr_teams', 'okr_reviews', 'okr_views', 'okr_requests', 'okr_telemetry_logs', 'okr_goal_keys']) expect(await count(t)).toBe(0);
     expect(await count('okr_workspaces', `id = '${ws}'`)).toBe(0);
   });
 });

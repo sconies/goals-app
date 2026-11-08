@@ -46,3 +46,26 @@ export function personChange(before: Person | null, after: Person, teamName: (id
   if (before && !diffs.length) return null;
   return { id, at, actorId, goalId: null, entity: 'person', entityId: after.id, action: before ? 'edited' : 'created', summary: before ? `Changed ${after.name}` : `Added ${after.name}`, diffs };
 }
+
+/**
+ * Another team's name this one is probably a typo of (setup review, 8 Nov): the same but for case and spaces, or one
+ * or two letters out (one for names under eight letters). Null when it's clearly its own team. The team it's closest
+ * to, of those typed at least as often, wins; a name typed more often than any near one is taken as meant. `others` is
+ * every team typed, this one included.
+ */
+export function closeTeam(name: string, others: string[]): string | null {
+  const a = name.trim();
+  if (a.length < 3) return null;
+  const squash = (x: string) => x.toLowerCase().replace(/\s+/g, '');
+  const far = (x: string, y: string) => {
+    const row = Array.from({ length: y.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= x.length; i++) {
+      let prev = row[0]!; row[0] = i;
+      for (let j = 1; j <= y.length; j++) { const keep = row[j]!; row[j] = Math.min(row[j]! + 1, row[j - 1]! + 1, prev + (x[i - 1] === y[j - 1] ? 0 : 1)); prev = keep; }
+    }
+    return row[y.length]!;
+  };
+  const count = (t: string) => others.filter((o) => o.trim() === t).length;
+  const near = [...new Set(others.map((o) => o.trim()))].filter((o) => o && o !== a && count(o) >= count(a) && (squash(o) === squash(a) || far(squash(o), squash(a)) <= (Math.min(o.length, a.length) < 8 ? 1 : 2)));
+  return near.sort((x, y) => count(y) - count(x) || far(squash(x), squash(a)) - far(squash(y), squash(a)))[0] ?? null;
+}

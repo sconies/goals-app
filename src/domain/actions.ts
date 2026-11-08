@@ -2,6 +2,7 @@
    save and the change-log entries. The app (app/state.tsx) and the AI assistants' MCP server (mcp/tools.ts) both call
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
+import { nameProblem } from './thresholds';
 import type { Commit } from './commit';
 import type { Lookup } from './changes';
 import { nextCycle, RESULT_LABEL, wrapUpOpen } from './cycle';
@@ -151,7 +152,7 @@ export type CallKind = 'acknowledge' | 'note' | 'ask' | 'action';
  */
 export function reviewCall(x: ActionContext, goal: Goal, review: Review, kind: CallKind, note: string, extra: { week?: number; assigneeId?: string | null; dueWeek?: number | null } = {}): Commit {
   const text = note.trim();
-  const week = extra.week ?? sessionWeek(review, x.week);
+  const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
   if (kind === 'ask') {
     if (goal.ownerId === x.actor.id) no('It’s your own goal: add a note instead.');
     return askQuestion(x, goal, text, { reviewId: review.id, week });
@@ -371,7 +372,8 @@ export function sendFeedback(x: ActionContext, mood: 'good' | 'meh' | 'bad', tex
 export function renameWorkspace(x: ActionContext, ws: { id: string; name: string }, name: string): Commit | null {
   if (!x.actor.admin) no('Only admins can rename the workspace.');
   const clean = name.trim().replace(/\s+/g, ' ');
-  if (!clean) no('Give the workspace a name.');
+  const named = nameProblem(clean, 'workspace');
+  if (named) no(named);
   if (clean.length > 80) no('Keep the name to 80 characters or fewer.');
   if (clean === ws.name) return null;
   return { workspace: { name: clean }, changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited', summary: `Renamed the workspace to “${clean}”`, diffs: [{ field: 'Workspace name', from: ws.name, to: clean }] }] };

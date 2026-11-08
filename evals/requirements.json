@@ -189,7 +189,7 @@
     {
       "id": "ONBOARDING",
       "area": "Onboarding",
-      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it. It ends with the one next thing to do."
+      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do."
     },
     {
       "id": "IDENTITY",
@@ -834,6 +834,12 @@
       "title": "An admin switches Spreadsheets off for the workspace, then back on",
       "who": "An admin",
       "budget": 10
+    },
+    {
+      "id": "U49",
+      "title": "Set up a small workspace on a Sunday: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all",
+      "who": "Someone trying Faro after the demo",
+      "budget": 30
     }
   ],
   "easeCriteria": [

@@ -20,3 +20,14 @@ export const RESTORE_DAYS = 30;
 export const UNDO_MS = 10_000;
 /** A stopped goal's reason is at least a short sentence. */
 export const MIN_STOP_REASON = 10;
+
+/** The shortest name a workspace or a goal can have, in characters (setup review, 8 Nov): one rule for both. */
+export const MIN_NAME = 3;
+const NUMBER_WORDS = ['no', 'one', 'two', 'three', 'four', 'five'];
+/** What's wrong with a workspace's or a goal's name, or null: empty, or shorter than MIN_NAME. */
+export function nameProblem(name: string, thing: 'workspace' | 'goal' | 'outcome'): string | null {
+  const t = name.trim();
+  if (!t) return `Give the ${thing} a name.`;
+  if (t.length < MIN_NAME) return `Give the ${thing} a name of at least ${NUMBER_WORDS[MIN_NAME] ?? MIN_NAME} characters.`;
+  return null;
+}
