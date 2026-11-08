@@ -6,7 +6,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **How items are ordered:** by what they unblock first, then value against effort. Effort: S (under a day), M (a release), L (more than one release).
 
-**In progress (8 Nov):** 8k, rebuild kit v1 for the core with one drill, for Lane's presentation on Tuesday 10 Nov. Built: the staged guide in `spec/rebuild/` (stage 1 the core rules, with a drill; stages 2, 3 and spreadsheets as outlines), the harness (`npm run drill`, scoring Faro's own rules at 100%) and the CI check that every module has a stage. Left: the drill itself, run by the planning session in a fresh session that sees only `spec/` and `llms.txt`; what it had to guess goes back into the kit.
+**In progress (8 Nov):** D, demo polish from the outside review (branch `journeys`, for Tuesday's presentation). Also 8k, rebuild kit v1 for the core with one drill, for Lane's presentation on Tuesday 10 Nov. Built: the staged guide in `spec/rebuild/` (stage 1 the core rules, with a drill; stages 2, 3 and spreadsheets as outlines), the harness (`npm run drill`, scoring Faro's own rules at 100%) and the CI check that every module has a stage. Left: the drill itself, run by the planning session in a fresh session that sees only `spec/` and `llms.txt`; what it had to guess goes back into the kit.
 
 ## Build, in order
 

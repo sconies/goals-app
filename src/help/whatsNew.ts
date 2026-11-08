@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'demo-polish',
+    date: '2026-11-08',
+    title: 'Clearer words and a cleaner Start over',
+    points: [
+      'Start over in the demo now clears everything it kept: unposted drafts, what you’ve marked as seen, a walkthrough you were in, and moved map cards and layouts.',
+      'A check-in draft has Back at every step and a Discard draft link.',
+      'Where lower is better, a gap says “over”, not “short”, and a number shown equal to its plan counts as met.',
+      'Goals says what Needs attention counts; reviews past their date say so; walking a review counts the whole review.',
+      'Data lists goals in key order and says why a cell doesn’t apply. The demo’s reasons read less alike, and the Demo panel says plainly that Faro is a prototype.',
+    ],
+    articles: ['demo', 'check-in', 'goal-page', 'needs-attention', 'reviews', 'data'],
+  },
+  {
     id: 'describe-system',
     date: '2026-11-08',
     title: 'An AI assistant can ask what Faro is',
