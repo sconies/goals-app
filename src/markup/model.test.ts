@@ -6,6 +6,7 @@ import { WHATS_NEW } from '../help/whatsNew';
 import {
   aboutOf, buildMarkup, groupMarkups, issueBody, issueTitle, MarkupError, namedParts, newIssueLink, partsUnder, placeOf, raisedIn, raisedText, raisedThis, statusPatch, strokeBox,
   type Markup, type MarkupInput, type PartBox, type Stroke,
+  undoChange,
 } from './model';
 import { markupOps, type MarkupStore } from './ops';
 
@@ -169,7 +170,7 @@ describe('“You raised this”', () => {
   });
 });
 
-describe('a builder’s operations', () => {
+describe('the inbox’s operations (anyone’s, in Faro’s open inbox)', () => {
   const store = (list: Markup[]): MarkupStore => ({
     list: async (o) => list.filter((m) => !o.status || m.status === o.status).slice(0, o.limit),
     get: async (id) => list.find((m) => m.id === id) ?? null,
@@ -188,5 +189,14 @@ describe('a builder’s operations', () => {
     await expect(o.setIssueUrl('mk_1', 'https://example.com/issue/1')).rejects.toThrow(/issue’s address/);
     expect((await o.setIssueUrl('mk_1', ' https://github.com/sconies/goals-app/issues/42?x=1 ')).issueUrl).toBe('https://github.com/sconies/goals-app/issues/42');
     await expect(o.open('mk_none')).rejects.toThrow(/no markup/);
+  });
+
+  it('undoes a status change through the same rule, putting back what it replaced, recorded as whoever undoes it', async () => {
+    const list = [make({ id: 'mk_1' })];
+    const o = ops(list);
+    const was = await o.setStatus('mk_1', { status: 'wont-fix', reason: 'Calm is the point.', by: 'Maya' });
+    await o.setStatus('mk_1', { status: 'fixed', fixedIn: WHATS_NEW[0]!.id, by: 'Sam' });
+    expect(await o.setStatus('mk_1', undoChange(was, 'Lane'))).toMatchObject({ status: 'wont-fix', wontFixReason: 'Calm is the point.', fixedIn: null, statusBy: 'Lane' });
+    expect(undoChange({ status: 'new', fixedIn: null, wontFixReason: null }, 'Lane')).toEqual({ status: 'new', fixedIn: null, reason: null, by: 'Lane' });
   });
 });

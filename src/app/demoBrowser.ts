@@ -8,7 +8,7 @@
    back trail, and the research bar's "skipped" screens.
    Kept, because they are about the viewer rather than the example: who you are viewing as (Start over keeps the
    person; switch in the Demo panel), appearance (theme, accent, motion, sound), consent and ids for research and
-   telemetry, a builder token, and the markups you raised (the inbox still has them). */
+   telemetry, the token an older inbox kept, and the markups you raised (the inbox still has them). */
 
 /** localStorage keys (exact, or a prefix ending in ':') that describe the example or someone's progress through it. */
 export const DEMO_LOCAL = [
