@@ -23,7 +23,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | Coach and leads | `RETRO` `CHANGE-LOG` `ADMIN` | 14 | `evals/journeys.cjs` |
 | U11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | Anyone starting fresh | `ONBOARDING` `IDENTITY` `DEMO-MODE` `CHANGE-LOG` | 14 | `evals/journeys.cjs` |
 | U12 | Demo: switch person, look around, start over | Anyone evaluating the tool | `DEMO-MODE` | 4 | `evals/journeys.cjs` |
-| U13 | Anyone sets up a review: name, cadence, goals, people |  | `REVIEW-SETUP` `LEVELS` `CHANGE-LOG` | 10 | `evals/journeys.cjs` |
+| U13 | Anyone sets up a review: name, cadence, goals, people |  | `REVIEW-SETUP` `LEVELS` `CHANGE-LOG` | 11 | `evals/journeys.cjs` |
 | U14 | An admin adds a person and makes them an admin |  | `ADMIN` `CHANGE-LOG` | 8 | `evals/journeys.cjs` |
 | U15 | Call it greener than the numbers, with a reason, in the status sheet |  | `OWNER-CALL` `GREENER` `CHECKIN-STATUS-VS-PLAN` | 8 | `evals/journeys.cjs` |
 | U16 | Home by responsibility: every ask waiting on you in one place, and one navigation |  | `ATTENTION` `WATCHING` `ONE-ASK` `ONE-WATCHING` | 4 | `evals/journeys.cjs` |
@@ -56,7 +56,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U45 | Undo an import: every row back as it was, and a row changed since skipped and listed | A goal owner | `IMPORT-UNDO` `BULK-EDIT` | 8 | `evals/journeys.cjs` |
 | U47 | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so |  | `CONNECT-CLAUDE` `MARKUP-INBOX` | 12 | `evals/journeys.cjs` |
 | U49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all | Someone trying Faro after the demo | `ONBOARDING` `WORKSPACES` `REVIEWS` `CALENDAR-WEEKS` `DEMO-MODE` | 30 | `evals/journeys.cjs` |
-| U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Inbox, and old links still land | An admin, then a team member | `WORKSPACE-SECTIONS` | 14 | `evals/journeys.cjs` |
+| U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams, Inbox and Privacy (read-only), and old links still land | An admin, then a team member | `WORKSPACE-SECTIONS` | 14 | `evals/journeys.cjs` |
 | U52 | Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time | Anyone | `INBOX-TRIAGE` `MARKUP-INBOX` `FEEDBACK-INBOX` | 30 | `evals/journeys.cjs` |
 
 ## Platform checks

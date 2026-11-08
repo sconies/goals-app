@@ -38,8 +38,8 @@ import { CountNumber } from '../ui/Count';
 import { MenuButton } from '../ui/MenuButton';
 import { useShellTop } from '../ui/shellTop';
 import { useWidth } from '../ui/useWidth';
-import { reducedMotion, STORY_MS } from '../ui/motion';
-import { effectOn, landedMoment, openMotionLab, storyPace } from '../app/appearance';
+import { MOTION_MS, reducedMotion, STORY_MS } from '../ui/motion';
+import { effectOn, landedMoment, openMotionLab, storyOn, storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 import { ArchivedGoalScope } from '../app/state';
 import { canDeleteCheckIn } from '../domain/removal';
@@ -278,7 +278,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
   const num = figures.nowValue != null && goal.kind !== 'milestone'
-    ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={STORY_MS * storyPace()} onLanded={landedMoment} />
+    ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={storyOn() ? STORY_MS * storyPace() : MOTION_MS} onLanded={storyOn() ? landedMoment : undefined} land={storyOn()} />
     : figures.now;
   return (
     <div className="goal-bar-slot" ref={slot} style={c.on ? { height: c.height } : undefined}>
@@ -504,7 +504,8 @@ function GoalChart({ goal, stale, landed, hit, card }: { goal: Goal; stale: bool
   const a = assessPosted(goal, cycle, app.snapshot.checkIns, week);
   const latest = own[own.length - 1] ?? null;
   const ptg = latest?.pathToGreen ?? null;
-  const draw = !reducedMotion();
+  // The chart is drawn in its final state at once; it draws itself in only when the story is switched on (Motion lab).
+  const draw = !reducedMotion() && storyOn();
   // Drag along the chart to read any week: its number, the plan that week, and the reason given.
   const scrub: Scrub = {
     read: (w) => {
@@ -530,13 +531,13 @@ function GoalChart({ goal, stale, landed, hit, card }: { goal: Goal; stale: bool
     <section className="block goal-chart-block" aria-label="Chart" data-part="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && draw} hit={hit} marks={stale ? null : card.marks} />
+          <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} />
           {(caption || goal.originalPlan) && <figcaption className="small">{caption}{goal.originalPlan ? <PlanChanges goal={goal} /> : null}</figcaption>}
         </figure>
       )}
       {goal.kind === 'range' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
-          <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && draw} />
+          <RangeChart goal={goal} weeks={cycle.weeks} week={week} series={series} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} />
           {caption && <figcaption className="small">{caption}</figcaption>}
         </figure>
       )}

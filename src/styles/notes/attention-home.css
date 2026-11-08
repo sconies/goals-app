@@ -17,6 +17,7 @@ a.dash-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 }
 .dash-label { font-size: var(--t-xs); line-height: 1rem; font-weight: 500; color: var(--muted); letter-spacing: .01em; }
 .dash-label-when { display: none; }
+.dash-missed .dash-label { display: inline-flex; align-items: center; gap: 4px; color: var(--risk-fg); font-weight: 600; }
 .dash-value { font-size: var(--t-md); line-height: 1.375rem; font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
 .dash-sub { font-size: 0.8125rem; line-height: 1.125rem; color: var(--muted); }
 .dash-counts { display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0; }

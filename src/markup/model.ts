@@ -255,10 +255,21 @@ export const markupToRow = (m: Markup): Omit<MarkupRow, 'status' | 'issue_url' |
   route: m.route, path: m.path, goal_id: m.goalId, review_id: m.reviewId, parts: m.parts, strokes: m.strokes, context: m.context, steps: m.steps, errors: m.errors, pictures: m.pictures,
 });
 
+/**
+ * A person as the inbox names them: their name only, never an email address (re-review, 8 Nov, backlog T: the inbox is
+ * open to anyone, and a status once said who changed it by their email). "Lane Hirschfield <lane@…>" is "Lane
+ * Hirschfield"; a bare address is "Someone". Used wherever a markup or a piece of feedback is read, so the app and the AI
+ * inbox tools say the same.
+ */
+export function nameOnly(v: string | null | undefined): string {
+  const s = (v ?? '').replace(/<[^>]*@[^>]*>/g, '').replace(/\(?[^\s()<>]+@[^\s()<>]+\)?/g, '').replace(/\s+/g, ' ').trim();
+  return s || (v && v.includes('@') ? 'Someone' : '');
+}
+
 export const markupFromRow = (r: MarkupRow): Markup => ({
-  id: r.id, workspaceId: r.workspace_id, workspaceName: r.workspace_name, demo: !!r.demo, personId: r.person_id, personName: r.person_name, line: r.line, mood: r.mood ?? null,
+  id: r.id, workspaceId: r.workspace_id, workspaceName: r.workspace_name, demo: !!r.demo, personId: r.person_id, personName: nameOnly(r.person_name), line: r.line, mood: r.mood ?? null,
   route: r.route, path: r.path, goalId: r.goal_id, reviewId: r.review_id, parts: r.parts ?? [], strokes: r.strokes ?? [], context: r.context, steps: r.steps ?? [], errors: r.errors ?? [],
-  pictures: r.pictures ?? [], status: r.status, issueUrl: r.issue_url, fixedIn: r.fixed_in, wontFixReason: r.wont_fix_reason, statusBy: r.status_by, statusAt: r.status_at,
+  pictures: r.pictures ?? [], status: r.status, issueUrl: r.issue_url, fixedIn: r.fixed_in, wontFixReason: r.wont_fix_reason, statusBy: r.status_by == null ? null : nameOnly(r.status_by), statusAt: r.status_at,
   createdAt: new Date(r.created_at).toISOString(),
 });
 
@@ -275,7 +286,7 @@ export function statusPatch(c: StatusChange, now: string, entries: string[]): Pi
   if (c.status === 'fixed' && entries.length && !entries.includes(fixedIn)) throw new MarkupError(`There’s no What’s new entry “${fixedIn}”.`);
   const reason = c.status === 'wont-fix' ? (c.reason ?? '').trim() : '';
   if (c.status === 'wont-fix' && !reason) throw new MarkupError('Say why it won’t be fixed.');
-  return { status: c.status, fixedIn: fixedIn || null, wontFixReason: reason ? reason.slice(0, 2000) : null, statusBy: c.by.slice(0, 200), statusAt: now };
+  return { status: c.status, fixedIn: fixedIn || null, wontFixReason: reason ? reason.slice(0, 2000) : null, statusBy: nameOnly(c.by).slice(0, 200) || 'Someone', statusAt: now };
 }
 
 /** Undoing a status change: the change that puts back the status it replaced (with its What's new entry or reason),

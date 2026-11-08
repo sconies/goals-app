@@ -217,9 +217,12 @@ module.exports = {
     // Wizard step 3 at 390 with the data source open (1).
     {
       const [c, p] = await open(390, 700, 'mateo', '/goals/new');
-      await toNumbers(p); await cont(p);
-      await p.getByText('Data source and definition').click();
-      for (const lab of ['Data source', 'Definition']) {
+      await toNumbers(p);
+      // How it's measured is asked in the open on the numbers step, as set-up does (re-review, 8 Nov, backlog T).
+      if (!(await p.getByRole('textbox', { name: /^How it’s measured/ }).isVisible())) f('(T7) New goal: “How it’s measured” is not shown on the numbers step');
+      await cont(p);
+      await p.getByText('Data source (optional)').click();
+      for (const lab of ['Data source']) {
         // (A label that wraps its field is named with the field's text too, so a goal with a definition reads “Definition Share of…”.)
         const el = p.getByRole('textbox', { name: new RegExp('^' + lab) });
         await p.evaluate(() => window.scrollTo(0, 0));

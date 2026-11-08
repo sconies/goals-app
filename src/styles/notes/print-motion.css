@@ -6,7 +6,9 @@
       word. */
 
 /* ---------- 1. motion ---------- */
-@keyframes pm-page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* Transform only: a page is readable from its first frame, however slowly the frames come (backlog T, 8 Nov: an
+   opacity fade left pages blank wherever the browser was busy or drew few frames). */
+@keyframes pm-page-in { from { transform: translateY(6px); } to { transform: none; } }
 @keyframes pm-ring-in { from { stroke-dasharray: 0 999; } }
 @keyframes pm-shape-swap { 0% { opacity: 0; transform: scale(.4) rotate(-90deg); } 70% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: none; } }
 @keyframes pm-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }

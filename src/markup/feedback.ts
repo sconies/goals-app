@@ -9,7 +9,7 @@
    - localFeedback: with no database, this workspace's feedback from the app, its statuses kept in this browser. */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Feedback } from '../domain/types';
-import { MarkupError, statusPatch, type MarkupStatus, type Mood, type StatusChange } from './model';
+import { MarkupError, nameOnly, statusPatch, type MarkupStatus, type Mood, type StatusChange } from './model';
 
 export interface InboxFeedback {
   id: string;
@@ -38,9 +38,9 @@ export interface FeedbackInboxRow {
 }
 
 const iso = (v: string | null | undefined) => (v ? new Date(v).toISOString() : null);
-const triageFromRow = (r: Partial<FeedbackInboxRow>): Triage => ({ status: r.status ?? 'new', fixedIn: r.fixed_in ?? null, wontFixReason: r.wont_fix_reason ?? null, statusBy: r.status_by ?? null, statusAt: iso(r.status_at) });
+const triageFromRow = (r: Partial<FeedbackInboxRow>): Triage => ({ status: r.status ?? 'new', fixedIn: r.fixed_in ?? null, wontFixReason: r.wont_fix_reason ?? null, statusBy: r.status_by == null ? null : nameOnly(r.status_by), statusAt: iso(r.status_at) });
 export const feedbackFromInboxRow = (r: FeedbackInboxRow): InboxFeedback => ({
-  id: r.id, workspaceId: r.workspace_id, workspaceName: r.workspace_name ?? '', personId: r.person_id, personName: r.person_name ?? '',
+  id: r.id, workspaceId: r.workspace_id, workspaceName: r.workspace_name ?? '', personId: r.person_id, personName: nameOnly(r.person_name),
   path: r.path ?? '', mood: r.mood, text: r.text ?? '', at: iso(r.at) ?? r.at, ...triageFromRow(r),
 });
 const triageToRow = (t: Triage) => ({ status: t.status, fixed_in: t.fixedIn, wont_fix_reason: t.wontFixReason, status_by: t.statusBy, status_at: t.statusAt });
@@ -125,7 +125,7 @@ export function localFeedback(o: { workspaceId: string; workspaceName: string; f
   const all = (): InboxFeedback[] => {
     const kept = readKept();
     return o.feedback().map((f): InboxFeedback => ({
-      id: f.id, workspaceId: o.workspaceId, workspaceName: o.workspaceName, personId: f.personId, personName: o.personName(f.personId),
+      id: f.id, workspaceId: o.workspaceId, workspaceName: o.workspaceName, personId: f.personId, personName: nameOnly(o.personName(f.personId)),
       path: f.path, mood: f.mood, text: f.text, at: f.at, ...(kept[f.id] ?? triageFromRow({})),
     })).sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
   };
