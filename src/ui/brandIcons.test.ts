@@ -2,8 +2,7 @@
 /* The committed icons are what the code draws (npm run icons rewrites them), and index.html links them. */
 import fs from 'node:fs';
 import path from 'node:path';
-import { ICON_FILES, iconSvg, manifest } from './brandIcons';
-import { BRAND } from './brandPaths';
+import { ICON_COLOURS, ICON_FILES, iconSvg, manifest } from './brandIcons';
 
 const pub = (f: string) => path.join(__dirname, '..', '..', 'public', f);
 /** A PNG's width and height, from its header. */
@@ -15,10 +14,10 @@ describe('Faro’s icons', () => {
     expect(JSON.parse(fs.readFileSync(pub('manifest.webmanifest'), 'utf8'))).toEqual(manifest());
   });
 
-  it('are a deep-teal tile with the F in paper, amber and teal', () => {
+  it('are a deep-teal tile with the F in white, bright amber and bright teal', () => {
     for (const kind of ['favicon', 'any', 'maskable', 'apple'] as const) {
       const svg = iconSvg(kind);
-      for (const c of [BRAND.ink, BRAND.paper, BRAND.amber, BRAND.teal]) expect(svg, kind).toContain(c);
+      for (const c of Object.values(ICON_COLOURS)) expect(svg, kind).toContain(c);
     }
   });
 

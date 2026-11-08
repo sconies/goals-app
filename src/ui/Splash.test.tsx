@@ -15,8 +15,8 @@ describe('Faro’s splash', () => {
     expect(shouldShowSplash({ webdriver: true, forced: true, storage: store() })).toBe(true);
   });
 
-  it('is about 1.5 seconds, and draws the whole logo without words for screen readers', () => {
-    expect(SPLASH_TIMING.outAt + SPLASH_TIMING.out).toBeLessThanOrEqual(1600);
+  it('is under 2 seconds, and draws the whole logo without words for screen readers', () => {
+    expect(SPLASH_TIMING.outAt + SPLASH_TIMING.out).toBeLessThanOrEqual(2000);
     expect(SPLASH_TIMING.reduced.in).toBeLessThan(250);
     const { container } = render(<Splash onDone={() => {}} />);
     expect(container.querySelectorAll('.sp-letter')).toHaveLength(3);

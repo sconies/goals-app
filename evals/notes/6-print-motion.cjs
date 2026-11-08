@@ -8,6 +8,8 @@ const LIMIT = 250;
 // The goal page's story (chart drawing in, the headline number counting and landing, quarters filling, a status turning)
 // is off by default since backlog T (8 Nov), so every page here is held to 250ms. Switched on in the Motion lab it is
 // slower on purpose (up to 4 seconds at the default pace), checked by N9.
+// The launch splash (src/ui/Splash.tsx, backlog I) is the one other exception: under 2 s, once per launch, over the app
+// as it loads. Automated browsers never see it unless they ask, so it can't count here; N4 [LAUNCH] checks it.
 
 /** Samples every animation and every counter on the page, every frame from the first paint. */
 const SAMPLER = () => {

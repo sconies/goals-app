@@ -4,10 +4,12 @@
    Once per app launch: the first load in a browser session, which is also every launch from the home screen. Never on
    navigation. It lies over the app, which loads and draws behind it, so nothing waits for it and nothing shifts when it
    goes; a tap, a click or any key ends it at once.
-   The stem stands first. The amber beam is its light: it starts behind the stem, pointing the other way, and swings half a
-   turn about it in 3D (rotateY in perspective, glowing); halfway round it points straight at you and the screen flashes
-   once with its light; then it settles into the F (Lane's refinement, 8 Nov). Then the teal bar is drawn out of the
-   stem and "aro" is drawn in, outline first, then filled. About 1.5 s in all.
+   The stem stands first. The amber beam is its light (Lane's refinements, 8 Nov: only the beam swings, wide, and flashes
+   as it faces you): it starts far off to one side, long, as if crossing the screen, and swings half a turn about the
+   stem in 3D (rotateY in perspective, glowing); halfway round it points straight at you and the screen flashes once with
+   its light; it overshoots wide to the other side, swings back and settles into the F. Then the teal bar is drawn out
+   of the stem and "aro" is drawn in, outline first, then filled. Under 2 s in all: the one exception to the app's
+   250 ms motion rule (backlog T), since it plays once per launch and never in front of work.
    With reduced motion the whole logo simply fades in (200 ms), holds a moment and fades out: nothing turns or draws.
    Animated with the Web Animations API, so the app-wide reduced-motion rule (styles.css) doesn't cut it short and it
    can be finished from code. Automated browsers (the evals) never see it unless they ask (window.__faroSplash). */
@@ -19,7 +21,7 @@ import '../styles/splash.css';
 export const SPLASH_SEEN = 'faro-splash-seen';
 
 /** Timings in ms. The beam and bar sweep, then "aro" draws, then the splash fades away. */
-export const SPLASH_TIMING = { sweep: 760, flashAt: 0.4, flash: 300, barAt: 700, bar: 260, drawAt: 760, draw: 400, letterGap: 70, fillAt: 1040, fill: 220, outAt: 1320, out: 220, skip: 140, reduced: { in: 200, hold: 350, out: 200 } } as const;
+export const SPLASH_TIMING = { sweep: 1080, flashAt: 0.3, flash: 320, barAt: 1040, bar: 260, drawAt: 1100, draw: 420, letterGap: 70, fillAt: 1400, fill: 220, outAt: 1700, out: 220, skip: 140, reduced: { in: 200, hold: 350, out: 200 } } as const;
 
 interface Env { webdriver: boolean; forced: boolean; storage: Pick<Storage, 'getItem' | 'setItem'> | null }
 
@@ -76,16 +78,18 @@ export function Splash({ onDone }: { onDone: () => void }) {
       leave(T.reduced.out, T.reduced.in + T.reduced.hold);
     } else {
       play(el.querySelector('.sp-stem')!, [{ opacity: 0, transform: 'translateY(6%)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
-      // The beam: a lighthouse's light. It starts behind the stem, pointing the other way, and swings half a turn about
-      // it; halfway round it points straight at you and the screen flashes once; then it settles into the F.
+      // The beam: a lighthouse's light. It starts far off to the left, long, as if crossing the whole screen from behind
+      // the stem; it swings half a turn about the stem in perspective, and as it points straight at you the screen flashes
+      // once; it carries on past its place, wide across the right, then swings back and settles into the F.
       const glow = (px: number, b: number) => `drop-shadow(0 0 ${px}px ${BRAND.amber}) brightness(${b})`;
-      const turn = (deg: number) => `perspective(520px) rotateY(${deg}deg)`;
+      const turn = (y: number, z: number, len: number) => `perspective(520px) rotateY(${y}deg) rotateZ(${z}deg) scaleX(${len})`;
       play(el.querySelector('.sp-beam')!, [
-        { opacity: 0, transform: turn(-180), filter: glow(0, 1.3), easing: 'ease-out' },
-        { opacity: 1, offset: 0.12, transform: turn(-165), filter: glow(16, 1.3), easing: 'ease-in' },
-        { opacity: 1, offset: T.flashAt, transform: turn(-90), filter: glow(22, 1.4), easing: 'cubic-bezier(.15,.7,.3,1)' },
-        { opacity: 1, offset: 0.86, transform: turn(7), filter: glow(5, 1.05), easing: 'ease-in-out' },
-        { opacity: 1, transform: turn(0), filter: glow(0, 1) },
+        { opacity: 0, transform: turn(-180, 14, 3.4), filter: glow(0, 1.3), easing: 'ease-out' },
+        { opacity: 1, offset: 0.1, transform: turn(-172, 12, 3.4), filter: glow(18, 1.3), easing: 'ease-in' },
+        { opacity: 1, offset: T.flashAt, transform: turn(-90, 4, 2.6), filter: glow(24, 1.4), easing: 'cubic-bezier(.2,.6,.3,1)' },
+        { opacity: 1, offset: 0.62, transform: turn(28, -8, 2.2), filter: glow(12, 1.15), easing: 'cubic-bezier(.4,0,.2,1)' },
+        { opacity: 1, offset: 0.86, transform: turn(-6, 1.5, 0.96), filter: glow(4, 1.04), easing: 'ease-in-out' },
+        { opacity: 1, transform: turn(0, 0, 1), filter: glow(0, 1) },
       ], { duration: T.sweep, delay: 80 });
       play(el.querySelector('.sp-flash')!, [{ opacity: 0 }, { opacity: 0.9, offset: 0.35 }, { opacity: 0 }], { duration: T.flash, delay: 80 + T.sweep * T.flashAt - T.flash * 0.35, easing: 'ease-out' });
       // Then the teal bar is drawn out of the stem.

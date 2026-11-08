@@ -25,10 +25,10 @@ export const WHATS_NEW: NewsEntry[] = [
     date: '2026-11-08',
     title: 'An icon you can see, a lighthouse to open with, and a first page that says what Faro is for',
     points: [
-      'Faro’s icon is now a deep-teal tile with the F in white, the amber beam and the teal bar, so it stands out on your phone’s home screen and in the browser tab, on light and dark backgrounds.',
+      'Faro’s icon is now a deep-teal tile with the F in white and a bright amber beam and teal bar, so it stands out on your phone’s home screen and in the browser tab, on light and dark backgrounds.',
       'Faro can be added to your home screen like an app, and opens full screen. Help says how, for Android and iPhone.',
       'The first page of a new Faro says what it’s for: run the company on outcomes, and manage by exception. Its main button now opens the demo; setting up your own workspace is just below.',
-      'Each time you open Faro, the amber beam swings round the F like a lighthouse’s light, flashing as it points at you, and settles into place; then the teal bar and “aro” are drawn in. It takes about a second and a half, the app loads behind it, and a tap or any key skips it. With reduced motion, the logo just fades in.',
+      'Each time you open Faro, the amber beam sweeps across the screen like a lighthouse’s light, flashing as it points at you, and settles into place in the F; then the teal bar and “aro” are drawn in. It takes under two seconds, the app loads behind it, and a tap or any key skips it. With reduced motion, the logo just fades in.',
     ],
     articles: ['any-device', 'settings', 'set-up'],
   },
