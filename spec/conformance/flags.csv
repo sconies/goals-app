@@ -4596,7 +4596,7 @@ week,goal,flags,handled,needs_attention
 37,G-19,due,,no
 37,G-20,,,no
 37,G-21,risk,,yes
-37,G-22,greener,,yes
+37,G-22,,,no
 37,G-23,risk due,,yes
 37,G-24,,,no
 37,G-25,due,,no
@@ -4720,7 +4720,7 @@ week,goal,flags,handled,needs_attention
 38,G-19,trend,,yes
 38,G-20,,,no
 38,G-21,risk,,yes
-38,G-22,greener,,yes
+38,G-22,,,no
 38,G-23,risk trend,,yes
 38,G-24,,,no
 38,G-25,,,no
@@ -4844,7 +4844,7 @@ week,goal,flags,handled,needs_attention
 39,G-19,,,no
 39,G-20,,,no
 39,G-21,risk due,,yes
-39,G-22,greener,,yes
+39,G-22,,,no
 39,G-23,risk trend,,yes
 39,G-24,due,,no
 39,G-25,,,no
@@ -4968,7 +4968,7 @@ week,goal,flags,handled,needs_attention
 40,G-19,trend,,yes
 40,G-20,,,no
 40,G-21,risk,,yes
-40,G-22,greener,,yes
+40,G-22,,,no
 40,G-23,risk,,yes
 40,G-24,due,,no
 40,G-25,,,no
@@ -5092,7 +5092,7 @@ week,goal,flags,handled,needs_attention
 41,G-19,trend,,yes
 41,G-20,,,no
 41,G-21,risk,,yes
-41,G-22,greener,,yes
+41,G-22,,,no
 41,G-23,risk,,yes
 41,G-24,,,no
 41,G-25,,,no
@@ -5216,7 +5216,7 @@ week,goal,flags,handled,needs_attention
 42,G-19,trend,,yes
 42,G-20,,,no
 42,G-21,risk,,yes
-42,G-22,greener,,yes
+42,G-22,,,no
 42,G-23,,,no
 42,G-24,,,no
 42,G-25,,,no
@@ -5340,7 +5340,7 @@ week,goal,flags,handled,needs_attention
 43,G-19,,,no
 43,G-20,,,no
 43,G-21,risk,,yes
-43,G-22,greener,,yes
+43,G-22,,,no
 43,G-23,,,no
 43,G-24,due,,no
 43,G-25,,,no
@@ -5464,7 +5464,7 @@ week,goal,flags,handled,needs_attention
 44,G-19,,,no
 44,G-20,,,no
 44,G-21,,,no
-44,G-22,greener,,yes
+44,G-22,,,no
 44,G-23,due,,no
 44,G-24,,,no
 44,G-25,,,no
@@ -5590,7 +5590,7 @@ week,goal,flags,handled,needs_attention
 45,G-19,trend,,yes
 45,G-20,,,no
 45,G-21,due,,no
-45,G-22,greener,,yes
+45,G-22,,,no
 45,G-23,due,,no
 45,G-24,due,,no
 45,G-25,,,no

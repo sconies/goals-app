@@ -72,7 +72,8 @@ export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { 
   if (status.status === 'risk') add('risk', why ?? `The owner called it ${lower(FLAG.risk)}.`, 'risk');
   const trend = status.status === 'done' ? null : worseningTrend(goal, cycle, s.checkIns);
   if (trend) add('trend', trend, 'risk');
-  if (status.greener && latest && status.status !== 'stale') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
+  // A done goal is finished: how it was called on the way there is no longer news (re-review, 8 Nov, backlog T).
+  if (status.greener && latest && status.status !== 'stale' && status.status !== 'done') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
   if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due before the review in week ${week}.`, 'info');
 
   flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);

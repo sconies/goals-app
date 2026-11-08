@@ -77,10 +77,10 @@ export function Settings() {
 
       <section className="block settings-block motion-lab-entry" aria-labelledby="set-motion">
         <h2 className="block-title" id="set-motion">Motion lab</h2>
-        <p className="hint" style={{ marginTop: 0 }}>For the moment a goal’s number lands. Slow it right down, make it hit harder, give it a wobble or a bounce, or switch it all off. Purely for fun; nobody else sees your choice.</p>
+        <p className="hint" style={{ marginTop: 0 }}>For the moment a goal’s number lands. Off by default, so a goal’s page is readable the moment it opens. Switch the story on to watch the chart draw in and the number land; slow it down, make it hit harder, give it a wobble or a bounce. Purely for fun; nobody else sees your choice.</p>
         <span className="row" style={{ gap: 'var(--s3)', flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="button" className="btn sm" onClick={openMotionLab}>Open the Motion lab</button>
-          <span className="small muted">{paceWords(look.pace)} · {impactWords(look.impact)} impact · {LANDINGS.find(([k]) => k === look.landing)?.[1]}</span>
+          <span className="small muted">{look.story ? <>Story on · {paceWords(look.pace)} · {impactWords(look.impact)} impact · {LANDINGS.find(([k]) => k === look.landing)?.[1]}</> : 'Story off: goal pages show their chart and number at once'}</span>
         </span>
       </section>
     </div>

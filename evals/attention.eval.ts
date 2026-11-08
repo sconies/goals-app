@@ -6,7 +6,7 @@ import { applyCommit } from '../src/data/store';
 import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { attentionFor, attentionList, splitAttention } from '../src/domain/attention';
 import { aiBrief } from '../src/domain/export';
-import { dashboard, groupWatched, nextReview } from '../src/domain/home';
+import { dashboard, groupWatched, missedReviews, nextReview } from '../src/domain/home';
 import { currentWeek } from '../src/domain/plan';
 import { agendaOf, reviewSession, watchedGoals } from '../src/domain/review';
 import type { Ask, ApiToken, CheckIn, Decision, Snapshot } from '../src/domain/types';
@@ -69,7 +69,36 @@ describe('needs attention means new since someone looked', () => {
   });
 });
 
+describe('one counting rule for attention (re-review, 8 Nov, backlog T)', () => {
+  for (const at of [today, new Date('2026-11-08T18:20:00Z')]) {
+    const s = seed(at);
+    const all = attentionList(s, cycle, at);
+    const { needs, handled: inHand } = splitAttention(all);
+    it(R('ATTENTION-HANDLED', `on ${at.toISOString().slice(0, 10)}, every flagged goal either needs attention or is being handled, so the tab and the board add up`), () => {
+      expect(needs.length + inHand.length).toBe(all.length);
+      expect(needs.some((a) => inHand.includes(a))).toBe(false);
+    });
+    it(R('ATTENTION-HANDLED', `on ${at.toISOString().slice(0, 10)}, a done goal never needs attention and is never on a review's list to discuss`), () => {
+      const done = s.goals.filter((g) => attentionFor(g, s, cycle, at).status.status === 'done');
+      expect(done.length).toBeGreaterThan(0);
+      expect(needs.filter((a) => a.status.status === 'done').map((a) => a.goal.id)).toEqual([]);
+      for (const r of s.reviews) {
+        const { discuss } = agendaOf(reviewSession(r, s, cycle, at, currentWeek(cycle, at)));
+        expect(discuss.filter((a) => a.status.status === 'done').map((a) => a.goal.id)).toEqual([]);
+      }
+    });
+  }
+});
+
 describe('Home at a glance', () => {
+  it(R('HOME-DASHBOARD', 'a session past its date and not held shows before the next review, with how long past (re-review, 8 Nov, backlog T)'), () => {
+    const sunday = new Date('2026-11-08T18:20:00Z');
+    const s = seed(sunday);
+    const d = dashboard('amara', s, cycle, currentWeek(cycle, sunday), sunday);
+    expect(d.missed[0]).toMatchObject({ id: 'weekly', name: 'Platform leadership weekly', date: '2026-11-05', daysPast: 3 });
+    // On its own day it isn't missed yet.
+    expect(missedReviews('amara', s, cycle, currentWeek(cycle, today), today).map((m) => m.id)).not.toContain('weekly');
+  });
   it(R('HOME-DASHBOARD', 'an owner sees their goals by status, their on-time streak, what they watch and their next review'), () => {
     const d = dashboard('pavel', s0, cycle, week, today);
     expect(d.scope).toBe('mine');

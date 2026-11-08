@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router';
+import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router';
 import { AppProvider, useApp } from './app/state';
 import type { Mode, Store } from './data/store';
 import { Activity } from './screens/Activity';
@@ -82,7 +82,7 @@ export function Routed() {
         {modules.screens.flatMap((m) => (m.routes ?? []).map((r) => <Route key={r.path} path={r.path} element={r.element} />))}
         {modules.screens.flatMap((m) => (m.sections ?? []).map((x) => <Route key={x.id} path={'/workspace/' + x.id} element={<WorkspaceHome section={x.id} />} />))}
         {modules.redirects.map(([from, to]) => <Route key={from} path={from} element={<Moved to={to} />} />)}
-        <Route path="*" element={<div className="page narrow"><Empty title="Page not found" /></div>} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       </ErrorBoundary>
     </Shell>
@@ -97,5 +97,18 @@ export function App({ store, mode = 'demo', today }: { store: Store; mode?: Mode
         <Routed />
       </AppProvider>
     </BrowserRouter>
+  );
+}
+
+/** An address that leads nowhere: say so, and offer the way home (re-review, 8 Nov, backlog T). */
+function NotFound() {
+  return (
+    <div className="page narrow not-found">
+      <h1 className="title-xl">Page not found</h1>
+      <Empty title="There’s nothing at this address">
+        <span className="muted">The link may be old, or mistyped. Everything is still reachable from Home and the sidebar.</span>
+        <div className="row"><Link className="btn primary" to="/">Go to Home</Link><Link className="btn" to="/help">Help</Link></div>
+      </Empty>
+    </div>
   );
 }

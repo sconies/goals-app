@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { weekDates } from '../domain/plan';
-import { reviewSession } from '../domain/review';
+import { reviewedText, reviewSession } from '../domain/review';
 import type { Decision, Goal } from '../domain/types';
 import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
@@ -58,7 +58,7 @@ export function ReviewBar({ goalId }: { goalId: string }) {
         <span className="small strong ellipsis">{rv.review.name}</span>
         {/* The walk is the goals to discuss; the review covers more (those with nothing flagged), so both are named
             and "reviewed" counts the whole review, as its page and ring do (demo review, 8 Nov, item 7). */}
-        <span className="hint">Goal {rv.index + 1} of {rv.total}{rv.session && rv.total < rv.session.total ? ' to discuss' : ''} · {rv.session ? `${rv.session.done} of ${rv.session.total}` : rv.done} reviewed</span>
+        <span className="hint">Goal {rv.index + 1} of {rv.total}{rv.session && rv.total < rv.session.total ? ' to discuss' : ''} · {rv.session ? reviewedText(rv.session) : `${rv.done} reviewed`}</span>
       </span>
       <div className="bar ok reviewbar-track" aria-hidden="true"><i style={{ width: `${rv.total ? (rv.done / rv.total) * 100 : 100}%` }} /></div>
       <button className="iconbtn" aria-label="Previous goal" disabled={rv.index <= 0} onClick={rv.prev}><Icon name="chevron-left" /></button>

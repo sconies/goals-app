@@ -149,10 +149,16 @@ export function daysPast(s: ReviewSession, today: Date): number {
 /** "3 days past": a session not held after its date, said plainly. */
 export const pastText = (days: number) => (days === 1 ? '1 day past' : `${days} days past`);
 
+/** How far a session has got, in the words every view uses: Home's ring, the Reviews list, the review's page and its
+    walkthrough all read these from the same reviewSession (backlog T, 8 Nov: they once disagreed). */
+export const reviewedText = (s: Pick<ReviewSession, 'done' | 'total'>) => `${s.done} of ${s.total} reviewed`;
+/** The same, for a progress ring's label: "2 of 56 goals reviewed", and the review's name where it isn't on screen. */
+export const reviewedLabel = (s: Pick<ReviewSession, 'done' | 'total'>, name?: string) => `${s.done} of ${s.total} goals reviewed${name ? ` in ${name}` : ''}`;
+
 /** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
 export function sessionStateText(st: SessionState): string {
   if (st.kind === 'held') return `${SESSION.held.label} ${dayText(st.on)}`;
-  if (st.kind === 'in-progress') return `${SESSION['in-progress'].label} · ${st.done} of ${st.total} reviewed`;
+  if (st.kind === 'in-progress') return `${SESSION['in-progress'].label} · ${reviewedText(st)}`;
   return SESSION['not-started'].label;
 }
 
