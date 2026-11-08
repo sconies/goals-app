@@ -1,62 +1,227 @@
-/* Workspace: its name and teams, switching workspaces (when there's more than one), the inbox (markups and feedback, open to
-   anyone, with no sign-in), and (for admins) the people in it, AI assistants, what the app records here,
-   feedback, and deleting it. */
-import { lazy, Suspense, useState } from 'react';
-import { Link } from 'react-router';
+/* Workspace, in sections (backlog W, Lane, 8 Nov: "The workspace is too busy. It needs sections so you can actually
+   manage it."). Each section has its own address, /workspace/<section>, and one main action; a side menu on a
+   computer, a list on a phone:
+     Overview          the name, switching workspaces, counts that lead to each section, and deleting it (admins)
+     People            the directory: find someone, add a person (admins), people without an email (admins)
+     Teams             find a team, with its lead and counts; add, rename and remove (admins)
+     Inbox             markups and feedback, open to anyone, worked like an inbox (src/markup/Inbox.tsx)
+     Cycles, Access (admins and AI tokens), Features, Privacy (what the app records), Recently removed: admins only.
+   People who aren't admins see Overview, People, Teams and Inbox. Sections are the settings extension point: a module
+   adds its own (AppModule `sections`, src/core/app.tsx). Old addresses (/workspace?inbox=1&markup=…, #people) lead to
+   the section they meant. */
+import { createContext, lazy, Suspense, useContext, useState, type ReactNode } from 'react';
+import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
-import { Place, useModules } from '../core/app';
+import { useModules, type WorkspaceSection } from '../core/app';
+import { placeSections } from '../core/module';
 import { initials } from '../domain/importer';
 import { normalEmail, personProblems } from '../domain/people';
 import type { Person, Team } from '../domain/types';
 import { teamMembers } from '../domain/actions';
 import { newId } from '../data/store';
+import { useInboxData, type InboxData } from '../markup/inboxData';
 import { Avatar, Sheet } from '../ui/bits';
 import { AiAssistants } from '../ui/AiAssistants';
+import { Icon } from '../ui/Icon';
 import { LeaveSheet, leaveLabel } from '../ui/RemoveSheets';
 import { CycleList, RecentlyRemoved } from '../ui/RecentlyRemoved';
+import { useWidth } from '../ui/useWidth';
 
 const Inbox = lazy(() => import('../markup/Inbox'));
 
-export function WorkspaceHome() {
+/** Below this width, Workspace is a list of sections and one section at a time (a phone). */
+const NARROW = 720;
+
+/** The core's sections, in menu order. A module's sections follow the one they name in `after`, or come last. */
+const CORE: WorkspaceSection[] = [
+  { id: 'overview', label: 'Overview', summary: 'The workspace’s name, what’s in it, and switching to another.', element: <OverviewSection /> },
+  { id: 'people', label: 'People', summary: 'Everyone in the workspace: find someone, or add a person.', element: <PeopleSection /> },
+  { id: 'teams', label: 'Teams', summary: 'The teams, with their leads and how many people and goals each has.', element: <TeamsSection /> },
+  { id: 'inbox', label: 'Inbox', summary: 'Markups and feedback people send. Anyone can read and triage them.', element: <InboxSection /> },
+  { id: 'cycles', label: 'Cycles', summary: 'The workspace’s cycles. One nobody has checked in to can be deleted.', admins: true, element: <CyclesSection /> },
+  { id: 'access', label: 'Access', summary: 'Who the admins are, and the tokens AI assistants use.', admins: true, element: <AccessSection /> },
+  { id: 'features', label: 'Features', summary: 'Parts of Faro this workspace uses, each switched on or off for everyone.', admins: true, element: <FeaturesSection /> },
+  { id: 'privacy', label: 'Privacy', summary: 'What the app records about how it’s used here, and the switch for it.', admins: true, element: <PrivacySection /> },
+  { id: 'removed', label: 'Recently removed', summary: 'Anything removed in the last 30 days, with Restore.', admins: true, element: <RemovedSection /> },
+];
+
+/** Old anchors on the one-page Workspace, and the section each now is. */
+const ANCHORS: Record<string, string> = { inbox: 'inbox', people: 'people', teams: 'teams', cycles: 'cycles', ai: 'access', tokens: 'access', access: 'access', features: 'features', recording: 'privacy', privacy: 'privacy', removed: 'removed' };
+
+/** The sections someone sees, in order: the core's and the modules' that are on; admins-only ones for admins. */
+export function useSections(): WorkspaceSection[] {
   const app = useApp();
+  const { screens } = useModules();
+  return placeSections(CORE, screens.flatMap((m) => m.sections ?? [])).filter((s) => !s.admins || app.viewer.admin);
+}
+
+interface Ctx { inbox: InboxData; narrow: boolean; sections: WorkspaceSection[]; all: WorkspaceSection[] }
+const WsCtx = createContext<Ctx | null>(null);
+const useWs = () => useContext(WsCtx)!;
+
+export function WorkspaceHome({ section }: { section?: string }) {
+  const app = useApp();
+  const { search, hash } = useLocation();
+  const [ref, width] = useWidth<HTMLDivElement>();
+  const inbox = useInboxData();
+  const sections = useSections();
+  const { screens } = useModules();
+  const all = [...CORE, ...screens.flatMap((m) => m.sections ?? [])];
+  const narrow = width > 0 && width < NARROW;
+  // Old addresses: the inbox's (from a GitHub issue) and the one-page Workspace's anchors.
+  if (!section) {
+    const q = new URLSearchParams(search);
+    const markup = q.get('markup');
+    if (q.get('inbox') || markup) return <Navigate to={`/workspace/inbox${markup ? `?markup=${encodeURIComponent(markup)}` : ''}`} replace />;
+    const anchor = ANCHORS[hash.replace('#', '')];
+    if (anchor) return <Navigate to={`/workspace/${anchor}`} replace />;
+  }
+  const id = section ?? 'overview';
+  const here = all.find((s) => s.id === id);
+  const shown = sections.find((s) => s.id === id);
+  const body = !here ? null : shown ? here.element : <AdminsOnly label={here.label} />;
+  const ctx: Ctx = { inbox, narrow, sections, all };
+  return (
+    <WsCtx.Provider value={ctx}>
+      <div className={'page workspace ws-' + id + (narrow ? ' ws-narrow' : '')} ref={ref}>
+        {narrow && section ? (
+          <div className="page-head wsp-head">
+            <Link className="backlink" to="/workspace"><Icon name="chevron-left" /><span className="ellipsis">Workspace</span></Link>
+            <h1 className="title-xl">{here?.label ?? 'Workspace'}</h1>
+          </div>
+        ) : (
+          <div className="page-head wsp-head">
+            <h1 className="title-xl">Workspace</h1>
+            <span className="hint">{app.mode === 'demo' ? 'The example, and any you set up here to try it. All of it stays in this browser.' : 'Each workspace has its own people, teams, goals, cycle and change log.'}</span>
+          </div>
+        )}
+        {narrow && !section ? <SectionList /> : narrow ? <div className="ws-body">{body}</div> : (
+          <div className="ws-layout">
+            <nav className="ws-menu" aria-label="Workspace sections"><SectionLinks current={id} /></nav>
+            <div className="ws-body">{body}</div>
+          </div>
+        )}
+      </div>
+    </WsCtx.Provider>
+  );
+}
+
+/** What a section's entry says beside its name, as plain text: how many people and teams, how many new in the inbox. */
+function useNotes(): Record<string, string> {
+  const app = useApp();
+  const { inbox } = useWs();
+  return {
+    people: String(app.snapshot.people.length),
+    teams: String(app.snapshot.teams.length),
+    ...(inbox.newCount !== null ? { inbox: inbox.newCount ? `${inbox.newCount} new` : 'Nothing new' } : {}),
+  };
+}
+
+const sectionPath = (id: string) => (id === 'overview' ? '/workspace' : `/workspace/${id}`);
+
+/** The side menu on a computer. */
+function SectionLinks({ current }: { current: string }) {
+  const { sections } = useWs();
+  const notes = useNotes();
+  return (
+    <ul className="ws-menu-list">
+      {sections.map((s) => (
+        <li key={s.id}>
+          <Link className="ws-menu-item" to={sectionPath(s.id)} aria-current={s.id === current ? 'page' : undefined}>
+            <span className="ws-menu-label">{s.label}</span>
+            {notes[s.id] && <span className="ws-menu-note">{notes[s.id]}</span>}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The list of sections on a phone: each with what it's for, and its count. */
+function SectionList() {
+  const { sections } = useWs();
+  const notes = useNotes();
+  return (
+    <ul className="ws-list" aria-label="Workspace sections">
+      {sections.map((s) => (
+        <li key={s.id}>
+          <Link className="ws-list-item" to={`/workspace/${s.id}`}>
+            <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
+              <span className="ws-list-label">{s.label}{notes[s.id] && <span className="ws-menu-note"> · {notes[s.id]}</span>}</span>
+              <span className="hint">{s.summary}</span>
+            </span>
+            <Icon name="chevron-right" />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A section's heading, what it's for, and its main action. On a phone the page's own heading names it. */
+function SectionHead({ id, action, children }: { id: string; action?: ReactNode; children?: ReactNode }) {
+  const { all, narrow } = useWs();
+  const s = all.find((x) => x.id === id);
+  return (
+    <div className="ws-section-head">
+      <div className="row between ws-section-title">
+        {!narrow ? <h2 className="block-title">{s?.label}</h2> : <span />}
+        {action}
+      </div>
+      <p className="hint">{children ?? s?.summary}</p>
+    </div>
+  );
+}
+
+/** A section for admins, opened by someone who isn't one. */
+function AdminsOnly({ label }: { label: string }) {
+  const app = useApp();
+  const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
+  return (
+    <div className="stack" style={{ gap: 'var(--s2)' }}>
+      <p>{label} is for the workspace’s admins.</p>
+      <p className="hint">{admins.length ? `Admins here: ${admins.join(', ')}.` : 'There are no admins yet.'} <Link to="/workspace">Back to the overview</Link></p>
+    </div>
+  );
+}
+
+/* ---------- Overview ---------- */
+
+function OverviewSection() {
+  const app = useApp();
+  const { inbox } = useWs();
+  const { installed, on } = useModules();
   const [confirming, setConfirming] = useState(false);
-  const [editing, setEditing] = useState<Person | 'new' | null>(null);
-  // Marking someone as left (or deleting someone with no history) opens from their sheet (ui/RemoveSheets).
-  const [leaving, setLeaving] = useState<Person | null>(null);
   const admin = app.viewer.admin;
-  // A directory that works for a whole company: find by name, role or team, filter by team, and show a page at a time.
-  const [q, setQ] = useState('');
-  const [teamId, setTeamId] = useState('');
-  const [limit, setLimit] = useState(60);
-  const needle = q.trim().toLowerCase();
-  const match = (x: Person) => (!teamId || (teamId === '-' ? !x.teamId || !app.team(x.teamId) : x.teamId === teamId))
-    && (!needle || [x.name, x.role ?? '', app.team(x.teamId ?? '')?.name ?? ''].some((v) => v.toLowerCase().includes(needle)));
-  const found = app.snapshot.people.filter(match);
-  const shown = new Set(found.slice(0, limit).map((x) => x.id));
-  const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id && shown.has(x.id))] as const), ['No team', found.filter((x) => (!x.teamId || !app.team(x.teamId)) && shown.has(x.id))] as const].filter(([, l]) => l.length);
-  const admins = app.snapshot.people.filter((p) => p.admin);
   // Most people are in one workspace: then there's nothing to switch between, only this one's name.
   const several = app.workspaces.length > 1;
+  const noEmail = app.snapshot.people.filter((p) => !p.email).length;
+  const removed = admin ? app.recentlyRemoved().length : 0;
+  const cycles = app.full.cycles.filter((c) => !c.removedAt).length;
+  const counts: [string, string, string][] = [
+    ['people', 'People', `${app.snapshot.people.length} ${app.snapshot.people.length === 1 ? 'person' : 'people'}${admin && noEmail ? `, ${noEmail} without an email` : ''}`],
+    ['teams', 'Teams', `${app.snapshot.teams.length} ${app.snapshot.teams.length === 1 ? 'team' : 'teams'}`],
+    ['inbox', 'Inbox', inbox.newCount === null ? 'Opening…' : inbox.newCount ? `${inbox.newCount} new` : 'Nothing new'],
+    ...(admin ? [
+      ['cycles', 'Cycles', `${app.cycle.name} is open${cycles > 1 ? `, of ${cycles}` : ''}`],
+      ['features', 'Features', `${on.size} of ${installed.length} on`],
+      ['removed', 'Recently removed', removed ? `${removed} in the last 30 days` : 'Nothing'],
+    ] as [string, string, string][] : []),
+  ];
   return (
-    <div className="page workspace">
-      <div className="page-head">
-        <h1 className="title-xl">Workspace</h1>
-        <span className="hint">{app.mode === 'demo' ? 'The example, and any you set up here to try it. All of it stays in this browser.' : 'Each workspace has its own people, teams, goals, cycle and change log.'}</span>
-      </div>
-      <div className="split">
-      <section className="block split-a">
+    <>
+      <SectionHead id="overview" />
+      <section className="block ws-name-block">
         <WorkspaceName several={several} />
         {several && (
-          <div className="stack" style={{ gap: 'var(--s1)' }}>
-            <div className="glist">
-              {app.workspaces.map((w) => (
-                <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => app.switchWorkspace(w.id)}>
-                  <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
-                  <span className="gline-title">{w.name}</span>
-                  <span className="gline-now">{w.id === app.ws.id ? 'Open now' : w.kind === 'example' ? 'Demo data' : 'Your data'}</span>
-                </button>
-              ))}
-            </div>
+          <div className="glist">
+            {app.workspaces.map((w) => (
+              <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => app.switchWorkspace(w.id)}>
+                <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
+                <span className="gline-title">{w.name}</span>
+                <span className="gline-now">{w.id === app.ws.id ? 'Open now' : w.kind === 'example' ? 'Demo data' : 'Your data'}</span>
+              </button>
+            ))}
           </div>
         )}
         <div className="row">
@@ -73,27 +238,43 @@ export function WorkspaceHome() {
             </span>
           </div>
         )}
-        {/* The inbox: markups and feedback people send, open to anyone. Loads only on Workspace (src/markup/Inbox.tsx). */}
-        <Suspense fallback={null}><Inbox /></Suspense>
       </section>
-      <aside className="split-side" aria-label="Teams and settings">
-        <Teams />
-        {admin ? <AiAssistants /> : <section className="block"><h2 className="block-title">AI assistants</h2><p className="hint">Your tokens for an AI assistant are in <Link to="/settings">Settings</Link>.</p></section>}
-        {admin && <Recording />}
-        {admin && <Features />}
-        {/* Modules' own settings (the workspace.settings place). */}
-        <Place name="workspace.settings" />
-        {admin && <FeedbackList />}
-        {admin && <RecentlyRemoved />}
-        {admin && <CycleList />}
-        {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
-      </aside>
-      <section className="block split-b">
-        <div className="row between people-head">
-          <h2 className="block-title">People in {app.ws.name}<span className="hint count-after">· {app.snapshot.people.length}</span></h2>
-          {admin && <button className="btn" onClick={() => setEditing('new')}>Add a person</button>}
-        </div>
-        <p className="hint">{admin ? 'You’re an admin: you can add people, change their details and make others admins.' : `Admins can add people: ${admins.map((p) => p.name).join(', ') || 'no one yet'}.`}</p>
+      <ul className="ws-counts" aria-label="In this workspace">
+        {counts.map(([id, label, says]) => (
+          <li key={id}><Link className="ws-count" to={`/workspace/${id}`}><span className="ws-count-label">{label}</span><span className="ws-count-says">{says}</span><Icon name="chevron-right" /></Link></li>
+        ))}
+      </ul>
+      {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
+    </>
+  );
+}
+
+/* ---------- People ---------- */
+
+function PeopleSection() {
+  const app = useApp();
+  const [editing, setEditing] = useState<Person | 'new' | null>(null);
+  // Marking someone as left (or deleting someone with no history) opens from their sheet (ui/RemoveSheets).
+  const [leaving, setLeaving] = useState<Person | null>(null);
+  const admin = app.viewer.admin;
+  // A directory that works for a whole company: find by name, role or team, filter by team, and show a page at a time.
+  const [q, setQ] = useState('');
+  const [teamId, setTeamId] = useState('');
+  const [limit, setLimit] = useState(60);
+  const needle = q.trim().toLowerCase();
+  const match = (x: Person) => (!teamId || (teamId === '-' ? !x.teamId || !app.team(x.teamId) : x.teamId === teamId))
+    && (!needle || [x.name, x.role ?? '', app.team(x.teamId ?? '')?.name ?? ''].some((v) => v.toLowerCase().includes(needle)));
+  const found = app.snapshot.people.filter(match);
+  const shown = new Set(found.slice(0, limit).map((x) => x.id));
+  const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id && shown.has(x.id))] as const), ['No team', found.filter((x) => (!x.teamId || !app.team(x.teamId)) && shown.has(x.id))] as const].filter(([, l]) => l.length);
+  const admins = app.snapshot.people.filter((p) => p.admin);
+  return (
+    <>
+      <SectionHead id="people" action={admin && <button className="btn primary" onClick={() => setEditing('new')}>Add a person</button>}>
+        {`${app.snapshot.people.length} ${app.snapshot.people.length === 1 ? 'person' : 'people'} in ${app.ws.name}. `}
+        {admin ? 'You’re an admin: you can add people, change their details and make others admins.' : `Admins can add people: ${admins.map((p) => p.name).join(', ') || 'no one yet'}.`}
+      </SectionHead>
+      <section className="block people-block" aria-label={`People in ${app.ws.name}`}>
         {admin && <MissingEmails />}
         <div className="row directory-find">
           <label className="field" style={{ flex: '2 1 220px' }}><span className="sr">Find a person</span><input className="input" type="search" placeholder="Find by name, role or team" value={q} onChange={(e) => { setQ(e.target.value); setLimit(60); }} /></label>
@@ -121,10 +302,72 @@ export function WorkspaceHome() {
         ))}
         {found.length > limit && <button type="button" className="btn" onClick={() => setLimit((n) => n + 60)}>Show {Math.min(60, found.length - limit)} more of {found.length - limit}</button>}
       </section>
-      </div>
       {editing && <PersonSheet person={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onLeave={(p) => { setEditing(null); setLeaving(p); }} />}
       {leaving && <LeaveSheet person={leaving} onClose={() => setLeaving(null)} />}
-    </div>
+    </>
+  );
+}
+
+/* ---------- Inbox ---------- */
+
+function InboxSection() {
+  const { inbox, narrow } = useWs();
+  return <Suspense fallback={<p className="hint" role="status">Opening the inbox…</p>}><Inbox data={inbox} narrow={narrow} /></Suspense>;
+}
+
+/* ---------- the admins' sections ---------- */
+
+function CyclesSection() {
+  return (
+    <>
+      <SectionHead id="cycles">A cycle nobody has checked in to yet can be deleted, with its goals. One with check-ins stays. A new cycle starts from the <Link to="/retro">wrap-up</Link> at the end of this one.</SectionHead>
+      <CycleList bare />
+    </>
+  );
+}
+
+function AccessSection() {
+  const app = useApp();
+  const admins = app.snapshot.people.filter((p) => p.admin);
+  return (
+    <>
+      <SectionHead id="access" />
+      <section className="block admins-block" aria-labelledby="ws-admins">
+        <h3 className="label" id="ws-admins">Admins · {admins.length}</h3>
+        <ul className="optlist" aria-label="Admins">
+          {admins.map((p) => <li key={p.id} className="opt static person-opt"><Avatar p={p} size="sm" /><span className="person-text"><span className="person-name">{p.name}</span>{p.role && <span className="hint">{p.role}</span>}</span></li>)}
+        </ul>
+        <p className="hint">Make someone an admin, or stop them being one, from their entry in <Link to="/workspace/people">People</Link>. There is always at least one.</p>
+      </section>
+      <AiAssistants />
+    </>
+  );
+}
+
+function FeaturesSection() {
+  return (
+    <>
+      <SectionHead id="features" />
+      <Features />
+    </>
+  );
+}
+
+function PrivacySection() {
+  return (
+    <>
+      <SectionHead id="privacy" />
+      <Recording />
+    </>
+  );
+}
+
+function RemovedSection() {
+  return (
+    <>
+      <SectionHead id="removed" />
+      <RecentlyRemoved bare />
+    </>
   );
 }
 
@@ -174,29 +417,34 @@ function WorkspaceName({ several }: { several: boolean }) {
   );
 }
 
-/** The teams, with how many people and goals each has. Admins add, rename and remove them. */
-function Teams() {
+/** Teams: find one by name or lead, each with its lead and how many people and goals it has. Admins add, rename and
+    remove them; Add a team is the section's main action. */
+function TeamsSection() {
   const app = useApp();
   const [editing, setEditing] = useState<Team | 'new' | null>(null);
   const [removing, setRemoving] = useState<Team | null>(null);
+  const [q, setQ] = useState('');
   const admin = app.viewer.admin;
   const ctx = { snapshot: app.snapshot, allGoals: app.allGoals };
+  const needle = q.trim().toLowerCase();
+  const found = app.snapshot.teams.filter((t) => !needle || [t.name, app.person(t.leadId)?.name ?? ''].some((v) => v.toLowerCase().includes(needle)));
   return (
-    <div className="stack teams-block" style={{ gap: 'var(--s2)' }}>
-      <div className="row between teams-head">
-        <h2 className="block-title">Teams<span className="hint count-after">· {app.snapshot.teams.length}</span></h2>
-        {admin && <button className="btn" onClick={() => setEditing('new')}>Add a team</button>}
-      </div>
+    <>
+      <SectionHead id="teams" action={admin && <button className="btn primary" onClick={() => setEditing('new')}>Add a team</button>} />
+      {app.snapshot.teams.length > 6 && (
+        <label className="field ws-find"><span className="sr">Find a team</span><input className="input" type="search" placeholder="Find a team or its lead" value={q} onChange={(e) => setQ(e.target.value)} /></label>
+      )}
+      {needle && <p className="hint" role="status">{found.length === 0 ? 'No team matches.' : `${found.length} ${found.length === 1 ? 'team matches' : 'teams match'}.`}</p>}
       {!app.snapshot.teams.length ? <p className="hint">No teams yet.</p> : (
         <ul className="optlist team-list" aria-label="Teams">
-          {app.snapshot.teams.map((t) => {
+          {found.map((t) => {
             const m = teamMembers(ctx, t.id);
             const lead = app.person(t.leadId);
             return (
               <li key={t.id} className="opt static team-opt">
                 <span className="person-text">
                   <span className="person-name">{t.name}</span>
-                  <span className="hint">{[lead ? `Led by ${lead.name}` : '', `${m.people.length} ${m.people.length === 1 ? 'person' : 'people'}`, `${m.goals.length} ${m.goals.length === 1 ? 'goal' : 'goals'}`].filter(Boolean).join(' · ')}</span>
+                  <span className="hint">{[lead ? `Led by ${lead.name}` : 'No lead', `${m.people.length} ${m.people.length === 1 ? 'person' : 'people'}`, `${m.goals.length} ${m.goals.length === 1 ? 'goal' : 'goals'}`].join(' · ')}</span>
                 </span>
                 {admin && (
                   <span className="team-actions">
@@ -211,7 +459,7 @@ function Teams() {
       )}
       {editing && <TeamSheet team={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
       {removing && <RemoveTeamSheet team={removing} onClose={() => setRemoving(null)} />}
-    </div>
+    </>
   );
 }
 
@@ -418,8 +666,7 @@ function Recording() {
     setBusy(false);
   };
   return (
-    <section className="block recording-block" aria-labelledby="ws-rec">
-      <h2 className="block-title" id="ws-rec">What the app records</h2>
+    <section className="block recording-block" aria-label="What the app records">
       <p className="hint">How people use the app here: the pages they open, the buttons they press, where they stop in a task, errors and slow pages. Never anything anyone types. Kept for 90 days, then only daily totals; only the people who build the app can read it.</p>
       <label className="check record-check">
         <input type="checkbox" checked={on} disabled={busy} onChange={(e) => void flip(e.target.checked)} />
@@ -450,9 +697,8 @@ function Features() {
     setBusy(null);
   };
   return (
-    <section className="block features-block" aria-labelledby="ws-features">
-      <h2 className="block-title" id="ws-features">Features</h2>
-      <p className="hint">Parts of Faro this workspace can use. Switch one off and it leaves every screen here, for everyone; nothing it saved is lost, and switching it back on brings it all back.</p>
+    <section className="block features-block" aria-label="Features">
+      <p className="hint">Switch one off and it leaves every screen here, for everyone; nothing it saved is lost, and switching it back on brings it all back.</p>
       {installed.map((m) => {
         const why = off.get(m.id);
         const switched = (app.ws.modulesOff ?? []).includes(m.id);
@@ -469,31 +715,6 @@ function Features() {
         );
       })}
       <p className="hint"><Link to="/help/features">About features</Link></p>
-    </section>
-  );
-}
-
-/** For admins: what people said through the feedback button, newest first. */
-function FeedbackList() {
-  const app = useApp();
-  const list = (app.snapshot.feedback ?? []).slice().sort((a, b) => b.at.localeCompare(a.at));
-  if (!list.length) return null;
-  const counts = (['good', 'meh', 'bad'] as const).map((m) => list.filter((f) => f.mood === m).length);
-  return (
-    <section className="block">
-      <h2 className="block-title">Feedback <span className="hint">· {list.length}</span></h2>
-      <p className="hint">{counts[0]} say it helps, {counts[1]} it’s OK, {counts[2]} it gets in the way.</p>
-      <ul className="changes">
-        {list.slice(0, 20).map((f) => (
-          <li key={f.id} className="change">
-            <Avatar p={app.person(f.personId) ?? { name: '?', initials: '?' }} size="sm" />
-            <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-              <span className="small"><strong>{app.person(f.personId)?.name ?? 'Someone'}</strong> · {f.mood === 'good' ? 'It helps' : f.mood === 'meh' ? 'It’s OK' : 'It gets in the way'} · <span className="muted">{f.path}</span></span>
-              {f.text && <span className="note-text">{f.text}</span>}
-            </span>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

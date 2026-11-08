@@ -11,7 +11,7 @@ import type { Person, Snapshot } from '../domain/types';
 import { ARTICLES } from '../help/guide';
 import { TOOLS as ALL_TOOLS } from '../mcp/tools';
 import { findModules } from '../../vite.modules.ts';
-import { manifestProblems, PLACES, resolveModules, type ModuleFacts } from './module';
+import { manifestProblems, placeSections, PLACES, resolveModules, type ModuleFacts } from './module';
 import { isModuleOn, MODULES, modulesOn } from './registry';
 
 const root = path.join(__dirname, '..', '..');
@@ -103,6 +103,7 @@ describe('Every module’s manifest', () => {
         expect((app?.routes ?? []).map((r) => r.path).sort()).toEqual([...m.routes].sort());
         expect((app?.navigation ?? []).map((n) => n.label).sort()).toEqual([...m.navigation].sort());
         expect(Object.keys(app?.places ?? {}).sort()).toEqual([...m.places].sort());
+        expect((app?.sections ?? []).map((x) => x.id).sort()).toEqual([...(m.sections ?? [])].sort());
         for (const [, to] of m.redirects) expect(m.routes, `redirect to ${to}`).toContain(to);
       });
 
@@ -110,7 +111,7 @@ describe('Every module’s manifest', () => {
         const mine = HELP.find((x) => x.id === m.id)?.part ?? [];
         expect(mine.map((a) => a.id).sort()).toEqual([...m.help].sort());
         for (const id of m.help) expect(ARTICLES.find((a) => a.id === id)?.module, id).toBe(m.id);
-        for (const r of [...m.routes, ...m.redirects.map(([from]) => from)]) expect(mine.some((a) => a.routes.some((x) => x.split('?')[0] === r)), r).toBe(true);
+        for (const r of [...m.routes, ...m.redirects.map(([from]) => from), ...(m.sections ?? []).map((id) => `/workspace/${id}`)]) expect(mine.some((a) => a.routes.some((x) => x.split('?')[0] === r)), r).toBe(true);
       });
 
       it('lists exactly the AI tools its tools.ts adds, and the server offers them', () => {
@@ -139,5 +140,17 @@ describe('Building without a module (vite.modules.ts, FARO_WITHOUT)', () => {
     const all = findModules(root).kept.map((m) => m.id);
     for (const id of all) expect(findModules(root, [id]).kept.map((m) => m.id)).not.toContain(id);
     expect(() => findModules(root, ['no-such-module'])).toThrow(/FARO_WITHOUT names no-such-module/);
+  });
+});
+
+describe('Workspace sections from modules (backlog W)', () => {
+  const core: { id: string; after?: string }[] = ['overview', 'people', 'teams', 'inbox'].map((id) => ({ id }));
+  const ids = (xs: { id: string }[]) => xs.map((x) => x.id);
+  it('puts a module’s section after the one it names, or at the end', () => {
+    expect(ids(placeSections(core, [{ id: 'metrics', after: 'teams' }, { id: 'billing' }]))).toEqual(['overview', 'people', 'teams', 'metrics', 'inbox', 'billing']);
+    expect(ids(placeSections(core, [{ id: 'x', after: 'nowhere' }]))).toEqual(['overview', 'people', 'teams', 'inbox', 'x']);
+  });
+  it('keeps two modules after the same section in their own order, and never adds an id twice', () => {
+    expect(ids(placeSections(core, [{ id: 'a', after: 'people' }, { id: 'b', after: 'people' }, { id: 'teams' }]))).toEqual(['overview', 'people', 'a', 'b', 'teams', 'inbox']);
   });
 });

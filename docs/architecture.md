@@ -42,7 +42,7 @@ The core is everything outside `src/modules`. It offers these extension points, 
 | Navigation | `navigation` in `app.tsx`: sidebar items after the core's, before New goal; also in More on a phone | `src/ui/Shell.tsx` |
 | Home blocks | the `home.blocks` place | `src/screens/Home.tsx`, after Watching |
 | Goal-page sections | the `goal.sections` place, given the goal | `src/screens/GoalScreen.tsx`, before Activity |
-| Settings | the `workspace.settings` place | `src/screens/Workspace.tsx`, the side column |
+| Workspace sections | `sections` in `app.tsx` (id, label, summary, `admins`, element, `after`); module.json `sections` lists the ids. Each is at `/workspace/<id>`, in Workspace's menu (a side menu on a computer, a list on a phone), with a Help article whose route is that address (backlog W, 8 Nov) | `src/screens/Workspace.tsx` (`useSections`), `src/App.tsx` (the routes) |
 | Places on other core screens | `data.tools` (Data's toolbar, given the open table as laid out) and `goals.tools` (Goals' view bar, given the goals shown) | `src/screens/DataTables.tsx`, `src/screens/GoalsScreen.tsx` |
 | Database tables | module.json `tables`: name, migration, purpose. Migrations still live in `supabase/migrations` | the manifest test checks the migration exists |
 | AI tools | `tools.ts` default-exports `ToolDef[]` | `src/mcp/tools.ts` adds them to `TOOLS`; `callTool` refuses one whose module is off in the workspace |
@@ -58,7 +58,7 @@ One folder, `src/modules/<id>/`:
 
 | File | What it is |
 |---|---|
-| `module.json` | The facts, as plain data (`ModuleFacts` in `src/core/module.ts`): id, name, summary, `needs`, routes, redirects, navigation, places, tables, aiTools, help, requirements, journeys, and `rebuild`: its stage in the rebuild kit (`status` drill or outline, what it `builds`, `entry` and `exit` criteria, and the `gaps` the kit doesn't cover yet; typed as `ModuleRebuild` in `src/spec/rebuild.ts`). Generators read this without running anything (`npm run modules` lists them; `npm run spec` writes the stage to `spec/rebuild/`; CI fails a module without one) |
+| `module.json` | The facts, as plain data (`ModuleFacts` in `src/core/module.ts`): id, name, summary, `needs`, routes, redirects, navigation, places, `sections` (optional), tables, aiTools, help, requirements, journeys, and `rebuild`: its stage in the rebuild kit (`status` drill or outline, what it `builds`, `entry` and `exit` criteria, and the `gaps` the kit doesn't cover yet; typed as `ModuleRebuild` in `src/spec/rebuild.ts`). Generators read this without running anything (`npm run modules` lists them; `npm run spec` writes the stage to `spec/rebuild/`; CI fails a module without one) |
 | `app.tsx` | Optional. Default-exports an `AppModule`: its routes, navigation and what it puts in each place |
 | `help.ts` | Optional. Its Help articles. Pure data |
 | `tools.ts` | Optional. Its AI tools |

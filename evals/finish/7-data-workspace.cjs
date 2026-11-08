@@ -146,22 +146,24 @@ module.exports = {
     }
 
     /* ---------- Workspace ---------- */
-    [c, r] = await open(360, 740, 'grace', '/workspace');
+    [c, r] = await open(360, 740, 'grace', '/workspace/overview');
     // There is one example now, so give the person a second workspace of their own to tell the marks apart.
     await r.evaluate(() => localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_other', name: 'Support desk', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }])));
     await r.reload(); await r.waitForTimeout(500);
+    const marks = await r.evaluate(() => [...document.querySelectorAll('.ws-line .wsmark')].map((m) => m.innerText.trim()).join(''));
+    if (new Set(marks).size < 2) fails.push(`[W21] every workspace mark is "${marks[0]}"`);
+    // People is its own section (backlog W): its heading is the page's, and Add a person is its one main action.
+    await r.goto(url('/workspace/people')); await r.locator('.person-opt').first().waitFor(); await r.waitForTimeout(300);
     const ws = await r.evaluate(() => {
       const opt = document.querySelector('.person-opt'), cs = getComputedStyle(opt);
       const av = opt.querySelector('.avatar').getBoundingClientRect(), name = opt.querySelector('.person-name').getBoundingClientRect();
       const hint = opt.querySelector('.hint');
-      const h2 = document.querySelector('.people-head h2'), cnt = h2.querySelector('.hint').getBoundingClientRect(), add = [...document.querySelectorAll('.people-head .btn')][0]?.getBoundingClientRect();
-      const range = document.createRange(); range.setStart(h2, 0); range.setEndBefore(h2.querySelector('.hint')); const words = [...range.getClientRects()].pop();
-      return { cols: cs.gridTemplateColumns, align: cs.alignItems, avTop: av.top, nameTop: name.top, nameLeft: name.left, avRight: av.right, hint: hint ? [getComputedStyle(hint).fontWeight, getComputedStyle(hint).color].join(' ') : '', nameW: getComputedStyle(opt.querySelector('.person-name')).fontWeight, cntGap: cnt.left - words.right, cntTop: Math.abs(cnt.top - words.top), addBelow: add ? add.top >= h2.getBoundingClientRect().bottom - 1 : true, marks: [...document.querySelectorAll('.ws-line .wsmark')].map((m) => m.innerText.trim()).join('') };
+      const h1 = document.querySelector('.page-head h1'), add = [...document.querySelectorAll('.ws-section-head .btn.primary')];
+      return { cols: cs.gridTemplateColumns, align: cs.alignItems, avTop: av.top, nameTop: name.top, nameLeft: name.left, avRight: av.right, hint: hint ? [getComputedStyle(hint).fontWeight, getComputedStyle(hint).color].join(' ') : '', nameW: getComputedStyle(opt.querySelector('.person-name')).fontWeight, title: h1?.innerText.trim(), add: add.map((b) => [b.innerText.trim(), Math.round(b.getBoundingClientRect().bottom)]) };
     });
     if (!/^24px /.test(ws.cols) || ws.align !== 'start' || !near(ws.nameLeft - ws.avRight, 12)) fails.push(`[W1] a person row: ${ws.cols}, align ${ws.align}, name ${Math.round(ws.nameLeft - ws.avRight)}px from the avatar`);
     if (ws.hint !== '400 rgb(70, 87, 89)' || ws.nameW !== '550') fails.push(`[W14] job title ${ws.hint}, name weight ${ws.nameW}`);
-    if (ws.cntGap > 12 || ws.cntTop > 6 || !ws.addBelow) fails.push(`[W19] 360 heading count ${Math.round(ws.cntGap)}px after the last word; Add a person below: ${ws.addBelow}`);
-    if (new Set(ws.marks).size < 2) fails.push(`[W21] every workspace mark is "${ws.marks[0]}"`);
+    if (ws.title !== 'People' || ws.add.length !== 1 || ws.add[0][0] !== 'Add a person' || ws.add[0][1] > 740) fails.push(`[W19] 360 People: heading “${ws.title}”, main actions ${JSON.stringify(ws.add)}`);
     await r.getByRole('button', { name: 'Add a person' }).click(); await r.waitForTimeout(300);
     await r.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click(); await r.waitForTimeout(200);
     const ap = await r.evaluate(() => { const dlg = document.querySelector('[role="dialog"]'); const inp = dlg.querySelector('input.input').getBoundingClientRect(), al = dlg.querySelector('[role="alert"]').getBoundingClientRect(), cb = dlg.querySelector('.check input').getBoundingClientRect(), w = getComputedStyle(dlg.querySelector('.admin-word')); return { gap: al.top - inp.bottom, cb: [cb.width, cb.height], word: `${w.fontSize} ${w.fontWeight}` }; });
@@ -170,7 +172,7 @@ module.exports = {
     await c.close();
     [c, r] = await open(1280, 800, 'grace', '/workspace');
     await r.getByRole('button', { name: 'Reset the example' }).click(); await r.waitForTimeout(200);
-    const rc = await r.evaluate(() => { const q = document.querySelector('.reset-confirm'), btns = [...document.querySelectorAll('.split-a > .row .btn')]; if (!q) return null; const b = q.getBoundingClientRect(); return { below: b.top - Math.max(...btns.map((x) => x.getBoundingClientRect().bottom)), row: new Set([...q.querySelectorAll('.btn')].map((x) => Math.round(x.getBoundingClientRect().top))).size }; });
+    const rc = await r.evaluate(() => { const q = document.querySelector('.reset-confirm'), btns = [...document.querySelectorAll('.ws-name-block > .row .btn')]; if (!q) return null; const b = q.getBoundingClientRect(); return { below: b.top - Math.max(...btns.map((x) => x.getBoundingClientRect().bottom)), row: new Set([...q.querySelectorAll('.btn')].map((x) => Math.round(x.getBoundingClientRect().top))).size }; });
     if (!rc || !near(rc.below, 12, 2) || rc.row !== 1) fails.push(`[W13] reset confirm: ${JSON.stringify(rc)}`);
     await c.close();
     [c, r] = await open(2560, 1440, 'grace', '/workspace');

@@ -472,6 +472,11 @@
       "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it."
     },
     {
+      "id": "WORKSPACE-SECTIONS",
+      "area": "Workspace",
+      "text": "Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (the name, switching, counts that lead to each section, and deleting the workspace at the end, for admins), People, Teams, Inbox, Cycles, Access (admins and AI tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, People, Teams and Inbox; anyone else opening an admins’ section is told who the admins are. Old addresses (/workspace?inbox=1&markup=…, #people) lead to the section they meant. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections)."
+    },
+    {
       "id": "TABLE-LAYOUTS",
       "area": "Data",
       "text": "In the data tables, columns can be reordered and resized, the layout saved and reopened, and the table exported as shown."
@@ -600,6 +605,11 @@
       "id": "FEEDBACK-INBOX",
       "area": "Feedback",
       "text": "Feedback sent with a mood and a few words joins the inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Anyone opens it and triages it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again, each change recorded as the person using the app and undoable. Feedback always arrives New: the public key can only add feedback’s own columns, and reads every workspace’s feedback (okr_feedback_inbox) and changes its status (okr_feedback_triage) only through those functions (migration 0031). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser."
+    },
+    {
+      "id": "INBOX-TRIAGE",
+      "area": "Feedback",
+      "text": "The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox."
     },
     {
       "id": "MCP-FEEDBACK",
@@ -834,6 +844,18 @@
       "title": "An admin switches Spreadsheets off for the workspace, then back on",
       "who": "An admin",
       "budget": 10
+    },
+    {
+      "id": "U49",
+      "title": "Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Inbox, and old links still land",
+      "who": "An admin, then a team member",
+      "budget": 14
+    },
+    {
+      "id": "U50",
+      "title": "Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time",
+      "who": "Anyone",
+      "budget": 30
     }
   ],
   "easeCriteria": [

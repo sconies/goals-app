@@ -416,21 +416,21 @@ The app is called Faro. The page title ends “Faro”; the browser tab shows Fa
 
 There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings.
 
-- **Help:** “Home and your week at a glance” (`home`), screens `Home`; “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`; “Workspace: People” (`workspace-people`)
 - **Journeys and checks:** U1, U2, U9
 
 ### ADMIN
 
 Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed.
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Running the workspace” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
 - **Journeys and checks:** U5, U10, U14
 
 ### PERSON-EMAIL
 
 Every person has an email, kept lower case and unique in the workspace (migration 0027): required when someone is added, in Workspace, set-up, a spreadsheet or the AI assistant. Exports write each person’s name and email, and imports match people by email. People added before emails are listed on Workspace for an admin to fill in, together. The example’s people have example emails (firstname.lastname@example.com).
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Workspace: People” (`workspace-people`)
 - **Tests:** `evals/format.eval.ts` (3)
 - **Journeys and checks:** U46
 
@@ -699,7 +699,7 @@ A goal map shows every goal on a canvas that can be panned, zoomed and rearrange
 
 An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused.
 
-- **Help:** “AI assistants (MCP)” (`ai-assistants`)
+- **Help:** “Workspace: Access” (`workspace-access`); “AI assistants (MCP)” (`ai-assistants`)
 - **Journeys and checks:** U22
 
 ### MCP-PARITY
@@ -841,9 +841,16 @@ The app moves with purpose: numbers and status change visibly when a check-in po
 
 Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it.
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Running the workspace” (`workspace`), screens `Workspace`; “Workspace: Teams” (`workspace-teams`)
 - **Tests:** `evals/workspace-admin.eval.ts` (6)
 - **Journeys and checks:** N4
+
+### WORKSPACE-SECTIONS
+
+Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (the name, switching, counts that lead to each section, and deleting the workspace at the end, for admins), People, Teams, Inbox, Cycles, Access (admins and AI tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, People, Teams and Inbox; anyone else opening an admins’ section is told who the admins are. Old addresses (/workspace?inbox=1&markup=…, #people) lead to the section they meant. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections).
+
+- **Help:** “Running the workspace” (`workspace`), screens `Workspace`
+- **Journeys and checks:** U49
 
 ## Export
 
@@ -917,7 +924,7 @@ Raw spans, logs and metrics are kept 90 days. A nightly pg_cron job rolls each d
 
 Recording is on for everyone by default. An admin (and only an admin, in the app or through the MCP set_recording tool) can turn it off for a workspace; the switch is saved with the workspace and logged. While it is off nothing is sent for that workspace, from the browser or the MCP server, and the database refuses rows for it.
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`; “What the app records” (`recording`)
+- **Help:** “What the app records” (`recording`)
 - **Tests:** `evals/telemetry.eval.ts` (2)
 - **Journeys and checks:** N8
 
@@ -961,7 +968,7 @@ Send feedback's first choice, Mark up this screen (and Ctrl+Shift+M or Cmd+Shift
 Workspace has an Inbox, open to anyone with no sign-in, in the live app and the demo (backlog O, migration 0031: Faro never holds real data; the internal app keeps it restricted, spec R1 rule 6). It lists every markup, newest first, grouped by page and part with a count, each with a thumbnail, its line, its page, who sent it, when, and its status as a shape plus a word (New, In hand, Fixed, Won’t fix). A markup opens with its picture (the drawing can be hidden), the named parts, the steps as a timeline, errors and where it came from. Anyone marks it in hand, opens a pre-filled GitHub issue and pastes its address back, marks it fixed in a What’s new entry, or says why it won’t be fixed, through the one status rule; each change is recorded as the person using the app (who and when, shown on the markup) and offers Undo, which puts back the status it replaced through the same rule. The public key reads markups and changes only their triage columns. With any token, the MCP tools list_markups, get_markup and update_markup do the same through security-definer functions, with no new secret.
 
 - **Help:** “The inbox” (`inbox`)
-- **Journeys and checks:** U42, U47
+- **Journeys and checks:** U42, U47, U50
 
 ### CONNECT-CLAUDE
 
@@ -981,7 +988,14 @@ A markup's picture comes back inside get_markup as MCP image content (the screen
 Feedback sent with a mood and a few words joins the inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Anyone opens it and triages it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again, each change recorded as the person using the app and undoable. Feedback always arrives New: the public key can only add feedback’s own columns, and reads every workspace’s feedback (okr_feedback_inbox) and changes its status (okr_feedback_triage) only through those functions (migration 0031). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser.
 
 - **Help:** “The inbox” (`inbox`)
-- **Journeys and checks:** U42
+- **Journeys and checks:** U42, U50
+
+### INBOX-TRIAGE
+
+The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
+
+- **Help:** “The inbox” (`inbox`)
+- **Journeys and checks:** U50
 
 ### MCP-FEEDBACK
 
@@ -1009,7 +1023,7 @@ Every kind of record that can be made can be removed, archived or ended: a perso
 
 Every removal shows a message with an Undo button for 10 seconds, which puts back every record it changed (what it handed over or moved included). Admins restore anything removed, stopped, ended or marked as left in the last 30 days from Recently removed on Workspace, which shows the kind, the name, who removed it, when, and Restore; after 30 days it leaves the list but the row stays. The AI assistant has list_removed and restore_removed.
 
-- **Help:** “Removing, stopping and undoing” (`removing`); “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Removing, stopping and undoing” (`removing`); “Workspace: Cycles” (`workspace-cycles`)
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U43, U44
 
@@ -1017,7 +1031,7 @@ Every removal shows a message with an Undo button for 10 seconds, which puts bac
 
 An admin marks someone as left from a dialog that first asks who takes over their goals and their open asks (as asker and as responder); they vanish from pickers, counts, review people and Home, their token no longer works, and history keeps their name as “Name (left)”. Someone with no goals, check-ins, notes or asks is deleted outright instead.
 
-- **Help:** “Removing, stopping and undoing” (`removing`); “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Removing, stopping and undoing” (`removing`); “Workspace: People” (`workspace-people`)
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U43
 

@@ -17,8 +17,6 @@ export interface PlaceProps {
   'home.blocks': Record<never, never>;
   /** A goal's page, after its own sections. */
   'goal.sections': { goal: Goal };
-  /** Workspace's side column, after the core's settings (admins and everyone alike: a module checks who's looking). */
-  'workspace.settings': Record<never, never>;
   /** Data's toolbar, after Columns and Saved layouts. `asShown` is the open table exactly as laid out. */
   'data.tools': { table: string; asShown: () => { rows: Cell[][]; muted?: string[]; scope: string } };
   /** Goals' view bar, after the layouts: the goals shown now. */
@@ -42,12 +40,35 @@ export interface ModuleNav {
   icon: ReactNode;
 }
 
+/**
+ * A section of Workspace (backlog W): its own address, /workspace/<id>, an entry in Workspace's menu (a side menu on a
+ * computer, a list on a phone) and one main action. The core's sections are Overview, People, Teams, Inbox, Cycles,
+ * Access, Features, Privacy and Recently removed (src/screens/Workspace.tsx); a module adds its own here, the settings
+ * extension point.
+ */
+export interface WorkspaceSection {
+  /** Its address under /workspace: lower case, words joined by hyphens. Never changes. */
+  id: string;
+  /** Its name in the menu and its heading. */
+  label: string;
+  /** What it's for, in a line: under its name in the phone's list, and under its heading. */
+  summary: string;
+  /** Only admins see it in the menu; anyone else opening its address is told who the admins are. */
+  admins?: boolean;
+  /** Its screen. */
+  element: ReactNode;
+  /** The section it follows in the menu (the end, when not said). */
+  after?: string;
+}
+
 /** A module's screens and where they go: its app.tsx's default export. */
 export interface AppModule {
   routes?: ModuleRoute[];
   /** Sidebar items, placed after the core's (before New goal). */
   navigation?: ModuleNav[];
   places?: { [K in PlaceName]?: ComponentType<PlaceProps[K]> };
+  /** Workspace sections (module.json `sections`, by id). */
+  sections?: WorkspaceSection[];
 }
 
 /** The modules on in the open workspace: their facts and screens, and why the others are off. */

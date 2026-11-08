@@ -67,7 +67,7 @@ export function Settings() {
           </span>
           <button type="button" className="btn" onClick={() => setWho(true)}>{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</button>
         </div>
-        <p className="hint">{app.viewer.admin ? <>Names, job titles and teams are changed on <Link to="/workspace">Workspace</Link>.</> : 'An admin changes your name, job title or team.'} You’re in {app.ws.name}.</p>
+        <p className="hint">{app.viewer.admin ? <>Names, job titles and teams are changed on <Link to="/workspace/people">Workspace, People</Link>.</> : 'An admin changes your name, job title or team.'} You’re in {app.ws.name}.</p>
       </section>
 
       <WhatIsRecorded />
@@ -104,7 +104,7 @@ function WhatIsRecorded() {
         <li><strong>How long:</strong> 90 days. After that only daily totals are kept, with nothing about any one visit.</li>
         <li><strong>Who can see it:</strong> only the people who build and run the app, and the AI that helps them. No one in your workspace can.</li>
       </ul>
-      <p className="hint">{app.viewer.admin ? <>As an admin, you can turn it off for everyone in {app.ws.name} on <Link to="/workspace">Workspace</Link>.</> : 'An admin can turn it off for the whole workspace.'} <Link to="/help/recording">More about what’s recorded</Link></p>
+      <p className="hint">{app.viewer.admin ? <>As an admin, you can turn it off for everyone in {app.ws.name} on <Link to="/workspace/privacy">Workspace, Privacy</Link>.</> : 'An admin can turn it off for the whole workspace.'} <Link to="/help/recording">More about what’s recorded</Link></p>
     </section>
   );
 }
