@@ -1,12 +1,12 @@
-/* The builder inbox, on Workspace: markups people sent, newest first, grouped when they're about the same part of the
-   same page, each with its status as a shape and a word (New, In hand, Fixed, Won't fix). A markup opens with its
-   picture (the drawing can be hidden), the parts it names, the steps before it, errors, and where it came from.
-   Builders sign in here with an email link (Supabase Auth), or read it with a builder token (backlog -2: enough for a
-   test round on the demo or a preview build), and triage: mark it in hand, open its GitHub issue (a
-   pre-filled link; paste the issue's address back), mark it fixed in a What's new entry, or say why it won't be fixed.
-   Admins who aren't builders can't read it until sign-in comes (release 4). With no database, it shows the markups
-   kept in this browser, without signing in.
-   Connect Claude sits at the top (src/markup/Connect.tsx): builder tokens and the exact set-up for Claude.
+/* The inbox, on Workspace: markups people sent, newest first, grouped when they're about the same part of the same
+   page, each with its status as a shape and a word (New, In hand, Fixed, Won't fix). A markup opens with its picture
+   (the drawing can be hidden), the parts it names, the steps before it, errors, and where it came from.
+   Open to anyone, with no sign-in, in the live app and the demo (backlog O, Lane, 8 Nov: Faro never holds real data;
+   the internal app keeps its inbox restricted, spec R1 rule 6). Anyone triages: mark it in hand, open its GitHub
+   issue (a pre-filled link; paste the issue's address back), mark it fixed in a What's new entry, or say why it won't
+   be fixed. Each change is recorded as the person using the app, says who made it, and can be undone. With no
+   database, it shows the markups kept in this browser.
+   Connect Claude sits at the top (src/markup/Connect.tsx): making a token and the exact set-up for Claude.
    Feedback sent with a mood and a few words joins it (Lane, 6 Nov; migration 0026): listed among the markups, newest
    first, and triaged with the same states and rules (src/markup/feedback.ts). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,11 +14,11 @@ import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { WHATS_NEW } from '../help/whatsNew';
 import { Sheet, timeAgo } from '../ui/bits';
-import { builderClient, builderSession, forgetBuilderToken, inboxFeedback, inboxOps, keepBuilderToken, markupsShared, savedBuilderToken, sendSignInLink, signOutBuilder, tokenInbox, type BuilderSession } from './backend';
+import { inboxFeedback, inboxOps, markupsShared } from './backend';
 import { ConnectClaude } from './Connect';
 import type { FeedbackOps, InboxFeedback } from './feedback';
 import { PartPath } from './Markup';
-import { MOOD_WORD, STATUS_WORD, groupMarkups, namedParts, problemText, sentFrom, stepText, type Markup, type MarkupStatus } from './model';
+import { MOOD_WORD, STATUS_WORD, groupMarkups, namedParts, problemText, sentFrom, stepText, undoChange, type Markup, type MarkupStatus, type StatusChange } from './model';
 import type { ListedMarkup, MarkupOps, OpenedMarkup } from './ops';
 
 /** A markup's status: its shape and its word, always together. Diamonds, so they're never read as a goal's status. */
@@ -37,21 +37,17 @@ export function MarkupStatusMark({ status }: { status: MarkupStatus }) {
   );
 }
 
-type Access = { kind: 'loading' } | { kind: 'local' } | { kind: 'signed-out' } | { kind: 'signed-in'; session: BuilderSession } | { kind: 'token' } | { kind: 'error'; text: string };
-
 export default function Inbox() {
   const app = useApp();
   const [params, setParams] = useSearchParams();
   const shared = markupsShared();
-  const [access, setAccess] = useState<Access>(shared ? { kind: 'loading' } : { kind: 'local' });
+  const [problem, setProblem] = useState('');
   const [ops, setOps] = useState<MarkupOps | null>(null);
   const [list, setList] = useState<ListedMarkup[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(params.get('markup'));
   const [fbOps, setFbOps] = useState<FeedbackOps | null>(null);
   const [feedback, setFeedback] = useState<InboxFeedback[]>([]);
   const [openFb, setOpenFb] = useState<string | null>(null);
-  // With a builder token, pictures come through the server; this says why not, when it can't send them.
-  const [pictureProblem, setPictureProblem] = useState<(() => string | null) | null>(null);
   // With no database, the inbox's feedback is this workspace's, as the app has it now.
   const appNow = useRef(app);
   appNow.current = app;
@@ -61,32 +57,12 @@ export default function Inbox() {
     personName: (id: string) => appNow.current.person(id)?.name ?? '',
   }), [app.ws.id, app.ws.name]);
 
-  // Who is signed in to the inbox here: also finishes a sign-in arriving from the email link.
-  const refresh = useCallback(async () => {
-    if (!shared) { setOps(await inboxOps()); setFbOps(await inboxFeedback(here)); return; }
-    try {
-      const session = await builderSession();
-      const token = session?.builder ? null : savedBuilderToken();
-      if (token) {
-        // No email sign-in needed: a builder token reads the inbox (the demo's and preview builds' markups included).
-        const t = await tokenInbox(token);
-        setAccess({ kind: 'token' });
-        setOps(t.ops); setFbOps(t.feedback); setPictureProblem(() => t.pictures);
-        return;
-      }
-      setAccess(session ? { kind: 'signed-in', session } : { kind: 'signed-out' });
-      setOps(session?.builder ? await inboxOps() : null);
-      setFbOps(session?.builder ? await inboxFeedback(here) : null);
-      setPictureProblem(null);
-    } catch (e) { setAccess({ kind: 'error', text: e instanceof Error ? e.message : String(e) }); }
-  }, [shared, here]);
+  // Open to anyone: no sign-in, on the shared database or this browser's markups.
   useEffect(() => {
-    void refresh();
-    if (!shared) return;
-    let stop: (() => void) | undefined;
-    void builderClient().then((db) => { stop = db.auth.onAuthStateChange(() => { void refresh(); }).data.subscription.unsubscribe; });
-    return () => stop?.();
-  }, [refresh, shared]);
+    let live = true;
+    void Promise.all([inboxOps(), inboxFeedback(here)]).then(([m, f]) => { if (live) { setOps(m); setFbOps(f); } }, (e: unknown) => { if (live) setProblem(e instanceof Error ? e.message : String(e)); });
+    return () => { live = false; };
+  }, [here]);
   const load = useCallback(async () => {
     if (!ops) return;
     try { setList(await ops.list({})); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); setList([]); }
@@ -98,7 +74,7 @@ export default function Inbox() {
     try { setFeedback(await fbOps.list()); } catch { setFeedback([]); }
   }, [fbOps]);
   useEffect(() => { void loadFeedback(); }, [loadFeedback]);
-  // Coming back from the email link, the inbox is where the page opens.
+  // A link to the inbox (from a GitHub issue) opens the page there.
   useEffect(() => { if (params.get('inbox')) document.getElementById('inbox')?.scrollIntoView({ block: 'start' }); }, [params]);
 
   const groups = useMemo(() => groupMarkups(list ?? []), [list]);
@@ -109,7 +85,8 @@ export default function Inbox() {
   ].sort((a, b) => b.at.localeCompare(a.at)), [groups, feedback]);
   const newCount = (list ?? []).filter((m) => m.status === 'new').length + feedback.filter((f) => f.status === 'new').length;
   const openedFb = openFb ? feedback.find((f) => f.id === openFb) ?? null : null;
-  const builderName = access.kind === 'signed-in' ? access.session.email : access.kind === 'token' ? 'A builder token' : 'This browser';
+  // Who a change is recorded as: the person using the app.
+  const by = app.viewer.name;
   const open = (id: string | null) => {
     setOpenId(id);
     const next = new URLSearchParams(params);
@@ -121,17 +98,10 @@ export default function Inbox() {
     <section className="block inbox-block" id="inbox" aria-labelledby="inbox-title">
       <div className="row between">
         <h2 className="block-title" id="inbox-title">Inbox{list ? <span className="hint count-after">· {newCount} new</span> : null}</h2>
-        {access.kind === 'signed-in' && <button type="button" className="btn sm ghost" onClick={async () => { await signOutBuilder(); setList(null); void refresh(); }}>Sign out</button>}
-        {access.kind === 'token' && <button type="button" className="btn sm ghost" onClick={() => { forgetBuilderToken(); setList(null); setOps(null); setFbOps(null); void refresh(); }}>Forget the token</button>}
       </div>
-      <p className="hint">What people send with Send feedback: markups (a picture of a screen with their drawing, and a line saying what should change) and feedback (a mood and a few words). {shared ? 'For the people building Faro, who sign in here.' : 'No database is set up, so these are the markups sent from this browser and this workspace’s feedback.'}</p>
-      {access.kind === 'loading' && <p className="hint" role="status">Checking who’s signed in…</p>}
-      {access.kind === 'error' && <p className="hint tone-off" role="alert">{access.text}</p>}
-      {(access.kind === 'local' || access.kind === 'token' || (access.kind === 'signed-in' && access.session.builder)) && <ConnectClaude as={access.kind === 'signed-in' ? 'signed-in' : access.kind} />}
-      {access.kind === 'signed-out' && <SignIn onToken={() => void refresh()} />}
-      {access.kind === 'signed-in' && !access.session.builder && (
-        <p className="hint" role="status">You’re signed in as {access.session.email}, which isn’t on the builders list. Until sign-in comes to the whole app, only builders read markups; admins will see their own workspace’s then.</p>
-      )}
+      <p className="hint">What people send with Send feedback: markups (a picture of a screen with their drawing, and a line saying what should change) and feedback (a mood and a few words). {shared ? 'From every workspace and the demo. Anyone can read it and change a status: Faro holds no real data. Each change says who made it, and can be undone.' : 'No database is set up, so these are the markups sent from this browser and this workspace’s feedback.'} <Link to="/help/inbox">About the inbox</Link></p>
+      {problem && <p className="hint tone-off" role="alert">{problem}</p>}
+      <ConnectClaude local={!shared} />
       {ops && list === null && <p className="hint" role="status">Loading markups…</p>}
       {ops && list && !rows.length && <p className="hint">Nothing yet. When someone marks up a screen or sends feedback, it arrives here.</p>}
       {ops && list && rows.length > 0 && (
@@ -156,62 +126,13 @@ export default function Inbox() {
           })}
         </ul>
       )}
-      {ops && openId && <Detail id={openId} ops={ops} by={builderName} pictureProblem={pictureProblem} siblings={groups.find((g) => g.markups.some((m) => m.id === openId))?.markups ?? []} onOpen={open} onChanged={load} />}
-      {fbOps && openedFb && <FeedbackDetail f={openedFb} ops={fbOps} by={builderName} onClose={() => setOpenFb(null)} onChanged={(id, t) => setFeedback((xs) => xs.map((x) => (x.id === id ? { ...x, ...t } : x)))} />}
+      {ops && openId && <Detail id={openId} ops={ops} by={by} siblings={groups.find((g) => g.markups.some((m) => m.id === openId))?.markups ?? []} onOpen={open} onChanged={load} />}
+      {fbOps && openedFb && <FeedbackDetail f={openedFb} ops={fbOps} by={by} onClose={() => setOpenFb(null)} onChanged={(id, t) => setFeedback((xs) => xs.map((x) => (x.id === id ? { ...x, ...t } : x)))} />}
     </section>
   );
 }
 
-function SignIn({ onToken }: { onToken: () => void }) {
-  const app = useApp();
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  if (sent) return <p className="hint" role="status">Check your email: the link in it signs you in and brings you back here, in this browser.</p>;
-  return (
-    <>
-    <form className="stack inbox-signin" style={{ gap: 'var(--s2)' }} onSubmit={async (e) => {
-      e.preventDefault();
-      if (!/^\S+@\S+\.\S+$/.test(email.trim()) || busy) return;
-      setBusy(true);
-      try { await sendSignInLink(email); setSent(true); } catch (err) { app.toast('Couldn’t send the link: ' + (err instanceof Error ? err.message : String(err)), 'error'); }
-      setBusy(false);
-    }}>
-      <label className="field"><span className="field-label">Building Faro? Sign in with your email</span>
-        <input className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-      </label>
-      <div><button type="submit" className="btn" aria-disabled={busy || undefined}>{busy ? 'Sending…' : 'Email me a sign-in link'}</button></div>
-      <span className="hint">Only the inbox signs in; the rest of the app doesn’t change. <Link to="/help/inbox">About the inbox</Link></span>
-    </form>
-    <UseToken onToken={onToken} />
-    </>
-  );
-}
-
-/** Reading the inbox with a builder token instead of the email sign-in: enough for a test round on the demo or a
-    preview build. The token stays in this browser until Forget the token. */
-function UseToken({ onToken }: { onToken: () => void }) {
-  const [token, setToken] = useState('');
-  const [problem, setProblem] = useState('');
-  const [busy, setBusy] = useState(false);
-  return (
-    <form className="stack inbox-signin" style={{ gap: 'var(--s2)' }} onSubmit={async (e) => {
-      e.preventDefault();
-      if (!token.trim() || busy) return;
-      setBusy(true); setProblem('');
-      try { await keepBuilderToken(token); onToken(); } catch (err) { setProblem(err instanceof Error ? err.message : String(err)); }
-      setBusy(false);
-    }}>
-      <label className="field"><span className="field-label">Or read it with a builder token</span>
-        <input className="input mono" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="gk_…" aria-invalid={problem ? true : undefined} />
-      </label>
-      {problem && <span className="hint tone-off" role="alert">{problem}</span>}
-      <div><button type="submit" className="btn" aria-disabled={busy || !token.trim() || undefined}>{busy ? 'Checking…' : 'Use the token'}</button></div>
-    </form>
-  );
-}
-
-function Detail({ id, ops, by, siblings, pictureProblem, onOpen, onChanged }: { id: string; ops: MarkupOps; by: string; siblings: Markup[]; pictureProblem: (() => string | null) | null; onOpen: (id: string | null) => void; onChanged: () => void }) {
+function Detail({ id, ops, by, siblings, onOpen, onChanged }: { id: string; ops: MarkupOps; by: string; siblings: Markup[]; onOpen: (id: string | null) => void; onChanged: () => void }) {
   const app = useApp();
   const [m, setM] = useState<OpenedMarkup | null>(null);
   const [failed, setFailed] = useState('');
@@ -219,9 +140,11 @@ function Detail({ id, ops, by, siblings, pictureProblem, onOpen, onChanged }: { 
   const [form, setForm] = useState<'fixed' | 'wont-fix' | 'issue' | null>(null);
   const [issue, setIssue] = useState('');
   const [busy, setBusy] = useState(false);
+  const [noPicture, setNoPicture] = useState(false);
+  const [undo, setUndo] = useState<Undo | null>(null);
   useEffect(() => {
     let live = true;
-    setM(null); setForm(null); setFailed('');
+    setM(null); setForm(null); setFailed(''); setNoPicture(false); setUndo(null);
     ops.open(id).then((x) => { if (live) setM(x); }, (e: unknown) => { if (live) setFailed(e instanceof Error ? e.message : String(e)); });
     return () => { live = false; };
   }, [id, ops]);
@@ -229,6 +152,18 @@ function Detail({ id, ops, by, siblings, pictureProblem, onOpen, onChanged }: { 
     if (busy) return;
     setBusy(true);
     try { const next = await run(); setM((x) => (x ? { ...x, ...next } : x)); setForm(null); app.toast(done); onChanged(); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
+    setBusy(false);
+  };
+  // A change of status, with Undo in the sheet (the page's message is under it): Undo puts back the status it replaced, through the same rule, recorded as the viewer.
+  const change = async (c: StatusChange, done: string) => {
+    if (busy || !m) return;
+    const before = { status: m.status, fixedIn: m.fixedIn, wontFixReason: m.wontFixReason };
+    setBusy(true);
+    try {
+      const next = await ops.setStatus(id, c);
+      setM((x) => (x ? { ...x, ...next } : x)); setForm(null); onChanged(); app.toast(done);
+      setUndo({ done, run: async () => { setUndo(null); try { const back = await ops.setStatus(id, undoChange(before, by)); setM((x) => (x ? { ...x, ...back } : x)); onChanged(); app.toast('Undone'); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); } } });
+    } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
     setBusy(false);
   };
   const openIssue = async () => {
@@ -245,17 +180,19 @@ function Detail({ id, ops, by, siblings, pictureProblem, onOpen, onChanged }: { 
             <MarkupStatusMark status={m.status} />
             <span className="tiny muted">{m.personName || 'Someone'}, {m.demo ? 'from ' : 'in '}{sentFrom(m)}, {timeAgo(m.createdAt, app.today)}{m.mood ? ` · ${MOOD_WORD[m.mood]}` : ''}</span>
           </div>
+          <StatusBy t={m} />
+          {undo && <UndoLine undo={undo} />}
           <p className="mk-said">{m.line}</p>
           <figure className="mk-figure">
-            {m.urls.screen ? (
+            {m.urls.screen && !noPicture ? (
               <span className="mk-layers">
-                <img src={m.urls.screen} alt={`The screen ${m.personName || 'they'} marked up, on ${m.route}`} />
+                <img src={m.urls.screen} alt={`The screen ${m.personName || 'they'} marked up, on ${m.route}`} onError={() => setNoPicture(true)} />
                 {ink && m.urls.ink && <img className="mk-ink-layer" src={m.urls.ink} alt="" />}
               </span>
-            ) : <span className="hint" role={pictureProblem?.() ? 'alert' : undefined}>{pictureProblem?.() ?? 'The picture isn’t there.'}</span>}
-            {m.urls.ink && <label className="check"><input type="checkbox" checked={ink} onChange={(e) => setInk(e.target.checked)} /><span>Show the drawing</span></label>}
+            ) : <span className="hint">{noPicture ? 'The picture couldn’t be opened just now.' : 'The picture isn’t there.'}</span>}
+            {m.urls.ink && !noPicture && <label className="check"><input type="checkbox" checked={ink} onChange={(e) => setInk(e.target.checked)} /><span>Show the drawing</span></label>}
           </figure>
-          <Actions m={m} busy={busy} form={form} setForm={setForm} onInHand={() => act(() => ops.setStatus(id, { status: 'in-hand', by }), 'Marked in hand')} onIssue={openIssue} onReopen={() => act(() => ops.setStatus(id, { status: 'new', by }), 'Marked new again')} />
+          <Actions m={m} busy={busy} form={form} setForm={setForm} onInHand={() => change({ status: 'in-hand', by }, 'Marked in hand')} onIssue={openIssue} onReopen={() => change({ status: 'new', by }, 'Marked new again')} />
           {form === 'issue' && (
             <form className="stack mk-form" onSubmit={(e) => { e.preventDefault(); void act(() => ops.setIssueUrl(id, issue), 'Kept the issue’s address'); }}>
               <label className="field"><span className="field-label">Paste issue link</span><input className="input" value={issue} onChange={(e) => setIssue(e.target.value)} placeholder="https://github.com/sconies/goals-app/issues/123" autoFocus /></label>
@@ -264,10 +201,10 @@ function Detail({ id, ops, by, siblings, pictureProblem, onOpen, onChanged }: { 
             </form>
           )}
           {form === 'fixed' && (
-            <FixedForm onFixed={(fixedIn) => act(() => ops.setStatus(id, { status: 'fixed', fixedIn, by }), 'Marked fixed')} onCancel={() => setForm(null)}
+            <FixedForm onFixed={(fixedIn) => change({ status: 'fixed', fixedIn, by }, 'Marked fixed')} onCancel={() => setForm(null)}
               hint={`${m.personName || 'The sender'} sees “You raised this” on that entry. List the markup’s id (${m.id}) in the entry’s fixes, too.`} />
           )}
-          {form === 'wont-fix' && <WontFixForm onWontFix={(reason) => act(() => ops.setStatus(id, { status: 'wont-fix', reason, by }), 'Marked won’t fix')} onCancel={() => setForm(null)} />}
+          {form === 'wont-fix' && <WontFixForm onWontFix={(reason) => change({ status: 'wont-fix', reason, by }, 'Marked won’t fix')} onCancel={() => setForm(null)} />}
           {m.issueUrl && <p className="small">Issue: <a href={m.issueUrl} target="_blank" rel="noopener noreferrer">{m.issueUrl.replace('https://github.com/', '')}</a></p>}
           {m.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${m.fixedIn}`}>{WHATS_NEW.find((e) => e.id === m.fixedIn)?.title ?? m.fixedIn}</Link>.</p>}
           {m.wontFixReason && <p className="small">Won’t fix: {m.wontFixReason}</p>}
@@ -371,10 +308,16 @@ function FeedbackDetail({ f, ops, by, onClose, onChanged }: { f: InboxFeedback; 
   const app = useApp();
   const [form, setForm] = useState<'fixed' | 'wont-fix' | null>(null);
   const [busy, setBusy] = useState(false);
-  const act = async (c: Parameters<FeedbackOps['setStatus']>[1], done: string) => {
+  const [undo, setUndo] = useState<Undo | null>(null);
+  // A change of status, with Undo, as for a markup.
+  const act = async (c: StatusChange, done: string) => {
     if (busy) return;
+    const before = { status: f.status, fixedIn: f.fixedIn, wontFixReason: f.wontFixReason };
     setBusy(true);
-    try { onChanged(f.id, await ops.setStatus(f.id, c)); setForm(null); app.toast(done); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
+    try {
+      onChanged(f.id, await ops.setStatus(f.id, c)); setForm(null); app.toast(done);
+      setUndo({ done, run: async () => { setUndo(null); try { onChanged(f.id, await ops.setStatus(f.id, undoChange(before, by))); app.toast('Undone'); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); } } });
+    } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
     setBusy(false);
   };
   const said = f.text.trim();
@@ -385,6 +328,8 @@ function FeedbackDetail({ f, ops, by, onClose, onChanged }: { f: InboxFeedback; 
           <MarkupStatusMark status={f.status} />
           <span className="tiny muted">{f.personName || 'Someone'}, in {f.workspaceName || f.workspaceId}, {timeAgo(f.at, app.today)} · {MOOD_WORD[f.mood]}</span>
         </div>
+        <StatusBy t={f} />
+        {undo && <UndoLine undo={undo} />}
         {said ? <p className="mk-said">{said}</p> : <p className="hint">Only a mood, no words.</p>}
         <Actions m={{ status: f.status, issueUrl: null }} busy={busy} form={form} setForm={setForm} onInHand={() => act({ status: 'in-hand', by }, 'Marked in hand')} onReopen={() => act({ status: 'new', by }, 'Marked new again')} />
         {form === 'fixed' && <FixedForm hint={`${f.personName || 'The sender'} sees “You raised this” on that entry. List the feedback’s id (${f.id}) in the entry’s fixes, too.`} onFixed={(fixedIn) => act({ status: 'fixed', fixedIn, by }, 'Marked fixed')} onCancel={() => setForm(null)} />}
@@ -398,4 +343,19 @@ function FeedbackDetail({ f, ops, by, onClose, onChanged }: { f: InboxFeedback; 
       </div>
     </Sheet>
   );
+}
+
+/** Who set the status, and when: every change in the open inbox is recorded as the person who made it. */
+function StatusBy({ t }: { t: { status: MarkupStatus; statusBy: string | null; statusAt: string | null } }) {
+  const app = useApp();
+  if (!t.statusBy) return null;
+  return <p className="tiny muted mk-by">Marked {STATUS_WORD[t.status].toLowerCase()} by {t.statusBy}{t.statusAt ? `, ${timeAgo(t.statusAt, app.today)}` : ''}.</p>;
+}
+
+/** The last status change in an open markup or piece of feedback, and how to take it back. */
+interface Undo { done: string; run: () => Promise<void> }
+
+/** Undo, beside what was just done: in the sheet, where the page's own message can't be reached. */
+function UndoLine({ undo }: { undo: Undo }) {
+  return <p className="small mk-undo" role="status">{undo.done}. <button type="button" className="linkish" onClick={() => void undo.run()}>Undo</button></p>;
 }

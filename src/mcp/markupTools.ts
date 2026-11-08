@@ -1,12 +1,12 @@
-/* The builder inbox, for a builder's AI assistant: list markups, open one (its picture comes back inside the answer,
-   as an image, when the server can read it), review what's new in one step (review_inbox: new markups and feedback,
-   grouped by screen part, with pictures) and change one (its status, its GitHub issue, the What's new entry that
-   fixed it). Builders only: they need a builder token, which only a builder signed in to the inbox can make, so an ordinary
-   token (which an admin can make for anyone) isn't enough. The same operations as the inbox (src/markup/ops.ts),
-   through the database's functions for builder tokens (migration 0024): no secret beyond the token. */
+/* The inbox, for an AI assistant: list markups, open one (its picture comes back inside the answer, as an image),
+   review what's new in one step (review_inbox: new markups and feedback, grouped by screen part, with pictures) and
+   change one (its status, its GitHub issue, the What's new entry that fixed it). Any token works: Faro's inbox is open
+   to anyone on purpose (backlog O, Lane, 8 Nov; the internal app keeps its own restricted, spec R1 rule 6). The same
+   operations as the inbox (src/markup/ops.ts), through the database's functions for tokens (migration 0031): no
+   secret beyond the token. A change is recorded as the token's person, via the assistant. */
 import type { InboxFeedback } from '../markup/feedback';
 import { MarkupError, MOOD_WORD, STATUS_WORD, STATUSES, groupMarkups, namedParts, partText, placeOf, problemText, sentFrom, stepText, type Markup, type MarkupStatus } from '../markup/model';
-import type { MarkupOps, MarkupPicture } from '../markup/ops';
+import { PICTURES_UNREADABLE, type MarkupOps, type MarkupPicture } from '../markup/ops';
 import type { McpContext, ToolDef, ToolImage, ToolResult } from './tools';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
@@ -31,7 +31,7 @@ async function pictureOf(ops: MarkupOps, m: Pick<Markup, 'id' | 'pictures'>, nam
 
 /** The inbox, when this request may use it; otherwise why not, for the assistant to say. */
 function inbox(ctx: McpContext): MarkupOps {
-  if (!ctx.markups) throw new Error('Only builders (the people building Faro) can read markups, with a builder token: sign in to the inbox on Workspace and make one there.');
+  if (!ctx.markups) throw new Error('This server has no inbox to read.');
   return ctx.markups;
 }
 
@@ -39,7 +39,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
   {
     name: 'list_markups',
     title: 'List markups',
-    description: 'Builders: markups people sent (a picture of a screen with a drawing and a line saying what should change), newest first, from every workspace and the demo. Filter by status or workspace.',
+    description: 'Markups people sent (a picture of a screen with a drawing and a line saying what should change), newest first, from every workspace and the demo. Filter by status or workspace.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       status: str('Only markups with this status.', { enum: STATUSES }),
       workspace: str('Only this workspace’s (its id).'),
@@ -55,7 +55,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
   {
     name: 'get_markup',
     title: 'Open a markup',
-    description: 'Builders: one markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version, the demo or a preview build), the steps before it and the errors on that visit. Its picture (the screen with the drawing on it) comes back in the answer as an image.',
+    description: 'One markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version, the demo or a preview build), the steps before it and the errors on that visit. Its picture (the screen with the drawing on it) comes back in the answer as an image.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
       id: str('The markup’s id (mk_…), from list_markups or review_inbox.'),
       picture: str('Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.', { enum: Object.keys(PICTURE_NAMES) }),
@@ -86,7 +86,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
   {
     name: 'review_inbox',
     title: 'Review the inbox',
-    description: 'Builders: everything new in the inbox in one step, ready to triage: new markups grouped by the screen part they are about (newest first, with a count), each with its line, notes, who sent it and from where, and new feedback grouped by page. The newest markup of each group comes with its picture as an image. Then use update_markup and update_feedback.',
+    description: 'Everything new in the inbox in one step, ready to triage: new markups grouped by the screen part they are about (newest first, with a count), each with its line, notes, who sent it and from where, and new feedback grouped by page. The newest markup of each group comes with its picture as an image. Then use update_markup and update_feedback.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       status: str('Review markups and feedback with this status instead of new.', { enum: STATUSES }),
       workspace: str('Only this workspace’s (its id).'),
@@ -114,7 +114,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
         if (i < want && !pictureNote) {
           const pic = await pictureOf(ops, g.markups[0]!, PICTURE_NAMES.marked!);
           if (pic.picture && pic.picture.bytes <= budget) { images.push(pic.image!); budget -= pic.picture.bytes; shown = g.markups[0]!.id; }
-          else if (pic.note && /SERVICE_ROLE_KEY/.test(pic.note)) pictureNote = pic.note;
+          else if (pic.note && pic.note === PICTURES_UNREADABLE) pictureNote = pic.note;
         }
         out.push('', `## ${where} · ${g.route} · ${g.markups.length} markup${g.markups.length === 1 ? '' : 's'}${shown ? ` · picture ${images.length} is ${shown}` : ''}`);
         for (const m of g.markups) {
@@ -129,7 +129,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
         out.push('', `## Feedback on ${page} · ${fs.length}`);
         for (const f of fs) out.push(`- ${f.id} · ${MOOD_WORD[f.mood]} · “${f.text || '(no words)'}” · ${f.personName || f.personId}, ${f.workspaceName || f.workspaceId}, ${f.at.slice(0, 10)}`);
       }
-      if (!ctx.feedback) out.push('', 'Feedback: this token can’t triage feedback.');
+      if (!ctx.feedback) out.push('', 'Feedback: this server can’t read feedback.');
       if (pictureNote) out.push('', `Pictures: ${pictureNote}`);
       else if (groups.length > images.length && want > 0) out.push('', 'For a picture not shown here, use get_markup with the markup’s id.');
       if (!markups.length && !feedback.length) out.push('', 'Nothing to review.');
@@ -143,7 +143,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
   {
     name: 'update_markup',
     title: 'Change a markup',
-    description: 'Builders: set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.',
+    description: 'Set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
       id: str('The markup’s id (mk_…).'),
       status: str('Its new status.', { enum: STATUSES }),

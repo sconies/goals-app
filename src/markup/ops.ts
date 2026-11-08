@@ -1,7 +1,7 @@
-/* What builders do with markups: list them, open one, change its status, open its GitHub issue and keep the issue's
-   address. Written once and used by the inbox (a builder signed in with Supabase Auth, or markups kept in this
-   browser when no database is set up) and by the MCP server's markup tools (with a builder token). Where the markups
-   are kept is passed in (src/markup/stores.ts). No secrets: an issue is opened by the builder, on GitHub, from a
+/* What anyone does with markups in the open inbox (backlog O): list them, open one, change its status (and undo it),
+   open its GitHub issue and keep the issue's address. Written once and used by the inbox (on the app's public key, or
+   markups kept in this browser when no database is set up) and by the MCP server's markup tools (with any token).
+   Where the markups are kept is passed in (src/markup/stores.ts). No secrets: an issue is opened on GitHub, from a
    pre-filled link. */
 import { ISSUE_URL, MarkupError, newIssueLink, statusPatch, type Markup, type MarkupStatus, type StatusChange } from './model';
 
@@ -13,12 +13,12 @@ export interface MarkupStore {
   /** A link to one of a markup's pictures (markups/<id>/<name>) that stops working after `seconds`; null when there's no way to make one. */
   pictureUrl(id: string, name: string, seconds: number): Promise<string | null>;
   /** The picture itself, for an assistant to see without opening a link (backlog -2). Absent when this store can't
-      read pictures (the MCP server without the service role key): see PICTURES_NEED_KEY. */
+      read pictures: see PICTURES_UNREADABLE. */
   pictureBytes?(id: string, name: string): Promise<Uint8Array | null>;
 }
 
-/** What to say, plainly, when the server can't read markups' pictures: what to add, and where. */
-export const PICTURES_NEED_KEY = 'The server can’t read markup pictures: it has no SUPABASE_SERVICE_ROLE_KEY. To fix it, add it in Vercel (the goals-app project, Settings, Environment Variables, for Production and Preview), with the service_role key from Supabase (Project Settings, API Keys), then redeploy.';
+/** What to say, plainly, when markups' pictures can't be read here: what to do, and where. */
+export const PICTURES_UNREADABLE = 'Markup pictures can’t be read here yet: the “markups” bucket isn’t open to read. Migration 0031 opens it (CI applies it when the open inbox merges); or, in Supabase, Storage, make the markups bucket public.';
 
 /** The pictures a markup can have (src/markup/ink.ts makePictures). */
 export const PICTURE_FILES = ['screen.png', 'ink.png', 'marked.jpg', 'thumb.jpg'];
@@ -69,12 +69,12 @@ export function markupOps(o: MarkupOpsOptions) {
       return Promise.all(list.map(async (m) => ({ ...m, thumbUrl: await pic(m, 'thumb.jpg') })));
     },
 
-    /** One picture's bytes, by markup id and picture name (for the inbox opened with a builder token). Null when the
-        markup has no picture by that name; throws PICTURES_NEED_KEY when pictures can't be read here. */
+    /** One picture's bytes, by markup id and picture name (the server's ?picture= address). Null when the
+        markup has no picture by that name; throws PICTURES_UNREADABLE when pictures can't be read here. */
     async pictureFile(id: string, name: string): Promise<Uint8Array | null> {
       if (!PICTURE_FILES.includes(name)) throw new MarkupError(`A markup’s pictures are ${PICTURE_FILES.join(', ')}.`);
       const m = await must(id);
-      if (!o.store.pictureBytes) throw new MarkupError(PICTURES_NEED_KEY);
+      if (!o.store.pictureBytes) throw new MarkupError(PICTURES_UNREADABLE);
       return m.pictures.includes(name) ? o.store.pictureBytes(id, name) : null;
     },
 
@@ -82,9 +82,9 @@ export function markupOps(o: MarkupOpsOptions) {
     picturesReady: () => !!o.store.pictureBytes,
 
     /** One of a markup's pictures, for an assistant: the first of `names` the markup has. Null when it has none of
-        them; throws PICTURES_NEED_KEY when pictures can't be read here. */
+        them; throws PICTURES_UNREADABLE when pictures can't be read here. */
     async picture(m: Pick<Markup, 'id' | 'pictures'>, names: string[] = ['marked.jpg', 'screen.png']): Promise<MarkupPicture | null> {
-      if (!o.store.pictureBytes) throw new MarkupError(PICTURES_NEED_KEY);
+      if (!o.store.pictureBytes) throw new MarkupError(PICTURES_UNREADABLE);
       for (const name of names) {
         if (!m.pictures.includes(name)) continue;
         const b = await o.store.pictureBytes(m.id, name);

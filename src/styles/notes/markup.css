@@ -1,4 +1,4 @@
-/* Marking up a screen (src/markup/Markup.tsx) and the builder inbox (src/markup/Inbox.tsx). The frozen picture fills the
+/* Marking up a screen (src/markup/Markup.tsx) and the inbox (src/markup/Inbox.tsx). The frozen picture fills the
    screen; the toolbar is one slim flat bar (at the top on a desktop, the foot on a phone); the drawing is one ink colour
    with a white halo. Statuses in the inbox are a shape and a word; rows are hairline-divided, never striped. */
 

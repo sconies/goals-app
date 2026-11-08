@@ -14,12 +14,12 @@ import { parseTraceparent, type SpanContext } from '../src/telemetry/ids';
 import type { SpanRow } from '../src/telemetry/model';
 import { SpanCollector } from '../src/telemetry/server';
 import type { McpContext } from '../src/mcp/tools';
-import { PICTURES_NEED_KEY, pictureType, type MarkupOps } from '../src/markup/ops';
+import { PICTURES_UNREADABLE, pictureType, type MarkupOps } from '../src/markup/ops';
 import type { FeedbackOps } from '../src/markup/feedback';
 
 export interface Deps {
-  /** The live (not revoked) token with this hash, its workspace, and whether it's a builder token (migration 0024). */
-  findToken(hash: string): Promise<{ token: ApiToken; workspaceId: string; builder?: boolean } | null>;
+  /** The live (not revoked) token with this hash, and its workspace. */
+  findToken(hash: string): Promise<{ token: ApiToken; workspaceId: string } | null>;
   workspaceName(id: string): Promise<string>;
   load(workspaceId: string): Promise<Snapshot>;
   commit(workspaceId: string, c: Commit): Promise<void>;
@@ -33,12 +33,12 @@ export interface Deps {
   recording?(workspaceId: string): Promise<boolean>;
   /** The feature modules switched off in the workspace (migration 0030). Unknown counts as none. */
   modulesOff?(workspaceId: string): Promise<string[]>;
-  /** The builder inbox (src/markup/ops.ts) for a builder token, given its hash. Only builder tokens get it. */
+  /** The open inbox's markups (src/markup/ops.ts) for a token, given its hash. Any live token gets it (backlog O). */
   markups?(tokenHash: string): MarkupOps;
-  /** The builders' feedback triage (src/markup/feedback.ts) for a builder token, given its hash. Only builder tokens get it. */
+  /** The open inbox's feedback triage (src/markup/feedback.ts) for a token, given its hash. Any live token gets it. */
   feedback?(tokenHash: string): FeedbackOps;
   /** What the server can do, for the check after each deploy (GET /api/mcp?check): whether it reaches the database,
-      and whether it can read markup pictures (it needs SUPABASE_SERVICE_ROLE_KEY). */
+      and whether markup pictures can be read (the markups bucket is open to read, migration 0031). */
   check?(): Promise<ServerCheck>;
   /** Where the server's own spans go. Without it, nothing is recorded. */
   telemetry?(spans: SpanRow[]): Promise<void>;
@@ -79,7 +79,7 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   const hash = await hashToken(token);
   const found = await deps.findToken(hash);
   if (!found) return rpcError(401, 'That token isn’t valid or has been revoked. Ask an admin for a new one.', { 'WWW-Authenticate': 'Bearer error="invalid_token"' });
-  if (picture !== null) return pictureResponse(picture, found.builder ? deps.markups?.(hash) : undefined);
+  if (picture !== null) return pictureResponse(picture, deps.markups?.(hash));
 
   let body: unknown;
   try { body = await req.json(); } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400); }
@@ -151,10 +151,9 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
         return secret;
       },
       ...(deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace!(found.workspaceId) } : {}),
-      // The markup tools work only with a builder token, which only a builder signed in to the inbox can make.
-      ...(deps.markups && found.builder ? { markups: deps.markups(hash) } : {}),
-      // So do the feedback tools' statuses (migration 0028).
-      ...(deps.feedback && found.builder ? { feedback: deps.feedback(hash) } : {}),
+      // The inbox's tools work with any token: Faro's inbox is open on purpose (backlog O, migration 0031).
+      ...(deps.markups ? { markups: deps.markups(hash) } : {}),
+      ...(deps.feedback ? { feedback: deps.feedback(hash) } : {}),
     };
     return ctx;
   };
@@ -171,10 +170,10 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   return res;
 }
 
-/** GET /api/mcp?picture=<markup id>/<picture name>, with a builder token: the picture itself, for the inbox opened with
-    a token (backlog -2). Plain words when the token isn't a builder's or the server has no key to read pictures. */
+/** GET /api/mcp?picture=<markup id>/<picture name>, with any token: the picture itself, for an assistant that only
+    fetches addresses. Plain words when the server has no inbox or pictures can't be read. */
 async function pictureResponse(path: string, ops: MarkupOps | undefined): Promise<Response> {
-  if (!ops) return rpcError(403, 'Only a builder token reads markup pictures. A builder makes one in Faro’s inbox, under Connect Claude.');
+  if (!ops) return rpcError(503, 'This server has no inbox to read pictures from.');
   const [id = '', name = ''] = path.split('/');
   try {
     const bytes = await ops.pictureFile(id, name);
@@ -182,7 +181,7 @@ async function pictureResponse(path: string, ops: MarkupOps | undefined): Promis
     return new Response(bytes as BodyInit, { status: 200, headers: { 'Content-Type': pictureType(name), 'Cache-Control': 'private, max-age=600', ...CORS } });
   } catch (e) {
     const text = e instanceof Error ? e.message : String(e);
-    return rpcError(text === PICTURES_NEED_KEY ? 503 : 404, text);
+    return rpcError(text === PICTURES_UNREADABLE ? 503 : 404, text);
   }
 }
 

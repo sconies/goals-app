@@ -32728,14 +32728,14 @@ var CORE_ARTICLES = [
 				"Someone who has left: open them and choose Mark as left. You’re asked who takes over their goals and their open asks first; they then leave every picker and count, and history keeps their name, as “Name (left)”. Someone with no history is deleted instead.",
 				"Recently removed lists everything removed, stopped, ended or marked as left in the last 30 days, with who and when, and Restore. Cycles lists the cycles; one nobody has checked in to can be deleted.",
 				"Delete the workspace, after typing its name. It can’t be undone; an example can only be reset.",
-				"Inbox: for the people building Faro, the markups people send. See The builder inbox."
+				"Inbox: the markups and feedback people send, open to anyone. See The inbox."
 			]
 		}, {
 			heading: "Who can",
 			list: [
 				"Everyone can see the people and teams.",
 				"Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.",
-				"Only builders, signed in to the inbox, read markups. Admins who aren’t builders can’t see them until sign-in comes to the whole app."
+				"Anyone can read the inbox and change a markup’s or feedback’s status: Faro holds no real data. The internal app keeps it to the people who look after the app."
 			]
 		}],
 		routes: ["/workspace"],
@@ -32979,7 +32979,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only admins make tokens. An admin or the token’s own person can revoke one. A builder makes a builder token under Connect Claude, at the top of the inbox, so their assistant can read and triage markups and feedback too, pictures included."]
+				text: ["Only admins make tokens. An admin or the token’s own person can revoke one. Any token also reads and triages the inbox’s markups and feedback, pictures included (Connect Claude, at the top of the inbox, has the set-up)."]
 			}
 		],
 		routes: [],
@@ -33031,7 +33031,7 @@ var CORE_ARTICLES = [
 					"The picture of your screen, as it was. Nothing on it is hidden, so check it before you send.",
 					"Your marks, your line, your name, which parts of the screen your marks are on (for example Goal page, Scorecard, Will it hit), the page, your screen size, light or dark, your accent and the app’s version.",
 					"Your last 20 steps on this visit, unless you untick them: the pages you opened and the buttons you pressed, never what you typed. And any errors or saves that didn’t go through on this visit.",
-					"In the demo, markups are sent too, marked as from the demo. Only the people building Faro read them, in the builder inbox. Your admins don’t see them yet."
+					"In the demo, markups are sent too, marked as from the demo. Anyone can read them in the inbox on Workspace, picture included: Faro holds no real data, so nothing on your screen should be private."
 				]
 			}
 		],
@@ -33058,17 +33058,13 @@ var CORE_ARTICLES = [
 	},
 	{
 		id: "inbox",
-		title: "The builder inbox",
-		summary: "For the people building Faro: every markup and piece of feedback people send, to triage, with a markup’s picture, the parts it names and what led up to it.",
+		title: "The inbox",
+		summary: "Every markup and piece of feedback people send, open to anyone with no sign-in: read it, with a markup’s picture, the parts it names and what led up to it, and triage it.",
 		group: "you",
 		sections: [
 			{
-				heading: "Signing in",
-				list: [
-					"The inbox is on Workspace. Builders sign in with their email: the link in the email brings you back, signed in, in that browser. Sign out there too.",
-					"Only the inbox signs in. The rest of the app is unchanged.",
-					"A builder is someone whose email is on Faro’s builders list. Admins who aren’t builders can’t read markups until sign-in comes to the whole app, when they’ll see their own workspace’s."
-				]
+				heading: "Who can read it",
+				list: ["The inbox is on Workspace, in the app and the demo. There’s no sign-in: anyone can read it and change a status, on any device. Faro holds no real data, so there is nothing to keep back.", "It holds what’s sent from every workspace and the demo, and says where each came from. The company’s own app keeps its inbox to the people who look after the app."]
 			},
 			{
 				heading: "How to use it",
@@ -33077,30 +33073,30 @@ var CORE_ARTICLES = [
 					"Markups about the same part of the same page are grouped, with a count.",
 					"Open one to see its picture (hide the drawing to see the screen beneath), the parts its marks are on, its notes, the steps before it as a timeline, any errors, and where it was sent from.",
 					"Mark it in hand. Open GitHub issue opens a new issue on GitHub filled in with the line, the page, the parts, the steps and a link back here: press Submit there, then paste the issue’s address back with Paste issue link.",
-					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed."
+					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.",
+					"Each change says who made it (you, as you chose on this device) and when. Changed your mind? Undo, beside the change, puts back the status it replaced."
 				]
 			},
 			{
 				heading: "Connect Claude",
 				list: [
-					"Connect Claude is at the top of the inbox. Make a builder token there (in the app, not the demo), then copy the set-up: for a Claude cloud session, the host and where the token goes; for Claude Code, one command.",
-					"Claude then reviews the inbox in one step, with review_inbox: new markups grouped by the part of the screen they’re about, each with its picture, and new feedback by page. It sees the pictures without opening anything.",
-					"Pictures need the database’s service role key on the server. When it’s missing, Connect Claude says so, with what to add where.",
-					"Your builder tokens are listed there, with when each was last used. Revoke one when you’re done with it.",
-					"For a test round, you don’t need the email sign-in: paste a builder token under “Or read it with a builder token”. The inbox shows every markup, including those sent from the demo or a preview build, and says which. Forget the token when you’re done."
+					"Connect Claude is at the top of the inbox. Any Faro token works. An admin makes one there (in the app, not the demo); anyone else asks an admin. Then copy the set-up: for a Claude cloud session, the host and where the token goes; for Claude Code, one command.",
+					"Claude then reviews the inbox in one step, with review_inbox: new markups grouped by the part of the screen they’re about, each with its picture, and new feedback by page. It sees the pictures without opening anything. Its changes say they were made by the token’s person, via the AI assistant.",
+					"Connect Claude says whether the server can send Claude the pictures, and if not, why.",
+					"Tokens are listed, and revoked, on Workspace under AI assistants, and yours in Settings."
 				]
 			},
 			{
 				heading: "Feedback",
 				list: [
 					"Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.",
-					"It has the same statuses: open it to mark it in hand, fixed in a What’s new entry (its sender then sees “You raised this” there; list its id in the entry’s fixes too), or won’t fix with a reason, or new again. It has no picture and no GitHub issue.",
-					"Feedback always arrives as New. Only builders read everyone’s and change its status; a workspace’s admins still read their own on Workspace."
+					"It has the same statuses: open it to mark it in hand, fixed in a What’s new entry (its sender then sees “You raised this” there; list its id in the entry’s fixes too), or won’t fix with a reason, or new again, with Undo. It has no picture and no GitHub issue.",
+					"Feedback always arrives as New. A workspace’s admins still see their own workspace’s on Workspace."
 				]
 			},
 			{
 				heading: "Without a database",
-				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback, without signing in. Statuses you give feedback there stay in that browser."]
+				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser."]
 			}
 		],
 		routes: [],
@@ -33115,18 +33111,17 @@ var CORE_ARTICLES = [
 		keywords: [
 			"inbox",
 			"markups",
-			"builders",
 			"triage",
 			"github issue",
-			"sign in",
-			"email link",
+			"undo",
+			"who changed it",
 			"fixed",
 			"won’t fix",
 			"in hand",
 			"feedback",
 			"mood",
 			"connect claude",
-			"builder token",
+			"token",
 			"review inbox",
 			"pictures"
 		],
@@ -33301,6 +33296,17 @@ var WHATS_NEW = [
 			"goal-page",
 			"demo"
 		]
+	},
+	{
+		id: "open-inbox",
+		date: "2026-11-08",
+		title: "The inbox is open to everyone",
+		points: [
+			"The inbox on Workspace no longer asks you to sign in: anyone can read the markups and feedback people send, with their pictures, on any device. Faro holds no real data, so there is nothing to hide.",
+			"Anyone can change a status. Each change says who made it, and Undo puts back the status it replaced.",
+			"Connect Claude works with any token: an admin makes one right there, and Claude’s inbox tools no longer need a builder token."
+		],
+		articles: ["inbox", "ai-assistants"]
 	},
 	{
 		id: "demo-polish",
@@ -35759,7 +35765,7 @@ function issueBody(m, o = {}) {
 	const out = [];
 	out.push(`> ${esc(m.line)}`, "");
 	out.push(`${m.personName || "Someone"} sent this ${m.demo ? "from the demo" : `from ${m.workspaceName || m.workspaceId}`} on ${when(m.createdAt)}${m.mood ? `, saying “${MOOD_WORD[m.mood]}”` : ""}.`, "");
-	out.push(o.inboxUrl ? `**The picture, with the drawing:** [open markup \`${m.id}\` in Faro’s inbox](${o.inboxUrl}) (builders, signed in).` : `The picture is in Faro’s inbox: markup \`${m.id}\`.`, "");
+	out.push(o.inboxUrl ? `**The picture, with the drawing:** [open markup \`${m.id}\` in Faro’s inbox](${o.inboxUrl}) (anyone can open it).` : `The picture is in Faro’s inbox: markup \`${m.id}\`.`, "");
 	const parts = namedParts(m);
 	out.push("## Parts named", "");
 	out.push(...parts.length ? parts.map((p) => `- ${esc(partText(p))}`) : ["- No named part under the drawing."], "");
@@ -35807,6 +35813,108 @@ function newIssueLink(repo, m, o = {}) {
 		url = make();
 	}
 	return url;
+}
+// src/markup/ops.ts
+/** What to say, plainly, when markups' pictures can't be read here: what to do, and where. */
+var PICTURES_UNREADABLE = "Markup pictures can’t be read here yet: the “markups” bucket isn’t open to read. Migration 0031 opens it (CI applies it when the open inbox merges); or, in Supabase, Storage, make the markups bucket public.";
+/** The pictures a markup can have (src/markup/ink.ts makePictures). */
+var PICTURE_FILES = [
+	"screen.png",
+	"ink.png",
+	"marked.jpg",
+	"thumb.jpg"
+];
+/** A picture's type, from its name. */
+var pictureType = (name) => name.endsWith(".png") ? "image/png" : "image/jpeg";
+/** Bytes as base64, the same in the browser and on the server. */
+function base64(bytes) {
+	let s = "";
+	for (let i = 0; i < bytes.length; i += 32768) s += String.fromCharCode(...bytes.subarray(i, i + 32768));
+	return btoa(s);
+}
+function markupOps(o) {
+	const now = () => (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString();
+	const must = async (id) => {
+		const m = await o.store.get(id);
+		if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+		return m;
+	};
+	const pic = (m, name) => m.pictures.includes(name) ? o.store.pictureUrl(m.id, name, 600).catch(() => null) : Promise.resolve(null);
+	return {
+		async list(q = {}) {
+			const list = await o.store.list({
+				...q,
+				limit: Math.min(Math.max(q.limit ?? 200, 1), 500)
+			});
+			return Promise.all(list.map(async (m) => ({
+				...m,
+				thumbUrl: await pic(m, "thumb.jpg")
+			})));
+		},
+		/** One picture's bytes, by markup id and picture name (the server's ?picture= address). Null when the
+		markup has no picture by that name; throws PICTURES_UNREADABLE when pictures can't be read here. */
+		async pictureFile(id, name) {
+			if (!PICTURE_FILES.includes(name)) throw new MarkupError(`A markup’s pictures are ${PICTURE_FILES.join(", ")}.`);
+			const m = await must(id);
+			if (!o.store.pictureBytes) throw new MarkupError(PICTURES_UNREADABLE);
+			return m.pictures.includes(name) ? o.store.pictureBytes(id, name) : null;
+		},
+		/** Whether pictures can be read here (for an assistant), or why not. */
+		picturesReady: () => !!o.store.pictureBytes,
+		/** One of a markup's pictures, for an assistant: the first of `names` the markup has. Null when it has none of
+		them; throws PICTURES_UNREADABLE when pictures can't be read here. */
+		async picture(m, names = ["marked.jpg", "screen.png"]) {
+			if (!o.store.pictureBytes) throw new MarkupError(PICTURES_UNREADABLE);
+			for (const name of names) {
+				if (!m.pictures.includes(name)) continue;
+				const b = await o.store.pictureBytes(m.id, name);
+				if (b) return {
+					name,
+					data: base64(b),
+					mimeType: pictureType(name),
+					bytes: b.length
+				};
+			}
+			return null;
+		},
+		async open(id) {
+			const m = await must(id);
+			const [screen, ink, marked] = await Promise.all([
+				"screen.png",
+				"ink.png",
+				"marked.jpg"
+			].map((n) => pic(m, n)));
+			return {
+				...m,
+				urls: {
+					screen: screen ?? null,
+					ink: ink ?? null,
+					marked: marked ?? null
+				}
+			};
+		},
+		async setStatus(id, c) {
+			await must(id);
+			const m = await o.store.update(id, statusPatch(c, now(), o.entries));
+			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+			return m;
+		},
+		/** Keeps the address of the issue the builder opened. */
+		async setIssueUrl(id, url) {
+			const u = url.trim().replace(/[?#].*$/, "");
+			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+			await must(id);
+			const m = await o.store.update(id, { issueUrl: u });
+			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
+			return m;
+		},
+		/** The pre-filled new-issue link: title, line, page, parts, steps and a link back to the markup in the inbox. The
+		builder presses Submit on GitHub, then pastes the issue's address back. */
+		async issueLink(id) {
+			const m = await must(id);
+			return newIssueLink(o.repo, m, { inboxUrl: o.inboxLink?.(m.id) ?? null });
+		}
+	};
 }
 // src/mcp/markupTools.ts
 var str$4 = (description, extra = {}) => ({
@@ -35862,14 +35970,14 @@ async function pictureOf(ops, m, names) {
 }
 /** The inbox, when this request may use it; otherwise why not, for the assistant to say. */
 function inbox(ctx) {
-	if (!ctx.markups) throw new Error("Only builders (the people building Faro) can read markups, with a builder token: sign in to the inbox on Workspace and make one there.");
+	if (!ctx.markups) throw new Error("This server has no inbox to read.");
 	return ctx.markups;
 }
 var MARKUP_TOOLS = [
 	{
 		name: "list_markups",
 		title: "List markups",
-		description: "Builders: markups people sent (a picture of a screen with a drawing and a line saying what should change), newest first, from every workspace and the demo. Filter by status or workspace.",
+		description: "Markups people sent (a picture of a screen with a drawing and a line saying what should change), newest first, from every workspace and the demo. Filter by status or workspace.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -35909,7 +36017,7 @@ var MARKUP_TOOLS = [
 	{
 		name: "get_markup",
 		title: "Open a markup",
-		description: "Builders: one markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version, the demo or a preview build), the steps before it and the errors on that visit. Its picture (the screen with the drawing on it) comes back in the answer as an image.",
+		description: "One markup in full: its line, the named screen parts under the drawing, the notes, where it was sent from (page, goal or review, screen size, theme, accent, app version, the demo or a preview build), the steps before it and the errors on that visit. Its picture (the screen with the drawing on it) comes back in the answer as an image.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -35960,7 +36068,7 @@ var MARKUP_TOOLS = [
 	{
 		name: "review_inbox",
 		title: "Review the inbox",
-		description: "Builders: everything new in the inbox in one step, ready to triage: new markups grouped by the screen part they are about (newest first, with a count), each with its line, notes, who sent it and from where, and new feedback grouped by page. The newest markup of each group comes with its picture as an image. Then use update_markup and update_feedback.",
+		description: "Everything new in the inbox in one step, ready to triage: new markups grouped by the screen part they are about (newest first, with a count), each with its line, notes, who sent it and from where, and new feedback grouped by page. The newest markup of each group comes with its picture as an image. Then use update_markup and update_feedback.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -36002,7 +36110,7 @@ var MARKUP_TOOLS = [
 						images.push(pic.image);
 						budget -= pic.picture.bytes;
 						shown = g.markups[0].id;
-					} else if (pic.note && /SERVICE_ROLE_KEY/.test(pic.note)) pictureNote = pic.note;
+					} else if (pic.note && pic.note === "Markup pictures can’t be read here yet: the “markups” bucket isn’t open to read. Migration 0031 opens it (CI applies it when the open inbox merges); or, in Supabase, Storage, make the markups bucket public.") pictureNote = pic.note;
 				}
 				out.push("", `## ${where} · ${g.route} · ${g.markups.length} markup${g.markups.length === 1 ? "" : "s"}${shown ? ` · picture ${images.length} is ${shown}` : ""}`);
 				for (const m of g.markups) {
@@ -36029,7 +36137,7 @@ var MARKUP_TOOLS = [
 				out.push("", `## Feedback on ${page} · ${fs.length}`);
 				for (const f of fs) out.push(`- ${f.id} · ${MOOD_WORD[f.mood]} · “${f.text || "(no words)"}” · ${f.personName || f.personId}, ${f.workspaceName || f.workspaceId}, ${f.at.slice(0, 10)}`);
 			}
-			if (!ctx.feedback) out.push("", "Feedback: this token can’t triage feedback.");
+			if (!ctx.feedback) out.push("", "Feedback: this server can’t read feedback.");
 			if (pictureNote) out.push("", `Pictures: ${pictureNote}`);
 			else if (groups.length > images.length && want > 0) out.push("", "For a picture not shown here, use get_markup with the markup’s id.");
 			if (!markups.length && !feedback.length) out.push("", "Nothing to review.");
@@ -36057,7 +36165,7 @@ var MARKUP_TOOLS = [
 	{
 		name: "update_markup",
 		title: "Change a markup",
-		description: "Builders: set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
+		description: "Set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -36107,10 +36215,10 @@ var READ$1 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
-var BUILDERS_ONLY = "Only builders (the people building Faro) triage feedback, with a builder token: sign in to the inbox on Workspace and make one there.";
-/** The builders' feedback operations, when this request may use them; otherwise why not, for the assistant to say. */
+var NO_INBOX = "This server has no inbox to triage feedback in.";
+/** The inbox's feedback operations, when this server has them; otherwise why not, for the assistant to say. */
 function triage(ctx) {
-	if (!ctx.feedback) throw new Error(BUILDERS_ONLY);
+	if (!ctx.feedback) throw new Error(NO_INBOX);
 	return ctx.feedback;
 }
 /** One line: "fb_1 · In hand · It gets in the way · “The reason box is too small” · /check-in · Mateo, Acme, 2026-11-06". */
@@ -36120,13 +36228,13 @@ var FEEDBACK_TOOLS = [
 	{
 		name: "list_feedback",
 		title: "Feedback about the app",
-		description: "What people said through Send feedback (a mood and a few words), newest first. Admins: this workspace’s. Builders, with a builder token: every workspace’s, each with its status (new, in-hand, fixed, wont-fix); filter by status or workspace.",
+		description: "What people said through Send feedback (a mood and a few words), newest first, from every workspace, each with its status (new, in-hand, fixed, wont-fix); filter by status or workspace.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$3("Builders: only feedback with this status.", { enum: STATUSES$1 }),
-				workspace: str$3("Builders: only this workspace’s (its id)."),
+				status: str$3("Only feedback with this status.", { enum: STATUSES$1 }),
+				workspace: str$3("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
@@ -36158,7 +36266,7 @@ var FEEDBACK_TOOLS = [
 			}
 			if (a.status || a.workspace) return {
 				isError: true,
-				text: `${BUILDERS_ONLY} An admin’s token lists this workspace’s feedback, without statuses.`
+				text: `${NO_INBOX} An admin’s token lists this workspace’s feedback, without statuses.`
 			};
 			if (!ctx.actor.admin) return {
 				isError: true,
@@ -36182,7 +36290,7 @@ var FEEDBACK_TOOLS = [
 	{
 		name: "get_feedback",
 		title: "Open a piece of feedback",
-		description: "Builders: one piece of feedback in full: its words and mood, the screen it was sent from, who sent it from which workspace and when, and its status (with the What’s new entry that fixed it, or why it won’t be fixed, and who said so).",
+		description: "One piece of feedback in full: its words and mood, the screen it was sent from, who sent it from which workspace and when, and its status (with the What’s new entry that fixed it, or why it won’t be fixed, and who said so).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -36207,7 +36315,7 @@ var FEEDBACK_TOOLS = [
 	{
 		name: "update_feedback",
 		title: "Change a piece of feedback",
-		description: "Builders: set a piece of feedback’s status, with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
+		description: "Set a piece of feedback’s status, with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -37397,7 +37505,7 @@ var INSTRUCTIONS = "Faro: goals and weekly check-ins for one workspace, acting a
 var PROMPTS = [{
 	name: "review_inbox",
 	title: "Review Faro’s inbox",
-	description: "Builders: look at everything new in the inbox (markups with their pictures, and feedback), grouped by screen part, and propose what to do with each.",
+	description: "Look at everything new in the inbox (markups with their pictures, and feedback), grouped by screen part, and propose what to do with each.",
 	text: "Call the review_inbox tool. For each group of markups, look at its picture and say in a line what the person wants changed and where, then propose one of: in hand (and what to build), won’t fix (with the reason), or a duplicate of another. Do the same for the feedback. List your proposals as one batch and ask me before changing any status with update_markup or update_feedback."
 }];
 var ok = (id, result) => ({
@@ -37741,108 +37849,6 @@ var SpanCollector = class {
 		}
 	}
 };
-// src/markup/ops.ts
-/** What to say, plainly, when the server can't read markups' pictures: what to add, and where. */
-var PICTURES_NEED_KEY = "The server can’t read markup pictures: it has no SUPABASE_SERVICE_ROLE_KEY. To fix it, add it in Vercel (the goals-app project, Settings, Environment Variables, for Production and Preview), with the service_role key from Supabase (Project Settings, API Keys), then redeploy.";
-/** The pictures a markup can have (src/markup/ink.ts makePictures). */
-var PICTURE_FILES = [
-	"screen.png",
-	"ink.png",
-	"marked.jpg",
-	"thumb.jpg"
-];
-/** A picture's type, from its name. */
-var pictureType = (name) => name.endsWith(".png") ? "image/png" : "image/jpeg";
-/** Bytes as base64, the same in the browser and on the server. */
-function base64(bytes) {
-	let s = "";
-	for (let i = 0; i < bytes.length; i += 32768) s += String.fromCharCode(...bytes.subarray(i, i + 32768));
-	return btoa(s);
-}
-function markupOps(o) {
-	const now = () => (o.now?.() ?? /* @__PURE__ */ new Date()).toISOString();
-	const must = async (id) => {
-		const m = await o.store.get(id);
-		if (!m) throw new MarkupError(`There’s no markup ${id}.`);
-		return m;
-	};
-	const pic = (m, name) => m.pictures.includes(name) ? o.store.pictureUrl(m.id, name, 600).catch(() => null) : Promise.resolve(null);
-	return {
-		async list(q = {}) {
-			const list = await o.store.list({
-				...q,
-				limit: Math.min(Math.max(q.limit ?? 200, 1), 500)
-			});
-			return Promise.all(list.map(async (m) => ({
-				...m,
-				thumbUrl: await pic(m, "thumb.jpg")
-			})));
-		},
-		/** One picture's bytes, by markup id and picture name (for the inbox opened with a builder token). Null when the
-		markup has no picture by that name; throws PICTURES_NEED_KEY when pictures can't be read here. */
-		async pictureFile(id, name) {
-			if (!PICTURE_FILES.includes(name)) throw new MarkupError(`A markup’s pictures are ${PICTURE_FILES.join(", ")}.`);
-			const m = await must(id);
-			if (!o.store.pictureBytes) throw new MarkupError(PICTURES_NEED_KEY);
-			return m.pictures.includes(name) ? o.store.pictureBytes(id, name) : null;
-		},
-		/** Whether pictures can be read here (for an assistant), or why not. */
-		picturesReady: () => !!o.store.pictureBytes,
-		/** One of a markup's pictures, for an assistant: the first of `names` the markup has. Null when it has none of
-		them; throws PICTURES_NEED_KEY when pictures can't be read here. */
-		async picture(m, names = ["marked.jpg", "screen.png"]) {
-			if (!o.store.pictureBytes) throw new MarkupError(PICTURES_NEED_KEY);
-			for (const name of names) {
-				if (!m.pictures.includes(name)) continue;
-				const b = await o.store.pictureBytes(m.id, name);
-				if (b) return {
-					name,
-					data: base64(b),
-					mimeType: pictureType(name),
-					bytes: b.length
-				};
-			}
-			return null;
-		},
-		async open(id) {
-			const m = await must(id);
-			const [screen, ink, marked] = await Promise.all([
-				"screen.png",
-				"ink.png",
-				"marked.jpg"
-			].map((n) => pic(m, n)));
-			return {
-				...m,
-				urls: {
-					screen: screen ?? null,
-					ink: ink ?? null,
-					marked: marked ?? null
-				}
-			};
-		},
-		async setStatus(id, c) {
-			await must(id);
-			const m = await o.store.update(id, statusPatch(c, now(), o.entries));
-			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
-			return m;
-		},
-		/** Keeps the address of the issue the builder opened. */
-		async setIssueUrl(id, url) {
-			const u = url.trim().replace(/[?#].*$/, "");
-			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
-			await must(id);
-			const m = await o.store.update(id, { issueUrl: u });
-			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
-			return m;
-		},
-		/** The pre-filled new-issue link: title, line, page, parts, steps and a link back to the markup in the inbox. The
-		builder presses Submit on GitHub, then pastes the issue's address back. */
-		async issueLink(id) {
-			const m = await must(id);
-			return newIssueLink(o.repo, m, { inboxUrl: o.inboxLink?.(m.id) ?? null });
-		}
-	};
-}
 // server/mcp.ts
 init_cycle();
 init_plan();
@@ -37899,7 +37905,7 @@ async function serve(req, deps) {
 	const hash = await hashToken(token);
 	const found = await deps.findToken(hash);
 	if (!found) return rpcError(401, "That token isn’t valid or has been revoked. Ask an admin for a new one.", { "WWW-Authenticate": "Bearer error=\"invalid_token\"" });
-	if (picture !== null) return pictureResponse(picture, found.builder ? deps.markups?.(hash) : void 0);
+	if (picture !== null) return pictureResponse(picture, deps.markups?.(hash));
 	let body;
 	try {
 		body = await req.json();
@@ -38030,8 +38036,8 @@ async function serve(req, deps) {
 				return secret;
 			},
 			...deps.deleteWorkspace ? { deleteWorkspace: () => deps.deleteWorkspace(found.workspaceId) } : {},
-			...deps.markups && found.builder ? { markups: deps.markups(hash) } : {},
-			...deps.feedback && found.builder ? { feedback: deps.feedback(hash) } : {}
+			...deps.markups ? { markups: deps.markups(hash) } : {},
+			...deps.feedback ? { feedback: deps.feedback(hash) } : {}
 		};
 		return ctx;
 	};
@@ -38056,10 +38062,10 @@ async function serve(req, deps) {
 	await sendSpans(deps, spans.rows, found.workspaceId, ctx);
 	return res;
 }
-/** GET /api/mcp?picture=<markup id>/<picture name>, with a builder token: the picture itself, for the inbox opened with
-a token (backlog -2). Plain words when the token isn't a builder's or the server has no key to read pictures. */
+/** GET /api/mcp?picture=<markup id>/<picture name>, with any token: the picture itself, for an assistant that only
+fetches addresses. Plain words when the server has no inbox or pictures can't be read. */
 async function pictureResponse(path, ops) {
-	if (!ops) return rpcError(403, "Only a builder token reads markup pictures. A builder makes one in Faro’s inbox, under Connect Claude.");
+	if (!ops) return rpcError(503, "This server has no inbox to read pictures from.");
 	const [id = "", name = ""] = path.split("/");
 	try {
 		const bytes = await ops.pictureFile(id, name);
@@ -38074,7 +38080,7 @@ async function pictureResponse(path, ops) {
 		});
 	} catch (e) {
 		const text = e instanceof Error ? e.message : String(e);
-		return rpcError(text === "The server can’t read markup pictures: it has no SUPABASE_SERVICE_ROLE_KEY. To fix it, add it in Vercel (the goals-app project, Settings, Environment Variables, for Production and Preview), with the service_role key from Supabase (Project Settings, API Keys), then redeploy." ? 503 : 404, text);
+		return rpcError(text === "Markup pictures can’t be read here yet: the “markups” bucket isn’t open to read. Migration 0031 opens it (CI applies it when the open inbox merges); or, in Supabase, Storage, make the markups bucket public." ? 503 : 404, text);
 	}
 }
 /** Stores the request's spans when the workspace records (as it was at the end of the request: a call that turned
@@ -38091,10 +38097,29 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 	} catch {}
 }
 // src/markup/stores.ts
-/** Reads one picture's bytes from the private bucket (Storage's own access: a signed-in builder, or the service role). */
+/** A picture's address in the public-read bucket. */
+var publicUrl = (db, id, name) => db.storage.from("markups").getPublicUrl(`${id}/${name}`).data.publicUrl;
+/** One picture's bytes, read from its address (null when it isn't there, or the bucket isn't open yet). */
 async function download(db, id, name) {
-	const { data, error } = await db.storage.from("markups").download(`${id}/${name}`);
-	return error || !data ? null : new Uint8Array(await data.arrayBuffer());
+	try {
+		const r = await fetch(publicUrl(db, id, name));
+		return r.ok ? new Uint8Array(await r.arrayBuffer()) : null;
+	} catch {
+		return null;
+	}
+}
+/** Pictures by their public address. Reading the bytes first asks the database, once, whether the bucket is open
+(okr_markup_pictures_open, migration 0031), so an assistant is told why there's no picture rather than "none". */
+function pictures(db) {
+	let open = null;
+	const isOpen = () => open ??= Promise.resolve(db.rpc("okr_markup_pictures_open")).then(({ data, error }) => !error && data === true, () => false);
+	return {
+		pictureUrl: async (id, name) => publicUrl(db, id, name),
+		async pictureBytes(id, name) {
+			if (!await isOpen()) throw new MarkupError(PICTURES_UNREADABLE);
+			return download(db, id, name);
+		}
+	};
 }
 var COLUMN = {
 	status: "status",
@@ -38106,7 +38131,7 @@ var COLUMN = {
 };
 var toRow = (patch) => Object.fromEntries(Object.entries(patch).map(([k, v]) => [COLUMN[k] ?? k, v]));
 var rows = (data) => (data ?? []).map(markupFromRow);
-function tokenMarkups(db, hash, signer) {
+function tokenMarkups(db, hash) {
 	const call = async (fn, args, what) => {
 		const { data, error } = await db.rpc(fn, args);
 		if (error) throw new Error(`${what}: ${error.message}`);
@@ -38128,12 +38153,7 @@ function tokenMarkups(db, hash, signer) {
 			mid: id,
 			patch: toRow(patch)
 		}, "Saving the markup"))[0] ?? null,
-		async pictureUrl(id, name, seconds) {
-			if (!signer) return null;
-			const { data, error } = await signer.storage.from("markups").createSignedUrl(`${id}/${name}`, seconds);
-			return error ? null : data?.signedUrl ?? null;
-		},
-		...signer ? { pictureBytes: (id, name) => download(signer, id, name) } : {}
+		...pictures(db)
 	};
 }
 // src/markup/feedback.ts
@@ -38180,7 +38200,7 @@ function feedbackOps(o) {
 		}
 	};
 }
-/** The MCP server, with a builder token: through the database's functions for it (migration 0028), on whatever key it has. */
+/** The MCP server, with any token: through the database's functions for it (migration 0028), on whatever key it has. */
 function tokenFeedback(db, hash) {
 	const read = async (args) => {
 		const { data, error } = await db.rpc("okr_feedback_for_token", {
@@ -38218,8 +38238,7 @@ function tokenFeedback(db, hash) {
 // server/vercel.ts
 function deps(origin) {
 	const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-	const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-	const key = service ?? process.env.VITE_SUPABASE_KEY;
+	const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.VITE_SUPABASE_KEY;
 	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and a key).");
 	const db = createClient(url, key, { auth: { persistSession: false } });
 	const store = new SupabaseStore(url, key, db);
@@ -38234,8 +38253,7 @@ function deps(origin) {
 			seen = hash;
 			return {
 				token: tokenFromRow(row),
-				workspaceId: row.workspace_id,
-				builder: !!row.builder
+				workspaceId: row.workspace_id
 			};
 		},
 		async workspaceName(id) {
@@ -38250,7 +38268,7 @@ function deps(origin) {
 		},
 		issueToken: (ws, c) => store.issueToken(ws, c),
 		markups: (hash) => markupOps({
-			store: tokenMarkups(db, hash, service ? db : null),
+			store: tokenMarkups(db, hash),
 			entries: WHATS_NEW.map((e) => e.id),
 			repo: MARKUP_REPO,
 			inboxLink: (id) => `${origin}/workspace?markup=${id}`
@@ -38265,13 +38283,9 @@ function deps(origin) {
 			const { error } = await db.rpc("okr_token_find", { hash: "0".repeat(64) });
 			const database = !error;
 			if (error) problems.push(`The server can’t reach the goals database: ${error.message}`);
-			let pictures = false;
-			if (!service) problems.push(PICTURES_NEED_KEY);
-			else {
-				const { error: refused } = await db.storage.from("markups").list("", { limit: 1 });
-				pictures = !refused;
-				if (refused) problems.push(`SUPABASE_SERVICE_ROLE_KEY is set, but Storage refused it (${refused.message}). Check it is the service_role key of this Supabase project, then redeploy.`);
-			}
+			const { data: open, error: unknown } = await db.rpc("okr_markup_pictures_open");
+			const pictures = !unknown && open === true;
+			if (!pictures) problems.push(PICTURES_UNREADABLE);
 			return {
 				ok: database && pictures,
 				database,

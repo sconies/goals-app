@@ -1,6 +1,7 @@
 // @vitest-environment node
-/* The MCP server's feedback tools: an admin's token lists the workspace's feedback; a builder token lists every
-   workspace's with its status, opens one and triages it, through the same operations and rules as the inbox. */
+/* The MCP server's feedback tools: any token lists every workspace's feedback with its status, opens one and triages
+   it, through the same operations and rules as the inbox (backlog O). A server with no inbox gives an admin's token
+   the workspace's own feedback, without statuses. */
 import { serve, type Deps } from '../../server/mcp';
 import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
@@ -15,7 +16,7 @@ const fb = (id: string, workspaceId: string, at: string, o: Partial<InboxFeedbac
   path: '/check-in', mood: 'bad', text: 'The reason box is too small', at, status: 'new', fixedIn: null, wontFixReason: null, statusBy: null, statusAt: null, ...o,
 });
 
-async function setup(o: { builder: boolean; person?: string }) {
+async function setup(o: { inbox?: boolean; person?: string } = {}) {
   let data: Snapshot = structuredClone(buildPlatformOrg(today));
   const token = newToken();
   const person = o.person ?? 'grace';
@@ -28,12 +29,12 @@ async function setup(o: { builder: boolean; person?: string }) {
   };
   let askedFor = '';
   const deps: Deps = {
-    findToken: async (h) => (h === t.tokenHash ? { token: t, workspaceId: 'platform-org', builder: o.builder } : null),
+    findToken: async (h) => (h === t.tokenHash ? { token: t, workspaceId: 'platform-org' } : null),
     workspaceName: async () => 'Platform Engineering',
     load: async () => data,
     commit: async (_ws, c) => { data = applyCommit(data, c); },
     touch: async () => undefined,
-    feedback: (hash) => { askedFor = hash; return feedbackOps({ store, entries: WHATS_NEW.map((e) => e.id), now: () => today }); },
+    ...(o.inbox === false ? {} : { feedback: (hash: string) => { askedFor = hash; return feedbackOps({ store, entries: WHATS_NEW.map((e) => e.id), now: () => today }); } }),
     now: () => today,
   };
   let n = 0;
@@ -45,8 +46,9 @@ async function setup(o: { builder: boolean; person?: string }) {
 }
 
 describe('the MCP server’s feedback tools', () => {
-  it('let a builder token list every workspace’s feedback with its status, open one and triage it with the inbox’s rules', async () => {
-    const b = await setup({ builder: true });
+  it('let any token list every workspace’s feedback with its status, open one and triage it with the inbox’s rules', async () => {
+    // Oskar isn't an admin, and his is an ordinary token.
+    const b = await setup({ person: 'oskar' });
     const listed = await b.call('list_feedback');
     expect(listed.isError).toBe(false);
     expect(listed.structuredContent!.feedback.map((f: { id: string; status: string }) => [f.id, f.status])).toEqual([['fb_b', 'in-hand'], ['fb_a', 'new']]);
@@ -65,26 +67,26 @@ describe('the MCP server’s feedback tools', () => {
     expect(fixed.isError).toBe(false);
     expect(fixed.content[0]!.text).toBe(`fb_a is Fixed, fixed in ${WHATS_NEW[0]!.id}.`);
     expect(b.list.find((f) => f.id === 'fb_a')).toMatchObject({ status: 'fixed', fixedIn: WHATS_NEW[0]!.id, statusAt: today.toISOString() });
-    expect(b.list.find((f) => f.id === 'fb_a')!.statusBy).toMatch(/via AI assistant/);
+    expect(b.list.find((f) => f.id === 'fb_a')!.statusBy).toBe('Oskar Lindgren via AI assistant (MCP)');
     const wont = await b.call('update_feedback', { id: 'fb_b', status: 'wont-fix', reason: 'Calm is the point.' });
     expect(wont.content[0]!.text).toBe('fb_b is Won’t fix: Calm is the point.');
   });
 
-  it('give an admin’s ordinary token this workspace’s feedback, without statuses, and nothing more', async () => {
-    const o = await setup({ builder: false });
+  it('on a server with no inbox, give an admin’s token this workspace’s feedback, without statuses, and nothing more', async () => {
+    const o = await setup({ inbox: false });
     const listed = await o.call('list_feedback');
     expect(listed.isError).toBe(false);
     expect(listed.structuredContent!.feedback.every((f: Record<string, unknown>) => !('status' in f))).toBe(true);
     for (const [name, args] of [['list_feedback', { status: 'new' }], ['get_feedback', { id: 'fb_a' }], ['update_feedback', { id: 'fb_a', status: 'in-hand' }]] as const) {
       const r = await o.call(name, args);
       expect(r.isError, name).toBe(true);
-      expect(r.content[0]!.text, name).toMatch(/builder token/);
+      expect(r.content[0]!.text, name).toMatch(/no inbox/);
     }
     expect(o.askedFor()).toBe('');
   });
 
-  it('tell someone who is neither a builder nor an admin that only admins read the feedback', async () => {
-    const r = await (await setup({ builder: false, person: 'oskar' })).call('list_feedback');
+  it('on a server with no inbox, tell someone who isn’t an admin that only admins read the feedback', async () => {
+    const r = await (await setup({ inbox: false, person: 'oskar' })).call('list_feedback');
     expect(r.isError).toBe(true);
     expect(r.content[0]!.text).toBe('Only admins can read the feedback.');
   });

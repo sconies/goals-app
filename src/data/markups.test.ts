@@ -1,9 +1,10 @@
 // @vitest-environment node
-/* Migration 0024, run against the real schema with stand-ins for Supabase Auth and Storage: the public key can add a
-   markup and upload its pictures under an id the database issued, and never read, change or delete them; a builder
-   signed in with Supabase Auth reads and triages them, and anyone else signed in can't; the public key can't read, add
-   or change AI assistant tokens (they're made and revoked by functions that keep only the hash) or read the feedback
-   table; the MCP server's token lookup still works, and its markup tools work only with a builder token. */
+/* Migrations 0024 to 0031, run against the real schema with stand-ins for Supabase Auth and Storage: the public key
+   can add a markup and upload its pictures under an id the database issued, never replacing or deleting them; since the
+   open inbox (0031) anyone reads every markup and piece of feedback, opens the pictures (a public-read bucket nobody
+   can list) and changes a status, through the triage columns only; the public key can't read, add or change AI
+   assistant tokens (they're made and revoked by functions that keep only the hash) or read the feedback table; the MCP
+   server's token lookup still works, and its inbox functions take any live token. */
 import { PGlite } from '@electric-sql/pglite';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -60,12 +61,12 @@ describe('markups, tokens and feedback (0024)', () => {
     await db.query(`insert into okr_people (id, name, role, initials, workspace_id, is_admin) values ('ann', 'Ann Admin', '', 'AA', 'ws_m', true), ('bo', 'Bo', '', 'B', 'ws_m', false), ('lane', 'Lane Hirschfield', '', 'LH', 'ws_o', false)`);
   }, 30_000);
 
-  it('lets the public key add a markup under an issued id, and never read, change or delete one', async () => {
+  it('lets the public key add a markup under an issued id and read it (0031), never rewrite or delete one', async () => {
     const id = await newId();
     expect(id).toMatch(/^mk_[0-9a-f]{16}$/);
     await addMarkup(markup(id));
-    await expect(asAnon('select * from okr_markups')).rejects.toThrow(/permission denied/);
-    await expect(asAnon(`update okr_markups set status = 'fixed'`)).rejects.toThrow(/permission denied/);
+    expect((await asAnon<{ id: string }>('select id from okr_markups')).rows.map((r) => r.id)).toContain(id);
+    await expect(asAnon(`update okr_markups set line = 'rewritten'`)).rejects.toThrow(/permission denied/);
     await expect(asAnon('delete from okr_markups')).rejects.toThrow(/permission denied/);
     await expect(asAnon('select * from okr_markup_ids')).rejects.toThrow(/permission denied/);
     expect((await one<{ n: number }>('select count(*)::int as n from okr_markups', [], false)).n).toBe(1);
@@ -99,8 +100,9 @@ describe('markups, tokens and feedback (0024)', () => {
     expect((await asAnon(`select * from okr_markups_raised('ws_m', 'bo')`)).rows).toEqual([]);
   });
 
-  it('makes a private bucket the public key can only upload a markup’s four pictures into, under an issued id', async () => {
-    expect((await one<{ public: boolean }>(`select public from storage.buckets where id = 'markups'`, [], false)).public).toBe(false);
+  it('makes a public-read bucket (0031) the public key can only upload a markup’s four pictures into, under an issued id', async () => {
+    expect((await one<{ public: boolean }>(`select public from storage.buckets where id = 'markups'`, [], false)).public).toBe(true);
+    expect((await one<{ open: boolean }>('select okr_markup_pictures_open() as open')).open).toBe(true);
     const id = await newId();
     const up = (name: string, bucket = 'markups') => asAnon('insert into storage.objects (bucket_id, name) values ($1, $2)', [bucket, name]);
     await up(`${id}/screen.png`);
@@ -157,7 +159,7 @@ describe('markups, tokens and feedback (0024)', () => {
     expect((await asAnon(`select * from okr_feedback_list('ws_o')`)).rows).toEqual([]);
   });
 
-  it('puts feedback in the inbox (0026): new when sent, read and triaged by builders only, from every workspace', async () => {
+  it('puts feedback in the inbox: new when sent, read and triaged by anyone (0031), from every workspace', async () => {
     const at = '2026-11-06T09:00:00.000Z';
     // Sent through a save, even claiming a status: it arrives new.
     const fb = { id: 'fb_in1', workspace_id: 'ws_o', person_id: 'lane', path: '/goals', mood: 'bad', text: 'The filters are hard to find', at, status: 'fixed', fixed_in: 'remove-and-undo' };
@@ -166,67 +168,53 @@ describe('markups, tokens and feedback (0024)', () => {
     // Straight into the table, the public key can add feedback's own columns, never a status.
     await asAnon(`insert into okr_feedback (id, workspace_id, person_id, path, mood, text) values ('fb_in2', 'ws_o', 'lane', '/', 'good', 'Calm')`);
     await expect(asAnon(`insert into okr_feedback (id, workspace_id, person_id, mood, status) values ('fb_in3', 'ws_o', 'lane', 'good', 'in-hand')`)).rejects.toThrow(/permission denied/);
-    // A builder reads every workspace's, newest first, with the workspace's and the sender's names.
-    const listed = (await asUser<{ id: string; workspace_name: string; person_name: string; status: string }>(LANE, 'select * from okr_feedback_inbox(50)')).rows;
+    // Anyone reads every workspace's, newest first, with the workspace's and the sender's names.
+    const listed = (await asAnon<{ id: string; workspace_name: string; person_name: string; status: string }>('select * from okr_feedback_inbox(50)')).rows;
     expect(listed.map((r) => r.id)).toEqual(expect.arrayContaining(['fb_in1', 'fb1']));
     expect(listed.find((r) => r.id === 'fb_in1')).toMatchObject({ workspace_name: 'Other', person_name: 'Lane Hirschfield', status: 'new' });
     // …and triages it: in hand, then fixed in a What's new entry. Fixed needs the entry; won't fix needs a reason.
-    const triage = (patch: object, who = LANE) => asUser<{ status: string; fixed_in: string | null; status_by: string | null }>(who, 'select * from okr_feedback_triage($1, $2)', ['fb_in1', JSON.stringify(patch)]);
-    expect((await triage({ status: 'in-hand', status_by: 'Lane', status_at: at })).rows[0]).toMatchObject({ status: 'in-hand', status_by: 'Lane' });
+    const triage = (patch: object) => asAnon<{ status: string; fixed_in: string | null; status_by: string | null }>('select * from okr_feedback_triage($1, $2)', ['fb_in1', JSON.stringify(patch)]);
+    expect((await triage({ status: 'in-hand', status_by: 'Bo', status_at: at })).rows[0]).toMatchObject({ status: 'in-hand', status_by: 'Bo' });
     await expect(triage({ status: 'fixed', fixed_in: null })).rejects.toThrow(/okr_feedback_status_check/);
     await expect(triage({ status: 'wont-fix', wont_fix_reason: null })).rejects.toThrow(/okr_feedback_status_check/);
     await expect(triage({ status: 'done' })).rejects.toThrow(/okr_feedback_status_check/);
     expect((await triage({ status: 'fixed', fixed_in: 'remove-and-undo' })).rows[0]).toMatchObject({ status: 'fixed', fixed_in: 'remove-and-undo' });
-    // Nobody else: not someone signed in who isn't a builder, and not the public key.
-    expect((await asUser('someone@example.com', 'select * from okr_feedback_inbox(50)')).rows).toEqual([]);
-    await expect(triage({ status: 'new' }, 'someone@example.com')).rejects.toThrow(/Only builders/);
-    await expect(asAnon('select * from okr_feedback_inbox(50)')).rejects.toThrow(/permission denied/);
-    await expect(asAnon(`select * from okr_feedback_triage('fb_in1', '{"status":"new"}')`)).rejects.toThrow(/permission denied/);
+    // Only through the function: the table itself stays closed to the public key.
     await expect(asAnon(`update okr_feedback set status = 'new'`)).rejects.toThrow(/permission denied/);
     expect((await one<{ status: string }>('select status from okr_feedback where id = $1', ['fb_in1'], false)).status).toBe('fixed');
     // A workspace's own list of feedback still works for it.
     expect((await asAnon<{ id: string }>(`select * from okr_feedback_list('ws_o')`)).rows.map((r) => r.id).sort()).toEqual(['fb_in1', 'fb_in2']);
   });
 
-  it('lets a builder signed in by email read and triage markups and their pictures; nobody else signed in', async () => {
+  it('lets anyone read and triage markups (0031): only the triage columns, under the table’s checks', async () => {
     const id = await newId();
     await addMarkup(markup(id, { workspace_id: 'platform-org', demo: true }));
     await asAnon('insert into storage.objects (bucket_id, name) values ($1, $2)', ['markups', `${id}/screen.png`]);
-    const seen = (await asUser<{ id: string }>(LANE, 'select id from okr_markups')).rows.map((r) => r.id);
-    expect(seen).toContain(id);
-    await asUser(LANE, `update okr_markups set status = 'in-hand', status_by = 'Lane', status_at = now() where id = $1`, [id]);
-    expect((await one<{ status: string }>('select status from okr_markups where id = $1', [id], false)).status).toBe('in-hand');
-    // Only the triage columns change.
-    await expect(asUser(LANE, `update okr_markups set line = 'rewritten' where id = $1`, [id])).rejects.toThrow(/permission denied/);
-    await expect(asUser(LANE, `delete from okr_markups where id = $1`, [id])).rejects.toThrow(/permission denied/);
-    expect((await asUser<{ name: string }>(LANE, `select name from storage.objects where bucket_id = 'markups'`)).rows.map((r) => r.name)).toContain(`${id}/screen.png`);
-    // Someone signed in who isn't on the list sees nothing and changes nothing.
-    expect((await asUser('someone@example.com', 'select id from okr_markups')).rows).toEqual([]);
-    await asUser('someone@example.com', `update okr_markups set status = 'fixed', fixed_in = 'x' where id = $1`, [id]);
-    expect((await one<{ status: string }>('select status from okr_markups where id = $1', [id], false)).status).toBe('in-hand');
-    expect((await asUser('someone@example.com', `select name from storage.objects where bucket_id = 'markups'`)).rows).toEqual([]);
-    await expect(asUser(LANE, 'select * from okr_builders')).rejects.toThrow(/permission denied/);
+    expect((await asAnon<{ id: string }>('select id from okr_markups')).rows.map((r) => r.id)).toContain(id);
+    await asAnon(`update okr_markups set status = 'in-hand', status_by = 'Bo', status_at = now() where id = $1`, [id]);
+    expect((await one<{ status: string; status_by: string }>('select status, status_by from okr_markups where id = $1', [id], false))).toEqual({ status: 'in-hand', status_by: 'Bo' });
+    await expect(asAnon(`update okr_markups set status = 'done' where id = $1`, [id])).rejects.toThrow();
+    await expect(asAnon(`update okr_markups set person_name = 'Someone else' where id = $1`, [id])).rejects.toThrow(/permission denied/);
+    await expect(asAnon(`delete from okr_markups where id = $1`, [id])).rejects.toThrow(/permission denied/);
+    // The pictures are opened by their address (a public-read bucket); nobody lists them.
+    await expect(asAnon(`select name from storage.objects where bucket_id = 'markups'`)).rejects.toThrow(/permission denied/);
     await expect(asAnon('select * from okr_builders')).rejects.toThrow(/permission denied/);
   });
 
-  it('gives the MCP server’s markup tools to a builder token only, which only a signed-in builder makes', async () => {
-    await expect(asAnon(`select okr_builder_token_create('ws_m', 'ann', 'Claude')`)).rejects.toThrow(/permission denied/);
-    await expect(asUser('someone@example.com', `select okr_builder_token_create('ws_m', 'ann', 'Claude')`)).rejects.toThrow(/Only builders/);
-    const secret = (await asUser<{ s: string }>(LANE, `select okr_builder_token_create('ws_m', 'ann', 'Claude on Lane’s laptop') as s`)).rows[0]!.s;
-    expect(secret).toMatch(/^gk_[A-Za-z0-9]{40}$/);
-    const found = (await asAnon<{ builder: boolean; person_id: string }>('select * from okr_token_find($1)', [sha(secret)])).rows[0]!;
-    expect(found).toMatchObject({ person_id: 'ann', builder: true });
-    const listed = (await asAnon<{ id: string }>('select id from okr_markups_for_token($1)', [sha(secret)])).rows;
+  it('gives the MCP server’s inbox functions to any live token (0031), and refuses a revoked or unknown one', async () => {
+    const listed = (await asAnon<{ id: string }>('select id from okr_markups_for_token($1)', [sha('gk_seed')])).rows;
     expect(listed.length).toBeGreaterThan(0);
     const id = listed[0]!.id;
-    const changed = (await asAnon<{ status: string; fixed_in: string }>(`select status, fixed_in from okr_markup_triage_for_token($1, $2, $3)`, [sha(secret), id, JSON.stringify({ status: 'fixed', fixed_in: 'markup-inbox' })])).rows[0]!;
+    const changed = (await asAnon<{ status: string; fixed_in: string }>(`select status, fixed_in from okr_markup_triage_for_token($1, $2, $3)`, [sha('gk_seed'), id, JSON.stringify({ status: 'fixed', fixed_in: 'markup-inbox' })])).rows[0]!;
     expect(changed).toEqual({ status: 'fixed', fixed_in: 'markup-inbox' });
-    // An ordinary token gets nothing.
-    await expect(asAnon('select * from okr_markups_for_token($1)', [sha('gk_seed')])).rejects.toThrow(/builder token/);
-    await expect(asAnon('select * from okr_markup_triage_for_token($1, $2, $3)', [sha('gk_seed'), id, '{"status":"new"}'])).rejects.toThrow(/builder token/);
-    // Taken off the list, the token stops being a builder token.
-    await db.query(`delete from okr_builders where email = 'lanehirschfield@gmail.com'`);
-    expect((await asAnon<{ builder: boolean }>('select builder from okr_token_find($1)', [sha(secret)])).rows[0]!.builder).toBe(false);
-    await db.query(`insert into okr_builders (email) values ('lanehirschfield@gmail.com')`);
+    expect((await asAnon<{ id: string }>('select id from okr_feedback_for_token($1)', [sha('gk_seed')])).rows.length).toBeGreaterThan(0);
+    // A builder token made before 0031 still works, as an ordinary one.
+    const secret = (await asUser<{ s: string }>(LANE, `select okr_builder_token_create('ws_m', 'ann', 'Claude on Lane’s laptop') as s`)).rows[0]!.s;
+    expect((await asAnon<{ id: string }>('select id from okr_markups_for_token($1)', [sha(secret)])).rows.length).toBeGreaterThan(0);
+    // An unknown token, or a revoked one, gets nothing.
+    await expect(asAnon('select * from okr_markups_for_token($1)', [sha('gk_nobody')])).rejects.toThrow(/isn’t valid/);
+    await db.query(`insert into okr_api_tokens (id, workspace_id, person_id, name, token_hash, created_by, revoked_at) values ('tok_old', 'ws_m', 'bo', 'Old', $1, 'ann', now())`, [sha('gk_old')]);
+    await expect(asAnon('select * from okr_feedback_triage_for_token($1, $2, $3)', [sha('gk_old'), 'fb_in1', '{"status":"new"}'])).rejects.toThrow(/isn’t valid/);
+    await expect(asAnon('select okr_token_live($1)', [sha('gk_seed')])).rejects.toThrow(/permission denied/);
   });
 });

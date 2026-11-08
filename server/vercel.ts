@@ -1,6 +1,6 @@
 /* The Vercel function at /api/mcp. Built into api/mcp.js by `npm run build:mcp` (one self-contained file).
-   It reads and writes Supabase with SUPABASE_SERVICE_ROLE_KEY when set, otherwise the app's public key (then markup
-   pictures can't be read, and the tools and GET /api/mcp?check say so), and records a
+   It reads and writes Supabase with SUPABASE_SERVICE_ROLE_KEY when set, otherwise the app's public key (either works:
+   markup pictures are in a public-read bucket since migration 0031, read by their address), and records a
    span per tool call in the telemetry tables (migration 0022) when the workspace records. Tokens are found, noted as
    used and made through the database's functions (migration 0024), which work with either key. */
 import { createClient } from '@supabase/supabase-js';
@@ -9,7 +9,7 @@ import { tokenFromRow, type TokenRow } from '../src/data/rows';
 import { serve, type Deps } from './mcp';
 import { WHATS_NEW } from '../src/help/whatsNew';
 import { MARKUP_REPO } from '../src/markup/model';
-import { markupOps, PICTURES_NEED_KEY } from '../src/markup/ops';
+import { markupOps, PICTURES_UNREADABLE } from '../src/markup/ops';
 import { tokenMarkups } from '../src/markup/stores';
 import { feedbackOps, tokenFeedback } from '../src/markup/feedback';
 
@@ -34,7 +34,7 @@ function deps(origin: string): Deps {
       const row = ((data ?? []) as TokenRow[])[0];
       if (!row) return null;
       seen = hash;
-      return { token: tokenFromRow(row), workspaceId: row.workspace_id, builder: !!(row as TokenRow & { builder?: boolean }).builder };
+      return { token: tokenFromRow(row), workspaceId: row.workspace_id };
     },
     async workspaceName(id) {
       const { data } = await db.from('okr_workspaces').select('name').eq('id', id).maybeSingle();
@@ -47,13 +47,13 @@ function deps(origin: string): Deps {
       if (error) await db.from('okr_api_tokens').update({ last_used_at: at }).eq('id', id);
     },
     issueToken: (ws, c) => store.issueToken(ws, c),
-    // The markup tools, for a builder token, through the database's functions for it (no new secret). Pictures need
-    // Storage's own access, so they come only when the service role key is set; without it the tools say so plainly.
+    // The inbox's tools, for any token, through the database's functions for it (no new secret). Pictures are read by
+    // their public address (migration 0031), with either key.
     markups: (hash) => markupOps({
-      store: tokenMarkups(db, hash, service ? db : null), entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO,
+      store: tokenMarkups(db, hash), entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO,
       inboxLink: (id) => `${origin}/workspace?markup=${id}`,
     }),
-    // Feedback's triage, for a builder token, the same way (migration 0028).
+    // Feedback's triage, for any token, the same way (migrations 0028 and 0031).
     feedback: (hash) => feedbackOps({ store: tokenFeedback(db, hash), entries: WHATS_NEW.map((e) => e.id) }),
     deleteWorkspace: (ws) => store.deleteWorkspace(ws),
     // The check after each deploy (GET /api/mcp?check): the database answers, and pictures can be read.
@@ -62,13 +62,10 @@ function deps(origin: string): Deps {
       const { error } = await db.rpc('okr_token_find', { hash: '0'.repeat(64) });
       const database = !error;
       if (error) problems.push(`The server can’t reach the goals database: ${error.message}`);
-      let pictures = false;
-      if (!service) problems.push(PICTURES_NEED_KEY);
-      else {
-        const { error: refused } = await db.storage.from('markups').list('', { limit: 1 });
-        pictures = !refused;
-        if (refused) problems.push(`SUPABASE_SERVICE_ROLE_KEY is set, but Storage refused it (${refused.message}). Check it is the service_role key of this Supabase project, then redeploy.`);
-      }
+      // Pictures: the markups bucket is open to read (migration 0031); the database says so.
+      const { data: open, error: unknown } = await db.rpc('okr_markup_pictures_open');
+      const pictures = !unknown && open === true;
+      if (!pictures) problems.push(PICTURES_UNREADABLE);
       return { ok: database && pictures, database, pictures, problems };
     },
     // Recording (migration 0022): on unless the workspace has turned it off; before the migration there's no switch.
