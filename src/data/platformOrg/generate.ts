@@ -130,20 +130,46 @@ export function buildPlatformOrg(today: Date): Snapshot {
     const last = s.arc[s.arc.length - 1]!;
     return { r: last.r, phase: last };
   };
-  const lastSaid = new Map<string, string>();
-  const say = (s: GoalSpec, phase: Phase, kind: 'ahead' | 'behind'): Said => {
+  // What each goal said in its last few check-ins, and the stock phrasings already used by some goal in each week, so a
+  // goal never repeats itself within three weeks and two goals don't give the same stock line in the same week (demo
+  // review, 8 Nov, item 10). Only which phrasing is taken changes: the one random draw per reason stays, so the year's
+  // random stream (numbers, skipped and late weeks) and the story the demo tells don't move.
+  const recentSaid = new Map<string, string[]>();
+  const usedInWeek = new Map<number, Map<string, number>>();
+  const say = (s: GoalSpec, phase: Phase, kind: 'ahead' | 'behind', w: number): Said => {
     const words = { thing: s.thing, dep: s.dep, vendor: s.vendor };
     let pool: Said[];
     if (kind === 'ahead') pool = AHEAD[(['early', 'cautious', 'oneoff', 'tailwind'] as const).find((t) => t === phase.theme) ?? 'oneoff'];
     else pool = BEHIND[isBehindTheme(phase.theme) ? phase.theme : 'slower'];
     const own = kind === 'behind' && phase.why ? phase.why.map((why) => ({ cause: pool[0]!.cause, why })) : [];
-    // The owner's own words for this phase first, then the usual phrasings; never the same words two weeks running.
+    // The owner's own words for this phase first, then the usual phrasings.
     const all = [...own, ...own, ...pool];
-    const prev = lastSaid.get(s.id);
-    let x = all[Math.floor(R.next() * all.length)]!;
-    for (let i = 0; x.why === prev && i < 5; i++) x = all[(all.indexOf(x) + 1 + i) % all.length]!;
-    lastSaid.set(s.id, x.why);
+    const recent = recentSaid.get(s.id) ?? [];
+    const week = usedInWeek.get(w) ?? new Map<string, number>();
+    // From where the draw lands, the phrasing used least this week (own words count as unused), not said lately.
+    const start = Math.floor(R.next() * all.length);
+    const uses = (x: Said) => (pool.includes(x) ? week.get(x.why) ?? 0 : 0);
+    let x = all[start]!;
+    let best = Infinity;
+    for (let i = 0; i < all.length; i++) {
+      const y = all[(start + i) % all.length]!;
+      const cost = uses(y) * 2 + (recent.includes(y.why) ? 3 : 0);
+      if (cost < best) { best = cost; x = y; }
+    }
+    recentSaid.set(s.id, [...recent, x.why].slice(-3));
+    if (pool.includes(x)) { week.set(x.why, (week.get(x.why) ?? 0) + 1); usedInWeek.set(w, week); }
     return { cause: x.cause, why: fill(x.why, words) };
+  };
+
+  /** An on-plan note: one random draw as before, then the first phrasing no other goal has used this week. */
+  const steadyInWeek = new Map<number, Set<string>>();
+  const steady = (s: GoalSpec, w: number): string => {
+    const start = Math.floor(R.next() * STEADY.length);
+    const used = steadyInWeek.get(w) ?? new Set<string>();
+    let t = STEADY[start]!;
+    for (let i = 0; i < STEADY.length; i++) { const x = STEADY[(start + i) % STEADY.length]!; if (!used.has(x)) { t = x; break; } }
+    used.add(t); steadyInWeek.set(w, used);
+    return fill(t, { thing: s.thing, dep: s.dep, vendor: s.vendor });
   };
 
   const stagesAt = (s: GoalSpec, g: Goal, w: number): StageUpdate[] => g.kind !== 'milestone' ? [] : g.stages.map((st, k) => {
@@ -195,12 +221,12 @@ export function buildPlatformOrg(today: Date): Snapshot {
     let e: Evaluation = evaluate(asOf, cycle, w, draft, history);
     if (e.greener && !draft.greenerWhy) draft.greenerWhy = s.call?.why ?? 'The owner’s call.';
     const a = e.assessment;
-    if (e.reason) Object.assign(draft, say(s, phase, e.reason));
+    if (e.reason) Object.assign(draft, say(s, phase, e.reason, w));
     // On plan only as written at the goal's decimals (a first week whose plan moved less than they show): nothing to
     // explain, so the owner says nothing. The reason it would have read as before is still drawn, so the year's one
     // random stream (noise, skipped and late weeks) runs as it did and the story the demo tells doesn't move.
-    else if (a.kind === 'metric' && a.asWritten != null) { say(s, phase, a.asWritten < 1 ? 'behind' : 'ahead'); draft.why = ''; }
-    else draft.why = R.next() < 0.75 ? R.pick(STEADY) : '';
+    else if (a.kind === 'metric' && a.asWritten != null) { say(s, phase, a.asWritten < 1 ? 'behind' : 'ahead', w); draft.why = ''; }
+    else draft.why = R.next() < 0.75 ? steady(s, w) : '';
     if (phase.theme === 'data' && e.reason) draft.dataFlagged = true;
     e = evaluate(asOf, cycle, w, draft, history);
     if (e.needsPath) {

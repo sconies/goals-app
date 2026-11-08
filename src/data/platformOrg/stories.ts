@@ -14,7 +14,7 @@ export interface PathWords { what: string; in: number; state?: RecoveryState }
 /** Reasons a goal is behind, by theme. */
 export const BEHIND: Record<Exclude<Theme, 'early' | 'cautious' | 'oneoff' | 'tailwind'>, Said[]> = {
   incident: [
-    { cause: 'external', why: 'The {dep} incident on Tuesday took most of the team for three days, so {thing} stood still.' },
+    { cause: 'external', why: 'An incident in {dep}’s systems on Tuesday took most of the team for three days, so {thing} stood still.' },
     { cause: 'slower', why: 'Still clearing up after the incident: two engineers are on the post-incident actions instead of {thing}.' },
     { cause: 'external', why: 'An outage in {dep} pushed the number the wrong way this week; it had recovered by Friday.' },
     { cause: 'slower', why: 'We paused {thing} during the incident change freeze. The freeze lifted on Thursday afternoon.' },
@@ -34,8 +34,8 @@ export const BEHIND: Record<Exclude<Theme, 'early' | 'cautious' | 'oneoff' | 'ta
   ],
   migration: [
     { cause: 'aggressive', why: '{Thing} has hit a long tail: the last 15% of services all need hand-holding.' },
-    { cause: 'slower', why: 'Two teams asked to defer their move until after their own launch, and we agreed.' },
-    { cause: 'slower', why: 'Found an incompatibility with the old {dep} set-up that we hadn’t planned for; working round it.' },
+    { cause: 'slower', why: 'Two teams asked to defer their move to {thing} until after their own launch, and we agreed.' },
+    { cause: 'slower', why: 'Found an incompatibility with {dep}’s old set-up that we hadn’t planned for; working round it.' },
     { cause: 'aggressive', why: 'Each remaining service needs a manual change before {thing} works for it, about a day each.' },
   ],
   holiday: [
@@ -47,6 +47,8 @@ export const BEHIND: Record<Exclude<Theme, 'early' | 'cautious' | 'oneoff' | 'ta
     { cause: 'blocked', why: 'Blocked on {dep}: we need their change before we can switch {thing} on.' },
     { cause: 'blocked', why: '{dep} reprioritised, and our dependency moved to their next sprint.' },
     { cause: 'blocked', why: 'Waiting on {dep} to sign off the design before the rollout can go wider.' },
+    { cause: 'blocked', why: 'The next step for {thing} needs a change from {dep}, and it isn’t scheduled yet.' },
+    { cause: 'blocked', why: 'Half of {thing} is done; the rest waits on {dep}’s release, now planned for next month.' },
   ],
   data: [
     { cause: 'data', why: 'The dashboard double-counted retries this week; the real number is closer to plan.' },
@@ -63,11 +65,17 @@ export const BEHIND: Record<Exclude<Theme, 'early' | 'cautious' | 'oneoff' | 'ta
     { cause: 'slower', why: 'Fewer changes landed this week than planned; two were reverted and redone.' },
     { cause: 'slower', why: 'A little behind: two pull requests for {thing} slipped to Monday.' },
     { cause: 'slower', why: 'Steady, but under the planned pace. Nothing is blocked; it’s just taking longer.' },
+    { cause: 'slower', why: 'Code review on {thing} is the bottleneck: changes wait two or three days for a reviewer.' },
+    { cause: 'slower', why: 'Two people were pulled onto a release for a week, so {thing} moved less than planned.' },
+    { cause: 'slower', why: 'Testing found more edge cases in {thing} than we expected; each one is small, but they add up.' },
   ],
   recovery: [
     { cause: 'slower', why: 'Recovering: back to the planned pace for three weeks, though the earlier gap hasn’t closed yet.' },
     { cause: 'slower', why: 'The fix for {thing} landed and the number is moving again. Expect it back on plan in a few weeks.' },
     { cause: 'other', why: 'Closing the gap a little each week. The trend is right; the total isn’t there yet.' },
+    { cause: 'slower', why: 'Better than last week on {thing}, still short of the line. Another two weeks at this pace closes it.' },
+    { cause: 'other', why: 'The changes to {thing} are working; the number lags them by a week or two.' },
+    { cause: 'slower', why: 'Back to full strength on {thing}, catching up on what the slow weeks left behind.' },
   ],
 };
 
@@ -76,11 +84,15 @@ export const AHEAD: Record<'early' | 'cautious' | 'oneoff' | 'tailwind', Said[]>
   early: [
     { cause: 'early', why: '{Thing} landed earlier than planned, so the number jumped ahead.' },
     { cause: 'early', why: 'The rollout finished two weeks early once the last team moved over.' },
+    { cause: 'early', why: '{Thing} went faster than planned: the hardest part turned out to be the easiest.' },
+    { cause: 'early', why: 'Ahead on {thing}: the last teams moved without needing our help.' },
   ],
   cautious: [
     { cause: 'cautious', why: 'The plan was cautious: teams adopted faster than we expected once they saw the results.' },
     { cause: 'cautious', why: 'Still ahead. We planned for resistance that didn’t come.' },
     { cause: 'cautious', why: 'Ahead again this week. Worth raising the target at the next plan review.' },
+    { cause: 'cautious', why: '{Thing} keeps beating the plan; teams are asking for it before we reach them.' },
+    { cause: 'cautious', why: 'Comfortably ahead on {thing}. The plan allowed for setbacks that didn’t happen.' },
   ],
   oneoff: [
     { cause: 'oneoff', why: 'A one-off: a large batch landed this week. Expect the pace to settle.' },
@@ -139,18 +151,26 @@ export const STEADY = [
   'On plan.',
   'On plan. Nothing to add this week.',
   'Steady week.',
-  'Another team moved over this week.',
+  'Another team moved over to {thing} this week.',
   'On plan; next week is the bigger batch.',
   'No surprises this week.',
   'Moving as planned.',
+  'On plan. {Thing} is where we said it would be.',
+  'A quiet, steady week for {thing}.',
+  'Kept pace with the plan; the next milestone for {thing} is on track.',
+  'Two more teams on {thing} this week, as planned.',
+  'On plan, with nothing waiting on anyone else.',
 ];
 
 /** Fill a template with the goal's words. */
 export function fill(t: string, words: { thing: string; dep?: string; vendor?: string }): string {
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const dep = words.dep ?? 'the platform team';
   return t
     .replace(/\{Thing\}/g, cap(words.thing))
     .replace(/\{thing\}/g, words.thing)
-    .replace(/\{dep\}/g, words.dep ?? 'the platform team')
+    // A sentence that starts with the dependency starts with a capital: "The web platform team reprioritised…".
+    .replace(/(^|[.:!?]\s+)\{dep\}/g, (_m, before: string) => before + cap(dep))
+    .replace(/\{dep\}/g, dep)
     .replace(/\{vendor\}/g, words.vendor ?? 'The vendor');
 }
