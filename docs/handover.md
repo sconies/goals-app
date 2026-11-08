@@ -17,12 +17,28 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 | What Faro is, generated from the code | `llms.txt` and `spec/` (`npm run spec`; items 8a and 8b) |
 | The rebuild kit and its drill | `spec/rebuild/README.md`; the harness is `npm run drill -- <folder>` (item 8k) |
 
-## State on 7 November
+## State on Sunday 8 November, night
 
-- **Live:** the Faro rebrand, goal page scorecard, screen markup and the inbox (open to anyone since backlog O), remove/archive/undo for everything, one meaning for every status word, and one spreadsheet format.
-- **Just shipped (PR #38):** the small-fixes batch (backlog items 4, 5, 6, 8, with migration 0028), the fix for issue #39 (eval check N6) and the latest backlog and `CLAUDE.md` edits. Nothing else is in flight. One known follow-up: N6's Home progress-ring step also reads at a fixed time and fails under a 4x CPU slowdown; it has never failed in CI.
-- **What Faro is for (8 Nov):** a model for an internal rebuild plus demos; never real data. Lane presents it to coworkers on Tuesday 10 Nov.
-- **Next in the backlog:** 8k rebuild kit v1 with a drill (building), 8r spec-only requirements, 8c swappable parts (the team will copy the code and plug in their own platform), then 0u and 7 (small fixes), 0a find-and-pick and Workspace tabs, 0b metric library, 0c Faro's own Supabase project, 3a send a markup about a goal. Sign-in, single sign-on, time zones and scale are spec only; observability is dropped.
+- **What Faro is for:** a model the company's internal team will copy and adapt (copy the code, plug in their own platform), plus demos and an off-site. Never real data. **Lane presents it on Tuesday 10 Nov** to a mixed audience (leaders and engineers), including **building a feature live with AI**.
+- **Shipped 7–8 Nov (all on main, CI green):** inbox with Claude (#40), faster tests (#41), feature modules (#42), spec + conformance (#43), rebuild kit and drill harness (#44), spec-only requirements R1–R4 (#45), demo polish (#47), open inbox (#48), set-up polish (#49), Workspace sections + real inbox (#50), numbers and names (#51), metric library back end (#52), Tuesday blockers (#53).
+- **Drill 1:** a fresh lighter-model session rebuilt the core rules from the kit alone: 100% of 302,370 values. Gaps in `docs/reviews/2026-11-08-drill-1.md` (8g, after Tuesday).
+- **Open now:** PR #54 (backlog I: home-screen icon C, lighthouse splash, new welcome page). **On hold at Lane's request** while its build session (`session_012kbr8ydqVVjmsagyQUHh2d`) makes two more changes he asked for there: hold the finished splash logo longer; welcome page wording options line by line, with no promises about update time or frequency. It tells the planning session when CI is green; Lane has approved merging after that.
+- **Monday 9 Nov, before the talk:**
+  1. Merge #54 when its build says it's ready.
+  2. **Rehearse the live build:** a fresh session runs the brief in `docs/live-build/metrics.md` (screens for the metric library: Metrics page under Data, "Measured by" in the empty `goal.measure` place, the metric on the goal page). Time it; keep the result on an unmerged branch `demo/metrics-live-fallback` with its preview link. Fix the brief if it stumbles. The back end's guide is `src/modules/metrics/README.md`.
+  3. **Finalise** `docs/demo-script.md` and `docs/live-build/metrics.md` with what shipped (Workspace sections are in; metric library back end is in; drill 1 result; mention the splash and icon), and send Lane a short dry-run checklist.
+- **After Tuesday, in order:** 8g (close drill gaps, drill 2 saving its code in `docs/drills/`), 0c (Faro's own Supabase project: the shared one also holds another app's real family data; Lane creates the project), 8c (swappable parts + number source), 0a (find-and-pick), L (weekly loop + rhythm strip), small batch (0u, 7, 10a, R5 + admin/member polish), 3a, 0t, 11. Tuesday's feedback may change it.
+- **Things to know:**
+  - The repo is **public** (8 Nov) so CI is free; nothing secret is in it.
+  - The live app's health check: `https://goals-app-puce-five.vercel.app/api/mcp?check` (database and pictures should be true; the service role key is on Vercel).
+  - Builds run in the cloud environment **goals-app** (it can reach the app and Supabase). The database has **no workspaces** (the "tester" one was deleted on 8 Nov), so no AI token works until Lane makes one in a new workspace.
+  - Reviews of the app by an outside reviewer are in `docs/reviews/` with triage; their open points are in the backlog.
+
+## How the planning session should run (lesson of 8 Nov)
+
+- **Keep this session's context small.** Don't subscribe to PR activity or relay CI and bot notices: each build session watches its own PR and reports once, when it's ready or blocked. Read build reports, decide, merge.
+- **Merging:** Lane approves each merge (or pre-approves, e.g. "merge when green"). When he pre-approves, merge from here once the build reports green; build sessions won't merge on a relayed approval.
+- **Start a fresh planning session** when this one gets long: update this handover first.
 
 ## How we work (Lane, 7 November)
 
