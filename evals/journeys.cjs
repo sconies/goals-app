@@ -562,6 +562,109 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   await p.context().close();
 });
 
+journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-MODE'], 'Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all', 30, async (h, device) => {
+  // The setup review of 8 Nov, replayed: Sunday 8 November is after week 45's Thursday review.
+  const sunday = (x) => BASE + '/demo' + x + (x.includes('?') ? '&' : '?') + 'today=2026-11-08';
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(sunday('/'));
+  await see(p, 'Try it with your own team');
+  await h.inView(p.getByRole('link', { name: 'Set one up' }), 'entry', 'Set one up');
+  await h.click(p.getByRole('link', { name: 'Set one up' }));
+  await p.locator('.steps').first().waitFor();
+  await h.progressShown('set up');
+  // One minimum name length for workspaces and goals, said under the field.
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Vo');
+  await p.getByRole('button', { name: 'Next' }).click();
+  const short = await p.getByRole('alert').filter({ hasText: 'at least three characters' }).isVisible();
+  await see(p, 'The first is on Thursday 12 Nov', 'step 1 doesn’t say when the first review is');
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Voss Test Workspace');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  // Every empty field says what it needs, not only the first.
+  await p.getByRole('button', { name: 'Next' }).click();
+  const each = (await p.getByRole('alert').allInnerTexts()).join(' | ');
+  h.set('errors', short && /Add your name/.test(each) && /Add your email/.test(each) && /Add your team/.test(each), `step 2 says: ${each}; a two-letter name ${short ? 'is' : 'is not'} explained`);
+  await h.fill(p.getByLabel('Your name'), 'Ines Voss');
+  await h.fill(p.getByLabel('Your team'), 'Support');
+  await h.fill(p.getByLabel('Your email'), 'ines.voss@example.com');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'Who else is on it?');
+  // Three more people: an empty Team takes yours; a typo of a team already typed is caught before it makes a second one.
+  await p.getByLabel('Person 1: name').fill('Theo Brandt');
+  await p.getByLabel('Person 1: email').fill('theo.brandt@example.com');
+  await p.getByLabel('Person 2: name').fill('Mina Okafor');
+  await p.getByLabel('Person 2: email').fill('mina.okafor@example.com');
+  await p.getByLabel('Person 2: team').fill('Suport');
+  await see(p, 'looks like Support', 'a team typo is not caught');
+  await h.click(p.getByRole('button', { name: 'Use Support' }));
+  if ((await p.getByLabel('Person 2: team').inputValue()) !== 'Support') fail('Use Support did not fix the typo');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Start blank/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'What outcome are you after?');
+  await p.getByRole('button', { name: 'Next' }).click();
+  const outcomeSays = (await p.getByRole('alert').allInnerTexts()).join(' | ');
+  if (!/Give the outcome a name/.test(outcomeSays) || !/Add today’s number/.test(outcomeSays) || !/Add the target/.test(outcomeSays)) fail('the outcome step doesn’t say what each field needs: ' + outcomeSays);
+  await h.fill(p.getByLabel('Outcome', { exact: true }), 'Weekly active users');
+  await p.getByLabel('Outcome: today').fill('1200');
+  await p.getByLabel('Outcome: target').fill('2000');
+  await p.getByLabel('Outcome: unit').fill('users');
+  // How it's measured is asked in the open, and optional.
+  await p.getByLabel('Outcome: how it’s measured').fill('People who used it at least once in the week');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'What feeds it?');
+  const goals = [['Support response time', '8', '4', 'hours'], ['Customer interviews', '0', '12', 'interviews'], ['Build time', '10', '6', 'min']];
+  for (let i = 0; i < goals.length; i++) {
+    if (i > 0) await p.getByRole('button', { name: 'Add a goal' }).click();
+    const [t, a, b, u] = goals[i];
+    await p.getByLabel('Goal', { exact: true }).nth(i).fill(t);
+    await p.getByLabel(t + ': today').fill(a);
+    await p.getByLabel(t + ': target').fill(b);
+    await p.getByLabel(t + ': unit').fill(u);
+  }
+  // Two to four: a fifth can't be added, and a removed card comes back with Undo.
+  await p.getByRole('button', { name: 'Add a goal' }).click();
+  const capped = await p.getByRole('button', { name: 'Add a goal' }).isDisabled() && await p.getByText('Four is the most here').isVisible();
+  await p.getByRole('button', { name: 'Remove this goal' }).nth(3).click();
+  await p.getByRole('button', { name: 'Remove this goal' }).nth(2).click();
+  await p.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+  const back = (await p.getByLabel('Goal', { exact: true }).nth(2).inputValue()) === 'Build time';
+  h.set('attention', capped && back, `fifth goal ${capped ? 'refused with a reason' : 'not refused'}; Undo ${back ? 'brought Build time back' : 'did not bring the goal back'}`);
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  // Check shows where each goal starts, the way it should move, and the weekly review it will make.
+  await see(p, '10 min today → 6 min, lower is better', 'Check doesn’t show the start value');
+  await see(p, 'Everyone, every goal, on Thursdays', 'Check doesn’t describe the weekly review');
+  await h.checkpoint('check');
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  await see(p, 'Voss Test Workspace is ready');
+  await see(p, 'Faro doesn’t send any email', 'Ready doesn’t say the invite is a link to send');
+  const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
+  const s = await h.snapshot(wsId);
+  const review = s && s.reviews.find((r) => r.name === 'Weekly review');
+  h.set('logged', !!review && review.people.length === 3 && review.scope.levels.length === 3 && review.weekday === 3 && s.changes.some((c) => c.entity === 'review' && c.action === 'created') && s.views.filter((v) => v.pinned).length === 3 && s.goals.find((g) => g.level === 'north-star')?.definition === 'People who used it at least once in the week', 'set-up didn’t save the weekly review, the pinned views and the outcome’s definition');
+  // Born on time: nothing due or late on Home, the first review is next Thursday, and the pinned views are in the sidebar.
+  await p.goto(sunday('/'));
+  await see(p, 'Your first check-in is next week', 'Home doesn’t say the first check-in is next week');
+  if (await p.getByText(/days? late/).count()) fail('a new workspace starts with something late');
+  await see(p, 'Weekly review', 'Home has no next review');
+  await p.goto(sunday('/reviews'));
+  await see(p, 'Session Thu 12 Nov', 'the first review session is not next Thursday');
+  // A goal page asks for how it's measured while it isn't said.
+  const build = s.goals.find((g) => g.title === 'Build time');
+  await p.goto(sunday('/goals/' + build.id));
+  await see(p, 'How it’s measured isn’t described yet', 'the goal page doesn’t ask how it’s measured');
+  // The Demo panel offers the walkthroughs (they open the example) and Start over, which removes the workspace and what the browser kept about it.
+  await p.evaluate((w) => localStorage.setItem(`goals-app-draft:${w}:checkin:any:45`, '{"value":"7"}'), wsId);
+  const panel = await demoPanel(p, h);
+  const tours = await panel.getByRole('region', { name: 'Show me how' }).isVisible();
+  await h.click(panel.getByRole('button', { name: /^Start over/ }));
+  await h.click(panel.getByRole('button', { name: 'Yes, remove it' }));
+  await see(p, 'Deleted Voss Test Workspace');
+  const left = await p.evaluate((w) => [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter((k) => k.includes(w)), wsId);
+  const listed = await p.evaluate((w) => JSON.stringify(localStorage.getItem('goals-app-v2:workspaces') || '').includes(w), wsId);
+  h.set('finish', tours && !left.length && !listed, `walkthroughs ${tours ? 'offered' : 'missing'}; left behind: ${left.join(', ') || 'nothing'}${listed ? '; still listed' : ''}`);
+  await p.context().close();
+}, ['budget']);
+
 journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
@@ -2156,7 +2259,7 @@ function seed75() {
 }
 
 
-journey('U49', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Inbox, and old links still land', 14, async (h, device) => {
+journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Inbox, and old links still land', 14, async (h, device) => {
   const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['inbox', 'Inbox'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'grace'));
@@ -2166,6 +2269,13 @@ journey('U49', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await menu.waitFor();
   const labels = (await menu.getByRole('link').allInnerTexts()).map((x) => x.split(/\n| · /)[0].trim());
   h.set('attention', JSON.stringify(labels) === JSON.stringify(SECTIONS.map(([, l]) => l)), `an admin’s sections are ${labels.join(', ')}`);
+  // A long workspace name wraps to two lines in the sidebar, then ends with … and the full name on hover.
+  if (!phone) {
+    await p.evaluate(() => { const n = document.querySelector('.side .ws-name'); if (n) n.textContent = 'Voss Test Workspace for the platform engineering off-site in November'; });
+    const nm = await p.evaluate(() => { const n = document.querySelector('.side .ws-name'); const lh = parseFloat(getComputedStyle(n).lineHeight); return { lines: Math.round(n.getBoundingClientRect().height / lh), clipped: n.scrollHeight > n.clientHeight + 1, hover: n.closest('[title]')?.getAttribute('title') || '' }; });
+    h.set('attention', nm.lines === 2 && nm.clipped && nm.hover.length > 0, `a long workspace name shows on ${nm.lines} lines (clipped ${nm.clipped}, hover “${nm.hover}”)`);
+    await p.reload(); await menu.waitFor();
+  }
   h.set('progress', phone ? await p.locator('.ws-menu').count() === 0 && await p.locator('.ws-counts').count() === 0 : await p.locator('.ws-counts').isVisible(), phone ? 'a phone shows the side menu or the overview instead of the list' : 'a computer does not show the overview beside the menu');
   await h.checkpoint('sections');
   // Into a section and back, from the menu or the list: its address, its heading, and (on a phone) the way back.
@@ -2205,8 +2315,8 @@ journey('U49', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.context().close();
 }, ['logged']);
 
-journey('U50', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time', 30, async (h, device) => {
-  if (!DOWN) fail('U50 needs the build with a database address (DOWN)');
+journey('U52', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time', 30, async (h, device) => {
+  if (!DOWN) fail('U52 needs the build with a database address (DOWN)');
   const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'grace'));

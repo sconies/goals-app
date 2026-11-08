@@ -39,8 +39,8 @@ export interface NextReview { id: string; name: string; week: number; date: stri
 export function nextReview(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): NextReview | null {
   const day = today.toISOString().slice(0, 10);
   const next = s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
-    let w = sessionWeek(r, week);
-    if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1);
+    let w = sessionWeek(r, week, cycle);
+    if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1, cycle);
     const date = sessionDate(r, cycle, w);
     return { id: r.id, name: r.name, week: w, date, weekday: WEEKDAY[r.weekday] ?? '', days: 0 - daysSince(date, today) + 0 };
   }).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));

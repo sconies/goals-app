@@ -522,7 +522,7 @@ Unsaved answers survive leaving a flow and are offered back when the user return
 The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back.
 
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “Running the workspace” (`workspace`), screens `Workspace`
-- **Journeys and checks:** U5, U17
+- **Journeys and checks:** U5, U17, U49
 
 ### BULK-EDIT
 
@@ -595,7 +595,7 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls. The demo marks itself with one quiet Demo control (sidebar on desktop, header on a phone) that opens a panel to see the app as someone else, listed by role first, take a walkthrough, research the app, reset or change the example data, present without controls, or leave. No bar changes how the app looks.
 
 - **Help:** “The demo” (`demo`), screens `Research`
-- **Journeys and checks:** U11, U12, U17, U27
+- **Journeys and checks:** U11, U12, U17, U27, U49
 
 ### WALKTHROUGHS
 
@@ -616,10 +616,10 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 
 ### ONBOARDING
 
-An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it. It ends with the one next thing to do.
+An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do.
 
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** U5, U11
+- **Journeys and checks:** U5, U11, U49
 
 ### IDENTITY
 
@@ -676,6 +676,7 @@ A goal year's weeks follow the calendar: week 1 is the week with the first Thurs
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “History: quarter results and weekly status” (`history`), screens `GoalHistory`
 - **Tests:** `evals/scenarios.eval.ts` (6)
+- **Journeys and checks:** U49
 
 ## Views
 
@@ -850,7 +851,7 @@ Admins can rename the workspace and add, rename and remove teams (a team with pe
 Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (the name, switching, counts that lead to each section, and deleting the workspace at the end, for admins), People, Teams, Inbox, Cycles, Access (admins and AI tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, People, Teams and Inbox; anyone else opening an admins’ section is told who the admins are. Old addresses (/workspace?inbox=1&markup=…, #people) lead to the section they meant. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections).
 
 - **Help:** “Running the workspace” (`workspace`), screens `Workspace`
-- **Journeys and checks:** U49
+- **Journeys and checks:** U51
 
 ## Export
 
@@ -968,7 +969,7 @@ Send feedback's first choice, Mark up this screen (and Ctrl+Shift+M or Cmd+Shift
 Workspace has an Inbox, open to anyone with no sign-in, in the live app and the demo (backlog O, migration 0031: Faro never holds real data; the internal app keeps it restricted, spec R1 rule 6). It lists every markup, newest first, grouped by page and part with a count, each with a thumbnail, its line, its page, who sent it, when, and its status as a shape plus a word (New, In hand, Fixed, Won’t fix). A markup opens with its picture (the drawing can be hidden), the named parts, the steps as a timeline, errors and where it came from. Anyone marks it in hand, opens a pre-filled GitHub issue and pastes its address back, marks it fixed in a What’s new entry, or says why it won’t be fixed, through the one status rule; each change is recorded as the person using the app (who and when, shown on the markup) and offers Undo, which puts back the status it replaced through the same rule. The public key reads markups and changes only their triage columns. With any token, the MCP tools list_markups, get_markup and update_markup do the same through security-definer functions, with no new secret.
 
 - **Help:** “The inbox” (`inbox`)
-- **Journeys and checks:** U42, U47, U50
+- **Journeys and checks:** U42, U47, U52
 
 ### CONNECT-CLAUDE
 
@@ -988,14 +989,14 @@ A markup's picture comes back inside get_markup as MCP image content (the screen
 Feedback sent with a mood and a few words joins the inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Anyone opens it and triages it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again, each change recorded as the person using the app and undoable. Feedback always arrives New: the public key can only add feedback’s own columns, and reads every workspace’s feedback (okr_feedback_inbox) and changes its status (okr_feedback_triage) only through those functions (migration 0031). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser.
 
 - **Help:** “The inbox” (`inbox`)
-- **Journeys and checks:** U42, U50
+- **Journeys and checks:** U42, U52
 
 ### INBOX-TRIAGE
 
 The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
 
 - **Help:** “The inbox” (`inbox`)
-- **Journeys and checks:** U50
+- **Journeys and checks:** U52
 
 ### MCP-FEEDBACK
 

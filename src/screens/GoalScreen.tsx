@@ -201,6 +201,12 @@ function GoalView({ goal }: { goal: Goal }) {
       </> : since ? <>{since.text}{(since.checkIns + since.comments + since.changes) > 0 && <> <a className="linkish" href="#activity">See them</a></>}</> : firstLook(goal)}
     </p>
   );
+ // How it's measured, asked for where the owner sees it, not only in the folded About section (setup review, 8 Nov).
+  const measurePrompt = !review && !stopped && canEdit && goal.kind !== 'milestone' && !goal.definition?.trim() && (
+    <p key="measure" className="context-line measure-prompt" data-part="How it’s measured">
+      How it’s measured isn’t described yet, so others can’t tell exactly what’s counted. <Link className="linkish" to={`/goals/${goal.id}/edit?part=definition`}>Describe how it’s measured</Link>
+    </p>
+  );
   const chart = <GoalChart key="chart" goal={goal} stale={stale} landed={posted} hit={hit} card={card} />;
   const whySection = !review && <WhySection key="why" goal={goal} why={why} />;
   const doing = !review && <DoingSection key="doing" goal={goal} withActions={!wide} asked={asked} />;
@@ -217,10 +223,10 @@ function GoalView({ goal }: { goal: Goal }) {
   );
 
   const main = review ? [evidence] : [chart, whySection, doing, feeding, quarters, modules, activity, about];
-  const side = review ? [askedSection, talked] : [askedSection, contextLine, actionsSide, talked];
+  const side = review ? [askedSection, talked] : [askedSection, contextLine, measurePrompt, actionsSide, talked];
   // On a phone the chart comes first in the first screen: a first look's line on what the number measures waits under it.
   const firstOnly = !postedText && !since;
-  const phone = review ? [askedSection, evidence, talked] : [askedSection, firstOnly ? null : contextLine, chart, firstOnly ? contextLine : null, whySection, doing, talked, feeding, quarters, modules, activity, about];
+  const phone = review ? [askedSection, evidence, talked] : [askedSection, firstOnly ? null : contextLine, chart, firstOnly ? contextLine : null, measurePrompt, whySection, doing, talked, feeding, quarters, modules, activity, about];
 
   return (
     <div className={'page goal-page' + (review ? ' in-review' : '')} ref={page} data-part="Goal page">

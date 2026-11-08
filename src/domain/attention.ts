@@ -3,6 +3,7 @@
    check-in (reviewed, noted, an action agreed, or its request answered) is being handled until something new happens. */
 import { checkInsFor, goalStatus, type GoalStatus } from './status';
 import { askText, answeredSince, isOverdue, openAsksFor, openFor } from './asks';
+import { firstDueWeek } from './progress';
 import { currentWeek } from './plan';
 import { goalTrend } from './trend';
 import { ATTENTION_FLAGS, FLAG, LABEL, lower, type FlagKind } from './vocabulary';
@@ -72,7 +73,7 @@ export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { 
   const trend = status.status === 'done' ? null : worseningTrend(goal, cycle, s.checkIns);
   if (trend) add('trend', trend, 'risk');
   if (status.greener && latest && status.status !== 'stale') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
-  if (week >= 1 && status.status !== 'done' && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due before the review in week ${week}.`, 'info');
+  if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due before the review in week ${week}.`, 'info');
 
   flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
   return { status, flags };

@@ -21503,6 +21503,18 @@ function currentWeek(cycle, today) {
 function daysSince(iso, today) {
 	return daysBetween(iso, today);
 }
+/**
+* The first week whose given weekday (0 = Monday) falls on or after a date: the week a goal's first check-in is due,
+* and the week of a review's first session, when either is set up part way through a week (setup review, 8 Nov). Set up
+* on Sunday, after Thursday's review, both start the next week, so nothing is late on day one. Week 1 at the earliest.
+*/
+function firstWeekFrom(cycle, iso, weekday) {
+	const day = (iso ?? "").slice(0, 10);
+	if (!day || day <= cycle.startDate) return 1;
+	const w = currentWeek(cycle, /* @__PURE__ */ new Date(day + "T12:00:00Z"));
+	const due = new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + weekday * DAY$2).toISOString().slice(0, 10);
+	return Math.max(1, due < day ? w + 1 : w);
+}
 /** The ISO date of a week's checkpoint. */
 function weekDate(cycle, week) {
 	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$2;
@@ -21687,7 +21699,14 @@ var init_plan = __esmMin((() => {
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 }));
 // src/domain/thresholds.ts
-var RULES;
+/** What's wrong with a workspace's or a goal's name, or null: empty, or shorter than MIN_NAME. */
+function nameProblem(name, thing) {
+	const t = name.trim();
+	if (!t) return `Give the ${thing} a name.`;
+	if (t.length < 3) return `Give the ${thing} a name of at least ${NUMBER_WORDS[3] ?? 3} characters.`;
+	return null;
+}
+var RULES, NUMBER_WORDS;
 var init_thresholds = __esmMin((() => {
 	RULES = {
 		onTrack: .95,
@@ -21697,6 +21716,14 @@ var init_thresholds = __esmMin((() => {
 		/** A milestone stage more than this many weeks late is off track. */
 		lateWeeksOff: 2
 	};
+	NUMBER_WORDS = [
+		"no",
+		"one",
+		"two",
+		"three",
+		"four",
+		"five"
+	];
 }));
 // src/domain/vocabulary.ts
 /** Stages behind their dates, each in its word: "2 stages late", "1 stage slipping", "1 stage late, 1 slipping". */
@@ -24060,7 +24087,8 @@ function draftOf(g) {
 }
 function validateGoal(d, cycle) {
 	const e = {};
-	if (d.title.trim().length < 3) e.title = "Give the goal a name of at least three characters.";
+	const named = nameProblem(d.title, "goal");
+	if (named) e.title = named;
 	if (!d.teamId) e.teamId = "Choose a team.";
 	if (!d.ownerId) e.ownerId = "Choose an owner.";
 	if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = "Enter a number, or leave it empty.";
@@ -24217,6 +24245,7 @@ function replanned(existing, plan, started, week) {
 }
 var init_goal = __esmMin((() => {
 	init_checkin();
+	init_thresholds();
 	init_plan();
 }));
 // src/domain/year.ts
@@ -24590,6 +24619,53 @@ var init_people = __esmMin((() => {
 	normalEmail = (s) => (s ?? "").trim().toLowerCase();
 	isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) && s.length <= 254;
 }));
+// src/domain/progress.ts
+/** The person's goals this week: which are checked in and which are still due. */
+function weekProgress(personId, s, cycle, week, today) {
+	const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== "done");
+	const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
+	return {
+		goals,
+		done,
+		upcoming,
+		due: week < 1 ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
+	};
+}
+/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
+function reviewDate(cycle, week) {
+	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
+	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
+	return d.toISOString().slice(0, 10);
+}
+/**
+* Consecutive weeks, counting back from the latest finished one, in which every goal the
+* person owns was checked in by the owner on or before the review day.
+*/
+function onTimeStreak(personId, s, cycle, week) {
+	const goals = s.goals.filter((g) => g.ownerId === personId);
+	if (!goals.length) return 0;
+	const onTime = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
+	let streak = 0;
+	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
+	return streak;
+}
+var firstDueWeek, WEEKDAY;
+var init_progress = __esmMin((() => {
+	init_plan();
+	init_status();
+	firstDueWeek = (g, cycle) => firstWeekFrom(cycle, g.createdAt, cycle.reviewDay);
+	WEEKDAY = [
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday",
+		"Sunday"
+	];
+}));
 // src/domain/trend.ts
 /**
 * Which way a series is heading. `gaps` are the last check-ins' distance from where they should be, oldest first,
@@ -24731,7 +24807,7 @@ function flagsFor(goal, s, cycle, today) {
 	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
 	if (trend) add("trend", trend, "risk");
 	if (status.greener && latest && status.status !== "stale") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= 1 && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
+	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
 		status,
@@ -24829,6 +24905,7 @@ var WEIGHT, HANDLED_ORDER, LOOKS, needsAttention, attentionOrder;
 var init_attention = __esmMin((() => {
 	init_status();
 	init_asks();
+	init_progress();
 	init_plan();
 	init_trend();
 	init_vocabulary();
@@ -24881,9 +24958,9 @@ function watchedGoals(personId, s) {
 	return goalsIn(watchScope(personId, s.watches), s.goals);
 }
 /** The week of a review's current session: this week if it's held this week, otherwise the next week it is. */
-function sessionWeek(r, week) {
+function sessionWeek(r, week, cycle) {
 	const n = Math.max(1, r.everyWeeks);
-	const w = Math.max(1, week);
+	const w = Math.max(1, week, cycle ? firstWeekFrom(cycle, r.createdAt, r.weekday) : 1);
 	return w % n === 0 ? w : w + (n - w % n);
 }
 /** The date of a review's session in a given week, as yyyy-mm-dd. */
@@ -24907,7 +24984,7 @@ function agendaOf(s) {
 	};
 }
 function reviewSession(r, s, cycle, today, week) {
-	const w = sessionWeek(r, week);
+	const w = sessionWeek(r, week, cycle);
 	const lastCheckIn = (g) => {
 		const own = checkInsFor(g, s.checkIns);
 		const last = own[own.length - 1];
@@ -25952,7 +26029,7 @@ function withdrawRequest(x, r, goal) {
 */
 function reviewCall(x, goal, review, kind, note, extra = {}) {
 	const text = note.trim();
-	const week = extra.week ?? sessionWeek(review, x.week);
+	const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
 	if (kind === "ask") {
 		if (goal.ownerId === x.actor.id) no$1("It’s your own goal: add a note instead.");
 		return askQuestion(x, goal, text, {
@@ -26474,7 +26551,8 @@ function sendFeedback(x, mood, text, path) {
 function renameWorkspace(x, ws, name) {
 	if (!x.actor.admin) no$1("Only admins can rename the workspace.");
 	const clean = name.trim().replace(/\s+/g, " ");
-	if (!clean) no$1("Give the workspace a name.");
+	const named = nameProblem(clean, "workspace");
+	if (named) no$1(named);
 	if (clean.length > 80) no$1("Keep the name to 80 characters or fewer.");
 	if (clean === ws.name) return null;
 	return {
@@ -26686,6 +26764,7 @@ function canDeleteWorkspace(actor, kind, name, confirmName) {
 }
 var NotAllowed, no$1, lookupOf, ownsOrAdmin$1, latestOf, askById, nameOf, watchWhat, initialsOf$1, liveView;
 var init_actions = __esmMin((() => {
+	init_thresholds();
 	init_cycle();
 	init_people();
 	init_asks();
@@ -29321,6 +29400,9 @@ var SupabaseStore = class {
 		await this.must(this.db.from("okr_teams").update({ lead_id: null }).eq("workspace_id", ws), "Unlinking teams");
 		await this.must(this.db.from("okr_goals").update({ parent_id: null }).eq("workspace_id", ws), "Unlinking goals");
 		for (const t of [
+			"okr_requests",
+			"okr_views",
+			"okr_api_tokens",
 			"okr_feedback",
 			"okr_retros",
 			"okr_watches",
@@ -31134,50 +31216,10 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
-// src/domain/progress.ts
-init_plan();
-init_status();
-/** The person's goals this week: which are checked in and which are still due. */
-function weekProgress(personId, s, cycle, week, today) {
-	const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== "done");
-	const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
-	return {
-		goals,
-		done,
-		due: week < 1 ? [] : goals.filter((g) => !done.includes(g))
-	};
-}
-/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
-function reviewDate(cycle, week) {
-	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
-	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
-	return d.toISOString().slice(0, 10);
-}
-/**
-* Consecutive weeks, counting back from the latest finished one, in which every goal the
-* person owns was checked in by the owner on or before the review day.
-*/
-function onTimeStreak(personId, s, cycle, week) {
-	const goals = s.goals.filter((g) => g.ownerId === personId);
-	if (!goals.length) return 0;
-	const onTime = (w) => goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
-	if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
-	let streak = 0;
-	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
-	return streak;
-}
-var WEEKDAY = [
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-	"Sunday"
-];
 // src/domain/home.ts
 init_attention();
 init_plan();
+init_progress();
 init_review();
 init_status();
 /** Splits goals' attention into the Watching groups. The order of the list is kept within each group. */
@@ -31195,8 +31237,8 @@ function groupWatched(all) {
 function nextReview(personId, s, cycle, week, today) {
 	const day = today.toISOString().slice(0, 10);
 	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
-		let w = sessionWeek(r, week);
-		if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1);
+		let w = sessionWeek(r, week, cycle);
+		if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1, cycle);
 		const date = sessionDate(r, cycle, w);
 		return {
 			id: r.id,
@@ -31392,7 +31434,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
+					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it. The streak counts weeks with every check-in in before the review; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
 					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
@@ -31554,13 +31596,18 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Choose Set up your workspace. It asks one question per screen: the workspace’s name and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point.",
+					"Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
+					"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
 					"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.",
 					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later.",
 					"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created.",
-					"Name the outcome, add the goals that feed it, then check each goal’s owner and target before you create the workspace.",
+					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
+					"Check each goal’s owner, where it starts and its target before you create the workspace.",
+					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
+					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
-					"The last screen gives you the one next thing to do, and a link to share with your team."
+					"The last screen gives you the one next thing to do, and a link to copy for your team. Faro sends no email: you send the link yourself.",
+					"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
 				]
 			},
 			{
@@ -31609,8 +31656,9 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.",
-				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on.",
+				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on. From a workspace you set up in the demo, they open the example, whose people and goals they follow.",
 				"Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.",
+				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.",
 				"Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.",
 				"Your changes are kept in this browser, on top of the example as it was built. If the browser won’t keep them (it’s full, or a private window blocks storage), a note at the top of the page says so: they last until you reload."
 			]
@@ -32143,7 +32191,7 @@ var CORE_ARTICLES = [
 				heading: "Below the bar",
 				list: [
 					"Asked of you: every ask waiting on you (a decision or help, a question, an update, an action), each answered or marked done right there in the Respond panel. Home’s buttons open the goal with the ask open and the box ready.",
-					"One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures.",
+					"One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures. While a goal doesn’t say how it’s measured, its owner and admins see a line asking for it, with a link to describe it.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.",
 					"Every section under the chart has a heading and one line saying what it answers, with a rule between sections.",
 					"Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
@@ -33392,6 +33440,25 @@ var WHATS_NEW = [
 		]
 	},
 	{
+		id: "setup-polish",
+		date: "2026-11-08",
+		title: "Setting up a workspace, smoothed out",
+		points: [
+			"Set-up now makes the weekly review it promises (everyone, every goal, on your day) and pins three views for everyone.",
+			"Nothing is late on day one: set up after this week’s review, the first check-ins and the first review are next week.",
+			"Each goal can say how it’s measured as you set it up, and the goal page asks for it until it’s there.",
+			"Each field says what it needs. Teams: leave it empty for yours, Same as above, and a typo like “Suport” is caught before it makes a second team.",
+			"Check shows where each goal starts as well as its target. Add a goal stops at four, removing one has Undo, and Ready says plainly that the invite is a link you send.",
+			"In the demo, a workspace you made has walkthroughs and Start over in the Demo panel."
+		],
+		articles: [
+			"set-up",
+			"home",
+			"goal-page",
+			"demo"
+		]
+	},
+	{
 		id: "open-inbox",
 		date: "2026-11-08",
 		title: "The inbox is open to everyone",
@@ -34239,6 +34306,7 @@ init_cycle();
 init_vocabulary();
 init_asks();
 init_review();
+init_progress();
 init_tableLayout();
 init_goalKey();
 init_removal();

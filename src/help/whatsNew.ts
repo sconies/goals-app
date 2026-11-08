@@ -26,13 +26,27 @@ export const WHATS_NEW: NewsEntry[] = [
     title: 'Workspace in sections, and an inbox you can work through',
     points: [
       'Workspace is now in sections, each on its own page: Overview, People, Teams and Inbox, and for admins Cycles, Access, Features, Privacy and Recently removed. On a computer they’re in a menu on the left; on a phone, Workspace opens as a list of them.',
-      'Overview shows what’s in the workspace, each line leading to its section. Deleting the workspace is at the very end of it.',
+      'Overview shows what’s in the workspace, each line leading to its section; deleting it is at the very end. A long workspace name in the sidebar now wraps to a second line (hover to see all of it).',
       'The inbox works like an inbox: New, In hand and Closed, each with its count; search and filters for kind, page and person; 25 at a time.',
       'Markups about the same part of a page fold into one row (“6 on this part”) and are handled together. Handle one and the next opens; Undo puts it back.',
       'On a computer, the list and the open item sit side by side, with keys: J and K to move, I for in hand, F for fixed, W for won’t fix. On a phone, one at a time with Next.',
       'Tick rows to close a batch at once. Beside Inbox, the menu says how many are new.',
     ],
     articles: ['workspace', 'inbox', 'workspace-people', 'workspace-teams'],
+  },
+  {
+    id: 'setup-polish',
+    date: '2026-11-08',
+    title: 'Setting up a workspace, smoothed out',
+    points: [
+      'Set-up now makes the weekly review it promises (everyone, every goal, on your day) and pins three views for everyone.',
+      'Nothing is late on day one: set up after this week’s review, the first check-ins and the first review are next week.',
+      'Each goal can say how it’s measured as you set it up, and the goal page asks for it until it’s there.',
+      'Each field says what it needs. Teams: leave it empty for yours, Same as above, and a typo like “Suport” is caught before it makes a second team.',
+      'Check shows where each goal starts as well as its target. Add a goal stops at four, removing one has Undo, and Ready says plainly that the invite is a link you send.',
+      'In the demo, a workspace you made has walkthroughs and Start over in the Demo panel.',
+    ],
+    articles: ['set-up', 'home', 'goal-page', 'demo'],
   },
   {
     id: 'open-inbox',

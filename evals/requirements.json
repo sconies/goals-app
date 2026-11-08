@@ -189,7 +189,7 @@
     {
       "id": "ONBOARDING",
       "area": "Onboarding",
-      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it. It ends with the one next thing to do."
+      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do."
     },
     {
       "id": "IDENTITY",
@@ -847,12 +847,18 @@
     },
     {
       "id": "U49",
+      "title": "Set up a small workspace on a Sunday: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all",
+      "who": "Someone trying Faro after the demo",
+      "budget": 30
+    },
+    {
+      "id": "U51",
       "title": "Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Inbox, and old links still land",
       "who": "An admin, then a team member",
       "budget": 14
     },
     {
-      "id": "U50",
+      "id": "U52",
       "title": "Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time",
       "who": "Anyone",
       "budget": 30

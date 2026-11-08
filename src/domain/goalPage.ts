@@ -357,8 +357,8 @@ export function lastTalked(goal: Goal, s: Snapshot, cycle: Cycle, week: number, 
   }
   const day = today.toISOString().slice(0, 10);
   const next = s.reviews.filter((r) => goalsIn(r.scope, s.goals).some((g) => g.id === goal.id)).map((r) => {
-    let w = sessionWeek(r, week);
-    if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1);
+    let w = sessionWeek(r, week, cycle);
+    if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1, cycle);
     return { review: r.name, weekday: WEEKDAY[r.weekday] ?? '', date: sessionDate(r, cycle, w), week: w };
   }).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
   return { held, next };

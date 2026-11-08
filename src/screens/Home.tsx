@@ -5,8 +5,8 @@ import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
 import { dashboard, groupWatched, type Dashboard } from '../domain/home';
-import { daysToReview, onTimeStreak, weekProgress, WEEKDAY } from '../domain/progress';
-import { agendaOf, reviewSession, watchedGoals } from '../domain/review';
+import { daysToReview, onTimeStreak, reviewDate, weekProgress, WEEKDAY } from '../domain/progress';
+import { agendaOf, dayText, reviewSession, watchedGoals } from '../domain/review';
 import { weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
@@ -32,6 +32,20 @@ function reviewWhen(app: AppState, late = false) {
   const day = WEEKDAY[app.cycle.reviewDay];
   if (late && days < 0) return <span className="tone-off">Due before {day}’s review · {-days === 1 ? '1 day' : -days + ' days'} late</span>;
   return days > 1 ? `${day}’s review is in ${days} days` : days === 1 ? `${day}’s review is tomorrow` : days === 0 ? `${day}’s review is today` : `This week’s review was ${day}`;
+}
+
+/**
+ * What the on-time streak counts, said where it reads 0 (setup review, 8 Nov): weeks with every check-in in before the
+ * review, counted once a review day has passed. A check-in posted after this week's review, or before any check-in is
+ * due, explains why it is still 0.
+ */
+function streakNote(app: AppState): string {
+  if (onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week)) return 'All in before the review';
+  const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
+  const day = WEEKDAY[app.cycle.reviewDay];
+  if (p.upcoming.length && !p.due.length) return `Starts with your first check-ins, due before ${day}’s review`;
+  if (p.goals.length && !p.due.length && daysToReview(app.cycle, app.week, app.today) < 0) return `This week’s came after ${day}’s review: it starts again next week`;
+  return `Weeks with every check-in in before ${day}’s review`;
 }
 
 function Streak({ weeks }: { weeks: number }) {
@@ -60,7 +74,7 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
   return (
     <>
       <section className="hero home-hero split-a" data-part="This week’s main action">
-        {p.goals.length > 0 && !(myReview && !p.due.length && !wrapLeft.length)
+        {p.goals.length > 0 && !(myReview && !p.due.length && !wrapLeft.length) && !(p.upcoming.length && !p.due.length && !p.done.length)
           ? <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
           : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={56} label={`${myReview.done} of ${myReview.total} goals covered in ${myReview.review.name}`} /> : null}
         <div className="hero-body">
@@ -104,11 +118,12 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
                 );
               })()}
             </>
-          ) : mine.length && app.week < 1 ? (
+          ) : mine.length && (app.week < 1 || (p.upcoming.length && !p.done.length)) ? (
             <>
-              <span className="eyebrow">The {periodWord(app.cycle)} starts this week</span>
+              {/* Set up after this week's review (or before the year starts): nothing is due yet (setup review, 8 Nov). */}
+              <span className="eyebrow">{app.week < 1 ? `The ${periodWord(app.cycle)} starts this week` : 'Set up this week'}</span>
               <h2 className="hero-title">Your first check-in is next week</h2>
-              <span className="muted">{mine.length === 1 ? 'Your goal is' : `Your ${mine.length} goals are`} set. Check in on {mine.length === 1 ? 'it' : 'each'} in week 1, before {WEEKDAY[app.cycle.reviewDay]}’s review.</span>
+              <span className="muted">{mine.length === 1 ? 'Your goal is' : `Your ${mine.length} goals are`} set. Check in on {mine.length === 1 ? 'it' : 'each'} in week {Math.max(1, app.week + 1)}, before {WEEKDAY[app.cycle.reviewDay]} {dayText(reviewDate(app.cycle, Math.max(1, app.week + 1))).slice(4)}’s review.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
             </>
           ) : mine.length ? (
@@ -317,7 +332,7 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
  * on-time streak and your next review (the goals you watch have one block of their own, below). One row on a desktop, two by two on a
  * phone; plain cells divided by hairlines, no tinted tiles.
  */
-function DashStrip({ d }: { d: Dashboard }) {
+function DashStrip({ d, streakNote }: { d: Dashboard; streakNote: string }) {
   const when = d.next ? (d.next.days === 0 ? 'today' : d.next.days === 1 ? 'tomorrow' : `in ${d.next.days} days`) : '';
   return (
     <section className="dash" aria-label="Your week at a glance" data-part="Week at a glance">
@@ -331,7 +346,7 @@ function DashStrip({ d }: { d: Dashboard }) {
         <div className="dash-cell dash-streak">
           <span className="dash-label">On-time streak</span>
           <span className="dash-value">{d.streak} {d.streak === 1 ? 'week' : 'weeks'}</span>
-          <span className="dash-sub">{d.streak ? 'All in before the review' : 'Check in before the review to start one'}</span>
+          <span className="dash-sub">{streakNote}</span>
         </div>
       )}
       <Link className="dash-cell dash-review" to={d.next ? `/reviews/${d.next.id}` : '/reviews'}>
@@ -353,7 +368,7 @@ export function Home() {
         <span className="muted small home-where">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
         <HomeNews at="head" />
       </div>
-      <DashStrip d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} />
+      <DashStrip d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} streakNote={streakNote(app)} />
       <div className="home-grid split">
         <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<><WatchedGoals />{/* Modules' blocks (the home.blocks place). */}<Place name="home.blocks" /></>} />
       </div>

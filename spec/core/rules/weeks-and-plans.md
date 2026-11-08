@@ -9,6 +9,8 @@ Which week it is, and what a goal’s plan says its number should be in any week
 
 **Weeks.** A cycle has a start date (week 0's Monday) and a number of weeks. Days are counted by calendar date in UTC. The week on a day is `floor(days since the start / 7)`: 0 before the start and in the first seven days, never more than the cycle's last week. Week *w*'s checkpoint date is the start plus 7·*w* days. Checkpoints run from week 0 to the last week; week 0 is set-up, and the first check-in is due in week 1.
 
+**Set up part way through a week.** Nothing is late on the day it's set up. A goal's first check-in is due in the first week whose review day (the cycle's `reviewDay`, 0 = Monday) falls on or after the day the goal was created; a review's first session is the first of its sessions on or after the day it was set up (its own weekday, every `everyWeeks` weeks). So a goal or review set up on the review day or before it starts that week, and one set up after it (on the Sunday, say) starts the next week. Anything set up before the cycle starts begins in week 1. Before its first week a goal is not due, not flagged as due, and doesn't count for or against the on-time streak.
+
 **Days since** a moment is the number of calendar days (UTC) from that moment's date to today's date: a check-in posted at 23:00 on Monday is one day old on Tuesday at 01:00.
 
 **A number goal's plan** goes from `start` to `target`:
@@ -32,6 +34,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | The 13-week cycle starts Monday 7 September 2026. What week is Sunday 13 September at 23:00 UTC, and Monday 14 September? | `0, 1` |
 | A day long after the cycle ends (1 March 2027). | `13` |
+| Reviews on Thursdays. A goal set up on Monday 28 September (week 3), on Thursday 1 October (its review day) and on Sunday 4 October: the week its first check-in is due. | `3, 3, 4` |
 | A straight plan from 30 to 75 over 13 weeks: the plan in week 4. | `43.846` |
 | A back-loaded plan from 34 to 18 over 13 weeks: the plan in week 4. | `31.27` |
 | A stepped plan over 13 weeks: the share planned in weeks 4, 5, 8, 9, 12 and 13. | `0, 0.333, 0.333, 0.667, 0.667, 1` |
@@ -41,7 +44,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/plan.ts](../../../src/domain/plan.ts): `currentWeek`, `daysSince`, `weekDate`, `shapeProgress`, `planEnd`, `planAt`, `planHistoryOf`, `planAsOf`, `goalAsOf`
+- [src/domain/plan.ts](../../../src/domain/plan.ts): `currentWeek`, `daysSince`, `weekDate`, `firstWeekFrom`, `shapeProgress`, `planEnd`, `planAt`, `planHistoryOf`, `planAsOf`, `goalAsOf`
+- [src/domain/progress.ts](../../../src/domain/progress.ts): `firstDueWeek`, `firstReview`, `reviewDate`
+- [src/domain/review.ts](../../../src/domain/review.ts): `sessionWeek`
 
 ## Requirements
 
@@ -80,3 +85,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - quarters read off the owner’s plan › keeps closed quarters judged against the plan of their day when the target changes again (research round 1)
 - quarters read off the owner’s plan › counts a template’s stage weeks from now, within the year (research round 1)
 - quarters read off the owner’s plan › keeps the latest number judged against the plan of its own week after a later re-plan (research round 2)
+
+### [src/domain/firstWeek.test.ts](../../../src/domain/firstWeek.test.ts)
+
+- first week › is the week it was set up in, up to and including the review day, and the next week after it
+- first week › is week 1 for anything set up before the year starts, or with no date
+- first week › starts a workspace made on a Sunday with nothing due, nothing late and its first review in the future
+- first week › leaves a review set up before its day this week in this week

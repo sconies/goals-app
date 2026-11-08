@@ -14,6 +14,12 @@ import { MONTH_NAMES, startMonth, yearStartFor, yearWeeks } from '../domain/year
 import { yearName } from '../domain/yearName';
 import { stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
 import { currentWeek } from '../domain/plan';
+import { firstReview, WEEKDAY } from '../domain/progress';
+import { dayText } from '../domain/review';
+import { nameProblem } from '../domain/thresholds';
+import { parseNumber } from '../domain/checkin';
+import { fmt } from '../domain/format';
+import { closeTeam } from '../domain/people';
 import { Steps } from '../ui/bits';
 import { overHundredHint } from '../domain/goal';
 import { targetText } from '../domain/format';
@@ -24,7 +30,7 @@ import { StageFields } from '../ui/GoalFields';
 import { FaroLogo } from '../ui/Brand';
 
 interface PersonRow { name: string; email: string; title: string; team: string; admin: boolean }
-interface GoalRow extends TemplateGoal { owner: string }
+interface GoalRow extends TemplateGoal { owner: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string }
 interface SetupDraft {
   step: number;
   name: string;
@@ -39,6 +45,8 @@ interface SetupDraft {
   /** The Goals, Plan and Check-ins sheets of an uploaded spreadsheet (the template, or a workbook exported from another
       workspace), used instead of the outcome and goals steps. */
   fileTables?: Tables;
+  /** Team names typed on purpose although they look like another team's (“It’s a new team”). */
+  newTeams?: string[];
 }
 
 const blankPerson = (): PersonRow => ({ name: '', email: '', title: '', team: '', admin: false });
@@ -48,6 +56,9 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const STEP_LABELS = ['Workspace', 'You', 'Your team', 'Starting point', 'Outcome', 'Goals', 'Check'];
 /** Each step, for the named flow (src/help/flows.ts). */
 const STEP_MARKS: Mark[] = ['setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'setUp.step-4', 'setUp.step-5', 'setUp.step-6', 'setUp.step-7'];
+
+/** Most goal cards set-up takes: the step asks for two to four (UX report, 8 Nov). */
+const MAX_GOALS = 4;
 
 /** Rows of a pasted or uploaded people table, matched to our columns by header when there is one. */
 export function peopleFromTable(tsv: string): { rows: PersonRow[]; objectives: Record<string, string> } {
@@ -88,10 +99,10 @@ function goalsTsv(d: SetupDraft) {
   // The owner by email, as the format matches people, with their name beside it.
   const row = (g: GoalRow, headline: boolean) => [
     g.title, person(g.owner)?.team.trim() || d.me.team, person(g.owner)?.email ?? '', g.owner, g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
-    g.plan ?? 'straight', g.kind === 'range' ? g.limit ?? '' : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : 'team', '', '',
+    g.plan ?? 'straight', g.kind === 'range' ? g.limit ?? '' : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : 'team', '', '', g.kind === 'milestone' ? '' : g.definition ?? '',
   ].map((v) => v.replace(/[\t\n]+/g, ' ')).join('\t');
   const goals = d.goals.filter((g) => g.title.trim());
-  return ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
+  return ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource\tDefinition', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
 }
 
 /** First run of the real app: what it does, then setting up. */
@@ -148,25 +159,49 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const owners = [d.me, ...d.people].filter((p) => p.name.trim()).map((p) => p.name.trim());
   const skipGoalSteps = d.template === 'file' || d.template === 'later';
 
+  // Each field says its own problem (setup review, 8 Nov): a name of at least MIN_NAME characters, and the numbers a goal needs.
+  const nameIssue = nameProblem(d.name, 'workspace');
+  const meErr = {
+    name: !d.me.name.trim() ? 'Add your name.' : null,
+    email: !meEmail ? 'Add your email.' : !isEmail(meEmail) ? `“${me.email}” doesn’t look like an email.` : null,
+    team: !d.me.team.trim() ? 'Add your team.' : null,
+  };
+  // A team typed close to another one (“Suport” beside “Support”) is asked about before it makes a second team.
+  const teamOf = (r: PersonRow) => r.team.trim() || d.me.team.trim();
+  const typed = [d.me.team.trim(), d.me.team.trim(), ...rowsOf.filter((r) => r.name.trim() || r.email.trim() || r.team.trim()).map(teamOf)].filter(Boolean);
+  const teamTypo = (r: PersonRow) => (r.team.trim() && !(d.newTeams ?? []).includes(r.team.trim()) ? closeTeam(r.team, typed) : null);
+  const goalErr = (g: GoalRow, headline = false) => ({
+    title: nameProblem(g.title, headline ? 'outcome' : 'goal'),
+    start: g.kind === 'metric' && parseNumber(g.start) == null ? (g.start.trim() ? `“${g.start}” isn’t a number.` : 'Add today’s number.') : null,
+    target: g.kind === 'metric' && parseNumber(g.target) == null ? (g.target.trim() ? `“${g.target}” isn’t a number.` : 'Add the target.') : null,
+    limit: g.kind === 'range' && parseNumber(g.limit ?? '') == null ? 'Add the limit.' : null,
+  });
+  const clean = (e: ReturnType<typeof goalErr>) => !e.title && !e.start && !e.target && !e.limit;
   const ok = [
-    !!d.name.trim() && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate),
-    !!d.me.name.trim() && !!d.me.team.trim() && isEmail(meEmail),
-    !issues('People').length,
+    !nameIssue && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate),
+    !meErr.name && !meErr.email && !meErr.team,
+    !issues('People').length && !rowsOf.some(teamTypo),
     !!d.template,
-    !!d.outcome.title.trim() && !goalIssue(2),
-    !issues('Goals').length,
+    clean(goalErr(d.outcome, true)) && !goalIssue(2),
+    d.goals.every((g) => !g.title.trim() || clean(goalErr(g))) && !issues('Goals').length,
     !result.issues.length,
   ];
   const problem = [
-    !d.name.trim() ? 'Give the workspace a name.' : 'Pick the month the goal year starts.',
-    !d.me.name.trim() ? 'Add your name.' : !meEmail ? 'Add your email.' : !isEmail(meEmail) ? `“${me.email}” doesn’t look like an email.` : 'Add your team.',
+    nameIssue ?? 'Pick the month the goal year starts.',
+    '',
     'Fix the rows marked in red, or clear them.',
     'Pick a starting point.',
-    !d.outcome.title.trim() ? 'Name the outcome.' : goalIssue(2) ?? '',
+    goalIssue(2) ?? '',
     'Fix the goals marked in red, or remove them.',
     result.issues[0]?.message ?? '',
   ];
-  const go = (step: number) => { setTried(false); set({ step }); };
+  const fieldErr = (text: string | null | undefined) => (tried && text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
+  // When the first check-ins are due: the first review on or after today (domain/progress firstReview).
+  const cycleNow = { startDate: d.startDate, weeks: yearWeeks(d.startDate), reviewDay: d.reviewDay } as Cycle;
+  const first = firstReview(cycleNow, setup.today);
+  const firstText = `${WEEKDAY[d.reviewDay]} ${dayText(first.date).slice(4)}`;
+  const [removed, setRemoved] = useState<{ goal: GoalRow; at: number } | null>(null);
+  const go = (step: number) => { setTried(false); setRemoved(null); set({ step }); };
   // A problem is said under the field it's about, and that field takes the focus.
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -247,9 +282,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <h1 className="qtitle big">What’s this workspace for?</h1>
             <div className="field">
               <label className="field"><span className="field-label">Name</span>
-                <input className={'input big-input' + (tried && !d.name.trim() ? ' invalid' : '')} autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
+                <input className={'input big-input' + (tried && nameIssue ? ' invalid' : '')} aria-invalid={(tried && !!nameIssue) || undefined} autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
               </label>
-              {err(!d.name.trim())}
+              {fieldErr(nameIssue)}
             </div>
             {cycleOpen ? (
               <>
@@ -264,9 +299,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">Weeks follow the calendar: week 1 is the week with the first Thursday of {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}{startMonth({ startDate: d.startDate } as Cycle) === 0 ? ', so week numbers match ISO weeks' : ''}. This year has {yearWeeks(d.startDate)} weeks.</span>
               </>
             ) : (
-              <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review <span className="nowrap">on {DAYS[d.reviewDay]}s. <button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span></span>
+              <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review for everyone <span className="nowrap">on {DAYS[d.reviewDay]}s.</span> The first is on {firstText}, so nothing is due before it. <span className="nowrap"><button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span></span>
             )}
-            {err(!!d.name.trim())}
+            {err(!nameIssue)}
           </section>
         )}
 
@@ -274,10 +309,10 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
           <section className="qsection">
             <h1 className="qtitle big">Who are you?</h1>
             <div className="pair">
-              <div className="field"><label className="field"><span className="field-label">Your name</span><input className={'input' + (tried && !d.me.name.trim() ? ' invalid' : '')} autoFocus value={d.me.name} onChange={(e) => set({ me: { ...d.me, name: e.target.value } })} placeholder="e.g. Ana Silva" /></label>{err(!d.me.name.trim())}</div>
-              <div className="field"><label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && !d.me.team.trim() ? ' invalid' : '')} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>{err(!!d.me.name.trim() && isEmail(meEmail) && !d.me.team.trim())}</div>
+              <div className="field"><label className="field"><span className="field-label">Your name</span><input className={'input' + (tried && meErr.name ? ' invalid' : '')} aria-invalid={(tried && !!meErr.name) || undefined} autoFocus value={d.me.name} onChange={(e) => set({ me: { ...d.me, name: e.target.value } })} placeholder="e.g. Ana Silva" /></label>{fieldErr(meErr.name)}</div>
+              <div className="field"><label className="field"><span className="field-label">Your team</span><input className={'input' + (tried && meErr.team ? ' invalid' : '')} aria-invalid={(tried && !!meErr.team) || undefined} value={d.me.team} onChange={(e) => set({ me: { ...d.me, team: e.target.value } })} placeholder="e.g. Platform" /></label>{fieldErr(meErr.team)}</div>
             </div>
-            <div className="field"><label className="field"><span className="field-label">Your email</span><input className={'input' + (tried && !isEmail(meEmail) ? ' invalid' : '')} type="email" autoComplete="email" value={me.email} onChange={(e) => set({ me: { ...me, email: e.target.value } })} placeholder="e.g. ana.silva@example.com" /></label>{err(!!d.me.name.trim() && !isEmail(meEmail))}{tried && meIssue && ok[1] && <span className="hint tone-off field-error" role="alert">{meIssue}</span>}</div>
+            <div className="field"><label className="field"><span className="field-label">Your email</span><input className={'input' + (tried && meErr.email ? ' invalid' : '')} aria-invalid={(tried && !!meErr.email) || undefined} type="email" autoComplete="email" value={me.email} onChange={(e) => set({ me: { ...me, email: e.target.value } })} placeholder="e.g. ana.silva@example.com" /></label>{fieldErr(meErr.email)}{tried && meIssue && ok[1] && <span className="hint tone-off field-error" role="alert">{meIssue}</span>}</div>
             <p className="hint">You’ll be this workspace’s admin: you can add people, change settings and make others admins. Anyone can own goals, watch them and run reviews. Emails tell people apart, in the app and in spreadsheets.</p>
           </section>
         )}
@@ -286,7 +321,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
           <section className="qsection">
             <div className="stack" style={{ gap: 'var(--s1)' }}>
               <h1 className="qtitle big">Who else is on it?</h1>
-              <span className="hint">Type them in, paste rows from a spreadsheet, or upload one. You can also add people later.</span>
+              <span className="hint">Type them in, paste rows from a spreadsheet, or upload one. You can also add people later. Leave Team empty for your own team{d.me.team.trim() ? ` (${d.me.team.trim()})` : ''}.</span>
             </div>
             <div className="people-grid" role="table" aria-label="People">
               <div className="pg-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Email</span><span role="columnheader">Team</span><span role="columnheader">Admin</span><span /></div>
@@ -294,6 +329,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                 const issue = personIssue(i);
                 const teamIssue = !!issue && /has no team/.test(issue);
                 const emailIssue = !!issue && /email/i.test(issue);
+                const typo = teamTypo(r);
+                const above = i > 0 ? teamOf(rowsOf[i - 1]!) : '';
                 return (
                 <div key={i} className="pg-row" role="row">
                   <input className={'input' + (issue && !teamIssue && !emailIssue ? ' invalid' : '')} aria-invalid={issue && !teamIssue && !emailIssue ? true : undefined} aria-label={`Person ${i + 1}: name`} value={r.name} placeholder="Name"
@@ -306,10 +343,21 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                       set({ people: [...rowsOf.slice(0, i), ...got.rows, ...rowsOf.slice(i + got.rows.length)].filter((x, k, arr) => x.name || x.team || x.email || k >= arr.length - 1), objectives: { ...d.objectives, ...got.objectives } });
                     }} />
                   <input className={'input pg-email' + (emailIssue ? ' invalid' : '')} aria-invalid={emailIssue || undefined} aria-label={`Person ${i + 1}: email`} type="email" value={r.email} placeholder="Email" onChange={(e) => updatePerson(i, { email: e.target.value })} />
-                  <input className={'input' + (teamIssue ? ' invalid' : '')} aria-invalid={teamIssue || undefined} aria-label={`Person ${i + 1}: team`} value={r.team} placeholder="Team" list="teams" onChange={(e) => updatePerson(i, { team: e.target.value })} />
+                  <div className="pg-team">
+                    <input className={'input' + (teamIssue || typo ? ' invalid' : '')} aria-invalid={teamIssue || !!typo || undefined} aria-label={`Person ${i + 1}: team`} value={r.team} placeholder="Team" list="teams" onChange={(e) => updatePerson(i, { team: e.target.value })} />
+                    {/* Empty takes your team; the row above's team is one click away (setup review, 8 Nov). */}
+                    {!r.team.trim() && above && above !== d.me.team.trim() && <button type="button" className="linkish tiny" onClick={() => updatePerson(i, { team: above })}>Same as above ({above})</button>}
+                  </div>
                   <label className="pg-check"><input type="checkbox" aria-label={`Person ${i + 1}: admin`} checked={r.admin} onChange={(e) => updatePerson(i, { admin: e.target.checked })} /></label>
                   <button type="button" className="iconbtn" aria-label={`Remove person ${i + 1}`} onClick={() => set({ people: d.people.length > 1 ? d.people.filter((_, k) => k !== i) : [blankPerson()] })}><Icon name="close" /></button>
                   {issue && <span className="pg-issue hint tone-off" role="alert">{issue}</span>}
+                  {typo && (
+                    <span className="pg-issue pg-fix hint">
+                      <span className="tone-off" role={tried ? 'alert' : undefined}>“{r.team.trim()}” looks like {typo}. Use one name, so it doesn’t make a second team.</span>
+                      <button type="button" className="linkish" onClick={() => set({ people: rowsOf.map((x) => (x.team.trim() === r.team.trim() ? { ...x, team: typo } : x)) })}>Use {typo}</button>
+                      <button type="button" className="linkish" onClick={() => set({ newTeams: [...(d.newTeams ?? []), r.team.trim()] })}>It’s a different team</button>
+                    </span>
+                  )}
                 </div>
                 );
               })}
@@ -351,7 +399,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <h1 className="qtitle big">What outcome are you after?</h1>
               <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
             </div>
-            <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} titleIssue={tried && !d.outcome.title.trim() ? problem[4] : undefined} headline />
+            <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} errors={tried ? goalErr(d.outcome, true) : undefined} headline />
           </section>
         )}
 
@@ -363,12 +411,17 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </div>
             {d.goals.map((g, i) => (
               <div key={i} className="goalcard">
-                <SetupGoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
-                <button type="button" className="linkish tap" onClick={() => set({ goals: d.goals.filter((_, k) => k !== i) })}>Remove this goal</button>
+                <SetupGoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
+                <button type="button" className="linkish tap" onClick={() => { setRemoved({ goal: g, at: i }); set({ goals: d.goals.filter((_, k) => k !== i) }); }}>Remove this goal</button>
               </div>
             ))}
+            {/* Removing a card can be undone until the next change of step (UX report, 8 Nov). */}
+            {removed && <p className="hint" role="status">Removed “{removed.goal.title.trim() || 'a goal'}”. <button type="button" className="linkish" onClick={() => { set({ goals: [...d.goals.slice(0, removed.at), removed.goal, ...d.goals.slice(removed.at)] }); setRemoved(null); }}>Undo</button></p>}
             {err()}
-            <div><button type="button" className="btn sm" onClick={() => set({ goals: [...d.goals, blankGoal(d.me.name.trim())] })}>Add a goal</button></div>
+            <div className="row" style={{ gap: 'var(--s3)' }}>
+              <button type="button" className="btn sm" disabled={d.goals.length >= MAX_GOALS} aria-describedby={d.goals.length >= MAX_GOALS ? 'goals-cap' : undefined} onClick={() => { setRemoved(null); set({ goals: [...d.goals, blankGoal(d.me.name.trim())] }); }}>Add a goal</button>
+              {d.goals.length >= MAX_GOALS && <span className="hint" id="goals-cap">Four is the most here: a few goals get the attention they need. Add more from New goal once the workspace is set up.</span>}
+            </div>
           </section>
         )}
 
@@ -379,7 +432,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <dl className="details">
               <dt>People</dt><dd>{result.snapshot.people.length} in {result.snapshot.teams.length} {result.snapshot.teams.length === 1 ? 'team' : 'teams'}</dd>
               <dt>Goals</dt><dd>{result.snapshot.goals.length ? `${result.snapshot.goals.length}, listed below` : 'Set up later'}</dd>
-              <dt>Goal year</dt><dd>{yearName(d.startDate, yearWeeks(d.startDate))}, starting in {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}; review on {DAYS[d.reviewDay]}s</dd>
+              <dt>Goal year</dt><dd>{yearName(d.startDate, yearWeeks(d.startDate))}, starting in {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}; you join it in week {Math.max(0, currentWeek(cycleNow, setup.today))}</dd>
+              <dt>Weekly review</dt><dd>Everyone, every goal, on {DAYS[d.reviewDay]}s. The first is on {firstText}; the first check-ins are due before it.</dd>
               <dt>You</dt><dd>{d.me.name} ({meEmail}), admin</dd>
               {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past check-ins, from your spreadsheet</dd></>}
             </dl>
@@ -389,12 +443,12 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </div>
             {result.snapshot.goals.length > 0 && (
               <div className="stack" style={{ gap: 'var(--s2)' }}>
-                <span className="field-label">Check each goal’s owner and target</span>
+                <span className="field-label">Check each goal’s owner, where it starts and its target</span>
                 <ul className="record">
                   {result.snapshot.goals.map((g) => (
                     <li key={g.id}>
                       <span className="strong">{g.title}{g.level === 'north-star' ? ' · North star' : ''}</span>
-                      <span className="small">{result.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? '—'} · {targetText(g)}{g.kind === 'milestone' ? ` · ${g.stages.map((st) => `${st.name} by week ${st.dueWeek}`).join(', ')}` : ''}</span>
+                      <span className="small">{result.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? '—'} · {g.kind === 'metric' ? `${fmt(g.plan.start, g)} today → ${targetText(g)}${g.plan.target < g.plan.start ? ', lower is better' : ''}` : targetText(g)}{g.kind === 'milestone' ? ` · ${g.stages.map((st) => `${st.name} by week ${st.dueWeek}`).join(', ')}` : ''}</span>
                     </li>
                   ))}
                 </ul>
@@ -415,12 +469,16 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function SetupGoalFields({ g, owners, onChange, issue, titleIssue, headline, week = 0, weeks = 52 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; titleIssue?: string; headline?: boolean; week?: number; weeks?: number }) {
+function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number }) {
+  const titleIssue = errors?.title;
+  const say = (text: string | null | undefined) => (text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
+  const any = !!errors && !!(errors.title || errors.start || errors.target || errors.limit);
+  const name = (headline ? 'Outcome' : g.title || 'Goal');
   return (
     <div className="stack" style={{ gap: 'var(--s3)' }}>
       <div className="field">
       <label className="field"><span className={headline ? 'sr' : 'field-label'}>{headline ? 'Outcome' : 'Goal'}</span>
-        <input className={'input' + (headline ? ' big-input' : '') + ((issue || titleIssue) && !g.title.trim() ? ' invalid' : '')} aria-label={headline ? 'Outcome' : 'Goal'} value={g.title} onChange={(e) => onChange({ title: e.target.value })} placeholder={headline ? 'e.g. Weekly active users' : 'e.g. Activation rate'} />
+        <input className={'input' + (headline ? ' big-input' : '') + (titleIssue ? ' invalid' : '')} aria-invalid={!!titleIssue || undefined} aria-label={headline ? 'Outcome' : 'Goal'} value={g.title} onChange={(e) => onChange({ title: e.target.value })} placeholder={headline ? 'e.g. Weekly active users' : 'e.g. Activation rate'} />
       </label>
       {titleIssue && <span className="hint tone-off field-error" role="alert">{titleIssue}</span>}
       </div>
@@ -433,8 +491,8 @@ function SetupGoalFields({ g, owners, onChange, issue, titleIssue, headline, wee
       )}
       {g.kind === 'metric' ? (
         <div className="trio">
-          <label className="field"><span className="field-label">Today</span><input className="input" inputMode="decimal" value={g.start} onChange={(e) => onChange({ start: e.target.value })} aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': today'} /></label>
-          <label className="field"><span className="field-label">Target</span><input className="input" inputMode="decimal" value={g.target} onChange={(e) => onChange({ target: e.target.value })} aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': target'} />{overHundredHint(g.unit ?? '', g.start ?? '', g.target ?? '') && <span className="hint tone-risk" role="status">{overHundredHint(g.unit ?? '', g.start ?? '', g.target ?? '')}</span>}</label>
+          <label className="field"><span className="field-label">Today</span><input className={'input' + (errors?.start ? ' invalid' : '')} aria-invalid={!!errors?.start || undefined} inputMode="decimal" value={g.start} onChange={(e) => onChange({ start: e.target.value })} aria-label={name + ': today'} />{say(errors?.start)}</label>
+          <label className="field"><span className="field-label">Target</span><input className={'input' + (errors?.target ? ' invalid' : '')} aria-invalid={!!errors?.target || undefined} inputMode="decimal" value={g.target} onChange={(e) => onChange({ target: e.target.value })} aria-label={name + ': target'} />{say(errors?.target)}{overHundredHint(g.unit ?? '', g.start ?? '', g.target ?? '') && <span className="hint tone-risk" role="status">{overHundredHint(g.unit ?? '', g.start ?? '', g.target ?? '')}</span>}</label>
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, days" aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': unit'} /></label>
         </div>
       ) : g.kind === 'range' ? (
@@ -442,17 +500,23 @@ function SetupGoalFields({ g, owners, onChange, issue, titleIssue, headline, wee
           <label className="field"><span className="field-label">Must stay</span>
             <select className="input" value={g.bound ?? 'at most'} onChange={(e) => onChange({ bound: e.target.value as 'at most' | 'at least' })} aria-label={(g.title || 'Goal') + ': must stay'}><option value="at most">At most</option><option value="at least">At least</option></select>
           </label>
-          <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={g.limit ?? ''} onChange={(e) => onChange({ limit: e.target.value })} aria-label={(g.title || 'Goal') + ': limit'} /></label>
+          <label className="field"><span className="field-label">Limit</span><input className={'input' + (errors?.limit ? ' invalid' : '')} aria-invalid={!!errors?.limit || undefined} inputMode="decimal" value={g.limit ?? ''} onChange={(e) => onChange({ limit: e.target.value })} aria-label={(g.title || 'Goal') + ': limit'} />{say(errors?.limit)}</label>
           <label className="field"><span className="field-label">Warn within</span><input className="input" inputMode="decimal" value={g.margin ?? ''} onChange={(e) => onChange({ margin: e.target.value })} placeholder="1" aria-label={(g.title || 'Goal') + ': warn within'} /></label>
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, ms" aria-label={(g.title || 'Goal') + ': unit'} /></label>
         </div>
       ) : (
         <StageRows value={g.stages ?? ''} onChange={(stages) => onChange({ stages })} goalName={g.title || 'Goal'} weeks={weeks} />
       )}
+      {/* Asked here, in the open, so a new goal page doesn't say "not described yet" (setup review, 8 Nov). */}
+      {g.kind !== 'milestone' && (
+        <label className="field"><span className="field-label">How it’s measured <span className="hint">optional</span></span>
+          <input className="input" value={g.definition ?? ''} onChange={(e) => onChange({ definition: e.target.value })} aria-label={name + ': how it’s measured'} placeholder={headline ? 'e.g. People who used it at least once in the week, from product analytics' : 'e.g. Median hours to the first reply, from the help desk'} />
+        </label>
+      )}
       <label className="field"><span className="field-label">Owner</span>
         <select className="input" value={g.owner} onChange={(e) => onChange({ owner: e.target.value })}>{owners.map((o) => <option key={o} value={o}>{o}</option>)}</select>
       </label>
-      {issue && !titleIssue && <span className="hint tone-off field-error" role="alert">{issue}</span>}
+      {issue && !any && <span className="hint tone-off field-error" role="alert">{issue}</span>}
     </div>
   );
 }
