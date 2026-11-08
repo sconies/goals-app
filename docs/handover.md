@@ -21,7 +21,7 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 - **Live:** the Faro rebrand, goal page scorecard, screen markup and builder inbox, remove/archive/undo for everything, one meaning for every status word, and one spreadsheet format.
 - **Just shipped (PR #38):** the small-fixes batch (backlog items 4, 5, 6, 8, with migration 0028), the fix for issue #39 (eval check N6) and the latest backlog and `CLAUDE.md` edits. Nothing else is in flight. One known follow-up: N6's Home progress-ring step also reads at a fixed time and fails under a 4x CPU slowdown; it has never failed in CI.
 - **What Faro is for (8 Nov):** a model for an internal rebuild plus demos; never real data. Lane presents it to coworkers on Tuesday 10 Nov.
-- **Next in the backlog:** 8k rebuild kit v1 with a drill (building), 8r spec-only requirements, then 0u and 7 (small fixes), 0a find-and-pick and Workspace tabs, 0b metric library, 0c Faro's own Supabase project, 3a send a markup about a goal. Sign-in, single sign-on, time zones, scale and swappable parts are spec only; observability is dropped.
+- **Next in the backlog:** 8k rebuild kit v1 with a drill (building), 8r spec-only requirements, 8c swappable parts (the team will copy the code and plug in their own platform), then 0u and 7 (small fixes), 0a find-and-pick and Workspace tabs, 0b metric library, 0c Faro's own Supabase project, 3a send a markup about a goal. Sign-in, single sign-on, time zones and scale are spec only; observability is dropped.
 
 ## How we work (Lane, 7 November)
 
