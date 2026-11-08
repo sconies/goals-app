@@ -33426,7 +33426,7 @@ var WHATS_NEW = [
 		title: "Workspace in sections, and an inbox you can work through",
 		points: [
 			"Workspace is now in sections, each on its own page: Overview, People, Teams and Inbox, and for admins Cycles, Access, Features, Privacy and Recently removed. On a computer they’re in a menu on the left; on a phone, Workspace opens as a list of them.",
-			"Overview shows what’s in the workspace, each line leading to its section. Deleting the workspace is at the very end of it.",
+			"Overview shows what’s in the workspace, each line leading to its section; deleting it is at the very end. A long workspace name in the sidebar now wraps to a second line (hover to see all of it).",
 			"The inbox works like an inbox: New, In hand and Closed, each with its count; search and filters for kind, page and person; 25 at a time.",
 			"Markups about the same part of a page fold into one row (“6 on this part”) and are handled together. Handle one and the next opens; Undo puts it back.",
 			"On a computer, the list and the open item sit side by side, with keys: J and K to move, I for in hand, F for fixed, W for won’t fix. On a phone, one at a time with Next.",
