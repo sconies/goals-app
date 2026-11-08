@@ -1,19 +1,24 @@
-/* Export: the goals as a workbook (every sheet of the one format, the default), the same sheets as zipped CSVs, one table
-   as a CSV, JSON or a brief for an AI chat. Everything in the cycle, or just what's shown. */
+/* Export (the spreadsheets module): the goals as a workbook (every sheet of the one format, the default), the same sheets
+   as zipped CSVs, one table as a CSV, JSON or a brief for an AI chat. Everything in the cycle, or just what's shown.
+   It opens from Goals' quiet "Export these goals" (the goals.tools place); everything else about spreadsheets is on
+   Data (DataMenu.tsx). */
 import { useLayoutEffect, useRef, useState } from 'react';
-import { useApp } from '../app/state';
-import { saveFile, saveFailed, type FileContent } from '../app/files';
-import { andList, SHEET_NAMES } from '../domain/columns';
-import { aiBrief, csvFiles, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../domain/export';
-import type { Goal } from '../domain/types';
-import { Sheet } from '../ui/bits';
+import { useApp } from '../../app/state';
+import { saveFile, saveFailed, type FileContent } from '../../app/files';
+import { andList, SHEET_NAMES } from '../../domain/columns';
+import { aiBrief, csvFiles, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../../domain/export';
+import type { Goal } from '../../domain/types';
+import { Sheet } from '../../ui/bits';
 
-export function ExportButton({ goals, viewName }: { goals: Goal[]; viewName: string }) {
+/** Goals' one way out (the goals.tools place): quiet, beside the layouts. Import and the rest are on Data. */
+export function ExportTheseGoals({ goals, viewName }: { goals: Goal[]; viewName: string }) {
+  const app = useApp();
   const [open, setOpen] = useState(false);
+  if (!app.snapshot.goals.length) return null;
   return (
     <>
-      <button type="button" className="btn sm" onClick={() => setOpen(true)}>
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 2v8m0 0 3-3m-3 3L5 7M3 12.5h10" /></svg><span className="btn-label">Export</span>
+      <button type="button" className="btn ghost sm export-these" aria-label="Export these goals" title="Export these goals" onClick={() => setOpen(true)}>
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 2v8m0 0 3-3m-3 3L5 7M3 12.5h10" /></svg><span className="btn-label">Export these goals</span>
       </button>
       {open && <ExportSheet goals={goals} viewName={viewName} onClose={() => setOpen(false)} />}
     </>
@@ -65,7 +70,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
         {/* Every format the same way: what it is on the left, its buttons in one column on the right. */}
         <div className="optlist export-list">
           <div className="opt static">
-            <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Every sheet: {andList(SHEET_NAMES.slice(0, -1) as unknown as string[])}, and a README that explains each column. Edit it and load it back on Import.</span></span>
+            <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Every sheet: {andList(SHEET_NAMES.slice(0, -1) as unknown as string[])}, and a README that explains each column. Edit it and load it back from Data.</span></span>
             <span className="export-actions">
               <button type="button" className="btn sm" aria-label="Save .xlsx: Excel workbook" disabled={!!busy} onClick={() => void run('xlsx', () => save('goals', { kind: 'xlsx', sheets: workbook(input) }), 'Workbook saved')}>{busy === 'xlsx' ? 'Saving…' : 'Save .xlsx'}</button>
             </span>

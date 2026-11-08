@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { screenFiles } from '../core/sources';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ACTIONS, SCREENS } from './parity';
@@ -18,7 +19,8 @@ describe('Every action a person can take, their AI assistant can take too', () =
   });
 
   it('maps every screen to the tools that read or do what it shows', () => {
-    const screens = fs.readdirSync(path.join(root, 'src/screens')).filter((f) => f.endsWith('.tsx')).map((f) => f.replace('.tsx', ''));
+    // src/screens, and each module's screens (src/core/sources.ts).
+    const screens = screenFiles(root).map((f) => f.name);
     expect(screens.filter((s) => !(s in SCREENS))).toEqual([]);
   });
 

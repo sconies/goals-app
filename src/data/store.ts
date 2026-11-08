@@ -1,6 +1,6 @@
 import { asksOf, upgradeAsks } from '../domain/asks';
 import { settleKeys, withKeys } from '../domain/goalKey';
-import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
+import type { CheckIn, Snapshot, Workspace } from '../domain/types';
 import { hashToken, newToken } from '../mcp/token';
 import { buildExample, EXAMPLE, isExample } from './examples';
 
@@ -16,41 +16,9 @@ export function pickExampleFromUrl(search: string) {
 }
 
 
-/** One save: the records that leave draft, and the change-log entries that describe them. */
-export interface Commit {
-  people?: Person[];
-  goals?: Goal[];
-  checkIns?: CheckIn[];
-  decisions?: Decision[];
-  reviews?: Review[];
-  retros?: Retro[];
-  cycles?: Cycle[];
-  feedback?: Feedback[];
-  watches?: Watch[];
-  /** Ids of watches to remove. */
-  unwatch?: string[];
-  tokens?: ApiToken[];
-  views?: SavedView[];
-  requests?: Ask[];
-  /** Teams added or changed. */
-  teams?: Team[];
-  /** Ids of teams to remove: emptied first, by the same save (domain/actions removeTeam). */
-  removeTeams?: string[];
-  /** The workspace's new name. */
-  workspace?: { name: string };
-  /** The workspace's recording switch (domain/actions setRecording): whether the app records how it is used there. */
-  recording?: boolean;
-  changes: Change[];
-  /** What the save was based on; filled in by withExpectations. A save is refused if any of it has changed since. */
-  expect?: Expectations;
-}
-
-export interface Expectations {
-  goals: { id: string; version: number }[];
-  reviews: { id: string; version: number }[];
-  /** For each check-in written: the check-in that was there for that goal and week (null: none). */
-  checkIns: { goalId: string; week: number; id: string | null }[];
-}
+/** One save, and what it was based on: the rules make them (src/domain/commit.ts); the stores keep them. */
+export type { Commit, Expectations } from '../domain/commit';
+import type { Commit, Expectations } from '../domain/commit';
 
 /** The versions a save is based on, read from the snapshot the person was looking at. */
 export function withExpectations(c: Commit, s: Snapshot): Commit {
@@ -226,7 +194,12 @@ export class BrowserStore implements Store {
     const names = this.get<Record<string, string>>(this.key + ':names') ?? {};
     // …and its recording switch, the same way.
     const off = this.notRecording();
-    const withSwitch = (w: Workspace): Workspace => (off.includes(w.id) ? { ...w, recording: false } : w);
+    // …and the feature modules switched off there.
+    const mods = this.modulesOff();
+    const withSwitch = (w: Workspace): Workspace => {
+      const m = mods[w.id] ?? [];
+      return { ...w, ...(off.includes(w.id) ? { recording: false } : {}), ...(m.length ? { modulesOff: m } : {}) };
+    };
     return (this.hasExample ? [names[EXAMPLE.id] ? { ...EXAMPLE, name: names[EXAMPLE.id]! } : EXAMPLE, ...own] : own).map(withSwitch);
   }
 
@@ -237,6 +210,15 @@ export class BrowserStore implements Store {
     const off = this.notRecording().filter((x) => x !== id);
     this.offMemory = on ? off : [...off, id];
     this.put(this.key + ':not-recording', this.offMemory);
+  }
+
+  /** Each workspace's switched-off modules: kept in this browser, and in memory when storage is blocked. */
+  private modsMemory: Record<string, string[]> = {};
+  private modulesOff(): Record<string, string[]> { return this.get<Record<string, string[]>>(this.key + ':modules-off') ?? this.modsMemory; }
+  private setModulesOff(id: string, off: string[]) {
+    this.modsMemory = { ...this.modulesOff(), [id]: off };
+    if (!off.length) delete this.modsMemory[id];
+    this.put(this.key + ':modules-off', this.modsMemory);
   }
 
   private rename(id: string, name: string) {
@@ -305,7 +287,7 @@ export class BrowserStore implements Store {
     // Read what's stored now, not this tab's copy: another tab may have saved since.
     const stored = await this.current(id);
     checkExpectations(stored, c.expect);
-    const { expect: _e, recording: _r, ...rest } = c;
+    const { expect: _e, recording: _r, modulesOff: _m, ...rest } = c;
     const next = applyCommit(stored, rest);
     if (this.hasExample && isExample(id)) {
       const saved = this.saved.get(id)!;
@@ -319,6 +301,7 @@ export class BrowserStore implements Store {
     }
     if (c.workspace) this.rename(id, c.workspace.name);
     if (c.recording !== undefined) this.setRecording(id, c.recording);
+    if (c.modulesOff !== undefined) this.setModulesOff(id, c.modulesOff);
   }
 
   async createWorkspace(ws: Workspace, data: Snapshot) {

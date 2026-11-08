@@ -8,9 +8,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { saveAndSay } from '../app/files';
+import { Place } from '../core/app';
 import type { ChangeSet, Rec, Tables } from '../domain/changeset';
-import { toCsv, workbook, type Cell } from '../domain/export';
+import { workbook, type Cell } from '../domain/export';
 import { BOUND_WORDS, CAUSE_WORDS, isEditable, LEVEL_WORDS, RECOVERY_WORDS, SHAPE_WORDS } from '../domain/columns';
 import { Chip, Sheet } from '../ui/bits';
 import { LABEL } from '../domain/status';
@@ -148,19 +148,14 @@ export function DataTables() {
     setLimit(PAGE);
   };
 
-  /* ---------- export, as shown ---------- */
-  const exportAs = async (kind: 'csv' | 'xlsx') => {
-    const sheet = book.find((x) => x.name === TABLES[tab].sheet)!;
-    // As shown, with the columns that say which record each row is added at the end (greyed), so it loads back.
-    const t = exportedTable(sheet, current);
-    const out = t.rows;
-    const name = { workspace: app.ws.name, what: TABLES[tab].label, scope: activeView?.name ?? '', date: app.today };
-    const keys = t.muted?.length ? `, plus ${t.muted.join(', ')} so it loads back` : '';
-    await saveAndSay(app.toast, name, kind === 'csv' ? { kind: 'csv', text: toCsv(out) } : { kind: 'xlsx', sheets: [{ name: TABLES[tab].label, rows: out, muted: t.muted }] },
-      `Exported ${out.length - 1} ${out.length === 2 ? 'row' : 'rows'} and ${(out[0]?.length ?? 0) - (t.muted?.length ?? 0)} columns, as shown${keys}`);
+  /* ---------- the table as shown, for the modules' tools (the data.tools place: the spreadsheets module) ---------- */
+  // As shown, with the columns that say which record each row is added at the end (greyed), so it loads back.
+  const asShown = () => {
+    const t = exportedTable(book.find((x) => x.name === TABLES[tab].sheet)!, current);
+    return { rows: t.rows, muted: t.muted, scope: activeView?.name ?? '' };
   };
 
-  // The Saved layouts and Export menus open on whichever side of their button has room.
+  // The Saved layouts and Spreadsheets menus open on whichever side of their button has room.
   const toolsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = toolsRef.current;
@@ -262,7 +257,7 @@ export function DataTables() {
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setEditing({ index: null })}><Icon name="plus" />Filter</button>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setChoosing(true)}>Columns · {cols.length} of {all.length + 1}</button>
         <MenuButton className="data-views" summary="" label={activeView ? `Saved layout: ${activeView.name}` : 'Saved layouts'} items={viewItems} />
-        <MenuButton className="data-export" summary="" label="Export" items={[{ label: 'CSV, as shown', onClick: () => void exportAs('csv') }, { label: 'Excel (.xlsx), as shown', onClick: () => void exportAs('xlsx') }]} />
+        <Place name="data.tools" table={TABLES[tab].label} asShown={asShown} />
         <span className="small muted data-count" role="status">{shown.length === rows.length ? `${rows.length} rows` : `${shown.length} of ${rows.length} rows`}</span>
       </div>
       {(filters.length > 0 || sort) && (

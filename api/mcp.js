@@ -23146,7 +23146,8 @@ var workspaceFromRow = (r) => ({
 	name: r.name,
 	kind: r.kind,
 	createdAt: iso$2(r.created_at),
-	...r.recording === false ? { recording: false } : {}
+	...r.recording === false ? { recording: false } : {},
+	...r.modules_off?.length ? { modulesOff: r.modules_off } : {}
 });
 var teamToRow = (ws, t, withLead = true) => ({
 	workspace_id: ws,
@@ -23670,6 +23671,7 @@ function commitPayload(ws, c) {
 		...c.removeTeams?.length ? { remove_teams: c.removeTeams } : {},
 		...c.workspace ? { workspace_name: c.workspace.name } : {},
 		...c.recording !== void 0 ? { workspace_recording: c.recording } : {},
+		...c.modulesOff !== void 0 ? { workspace_modules_off: c.modulesOff } : {},
 		changes: c.changes.map((x) => changeToRow(ws, x)),
 		expect: c.expect ? {
 			goals: c.expect.goals,
@@ -26508,6 +26510,39 @@ function setRecording(x, ws, on) {
 			diffs: [{
 				field: "Recording",
 				from: was ? "On" : "Off",
+				to: on ? "On" : "Off"
+			}]
+		}]
+	};
+}
+/**
+* Admins: switch a feature module on or off in this workspace (docs/architecture.md). `modules` is every module this
+* build has, so a module that needs this one can be named in the log as going off with it. Null when it already is.
+*/
+function setModule(x, ws, modules, id, on) {
+	if (!x.actor.admin) no$1("Only admins can switch features on or off.");
+	const m = modules.find((k) => k.id === id);
+	if (!m) no$1(`There’s no feature called ${id}.`);
+	const was = ws.modulesOff ?? [];
+	if (was.includes(id) === !on) return null;
+	const off = on ? was.filter((k) => k !== id) : [...was, id].sort();
+	const needing = (root) => modules.filter((k) => k.needs.includes(root)).flatMap((k) => [k.name, ...needing(k.id)]);
+	const also = [...new Set(needing(id))];
+	const name = m.name;
+	return {
+		modulesOff: off,
+		changes: [{
+			id: x.newId("chg"),
+			at: x.now,
+			actorId: x.actor.id,
+			goalId: null,
+			entity: "workspace",
+			entityId: ws.id,
+			action: "edited",
+			summary: `${on ? "Switched on" : "Switched off"} ${name}${also.length ? `, and with it ${also.join(", ")}` : ""}`,
+			diffs: [{
+				field: name,
+				from: on ? "Off" : "On",
 				to: on ? "On" : "Off"
 			}]
 		}]
@@ -31184,6 +31219,117 @@ function dashboard(personId, s, cycle, week, today) {
 		next: nextReview(personId, s, cycle, week, today)
 	};
 }
+// \0virtual:faro-modules/help
+var help_default = [{
+	id: "spreadsheets",
+	part: [{
+		id: "import",
+		title: "Importing from a spreadsheet",
+		summary: "Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.",
+		group: "data",
+		after: "data",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the blank template to start from nothing.",
+				"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
+				"Each sheet is known by its header row, whatever the file or sheet is called. Results, Asks, Notes and the README are for reading, and left out.",
+				"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
+				"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored. A word a column doesn’t know, such as a level of “vp”, is a problem to fix, never a guess.",
+				"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over, by email). The same rules as the app apply, and the preview shows what each does.",
+				"Every row is checked with the app’s own rules and shown before anything is saved. Nothing saves while a row needs fixing; plan changes after check-ins need a reason.",
+				"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
+				"Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included."
+			]
+		}, {
+			heading: "Who can",
+			text: ["Owners change their own goals; admins can change any, and add and change people. Rows for other people’s goals are fine if you leave them as they are."]
+		}],
+		routes: ["/data/import", "/import"],
+		screens: ["Import"],
+		reqs: [
+			"BULK-IMPORT",
+			"WORKSPACES",
+			"HONEST-NUMBERS",
+			"ONE-FORMAT",
+			"ROUND-TRIP",
+			"IMPORT-ACTIONS",
+			"SPREADSHEETS-ON-DATA"
+		],
+		keywords: [
+			"import",
+			"upload",
+			"excel",
+			"csv",
+			"zip",
+			"spreadsheet",
+			"workbook",
+			"load",
+			"bulk",
+			"undo",
+			"action",
+			"stop",
+			"delete",
+			"left",
+			"email",
+			"round trip"
+		],
+		related: [
+			"export",
+			"data",
+			"keys",
+			"removing"
+		]
+	}, {
+		id: "export",
+		title: "Exporting",
+		summary: "Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.",
+		group: "data",
+		after: "import",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).",
+				"On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template, every sheet with its headers and no rows.",
+				"Excel workbook, the usual choice: every sheet, Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks and Notes, and a README that explains each column. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
+				"CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.",
+				"One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
+				"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
+				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
+				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx."
+			]
+		}],
+		routes: [],
+		screens: ["Export", "DataMenu"],
+		reqs: [
+			"EXPORT",
+			"SHARED-DOWNLOADS",
+			"ONE-FORMAT"
+		],
+		keywords: [
+			"export",
+			"download",
+			"excel",
+			"xlsx",
+			"csv",
+			"zip",
+			"json",
+			"markdown",
+			"brief",
+			"ai chat",
+			"results",
+			"year end",
+			"format",
+			"template",
+			"blank"
+		],
+		related: [
+			"import",
+			"print",
+			"data"
+		]
+	}]
+}];
 // src/help/guide.ts
 init_checkin();
 init_thresholds();
@@ -31219,7 +31365,8 @@ var GROUPS = [
 ];
 var pct = (n) => `${Math.round(n * 100)}%`;
 var causes = (list) => list.map(([, l]) => l).join(", ");
-var ARTICLES = [
+/** The core's articles. Each module adds its own (its help.ts), and ARTICLES is all of them. */
+var CORE_ARTICLES = [
 	{
 		id: "home",
 		title: "Home and your week at a glance",
@@ -32323,7 +32470,7 @@ var ARTICLES = [
 	{
 		id: "data",
 		title: "Data",
-		summary: "Every person, goal, check-in, plan and ask as a table you can search, sort, filter, arrange and export.",
+		summary: "Every person, goal, check-in, plan and ask as a table you can search, sort, filter, arrange and export, and the home of spreadsheets in and out.",
 		group: "data",
 		sections: [
 			{
@@ -32332,7 +32479,7 @@ var ARTICLES = [
 					"Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
-					"Export saves CSV or Excel of exactly what is shown: the visible columns, in order, filtered and sorted. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back on Import whatever you hid.",
+					"Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the blank template; and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
 					"IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email."
 				]
 			},
@@ -32358,7 +32505,9 @@ var ARTICLES = [
 		reqs: [
 			"DATA-TABLES",
 			"TABLE-LAYOUTS",
-			"ROUND-TRIP"
+			"ROUND-TRIP",
+			"ONE-FORMAT",
+			"SHARED-DOWNLOADS"
 		],
 		keywords: [
 			"tables",
@@ -32381,108 +32530,6 @@ var ARTICLES = [
 			"import",
 			"export",
 			"keys"
-		]
-	},
-	{
-		id: "import",
-		title: "Importing from a spreadsheet",
-		summary: "Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.",
-		group: "data",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"Choose Import (on Goals, or in More on a phone). Download the workbook to start from what is already there.",
-				"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export or Data saves loads back.",
-				"Each sheet is known by its header row, whatever the file or sheet is called. Results, Asks, Notes and the README are for reading, and left out.",
-				"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
-				"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored. A word a column doesn’t know, such as a level of “vp”, is a problem to fix, never a guess.",
-				"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over, by email). The same rules as the app apply, and the preview shows what each does.",
-				"Every row is checked with the app’s own rules and shown before anything is saved. Nothing saves while a row needs fixing; plan changes after check-ins need a reason.",
-				"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
-				"Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included."
-			]
-		}, {
-			heading: "Who can",
-			text: ["Owners change their own goals; admins can change any, and add and change people. Rows for other people’s goals are fine if you leave them as they are."]
-		}],
-		routes: ["/import"],
-		screens: ["Import"],
-		reqs: [
-			"BULK-IMPORT",
-			"WORKSPACES",
-			"HONEST-NUMBERS",
-			"ONE-FORMAT",
-			"ROUND-TRIP",
-			"IMPORT-ACTIONS"
-		],
-		keywords: [
-			"import",
-			"upload",
-			"excel",
-			"csv",
-			"zip",
-			"spreadsheet",
-			"workbook",
-			"load",
-			"bulk",
-			"undo",
-			"action",
-			"stop",
-			"delete",
-			"left",
-			"email",
-			"round trip"
-		],
-		related: [
-			"export",
-			"data",
-			"keys",
-			"removing"
-		]
-	},
-	{
-		id: "export",
-		title: "Exporting",
-		summary: "Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.",
-		group: "data",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"Choose Export on Goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).",
-				"Excel workbook, the usual choice: every sheet, Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks and Notes, and a README that explains each column. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
-				"CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.",
-				"One format: whatever you export can be edited and loaded back on Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
-				"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
-				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
-				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx."
-			]
-		}],
-		routes: [],
-		screens: ["Export"],
-		reqs: [
-			"EXPORT",
-			"SHARED-DOWNLOADS",
-			"ONE-FORMAT"
-		],
-		keywords: [
-			"export",
-			"download",
-			"excel",
-			"xlsx",
-			"csv",
-			"zip",
-			"json",
-			"markdown",
-			"brief",
-			"ai chat",
-			"results",
-			"year end",
-			"format"
-		],
-		related: [
-			"import",
-			"print",
-			"data"
 		]
 	},
 	{
@@ -32715,6 +32762,51 @@ var ARTICLES = [
 			"ai-assistants",
 			"any-device",
 			"recording"
+		]
+	},
+	{
+		id: "features",
+		title: "Features: switching parts of Faro on or off",
+		summary: "Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets.",
+		group: "you",
+		sections: [
+			{
+				heading: "How to use it",
+				list: [
+					"On Workspace, Features lists the parts of Faro this workspace can use, each with what it does. Untick one to switch it off for everyone here; tick it to switch it back on.",
+					"Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its tools for AI assistants. Anything that needs it goes off with it, and Features says so.",
+					"Nothing a feature saved is deleted. Switch it back on and everything is as it was.",
+					"Each switch is logged in Activity, with who did it.",
+					"Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the blank template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
+				]
+			},
+			{
+				heading: "Who can",
+				text: ["Admins switch features. Everyone sees what is on."]
+			},
+			{
+				heading: "For the people building Faro",
+				list: ["Each feature is a module: one folder in src/modules with a module.json saying what it adds and what it needs. docs/architecture.md explains how to add one."]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: ["MODULES"],
+		keywords: [
+			"features",
+			"modules",
+			"switch off",
+			"turn off",
+			"disable",
+			"enable",
+			"spreadsheets",
+			"optional",
+			"workspace settings"
+		],
+		related: [
+			"workspace",
+			"data",
+			"import"
 		]
 	},
 	{
@@ -32978,7 +33070,7 @@ var ARTICLES = [
 		sections: [{
 			heading: "How it fits",
 			list: [
-				"On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Import, Settings, Help and Send feedback.",
+				"On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Data, Settings, Help and Send feedback.",
 				"On a tablet the sidebar is a rail of icons, each named on hover. On a desktop you can choose the rail in Settings.",
 				"Focused tasks such as a check-in stay narrow; tables, boards and the map use the whole width.",
 				"Text follows your browser’s text size, and every control is big enough to tap."
@@ -33058,6 +33150,18 @@ var ARTICLES = [
 		related: ["home", "any-device"]
 	}
 ];
+/** Every article: the core's, with each module's (its help.ts) after the article it names, or at the end of its group. */
+var ARTICLES = (() => {
+	const out = [...CORE_ARTICLES];
+	for (const m of help_default) for (const a of m.part) {
+		const at = a.after ? out.findIndex((x) => x.id === a.after) : out.map((x) => x.group).lastIndexOf(a.group);
+		out.splice(at < 0 ? out.length : at + 1, 0, {
+			...a,
+			module: m.id
+		});
+	}
+	return out;
+})();
 var BY_ID = new Map(ARTICLES.map((a) => [a.id, a]));
 var articleById = (id) => BY_ID.get(id);
 /** All the words of an article, for search. */
@@ -33105,6 +33209,23 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "spreadsheets-on-data",
+		date: "2026-11-08",
+		title: "Spreadsheets have one home: Data",
+		points: [
+			"On Data, the Spreadsheets menu has every way in and out: the table as you’ve laid it out, everything as a workbook or zipped CSVs, a blank template, and Import.",
+			"Import lives at Data too, and still shows every change before anything is saved. Old Import links take you there.",
+			"Goals keeps one quiet button, Export these goals, for the goals on screen.",
+			"Admins can switch parts of Faro on or off for a workspace, under Features on Workspace. Spreadsheets is the first; switching it off loses nothing."
+		],
+		articles: [
+			"import",
+			"export",
+			"data",
+			"features"
+		]
+	},
 	{
 		id: "connect-claude",
 		date: "2026-11-07",
@@ -33689,6 +33810,75 @@ function newsDate(date) {
 		"Dec"
 	][m - 1]} ${y}`;
 }
+// \0virtual:faro-modules
+var _virtual_faro_modules_default = [{
+	id: "spreadsheets",
+	name: "Spreadsheets",
+	summary: "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
+	needs: [],
+	routes: ["/data/import"],
+	redirects: [["/import", "/data/import"]],
+	navigation: [],
+	places: ["data.tools", "goals.tools"],
+	tables: [],
+	aiTools: ["export", "export_table"],
+	help: ["import", "export"],
+	requirements: [
+		"EXPORT",
+		"BULK-IMPORT",
+		"IMPORT-ACTIONS",
+		"SPREADSHEETS-ON-DATA"
+	],
+	journeys: [
+		"U19",
+		"U20",
+		"U46",
+		"U48",
+		"F7",
+		"F8",
+		"N5"
+	],
+	elsewhere: []
+}];
+// src/core/module.ts
+/**
+* Which modules are on in a workspace: installed, not switched off there, and with everything they need on (so
+* switching one off switches off what depends on it, however deep). A need that isn't installed counts as off.
+*/
+function resolveModules(installed, switchedOff = []) {
+	const ids = new Set(installed.map((m) => m.id));
+	const on = new Set(installed.filter((m) => !switchedOff.includes(m.id)).map((m) => m.id));
+	const off = /* @__PURE__ */ new Map();
+	for (const m of installed) if (switchedOff.includes(m.id)) off.set(m.id, { kind: "switched-off" });
+	for (let changed = true; changed;) {
+		changed = false;
+		for (const m of installed) {
+			if (!on.has(m.id)) continue;
+			const missing = m.needs.filter((n) => !on.has(n) || !ids.has(n));
+			if (missing.length) {
+				on.delete(m.id);
+				off.set(m.id, {
+					kind: "needs",
+					missing
+				});
+				changed = true;
+			}
+		}
+	}
+	return {
+		on,
+		off
+	};
+}
+// src/core/registry.ts
+/** Every module in this build, in id order. */
+var MODULES = _virtual_faro_modules_default;
+/** A module's facts, if this build has it. */
+var moduleById = (id) => MODULES.find((m) => m.id === id);
+/** The modules on in a workspace: in this build, not switched off there, and with what they need on. */
+var modulesOn = (ws) => resolveModules(MODULES, ws?.modulesOff ?? []);
+/** Whether a module is on in a workspace. */
+var isModuleOn = (ws, id) => modulesOn(ws).on.has(id);
 // src/mcp/workTools.ts
 init_actions();
 init_attention();
@@ -33703,7 +33893,7 @@ init_removal();
 var said = (k) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 var askState = (r) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : "");
-var str$4 = (description, extra = {}) => ({
+var str$5 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -33716,7 +33906,7 @@ var bool$1 = (description) => ({
 	type: "boolean",
 	description
 });
-var ids = (description) => ({
+var ids$1 = (description) => ({
 	type: "array",
 	items: { type: "string" },
 	description
@@ -33726,7 +33916,7 @@ var LEVELS$1 = [
 	"svp",
 	"team"
 ];
-var READ$2 = {
+var READ$3 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -33828,6 +34018,7 @@ var requestData = (ctx, r) => ({
 });
 var lines = (l, none) => l.length ? l.join("\n") : none;
 /** A data table's sheet, from the same workbook the Data screen and the exports use. */
+/** A Data table's sheet of the workbook, for this context (the spreadsheets module's export_table reads it too). */
 var sheetOf = (ctx, t) => workbook({
 	ws: ctx.ws,
 	snapshot: ctx.snapshot,
@@ -33868,7 +34059,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(_a, ctx) {
 			const s = ctx.snapshot, me = ctx.actor.id;
 			const mine = s.goals.filter((g) => g.ownerId === me);
@@ -33997,23 +34188,23 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$4(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$5(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$4("Only one kind.", { enum: [
+				kind: str$5("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$4("Only asks on a goal (its ID or key).")
+				goal_id: str$5("Only asks on a goal (its ID or key).")
 			}
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a, ctx) {
 			const st = a.status == null || String(a.status).toLowerCase() === "all" ? a.status == null ? "open" : "all" : codeFrom(ASK_STATUS, a.status);
 			if (!st || st === "overdue") throw new Error(`“${String(a.status)}” isn’t where an ask can stand. Use one of: ${choices(ASK_STATUS, [
@@ -34038,7 +34229,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(_a, ctx) {
 			const list = ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -34074,9 +34265,9 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$4("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$5("The review’s ID, from list_reviews.") }
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a, ctx) {
 			const r = reviewOf(ctx, a.review_id);
 			const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -34132,7 +34323,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(_a, ctx) {
 			const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
 				id: w.id,
@@ -34162,7 +34353,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(_a, ctx) {
 			const team = (id) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
 			const people = ctx.snapshot.people.map((p) => ({
@@ -34200,11 +34391,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$4("An Activity link’s query string."),
+				query: str$5("An Activity link’s query string."),
 				limit: int$2("How many changes, newest first (default 50, at most 500).")
 			}
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a, ctx) {
 			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
 			if (q.goal) q.goal = goalOf$1(ctx, q.goal).id;
@@ -34246,7 +34437,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
 				const l = isTableView(v) ? parseLayout(v.params) : null;
@@ -34279,7 +34470,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
 				id: t.id,
@@ -34303,7 +34494,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(_a, ctx) {
 			const retros = ctx.snapshot.retros ?? [];
 			const list = ctx.snapshot.goals.map((g) => {
@@ -34337,11 +34528,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$4("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$4("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$5("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$5("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a) {
 			const brief = (x) => ({
 				id: x.id,
@@ -34381,11 +34572,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$4("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$5("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$2("How many entries, newest first (default all).")
 			}
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a) {
 			const since = a.since ? String(a.since) : void 0;
 			if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return {
@@ -34415,8 +34606,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$4("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$4("The answer, decision or help offered.")
+				request_id: str$5("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$5("The answer, decision or help offered.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34434,8 +34625,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$4("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$4("Optional: what was done.")
+				request_id: str$5("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$5("Optional: what was done.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34452,8 +34643,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$4("The goal’s ID or its key, e.g. G-12."),
-				question: str$4("The question.")
+				goal_id: str$5("The goal’s ID or its key, e.g. G-12."),
+				question: str$5("The question.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34471,8 +34662,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$4("The request’s ID."),
-				goal_id: str$4("The goal that waits on it (its ID or key).")
+				request_id: str$5("The request’s ID."),
+				goal_id: str$5("The goal that waits on it (its ID or key).")
 			}
 		},
 		annotations: WRITE$1,
@@ -34489,8 +34680,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$4("The ask’s ID."),
-				goal_id: str$4("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$5("The ask’s ID."),
+				goal_id: str$5("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34507,7 +34698,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$4("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$5("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
 			...WRITE$1,
@@ -34526,7 +34717,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$4("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$5("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: WRITE$1,
 		async run(a, ctx) {
@@ -34546,16 +34737,16 @@ var WORK_TOOLS = [
 				"kind"
 			],
 			properties: {
-				review_id: str$4("The review’s ID."),
-				goal_id: str$4("The goal’s ID or its key, e.g. G-12."),
-				kind: str$4("What it is.", { enum: [
+				review_id: str$5("The review’s ID."),
+				goal_id: str$5("The goal’s ID or its key, e.g. G-12."),
+				kind: str$5("What it is.", { enum: [
 					"acknowledge",
 					"note",
 					"ask",
 					"action"
 				] }),
-				text: str$4("The note, question or action. Optional when acknowledging."),
-				who: str$4("Actions: who does it (name or ID). Defaults to the goal’s owner."),
+				text: str$5("The note, question or action. Optional when acknowledging."),
+				who: str$5("Actions: who does it (name or ID). Defaults to the goal’s owner."),
 				due_week: int$2("Actions: the week it’s due by.")
 			}
 		},
@@ -34590,9 +34781,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$4("Its ID, from get_review."),
-				text: str$4("The new wording."),
-				who: str$4("Actions: who does it."),
+				call_id: str$5("Its ID, from get_review."),
+				text: str$5("The new wording."),
+				who: str$5("Actions: who does it."),
 				due_week: int$2("Actions: the week it’s due by (0 for none).")
 			}
 		},
@@ -34623,20 +34814,20 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				review_id: str$4("The review to change. Leave out to set up a new one."),
-				name: str$4("Its name, e.g. \"Platform weekly review\"."),
+				review_id: str$5("The review to change. Leave out to set up a new one."),
+				name: str$5("Its name, e.g. \"Platform weekly review\"."),
 				every_weeks: int$2("Held every 1, 2 or 4 weeks."),
-				weekday: str$4("The weekday.", { enum: [
+				weekday: str$5("The weekday.", { enum: [
 					"Monday",
 					"Tuesday",
 					"Wednesday",
 					"Thursday",
 					"Friday"
 				] }),
-				goals: ids("Goal IDs or keys it walks."),
-				trees: ids("Goal IDs or keys it walks with everything feeding them."),
-				levels: ids("Levels it walks: north-star, svp, team."),
-				people: ids("Who’s in it (names or IDs). New reviews include you.")
+				goals: ids$1("Goal IDs or keys it walks."),
+				trees: ids$1("Goal IDs or keys it walks with everything feeding them."),
+				levels: ids$1("Levels it walks: north-star, svp, team."),
+				people: ids$1("Who’s in it (names or IDs). New reviews include you.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34691,12 +34882,12 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "ref"],
 			properties: {
-				kind: str$4("What to watch.", { enum: [
+				kind: str$5("What to watch.", { enum: [
 					"goal",
 					"tree",
 					"level"
 				] }),
-				ref: str$4("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
+				ref: str$5("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
 			}
 		},
 		annotations: {
@@ -34716,7 +34907,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["watch_id"],
-			properties: { watch_id: str$4("The watch’s ID, from list_watching.") }
+			properties: { watch_id: str$5("The watch’s ID, from list_watching.") }
 		},
 		annotations: WRITE$1,
 		async run(a, ctx) {
@@ -34731,11 +34922,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$4("The person to change (their ID or email). Leave out to add someone."),
-				name: str$4("Their full name."),
-				email: str$4("Their email: required for someone new."),
-				job_title: str$4("Their job title."),
-				team: str$4("Their team (name or ID); empty string for none."),
+				person_id: str$5("The person to change (their ID or email). Leave out to add someone."),
+				name: str$5("Their full name."),
+				email: str$5("Their email: required for someone new."),
+				job_title: str$5("Their job title."),
+				team: str$5("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
@@ -34773,14 +34964,14 @@ var WORK_TOOLS = [
 				"next"
 			],
 			properties: {
-				goal_id: str$4("The goal’s ID or its key, e.g. G-12."),
-				result: str$4("How it landed.", { enum: [
+				goal_id: str$5("The goal’s ID or its key, e.g. G-12."),
+				result: str$5("How it landed.", { enum: [
 					"hit",
 					"partly",
 					"missed"
 				] }),
-				learned: str$4("One thing worth knowing next time (a sentence)."),
-				next: str$4("Next cycle.", { enum: ["carry", "stop"] })
+				learned: str$5("One thing worth knowing next time (a sentence)."),
+				next: str$5("Next cycle.", { enum: ["carry", "stop"] })
 			}
 		},
 		annotations: {
@@ -34837,9 +35028,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$4("The view to change."),
-				name: str$4("Its name."),
-				query: str$4("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$5("The view to change."),
+				name: str$5("Its name."),
+				query: str$5("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
 		annotations: WRITE$1,
@@ -34864,16 +35055,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$4("The saved layout to change."),
-				name: str$4("Its name."),
-				table: str$4("Which data table.", { enum: TABLE_ORDER }),
-				columns: ids("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
+				view_id: str$5("The saved layout to change."),
+				name: str$5("Its name."),
+				table: str$5("Which data table.", { enum: TABLE_ORDER }),
+				columns: ids$1("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$4("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$5("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
 		annotations: WRITE$1,
@@ -34891,45 +35082,6 @@ var WORK_TOOLS = [
 		}
 	},
 	{
-		name: "export_table",
-		title: "Export a data table as shown",
-		description: "One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted, then any column that says which record a row is (a goal’s Key and ID, a person’s Email…) the layout leaves out, so the rows load back with bulk_change. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				view: str$4("The name of a saved layout: one of yours, or one pinned for everyone."),
-				table: str$4("Which data table, when not using a view.", { enum: TABLE_ORDER }),
-				columns: ids("The columns, in order. Leave out for the usual columns."),
-				query: str$4("Search, filters and sort, as for save_table_view."),
-				format: str$4("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
-			}
-		},
-		annotations: READ$2,
-		async run(a, ctx) {
-			const layout = layoutFrom(ctx, a);
-			const rows = exportedTable(sheetOf(ctx, layout.table), layout).rows;
-			const [head = [], ...body] = rows;
-			const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? "row" : "rows"}, ${head.length} columns`;
-			if (a.format === "json") return {
-				data: {
-					table: layout.table,
-					columns: head,
-					rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null])))
-				},
-				text: what
-			};
-			return {
-				data: {
-					table: layout.table,
-					columns: head,
-					count: body.length
-				},
-				text: toCsv(rows)
-			};
-		}
-	},
-	{
 		name: "delete_view",
 		title: "Delete a saved view",
 		description: "Delete one of your views; an admin can also delete a pinned one.",
@@ -34937,7 +35089,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$4("The view’s ID, from list_views.") }
+			properties: { view_id: str$5("The view’s ID, from list_views.") }
 		},
 		annotations: {
 			...WRITE$1,
@@ -34957,7 +35109,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$4("The view’s ID."),
+				view_id: str$5("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
@@ -34978,8 +35130,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$4("Who it acts as (name or ID)."),
-				name: str$4("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$5("Who it acts as (name or ID)."),
+				name: str$5("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
 		annotations: WRITE$1,
@@ -35007,7 +35159,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$4("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$5("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
 			...WRITE$1,
@@ -35027,12 +35179,12 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["mood", "text"],
 			properties: {
-				mood: str$4("How it felt.", { enum: [
+				mood: str$5("How it felt.", { enum: [
 					"good",
 					"meh",
 					"bad"
 				] }),
-				text: str$4("What happened, or what would help.")
+				text: str$5("What happened, or what would help.")
 			}
 		},
 		annotations: WRITE$1,
@@ -35048,7 +35200,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$4("The new name.") }
+			properties: { name: str$5("The new name.") }
 		},
 		annotations: {
 			...WRITE$1,
@@ -35083,6 +35235,38 @@ var WORK_TOOLS = [
 		}
 	},
 	{
+		name: "set_feature",
+		title: "Switch a feature on or off",
+		description: `Admins: switch one of Faro's optional features (its modules) on or off in this workspace. Off, it leaves every screen: no page, menu or tool of its own, here or for assistants; anything that needs it goes off with it. Nothing it saved is deleted, and switching it back on brings it all back. The change is logged. The features: ${MODULES.map((m) => `${m.id} (${m.name}: ${m.summary})`).join("; ") || "none in this build"}.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["feature", "on"],
+			properties: {
+				feature: str$5("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
+				on: bool$1("true to switch it on, false to switch it off.")
+			}
+		},
+		annotations: {
+			...WRITE$1,
+			idempotentHint: true
+		},
+		async run(a, ctx) {
+			if (typeof a.on !== "boolean") throw new Error("Say on: true to switch it on, or on: false to switch it off.");
+			const id = String(a.feature ?? "");
+			const m = MODULES.find((x) => x.id === id);
+			const res = await save$1(ctx, setModule(ax$1(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
+			const r = modulesOn(ctx.ws);
+			return {
+				...res,
+				data: {
+					on: [...r.on],
+					off: [...r.off.keys()]
+				}
+			};
+		}
+	},
+	{
 		name: "save_team",
 		title: "Add or change a team",
 		description: "Admins: add a team, or rename one or change its lead. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.",
@@ -35091,9 +35275,9 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$4("The team to change (name or ID). Leave out to add a team."),
-				name: str$4("The team’s name."),
-				lead: str$4("The team lead (a person’s name or ID); empty string for none.")
+				team: str$5("The team to change (name or ID). Leave out to add a team."),
+				name: str$5("The team’s name."),
+				lead: str$5("The team lead (a person’s name or ID); empty string for none.")
 			}
 		},
 		annotations: WRITE$1,
@@ -35120,8 +35304,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$4("The team to remove (name or ID)."),
-				move_to: str$4("Where its people and goals go (a team’s name or ID).")
+				team: str$5("The team to remove (name or ID)."),
+				move_to: str$5("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -35146,7 +35330,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$4("The workspace’s exact name.") }
+			properties: { confirm_name: str$5("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -35344,12 +35528,12 @@ function newIssueLink(repo, m, o = {}) {
 	return url;
 }
 // src/mcp/markupTools.ts
-var str$3 = (description, extra = {}) => ({
+var str$4 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var READ$1 = {
+var READ$2 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -35409,15 +35593,15 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$3("Only markups with this status.", { enum: STATUSES$1 }),
-				workspace: str$3("Only this workspace’s (its id)."),
+				status: str$4("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$4("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
 				}
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			const rows = (await inbox(ctx).list({
 				...a.workspace ? { workspaceId: String(a.workspace) } : {},
@@ -35450,11 +35634,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$3("The markup’s id (mk_…), from list_markups or review_inbox."),
-				picture: str$3("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
+				id: str$4("The markup’s id (mk_…), from list_markups or review_inbox."),
+				picture: str$4("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			const ops = inbox(ctx);
 			const m = await ops.open(String(a.id ?? ""));
@@ -35500,15 +35684,15 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$3("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
-				workspace: str$3("Only this workspace’s (its id)."),
+				status: str$4("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
+				workspace: str$4("Only this workspace’s (its id)."),
 				pictures: {
 					type: "integer",
 					description: "How many groups get a picture (default 6, at most 12; 0 for none)."
 				}
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			const ops = inbox(ctx);
 			const status = a.status ?? "new";
@@ -35598,11 +35782,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$3("The markup’s id (mk_…)."),
-				status: str$3("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$3("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$3("With wont-fix: why it won’t be fixed."),
-				issue_url: str$3("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+				id: str$4("The markup’s id (mk_…)."),
+				status: str$4("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$4("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$4("With wont-fix: why it won’t be fixed."),
+				issue_url: str$4("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
 			}
 		},
 		annotations: {
@@ -35633,12 +35817,12 @@ var MARKUP_TOOLS = [
 	}
 ];
 // src/mcp/feedbackTools.ts
-var str$2 = (description, extra = {}) => ({
+var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var READ = {
+var READ$1 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -35660,15 +35844,15 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$2("Builders: only feedback with this status.", { enum: STATUSES$1 }),
-				workspace: str$2("Builders: only this workspace’s (its id)."),
+				status: str$3("Builders: only feedback with this status.", { enum: STATUSES$1 }),
+				workspace: str$3("Builders: only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
 				}
 			}
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			if (ctx.feedback) {
 				const list = await ctx.feedback.list(Number(a.limit ?? 50), {
@@ -35722,9 +35906,9 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["id"],
-			properties: { id: str$2("The feedback’s id, from list_feedback.") }
+			properties: { id: str$3("The feedback’s id, from list_feedback.") }
 		},
-		annotations: READ,
+		annotations: READ$1,
 		async run(a, ctx) {
 			const f = await triage(ctx).open(String(a.id ?? ""));
 			const text = [
@@ -35748,10 +35932,10 @@ var FEEDBACK_TOOLS = [
 			additionalProperties: false,
 			required: ["id", "status"],
 			properties: {
-				id: str$2("The feedback’s id."),
-				status: str$2("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$2("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$2("With wont-fix: why it won’t be fixed.")
+				id: str$3("The feedback’s id."),
+				status: str$3("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$3("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$3("With wont-fix: why it won’t be fixed.")
 			}
 		},
 		annotations: {
@@ -35785,7 +35969,7 @@ init_goalKey();
 init_removal();
 init_status();
 init_vocabulary();
-var str$1 = (description, extra = {}) => ({
+var str$2 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -35885,8 +36069,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "id"],
 			properties: {
-				kind: str$1("Its kind, from list_removed.", { enum: KINDS }),
-				id: str$1("Its ID, from list_removed.")
+				kind: str$2("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$2("Its ID, from list_removed.")
 			}
 		},
 		annotations: WRITE,
@@ -35912,9 +36096,9 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["person"],
 			properties: {
-				person: str$1("Their ID or full name."),
-				goals_to: str$1("Who takes over their goals: an ID or full name."),
-				asks_to: str$1("Who takes over their open asks: an ID or full name.")
+				person: str$2("Their ID or full name."),
+				goals_to: str$2("Who takes over their goals: an ID or full name."),
+				asks_to: str$2("Who takes over their open asks: an ID or full name.")
 			}
 		},
 		annotations: REMOVE,
@@ -35934,7 +36118,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["person"],
-			properties: { person: str$1("Their ID or full name.") }
+			properties: { person: str$2("Their ID or full name.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -35951,8 +36135,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "reason"],
 			properties: {
-				goal_id: str$1("The goal’s ID or key, e.g. G-12."),
-				reason: str$1("Why it’s stopping, in a sentence (10 characters or more).")
+				goal_id: str$2("The goal’s ID or key, e.g. G-12."),
+				reason: str$2("Why it’s stopping, in a sentence (10 characters or more).")
 			}
 		},
 		annotations: REMOVE,
@@ -35969,7 +36153,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$1("The goal’s ID or key, e.g. G-12.") }
+			properties: { goal_id: str$2("The goal’s ID or key, e.g. G-12.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -35985,8 +36169,8 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				check_in_id: str$1("The check-in’s ID, from get_goal."),
-				goal_id: str$1("Or: the goal’s ID or key…"),
+				check_in_id: str$2("The check-in’s ID, from get_goal."),
+				goal_id: str$2("Or: the goal’s ID or key…"),
 				week: int$1("…and the week of its latest check-in.")
 			}
 		},
@@ -36011,7 +36195,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$1("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -36028,7 +36212,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$1("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -36045,8 +36229,8 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["comment_id", "text"],
 			properties: {
-				comment_id: str$1("The comment’s or note’s ID."),
-				text: str$1("The corrected words.")
+				comment_id: str$2("The comment’s or note’s ID."),
+				text: str$2("The corrected words.")
 			}
 		},
 		annotations: WRITE,
@@ -36085,7 +36269,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["comment_id"],
-			properties: { comment_id: str$1("The comment’s or note’s ID.") }
+			properties: { comment_id: str$2("The comment’s or note’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -36102,7 +36286,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$1("The cycle’s ID.") }
+			properties: { cycle_id: str$2("The cycle’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -36118,7 +36302,7 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["import_id"],
-			properties: { import_id: str$1("The import’s ID (imp_…), from get_activity.") }
+			properties: { import_id: str$2("The import’s ID (imp_…), from get_activity.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
@@ -36140,6 +36324,109 @@ var REMOVE_TOOLS = [
 		}
 	}
 ];
+// src/modules/spreadsheets/tools.ts
+init_columns();
+init_tableLayout();
+var str$1 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var ids = (description) => ({
+	type: "array",
+	items: { type: "string" },
+	description
+});
+var READ = {
+	readOnlyHint: true,
+	openWorldHint: false
+};
+/** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
+var CSV_FORMATS = SHEET_NAMES.filter((n) => n !== "README").map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
+// \0virtual:faro-modules/tools
+var tools_default = [{
+	id: "spreadsheets",
+	part: [{
+		name: "export",
+		title: "Export the goals",
+		description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or one sheet of the spreadsheet export as CSV: goals, plan, check-ins, people, results (each goal’s result and quarters), asks or notes. The CSVs load back with bulk_change.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["format"],
+			properties: { format: str$1("Which export.", { enum: [
+				"json",
+				"brief",
+				...CSV_FORMATS.map(([f]) => f)
+			] }) }
+		},
+		annotations: {
+			readOnlyHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const x = {
+				ws: ctx.ws,
+				snapshot: ctx.snapshot,
+				cycle: ctx.cycle,
+				week: ctx.week,
+				today: ctx.today
+			};
+			if (a.format === "json") {
+				const j = toJson(x);
+				return {
+					data: j,
+					text: JSON.stringify(j)
+				};
+			}
+			if (a.format === "brief") return { text: aiBrief(x) };
+			const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];
+			if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
+			return {
+				isError: true,
+				text: `format should be json, brief or one of ${CSV_FORMATS.map(([f]) => f).join(", ")}.`
+			};
+		}
+	}, {
+		name: "export_table",
+		title: "Export a data table as shown",
+		description: "One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted, then any column that says which record a row is (a goal’s Key and ID, a person’s Email…) the layout leaves out, so the rows load back with bulk_change. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				view: str$1("The name of a saved layout: one of yours, or one pinned for everyone."),
+				table: str$1("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+				columns: ids("The columns, in order. Leave out for the usual columns."),
+				query: str$1("Search, filters and sort, as for save_table_view."),
+				format: str$1("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+			}
+		},
+		annotations: READ,
+		async run(a, ctx) {
+			const layout = layoutFrom(ctx, a);
+			const rows = exportedTable(sheetOf(ctx, layout.table), layout).rows;
+			const [head = [], ...body] = rows;
+			const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? "row" : "rows"}, ${head.length} columns`;
+			if (a.format === "json") return {
+				data: {
+					table: layout.table,
+					columns: head,
+					rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null])))
+				},
+				text: what
+			};
+			return {
+				data: {
+					table: layout.table,
+					columns: head,
+					count: body.length
+				},
+				text: toCsv(rows)
+			};
+		}
+	}]
+}];
 // src/mcp/tools.ts
 init_actions();
 init_columns();
@@ -36351,488 +36638,455 @@ var GOAL_COLS = {
 	source: "source",
 	definition: "definition"
 };
-/** The export tool's CSVs: one per sheet of the one format (domain/columns), by name: goals_csv, check_ins_csv… */
-var CSV_FORMATS = SHEET_NAMES.filter((n) => n !== "README").map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
-/** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
-requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts. */
-var TOOLS = [
-	...[
-		{
-			name: "get_overview",
-			title: "Overview of the goals",
-			description: "A short brief of every goal in the current cycle: what needs attention and why, every goal by what it feeds, open questions and actions, and each goal’s weekly numbers. Start here.",
-			inputSchema: {
-				type: "object",
-				properties: {},
-				additionalProperties: false
-			},
-			annotations: {
-				readOnlyHint: true,
-				openWorldHint: false
-			},
-			async run(_a, ctx) {
-				return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}.
+var CORE_TOOLS = [
+	{
+		name: "get_overview",
+		title: "Overview of the goals",
+		description: "A short brief of every goal in the current cycle: what needs attention and why, every goal by what it feeds, open questions and actions, and each goal’s weekly numbers. Start here.",
+		inputSchema: {
+			type: "object",
+			properties: {},
+			additionalProperties: false
+		},
+		annotations: {
+			readOnlyHint: true,
+			openWorldHint: false
+		},
+		async run(_a, ctx) {
+			return { text: `You are acting as ${ctx.actor.name}${ctx.actor.admin ? " (an admin: can change any goal)" : " (can change the goals they own)"} in ${ctx.ws.name}.
 
 ` + aiBrief({
-					ws: ctx.ws,
-					snapshot: ctx.snapshot,
-					cycle: ctx.cycle,
-					week: ctx.week,
-					today: ctx.today
-				}) };
-			}
-		},
-		{
-			name: "find_goals",
-			title: "Find goals",
-			description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals that need attention (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				properties: {
-					text: str("Words in the goal’s name, or its key (G-12)."),
-					owner: str("Part of the owner’s name."),
-					status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
-					needs_attention: bool(`Only goals that need attention: ${ATTENTION.needs.long}`),
-					level: str("Only goals at this level.", { enum: LEVELS }),
-					mine: bool("Only goals you own."),
-					query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: only goals that need attention), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
-					view: str("The name of a saved view: one of yours, or one pinned for everyone.")
-				}
-			},
-			annotations: {
-				readOnlyHint: true,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
-				const byKey = normalKey(a.text);
-				let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
-				if (a.view) {
-					const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
-					if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
-					query = parseQuery(new URLSearchParams(v.params));
-				}
-				const status = a.status ? statusIn(a.status) : null;
-				let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!status || s.status === status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id) && (!a.needs_attention || needsAttention(s.attention)));
-				if (query) list = applyQuery(list, query, {
-					goals: ctx.snapshot.goals,
-					cycle: ctx.cycle,
-					week: ctx.week
-				});
-				const data = list.map((s) => ({
-					key: s.goal.key ?? null,
-					id: s.goal.id,
-					title: s.goal.title,
-					type: s.goal.kind,
-					level: s.goal.level,
-					owner: s.owner,
-					team: s.team,
-					status: s.status,
-					statusLabel: LABEL[s.status],
-					needsAttention: needsAttention(s.attention),
-					because: s.attention.flags.filter((f) => f.kind !== "due").map((f) => withCode({
-						label: f.label,
-						code: f.kind
-					})),
-					now: s.now,
-					planThisWeek: s.planNow != null ? s.planNowText : null,
-					target: s.target,
-					gap: s.gap,
-					lastCheckInWeek: s.lastWeek,
-					feedsInto: s.feedsInto,
-					youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
-				}));
-				return {
-					data: {
-						week: ctx.week,
-						weeks: ctx.cycle.weeks,
-						goals: data
-					},
-					text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(", ")}` : ""}`).join("\n") : "No goals match."
-				};
-			}
-		},
-		{
-			name: "get_goal",
-			title: "One goal in full",
-			description: "Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, notes, questions and actions from reviews, and its comments (with their IDs, for edit_comment and delete_comment).",
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				required: ["goal_id"],
-				properties: { goal_id: str("The goal’s ID or its key (e.g. G-12), from find_goals.") }
-			},
-			annotations: {
-				readOnlyHint: true,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				const g = goalRef(ctx, a.goal_id);
-				const j = toJson({
-					ws: ctx.ws,
-					snapshot: ctx.snapshot,
-					cycle: ctx.cycle,
-					week: ctx.week,
-					today: ctx.today,
-					goals: [g]
-				});
-				const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
-				const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
-					label: c.label,
-					value: c.value,
-					detail: c.sub
-				}));
-				const comments = [...commentsOf(ctx.snapshot.changes).values()].filter((k) => k.goalId === g.id).map((k) => ({
-					id: k.id,
-					by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? "—",
-					at: k.at,
-					text: k.removedAt ? COMMENT_REMOVED : k.text,
-					edited: !!k.editedAt,
-					removed: !!k.removedAt
-				}));
-				const data = {
-					cycle: j.cycle,
-					goal: j.goals[0],
-					scorecard,
-					notes: j.notes,
-					comments
-				};
-				return {
-					data,
-					text: JSON.stringify(data, null, 2)
-				};
-			}
-		},
-		{
-			name: "post_check_in",
-			title: "Post a check-in",
-			description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				required: ["goal_id"],
-				properties: {
-					goal_id: str("The goal’s ID or its key, e.g. G-12."),
-					week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
-					value: num("Number goals: the value for the week."),
-					stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
-					call: str(`The owner’s status call, in the words or the code: ${choices(STATUS, CALLS)}. Leave out to let the rules decide.`),
-					cause: str("Why it’s behind or ahead.", { enum: [
-						"Plan too aggressive",
-						"Delivery slower",
-						"Blocked by a dependency",
-						"External factor",
-						"Data problem",
-						"Plan too cautious",
-						"Change landed early",
-						"One-off, won’t last"
-					] }),
-					why: str("In a sentence (10 characters or more)."),
-					why_greener: str(`If the call is ${FLAG.greener.label.toLowerCase()}: why.`),
-					path_to_green: str("How it gets back on plan."),
-					recovery: str("Where the owner is with recovery.", { enum: [
-						"Plan",
-						"Still investigating",
-						"Needs a decision or help",
-						"Target should change"
-					] }),
-					back_on_plan_by_week: int("With a plan: the week it is back on plan by."),
-					needs: str("A decision or help needed, and from whom."),
-					next_step: str("The next step."),
-					dry_run: DRY
-				}
-			},
-			annotations: {
-				readOnlyHint: false,
-				destructiveHint: false,
-				idempotentHint: true,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				const g = goalRef(ctx, a.goal_id);
-				return change(ctx, { checkIns: [row({
-					...a,
-					goal_id: g.id,
-					week: a.week ?? ctx.week,
-					call: a.call == null || a.call === "" ? void 0 : statusIn(a.call, CALLS)
-				}, {
-					goal_id: "goal id",
-					week: "week",
-					value: "value",
-					stages: "stages",
-					call: "call",
-					cause: "cause",
-					why: "why",
-					why_greener: "why greener",
-					path_to_green: "path to green",
-					recovery: "recovery",
-					back_on_plan_by_week: "back on plan by week",
-					needs: "needs",
-					next_step: "next step"
-				})] }, { dry: !!a.dry_run });
-			}
-		},
-		{
-			name: "update_goal",
-			title: "Change a goal",
-			description: "Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.",
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				required: ["goal_id"],
-				properties: {
-					goal_id: str("The goal’s ID or its key, e.g. G-12."),
-					...GOAL_FIELDS,
-					reason: str("Why the plan is changing."),
-					dry_run: DRY
-				}
-			},
-			annotations: {
-				readOnlyHint: false,
-				destructiveHint: false,
-				idempotentHint: true,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				const g = goalRef(ctx, a.goal_id);
-				return change(ctx, { goals: [row({
-					...a,
-					goal_id: g.id
-				}, {
-					goal_id: "id",
-					...GOAL_COLS
-				})] }, {
-					dry: !!a.dry_run,
-					reason: a.reason
-				});
-			}
-		},
-		{
-			name: "create_goal",
-			title: "Add a goal",
-			description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. You can add goals you own; admins can add goals for anyone.",
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				required: ["title", "type"],
-				properties: {
-					type: str("What kind of goal.", { enum: [
-						"metric",
-						"range",
-						"milestone"
-					] }),
-					...GOAL_FIELDS,
-					dry_run: DRY
-				}
-			},
-			annotations: {
-				readOnlyHint: false,
-				destructiveHint: false,
-				idempotentHint: false,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				return change(ctx, { goals: [row({
-					owner: ctx.actor.name,
-					...a
-				}, {
-					type: "type",
-					...GOAL_COLS
-				})] }, { dry: !!a.dry_run });
-			}
-		},
-		{
-			name: "set_plan_numbers",
-			title: "Set plan numbers by hand",
-			description: "Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.",
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				required: ["goal_id", "numbers"],
-				properties: {
-					goal_id: str("The goal’s ID or its key, e.g. G-12."),
-					numbers: {
-						type: "array",
-						description: "Planned values by week.",
-						items: {
-							type: "object",
-							required: ["week", "value"],
-							properties: {
-								week: int("Week from the cycle start."),
-								value: num("Planned value.")
-							}
-						}
-					},
-					reason: str("Why the plan is changing."),
-					dry_run: DRY
-				}
-			},
-			annotations: {
-				readOnlyHint: false,
-				destructiveHint: false,
-				idempotentHint: true,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				const r = {
-					__row: "1",
-					id: goalRef(ctx, a.goal_id).id
-				};
-				for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
-				return change(ctx, { plan: [r] }, {
-					dry: !!a.dry_run,
-					reason: a.reason
-				});
-			}
-		},
-		{
-			name: "add_comment",
-			title: "Comment on a goal",
-			description: "Add a comment to a goal’s history. Anyone can comment; it doesn’t change the status.",
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				required: ["goal_id", "text"],
-				properties: {
-					goal_id: str("The goal’s ID or its key, e.g. G-12."),
-					text: str("The comment.")
-				}
-			},
-			annotations: {
-				readOnlyHint: false,
-				destructiveHint: false,
-				idempotentHint: false,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				const g = goalRef(ctx, a.goal_id);
-				const c = addNote({
-					snapshot: ctx.snapshot,
-					cycle: ctx.cycle,
-					week: ctx.week,
-					actor: ctx.actor,
-					now: ctx.now,
-					newId: ctx.newId
-				}, g, String(a.text ?? ""));
-				await ctx.save({
-					...c,
-					changes: c.changes.map((x) => ({
-						...x,
-						diffs: [...x.diffs, {
-							field: "Via",
-							from: "—",
-							to: "AI assistant (MCP)"
-						}]
-					}))
-				});
-				return { text: `Comment added to ${g.title} as ${ctx.actor.name}.` };
-			}
-		},
-		{
-			name: "bulk_change",
-			title: "Change many goals at once",
-			description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change; nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				properties: {
-					goals: {
-						type: "array",
-						items: { type: "object" },
-						description: "Rows for the Goals sheet. Key (or ID) to change a goal; neither to add one."
-					},
-					plan: {
-						type: "array",
-						items: { type: "object" },
-						description: "Rows for the Plan sheet: Key (or ID), Start and \"Week N\" columns."
-					},
-					check_ins: {
-						type: "array",
-						items: { type: "object" },
-						description: "Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in."
-					},
-					people: {
-						type: "array",
-						items: { type: "object" },
-						description: "Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left."
-					},
-					reason: str("Why plans are changing, for any plan change that needs one."),
-					apply: bool("Save the changes. Leave out first to check them.")
-				}
-			},
-			annotations: {
-				readOnlyHint: false,
-				destructiveHint: false,
-				idempotentHint: true,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				return change(ctx, {
-					goals: rows$1(a.goals, "goals"),
-					plan: rows$1(a.plan, "plan"),
-					checkIns: rows$1(a.check_ins, "check_ins"),
-					people: rows$1(a.people, "people")
-				}, {
-					dry: !a.apply,
-					reason: a.reason
-				});
-			}
-		},
-		{
-			name: "export",
-			title: "Export the goals",
-			description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or one sheet of the spreadsheet export as CSV: goals, plan, check-ins, people, results (each goal’s result and quarters), asks or notes. The CSVs load back with bulk_change.",
-			inputSchema: {
-				type: "object",
-				additionalProperties: false,
-				required: ["format"],
-				properties: { format: str("Which export.", { enum: [
-					"json",
-					"brief",
-					...CSV_FORMATS.map(([f]) => f)
-				] }) }
-			},
-			annotations: {
-				readOnlyHint: true,
-				openWorldHint: false
-			},
-			async run(a, ctx) {
-				const x = {
-					ws: ctx.ws,
-					snapshot: ctx.snapshot,
-					cycle: ctx.cycle,
-					week: ctx.week,
-					today: ctx.today
-				};
-				if (a.format === "json") {
-					const j = toJson(x);
-					return {
-						data: j,
-						text: JSON.stringify(j)
-					};
-				}
-				if (a.format === "brief") return { text: aiBrief(x) };
-				const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];
-				if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
-				return {
-					isError: true,
-					text: `format should be json, brief or one of ${CSV_FORMATS.map(([f]) => f).join(", ")}.`
-				};
-			}
+				ws: ctx.ws,
+				snapshot: ctx.snapshot,
+				cycle: ctx.cycle,
+				week: ctx.week,
+				today: ctx.today
+			}) };
 		}
-	],
+	},
+	{
+		name: "find_goals",
+		title: "Find goals",
+		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals that need attention (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				text: str("Words in the goal’s name, or its key (G-12)."),
+				owner: str("Part of the owner’s name."),
+				status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
+				needs_attention: bool(`Only goals that need attention: ${ATTENTION.needs.long}`),
+				level: str("Only goals at this level.", { enum: LEVELS }),
+				mine: bool("Only goals you own."),
+				query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: only goals that need attention), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+				view: str("The name of a saved view: one of yours, or one pinned for everyone.")
+			}
+		},
+		annotations: {
+			readOnlyHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
+			const byKey = normalKey(a.text);
+			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
+			if (a.view) {
+				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
+				if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
+				query = parseQuery(new URLSearchParams(v.params));
+			}
+			const status = a.status ? statusIn(a.status) : null;
+			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!status || s.status === status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id) && (!a.needs_attention || needsAttention(s.attention)));
+			if (query) list = applyQuery(list, query, {
+				goals: ctx.snapshot.goals,
+				cycle: ctx.cycle,
+				week: ctx.week
+			});
+			const data = list.map((s) => ({
+				key: s.goal.key ?? null,
+				id: s.goal.id,
+				title: s.goal.title,
+				type: s.goal.kind,
+				level: s.goal.level,
+				owner: s.owner,
+				team: s.team,
+				status: s.status,
+				statusLabel: LABEL[s.status],
+				needsAttention: needsAttention(s.attention),
+				because: s.attention.flags.filter((f) => f.kind !== "due").map((f) => withCode({
+					label: f.label,
+					code: f.kind
+				})),
+				now: s.now,
+				planThisWeek: s.planNow != null ? s.planNowText : null,
+				target: s.target,
+				gap: s.gap,
+				lastCheckInWeek: s.lastWeek,
+				feedsInto: s.feedsInto,
+				youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
+			}));
+			return {
+				data: {
+					week: ctx.week,
+					weeks: ctx.cycle.weeks,
+					goals: data
+				},
+				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(", ")}` : ""}`).join("\n") : "No goals match."
+			};
+		}
+	},
+	{
+		name: "get_goal",
+		title: "One goal in full",
+		description: "Everything about one goal: its scorecard as the goal’s page shows it (vs plan, vs last week, to target, and whether it will hit the target), its plan by week, every check-in with the owner’s reasons, notes, questions and actions from reviews, and its comments (with their IDs, for edit_comment and delete_comment).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id"],
+			properties: { goal_id: str("The goal’s ID or its key (e.g. G-12), from find_goals.") }
+		},
+		annotations: {
+			readOnlyHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const g = goalRef(ctx, a.goal_id);
+			const j = toJson({
+				ws: ctx.ws,
+				snapshot: ctx.snapshot,
+				cycle: ctx.cycle,
+				week: ctx.week,
+				today: ctx.today,
+				goals: [g]
+			});
+			const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
+			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
+				label: c.label,
+				value: c.value,
+				detail: c.sub
+			}));
+			const comments = [...commentsOf(ctx.snapshot.changes).values()].filter((k) => k.goalId === g.id).map((k) => ({
+				id: k.id,
+				by: ctx.snapshot.people.find((p) => p.id === k.authorId)?.name ?? (ctx.full ?? ctx.snapshot).people.find((p) => p.id === k.authorId)?.name ?? "—",
+				at: k.at,
+				text: k.removedAt ? COMMENT_REMOVED : k.text,
+				edited: !!k.editedAt,
+				removed: !!k.removedAt
+			}));
+			const data = {
+				cycle: j.cycle,
+				goal: j.goals[0],
+				scorecard,
+				notes: j.notes,
+				comments
+			};
+			return {
+				data,
+				text: JSON.stringify(data, null, 2)
+			};
+		}
+	},
+	{
+		name: "post_check_in",
+		title: "Post a check-in",
+		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id"],
+			properties: {
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
+				week: int("The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later."),
+				value: num("Number goals: the value for the week."),
+				stages: str("Milestone goals: e.g. \"Pilot: done week 6; Rollout: expected week 9\"."),
+				call: str(`The owner’s status call, in the words or the code: ${choices(STATUS, CALLS)}. Leave out to let the rules decide.`),
+				cause: str("Why it’s behind or ahead.", { enum: [
+					"Plan too aggressive",
+					"Delivery slower",
+					"Blocked by a dependency",
+					"External factor",
+					"Data problem",
+					"Plan too cautious",
+					"Change landed early",
+					"One-off, won’t last"
+				] }),
+				why: str("In a sentence (10 characters or more)."),
+				why_greener: str(`If the call is ${FLAG.greener.label.toLowerCase()}: why.`),
+				path_to_green: str("How it gets back on plan."),
+				recovery: str("Where the owner is with recovery.", { enum: [
+					"Plan",
+					"Still investigating",
+					"Needs a decision or help",
+					"Target should change"
+				] }),
+				back_on_plan_by_week: int("With a plan: the week it is back on plan by."),
+				needs: str("A decision or help needed, and from whom."),
+				next_step: str("The next step."),
+				dry_run: DRY
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const g = goalRef(ctx, a.goal_id);
+			return change(ctx, { checkIns: [row({
+				...a,
+				goal_id: g.id,
+				week: a.week ?? ctx.week,
+				call: a.call == null || a.call === "" ? void 0 : statusIn(a.call, CALLS)
+			}, {
+				goal_id: "goal id",
+				week: "week",
+				value: "value",
+				stages: "stages",
+				call: "call",
+				cause: "cause",
+				why: "why",
+				why_greener: "why greener",
+				path_to_green: "path to green",
+				recovery: "recovery",
+				back_on_plan_by_week: "back on plan by week",
+				needs: "needs",
+				next_step: "next step"
+			})] }, { dry: !!a.dry_run });
+		}
+	},
+	{
+		name: "update_goal",
+		title: "Change a goal",
+		description: "Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id"],
+			properties: {
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
+				...GOAL_FIELDS,
+				reason: str("Why the plan is changing."),
+				dry_run: DRY
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const g = goalRef(ctx, a.goal_id);
+			return change(ctx, { goals: [row({
+				...a,
+				goal_id: g.id
+			}, {
+				goal_id: "id",
+				...GOAL_COLS
+			})] }, {
+				dry: !!a.dry_run,
+				reason: a.reason
+			});
+		}
+	},
+	{
+		name: "create_goal",
+		title: "Add a goal",
+		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. You can add goals you own; admins can add goals for anyone.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["title", "type"],
+			properties: {
+				type: str("What kind of goal.", { enum: [
+					"metric",
+					"range",
+					"milestone"
+				] }),
+				...GOAL_FIELDS,
+				dry_run: DRY
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: false,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			return change(ctx, { goals: [row({
+				owner: ctx.actor.name,
+				...a
+			}, {
+				type: "type",
+				...GOAL_COLS
+			})] }, { dry: !!a.dry_run });
+		}
+	},
+	{
+		name: "set_plan_numbers",
+		title: "Set plan numbers by hand",
+		description: "Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id", "numbers"],
+			properties: {
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
+				numbers: {
+					type: "array",
+					description: "Planned values by week.",
+					items: {
+						type: "object",
+						required: ["week", "value"],
+						properties: {
+							week: int("Week from the cycle start."),
+							value: num("Planned value.")
+						}
+					}
+				},
+				reason: str("Why the plan is changing."),
+				dry_run: DRY
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const r = {
+				__row: "1",
+				id: goalRef(ctx, a.goal_id).id
+			};
+			for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
+			return change(ctx, { plan: [r] }, {
+				dry: !!a.dry_run,
+				reason: a.reason
+			});
+		}
+	},
+	{
+		name: "add_comment",
+		title: "Comment on a goal",
+		description: "Add a comment to a goal’s history. Anyone can comment; it doesn’t change the status.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id", "text"],
+			properties: {
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
+				text: str("The comment.")
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: false,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const g = goalRef(ctx, a.goal_id);
+			const c = addNote({
+				snapshot: ctx.snapshot,
+				cycle: ctx.cycle,
+				week: ctx.week,
+				actor: ctx.actor,
+				now: ctx.now,
+				newId: ctx.newId
+			}, g, String(a.text ?? ""));
+			await ctx.save({
+				...c,
+				changes: c.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, {
+						field: "Via",
+						from: "—",
+						to: "AI assistant (MCP)"
+					}]
+				}))
+			});
+			return { text: `Comment added to ${g.title} as ${ctx.actor.name}.` };
+		}
+	},
+	{
+		name: "bulk_change",
+		title: "Change many goals at once",
+		description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change; nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				goals: {
+					type: "array",
+					items: { type: "object" },
+					description: "Rows for the Goals sheet. Key (or ID) to change a goal; neither to add one."
+				},
+				plan: {
+					type: "array",
+					items: { type: "object" },
+					description: "Rows for the Plan sheet: Key (or ID), Start and \"Week N\" columns."
+				},
+				check_ins: {
+					type: "array",
+					items: { type: "object" },
+					description: "Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in."
+				},
+				people: {
+					type: "array",
+					items: { type: "object" },
+					description: "Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left."
+				},
+				reason: str("Why plans are changing, for any plan change that needs one."),
+				apply: bool("Save the changes. Leave out first to check them.")
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			return change(ctx, {
+				goals: rows$1(a.goals, "goals"),
+				plan: rows$1(a.plan, "plan"),
+				checkIns: rows$1(a.check_ins, "check_ins"),
+				people: rows$1(a.people, "people")
+			}, {
+				dry: !a.apply,
+				reason: a.reason
+			});
+		}
+	}
+];
+/** Which feature module each module tool is from (src/modules/<id>/tools.ts). */
+var TOOL_MODULE = new Map(tools_default.flatMap((m) => m.part.map((t) => [t.name, m.id])));
+/** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
+requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
+module's own (the spreadsheets module's export and export_table). */
+var TOOLS = [
+	...CORE_TOOLS,
 	...WORK_TOOLS,
 	...REMOVE_TOOLS,
 	...MARKUP_TOOLS,
-	...FEEDBACK_TOOLS
+	...FEEDBACK_TOOLS,
+	...tools_default.flatMap((m) => m.part)
 ];
-/** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
+/** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. A module's
+tool in a workspace that has switched that module off says so, and does nothing. */
 async function callTool(name, args, ctx) {
 	const t = TOOLS.find((x) => x.name === name);
 	if (!t) return {
 		isError: true,
 		text: `There's no tool called ${name}.`
+	};
+	const from = TOOL_MODULE.get(name);
+	if (from && !isModuleOn(ctx.ws, from)) return {
+		isError: true,
+		text: `${moduleById(from)?.name ?? from} is switched off in ${ctx.ws.name}, so ${name} can't be used there. An admin can switch it on in Workspace, under Features.`
 	};
 	try {
 		return await t.run(args ?? {}, ctx);
@@ -37426,10 +37680,11 @@ async function serve(req, deps) {
 	let ctx = null;
 	const context = async () => {
 		if (ctx) return ctx;
-		const [loaded, name, recording] = await Promise.all([
+		const [loaded, name, recording, modulesOff] = await Promise.all([
 			db("select", () => deps.load(found.workspaceId)),
 			deps.workspaceName(found.workspaceId),
-			deps.recording ? deps.recording(found.workspaceId).catch(() => true) : Promise.resolve(true)
+			deps.recording ? deps.recording(found.workspaceId).catch(() => true) : Promise.resolve(true),
+			deps.modulesOff ? deps.modulesOff(found.workspaceId).catch(() => []) : Promise.resolve([])
 		]);
 		let all = loaded;
 		const cycle = currentCycle(all.cycles, now);
@@ -37441,7 +37696,8 @@ async function serve(req, deps) {
 				id: found.workspaceId,
 				name,
 				kind: found.workspaceId === EXAMPLE.id ? "example" : "own",
-				...recording === false ? { recording: false } : {}
+				...recording === false ? { recording: false } : {},
+				...modulesOff.length ? { modulesOff } : {}
 			},
 			snapshot: scopeToCycle(all, cycle),
 			cycle,
@@ -37465,6 +37721,10 @@ async function serve(req, deps) {
 				if (c.recording !== void 0) ctx.ws = {
 					...ctx.ws,
 					recording: c.recording
+				};
+				if (c.modulesOff !== void 0) ctx.ws = {
+					...ctx.ws,
+					modulesOff: c.modulesOff
 				};
 			},
 			issueToken: async (c) => {
@@ -37741,6 +38001,11 @@ function deps(origin) {
 		async recording(id) {
 			const { data, error } = await db.from("okr_workspaces").select("recording").eq("id", id).maybeSingle();
 			return error ? true : data?.recording !== false;
+		},
+		async modulesOff(id) {
+			const { data, error } = await db.from("okr_workspaces").select("modules_off").eq("id", id).maybeSingle();
+			const off = error ? null : data?.modules_off;
+			return Array.isArray(off) ? off : [];
 		},
 		async telemetry(spans) {
 			await db.from("okr_telemetry_spans").insert(spans);

@@ -1,0 +1,94 @@
+/* Feature modules (docs/architecture.md): what a module is, and which ones are on.
+
+   Faro is a small core (people, teams, goals, plans, check-ins, the status rules, the vocabulary and the change engine)
+   plus feature modules. Each module is one folder, src/modules/<id>/, holding:
+
+     module.json   the facts, as plain data a generator can read without running anything (ModuleFacts below)
+     help.ts       its Help articles (optional; pure data, read by the guide, the app and the AI's get_help)
+     tools.ts      its AI tools (optional; the MCP server offers them)
+     app.tsx       its screens and where they go: routes, navigation, places on core screens (optional; AppModule)
+
+   The build lists the folders (vite.modules.ts) and the core reads them through `virtual:faro-modules…`, so the core
+   never imports a module, and a module left out of the build (FARO_WITHOUT=<id>) is simply not there.
+   This file is plain TypeScript, with no screens: the server and the guide use it too. */
+
+/** Places on core screens a module can put something: Home's blocks, a goal page's sections, Workspace's settings, Data's
+    tools and Goals' tools. src/core/app.tsx says what each is given. */
+export const PLACES = ['home.blocks', 'goal.sections', 'workspace.settings', 'data.tools', 'goals.tools'] as const;
+export type PlaceName = (typeof PLACES)[number];
+
+/** A module's module.json: what it is, what it needs and what it adds, as data. */
+export interface ModuleFacts {
+  /** The folder's name: lower case, words joined by hyphens. Never changes; workspaces switch modules off by it. */
+  id: string;
+  /** What people see on Workspace, Features. */
+  name: string;
+  /** One sentence: what it lets people do. */
+  summary: string;
+  /** The modules it can't work without. It's off whenever one of them is off or left out. */
+  needs: string[];
+  /** The routes its app.tsx adds, as React Router writes them (each has a Help article). */
+  routes: string[];
+  /** Old addresses that now lead to one of its routes: [from, to]. */
+  redirects: [string, string][];
+  /** The navigation items its app.tsx adds, by label. */
+  navigation: string[];
+  /** The places on core screens it fills. */
+  places: PlaceName[];
+  /** The database tables it owns, each with its migration. */
+  tables: { name: string; migration: string; purpose: string }[];
+  /** The AI tools its tools.ts adds, by name. */
+  aiTools: string[];
+  /** The Help articles its help.ts adds, by id. */
+  help: string[];
+  /** Its requirements, by id (evals/requirements.json). */
+  requirements: string[];
+  /** The eval journeys (evals/journeys.cjs) and checks (F…, N…) that exercise it: left out when it is. */
+  journeys: string[];
+  /** The source files that belong to it outside its folder, if any (there should be none once it's fully moved). */
+  elsewhere?: string[];
+}
+
+/** Why a module isn't on, when it isn't. */
+export type OffReason = { kind: 'switched-off' } | { kind: 'needs'; missing: string[] };
+
+/**
+ * Which modules are on in a workspace: installed, not switched off there, and with everything they need on (so
+ * switching one off switches off what depends on it, however deep). A need that isn't installed counts as off.
+ */
+export function resolveModules(installed: readonly Pick<ModuleFacts, 'id' | 'needs'>[], switchedOff: readonly string[] = []): { on: Set<string>; off: Map<string, OffReason> } {
+  const ids = new Set(installed.map((m) => m.id));
+  const on = new Set(installed.filter((m) => !switchedOff.includes(m.id)).map((m) => m.id));
+  const off = new Map<string, OffReason>();
+  for (const m of installed) if (switchedOff.includes(m.id)) off.set(m.id, { kind: 'switched-off' });
+  // Until nothing changes: a module whose needs aren't all on goes off, which can take others with it.
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const m of installed) {
+      if (!on.has(m.id)) continue;
+      const missing = m.needs.filter((n) => !on.has(n) || !ids.has(n));
+      if (missing.length) { on.delete(m.id); off.set(m.id, { kind: 'needs', missing }); changed = true; }
+    }
+  }
+  return { on, off };
+}
+
+/** Problems with a set of manifests: ids that clash or are badly formed, needs that aren't installed, needs in a loop. */
+export function manifestProblems(installed: readonly Pick<ModuleFacts, 'id' | 'needs'>[]): string[] {
+  const out: string[] = [];
+  const ids = installed.map((m) => m.id);
+  for (const id of ids) if (!/^[a-z][a-z0-9-]*$/.test(id)) out.push(`${id}: a module id is lower case, words joined by hyphens`);
+  for (const id of new Set(ids)) if (ids.filter((x) => x === id).length > 1) out.push(`${id}: two modules have this id`);
+  const by = new Map(installed.map((m) => [m.id, m]));
+  for (const m of installed) for (const n of m.needs) if (!by.has(n)) out.push(`${m.id} needs ${n}, which isn't installed`);
+  // A loop of needs can never be on.
+  const seen = new Set<string>();
+  const visit = (id: string, path: string[]) => {
+    if (path.includes(id)) { out.push(`needs go round in a loop: ${[...path.slice(path.indexOf(id)), id].join(' → ')}`); return; }
+    if (seen.has(id)) return;
+    seen.add(id);
+    for (const n of by.get(id)?.needs ?? []) visit(n, [...path, id]);
+  };
+  for (const m of installed) visit(m.id, []);
+  return [...new Set(out)];
+}

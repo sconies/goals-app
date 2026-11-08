@@ -1,3 +1,4 @@
+import { Place } from '../core/app';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp, type AppState } from '../app/state';
@@ -354,7 +355,7 @@ export function Home() {
       </div>
       <DashStrip d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} />
       <div className="home-grid split">
-        <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<WatchedGoals />} />
+        <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<><WatchedGoals />{/* Modules' blocks (the home.blocks place). */}<Place name="home.blocks" /></>} />
       </div>
       {/* On a phone the first screen is the week's work, so the line waits at the foot of Home (the dot on More says it too). */}
       <HomeNews at="foot" />

@@ -8,7 +8,7 @@
    the record says, and worked-out columns are never read. Every column that can be changed counts: a change to any of
    them is applied, or said to be a problem, never quietly dropped. Set-up uses the same engine in "create" mode: an
    empty workspace, and every row is new. */
-import type { Commit } from '../data/store';
+import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';

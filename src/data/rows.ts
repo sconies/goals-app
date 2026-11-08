@@ -10,7 +10,7 @@ const set = <T extends object>(o: T): Partial<T> => Object.fromEntries(Object.en
 /** A removal timestamp read back: only when there is one, so records never removed read exactly as before. */
 const when = (k: string, v: string | null | undefined) => (v ? { [k]: new Date(v).toISOString() } : {});
 const who = (k: string, v: string | null | undefined) => (v ? { [k]: v } : {});
-export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string; recording?: boolean | null }
+export interface WorkspaceRow { id: string; name: string; kind: Workspace['kind']; created_at: string; recording?: boolean | null; modules_off?: string[] | null }
 export interface TeamRow extends W { id: string; name: string; lead_id: string | null; objective: string }
 export interface PersonRow extends W, Removal { id: string; name: string; role: string; initials: string; team_id: string | null; is_admin: boolean; left_at?: string | null; left_by?: string | null; email?: string | null }
 export interface CycleRow extends W, Removal { id: string; name: string; start_date: string; weeks: number; review_day: number }
@@ -43,7 +43,7 @@ const iso = (v: string) => new Date(v).toISOString();
 
 export const workspaceToRow = (w: Workspace): WorkspaceRow => ({ id: w.id, name: w.name, kind: w.kind, created_at: w.createdAt });
 // Recording is on unless it has been turned off (null, or no column before migration 0022, is on).
-export const workspaceFromRow = (r: WorkspaceRow): Workspace => ({ id: r.id, name: r.name, kind: r.kind, createdAt: iso(r.created_at), ...(r.recording === false ? { recording: false } : {}) });
+export const workspaceFromRow = (r: WorkspaceRow): Workspace => ({ id: r.id, name: r.name, kind: r.kind, createdAt: iso(r.created_at), ...(r.recording === false ? { recording: false } : {}), ...(r.modules_off?.length ? { modulesOff: r.modules_off } : {}) });
 export const teamToRow = (ws: string, t: Team, withLead = true): TeamRow => ({ workspace_id: ws, id: t.id, name: t.name, lead_id: withLead && t.leadId ? t.leadId : null, objective: t.objective });
 export const teamFromRow = (r: TeamRow): Team => ({ id: r.id, name: r.name, leadId: r.lead_id ?? '', objective: r.objective });
 // The email (migration 0027) is written only when the person has one (an email removed is written as null), so rows for
@@ -190,6 +190,8 @@ export function commitPayload(ws: string, c: import('./store').Commit) {
     ...(c.workspace ? { workspace_name: c.workspace.name } : {}),
     // The recording switch (migration 0022's okr_write sets okr_workspaces.recording).
     ...(c.recording !== undefined ? { workspace_recording: c.recording } : {}),
+    // The feature modules switched off (migration 0030's okr_write sets okr_workspaces.modules_off).
+    ...(c.modulesOff !== undefined ? { workspace_modules_off: c.modulesOff } : {}),
     changes: c.changes.map((x) => changeToRow(ws, x)),
     expect: c.expect ? {
       goals: c.expect.goals, reviews: c.expect.reviews,

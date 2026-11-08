@@ -6,6 +6,7 @@
    restated; where the guide says what a status, flag or result means, it reads the vocabulary (domain/vocabulary.ts). */
 import { CAUSES_AHEAD, CAUSES_BEHIND } from '../domain/checkin';
 import { RULES } from '../domain/thresholds';
+import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
@@ -45,13 +46,19 @@ export interface Article {
   reqs: string[];
   /** Other words people might search for. */
   keywords: string[];
+  /** Related articles. One from a module that's off or left out is simply not shown. */
   related: string[];
+  /** A module's article: the article it comes after (else the end of its group). */
+  after?: string;
+  /** Set for a module's article: which module it's from (src/modules/<id>/help.ts). */
+  module?: string;
 }
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const causes = (list: [string, string][]) => list.map(([, l]) => l).join(', ');
 
-export const ARTICLES: Article[] = [
+/** The core's articles. Each module adds its own (its help.ts), and ARTICLES is all of them. */
+const CORE_ARTICLES: Article[] = [
   /* ---------- Getting started ---------- */
   {
     id: 'home',
@@ -563,14 +570,14 @@ export const ARTICLES: Article[] = [
   {
     id: 'data',
     title: 'Data',
-    summary: 'Every person, goal, check-in, plan and ask as a table you can search, sort, filter, arrange and export.',
+    summary: 'Every person, goal, check-in, plan and ask as a table you can search, sort, filter, arrange and export, and the home of spreadsheets in and out.',
     group: 'data',
     sections: [
       { heading: 'How to use it', list: [
         'Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.',
         'Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too.',
         'Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.',
-        'Export saves CSV or Excel of exactly what is shown: the visible columns, in order, filtered and sorted. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back on Import whatever you hid.',
+        'Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the blank template; and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.',
         'IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.',
       ] },
       { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses.'] },
@@ -578,56 +585,9 @@ export const ARTICLES: Article[] = [
     ],
     routes: ['/data'],
     screens: ['DataTables', 'DataFilters', 'DataLayout'],
-    reqs: ['DATA-TABLES', 'TABLE-LAYOUTS', 'ROUND-TRIP'],
+    reqs: ['DATA-TABLES', 'TABLE-LAYOUTS', 'ROUND-TRIP', 'ONE-FORMAT', 'SHARED-DOWNLOADS'],
     keywords: ['tables', 'data tables', 'spreadsheet', 'columns', 'layout', 'saved layouts', 'resize', 'reorder', 'export', 'csv', 'xlsx', 'edit cells', 'people', 'check-ins', 'plans'],
     related: ['import', 'export', 'keys'],
-  },
-  {
-    id: 'import',
-    title: 'Importing from a spreadsheet',
-    summary: 'Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.',
-    group: 'data',
-    sections: [
-      { heading: 'How to use it', list: [
-        'Choose Import (on Goals, or in More on a phone). Download the workbook to start from what is already there.',
-        'Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export or Data saves loads back.',
-        'Each sheet is known by its header row, whatever the file or sheet is called. Results, Asks, Notes and the README are for reading, and left out.',
-        'Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.',
-        'Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored. A word a column doesn’t know, such as a level of “vp”, is a problem to fix, never a guess.',
-        'The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over, by email). The same rules as the app apply, and the preview shows what each does.',
-        'Every row is checked with the app’s own rules and shown before anything is saved. Nothing saves while a row needs fixing; plan changes after check-ins need a reason.',
-        'Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.',
-        'Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included.',
-      ] },
-      { heading: 'Who can', text: ['Owners change their own goals; admins can change any, and add and change people. Rows for other people’s goals are fine if you leave them as they are.'] },
-    ],
-    routes: ['/import'],
-    screens: ['Import'],
-    reqs: ['BULK-IMPORT', 'WORKSPACES', 'HONEST-NUMBERS', 'ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS'],
-    keywords: ['import', 'upload', 'excel', 'csv', 'zip', 'spreadsheet', 'workbook', 'load', 'bulk', 'undo', 'action', 'stop', 'delete', 'left', 'email', 'round trip'],
-    related: ['export', 'data', 'keys', 'removing'],
-  },
-  {
-    id: 'export',
-    title: 'Exporting',
-    summary: 'Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.',
-    group: 'data',
-    sections: [
-      { heading: 'How to use it', list: [
-        'Choose Export on Goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).',
-        'Excel workbook, the usual choice: every sheet, Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks and Notes, and a README that explains each column. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.',
-        'CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.',
-        'One format: whatever you export can be edited and loaded back on Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.',
-        'JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.',
-        'Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.',
-        'Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx.',
-      ] },
-    ],
-    routes: [],
-    screens: ['Export'],
-    reqs: ['EXPORT', 'SHARED-DOWNLOADS', 'ONE-FORMAT'],
-    keywords: ['export', 'download', 'excel', 'xlsx', 'csv', 'zip', 'json', 'markdown', 'brief', 'ai chat', 'results', 'year end', 'format'],
-    related: ['import', 'print', 'data'],
   },
   {
     id: 'print',
@@ -735,6 +695,30 @@ export const ARTICLES: Article[] = [
     reqs: ['SETTINGS', 'MOTION', 'MOTION-ALIVE', 'BRAND'],
     keywords: ['theme', 'dark mode', 'light mode', 'accent', 'colour', 'sidebar', 'collapse', 'appearance', 'back link', 'faro', 'logo', 'name', 'teal', 'cobalt'],
     related: ['ai-assistants', 'any-device', 'recording'],
+  },
+  {
+    id: 'features',
+    title: 'Features: switching parts of Faro on or off',
+    summary: 'Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets.',
+    group: 'you',
+    sections: [
+      { heading: 'How to use it', list: [
+        'On Workspace, Features lists the parts of Faro this workspace can use, each with what it does. Untick one to switch it off for everyone here; tick it to switch it back on.',
+        'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its tools for AI assistants. Anything that needs it goes off with it, and Features says so.',
+        'Nothing a feature saved is deleted. Switch it back on and everything is as it was.',
+        'Each switch is logged in Activity, with who did it.',
+        'Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the blank template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.',
+      ] },
+      { heading: 'Who can', text: ['Admins switch features. Everyone sees what is on.'] },
+      { heading: 'For the people building Faro', list: [
+        'Each feature is a module: one folder in src/modules with a module.json saying what it adds and what it needs. docs/architecture.md explains how to add one.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['MODULES'],
+    keywords: ['features', 'modules', 'switch off', 'turn off', 'disable', 'enable', 'spreadsheets', 'optional', 'workspace settings'],
+    related: ['workspace', 'data', 'import'],
   },
   {
     id: 'recording',
@@ -874,7 +858,7 @@ export const ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How it fits', list: [
-        'On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Import, Settings, Help and Send feedback.',
+        'On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Data, Settings, Help and Send feedback.',
         'On a tablet the sidebar is a rail of icons, each named on hover. On a desktop you can choose the rail in Settings.',
         'Focused tasks such as a check-in stay narrow; tables, boards and the map use the whole width.',
         'Text follows your browser’s text size, and every control is big enough to tap.',
@@ -910,6 +894,16 @@ export const ARTICLES: Article[] = [
     related: ['home', 'any-device'],
   },
 ];
+
+/** Every article: the core's, with each module's (its help.ts) after the article it names, or at the end of its group. */
+export const ARTICLES: Article[] = (() => {
+  const out = [...CORE_ARTICLES];
+  for (const m of MODULE_HELP) for (const a of m.part) {
+    const at = a.after ? out.findIndex((x) => x.id === a.after) : out.map((x) => x.group).lastIndexOf(a.group);
+    out.splice(at < 0 ? out.length : at + 1, 0, { ...a, module: m.id });
+  }
+  return out;
+})();
 
 const BY_ID = new Map(ARTICLES.map((a) => [a.id, a]));
 export const articleById = (id: string): Article | undefined => BY_ID.get(id);

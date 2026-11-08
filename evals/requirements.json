@@ -232,6 +232,11 @@
       "text": "The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address."
     },
     {
+      "id": "SPREADSHEETS-ON-DATA",
+      "area": "Data",
+      "text": "Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template (every sheet’s headers and README, no rows), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets)."
+    },
+    {
       "id": "EXPORT",
       "area": "Data",
       "text": "Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."
@@ -650,6 +655,11 @@
       "id": "IMPORT-UNDO",
       "area": "Removing",
       "text": "Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed."
+    },
+    {
+      "id": "MODULES",
+      "area": "Architecture",
+      "text": "Faro is a small core with named extension points (routes, navigation, Home blocks, goal-page sections, settings, places on core screens, database tables, AI tools, Help articles, requirements and journeys) and feature modules, one folder each with a module.json a generator can read, saying what it adds and what it needs. An admin switches each module on or off for a workspace on Workspace, Features (migration 0030): off, it leaves every screen, its AI tools refuse, and what needs it goes off too; nothing it saved is lost, and each switch is logged. CI builds Faro with each module left out and runs the core journeys, and a lint keeps src/domain free of database, screen and network code and the core from importing a module."
     }
   ],
   "notYetBuilt": [
@@ -818,6 +828,12 @@
       "title": "An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing",
       "who": "An admin",
       "budget": 16
+    },
+    {
+      "id": "U48",
+      "title": "An admin switches Spreadsheets off for the workspace, then back on",
+      "who": "An admin",
+      "budget": 10
     }
   ],
   "easeCriteria": [

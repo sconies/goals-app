@@ -1,5 +1,6 @@
-# Pull requests: a smoke gate (typecheck, unit tests, What's new, the MCP bundle, the spec scenarios and the core journeys,
-# a few minutes) and a screenshot comparison against the base branch. Merges to main run the full eval suite as four
+# Pull requests: a smoke gate (typecheck, the layers lint, unit tests, What's new, the MCP bundle, the spec scenarios and
+# the core journeys, a few minutes), the core journeys again with each feature module left out of the build, and a
+# screenshot comparison against the base branch. Merges to main run the full eval suite as four
 # parallel shards, then one scorecard; a failure there opens an issue to fix or revert straight away. Merges to main
 # also apply database migrations, without waiting for the full evals.
 name: CI
@@ -33,6 +34,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run typecheck
+      - name: "Layers: src/domain has no database, screen or network code, and the core imports no module"
+        run: npm run lint:layers
       - run: npm test
       - name: The MCP server bundle matches its source
         run: |
@@ -47,6 +50,53 @@ jobs:
         if: always()
         with:
           name: smoke
+          path: |
+            evals/out/smoke.md
+            evals/out/*.png
+          if-no-files-found: ignore
+
+  # Feature modules (docs/architecture.md): the core works without each one. The list is read from src/modules.
+  modules:
+    name: List the feature modules
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      ids: ${{ steps.list.outputs.ids }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: echo "ids=$(node scripts/modules.mjs --ids)" >> "$GITHUB_OUTPUT"
+
+  without:
+    name: "Core journeys without ${{ matrix.module }}"
+    needs: modules
+    if: github.event_name == 'pull_request' && needs.modules.outputs.ids != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.modules.outputs.ids) }}
+    env:
+      FARO_WITHOUT: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # The build leaves the module out (and whatever needs it); the smoke gate leaves out its journeys and checks.
+      - name: Build without ${{ matrix.module }}, and run the spec scenarios, core journeys and design rules
+        run: npm run evals:smoke
+      - name: Summary
+        if: always()
+        run: test -f evals/out/smoke.md && cat evals/out/smoke.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: without-${{ matrix.module }}
           path: |
             evals/out/smoke.md
             evals/out/*.png

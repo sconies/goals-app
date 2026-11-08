@@ -11,8 +11,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"]
   },
-  "include": ["src", "evals", "server", "vite.config.ts", "vite.mcp.config.ts"]
+  "include": ["src", "evals", "server", "vite.config.ts", "vite.mcp.config.ts", "vite.modules.ts"]
 }

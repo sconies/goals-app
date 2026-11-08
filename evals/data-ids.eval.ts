@@ -1,6 +1,9 @@
 /* Spec scenarios for Lane's review notes (5 Nov), data: readable goal keys and data-table layouts. Each case is tagged
    with its requirement ID. The browser side (dragging, resizing, saving and exporting at phone and desktop widths) is
    checked by evals/notes/5-data-ids.cjs. */
+import { isModuleOn } from '../src/core/registry';
+/** Built without the spreadsheets module (FARO_WITHOUT): its scenarios skip. */
+const noSheets = !isModuleOn(null, 'spreadsheets');
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
 import * as A from '../src/domain/actions';
@@ -198,7 +201,7 @@ describe('data-table layouts', () => {
     expect(() => A.saveView(x, { name: 'Odd', params: 'table=cats' })).toThrow(/one of goals/);
   });
 
-  it(R('TABLE-LAYOUTS', 'the AI assistant saves a table layout, lists it and exports the table as that view shows it'), async () => {
+  it.skipIf(noSheets)(R('TABLE-LAYOUTS', 'the AI assistant saves a table layout, lists it and exports the table as that view shows it'), async () => {
     const rhea = await as('rhea');
     const saved = await rhea.call('save_table_view', { name: 'Mateo’s goals', table: 'goals', columns: ['Key', 'Owner', 'Status'], widths: { Owner: 180 }, query: 'f=Owner~is~Mateo Fernández&s=Key~asc' });
     expect(saved.error).toBe(false);

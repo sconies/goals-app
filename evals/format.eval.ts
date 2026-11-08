@@ -13,6 +13,9 @@
      email; the example's people have one each. */
 import fs from 'node:fs';
 import path from 'node:path';
+import { isModuleOn } from '../src/core/registry';
+/** Built without the spreadsheets module (FARO_WITHOUT): its scenarios skip. */
+const noSheets = !isModuleOn(null, 'spreadsheets');
 import { describe, expect, it } from 'vitest';
 import readExcelFile from 'read-excel-file/node';
 import writeXlsxFile from 'write-excel-file/node';
@@ -185,7 +188,7 @@ describe('round trip', () => {
     }
   });
 
-  it(F('ROUND-TRIP', 'the same round trip through the AI assistant: export_table, then bulk_change, changes nothing; an edit changes just that'), async () => {
+  it.skipIf(noSheets)(F('ROUND-TRIP', 'the same round trip through the AI assistant: export_table, then bulk_change, changes nothing; an edit changes just that'), async () => {
     let full = full0;
     const ctx = () => ctxOf(full, 'amara', (c) => { full = applyCommit(full, c); });
     for (const [table, key] of [['goals', 'goals'], ['checkIns', 'check_ins'], ['plan', 'plan'], ['people', 'people']] as const) {

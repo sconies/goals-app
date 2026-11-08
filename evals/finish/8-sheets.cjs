@@ -100,10 +100,8 @@ module.exports = {
     for (const [w, h] of [[1440, 700], [390, 844]]) {
       await step(`toast in sheet ${w}`, async () => {
         const [c, p] = await open(w, h, 'amara', '/goals', w < 800);
-        // On the smallest phones Export sits in the Import or export menu.
-        const direct = p.locator('button:visible', { hasText: /^Export/ }).first();
-        if (await direct.isVisible().catch(() => false)) await direct.click();
-        else { await p.locator('summary[aria-label="Import or export"]').click(); await p.locator('.view-menu-list').getByRole('button', { name: 'Export', exact: true }).click(); }
+        // Export these goals (on the smallest phones, its icon).
+        await p.getByRole('button', { name: 'Export these goals' }).click();
         const sheet = p.getByRole('dialog', { name: 'Export goals' });
         await sheet.waitFor();
         await Promise.all([p.waitForEvent('download').catch(() => null), sheet.getByRole('button', { name: 'Save .json' }).click()]);
@@ -180,7 +178,7 @@ module.exports = {
       const [c, p] = await open(1280, 800, 'amara', '/goals');
       await setTour(p, { id: 'brief', step: 0 });
       await p.locator('.coach').waitFor();
-      await p.getByRole('button', { name: 'Export' }).first().click();
+      await p.getByRole('button', { name: 'Export these goals' }).click();
       await p.getByRole('dialog', { name: 'Export goals' }).waitFor();
       await p.waitForTimeout(900);
       const coach = p.locator('.coach');

@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef } from 'react';
 import { Icon } from '../ui/Icon';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -23,7 +23,7 @@ import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
 import { GoalCards } from './GoalCards';
 import { StatusLegend } from '../ui/StatusLegend';
-import { ExportButton, ExportSheet } from './Export';
+import { Place } from '../core/app';
 import { FilterBar, useGoalQuery, useViews, viewParams } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
 import { applyQuery, filters } from '../domain/query';
@@ -112,7 +112,6 @@ export function GoalsScreen() {
   const watchingList = show === 'watching' && !alt && !query.sort;
   const openView = (v: { params: string }) => { const p = new URLSearchParams(v.params); for (const k of ['today', 'store']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); };
   const viewName = tabs.find(([k]) => k === show)?.[1] ?? 'Goals';
-  const [exporting, setExporting] = useState(false);
   // The selected tab is always in view, even when it's past the edge of a row that scrolls sideways.
   const tabRow = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -155,13 +154,10 @@ export function GoalsScreen() {
         {app.snapshot.goals.length > 0 && (
           <div className="row view-bar">
             <LayoutSwitch layout={layout} onChange={setLayout} />
+            {/* Modules' tools for these goals (the goals.tools place): the spreadsheets module's quiet Export these goals. */}
             <span className="row io-buttons" style={{ gap: 'var(--s2)' }}>
-              <Link className="btn sm import-btn" to="/import"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 10V2m0 0 3 3M8 2 5 5M3 12.5h10" /></svg><span className="btn-label">Import</span></Link>
-              <ExportButton goals={shown} viewName={viewName} />
+              <Place name="goals.tools" goals={shown} viewName={viewName} />
             </span>
-            {/* The smallest phones: Import and Export share one button, so the layouts and tools stay one row. */}
-            <MenuButton className="io-menu" label="Import or export" icon={<Icon name="more" size={16} />} summary="" items={[{ label: 'Import', to: '/import' }, { label: 'Export', onClick: () => setExporting(true) }]} />
-            {exporting && <ExportSheet goals={shown} viewName={viewName} onClose={() => setExporting(false)} />}
           </div>
         )}
       </div>

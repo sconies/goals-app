@@ -21,6 +21,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'spreadsheets-on-data',
+    date: '2026-11-08',
+    title: 'Spreadsheets have one home: Data',
+    points: [
+      'On Data, the Spreadsheets menu has every way in and out: the table as you’ve laid it out, everything as a workbook or zipped CSVs, a blank template, and Import.',
+      'Import lives at Data too, and still shows every change before anything is saved. Old Import links take you there.',
+      'Goals keeps one quiet button, Export these goals, for the goals on screen.',
+      'Admins can switch parts of Faro on or off for a workspace, under Features on Workspace. Spreadsheets is the first; switching it off loses nothing.',
+    ],
+    articles: ['import', 'export', 'data', 'features'],
+  },
+  {
     id: 'connect-claude',
     date: '2026-11-07',
     title: 'Reviewing the inbox with Claude is easy',

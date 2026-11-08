@@ -20,6 +20,8 @@ export interface Tour {
   personId: string;
   start: string;
   steps: TourStep[];
+  /** A walkthrough of a feature module: offered only while that module is on (src/core/app.tsx). */
+  module?: string;
 }
 
 export const TOURS: Tour[] = [
@@ -60,18 +62,19 @@ export const TOURS: Tour[] = [
     ],
   },
   {
-    id: 'brief', title: 'Get the leader’s brief', role: 'Leader', personId: 'amara', start: '/goals',
+    id: 'brief', title: 'Get the leader’s brief', role: 'Leader', personId: 'amara', start: '/goals', module: 'spreadsheets',
     steps: [
-      { say: 'Export the goals: for Excel, for other tools, or as a brief to read or paste into an AI chat.', target: { selector: 'button', text: 'Export' }, doneWhen: { text: 'Export goals' } },
+      { say: 'Export these goals: for Excel, for other tools, or as a brief to read or paste into an AI chat.', target: { selector: 'button.export-these' }, doneWhen: { text: 'Export goals' } },
       // Done on doing it (the brief copied or saved), not on the word "Brief", which the sheet already shows.
       { say: 'Copy the brief, or save it. It leads with the decisions waiting on people, then each goal that’s off and its story.', target: { selector: '.export-list .opt', text: 'Brief for an AI chat' }, doneWhen: { text: /Brief (copied|saved)/ } },
       { say: 'The same brief is what an AI assistant reads through the app’s MCP server.' },
     ],
   },
   {
-    id: 'import', title: 'Import from a spreadsheet', role: 'Goal owner', personId: 'mateo', start: '/goals',
+    id: 'import', title: 'Import from a spreadsheet', role: 'Goal owner', personId: 'mateo', start: '/data', module: 'spreadsheets',
     steps: [
-      { say: 'Goals, plan numbers and past weeks can come from a spreadsheet. Open Import.', target: { selector: 'a', text: 'Import' }, doneWhen: { route: /^\/import/ } },
+      { say: 'Goals, plan numbers and past weeks can come from a spreadsheet. Spreadsheets live on Data: open Spreadsheets.', target: { selector: '.data-export > summary', text: 'Spreadsheets' }, doneWhen: { text: 'Import a spreadsheet…' } },
+      { say: 'Everything in and out is here: the table as laid out, the whole workbook, a blank template. Choose Import a spreadsheet.', target: { selector: '.data-export .menuitem', text: 'Import a spreadsheet' }, doneWhen: { route: /^\/data\/import/ } },
       { say: 'Download the workbook, change it in Excel, then choose it here. Every change is shown before anything is saved, and checked with the app’s own rules.', target: { selector: '.steps-list' } },
     ],
   },

@@ -1,5 +1,6 @@
-/* Bulk actions on the goals ticked in the table: change their owner or level, watch them, or export them. Changes go
-   through the bulk-change engine, so the same rules, rights and change log apply as for Import and Data. */
+/* Bulk actions on the goals ticked in the table: change their owner or level, or watch them. Changes go through the
+   bulk-change engine, so the same rules, rights and change log apply as for Import and Data. Exporting is Goals' own
+   "Export these goals" (the spreadsheets module), which starts from what's shown. */
 import { useState } from 'react';
 import { useApp } from '../app/state';
 import { describe, type ChangeSet } from '../domain/changeset';
@@ -7,11 +8,10 @@ import { LEVEL_LABEL } from '../domain/format';
 import type { Goal, Level } from '../domain/types';
 import { Sheet } from '../ui/bits';
 import { MenuButton } from '../ui/MenuButton';
-import { ExportButton, ExportSheet } from './Export';
 
 export function BulkBar({ ids, onClear }: { ids: string[]; onClear: () => void }) {
   const app = useApp();
-  const [sheet, setSheet] = useState<'owner' | 'level' | 'export' | null>(null);
+  const [sheet, setSheet] = useState<'owner' | 'level' | null>(null);
   const goals = ids.map((id) => app.goal(id)).filter((g): g is Goal => !!g);
   const watch = async () => {
     for (const g of goals) await app.watch('goal', g.id);
@@ -25,17 +25,14 @@ export function BulkBar({ ids, onClear }: { ids: string[]; onClear: () => void }
         <button type="button" className="btn sm" onClick={() => setSheet('owner')}>Change owner</button>
         <button type="button" className="btn sm" onClick={() => setSheet('level')}>Change level</button>
         <button type="button" className="btn sm" onClick={() => void watch()}>Watch</button>
-        <ExportButton goals={goals} viewName="Selected" />
       </span>
       <MenuButton className="selbar-menu" label="Actions" summary="" items={[
         { label: 'Change owner', onClick: () => setSheet('owner') },
         { label: 'Change level', onClick: () => setSheet('level') },
         { label: 'Watch', onClick: () => void watch() },
-        { label: 'Export', onClick: () => setSheet('export') },
       ]} />
       <button type="button" className="btn ghost sm" onClick={onClear}>Clear</button>
       {(sheet === 'owner' || sheet === 'level') && <BulkSheet kind={sheet} goals={goals} onClose={() => setSheet(null)} onDone={onClear} />}
-      {sheet === 'export' && <ExportSheet goals={goals} viewName="Selected" onClose={() => setSheet(null)} />}
     </div>
   );
 }

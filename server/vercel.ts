@@ -76,6 +76,12 @@ function deps(origin: string): Deps {
       const { data, error } = await db.from('okr_workspaces').select('recording').eq('id', id).maybeSingle();
       return error ? true : (data as { recording?: boolean | null } | null)?.recording !== false;
     },
+    // Feature modules switched off (migration 0030): none before the migration, or if the row can't be read.
+    async modulesOff(id) {
+      const { data, error } = await db.from('okr_workspaces').select('modules_off').eq('id', id).maybeSingle();
+      const off = error ? null : (data as { modules_off?: string[] | null } | null)?.modules_off;
+      return Array.isArray(off) ? off : [];
+    },
     // The server's own spans, with the service role key when it's set (otherwise the public key, which can add rows
     // but not read them). A missing table or a refusal is ignored: telemetry never changes an answer.
     async telemetry(spans) { await db.from('okr_telemetry_spans').insert(spans); },

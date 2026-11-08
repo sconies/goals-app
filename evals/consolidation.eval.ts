@@ -4,6 +4,9 @@
    purpose. SHARED-DOWNLOADS checks that every file the app saves goes through saveFile in src/app/files.ts. */
 import fs from 'node:fs';
 import path from 'node:path';
+import { isModuleOn } from '../src/core/registry';
+/** Built without the spreadsheets module (FARO_WITHOUT): its scenarios skip. */
+const noSheets = !isModuleOn(null, 'spreadsheets');
 import { describe, expect, it } from 'vitest';
 import { fileName } from '../src/app/files';
 import { buildPlatformOrg as seed } from '../src/data/platformOrg';
@@ -92,8 +95,8 @@ describe('One word for each concept', () => {
     expect(data).not.toMatch(/'Views'|`View: |Save view|from Views/);
   });
 
-  it(W('Import is called Import, and the one-table check-in has one name'), () => {
-    expect(withoutComments(read('src/screens/Import.tsx'))).toContain('Import from a spreadsheet');
+  it.skipIf(noSheets)(W('Import is called Import, and the one-table check-in has one name'), () => {
+    expect(withoutComments(read('src/modules/spreadsheets/Import.tsx'))).toContain('Import from a spreadsheet');
     expect(withoutComments(read('src/screens/QuickCheckIn.tsx'))).toContain('Type all your numbers in one table');
     expect(withoutComments(read('src/screens/Home.tsx'))).toContain('Or type all your numbers in one table');
     expect(articleForPath('/quick-check-in')?.title).toMatch(/all your numbers in one table/i);
@@ -131,10 +134,10 @@ describe('One way of saving files', () => {
     expect(found).toEqual([]);
   });
 
-  it(D('the screens that offer a file save it with saveFile: Export, Import’s workbook, Data, Activity, set-up’s template and research notes'), () => {
-    for (const f of ['Export', 'Import', 'DataTables', 'Activity', 'Onboarding', 'Research']) {
-      expect(read(`src/screens/${f}.tsx`), f).toMatch(/from '\.\.\/app\/files'/);
-      expect(read(`src/screens/${f}.tsx`), f).not.toMatch(/download(Text|Workbook|Template)\(/);
+  it.skipIf(noSheets)(D('the screens that offer a file save it with saveFile: Export, Import’s workbook, Data’s Spreadsheets, Activity, set-up’s template and research notes'), () => {
+    for (const f of ['modules/spreadsheets/Export', 'modules/spreadsheets/Import', 'modules/spreadsheets/DataMenu', 'screens/Activity', 'screens/Onboarding', 'screens/Research']) {
+      expect(read(`src/${f}.tsx`), f).toMatch(/from '(\.\.\/)+app\/files'/);
+      expect(read(`src/${f}.tsx`), f).not.toMatch(/download(Text|Workbook|Template)\(/);
     }
   });
 

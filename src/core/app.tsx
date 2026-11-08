@@ -1,0 +1,94 @@
+/* Feature modules, on screen (docs/architecture.md). A module's app.tsx default-exports an AppModule: the routes it
+   adds, the navigation items, and what it puts in the named places on core screens. The core asks for them here and
+   gets only the modules that are on in the open workspace (src/core/registry.ts), so a module that's switched off,
+   or left out of the build, has no route, no navigation item and nothing in any place. */
+import { useMemo, type ComponentType, type ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router';
+import APP from 'virtual:faro-modules/app';
+import { useApp } from '../app/state';
+import type { Cell } from '../domain/export';
+import type { Goal } from '../domain/types';
+import { MODULES, modulesOn } from './registry';
+import type { PlaceName } from './module';
+
+/** What each place on a core screen gives the module that fills it. */
+export interface PlaceProps {
+  /** Home, after its own blocks. */
+  'home.blocks': Record<never, never>;
+  /** A goal's page, after its own sections. */
+  'goal.sections': { goal: Goal };
+  /** Workspace's side column, after the core's settings (admins and everyone alike: a module checks who's looking). */
+  'workspace.settings': Record<never, never>;
+  /** Data's toolbar, after Columns and Saved layouts. `asShown` is the open table exactly as laid out. */
+  'data.tools': { table: string; asShown: () => { rows: Cell[][]; muted?: string[]; scope: string } };
+  /** Goals' view bar, after the layouts: the goals shown now. */
+  'goals.tools': { goals: Goal[]; viewName: string };
+}
+
+export interface ModuleRoute {
+  /** As React Router writes it; listed in the module's module.json too, and each has a Help article. */
+  path: string;
+  element: ReactNode;
+  /** A focused task: the page takes the screen without the sidebar's distractions, as check-in does (ui/Shell). */
+  focus?: boolean;
+  /** The page's name in the phone's top bar. */
+  title?: string;
+}
+
+export interface ModuleNav {
+  id: string;
+  to: string;
+  label: string;
+  icon: ReactNode;
+}
+
+/** A module's screens and where they go: its app.tsx's default export. */
+export interface AppModule {
+  routes?: ModuleRoute[];
+  /** Sidebar items, placed after the core's (before New goal). */
+  navigation?: ModuleNav[];
+  places?: { [K in PlaceName]?: ComponentType<PlaceProps[K]> };
+}
+
+/** The modules on in the open workspace: their facts and screens, and why the others are off. */
+export function useModules() {
+  const app = useApp();
+  const off = app.ws.modulesOff;
+  return useMemo(() => {
+    const r = modulesOn({ modulesOff: off });
+    return {
+      on: r.on,
+      off: r.off,
+      /** Every module this build has, on or not. */
+      installed: MODULES,
+      /** The screens of the modules that are on. */
+      screens: APP.filter((m) => r.on.has(m.id)).map((m) => ({ id: m.id, ...m.part })),
+      /** Old addresses that lead to a module's route (module.json `redirects`). */
+      redirects: MODULES.filter((m) => r.on.has(m.id)).flatMap((m) => m.redirects),
+    };
+  }, [off]);
+}
+
+/** Whatever the modules that are on put in one place on a core screen, in module order. */
+export function Place<K extends PlaceName>({ name, ...props }: { name: K } & PlaceProps[K]) {
+  const { screens } = useModules();
+  return (
+    <>
+      {screens.map((m) => {
+        const C = m.places?.[name] as ComponentType<PlaceProps[K]> | undefined;
+        return C ? <C key={m.id} {...(props as unknown as PlaceProps[K])} /> : null;
+      })}
+    </>
+  );
+}
+
+/** Whether any module that's on fills a place: so a core screen can leave out a heading with nothing under it. */
+export function useFilled(name: PlaceName) {
+  return useModules().screens.some((m) => !!m.places?.[name]);
+}
+
+/** An old address that moved into a module: on to the new one, keeping the query. */
+export function Moved({ to }: { to: string }) {
+  const { search, hash } = useLocation();
+  return <Navigate to={to + search + hash} replace />;
+}

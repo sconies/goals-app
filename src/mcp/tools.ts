@@ -5,8 +5,8 @@ import { addNote } from '../domain/actions';
 import { applyQuery, parseQuery } from '../domain/query';
 import type { Commit } from '../data/store';
 import { describe, planChanges, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
-import { aiBrief, sheetNamed, toCsv, toJson, workbook } from '../domain/export';
-import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, SHEET_NAMES } from '../domain/columns';
+import { aiBrief, toJson } from '../domain/export';
+import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import { summariseAll } from '../domain/summary';
 import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
@@ -19,14 +19,17 @@ import type { MarkupOps } from '../markup/ops';
 import { FEEDBACK_TOOLS } from './feedbackTools';
 import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
+import MODULE_TOOLS from 'virtual:faro-modules/tools';
+import { isModuleOn, moduleById } from '../core/registry';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey, normalKey } from '../domain/goalKey';
 import { isTableView } from '../domain/tableLayout';
 import type { Cycle, DisplayStatus, Level, Person, Snapshot } from '../domain/types';
 
 export interface McpContext {
-  /** The workspace; `recording` is its recording switch (on unless false). */
-  ws: { id: string; name: string; kind?: 'own' | 'example'; recording?: boolean };
+  /** The workspace; `recording` is its recording switch (on unless false); `modulesOff`, the feature modules an admin
+      has switched off there (docs/architecture.md). */
+  ws: { id: string; name: string; kind?: 'own' | 'example'; recording?: boolean; modulesOff?: string[] };
   /** The current cycle only. */
   snapshot: Snapshot;
   cycle: Cycle;
@@ -158,8 +161,6 @@ const GOAL_FIELDS = {
 };
 const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
 
-/** The export tool's CSVs: one per sheet of the one format (domain/columns), by name: goals_csv, check_ins_csv… */
-const CSV_FORMATS = SHEET_NAMES.filter((n) => n !== 'README').map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
 
 const CORE_TOOLS: ToolDef[] = [
   {
@@ -318,31 +319,23 @@ const CORE_TOOLS: ToolDef[] = [
       return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people') }, { dry: !a.apply, reason: a.reason as string | undefined });
     },
   },
-  {
-    name: 'export',
-    title: 'Export the goals',
-    description: 'Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or one sheet of the spreadsheet export as CSV: goals, plan, check-ins, people, results (each goal’s result and quarters), asks or notes. The CSVs load back with bulk_change.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['format'], properties: { format: str('Which export.', { enum: ['json', 'brief', ...CSV_FORMATS.map(([f]) => f)] }) } },
-    annotations: { readOnlyHint: true, openWorldHint: false },
-    async run(a, ctx) {
-      const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today };
-      if (a.format === 'json') { const j = toJson(x); return { data: j, text: JSON.stringify(j) }; }
-      if (a.format === 'brief') return { text: aiBrief(x) };
-      const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];
-      if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
-      return { isError: true, text: `format should be json, brief or one of ${CSV_FORMATS.map(([f]) => f).join(', ')}.` };
-    },
-  },
 ];
 
-/** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
-    requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts. */
-export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS, ...FEEDBACK_TOOLS];
+/** Which feature module each module tool is from (src/modules/<id>/tools.ts). */
+const TOOL_MODULE = new Map(MODULE_TOOLS.flatMap((m) => m.part.map((t) => [t.name, m.id] as const)));
 
-/** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. */
+/** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
+    requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
+    module's own (the spreadsheets module's export and export_table). */
+export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS, ...FEEDBACK_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
+
+/** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. A module's
+    tool in a workspace that has switched that module off says so, and does nothing. */
 export async function callTool(name: string, args: Record<string, unknown>, ctx: McpContext): Promise<ToolResult> {
   const t = TOOLS.find((x) => x.name === name);
   if (!t) return { isError: true, text: `There's no tool called ${name}.` };
+  const from = TOOL_MODULE.get(name);
+  if (from && !isModuleOn(ctx.ws, from)) return { isError: true, text: `${moduleById(from)?.name ?? from} is switched off in ${ctx.ws.name}, so ${name} can't be used there. An admin can switch it on in Workspace, under Features.` };
   try {
     return await t.run(args ?? {}, ctx);
   } catch (e) {

@@ -1,17 +1,18 @@
-/* Import from a spreadsheet: people, goals, plan numbers and check-ins, including past weeks, and a row's Action (stop or
-   delete a goal, mark someone as left). Any file the app exports loads back: the workbook, the zipped CSVs, one CSV.
-   Every row is checked with the app's own rules and shown before anything is saved; then all of it saves, or none. */
+/* Import from a spreadsheet (the spreadsheets module, at /data/import; old /import links come here): people, goals, plan
+   numbers and check-ins, including past weeks, and a row's Action (stop or delete a goal, mark someone as left). Any
+   file the app exports loads back: the workbook, the zipped CSVs, one CSV. Every row is checked with the app's own
+   rules and shown before anything is saved; then all of it saves, or none. Set-up has its own upload (Onboarding). */
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { useApp } from '../app/state';
-import { readChanges } from '../app/spreadsheet';
-import { saveAndSay } from '../app/files';
-import { describe, type Tables } from '../domain/changeset';
-import { andList } from '../domain/columns';
-import { workbook } from '../domain/export';
-import type { ReadTables } from '../domain/sheets';
-import { useMark } from '../telemetry/react';
-import { Preview } from '../ui/Preview';
+import { useApp } from '../../app/state';
+import { readChanges } from '../../app/spreadsheet';
+import { saveAndSay } from '../../app/files';
+import { describe, type Tables } from '../../domain/changeset';
+import { andList } from '../../domain/columns';
+import { workbook } from '../../domain/export';
+import type { ReadTables } from '../../domain/sheets';
+import { useMark } from '../../telemetry/react';
+import { Preview } from '../../ui/Preview';
 
 export function Import() {
   const app = useApp();
@@ -78,7 +79,7 @@ export function Import() {
             <button type="button" className="btn primary big-btn" onClick={() => file.current?.click()}>Choose a file</button>
           </div>
           {problem && <p className="hint tone-off" role="alert">{problem}</p>}
-          <div><Link className="btn ghost edge-ghost" to="/goals">Cancel</Link></div>
+          <div><Link className="btn ghost edge-ghost" to="/data">Cancel</Link></div>
         </>
       )}
 

@@ -30,7 +30,7 @@ export const SCREENS: [RegExp, string][] = [
   [/^\/$/, 'Home'], [/^\/check-in/, 'Check-in'], [/^\/quick-check-in/, 'All your numbers in one table'], [/^\/watching/, 'Watching'],
   [/^\/reviews\/(new|[^/]+\/edit)$/, 'Setting up a review'], [/^\/reviews\/[^/]+$/, 'A review'], [/^\/reviews$/, 'Reviews'],
   [/^\/goals\/new/, 'New goal'], [/^\/goals\/[^/]+\/edit/, 'Changing a goal'], [/^\/goals\/[^/]+/, 'A goal'], [/^\/goals/, 'Goals'],
-  [/^\/activity/, 'Activity'], [/^\/workspace\/new/, 'Setting up a workspace'], [/^\/workspace/, 'Workspace'], [/^\/import/, 'Import'], [/^\/retro/, 'Wrap-up'],
+  [/^\/activity/, 'Activity'], [/^\/workspace\/new/, 'Setting up a workspace'], [/^\/workspace/, 'Workspace'], [/^\/(data\/)?import/, 'Import'], [/^\/retro/, 'Wrap-up'],
 ];
 export const screenName = (path: string) => SCREENS.find(([r]) => r.test(path))?.[1] ?? path;
 

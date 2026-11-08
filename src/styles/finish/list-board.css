@@ -39,26 +39,25 @@
 .view-menu > summary.btn { display: inline-flex; align-items: center; gap: 6px; }
 .views-menu > summary.btn { min-height: 32px; height: auto; }
 .view-menu-list .menuitem[aria-current="true"] { font-weight: 650; }
-/* Import and Export: two buttons, or one menu where they wouldn't fit beside the layouts (a touch phone up to 400px,
-   with 44px-wide layout buttons, or any screen up to 380px), so the layouts and tools stay one 44px row (4). */
-.io-menu { display: none; }
+/* Export these goals (the spreadsheets module): a quiet button, or just its icon where its words wouldn't fit beside the
+   layouts (a touch phone up to 400px, with 44px-wide layout buttons, or any screen up to 380px), so the layouts and
+   tools stay one 44px row (4). Import and the rest of spreadsheets are on Data. */
 @container app (max-width: 400px) {
   .goals-page .goals-toolbar .view-bar { flex-wrap: nowrap !important; justify-content: space-between; }
   .goals-page .layout-switch { gap: 0; }
 }
 @container app (max-width: 380px) {
-  .goals-page .goals-toolbar .view-bar > .io-buttons { display: none !important; }
-  .goals-page .goals-toolbar .io-menu { display: block; flex: none; margin-left: 0; }
+  .goals-page .goals-toolbar .view-bar > .io-buttons .export-these .btn-label { display: none; }
+  .goals-page .goals-toolbar .view-bar > .io-buttons .export-these { min-width: 44px; padding: 0; justify-content: center; }
 }
 @media (pointer: coarse) {
   @container app (max-width: 400px) {
-    .goals-page .goals-toolbar .view-bar > .io-buttons { display: none !important; }
-    .goals-page .goals-toolbar .io-menu { display: block; flex: none; margin-left: 0; }
+    .goals-page .goals-toolbar .view-bar > .io-buttons .export-these .btn-label { display: none; }
+    .goals-page .goals-toolbar .view-bar > .io-buttons .export-these { min-width: 44px; padding: 0; justify-content: center; }
   }
 }
-.io-menu > summary.btn { padding: 0; min-width: 44px; justify-content: center; }
 /* A short screen with a mouse (a laptop zoomed to 150%, 853×533): the tabs and the tools share one row, the tabs
-   scrolling if they must, Import and Export in one menu, and less space between the rows (8). */
+   scrolling if they must, Export these goals as its icon, and less space between the rows (8). */
 @media (max-height: 600px) and (pointer: fine) {
   .page.goals-page { gap: var(--s4); padding-top: var(--s4); }
   .goals-page .block { gap: var(--s2); }
@@ -67,8 +66,8 @@
     .goals-page .goals-toolbar > .goals-tabs { flex: 1 1 auto; min-width: 0; }
     .goals-page .goals-tabs > .seg.tabs { padding-inline-end: var(--s4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
     .goals-page .goals-toolbar .view-bar { flex: none; width: auto; }
-    .goals-page .goals-toolbar .view-bar > .io-buttons { display: none !important; }
-    .goals-page .goals-toolbar .io-menu { display: block; flex: none; }
+    .goals-page .goals-toolbar .view-bar > .io-buttons .export-these .btn-label { display: none; }
+    .goals-page .goals-toolbar .view-bar > .io-buttons .export-these { min-width: 44px; padding: 0; justify-content: center; }
   }
 }
 

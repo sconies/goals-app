@@ -213,7 +213,7 @@ module.exports = {
     await c.close();
 
     /* ---------- Import preview and Export ---------- */
-    [c, r] = await open(390, 844, 'mateo', '/import');
+    [c, r] = await open(390, 844, 'mateo', '/data/import');
     const steps = await r.evaluate(() => { const ol = document.querySelector('.import-steps'), h = document.querySelector('.page-head h1'); return Math.round(ol.querySelector('li').getBoundingClientRect().left - h.getBoundingClientRect().left); });
     if (steps > 1) fails.push(`[W15] import steps start ${steps}px in from the title`);
     await r.getByLabel('Choose a spreadsheet').setInputFiles({ name: 'plan.csv', mimeType: 'text/csv', buffer: Buffer.from('ID,Goal,Week 45,Week 46,Week 47\nmttr-pir,Post-incident actions closed within 30 days,30,31,32\n') });
@@ -228,7 +228,7 @@ module.exports = {
     if (pv.save !== '1 rgb(210, 206, 196) nowrap') fails.push(`[W16] Save not ready: ${pv.save}`);
     await c.close();
     [c, r] = await open(1280, 800, 'rhea', '/goals');
-    await r.locator('button.btn:visible', { hasText: /^Export$/ }).first().click(); await r.waitForTimeout(400);
+    await r.getByRole('button', { name: 'Export these goals' }).click(); await r.waitForTimeout(400);
     const ex = await r.evaluate(() => { const dlg = document.querySelector('[role="dialog"]'); const row = dlg.querySelector('.export-list .opt.static'); const [a, b] = row.children; return { w: dlg.getBoundingClientRect().width, gap: b.getBoundingClientRect().left - a.getBoundingClientRect().right, bw: b.getBoundingClientRect().width }; });
     if (!near(ex.w, 520) || !near(ex.gap, 16) || ex.bw < 112) fails.push(`[W22] export sheet ${Math.round(ex.w)}px, ${Math.round(ex.gap)}px gap, buttons ${Math.round(ex.bw)}px`);
     await c.close();
