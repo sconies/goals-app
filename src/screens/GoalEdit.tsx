@@ -17,6 +17,7 @@ import { parseNumber } from '../domain/checkin';
 import { Icon } from '../ui/Icon';
 import { goalChange } from '../domain/changes';
 import { BackLink } from '../ui/BackLink';
+import { Place, type MeasurePick } from '../core/app';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
 
@@ -73,6 +74,8 @@ function EditSheet({ goal }: { goal: Goal }) {
   const parent = app.goal(d.parentId);
   const back = () => nav('/goals/' + goal.id);
 
+  // What measures the goal, when a module offers it (the goal.measure place): saved after the goal.
+  const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
   const save = async () => {
     setTried(true);
     if (!built || saving || (needReason && !reasonOk)) return;
@@ -81,7 +84,9 @@ function EditSheet({ goal }: { goal: Goal }) {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined);
-      app.toast(!changed ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
+      if (measure) await app.linkGoalMetric(after, measure.metricId, measure.teamId);
+      else if (measure === null) await app.unlinkGoalMetric(after);
+      app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
       clear();
       back();
     } catch {
@@ -117,6 +122,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           {!errors.title && d.title.trim() !== goal.title && (() => { const twin = sameTitleNote(d.title, goal.id, app.snapshot.goals, (id) => app.team(id)?.name ?? ''); return twin ? <span className="hint tone-risk" role="status">{twin}</span> : null; })()}
         </label>
         )}
+        {show('definition') && <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />}
         {part === 'definition' && (
           <>
             <label className="field"><span className="field-label">How it’s measured</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>

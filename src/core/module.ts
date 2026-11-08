@@ -12,9 +12,9 @@
    never imports a module, and a module left out of the build (FARO_WITHOUT=<id>) is simply not there.
    This file is plain TypeScript, with no screens: the server and the guide use it too. */
 
-/** Places on core screens a module can put something: Home's blocks, a goal page's sections, Data's tools and Goals'
-    tools. src/core/app.tsx says what each is given. (Workspace takes whole sections instead: `sections` below.) */
-export const PLACES = ['home.blocks', 'goal.sections', 'data.tools', 'goals.tools'] as const;
+/** Places on core screens a module can put something: Home's blocks, a goal page's sections, Data's tools, Goals'
+    tools and the goal forms' "Measured by" field. src/core/app.tsx says what each is given. (Workspace takes whole sections instead: `sections` below.) */
+export const PLACES = ['home.blocks', 'goal.sections', 'data.tools', 'goals.tools', 'goal.measure'] as const;
 export type PlaceName = (typeof PLACES)[number];
 
 /** A module's module.json: what it is, what it needs and what it adds, as data. */
@@ -50,6 +50,9 @@ export interface ModuleFacts {
   journeys: string[];
   /** The source files that belong to it outside its folder, if any (there should be none once it's fully moved). */
   elsewhere?: string[];
+  /** What it deliberately leaves out, why, and how it could grow: written into the spec as spec/modules/<id>/growth.md,
+      so a rebuild can tell a choice from a gap. Optional. */
+  growth?: { idea: string; why: string; how: string }[];
 }
 
 /** Workspace's sections in menu order: the core's, then each module's after the section it names in `after` (or at the

@@ -108,6 +108,9 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     feedback: upsert(s.feedback ?? [], c.feedback),
     tokens: upsert(s.tokens ?? [], c.tokens),
     views: upsert(s.views ?? [], c.views),
+    // The metric library (backlog 0b): only once a workspace has one, so snapshots without metrics stay as they were.
+    ...(c.metrics?.length || s.metrics ? { metrics: upsert(s.metrics ?? [], c.metrics) } : {}),
+    ...(c.metricLinks?.length || s.metricLinks ? { metricLinks: upsert(s.metricLinks ?? [], c.metricLinks) } : {}),
     // Data from before requests were stored: start from the requests read from check-ins, so a first save keeps them.
     requests: c.requests?.length || s.requests ? upsert(s.requests ?? asksOf(s), c.requests) : s.requests,
   };
