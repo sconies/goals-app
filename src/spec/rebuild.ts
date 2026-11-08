@@ -4,7 +4,7 @@
    scripts/drill.mjs to spec/rebuild/drill.mjs so a copy of spec/ carries it. Pure: the caller reads the files. */
 import type { ModuleFacts } from '../core/module';
 import { cell, table, UNCLEAR } from './md';
-import { RULE_PAGES } from './overview';
+import { INTERNAL_PAGES, RULE_PAGES } from './overview';
 
 /** A module's rebuild stage, as its module.json writes it under `rebuild`. Every module has one (CI checks:
     scripts/check-rebuild.mjs); an outline counts until its drill exists. */
@@ -77,6 +77,12 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${Object.values(rows).reduce((a, b) => a + b, 0)} rows in four files), and a harness that runs a rebuild and scores it. One part of stage 1, what a check-in must say, has worked examples but no conformance rows yet, so the harness doesn’t score it.`,
     '',
     '**What is an outline:** every other stage. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).',
+    '',
+    '## What Faro doesn’t build',
+    '',
+    'Some things the internal app must do, Faro leaves to the platform it is rebuilt on, so no stage builds them from Faro’s code. They are written as requirements, each with acceptance checks and the stage it lands nearest to: [the requirements for the internal app](../requirements/internal/README.md).',
+    '',
+    ...INTERNAL_PAGES.map(([id, title, what]) => `- [${title}](../requirements/internal/${id}.md): ${what}`),
     '',
     '## The drill: a fresh session rebuilds a stage from the kit alone',
     '',
