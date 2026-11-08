@@ -14,7 +14,7 @@ import { ATTENTION, LABEL, type ResultKind } from '../domain/vocabulary';
 import { RESULT_TEXT } from '../domain/story';
 import { summarise } from '../domain/summary';
 import type { DisplayStatus, Goal } from '../domain/types';
-import { Chip, StatusWord } from '../ui/bits';
+import { Chip, StatusWord, TitleTell } from '../ui/bits';
 import { StoryLines } from '../ui/GoalStory';
 import { Icon } from '../ui/Icon';
 
@@ -28,7 +28,7 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
     <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '')} data-tone={status} {...coach}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
       <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + result}>{RESULT_TEXT[result]}</span>}</StatusWord>
-      <span className="map-title">{goal.title}</span>
+      <span className="map-title">{goal.title}</span><TitleTell goal={goal} />
       <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${owner}${goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}`}</span>
       {children > 0 && (
         <button type="button" className="map-toggle nodrag" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Show' : 'Hide'} the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>

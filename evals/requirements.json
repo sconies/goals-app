@@ -670,6 +670,16 @@
       "id": "MODULES",
       "area": "Architecture",
       "text": "Faro is a small core with named extension points (routes, navigation, Home blocks, goal-page sections, settings, places on core screens, database tables, AI tools, Help articles, requirements and journeys) and feature modules, one folder each with a module.json a generator can read, saying what it adds and what it needs. An admin switches each module on or off for a workspace on Workspace, Features (migration 0030): off, it leaves every screen, its AI tools refuse, and what needs it goes off too; nothing it saved is lost, and each switch is logged. CI builds Faro with each module left out and runs the core journeys, and a lint keeps src/domain free of database, screen and network code and the core from importing a module."
+    },
+    {
+      "id": "NO-SILENT-ROUNDING",
+      "area": "Numbers",
+      "text": "A number is never rounded quietly: one typed with more decimal places than its goal keeps is refused, with what it would show as, in the check-in, New goal, goal edit, the import and the AI tools. Letters in a number get one message everywhere, every number shown has its thousands grouped, and numbers far outside the plan are questioned, never refused."
+    },
+    {
+      "id": "SAME-NAMES",
+      "area": "Names",
+      "text": "Two goals may share a title and two people a name (the email is who someone is). Creating one warns; wherever both could be on screen, a goal shows its key and a person their team or job title beside the name, and people with the same initials get different avatar colours."
     }
   ],
   "notYetBuilt": [

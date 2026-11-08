@@ -1,7 +1,7 @@
 /* The MCP tools: what an AI assistant can read and change, acting as one person through their personal token.
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
-import { addNote } from '../domain/actions';
+import { addNote, NotAllowed } from '../domain/actions';
 import { applyQuery, parseQuery } from '../domain/query';
 import type { Commit } from '../data/store';
 import { describe, planChanges, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
@@ -339,6 +339,12 @@ export async function callTool(name: string, args: Record<string, unknown>, ctx:
   try {
     return await t.run(args ?? {}, ctx);
   } catch (e) {
-    return { isError: true, text: e instanceof Error ? e.message : String(e), cause: e };
+    const text = e instanceof Error ? e.message : String(e);
+    // A refusal says who the token acts as, so an assistant (and the person reading) can tell "the rule says no" from "this
+    // token is someone else's" (backlog N: a token made for a non-admin was taken for an admin's).
+    return { isError: true, text: e instanceof NotAllowed ? `${text} ${actingAs(ctx.actor)}` : text, cause: e };
   }
 }
+
+/** Who a token acts as, in a sentence: said with every refusal. */
+export const actingAs = (p: { name: string; admin: boolean }) => `This token acts as ${p.name}, who ${p.admin ? 'is an admin' : 'isn’t an admin'}.`;

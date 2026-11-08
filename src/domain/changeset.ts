@@ -17,9 +17,10 @@ import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, YES_WORDS,
   type Words,
 } from './columns';
-import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, replanned, validateGoal, type GoalDraft } from './goal';
+import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planHint, replanned, validateGoal, type GoalDraft } from './goal';
+import { notNumberText, precisionProblem, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
-import { isEmail, normalEmail, personChange, personProblems } from './people';
+import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
@@ -218,7 +219,6 @@ export function planChanges(input: ChangeInput): ChangeSet {
     }
     if (before && peopleTouched.has(before.id)) return err('People', row, before.name, `${before.name} has another row in this file. Give each person one row.`);
     if (create && email && byEmail(email)) return err('People', row, name, `${byEmail(email)!.name} already has the email ${email}: each person needs their own.`);
-    if (create && name && named(name).length) return err('People', row, name, `${name} appears twice. Give each person one row, or add a middle initial so people can tell them apart.`);
 
     const teamName = has(r, 'team') ? ref(r, 'team') : null;
     let tm = teamName ? teamNamed(teamName) : undefined;
@@ -283,6 +283,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const after = people.get(id)!;
     const problems = personProblems(after, [...people.values()], t.before);
     if (problems.length) err('People', t.row, t.before?.name ?? after.name, problems.join(' '));
+    // A new person, or one renamed, with a name someone else has: allowed (the email is who someone is, backlog N), and
+    // said, so a second row for the same person is noticed.
+    else if (!t.before || norm(t.before.name) !== norm(after.name)) {
+      const same = sameNameNote(after, [...people.values()], (tid) => teams.get(tid)?.name ?? '');
+      if (same) note('People', t.row, after.name, same);
+    }
   }
   if (create && !people.size && (input.tables.people ?? []).length && !issues.length) err('People', 1, '', 'Add at least one person.');
 
@@ -349,7 +355,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!existing) {
       if (!title) return err('Goals', row, '', 'Name the goal in the Goal column.');
       const same = [...work.values()].find((g) => norm(g.title) === norm(title));
-      if (same) return err('Goals', row, title, `A goal called “${same.title}” already exists. Put its key in the Key column to change it, or give this one another name.`);
+      // Two teams can both have "Reduce latency" (backlog N): a new row for another team is a new goal, noted below. The same
+      // title for the same team (or no team) is far more often the same goal again without its key, so that's asked.
+      const rowTeam = ref(r, 'team') ? teamNamed(ref(r, 'team')) : undefined;
+      if (same && (!rowTeam || rowTeam.id === same.teamId)) return err('Goals', row, title, `A goal called “${same.title}” already exists${rowTeam ? ' in ' + rowTeam.name : ''}. Put its key in the Key column to change it, give this one another name, or name another team in Team.`);
     }
     const label = title || existing?.title || '';
     const currentOwner = existing ? people.get(existing.ownerId) ?? null : null;
@@ -379,7 +388,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!existing && !kind.code) d.kind = 'metric';
     if (has(r, 'unit') && d.kind !== 'milestone') d.unit = val(r, 'unit');
     if (val(r, 'decimals')) d.decimals = val(r, 'decimals');
-    else if (!existing && d.kind !== 'milestone') d.decimals = String(Math.min(3, Math.max(0, ...['start', 'target', 'limit'].map((k) => (val(r, k).split('.')[1] ?? '').length))));
+    else if (!existing && d.kind !== 'milestone') d.decimals = String(Math.min(3, Math.max(0, ...['start', 'target', 'limit'].map((k) => typedDecimals(val(r, k))))));
     if (val(r, 'start')) d.start = val(r, 'start');
     if (val(r, 'target')) d.target = val(r, 'target');
     const shape = word(SHAPE_WORDS, val(r, 'plan'));
@@ -418,8 +427,16 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (has(r, 'effect')) d.effect = val(r, 'effect');
     if (has(r, 'source')) d.source = val(r, 'source');
     if (has(r, 'definition')) d.definition = val(r, 'definition');
-    const errs = Object.values(validateGoal(d, cycle));
+    const errs = Object.values(validateGoal(d, cycle, existing));
     if (errs.length) return err('Goals', row, d.title, errs.join(' '));
+    const hint = planHint(d);
+    // Two goals may share a title (two teams can both "Reduce latency"): a new one that does is noted, never refused.
+    if (!existing) {
+      const twin = sameTitleNote(d.title, null, s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt), (t) => teams.get(t)?.name ?? '');
+      if (twin) note('Goals', row, d.title, twin);
+    }
+    // Asked, never refused; and only once: a goal already set up this way isn't asked again on every import.
+    if (hint && (!existing || planHint(draftOf(existing)) !== hint)) note('Goals', row, d.title, hint);
 
     const gid = existing?.id ?? newId('goal', d.title);
     if (create && id) fileIds.set(id, gid);
@@ -503,13 +520,17 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const origEnd = planEnd(orig.plan, cycle.weeks);
     const tol = 0.5 * 10 ** -g.decimals;
     const startTyped = val(r, 'start') ? parseNumber(val(r, 'start')) : null;
-    if (val(r, 'start') && startTyped == null) return err('Plan', row, g.title, `Start: “${val(r, 'start')}” isn’t a number.`);
+    if (val(r, 'start') && startTyped == null) return err('Plan', row, g.title, `Start: ${notNumberText(val(r, 'start'))}`);
+    const startPrecise = val(r, 'start') ? precisionProblem(val(r, 'start'), startTyped, g.decimals) : null;
+    if (startPrecise) return err('Plan', row, g.title, `Start: ${startPrecise}`);
     const typed = new Map<number, number>();
     for (const [k, v] of Object.entries(r)) {
       const m = /^week (\d+)$/.exec(k);
       if (!m || !String(v).trim()) continue;
       const n = parseNumber(String(v));
-      if (n == null) return err('Plan', row, g.title, `Week ${m[1]}: “${v}” isn’t a number.`);
+      if (n == null) return err('Plan', row, g.title, `Week ${m[1]}: ${notNumberText(String(v))}`);
+      const precise = precisionProblem(String(v), n, g.decimals);
+      if (precise) return err('Plan', row, g.title, `Week ${m[1]}: ${precise}`);
       const w = Number(m[1]);
       const was = w <= (orig.plan.fromWeek ?? 0) || w > origEnd ? null : w === origEnd ? orig.plan.target : planAt(orig.plan, w, cycle.weeks);
       if (was == null || Math.abs(n - was) > tol) typed.set(w, n);
@@ -650,13 +671,15 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!e.canPost && !asRecorded) {
       // The same codes the check-in screens read, said in the spreadsheet's own column names.
       const hint: Record<Missing, string> = {
-        value: 'a Value', 'value-not-number': 'a number in Value', 'value-impossible': 'a possible Value',
+        value: 'a Value', 'value-not-number': 'a number in Value', 'value-precision': 'a Value at the goal’s decimal places', 'value-impossible': 'a possible Value',
         'greener-why': `Why greener (the call is ${lower(FLAG.greener)})`,
         'reason-behind': `a Cause and a Why of ${MIN_REASON} characters or more (it’s behind plan)`, 'reason-ahead': `a Cause and a Why of ${MIN_REASON} characters or more (it’s ahead of plan)`,
         path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
         target: MISSING_TEXT.target,
       };
-      err('Check-ins', row, g.title, `Week ${w} needs ${e.codes.map((c) => hint[c]).join('; ')}.`);
+      // A number that isn't one, or has more decimal places than the goal keeps, gets the same words as on screen.
+      const typedValue = g.kind === 'milestone' ? null : e.codes[0] === 'value-not-number' ? notNumberText(draft.value) : e.codes[0] === 'value-precision' ? precisionProblem(draft.value, parseNumber(draft.value), g.decimals) : null;
+      err('Check-ins', row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join('; ')}.`);
       continue;
     }
     const backfilled = w < week;

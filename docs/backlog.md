@@ -6,7 +6,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **How items are ordered:** by what they unblock first, then value against effort. Effort: S (under a day), M (a release), L (more than one release).
 
-**In progress (8 Nov):** N, numbers and names (branch `journeys`). For Lane's presentation on Tuesday 10 Nov.
+**In review (8 Nov):** N, numbers and names (branch `journeys`, draft PR waiting for Lane). All eight parts built; decisions to confirm are in the PR description. For Lane's presentation on Tuesday 10 Nov.
 
 ## Build, in order
 

@@ -1,6 +1,6 @@
 /* The Cards layout: a card per goal, its number straight under its title so cards compare. */
 import { Link } from 'react-router';
-import { Chip, LevelTag } from '../ui/bits';
+import { Chip, LevelTag, TitleTell } from '../ui/bits';
 import { hasStory, Keep, ResultTag, StoryLines } from '../ui/GoalStory';
 import { useSummaries, GroupHead, type ViewGroup } from './GoalViews';
 
@@ -19,7 +19,7 @@ export function GoalCards({ groups }: { groups: ViewGroup[] }) {
                 return (
                   <Link key={goal.id} to={'/goals/' + goal.id} className="gcard" data-tone={s.status}>
                     <span className="row between nowrap"><Chip k={s.status} /><LevelTag level={goal.level} /></span>
-                    <span className="gcard-title">{goal.title}</span>
+                    <span className="gcard-title">{goal.title}</span><TitleTell goal={goal} />
                     {/* The number straight under the title, in the same place on every card, so cards compare (visual review 2). */}
                     <span className="gcard-figure"><span className="gcard-now">{s.now}</span><span className="small"><Keep text={`target ${s.target}`} />{s.gap !== s.now && <> · <span className={'tone-' + s.gapTone}><Keep text={s.gap} /></span></>}</span></span>
                     <span className="hint"><Keep text={`${s.owner} · ${s.team}${s.story.since && s.status !== 'stale' ? ` · ${s.story.since.toLowerCase()}` : ''}`} /></span>

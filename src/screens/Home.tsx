@@ -372,8 +372,6 @@ export function Home() {
       <div className="home-grid split">
         <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<><WatchedGoals />{/* Modules' blocks (the home.blocks place). */}<Place name="home.blocks" /></>} />
       </div>
-      {/* On a phone the first screen is the week's work, so the line waits at the foot of Home (the dot on More says it too). */}
-      <HomeNews at="foot" />
     </div>
   );
 }

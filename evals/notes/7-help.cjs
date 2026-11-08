@@ -44,8 +44,8 @@ module.exports = {
         });
         fail(fold.bottom !== null && fold.bottom <= fold.limit, `[WHATS-NEW] ${w}: Start check-in ends at ${fold.bottom}px, below the fold (${fold.limit})`);
         fail(fold.newsH > 0 && fold.newsH <= (w < 400 ? 56 : 28), `[WHATS-NEW] ${w}: the Home line is ${fold.newsH}px tall`);
-        // On a phone the first screen is the week's work: the line waits at the foot of Home. From a tablet up it sits under the greeting.
-        fail(w < 761 ? fold.afterGrid : !fold.afterGrid, `[WHATS-NEW] ${w}: the Home line is ${fold.afterGrid ? 'at the foot of Home' : 'under the greeting'}`);
+        // Under the greeting on every screen, a phone's too (backlog N, 8 Nov), with Start check-in still above the fold.
+        fail(!fold.afterGrid, `[WHATS-NEW] ${w}: the Home line is at the foot of Home, not under the greeting`);
         await line.scrollIntoViewIfNeeded();
         await line.getByRole('link', { name: /See what’s new/ }).click();
         await p.waitForTimeout(300);

@@ -172,10 +172,10 @@ export function PageHelp() {
 }
 
 /**
- * One quiet line on Home after a release this person hasn't seen. Dismissing it counts as seen. Under the greeting on a
- * tablet or desktop; at the foot of Home on a phone, where the first screen belongs to the week's work.
+ * One quiet line on Home after a release this person hasn't seen. Dismissing it counts as seen. Under the greeting on every
+ * screen, a phone's too (backlog N, 8 Nov: at the foot of Home it went unseen); the week's main action stays above the fold.
  */
-export function HomeNews({ at }: { at: 'head' | 'foot' }) {
+export function HomeNews({ at = 'head' }: { at?: 'head' }) {
   const unread = useUnreadNews();
   const top = unread[0];
   if (!top) return null;

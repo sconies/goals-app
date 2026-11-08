@@ -38,9 +38,10 @@ describe('people in the data tables', () => {
     expect(ch.diffs.map((d) => d.field)).toEqual(['Name', 'Job title', 'Team', 'Admin', 'Via']);
     expect(ch.diffs.find((d) => d.field === 'Via')!.to).toBe('Data tables');
   });
-  it('refuses a duplicate name, an unknown team, removing the last admin, and changes by non-admins', () => {
+  it('allows a shared name with a note (the email is who someone is), and refuses an unknown team, removing the last admin, and changes by non-admins', () => {
     const dup = planChanges(base('amara', { people: peopleRecs().map((r) => (r.id === 'oskar' ? { ...r, name: 'Rhea Kapoor' } : r)) }));
-    expect(dup.issues[0]!.message).toMatch(/already here/);
+    expect(dup.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    expect(dup.issues[0]).toMatchObject({ severity: 'note', message: expect.stringMatching(/already here. That’s fine: their email tells you apart/) });
     const team = planChanges(base('amara', { people: peopleRecs().map((r) => (r.id === 'oskar' ? { ...r, team: 'Nowhere' } : r)) }));
     expect(team.issues[0]!.message).toMatch(/no team called/);
     const noAdmins = planChanges(base('amara', { people: peopleRecs().map((r) => ({ ...r, admin: '' })) }));

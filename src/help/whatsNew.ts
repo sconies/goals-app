@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'numbers-and-names',
+    date: '2026-11-08',
+    title: 'Numbers kept as typed, and names told apart',
+    points: [
+      'A number is never rounded quietly. 12.5 in a goal of whole numbers is refused with what it would show as, in a check-in, a new goal, an edit, a spreadsheet and the AI assistant alike.',
+      'Letters in a number get one message everywhere, every number has its thousands grouped (1,250), and a number far outside the plan, a negative time or a billion is questioned, not refused.',
+      'Two goals can share a name: you’re told when you make one, and each shows its key beside the title wherever both could be on screen. Two people can share a name too: the email tells them apart, with their team or job title beside the name and different avatar colours.',
+      'A team’s goal count no longer includes goals that were removed. When the AI assistant is refused, it says who its token acts as.',
+      'On a phone, the layout buttons have names and a line saying what each layout shows, tabs and filters wrap instead of being cut off, and What’s new sits under Home’s greeting. Saved views keep their whole name.',
+    ],
+    articles: ['check-in', 'new-goal', 'edit-goal', 'goals', 'workspace-people', 'home'],
+  },
+  {
     id: 'workspace-sections',
     date: '2026-11-08',
     title: 'Workspace in sections, and an inbox you can work through',

@@ -26,7 +26,9 @@ module.exports = {
       chk(m.period && m.period[1] <= 22 && m.period[0] >= m.h1Bottom - 1, `L&T 4: 360px week line is ${m.period && r0(m.period[1])}px tall (one line under the title expected)`);
       chk(m.bar <= 52, `L&T 4: 360px layout and tools bar is ${r0(m.bar)}px tall (one 44px row expected)`);
       chk(m.row <= 48, `L&T 4: 360px search and Filters take ${r0(m.row)}px (one row expected)`);
-      chk(m.first <= 300, `L&T 4: 360×740 first goal starts at ${r0(m.first)}px (≤300 expected)`);
+      // Backlog N (8 Nov): the tabs wrap instead of being cut off and a line says what the layout is, so the first goal
+      // starts lower than L&T 4's 300px: about 427px now. Held there so it doesn't creep further.
+      chk(m.first <= 440, `L&T 4: 360×740 first goal starts at ${r0(m.first)}px (≤440 expected)`);
       chk(m.placeholder === 'Search goals', `L&T 31: search placeholder is “${m.placeholder}”`);
       chk(m.side <= 1, `360px Goals scrolls sideways by ${m.side}px`);
       await c.close();
@@ -82,10 +84,14 @@ module.exports = {
     {
       const [c, p] = await open(390, 844, 'amara', '/goals?view=table&status=risk,off,stale&level=north-star,svp,team&team=cicd,sre,infra,sec&owner=rhea,mateo,bjorn,farah', true);
       await p.waitForTimeout(300);
-      const m = await p.evaluate((src) => ({ chips: document.querySelector('.filter-chips')?.getBoundingClientRect().height, first: document.querySelector('.table-wrap')?.getBoundingClientRect().top - (0, eval)('(' + src + ')')(), n: document.querySelectorAll('.filter-chip').length }), bannerPx.toString());
-      chk(m.chips <= 48, `L&T 23: ${m.n} filter chips take ${r0(m.chips)}px (one row expected)`);
-      // The report asks for 360; with 44px touch targets kept (L&T 14) the table starts at about 387 (it was 476).
-      chk(m.first <= 390, `L&T 23: with filters the table starts at ${r0(m.first)}px (≤390 expected)`);
+      // Backlog N (8 Nov) replaced the one scrolling row: every active filter shows in full, wrapping, none cut off.
+      const m = await p.evaluate(() => {
+        const chips = [...document.querySelectorAll('.filter-chips .filter-chip')];
+        const cut = chips.filter((e) => { const r = e.getBoundingClientRect(); return r.left < -0.5 || r.right > innerWidth + 0.5 || e.scrollWidth > e.clientWidth + 1; }).map((e) => e.textContent.trim());
+        return { n: chips.length, cut, table: !!document.querySelector('.table-wrap') };
+      });
+      chk(m.n >= 4 && m.cut.length === 0, `N: ${m.n} filter chips, cut off: ${m.cut.join(', ') || 'none'}`);
+      chk(m.table, 'L&T 23: with filters there is no table');
       await c.close();
     }
     {
@@ -115,7 +121,8 @@ module.exports = {
       const [c, p] = await open(853, 533, 'amara', '/goals?view=table');
       const m = await p.evaluate((src) => ({ sort: getComputedStyle(document.querySelector('.inline-sort')).display, row: document.querySelector('.filterbar-row').getBoundingClientRect().height, first: document.querySelector('.gtable tbody tr').getBoundingClientRect().top - (0, eval)('(' + src + ')')() }), bannerPx.toString());
       chk(m.sort === 'none' && m.row <= 44, `L&T 8: 853px filter row is ${r0(m.row)}px with Sort ${m.sort}`);
-      chk(m.first <= 260, `L&T 8: at 853×533 the first goal row starts at ${r0(m.first)}px (≤260 expected)`);
+      // Backlog N (8 Nov): the line saying what the layout is costs about 36px (was ≤260).
+      chk(m.first <= 300, `L&T 8: at 853×533 the first goal row starts at ${r0(m.first)}px (≤300 expected)`);
       await c.close();
     }
 

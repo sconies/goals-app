@@ -16,7 +16,7 @@ The rules that decide where every goal stands: which week it is and what the pla
 1. [llms.txt](../../llms.txt): what Faro is, in one page.
 2. [The data model](../core/data-model.md), the first part, “The records the core rules read”: Cycle, the three kinds of Goal and their plans, CheckIn, Decision, Ask.
 3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words, except the scorecard’s `value`, `label` and `sub`.
-4. The rules, in this order: [Weeks and plans](../core/rules/weeks-and-plans.md), [A goal’s status](../core/rules/status.md), [The projection](../core/rules/projection.md), [What a check-in must say](../core/rules/check-in.md), [Flags, the trend and needs attention](../core/rules/flags.md), [The scorecard](../core/rules/scorecard.md). And [the numbers the rules turn on](../core/rules/README.md#the-numbers-the-rules-turn-on). Each page has worked examples: use them as your first tests.
+4. The rules, in this order: [Weeks and plans](../core/rules/weeks-and-plans.md), [A goal’s status](../core/rules/status.md), [The projection](../core/rules/projection.md), [What a check-in must say](../core/rules/check-in.md), [Numbers and names](../core/rules/numbers-and-names.md), [Flags, the trend and needs attention](../core/rules/flags.md), [The scorecard](../core/rules/scorecard.md). And [the numbers the rules turn on](../core/rules/README.md#the-numbers-the-rules-turn-on). Each page has worked examples: use them as your first tests.
 5. [The conformance data](../conformance/README.md): how each week is judged (the moment, and the workspace as it stood then), what every column is, and how numbers are written.
 
 Search for **Not self-explanatory:**: those are the places the spec itself says it is short.
@@ -56,5 +56,5 @@ When a file is close, the first differences for one goal usually name the rule t
 ## Exit criteria
 
 1. `node spec/rebuild/drill.mjs rebuild` prints **PASS**: every row and every column of all four files match (38124 rows).
-2. What a check-in must say gives what each of [its worked examples](../core/rules/check-in.md#worked-examples) says. The harness doesn’t score this yet (no conformance rows): show it with your own tests of those examples.
+2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says. The harness doesn’t score these yet (no conformance rows): show it with your own tests of those examples.
 3. `rebuild/GAPS.md` lists everything you had to guess.

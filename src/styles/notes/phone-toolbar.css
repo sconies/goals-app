@@ -1,0 +1,30 @@
+/* Nothing cut off (backlog N, 8 Nov; demo review item 14). Loaded last, so it reads over the toolbar's older phone rules
+   (styles.css, finish/list-board.css) without changing them: the tabs and active filters wrap instead of scrolling under
+   a fade, the layout buttons are labelled under their icons, and a saved view's name is never cut short. */
+
+/* A saved view's name in full, wherever it shows: its tab, the filter line, and the Views menu. */
+.goals-tabs .view-tab, .view-tab { max-width: none; overflow: visible; text-overflow: clip; white-space: normal; text-align: left; overflow-wrap: anywhere; }
+.view-menu-list .menuitem { white-space: normal; overflow-wrap: anywhere; }
+.view-menu-list { max-width: min(420px, calc(100vw - 32px)); }
+
+/* What the open layout is, in a line under the toolbar. */
+.layout-about { margin: 0; }
+.layout-about .strong { color: var(--fg); }
+
+@container app (max-width: 600px) {
+  /* The tabs wrap to a second line rather than run off the edge. */
+  .goals-tabs { flex-wrap: wrap; }
+  .goals-tabs > .seg.tabs > button { flex: 0 0 auto; }
+  .goals-tabs > .seg.tabs, .goals-toolbar > .seg.tabs { justify-content: flex-start; flex-wrap: wrap !important; overflow: visible !important; -webkit-mask-image: none; mask-image: none; padding-inline-end: 4px; scroll-snap-type: none; row-gap: 4px; max-width: 100%; }
+  /* The active filters wrap too, every one in full. */
+  .goals-page .filter-chips { flex-wrap: wrap; }
+  .goals-page .filter-chip-scroll { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; padding-inline-end: 0; }
+  .goals-page .filter-chip-scroll > * { white-space: normal; text-align: left; }
+  .goals-page .filter-view-name { max-width: none; overflow: visible; white-space: normal; flex: 1 1 100%; }
+  /* The layout buttons: a full row, each with its name under its icon. */
+  .goals-toolbar .view-bar { flex-wrap: wrap !important; justify-content: flex-start; }
+  .goals-toolbar .view-bar > .layout-switch { flex: 1 1 100%; display: flex; }
+  .goals-toolbar .layout-switch button { flex: 1 1 0; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 4px 2px; }
+  .goals-toolbar .layout-switch .ls-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; display: inline !important; font-size: 0.75rem; line-height: 1rem; }
+  .goals-toolbar .view-bar > .row { margin-left: auto; }
+}

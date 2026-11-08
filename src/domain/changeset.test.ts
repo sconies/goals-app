@@ -111,7 +111,7 @@ describe('bulk changes', () => {
 
   it('loads past weeks as backfilled check-ins, judged by the same rules', () => {
     const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'ns-ai') };
-    const rows = [1, 2, 3].map((w) => ({ ...rec({ 'Goal ID': 'ns-ai', Week: String(w), Value: String(planAt((s.goals.find((g) => g.id === 'ns-ai') as MetricGoal).planHistory?.[0]?.plan ?? (s.goals.find((g) => g.id === 'ns-ai') as MetricGoal).plan, w, cycle.weeks).toFixed(3)) }), __row: String(w + 1) }));
+    const rows = [1, 2, 3].map((w) => ({ ...rec({ 'Goal ID': 'ns-ai', Week: String(w), Value: String(Math.round(planAt((s.goals.find((g) => g.id === 'ns-ai') as MetricGoal).planHistory?.[0]?.plan ?? (s.goals.find((g) => g.id === 'ns-ai') as MetricGoal).plan, w, cycle.weeks))) }), __row: String(w + 1) }));
     const cs = planChanges(base('tariq', { checkIns: rows }, { snapshot: fresh }));
     expect(cs.issues).toEqual([]);
     expect(cs.counts.backfilled).toBe(3);
@@ -137,7 +137,8 @@ describe('bulk changes', () => {
 
   it('replaces a week already posted, and says whose it was', () => {
     const g = s.goals.find((x) => x.id === 'ns-ai') as MetricGoal;
-    const v = planAt(g.planHistory?.[0]?.plan ?? g.plan, 6, cycle.weeks).toFixed(3);
+    // At the goal's own decimal places (whole numbers): a number with more is refused, never rounded (backlog N).
+    const v = String(Math.ceil(planAt(g.planHistory?.[0]?.plan ?? g.plan, 6, cycle.weeks)));
     const cs = planChanges(base('amara', { checkIns: [rec({ 'Goal ID': 'ns-ai', Week: '6', Value: v, Call: 'On track', Why: 'Recounted from the review tool.' })] }));
     expect(cs.counts.replaced).toBe(1);
     expect(cs.issues.find((i) => i.severity === 'warning')!.message).toMatch(/Replaces Tariq Haddad’s check-in for week 6/);

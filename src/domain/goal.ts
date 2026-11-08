@@ -1,6 +1,7 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
 import { nameProblem } from './thresholds';
+import { notNumberText, precisionProblem, setupProblem } from './numbers';
 import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
 import type { Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape } from './types';
 
@@ -59,28 +60,42 @@ export function draftOf(g: Goal): GoalDraft {
 
 export type GoalErrors = Partial<Record<'title' | 'teamId' | 'ownerId' | 'start' | 'target' | 'limit' | 'margin' | 'decimals' | 'effect' | 'stages' | 'points', string>>;
 
-export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
+export function validateGoal(d: GoalDraft, cycle: Cycle, existing?: Goal | null): GoalErrors {
   const e: GoalErrors = {};
   const named = nameProblem(d.title, 'goal');
   if (named) e.title = named;
   if (!d.teamId) e.teamId = 'Choose a team.';
   if (!d.ownerId) e.ownerId = 'Choose an owner.';
-  if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = 'Enter a number, or leave it empty.';
-  if (d.kind !== 'milestone') {
-    const dp = parseNumber(d.decimals);
-    if (dp == null || dp < 0 || dp > 3 || !Number.isInteger(dp)) e.decimals = 'Between 0 and 3.';
-  }
+  if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = notNumberText(d.effect);
+  // A number field's problem: empty (the field's own ask), letters (the one message), or more decimal places than the
+  // goal keeps (refused, never rounded: domain/numbers).
+  const dp = d.kind === 'milestone' ? null : parseNumber(d.decimals);
+  const places = dp != null && dp >= 0 && dp <= 3 && Number.isInteger(dp) ? dp : null;
+  const numberProblem = (raw: string, empty: string): string | null => {
+    if (!raw.trim()) return empty;
+    const n = parseNumber(raw);
+    if (n == null) return notNumberText(raw);
+    return places == null ? null : precisionProblem(raw, n, places);
+  };
+  if (d.kind !== 'milestone' && places == null) e.decimals = 'Between 0 and 3.';
   if (d.kind === 'metric') {
-    const s = parseNumber(d.start), t = parseNumber(d.target);
-    if (s == null) e.start = 'Enter where it starts.';
-    if (t == null) e.target = 'Enter the target.';
-    else if (s != null && s === t) e.target = 'The target has to differ from the start.';
-    if (Object.values(d.points).some((v) => v.trim() !== '' && parseNumber(v) == null)) e.points = 'Every plan number has to be a number.';
+    const sp = numberProblem(d.start, 'Enter where it starts.'), tp = numberProblem(d.target, 'Enter the target.');
+    if (sp) e.start = sp;
+    if (tp) e.target = tp;
+    else if (!sp && parseNumber(d.start) === parseNumber(d.target)) e.target = 'The target has to differ from the start.';
+    // Plan numbers typed by hand. One already stored (an existing goal's plan) is not re-judged unless it was changed.
+    const stored = new Map(existing?.kind === 'metric' ? (existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
+    const typed = Object.entries(d.points).filter(([w, v]) => v.trim() !== '' && parseNumber(v) !== stored.get(w));
+    const bad = typed.map(([, v]) => (parseNumber(v) == null ? notNumberText(v) : places == null ? null : precisionProblem(v, parseNumber(v), places))).find(Boolean);
+    if (bad) e.points = bad;
   }
   if (d.kind === 'range') {
-    if (parseNumber(d.limit) == null) e.limit = 'Enter the limit.';
+    const lp = numberProblem(d.limit, 'Enter the limit.');
+    if (lp) e.limit = lp;
     const m = parseNumber(d.margin);
-    if (m == null || m < 0) e.margin = 'Enter a warning margin of zero or more.';
+    if (d.margin.trim() && m == null) e.margin = notNumberText(d.margin);
+    else if (m == null || m < 0) e.margin = 'Enter a warning margin of zero or more.';
+    else if (places != null) { const mp = precisionProblem(d.margin, m, places); if (mp) e.margin = mp; }
   }
   if (d.kind === 'milestone') {
     const rows = d.stages.filter((s) => s.name.trim() || s.dueWeek.trim());
@@ -89,6 +104,16 @@ export function validateGoal(d: GoalDraft, cycle: Cycle): GoalErrors {
     else if (rows.some((s) => { const w = parseNumber(s.dueWeek); return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks; })) e.stages = 'Every stage needs a due week between 1 and ' + cycle.weeks + '.';
   }
   return e;
+}
+
+/**
+ * Checks worth making on a goal's numbers as typed: asked beside the field, never refused (backlog N). Over 100% first
+ * (overHundredHint), then a negative time, money or percentage, a target a hundred times the start, or a billion or more.
+ */
+export function planHint(d: Pick<GoalDraft, 'kind' | 'unit' | 'start' | 'target' | 'limit'>): string | null {
+  if (d.kind === 'metric') return overHundredHint(d.unit, d.start, d.target) ?? setupProblem(d.unit, parseNumber(d.start), parseNumber(d.target));
+  if (d.kind === 'range') return setupProblem(d.unit, parseNumber(d.limit), null);
+  return null;
 }
 
 /** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */

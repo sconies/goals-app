@@ -18,6 +18,7 @@ import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
 import { nameProblem } from '../domain/thresholds';
 import { parseNumber } from '../domain/checkin';
+import { notNumberText } from '../domain/numbers';
 import { fmt } from '../domain/format';
 import { closeTeam } from '../domain/people';
 import { Steps } from '../ui/bits';
@@ -172,9 +173,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const teamTypo = (r: PersonRow) => (r.team.trim() && !(d.newTeams ?? []).includes(r.team.trim()) ? closeTeam(r.team, typed) : null);
   const goalErr = (g: GoalRow, headline = false) => ({
     title: nameProblem(g.title, headline ? 'outcome' : 'goal'),
-    start: g.kind === 'metric' && parseNumber(g.start) == null ? (g.start.trim() ? `“${g.start}” isn’t a number.` : 'Add today’s number.') : null,
-    target: g.kind === 'metric' && parseNumber(g.target) == null ? (g.target.trim() ? `“${g.target}” isn’t a number.` : 'Add the target.') : null,
-    limit: g.kind === 'range' && parseNumber(g.limit ?? '') == null ? 'Add the limit.' : null,
+    start: g.kind === 'metric' && parseNumber(g.start) == null ? (g.start.trim() ? notNumberText(g.start) : 'Add today’s number.') : null,
+    target: g.kind === 'metric' && parseNumber(g.target) == null ? (g.target.trim() ? notNumberText(g.target) : 'Add the target.') : null,
+    limit: g.kind === 'range' && parseNumber(g.limit ?? '') == null ? ((g.limit ?? '').trim() ? notNumberText(g.limit ?? '') : 'Add the limit.') : null,
   });
   const clean = (e: ReturnType<typeof goalErr>) => !e.title && !e.start && !e.target && !e.limit;
   const ok = [

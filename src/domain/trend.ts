@@ -1,6 +1,7 @@
 /* The one trend rule (consolidation release 2): whether a goal is getting worse, getting better, or neither. The
    attention flag, the goal's story, the summary bar's trend, the scorecard and the words under the chart all ask here,
    so "Getting worse" means one thing wherever it is said (domain/vocabulary.ts, TREND and FLAG.trend). */
+import { fixed } from './numbers';
 import { isShare } from './checkin';
 import { fmt, rangeText, weekLabel } from './format';
 import { goalAsOf, planAt } from './plan';
@@ -64,7 +65,7 @@ export function goalTrend(goal: Goal, cycle: Cycle, checkIns: CheckIn[]): GoalTr
     const word = gapTrend(gaps.map((x) => x.raw), true);
     if (word === 'worse') {
       const last = gaps.slice(-TREND_SPAN);
-      const n = (v: number) => Math.abs(v).toFixed(goal.decimals);
+      const n = (v: number) => fixed(Math.abs(v), goal.decimals);
       return { word, detail: `Further behind plan at each of the last two check-ins: ${last.map((x) => (x.gap < 0 ? n(x.gap) + ' behind' : x.gap > 0 ? n(x.gap) + ' ahead' : 'on plan')).join(' → ')}${goal.unit ? ` (${goal.unit === '%' ? 'pts' : goal.unit})` : ''}.` };
     }
     // On track today, but heading short of the target: getting worse by where it's going, not where it is.

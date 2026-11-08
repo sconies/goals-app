@@ -7,6 +7,7 @@
    change since the last check-in, plan for the range); this module only says them, and decides one thing of its own:
    how likely the target is, as a word, from where the target sits against the projected range (`likelihood`).
    Pure: the page, the chart and the AI assistant's get_goal read the same words. */
+import { fixed } from './numbers';
 import { fmt, NO_VALUE } from './format';
 import { planEnd, projectionFor, valueSeries } from './plan';
 import { assessMilestone, assessPosted, checkInsFor } from './status';
@@ -80,15 +81,15 @@ export interface Scorecard {
 const round = (v: number, d: number) => Number(v.toFixed(d));
 /** An amount in the goal's units, "1 hour" not "1 hours": "9 hours", "0.4 days", "3 pts". */
 export function amount(v: number, g: Numeric): string {
-  const n = Math.abs(v).toFixed(g.decimals);
+  const n = fixed(Math.abs(v), g.decimals);
   if (g.unit === '%') return n + (Number(n) === 1 ? ' pt' : ' pts');
   if (!g.unit) return n;
   return `${n} ${Number(n) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
 }
 /** The same, as short as the chart needs: "9", "0.4", "3 pts". */
-const bare = (v: number, g: Numeric) => (g.unit === '%' ? amount(v, g) : Math.abs(v).toFixed(g.decimals));
+const bare = (v: number, g: Numeric) => (g.unit === '%' ? amount(v, g) : fixed(Math.abs(v), g.decimals));
 /** A value as short as the chart needs: "37", "83%". */
-const bareValue = (v: number, g: Numeric) => v.toFixed(g.decimals) + (g.unit === '%' ? '%' : '');
+const bareValue = (v: number, g: Numeric) => fixed(v, g.decimals) + (g.unit === '%' ? '%' : '');
 /** The target or limit as the question says it: "24", "80%", "0.10%". */
 const markWord = (v: number, g: Numeric) => bareValue(v, g);
 

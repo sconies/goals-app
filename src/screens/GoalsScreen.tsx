@@ -17,7 +17,7 @@ import { WatchingBody } from './Watching';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
+import { LAYOUT_ABOUT, LAYOUTS, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
 import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
@@ -163,6 +163,7 @@ export function GoalsScreen() {
         )}
       </div>
 
+      {app.snapshot.goals.length > 0 && <p className="hint layout-about" aria-live="polite"><span className="strong">{LAYOUTS.find(([k]) => k === layout)?.[1]}</span>: {LAYOUT_ABOUT[layout]}</p>}
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
       {show === 'attention' && !activeView && att.length > 0 && <p className="hint attention-counts">{attentionCounts(att)}</p>}
       <FirstReports />
