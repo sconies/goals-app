@@ -11,7 +11,7 @@ import { assessMetric, assessMilestone, assessRange, goalStatus, RANK, worst } f
 import { RULES, TREND_SPAN } from '../domain/thresholds';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor } from '../domain/attention';
-import { ATTENTION_FLAGS, FLAG, LABEL, STATUS_ORDER } from '../domain/vocabulary';
+import { ATTENTION_FLAGS, FLAG, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, MetricGoal, Snapshot } from '../domain/types';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
@@ -343,8 +343,8 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
     id: 'scorecard',
     title: 'The scorecard',
     summary: 'The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target.',
-    code: [{ file: 'src/domain/scorecard.ts', names: ['likelihood', 'likelihoodFloor', 'goalScorecard', 'amount', 'byWeekWords'] }, { file: 'src/domain/summaryFacts.ts', names: ['summaryFacts'] }],
-    tests: ['src/domain/scorecard.test.ts', 'evals/goalPage.eval.ts'],
+    code: [{ file: 'src/domain/scorecard.ts', names: ['likelihood', 'likelihoodFloor', 'goalScorecard', 'amount', 'byWeekWords'] }, { file: 'src/domain/summaryFacts.ts', names: ['summaryFacts'] }, { file: 'src/domain/vocabulary.ts', names: ['shortWord'] }, { file: 'src/domain/year.ts', names: ['quarterResult'] }],
+    tests: ['src/domain/scorecard.test.ts', 'src/domain/year.test.ts', 'evals/goalPage.eval.ts'],
     reqs: ['GOAL-PAGE-SCORECARD', 'PROJECTION-RANGE', 'HONEST-NUMBERS'],
     body: `
 \`goalScorecard(goal, cycle, checkIns, week, stale)\` gives a few cells, each a key, a label, a value, a muted line under it (*sub*) and a tone (\`good\`, \`bad\` or \`flat\`). *stale* is true when the official status is \`stale\`: then nothing is projected. Every number comes from the rules above; the scorecard only words them, and decides one thing of its own: the likelihood.
@@ -357,7 +357,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 |---|---|
 | \`plan\`, Vs plan | the latest number against the plan for its own week, rounded to the goal's decimals and said in the better direction: "9 hours behind plan", "3 pts ahead of plan", "On plan". No number: "No value yet". Sub: "plan 43.85%", plus "in week 4" when the latest check-in is older than this week |
 | \`since\`, Vs last week (Last change when stale) | the change from the check-in before with a number: "4 pts better" or "worse", "No change", or "First check-in". Sub: "was 40% in week 3" |
-| \`target\`, To target | what's left, "12 pts to go", or Target reached. Sub: "target 75%", plus "by week 40" when due before the cycle's end |
+| \`target\`, To target | what's left, "12 pts to go", or Target reached. When lower is better the amount is over the target and says so: "5 min over". Sub: "target 75%", plus "by week 40" when due before the cycle's end |
 | \`hit\`, Will it hit 75%? | the likelihood of reaching the target by its due week; "Can’t say" when stale; "Too early to say" with no projection. Sub: "likely 52% by cycle end" |
 
 **Tones.** \`plan\`: ahead \`good\`, behind \`bad\`, on plan or no number \`flat\`. \`since\`: better \`good\`, worse \`bad\`, otherwise \`flat\` (the check-in before is the latest earlier one, by week then posting, that has a number). \`target\`: reached \`good\`, else \`flat\`. \`hit\`: Likely \`good\`, Possible \`flat\`, Unlikely and Very unlikely \`bad\`, Can’t say and Too early \`flat\`. \`limit\`: outside \`bad\`, near \`flat\`, inside \`good\`. \`room\`: over \`bad\`, within the margin (room ≤ margin) \`flat\`, else \`good\`. \`done\`: at least as many done as are due \`good\`, else \`flat\`. \`late\`: any behind \`bad\`, none \`good\`. \`next\`: expected after its due week \`bad\`, else \`flat\`; All done \`good\`. The likelihood floor uses the goal's current plan; a margin of 0 counts as none.
@@ -366,11 +366,17 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 
 **Dated stages:** \`done\` (stages done of all, with how many are due by this week), \`late\` (stages behind their dates, slipping or late, and by up to how many weeks) and \`next\` (the week the next stage now lands, or All done).
 
-A stopped goal has no \`hit\` cell.`,
+A stopped goal has no \`hit\` cell.
+
+**Short or over** (\`shortWord(better)\` in \`src/domain/vocabulary.ts\`, the one place the word is chosen): an amount on the wrong side of a plan or target is "short" when higher is better and "over" when lower is better: "1 pt short" of a 46% plan, "1 min over" a 6 min plan. The scorecard's \`target\` cell, the chart's mark at the due week ("5 over") and a quarter's result ("Q3: 7 min against a plan of 6 min, 1 min over") all use it.
+
+**A quarter's result** (\`quarterResult\` in \`src/domain/year.ts\`) compares the number with the plan at the quarter's end as both are shown, at the goal's decimals: 0.68 against a plan shown as 0.68 is met, never "0.00 short".`,
     examples: [
       { given: 'A target of 75, higher is better, projected 80 (range 78–82, d = −2.5); 76 (72–80, d = −0.25); 72 (70–74, d = 1.5); 60 (58–62, d = 7.5).', then: 'likely, possible, unlikely, very-unlikely', run: () => [[80, 78, 82], [76, 72, 80], [72, 70, 74], [60, 58, 62]].map(([value, low, high]) => likelihood(75, { value: value!, low: low!, high: high! }, 1)).join(', ') },
       { given: 'A target of 18, lower is better, projected 19 (range 18–20): d = (18 − 19) × −1 / 1 = 1.', then: 'possible', run: () => likelihood(18, { value: 19, low: 18, high: 20 }, -1) },
       { given: 'The 30→75 goal with 36, 39, 42, 45 in weeks 1–4, seen in week 4.', then: 'plan: 1 pt ahead of plan [good] (plan 44%); since: 3 pts better [good] (was 42% in week 3); target: 30 pts to go [flat] (target 75%); hit: Very unlikely [bad] (likely 72% by cycle end)', run: () => goalScorecard(g3075, CYCLE, [36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), 4, false).cells.map((c) => `${c.key}: ${c.value} [${c.tone}] (${c.sub})`).join('; ') },
+      { given: 'Short or over: higher is better, then lower is better.', then: 'short, over', run: () => [shortWord(1), shortWord(-1)].join(', ') },
+      { given: 'A 60→30 goal (lower is better) with 50, 48, 46, 45 in weeks 1–4, seen in week 4: To target.', then: '15 pts over [flat] (target 30%)', run: () => { const c = goalScorecard(metric(60, 30), CYCLE, [50, 48, 46, 45].map((v, i) => ci('m', i + 1, v)), 4, false).cells.find((x) => x.key === 'target')!; return `${c.value} [${c.tone}] (${c.sub})`; } },
       { given: 'The same, but stale.', then: 'hit: Can’t say', run: () => { const c = goalScorecard(g3075, CYCLE, [36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), 4, true).cells.find((x) => x.key === 'hit')!; return `hit: ${c.value}`; } },
     ],
     unclear: ['The scorecard’s words (labels, values and sub lines, including how units are said: “%” differences as pts, a unit made singular at 1, numbers padded to the goal’s decimals) are not all written out here. The conformance data gives every cell for every goal and week; a rebuild that matches each cell’s key, tone and likelihood has the rule, and the words follow `src/domain/scorecard.ts` and `src/domain/format.ts`.'],

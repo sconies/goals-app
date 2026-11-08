@@ -496,7 +496,7 @@ What was said in a review is kept as its summary; owners see questions and actio
 The Reviews page says, for every review, where this session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held and how many of its actions are open.
 
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
-- **Tests:** `src/domain/review.test.ts` (6), `evals/review-notes.eval.ts` (4)
+- **Tests:** `src/domain/review.test.ts` (7), `evals/review-notes.eval.ts` (4)
 - **Journeys and checks:** N1
 
 ### REVIEW-AGENDA

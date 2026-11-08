@@ -66,7 +66,7 @@ export function WorkspaceHome() {
         </div>
         {app.mode === 'demo' && app.ws.kind === 'example' && confirming && (
           <div className="reset-confirm" role="group" aria-label="Reset the example">
-            <span className="small">Undo every change in the example?</span>
+            <span className="small">Undo every change in the example, and clear its drafts and what you’ve seen here?</span>
             <span className="row" style={{ gap: 'var(--s2)' }}>
               <button className="btn" onClick={async () => { await app.resetExample(); setConfirming(false); }}>Yes, reset it</button>
               <button className="btn ghost" onClick={() => setConfirming(false)}>Cancel</button>

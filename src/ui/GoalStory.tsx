@@ -54,10 +54,12 @@ export function TableStory({ s }: { s: GoalSummary }) {
       ...(st.needs ? [FLAG.decision.label] : []),
       ...(['off', 'risk'].includes(s.status) ? [st.why ? `Why: ${st.why}` : 'No reason given', st.byWhen ?? 'No date given'] : []),
     ];
-  if (n) parts.push(`${n} ${n === 1 ? 'warning' : 'warnings'}`);
+  // Warnings by name, not a bare count (demo review, 8 Nov): the first one's own words, then how many more.
+  const head = (w: string) => w.split(/(?<=\w)[.:—]\s/)[0]!.replace(/\.$/, '');
+  if (n) parts.push(n === 1 ? head(st.warnings[0]!) : `${head(st.warnings[0]!)} and ${n - 1} more ${n === 2 ? 'warning' : 'warnings'}`);
   return (
     <div className="table-story">
-      {open ? <StoryLines s={s} compact /> : <span className="table-story-line small" title={parts.join(' · ')}>{parts.join(' · ')}</span>}
+      {open ? <StoryLines s={s} compact /> : <span className="table-story-line small" title={[...parts.slice(0, n ? -1 : undefined), ...st.warnings].join(' · ')}>{parts.join(' · ')}</span>}
       <button type="button" className="linkish small table-story-toggle" aria-expanded={open} aria-label={`${open ? 'Less' : 'Details'}: the story of ${s.goal.title}`} onClick={() => setOpen((v) => !v)}>{open ? 'Less' : 'Details'}</button>
     </div>
   );

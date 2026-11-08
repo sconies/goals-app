@@ -147,7 +147,10 @@ function ActivityFilters({ onClose, onSave }: { onClose: () => void; onSave: (()
             <option value="">Any goal</option>
             {[...app.snapshot.goals].sort((x, y) => x.title.localeCompare(y.title)).map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
           </select>
-          <label className="check"><input type="checkbox" disabled={!a.goal} checked={a.tree} onChange={(e) => setA((cur) => ({ ...cur, tree: e.target.checked }))} /> And every goal feeding it</label>
+          {/* Offered once there is a goal to follow down, never as a disabled box with no reason (demo review, 8 Nov). */}
+          {a.goal
+            ? <label className="check"><input type="checkbox" checked={a.tree} onChange={(e) => setA((cur) => ({ ...cur, tree: e.target.checked }))} /> And every goal feeding it</label>
+            : <span className="hint">Choose a goal to include every goal feeding it too.</span>}
         </fieldset>
         <fieldset className="filter-group"><legend className="field-label">Team</legend>
           <span className="filter-options">{app.snapshot.teams.map((t) => <label key={t.id} className="check"><input type="checkbox" checked={a.team.includes(t.id)} onChange={() => setA((cur) => ({ ...cur, team: toggle(cur.team, t.id) }))} /> {t.name}</label>)}</span>

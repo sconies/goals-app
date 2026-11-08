@@ -30,7 +30,8 @@ import { applyQuery, filters } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
-import { ATTENTION } from '../domain/vocabulary';
+import { ATTENTION, ATTENTION_FLAGS, STATUS, STATUS_ORDER } from '../domain/vocabulary';
+import type { GoalAttention } from '../domain/attention';
 
 // The map loads only when someone opens it, so the rest of the app stays small.
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
@@ -163,6 +164,7 @@ export function GoalsScreen() {
       </div>
 
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
+      {show === 'attention' && !activeView && att.length > 0 && <p className="hint attention-counts">{attentionCounts(att)}</p>}
       <FirstReports />
       {refined && shown.length === 0 && <EmptyResult title="No goals match" action={<button type="button" className="btn" onClick={() => { const p = new URLSearchParams(); for (const k of ['today', 'store', 'view']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>Clear search and filters</button>}>Remove a filter above, or clear them all.</EmptyResult>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
@@ -171,7 +173,7 @@ export function GoalsScreen() {
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
       {alt && shown.length > 0 && layout === 'cards' && <GoalCards groups={groups} />}
-      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={query.attention} onAttention={(on) => setQuery((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] }))} /></Suspense>}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="map-wait" role="status">Drawing the map…</div>}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={query.attention} onAttention={(on) => setQuery((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] }))} /></Suspense>}
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
       {!alt && refined && !watchingList && groups.map((g) => (
@@ -246,4 +248,20 @@ export function GoalsScreen() {
       {app.snapshot.goals.length > 0 && shown.length > 0 && layout !== 'map' && <StatusLegend />}
     </div>
   );
+}
+
+/**
+ * What the Needs attention count counts, in words (demo review, 8 Nov, item 5): the Board groups the same goals by
+ * status, so a goal flagged while on track or done (getting worse, a missed date, an ask waiting) is said too.
+ */
+function attentionCounts(att: GoalAttention[]): string {
+  const by = new Map<string, number>();
+  for (const a of att) by.set(a.status.status, (by.get(a.status.status) ?? 0) + 1);
+  // The statuses that are themselves a reason for attention, in the order the vocabulary gives them.
+  const behind = ATTENTION_FLAGS.filter((k): k is 'off' | 'risk' | 'stale' => k in STATUS && k !== 'greener').sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b));
+  const named = behind.filter((k) => by.get(k)).map((k) => `${by.get(k)} ${STATUS[k].label.toLowerCase()}`);
+  const rest = att.length - behind.reduce((n, k) => n + (by.get(k) ?? 0), 0);
+  const parts = [...named, ...(rest ? [`${rest} on track or done but flagged for something else, such as getting worse, a missed date or an ask waiting for an answer`] : [])];
+  const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
+  return `${att.length} ${att.length === 1 ? 'goal' : 'goals'} flagged for something new that nobody has picked up yet: ${list}.`;
 }

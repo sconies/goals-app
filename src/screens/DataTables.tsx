@@ -90,6 +90,9 @@ export function DataTables() {
         for (const r of rows) { const k = r.cells[gi] + ':' + r.cells[wi]; if ((latest.get(k) ?? '') < r.cells[pi]!) latest.set(k, r.cells[pi]!); }
         for (const r of rows) if (latest.get(r.cells[gi] + ':' + r.cells[wi]) !== r.cells[pi]) r.locked = 'A later check-in that week replaced this one';
       }
+      // Goals in key order, counted as numbers (G-48, G-49 … G-124), until a column is sorted (demo review, 8 Nov).
+      const ki = h.indexOf('Key');
+      if (t === 'goals' && ki >= 0) rows.sort((a, b) => (a.cells[ki] ?? '').localeCompare(b.cells[ki] ?? '', undefined, { numeric: true }));
       out[t] = { head: h, rows };
     }
     return out;
@@ -322,6 +325,8 @@ export function DataTables() {
                   const label = `${c}, ${r.cells[head.indexOf(NAME[tab])] || r.key}${tab === 'checkIns' ? `, week ${r.cells[head.indexOf('Week')]}` : ''}`;
                   const w = widthOf(c);
                   const kind = (c === NAME[tab] ? ' dname' : ID_COLS.includes(c) ? ' did' : kinds[c] === 'number' ? ' num' : '') + (tab === 'plan' && /^Week \d+$/.test(c) ? ' wk' : '') + (w ? ' sized' : '');
+                  // A goal column that doesn't apply to this kind of goal says so, rather than sitting blank (demo review, 8 Nov).
+                  const na = tab === 'goals' && value === '' ? notFor(c, (k) => r.cells[head.indexOf(k)] ?? '') : null;
                   if (!canEdit || r.locked || !EDITABLE[tab](c)) {
                     const status = tab === 'goals' && c === 'Status' ? STATUS_OF[value] : undefined;
                     const time = ISO_TIME.test(value);
@@ -330,7 +335,8 @@ export function DataTables() {
                         {c === 'Goal' ? <Link className="linkish" to={'/goals/' + (tab === 'goals' || tab === 'plan' ? r.cells[head.indexOf('ID')] : r.cells[head.indexOf('Goal ID')])}>{value}</Link>
                           : status ? <Chip k={status} label={value} className="dstatus" />
                             : time ? <time dateTime={value}>{when(value)}</time>
-                              : value}
+                              : na ? <span className="muted dna" title={na.why}>{na.text}</span>
+                                : value}
                       </td>
                     );
                   }
@@ -339,7 +345,7 @@ export function DataTables() {
                     <td key={c} style={sized(w)} className={'dcell' + kind + (changed != null ? ' edited' : '')} title={changed != null ? `Was: ${original || '(empty)'}` : undefined}>
                       {opts && (opts.includes(value) || value === '')
                         ? <select aria-label={label} value={value} onChange={(e) => edit(tab, r.key, c, e.target.value, original)}>{(opts.includes('') ? opts : ['', ...opts]).map((o) => <option key={o} value={o}>{o || '—'}</option>)}</select>
-                        : <input aria-label={label} value={value} title={c === NAME[tab] ? value : undefined} onChange={(e) => edit(tab, r.key, c, e.target.value, original)} />}
+                        : <input aria-label={label} value={value} placeholder={na?.text} title={c === NAME[tab] ? value : na?.why} onChange={(e) => edit(tab, r.key, c, e.target.value, original)} />}
                     </td>
                   );
                 })}
@@ -367,4 +373,24 @@ export function DataTables() {
       )}
     </div>
   );
+}
+
+/** Which kind of goal each goal column is for (the one format's own words: "Number goals: …", "Range goals: …"). */
+const COLUMN_FOR: Record<string, 'metric' | 'range' | 'number'> = {
+  Start: 'metric', Target: 'metric', Plan: 'metric', 'Plan from week': 'metric', 'Due week': 'metric',
+  Limit: 'range', 'Must stay': 'range', Margin: 'range', Unit: 'number', Decimals: 'number',
+};
+/** What a blank cell means when its column isn't for this kind of goal: a range goal's Target shows its limit. */
+function notFor(c: string, cell: (k: string) => string): { text: string; why: string } | null {
+  const want = COLUMN_FOR[c];
+  const type = cell('Type');
+  if (!want || !type) return null;
+  const applies = want === 'number' ? type !== 'milestone' : want === type;
+  if (applies) return null;
+  if (type === 'range' && c === 'Target' && cell('Limit')) {
+    const unit = cell('Unit');
+    return { text: `${cell('Must stay') || 'within'} ${cell('Limit')}${unit ? (unit === '%' ? '%' : ' ' + unit) : ''}`, why: 'A range goal has a limit to stay within, not a start and a target' };
+  }
+  const who = type === 'range' ? 'A range goal has a limit, not a start and a target' : type === 'milestone' ? 'A dated-stages goal has stages, not a number' : 'Only for range goals';
+  return { text: '–', why: who };
 }

@@ -8,6 +8,7 @@ import { CAUSES_AHEAD, CAUSES_BEHIND } from '../domain/checkin';
 import { RULES } from '../domain/thresholds';
 import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
+import { PROTOTYPE_LINE } from './about';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
 const define = (t: { label: string; long: string }) => `${t.label}: ${t.long}`;
@@ -156,11 +157,11 @@ const CORE_ARTICLES: Article[] = [
     summary: 'The demo is a full copy of the app with one example organisation, Platform Engineering (about 100 people), kept in your browser, that you can change and reset freely.',
     group: 'start',
     sections: [
-      { heading: 'What it’s for', text: ['Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.', 'The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.'] },
+      { heading: 'What it’s for', text: [PROTOTYPE_LINE, 'Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.', 'The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.'] },
       { heading: 'How to use it', list: [
         'Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.',
         'Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on.',
-        'Start over resets the example. You can also present without the controls, or leave.',
+        'Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.',
         'Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.',
         'Your changes are kept in this browser, on top of the example as it was built. If the browser won’t keep them (it’s full, or a private window blocks storage), a note at the top of the page says so: they last until you reload.',
       ] },
@@ -168,7 +169,7 @@ const CORE_ARTICLES: Article[] = [
     routes: ['/research'],
     screens: ['Research'],
     reqs: ['DEMO-MODE', 'WALKTHROUGHS', 'RESEARCH', 'DEMO-FEEDBACK', 'PERSIST', 'DEMO-STORAGE'],
-    keywords: ['example', 'try', 'walkthrough', 'tour', 'reset', 'start over', 'present', 'research', 'switch person'],
+    keywords: ['example', 'try', 'walkthrough', 'tour', 'reset', 'start over', 'present', 'research', 'switch person', 'prototype', 'model', 'product', 'price', 'buy'],
     related: ['home', 'set-up'],
   },
 
@@ -188,6 +189,7 @@ const CORE_ARTICLES: Article[] = [
         'At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.',
         'If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.',
         'Milestone goals ask where each stage stands: done, on schedule, or late with a new week.',
+        'What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.',
         `The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
       ] },
       { heading: 'Ad hoc check-ins and corrections', list: [
@@ -332,6 +334,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.',
         `A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
+        'On Goals, the Needs attention tab says what its count is made of: how many are off track, at risk or without a recent update, and how many are on track or done but flagged for something else (getting worse, a missed date, an ask waiting). The Board groups the same goals by status.',
         'Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.',
       ] },
     ],
@@ -391,7 +394,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Understanding one goal in a couple of seconds, then acting on it: checking in, answering what’s asked of you, commenting or watching. Each fact is said once, in one place.'] },
       { heading: 'The summary bar', list: [
         'First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.',
-        'Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go), and Will it hit the target.',
+        'Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.',
         'Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.',
         'A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages behind (slipping or late) and Next stage: when it now lands, and the week it was due if it’s late.',
         'One main button, for what you’d most likely do next: answer something asked of you, check in when it’s due, ask a quiet goal’s owner for an update, or watch it. The “…” menu has Share image, Copy link, Print or save as PDF, Change this goal, and Stop this goal (with check-ins, asking why) or Delete this goal (with none).',
@@ -507,7 +510,8 @@ const CORE_ARTICLES: Article[] = [
         'Pick the goals: every goal at a level, a goal and everything feeding it, or single goals. Then the people taking part.',
       ] },
       { heading: 'Running it', list: [
-        'Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first.',
+        'Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date says how many days past it is.',
+        'Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too).',
         'Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.',
         'The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.',
         'Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.',
@@ -575,6 +579,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.',
+        'Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.',
         'Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too.',
         'Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.',
         'Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the blank template; and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.',

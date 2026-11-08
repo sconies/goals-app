@@ -17,7 +17,7 @@ The cells at the top of a goal’s page: against plan, since last week, what’s
 |---|---|
 | `plan`, Vs plan | the latest number against the plan for its own week, rounded to the goal's decimals and said in the better direction: "9 hours behind plan", "3 pts ahead of plan", "On plan". No number: "No value yet". Sub: "plan 43.85%", plus "in week 4" when the latest check-in is older than this week |
 | `since`, Vs last week (Last change when stale) | the change from the check-in before with a number: "4 pts better" or "worse", "No change", or "First check-in". Sub: "was 40% in week 3" |
-| `target`, To target | what's left, "12 pts to go", or Target reached. Sub: "target 75%", plus "by week 40" when due before the cycle's end |
+| `target`, To target | what's left, "12 pts to go", or Target reached. When lower is better the amount is over the target and says so: "5 min over". Sub: "target 75%", plus "by week 40" when due before the cycle's end |
 | `hit`, Will it hit 75%? | the likelihood of reaching the target by its due week; "Can’t say" when stale; "Too early to say" with no projection. Sub: "likely 52% by cycle end" |
 
 **Tones.** `plan`: ahead `good`, behind `bad`, on plan or no number `flat`. `since`: better `good`, worse `bad`, otherwise `flat` (the check-in before is the latest earlier one, by week then posting, that has a number). `target`: reached `good`, else `flat`. `hit`: Likely `good`, Possible `flat`, Unlikely and Very unlikely `bad`, Can’t say and Too early `flat`. `limit`: outside `bad`, near `flat`, inside `good`. `room`: over `bad`, within the margin (room ≤ margin) `flat`, else `good`. `done`: at least as many done as are due `good`, else `flat`. `late`: any behind `bad`, none `good`. `next`: expected after its due week `bad`, else `flat`; All done `good`. The likelihood floor uses the goal's current plan; a margin of 0 counts as none.
@@ -28,6 +28,10 @@ The cells at the top of a goal’s page: against plan, since last week, what’s
 
 A stopped goal has no `hit` cell.
 
+**Short or over** (`shortWord(better)` in `src/domain/vocabulary.ts`, the one place the word is chosen): an amount on the wrong side of a plan or target is "short" when higher is better and "over" when lower is better: "1 pt short" of a 46% plan, "1 min over" a 6 min plan. The scorecard's `target` cell, the chart's mark at the due week ("5 over") and a quarter's result ("Q3: 7 min against a plan of 6 min, 1 min over") all use it.
+
+**A quarter's result** (`quarterResult` in `src/domain/year.ts`) compares the number with the plan at the quarter's end as both are shown, at the goal's decimals: 0.68 against a plan shown as 0.68 is met, never "0.00 short".
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
@@ -37,6 +41,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A target of 75, higher is better, projected 80 (range 78–82, d = −2.5); 76 (72–80, d = −0.25); 72 (70–74, d = 1.5); 60 (58–62, d = 7.5). | `likely, possible, unlikely, very-unlikely` |
 | A target of 18, lower is better, projected 19 (range 18–20): d = (18 − 19) × −1 / 1 = 1. | `possible` |
 | The 30→75 goal with 36, 39, 42, 45 in weeks 1–4, seen in week 4. | `plan: 1 pt ahead of plan [good] (plan 44%); since: 3 pts better [good] (was 42% in week 3); target: 30 pts to go [flat] (target 75%); hit: Very unlikely [bad] (likely 72% by cycle end)` |
+| Short or over: higher is better, then lower is better. | `short, over` |
+| A 60→30 goal (lower is better) with 50, 48, 46, 45 in weeks 1–4, seen in week 4: To target. | `15 pts over [flat] (target 30%)` |
 | The same, but stale. | `hit: Can’t say` |
 
 ## Not self-explanatory
@@ -47,6 +53,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - [src/domain/scorecard.ts](../../../src/domain/scorecard.ts): `likelihood`, `likelihoodFloor`, `goalScorecard`, `amount`, `byWeekWords`
 - [src/domain/summaryFacts.ts](../../../src/domain/summaryFacts.ts): `summaryFacts`
+- [src/domain/vocabulary.ts](../../../src/domain/vocabulary.ts): `shortWord`
+- [src/domain/year.ts](../../../src/domain/year.ts): `quarterResult`
 
 ## Requirements
 
@@ -72,6 +80,23 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the scorecard on the example › lead time for changes: behind plan and very unlikely to reach 24 hours
 - the scorecard on the example › dated stages: done, late, and the next one due
 - the scorecard on the example › every goal gets a card that never says a percentage chance
+
+### [src/domain/year.test.ts](../../../src/domain/year.test.ts)
+
+- the goal year › follows the calendar: week n is ISO week n, in four quarters of 13, and 2026 has 53 weeks
+- the goal year › is 52 or 53 weeks, like the ISO calendar, and a set-up in the last days of December is for next year
+- the goal year › can start in any month, as a financial year
+- the goal year › keeps a shorter cycle as one period
+- quarters read off the owner’s plan › a quarter’s target is the plan’s number at its end, and any week in between has one too
+- quarters read off the owner’s plan › says whether each ended quarter was met, and keeps the rest open
+- quarters read off the owner’s plan › a missed quarter is said plainly, and the story flags it
+- quarters read off the owner’s plan › says "over" when lower is better, and counts a number shown equal to its plan as met (demo review, 8 Nov)
+- quarters read off the owner’s plan › milestone quarters count the stages due in them
+- quarters read off the owner’s plan › offers the end of the year, or a quarter still to come, as a due date
+- quarters read off the owner’s plan › sets the example in the real year, up to today
+- quarters read off the owner’s plan › keeps closed quarters judged against the plan of their day when the target changes again (research round 1)
+- quarters read off the owner’s plan › counts a template’s stage weeks from now, within the year (research round 1)
+- quarters read off the owner’s plan › keeps the latest number judged against the plan of its own week after a later re-plan (research round 2)
 
 ### [evals/goalPage.eval.ts](../../../evals/goalPage.eval.ts)
 

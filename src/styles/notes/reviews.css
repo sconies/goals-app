@@ -14,6 +14,8 @@
 .rv-fact { white-space: nowrap; }
 .rv-fact-k { color: var(--muted); }
 .rv-fact-v { color: var(--fg); font-weight: 550; font-variant-numeric: tabular-nums; }
+.rv-past { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; color: var(--risk-fg); font-weight: 550; }
+.rv-past svg { width: 13px; height: 13px; flex: none; }
 .rv-people { font-size: var(--t-sm); line-height: 1.25rem; min-width: 0; overflow-wrap: anywhere; }
 .rv-names { color: var(--fg); }
 @media (hover: hover) { .reviews-list a.rv-line:hover .rv-name { text-decoration: underline; text-underline-offset: 2px; } }

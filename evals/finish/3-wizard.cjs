@@ -273,6 +273,19 @@ module.exports = {
       await noSideScroll(p, 'goal page details at 360', f);
       await c.close();
     }
+
+    // Demo review, 8 Nov, item 11: a new goal feeds nothing until you choose, and the check step says so, with the
+    // team named as a team (it read "CI/CD · Rhea Kapoor" beside Where it fits).
+    {
+      const [c, p] = await open(1280, 900, 'rhea', '/goals/new');
+      await toNumbers(p); await cont(p);
+      const feeds = await p.getByLabel('Feeds into').inputValue().catch(() => null);
+      if (feeds !== '') f(`new goal: Feeds into starts as “${feeds}”, not empty`);
+      await cont(p);
+      const fits = (await p.locator('.review-rows li', { hasText: 'Where it fits' }).innerText().catch(() => '')).replace(/\s+/g, ' ');
+      if (!/Feeds nothing · CI\/CD team · Rhea Kapoor/.test(fits)) f(`new goal: Where it fits reads “${fits}”`);
+      await c.close();
+    }
     return fails;
   },
 };

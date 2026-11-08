@@ -127,7 +127,8 @@ module.exports = {
         const want = [
           [/^vs plan$/i, /^\d+ hours? (behind plan|ahead of plan)$|^On plan$/, /^plan \d+ hours$/],
           [/^vs last week$/i, /^(No change|\d+ hours? (better|worse))$/, /^was \d+ hours? in week \d+$/],
-          [/^to target$/i, /^(\d+ hours? to go|Reached)$/, /^target 24 hours$/],
+          // Lead time: lower is better, so what's left is how far over the target it is (demo review, 8 Nov, item 3).
+          [/^to target$/i, /^(\d+ hours? over|Reached)$/, /^target 24 hours$/],
           [/^will it hit 24\?$/i, /^(Likely|Possible|Unlikely|Very unlikely)$/, /^likely \d+ hours? by year end$/],
         ];
         chk(bar.cells.length === 4 && want.every(([l, v, sub], i) => bar.cells[i] && l.test(bar.cells[i].label) && v.test(bar.cells[i].value) && sub.test(bar.cells[i].sub)), `${at1}: scorecard ${JSON.stringify(bar.cells)}`);
@@ -137,7 +138,7 @@ module.exports = {
         chk(!bar.oldFacts.length && !/Against plan|Likely end\s+about|could be|Target \d/.test(bar.under), `${at1}: the old rows under the chart (${bar.oldFacts.join(', ')}) “${bar.under}”`);
         chk(/^Likely end projected from the last eight weeks, not the owner’s date\.$/.test(bar.under), `${at1}: the footnote under the chart “${bar.under}”`);
         // The chart marks the scorecard's numbers: the gap to plan at now, the likely end, and what's left to the target.
-        chk(bar.band && /\d+ hours? (behind plan|ahead of plan)|On plan/.test(bar.marks.plan) && /likely \d+/.test(bar.marks.likely) && /(\d+ short|on course)/.test(bar.marks.target), `${at1}: chart marks ${JSON.stringify(bar.marks)}`);
+        chk(bar.band && /\d+ hours? (behind plan|ahead of plan)|On plan/.test(bar.marks.plan) && /likely \d+/.test(bar.marks.likely) && /(\d+ over|on course)/.test(bar.marks.target) && !/short/.test(bar.marks.target), `${at1}: chart marks ${JSON.stringify(bar.marks)}`);
         // The reason is not in the bar: it opens Why, the section right under the chart. The feeds head What feeds it.
         chk(!/Lead time is well above plan/.test(bar.barText) && /why-block/.test(bar.whyNext || '') && /^Lead time is well above plan/.test(bar.whyFirst), `${at1}: the reason is in the bar or does not open Why (next ${bar.whyNext}, “${bar.whyFirst.slice(0, 40)}”)`);
         chk(/^Fed by four goals: .*2 off track/.test(bar.feeds) && !/Fed by/.test(bar.barText), `${at1}: What feeds it opens with “${bar.feeds}”`);

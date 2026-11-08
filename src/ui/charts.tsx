@@ -472,7 +472,7 @@ export function StageSpark({ a, width = 96 }: { a: MilestoneAssessment; width?: 
 export const quarterWords = (text: string, short = false) => {
   let t = text.replace(/^Q\d: /, '');
   // Short, for a table cell or paper: the number and its plan or limit; Met or Missed beside it says how it came out.
-  if (short) t = t.replace(/ against a plan of /, ' · plan ').replace(/, [\d.,]+ [^,]* short$/, '').replace(/ at the end, (?:inside|outside) the (.+) limit$/, ' · limit $1');
+  if (short) t = t.replace(/ against a plan of /, ' · plan ').replace(/, [\d.,]+ [^,]* (?:short|over)$/, '').replace(/ at the end, (?:inside|outside) the (.+) limit$/, ' · limit $1');
   return t.replace(/(\d) (?=[A-Za-z%])/g, '$1 ').replace(/\b(plan|of) (?=[\d-])/g, '$1 ');
 };
 

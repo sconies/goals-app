@@ -21708,6 +21708,14 @@ function stagesBehind(kinds) {
 	if (!late) return `${noun} ${lower(STAGE.risk)}`;
 	return `${noun}: ${late} ${lower(STAGE.off)}, ${slipping} ${lower(STAGE.risk)}`;
 }
+/**
+* The word for an amount on the wrong side of a plan or target (demo review, 8 Nov): "short" when higher is better,
+* "over" when lower is better. "1 pt short" of a 46% plan; "1 min over" a 6 min plan, never "1 min short". `better` is
+* the goal's better direction: +1 when higher is better, −1 when lower is.
+*/
+function shortWord(better) {
+	return better < 0 ? "over" : "short";
+}
 /** "9 hours behind plan", "3 pts ahead of plan", "On plan": `better` is the difference in the better direction, `amount` it said in the goal's units. */
 function gapPhrase(better, amount) {
 	return better === 0 ? GAP["on-plan"].label : `${amount} ${better > 0 ? GAP.ahead.label : GAP.behind.label}`;
@@ -21921,7 +21929,7 @@ var init_vocabulary = __esmMin((() => {
 			label: "Last quarter not met",
 			short: "behind its quarter plan",
 			meaning: "It didn’t meet the plan for the quarter that has just ended.",
-			long: "In a goal year: at the end of the last quarter it was short of where its own plan said it would be.",
+			long: "In a goal year: at the end of the last quarter it was worse than its own plan said it would be (short of it, or over it when lower is better), compared at the goal’s decimals.",
 			rule: "year#quarterResults"
 		})
 	};
@@ -21964,15 +21972,15 @@ var init_vocabulary = __esmMin((() => {
 			label: "Met",
 			short: "at its plan",
 			meaning: "At the quarter’s end it was where its plan said, or better.",
-			long: "A quarter’s target is the plan’s number at its end (or the stages due by then, or staying in range). Met: it was there or better.",
+			long: "A quarter’s target is the plan’s number at its end (or the stages due by then, or staying in range). Met: it was there or better, compared at the goal’s decimals, so a number shown equal to its plan is met.",
 			rule: "year#quarterResults",
 			same: "result.completed"
 		}),
 		missed: term("missed", {
 			label: "Not met",
-			short: "short of its plan",
-			meaning: "At the quarter’s end it was short of its plan.",
-			long: "At the quarter’s end it was short of where its plan said it would be, or had no number to show.",
+			short: "worse than its plan",
+			meaning: "At the quarter’s end it was worse than its plan: short of it, or over it when lower is better.",
+			long: "At the quarter’s end it was worse than where its plan said it would be, compared at the goal’s decimals (equal is met), or had no number to show.",
 			rule: "year#quarterResults",
 			same: "result.missed",
 			retired: ["Missed its plan", "Missed last quarter"]
@@ -24270,10 +24278,10 @@ function quarterResult(g, c, checkIns, q, week) {
 		if (!ended) return r("open", `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(p.plan, c.weeks))}`);
 		const v = last?.value;
 		if (v == null) return r("missed", `no number reported against a plan of ${fmt(t, g)}`);
-		const up = p.plan.target >= p.plan.start;
-		const diff = Number((v - t).toFixed(g.decimals));
-		const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
-		return r(met ? "met" : "missed", `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? "" : `, ${fmtDiff(diff, g)} short`}`);
+		const better = p.plan.target >= p.plan.start ? 1 : -1;
+		const diff = Number(((Number(v.toFixed(g.decimals)) - Number(t.toFixed(g.decimals))) * better).toFixed(g.decimals));
+		const met = diff >= 0;
+		return r(met ? "met" : "missed", `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? "" : `, ${fmtDiff(diff, g)} ${shortWord(better)}`}`);
 	}
 	if (g.kind === "milestone") {
 		const due = g.stages.filter((s) => s.dueWeek >= q.from && s.dueWeek <= q.to);
@@ -24316,6 +24324,7 @@ var init_year = __esmMin((() => {
 	init_goal();
 	init_plan();
 	init_status();
+	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
 	DAY$1 = 864e5;
 	MONTHS = [
@@ -26853,7 +26862,8 @@ function headingSentence(goal, p, misses, when, share = false) {
 	const span = Math.abs(goal.plan.target - goal.plan.start) || Math.abs(goal.plan.target) || 1;
 	const off = Math.abs(p.likely - goal.plan.target) / span;
 	const close = off < .05 ? "just " : off > .25 ? "well " : "";
-	return `On its recent trend it ends at about ${likely} ${when}${range}, ${misses ? `${close === "well " ? "well short of" : close === "just " ? "just missing" : "missing"} its target of ${target}` : `${close === "well " ? "comfortably beating" : "reaching"} its target of ${target}`}. Projected by the app from the last eight weeks, not the owner’s date.`;
+	const wellMiss = `well ${shortWord(goal.plan.target >= goal.plan.start ? 1 : -1)} of`.replace("over of", "over");
+	return `On its recent trend it ends at about ${likely} ${when}${range}, ${misses ? `${close === "well " ? wellMiss : close === "just " ? "just missing" : "missing"} its target of ${target}` : `${close === "well " ? "comfortably beating" : "reaching"} its target of ${target}`}. Projected by the app from the last eight weeks, not the owner’s date.`;
 }
 var CURRENCY, SYMBOL;
 var init_chartStory = __esmMin((() => {
@@ -29455,7 +29465,7 @@ function matches(s, q, ctx, tree) {
 		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
 		if (s.dueWeek > by) return false;
 	}
-	if (q.quiet != null && s.quietDays < q.quiet * 7) return false;
+	if (q.quiet != null && (s.status === "done" || s.quietDays < q.quiet * 7)) return false;
 	if (q.quarter) {
 		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
 	}
@@ -30789,7 +30799,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 		cells.push({
 			key: "target",
 			label: "To target",
-			value: left <= 0 ? GAP.reached.label : `${amount(left, goal)} to go`,
+			value: left <= 0 ? GAP.reached.label : `${amount(left, goal)} ${better < 0 ? shortWord(better) : "to go"}`,
 			sub: `target ${fmt(target, goal)}${by}`,
 			tone: left <= 0 ? "good" : "flat"
 		});
@@ -30828,7 +30838,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 			likely: p.value,
 			target,
 			likelyText: `likely ${bareValue(p.value, goal)}`,
-			gapText: short > 0 ? `${bare(short, goal)} short` : "on course",
+			gapText: short > 0 ? `${bare(short, goal)} ${shortWord(better)}` : "on course",
 			tone: short > 0 ? "bad" : "good"
 		};
 	}
@@ -31330,6 +31340,8 @@ var help_default = [{
 		]
 	}]
 }];
+// src/help/about.ts
+var PROTOTYPE_LINE = "Faro is a prototype: a working model of a goals app, built to be copied and rebuilt inside a company. It isn’t a product, and nothing here is for sale.";
 // src/help/guide.ts
 init_checkin();
 init_thresholds();
@@ -31588,13 +31600,17 @@ var CORE_ARTICLES = [
 		group: "start",
 		sections: [{
 			heading: "What it’s for",
-			text: ["Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.", "The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin."]
+			text: [
+				PROTOTYPE_LINE,
+				"Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.",
+				"The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin."
+			]
 		}, {
 			heading: "How to use it",
 			list: [
 				"Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.",
 				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on.",
-				"Start over resets the example. You can also present without the controls, or leave.",
+				"Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.",
 				"Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.",
 				"Your changes are kept in this browser, on top of the example as it was built. If the browser won’t keep them (it’s full, or a private window blocks storage), a note at the top of the page says so: they last until you reload."
 			]
@@ -31618,7 +31634,12 @@ var CORE_ARTICLES = [
 			"start over",
 			"present",
 			"research",
-			"switch person"
+			"switch person",
+			"prototype",
+			"model",
+			"product",
+			"price",
+			"buy"
 		],
 		related: ["home", "set-up"]
 	},
@@ -31642,6 +31663,7 @@ var CORE_ARTICLES = [
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
 					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
+					"What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.",
 					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`
 				]
 			},
@@ -31991,6 +32013,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.",
 					`A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
+					"On Goals, the Needs attention tab says what its count is made of: how many are off track, at risk or without a recent update, and how many are on track or done but flagged for something else (getting worse, a missed date, an ask waiting). The Board groups the same goals by status.",
 					"Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”."
 				]
 			}
@@ -32109,7 +32132,7 @@ var CORE_ARTICLES = [
 				heading: "The summary bar",
 				list: [
 					"First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.",
-					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go), and Will it hit the target.",
+					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.",
 					"Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.",
 					"A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages behind (slipping or late) and Next stage: when it now lands, and the week it was due if it’s late.",
 					"One main button, for what you’d most likely do next: answer something asked of you, check in when it’s due, ask a quiet goal’s owner for an update, or watch it. The “…” menu has Share image, Copy link, Print or save as PDF, Change this goal, and Stop this goal (with check-ins, asking why) or Delete this goal (with none).",
@@ -32339,7 +32362,8 @@ var CORE_ARTICLES = [
 			{
 				heading: "Running it",
 				list: [
-					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first.",
+					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date says how many days past it is.",
+					"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too).",
 					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.",
 					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
 					"Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session."
@@ -32477,6 +32501,7 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.",
+					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
 					"Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the blank template; and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
@@ -33210,6 +33235,28 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "demo-polish",
+		date: "2026-11-08",
+		title: "Clearer words and a cleaner Start over",
+		points: [
+			"Start over in the demo now clears everything it kept: unposted drafts, what you’ve marked as seen, a walkthrough you were in, and moved map cards and layouts.",
+			"A check-in draft has Back at every step and a Discard draft link.",
+			"Where lower is better, a gap says “over”, not “short”, and a number shown equal to its plan counts as met.",
+			"Goals says what Needs attention counts; reviews past their date say so; walking a review counts the whole review.",
+			"Data lists goals in key order and says why a cell doesn’t apply. The demo’s reasons read less alike, and the Demo panel says plainly that Faro is a prototype.",
+			"The map says it’s drawing while it loads, and a goal’s number counts up from last week’s, never through numbers it didn’t have."
+		],
+		articles: [
+			"demo",
+			"check-in",
+			"goal-page",
+			"needs-attention",
+			"reviews",
+			"data",
+			"goal-map"
+		]
+	},
 	{
 		id: "describe-system",
 		date: "2026-11-08",

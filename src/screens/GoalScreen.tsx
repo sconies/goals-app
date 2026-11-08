@@ -227,7 +227,7 @@ function GoalView({ goal }: { goal: Goal }) {
       <ReviewBar goalId={goal.id} />
       <GoalBack />
       <GoalBar goal={goal} status={status} figures={figures} card={card} actions={actions} askedLine={askedLine}
-        statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own[0]?.value ?? null : null} />
+        statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own.filter((c) => c.value != null).at(-2)?.value ?? null : null} />
 
       {published && (
         <section className="first-checkin" aria-label="First check-in">
@@ -813,7 +813,7 @@ function StreamRow({ goal, x }: { goal: Goal; x: StreamItem }) {
     <li className="stream-group">
       <button type="button" className="group-row" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className="strong">Weeks {x.from}–{x.to}</span>
-        <span className="small group-why">{x.sameAs != null ? <span className="muted">The same reason as week {x.sameAs}</span> : x.why}</span>
+        <span className="small group-why">{x.sameAs != null ? <span className="muted">The same reason as week {x.sameAs}, above</span> : x.why}</span>
         <Icon name={open ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" />
       </button>
       {open && <ol className="cilist ci-open">{x.checkIns.map((c) => <CheckInRow key={c.id} goal={goal} c={c} quiet />)}</ol>}
@@ -868,7 +868,7 @@ function CheckInRow({ goal, c, quiet, sameAs }: { goal: Goal; c: CheckIn; quiet?
         <span className="strong ci-week"><span className="nowrap">Week {c.week}</span></span>
         <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
         <Chip k={c.status} />
-        <span className="ci-tail">{quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">The same reason as week {sameAs}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
+        <span className="ci-tail">{quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">The same reason as week {sameAs}, above</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
       {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
     </li>

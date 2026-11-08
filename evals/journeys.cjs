@@ -570,6 +570,8 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
   await h.checkpoint('demo home');
   await h.inView(p.locator('.demo-entry:visible').first(), 'entry', 'the demo controls');
   const panel = await demoPanel(p, h);
+  // Demo review, 8 Nov, item 13: the panel says plainly what Faro is.
+  if (!/Faro is a prototype/.test(await panel.innerText()) || !/nothing here is for sale/.test(await panel.innerText())) fail('the Demo panel doesn’t say Faro is a prototype with nothing for sale');
   // People are offered by what they do, with the name second.
   h.set('attention', await panel.getByRole('button', { name: /^Leader/ }).first().isVisible() && await panel.getByRole('button', { name: /^Goal owner/ }).first().isVisible(), 'the demo panel does not lead with roles');
   await h.click(panel.getByRole('button', { name: /Amara/ }).first());
@@ -581,6 +583,23 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
   await h.click(p.getByRole('button', { name: 'Reset the example' }));
   await h.click(p.getByRole('button', { name: 'Yes, reset it' }));
   await see(p, 'The example is back to its starting point');
+  // Start over in the Demo panel clears what the demo keeps besides its saves (demo review, 8 Nov, item 1): a half-typed
+  // check-in, What's new marked as read, a walkthrough in progress. The person you're viewing as stays.
+  await p.evaluate(() => {
+    localStorage.setItem('goals-app-draft:platform-org:checkin:any:45', '{"value":"7"}');
+    localStorage.setItem('goals-app-draft:platform-org:checkin:any:45:step', 'account');
+    localStorage.setItem('goals-whats-new-seen', 'anything');
+    sessionStorage.setItem('goals-tour', '{"id":"checkin","step":1}');
+  });
+  // Not counted against the journey's budget: this is a second way to do the same thing.
+  const again = await demoPanel(p);
+  await again.getByRole('button', { name: /^Start over/ }).click();
+  await again.getByRole('button', { name: 'Yes, start over' }).click();
+  await see(p, 'The example is back to its starting point');
+  const left = await p.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage).map((k) => 'session:' + k)]);
+  const stale = left.filter((k) => /goals-app-draft:|goals-whats-new-seen|session:goals-tour/.test(k));
+  if (stale.length) fail('Start over left behind: ' + stale.join(', '));
+  if (!left.includes('goals-app-viewer:platform-org')) fail('Start over forgot who you are viewing as');
   h.set('finish', true);
   await p.context().close();
 }, ['errors', 'logged']);
@@ -1512,11 +1531,12 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   const weekCol = (await p.locator('.dtable thead th').allInnerTexts()).findIndex((t) => /^Week/.test(t.trim()));
   const weeks = await p.locator('.dtable tbody tr').evaluateAll((trs, i) => trs.map((tr) => tr.querySelectorAll('td')[i]?.textContent ?? ''), weekCol);
   h.set('progress', weeks.length > 0 && weeks.every((w, i) => Number(w) >= 38 && (i === 0 || Number(w) >= Number(weeks[i - 1]))) && /f=Goal/.test(p.url()) && /s=Week/.test(p.url()), `filtered and sorted weeks: ${weeks.join(', ')}`);
-  await h.fill(p.getByPlaceholder('Search check-ins'), 'moved over');
+  // A note the demo's generator gives this goal in weeks 41 and 44 (demo text varied in the 8 Nov review).
+  await h.fill(p.getByPlaceholder('Search check-ins'), 'No surprises');
   const why = p.getByLabel(/^Why, Pull requests with AI-assisted review, week/).first();
   await why.waitFor();
   const was = await why.inputValue();
-  await h.fill(why, was.replace('Another team', 'Two teams'));
+  await h.fill(why, was.replace('No surprises', 'Nothing unexpected'));
   await see(p, '2 changes in 2 rows, not saved yet', 'the tables do not say what is waiting to be saved');
   h.set('attention', (await p.locator('.dcell.edited').count()) === 1 && (await why.getAttribute('aria-label')) !== null, 'a changed cell is not marked as changed');
   await h.checkpoint('edited');
@@ -1540,6 +1560,9 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await p.waitForURL(/kind=checkins/, { timeout: 3000 }).catch(() => {});
   await h.click(p.getByRole('button', { name: /^Filters/ }));
   await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByLabel('Only my changes'));
+  // Demo review, 8 Nov, item 12: no filter is offered greyed out with no reason.
+  const greyed = await p.getByRole('dialog', { name: 'Filter activity' }).evaluate((d) => [...d.querySelectorAll('input:disabled, select:disabled, button:disabled')].filter((e) => !e.closest('label, .field')?.querySelector('.hint') && !e.getAttribute('title')).map((e) => e.closest('label')?.textContent.trim() || e.outerHTML.slice(0, 60)));
+  if (greyed.length) fail('Activity filters offered greyed out with no reason: ' + greyed.join(', '));
   await h.click(p.getByRole('button', { name: 'Show the changes' }));
   await p.waitForURL(/who=grace/, { timeout: 3000 }).catch(() => {});
   h.set('finish', /kind=checkins/.test(p.url()) && /who=grace/.test(p.url()), 'the activity filters are not in the link');
@@ -2491,6 +2514,22 @@ journey('U27', ['WALKTHROUGHS', 'DEMO-MODE'], 'Take a walkthrough: the coach poi
   await h.click(coach.getByRole('button', { name: 'Finish' }));
   h.set('finish', (await p.locator('.coach').count()) === 0, 'the coach did not close');
   h.set('attention', true);
+  // Demo review, 8 Nov, item 4: with a check-in left as a draft, Home's button says "Pick up where you left off". The
+  // walkthrough still points at it, and never says Rhea is all set while Home says a check-in is to do.
+  await p.goto(url('/'));
+  const start = p.locator('.hero a.btn.primary[href$="/check-in"]');
+  if (await start.isVisible().catch(() => false)) {
+    await start.click();
+    await p.getByLabel('This week’s value').fill('1');
+    await p.goto(url('/'));
+    await see(p, 'Pick up where you left off', 'a half-typed check-in is not offered back on Home');
+    const again = await demoPanel(p);
+    await again.getByRole('button', { name: /Post your weekly check-in/ }).click();
+    await coach.waitFor();
+    await p.waitForTimeout(800);
+    if (/all set/.test(await coach.innerText())) fail('with a check-in draft, the walkthrough says Rhea is all set while Home has one to do');
+    if (!(await p.locator('.coach-ring').isVisible().catch(() => false))) fail('with a check-in draft, the walkthrough points at nothing');
+  }
   await p.context().close();
 }, ['errors', 'logged']);
 

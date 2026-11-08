@@ -8,11 +8,11 @@ import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
-import { answerOf, dayText, goalsIn, isHealthy, lastHeld, nextSessionWeek, openActions, reviewSession, sessionDate, sessionState, sessionStateText, type ReviewSession, type SessionState } from '../domain/review';
+import { answerOf, dayText, daysPast, goalsIn, isHealthy, lastHeld, nextSessionWeek, openActions, pastText, reviewSession, sessionDate, sessionState, sessionStateText, type ReviewSession, type SessionState } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
 import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
-import { Avatar, Chip, Empty, ProgressRing } from '../ui/bits';
+import { Avatar, Chip, Empty, ProgressRing, WarnMark } from '../ui/bits';
 import { saveReviewOrder } from './Inspect';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
@@ -77,6 +77,7 @@ function ReviewLine({ s }: { s: ReviewSession }) {
   const last = lastHeld(s.review, app.snapshot, s.week);
   const actions = openActions(s.review, app.snapshot).length;
   const people = s.review.people.map((id) => app.person(id)).filter((p) => !!p);
+  const past = daysPast(s, app.today);
   const facts: [string, string][] = st.kind === 'held'
     ? [['Next', dayText(sessionDate(s.review, app.cycle, nextSessionWeek(s.review, s.week)))], ['Open actions', String(actions)]]
     : [['Session', dayText(s.date)], ['Last held', last ? dayText(last.on) : 'Not yet'], ['Open actions', String(actions)]];
@@ -84,7 +85,7 @@ function ReviewLine({ s }: { s: ReviewSession }) {
     <Link className="arow rv-line" to={`/reviews/${s.review.id}`}>
       <SessionStateWord st={st} />
       <span className="rv-name">{s.review.name}</span>
-      <span className="rv-facts">{facts.map(([k, v]) => <span key={k} className="rv-fact"><span className="rv-fact-k">{k}</span> <span className="rv-fact-v">{v}</span></span>)}</span>
+      <span className="rv-facts">{facts.map(([k, v]) => <span key={k} className="rv-fact"><span className="rv-fact-k">{k}</span> <span className="rv-fact-v">{v}</span>{k === 'Session' && past > 0 && <span className="rv-past"><WarnMark />{pastText(past)}</span>}</span>)}</span>
       <span className="rv-people"><span className="rv-fact-k">People</span> <span className="rv-names">{people.map((p) => firstName(p.name)).join(', ')}</span></span>
     </Link>
   );
@@ -199,8 +200,8 @@ export function ReviewHome() {
   const line = done
     ? `${sessionStateText(st)} · next ${dayText(sessionDate(review, app.cycle, nextSessionWeek(review, s.week)))}`
     : st.kind === 'in-progress'
-      ? `${dayText(s.date)} · ${s.done} of ${s.total} reviewed`
-      : [dayText(s.date), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} with nothing flagged` : ''].filter(Boolean).join(' · ');
+      ? `${dayText(s.date)}${daysPast(s, app.today) ? ` (${pastText(daysPast(s, app.today))})` : ''} · ${s.done} of ${s.total} reviewed`
+      : [dayText(s.date) + (daysPast(s, app.today) ? ` (${pastText(daysPast(s, app.today))})` : ''), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} with nothing flagged` : ''].filter(Boolean).join(' · ');
 
   return (
     <div className="page narrow review-home" data-part="Review">

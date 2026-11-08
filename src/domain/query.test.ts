@@ -26,6 +26,14 @@ describe('searching, filtering and sorting goals', () => {
     expect(run({ q: 'MergeFlow' })).toContain(id('Merge queue live for every monorepo'));
     expect(run({ q: 'nothing like this' })).toEqual([]);
   });
+  it('counts no done goal as quiet, and the pinned view uses the no-recent-update threshold (demo review, 8 Nov)', () => {
+    const quiet = applyQuery(sums, { ...EMPTY_QUERY, quiet: 2 }, ctx);
+    expect(quiet.length).toBeGreaterThan(0);
+    expect(quiet.filter((x) => x.status === 'done')).toEqual([]);
+    expect(sums.some((x) => x.status === 'done' && x.quietDays >= 14)).toBe(true);
+    const views = s.views ?? [];
+    expect(views.filter((v) => /quiet=/.test(v.params)).map((v) => v.params)).toEqual(['quiet=2&sort=last']);
+  });
   it('filters by status, level, team, owner and type', () => {
     expect(run({ status: ['stale'] }).sort()).toEqual([id('Object storage on the right lifecycle tier'), id('Portal searches that find the right page first time')].sort());
     expect(run({ status: ['off'], level: ['svp'] })).toEqual(expect.arrayContaining([id('Pipeline queue wait (p90)'), id('Container images rebuilt within 7 days of a base image fix')]));

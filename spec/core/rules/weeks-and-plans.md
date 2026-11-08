@@ -73,6 +73,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - quarters read off the owner’s plan › a quarter’s target is the plan’s number at its end, and any week in between has one too
 - quarters read off the owner’s plan › says whether each ended quarter was met, and keeps the rest open
 - quarters read off the owner’s plan › a missed quarter is said plainly, and the story flags it
+- quarters read off the owner’s plan › says "over" when lower is better, and counts a number shown equal to its plan as met (demo review, 8 Nov)
 - quarters read off the owner’s plan › milestone quarters count the stages due in them
 - quarters read off the owner’s plan › offers the end of the year, or a quarter still to come, as a due date
 - quarters read off the owner’s plan › sets the example in the real year, up to today

@@ -8,6 +8,7 @@ import { TOURS, writeTour } from '../app/tours';
 import { isExample } from '../data/examples';
 import type { Person } from '../domain/types';
 import { Avatar, Sheet } from './bits';
+import { PROTOTYPE_LINE } from '../help/about';
 
 /** What someone does, by role: the thing to pick in a demo, with the name second. */
 export function personaOf(p: Person, app: ReturnType<typeof useApp>): { role: string; does: string } {
@@ -86,6 +87,8 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
   return (
     <Sheet open onClose={onClose} title={title} wide>
       {children}
+      {/* Said plainly, once (demo review, 8 Nov, item 13). The same words are in Help, under The demo. */}
+      <p className="hint demo-what">{PROTOTYPE_LINE}</p>
       {/* People and walkthroughs side by side on a desktop; everything else below, in one row of short sections. */}
       <div className="demo-grid">
         <section className="stack demo-people" style={{ gap: 4 }} aria-label="See it as">
@@ -126,8 +129,8 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
           <section className="stack" style={{ gap: 4 }} aria-label="Example data">
             <span className="field-label">Example data</span>
             {resetting
-              ? <span className="stack demo-confirm" style={{ gap: 'var(--s2)' }}><span className="small">Undo every change in this example?</span><span className="row" style={{ gap: 'var(--s2)' }}><button type="button" className="btn sm" onClick={async () => { await app.resetExample(); setResetting(false); onClose(); nav('/'); }}>Yes, start over</button><button type="button" className="btn ghost sm" onClick={() => setResetting(false)}>Cancel</button></span></span>
-              : <button type="button" className="menuitem" onClick={() => setResetting(true)}><span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Start over</span><span className="tiny muted">Undo every change in {app.ws.name.replace(/^Example: /, '')}</span></span></button>}
+              ? <span className="stack demo-confirm" style={{ gap: 'var(--s2)' }}><span className="small">Undo every change in this example, and clear its drafts and what you’ve seen here?</span><span className="row" style={{ gap: 'var(--s2)' }}><button type="button" className="btn sm" onClick={async () => { await app.resetExample(); setResetting(false); onClose(); nav('/'); }}>Yes, start over</button><button type="button" className="btn ghost sm" onClick={() => setResetting(false)}>Cancel</button></span></span>
+              : <button type="button" className="menuitem" onClick={() => setResetting(true)}><span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Start over</span><span className="tiny muted">Undo every change in {app.ws.name.replace(/^Example: /, '')}, drafts included</span></span></button>}
           </section>
         )}
         <section className="stack" style={{ gap: 4 }} aria-label="Options">

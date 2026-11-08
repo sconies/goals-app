@@ -106,8 +106,10 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 
 /** A ring that fills as work gets done. The number in the middle is what's left. */
 export function ProgressRing({ done, total, size = 56, label }: { done: number; total: number; size?: number; label?: string }) {
-  // The arc draws in from empty (CSS) while the count runs up to it; both move on when another goal is done.
-  const shown = Math.round(useCountUp(done, { from: 0 }));
+  // The arc draws in from empty (CSS); the count starts at its value and counts on from there when
+  // another goal is done. It never passes through numbers that weren't true (3/7, 5/7 on the way to 6/7: demo review,
+  // 8 Nov, item 16), so a screenshot or a check reads the real count at any moment.
+  const shown = Math.round(useCountUp(done));
   const r = (size - 8) / 2, c = 2 * Math.PI * r, frac = total ? done / total : 1;
   const complete = total > 0 && done >= total;
   return (

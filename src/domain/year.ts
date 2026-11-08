@@ -7,6 +7,7 @@ import { fmt, fmtDiff } from './format';
 import { goalAsOf } from './goal';
 import { planAt, planEnd } from './plan';
 import { checkInsFor } from './status';
+import { shortWord } from './vocabulary';
 import type { CheckIn, Cycle, Goal } from './types';
 
 export const isYear = (c: Cycle) => c.weeks >= 48;
@@ -78,10 +79,11 @@ export function quarterResult(g: Goal, c: Cycle, checkIns: CheckIn[], q: Quarter
     if (!ended) return r('open', `plan ${fmt(t, g)} by week ${Math.min(q.to, planEnd(p.plan, c.weeks))}`);
     const v = last?.value;
     if (v == null) return r('missed', `no number reported against a plan of ${fmt(t, g)}`);
-    const up = p.plan.target >= p.plan.start;
-    const diff = Number((v - t).toFixed(g.decimals));
-    const met = up ? v >= t - 1e-9 : v <= t + 1e-9;
-    return r(met ? 'met' : 'missed', `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? '' : `, ${fmtDiff(diff, g)} short`}`);
+    const better = p.plan.target >= p.plan.start ? 1 : -1;
+    // Compared as shown, at the goal's decimals: 0.68 against a plan shown as 0.68 is met (demo review, 8 Nov).
+    const diff = Number(((Number(v.toFixed(g.decimals)) - Number(t.toFixed(g.decimals))) * better).toFixed(g.decimals));
+    const met = diff >= 0;
+    return r(met ? 'met' : 'missed', `${fmt(v, g)} against a plan of ${fmt(t, g)}${met ? '' : `, ${fmtDiff(diff, g)} ${shortWord(better)}`}`);
   }
   if (g.kind === 'milestone') {
     const due = g.stages.filter((s) => s.dueWeek >= q.from && s.dueWeek <= q.to);
