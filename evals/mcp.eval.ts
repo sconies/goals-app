@@ -8,6 +8,14 @@ import type { ApiToken, Ask, Snapshot } from '../src/domain/types';
 import { hashToken, newToken } from '../src/mcp/protocol';
 import { ACTIONS } from '../src/mcp/parity';
 import { TOOLS } from '../src/mcp/tools';
+import { MODULES } from '../src/core/registry';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** The AI tools of feature modules left out of this build (FARO_WITHOUT=<id>): an action the parity map gives one of
+    them has its tool when the module is there, and none without it, like the module's screens. */
+const MODS = join(__dirname, '../src/modules');
+const LEFT_OUT = new Set(readdirSync(MODS).filter((d) => !MODULES.some((m) => m.id === d)).flatMap((d) => { try { return (JSON.parse(readFileSync(join(MODS, d, 'module.json'), 'utf8')) as { aiTools: string[] }).aiTools; } catch { return []; } }));
 
 const R = (text: string) => `[MCP-PARITY] ${text}`;
 const TODAY = new Date('2026-11-05T12:00:00Z'); // Thursday of week 45 of 53
@@ -43,7 +51,7 @@ describe('AI assistants can do what the person can', () => {
   it(R('every action in the app has a tool, and every tool the app’s parity map names exists'), () => {
     const names = new Set(TOOLS.map((t) => t.name));
     for (const [action, e] of Object.entries(ACTIONS)) {
-      if (Array.isArray(e)) for (const tool of e) expect(names.has(tool), `${action} → ${tool}`).toBe(true);
+      if (Array.isArray(e)) for (const tool of e) expect(names.has(tool) || LEFT_OUT.has(tool), `${action} → ${tool}`).toBe(true);
       else expect(e.notForAssistants.length, action).toBeGreaterThan(20);
     }
     expect(TOOLS.length).toBeGreaterThanOrEqual(40);
