@@ -4,7 +4,7 @@
    "You raised this". Plus the builder's operations on a store kept in memory. */
 import { WHATS_NEW } from '../help/whatsNew';
 import {
-  aboutOf, buildMarkup, groupMarkups, issueBody, issueTitle, MarkupError, namedParts, newIssueLink, partsUnder, placeOf, raisedIn, raisedText, raisedThis, statusPatch, strokeBox,
+  aboutOf, buildMarkup, groupMarkups, markupFromRow, markupToRow, nameOnly, issueBody, issueTitle, MarkupError, namedParts, newIssueLink, partsUnder, placeOf, raisedIn, raisedText, raisedThis, statusPatch, strokeBox,
   type Markup, type MarkupInput, type PartBox, type Stroke,
   undoChange,
 } from './model';
@@ -198,5 +198,28 @@ describe('the inbox’s operations (anyone’s, in Faro’s open inbox)', () => 
     await o.setStatus('mk_1', { status: 'fixed', fixedIn: WHATS_NEW[0]!.id, by: 'Sam' });
     expect(await o.setStatus('mk_1', undoChange(was, 'Lane'))).toMatchObject({ status: 'wont-fix', wontFixReason: 'Calm is the point.', fixedIn: null, statusBy: 'Lane' });
     expect(undoChange({ status: 'new', fixedIn: null, wontFixReason: null }, 'Lane')).toEqual({ status: 'new', fixedIn: null, reason: null, by: 'Lane' });
+  });
+});
+
+/* Re-review, 8 Nov (backlog T): the inbox is open to anyone, so it names people and never shows an email address. */
+describe('names, never email addresses', () => {
+  it('keeps a name, drops an address beside it, and calls a bare address Someone', () => {
+    expect(nameOnly('Lane Hirschfield')).toBe('Lane Hirschfield');
+    expect(nameOnly('Lane Hirschfield <lane@example.com>')).toBe('Lane Hirschfield');
+    expect(nameOnly('Lane (lane@example.com)')).toBe('Lane');
+    expect(nameOnly('lane@example.com')).toBe('Someone');
+    expect(nameOnly(null)).toBe('');
+  });
+  it('reads a stored markup with an emailed sender or status as names only', () => {
+    const m = buildMarkup(input());
+    const NOW = '2026-11-05T11:00:00.000Z';
+    const row = { ...markupToRow(m), status: 'wont-fix', wont_fix_reason: 'Not now', status_by: 'lane@example.com', status_at: NOW, person_name: 'Ines Voss <ines@example.com>', issue_url: null, fixed_in: null, created_at: NOW };
+    const back = markupFromRow(row as never);
+    expect(back.statusBy).toBe('Someone');
+    expect(back.personName).toBe('Ines Voss');
+    expect(JSON.stringify(back)).not.toMatch(/@example\.com/);
+  });
+  it('records a status change by name, even when the name given is an address', () => {
+    expect(statusPatch({ status: 'in-hand', by: 'lane@example.com' } as never, '2026-11-05T11:00:00.000Z', []).statusBy).toBe('Someone');
   });
 });

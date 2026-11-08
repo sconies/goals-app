@@ -21,6 +21,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'tuesday-fixes',
+    date: '2026-11-08',
+    title: 'Pages you can read at once, and counts that agree',
+    points: [
+      'Every page is readable the moment it opens: nothing fades in, and a goal’s chart and number show at once. The goal page’s slow story is now a switch in the Motion lab, off by default.',
+      'After a check-in, the confirmation says where your week stands as Home’s ring does: 1 of 4 checked in, and what isn’t due yet, never “all” after one.',
+      'Home, Reviews, a review’s page and its walkthrough say the same reviewed count, and a ring always shows its true count.',
+      'A done goal no longer counts as needing attention or waits to be discussed in a review. Goals’ Needs attention line says how many more are being handled, so its count and the board add up.',
+      'Walkthroughs have a Next button; a page that isn’t there offers the way home; New goal asks how it’s measured under the numbers; a review’s people can be found by name or team.',
+      'Home shows a review session that has passed without being held. The inbox names people and never shows an email address. Privacy, under Workspace, is open to everyone to read; only admins switch it.',
+    ],
+    articles: ['settings', 'check-in', 'reviews', 'needs-attention', 'demo', 'new-goal', 'home', 'inbox', 'recording'],
+  },
+  {
     id: 'numbers-and-names',
     date: '2026-11-08',
     title: 'Numbers kept as typed, and names told apart',

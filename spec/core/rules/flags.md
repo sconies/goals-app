@@ -30,10 +30,10 @@ One rule says whether a goal is **getting worse**, **getting better** or neither
 | No path to green (`no-path`) | behind, and the latest check-in's `pathToGreen` is null |
 | At risk (`risk`) | the status is `risk` |
 | Getting worse (`trend`) | not done, and the trend is `worse` |
-| Greener than calculated (`greener`) | the latest call is greener than its calculation, and the status isn't `stale` |
+| Greener than calculated (`greener`) | not done, the latest call is greener than its calculation, and the status isn't `stale` |
 | Check-in due (`due`) | week ≥ 1, not done, and no check-in for this week yet |
 
-They are listed worst first: `off`, `missed-path`, `stale`, `decision`, `no-path`, `risk`, `trend`, `greener`, then `due`. A goal's weight is that of its worst flag. A check-in due, on its own, doesn't make a goal need attention.
+They are listed worst first: `off`, `missed-path`, `stale`, `decision`, `no-path`, `risk`, `trend`, `greener`, then `due`. A goal's weight is that of its worst flag. A check-in due, on its own, doesn't make a goal need attention. A done goal raises none of them, so it never needs attention and a review lists it with the goals that have nothing flagged.
 
 ### Being handled, and needs attention
 
@@ -121,6 +121,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - needs attention means new since someone looked › a new warning since the look makes it need attention again: the recovery date passes
 - needs attention means new since someone looked › an answered request puts it in hand; an open question to the owner does not
 - needs attention means new since someone looked › Watching, the review agenda and the AI brief all split them out the same way
+- one counting rule for attention (re-review, 8 Nov, backlog T) › on ${at.toISOString().slice(0, 10)}, every flagged goal either needs attention or is being handled, so the tab and the board add up
+- one counting rule for attention (re-review, 8 Nov, backlog T) › on ${at.toISOString().slice(0, 10)}, a done goal never needs attention and is never on a review's list to discuss
 - the AI assistant sees the same split › get_my_work lists the owner’s handled goal apart, with what’s in hand
 - the AI assistant sees the same split › an action agreed through the assistant moves the red goal to being handled in the overview; a new check-in moves it back
 

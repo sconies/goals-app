@@ -24,6 +24,24 @@ export function weekProgress(personId: string, s: Snapshot, cycle: Cycle, week: 
   return { goals, done, upcoming, due: week < 1 ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g)) };
 }
 
+/**
+ * Where the person's week stands, the one reading Home's ring, the check-in's confirmation and its done screen all use
+ * (backlog T, 8 Nov: a confirmation once said all four goals were checked in after one, because the other three weren't
+ * due yet). Complete only when every goal counted is checked in this week.
+ */
+export function weekCompletion(p: WeekProgress): { done: number; total: number; complete: boolean } {
+  return { done: p.done.length, total: p.goals.length, complete: p.goals.length > 0 && p.done.length >= p.goals.length };
+}
+
+/** The confirmation's sentence, from weekCompletion: all of them in, what's still due, or what isn't due yet. */
+export function weekDoneText(p: WeekProgress, week: number, late = false): string {
+  const w = weekCompletion(p);
+  if (w.complete) return `${w.total === 1 ? 'Your goal is' : w.total === 2 ? 'Both your goals are' : `All ${w.total} of your goals are`} checked in for week ${week}${late ? ', after the review day' : ''}.`;
+  if (p.due.length) return `${w.done} of ${w.total} checked in for week ${week}. Still due this week: ${p.due.map((g) => g.title).join(', ')}.`;
+  const rest = w.total - w.done;
+  return `${w.done} of ${w.total} checked in for week ${week}. ${rest === 1 ? 'The other one isn’t' : `The other ${rest} aren’t`} due until next week.`;
+}
+
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
 export function reviewDate(cycle: Cycle, week: number): string {
   const d = new Date(weekDate(cycle, week) + 'T00:00:00Z');

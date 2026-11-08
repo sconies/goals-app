@@ -6,13 +6,12 @@
 const A4_CONTENT = 695; // 210mm less 13mm margins each side, at 96dpi
 const LIMIT = 250;
 // The goal page's story (chart drawing in, the headline number counting and landing, quarters filling, a status turning)
-// is slower on purpose so it can be seen (Lane, 5 Nov): up to 4 seconds end to end at the default pace (Settings → How a goal's page moves). Everything else stays at 250ms.
-const STORY_LIMIT = 4000;
-const story = (a) => /^(gp-|pm-draw|pm-dot-in|pm-shape-swap|pm-pulse|rise on li)|countup/.test(a.name);
+// is off by default since backlog T (8 Nov), so every page here is held to 250ms. Switched on in the Motion lab it is
+// slower on purpose (up to 4 seconds at the default pace), checked by N9.
 
 /** Samples every animation and every counter on the page, every frame from the first paint. */
 const SAMPLER = () => {
-  window.__pm = { anims: new Map(), counts: [], maxRunning: 0, shift: 0 };
+  window.__pm = { anims: new Map(), counts: [], maxRunning: 0, shift: 0, faint: 1 };
   const name = (a) => {
     const t = a.effect && a.effect.target;
     const cls = t ? (typeof t.className === 'string' ? t.className : t.className && t.className.baseVal) || '' : '';
@@ -28,6 +27,9 @@ const SAMPLER = () => {
       const total = (t.iterations === Infinity ? Infinity : (Number(t.duration) || 0) * (t.iterations || 1)) + (t.delay || 0);
       window.__pm.anims.set(a, { name: name(a), total });
     }
+    // How visible the page's heading is, all the way up (a fade on any parent counts): readable from the first frame.
+    let o = 1, e = document.querySelector('main.work h1');
+    if (e) { for (; e; e = e.parentElement) o *= Number(getComputedStyle(e).opacity); window.__pm.faint = Math.min(window.__pm.faint, o); }
     const c = document.querySelector('.goal-bar .countup-now, .statusline .countup-now');
     if (c) { const v = c.textContent; if (window.__pm.counts[window.__pm.counts.length - 1] !== v) window.__pm.counts.push(v); }
     requestAnimationFrame(tick);
@@ -60,7 +62,7 @@ async function slower(c, p) {
   if (rate > 1) await (await c.newCDPSession(p)).send('Emulation.setCPUThrottlingRate', { rate });
 }
 
-const sampled = (p) => p.evaluate(() => ({ anims: [...window.__pm.anims.values()], counts: window.__pm.counts, maxRunning: window.__pm.maxRunning, shift: window.__pm.shift }));
+const sampled = (p) => p.evaluate(() => ({ anims: [...window.__pm.anims.values()], counts: window.__pm.counts, maxRunning: window.__pm.maxRunning, shift: window.__pm.shift, faint: window.__pm.faint }));
 
 /** Each row's goal, in order: the first link in it. */
 const keysOf = (p, rows) => p.$$eval(rows, (rs) => rs.map((r) => r.querySelector('a[href]')?.getAttribute('href')));
@@ -216,14 +218,13 @@ module.exports = {
     // ---------- [Motion] durations: animations happen, each 250ms at most, at phone and desktop ----------
     for (const [w, h, who, route] of [[390, 844, 'rhea', '/'], [1440, 900, 'amara', '/goals/ns-ai'], [1440, 900, 'amara', '/reviews/weekly'], [768, 1024, 'amara', '/goals?view=board']]) {
       const [c, p] = await at(w, h, who, route);
-      // The goal page's story runs up to 4 seconds at the default pace: watch it to the end.
-      if (/^\/goals\/[^/?]+$/.test(route)) await p.waitForTimeout(4200);
       const s = await sampled(p);
-      const goalPage = /^\/goals\/[^/?]+$/.test(route);
-      const long = s.anims.filter((a) => a.total > (goalPage && story(a) ? STORY_LIMIT : LIMIT));
+      const long = s.anims.filter((a) => a.total > LIMIT);
       fail(s.anims.length > 0, `[Motion] ${route} at ${w}: nothing moves`);
       fail(!long.length, `[Motion] ${route} at ${w}: longer than ${LIMIT}ms: ${[...new Set(long.map((a) => a.name + ' ' + a.total + 'ms'))].slice(0, 3).join(', ')}`);
       fail(s.shift < 0.02, `[Motion] ${route} at ${w}: layout shifted by ${s.shift.toFixed(3)} after load`);
+      // Readable at once (backlog T, 8 Nov): the heading is never faded, however slowly the browser draws frames.
+      fail(s.faint >= 0.99, `[Motion] ${route} at ${w}: the page's heading was faded to ${s.faint.toFixed(2)} while it opened`);
       if (route === '/') fail(s.anims.some((a) => /ring-fill/.test(a.name)), '[Motion] Home: the progress ring does not fill');
       if (route === '/goals/ns-ai') {
         fail(s.anims.some((a) => /c-act/.test(a.name)), '[Motion] the goal chart does not draw its line');
