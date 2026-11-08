@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -24 262 262">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-43.22 -61.72 332.43 332.43">
   <title>Faro</title>
-  <style>.ink { fill: #183638 } @media (prefers-color-scheme: dark) { .ink { fill: #E6EEED } }</style>
-  <path class="ink" d="M50 38V201Q50 209 42 209H8Q0 209 0 201V70C0 50 14 36.5 34 34.6L46 33.6Q50 33.3 50 38Z"/>
+  <rect x="-43.22" y="-61.72" width="332.43" height="332.43" rx="66.5" fill="#183638"/>
+  <path fill="#F6F5F1" d="M50 38V201Q50 209 42 209H8Q0 209 0 201V70C0 50 14 36.5 34 34.6L46 33.6Q50 33.3 50 38Z"/>
   <path fill="#F7AE2E" d="M66 64H202C226 64 246 45 246 20V8Q246 0 238 1.3L66 28.7Q58 30 58 38V56Q58 64 66 64Z"/>
   <path fill="#21968E" d="M63 95H123.5A14.5 14.5 0 0 1 123.5 124H63Q58 124 58 119V100Q58 95 63 95Z"/>
 </svg>

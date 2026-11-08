@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'home-screen-icon-and-splash',
+    date: '2026-11-08',
+    title: 'An icon you can see, and a lighthouse to open with',
+    points: [
+      'Faro’s icon is now a deep-teal tile with the F in white, the amber beam and the teal bar, so it stands out on your phone’s home screen and in the browser tab, on light and dark backgrounds.',
+      'Faro can be added to your home screen like an app, and opens full screen. Help says how, for Android and iPhone.',
+      'Each time you open Faro, the amber beam swings round the F like a lighthouse’s light, flashing as it points at you, and settles into place; then the teal bar and “aro” are drawn in. It takes about a second and a half, the app loads behind it, and a tap or any key skips it. With reduced motion, the logo just fades in.',
+    ],
+    articles: ['any-device', 'settings'],
+  },
+  {
     id: 'numbers-and-names',
     date: '2026-11-08',
     title: 'Numbers kept as typed, and names told apart',

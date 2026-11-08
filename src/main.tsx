@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { BrowserStore, LIVE_KEY, pickExampleFromUrl, type Mode, type Store } from './data/store';
 import { applyAppearance } from './app/appearance';
+import { startSplash } from './ui/Splash';
 import { telemetry } from './telemetry';
 import { installBrowser } from './telemetry/browser';
 import { tracedStore } from './telemetry/store';
@@ -31,6 +32,8 @@ import './styles/remove.css';
 import './styles/notes/phone-toolbar.css';
 
 applyAppearance();
+// Faro's splash, once per launch, over the app as it loads (src/ui/Splash.tsx). It never delays the app.
+startSplash();
 // Errors, load timings and the page closing (src/telemetry). Records nothing without a database.
 installBrowser(telemetry);
 

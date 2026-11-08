@@ -410,6 +410,13 @@ The app is called Faro. The page title ends “Faro”; the browser tab shows Fa
 - **Tests:** `evals/settings.eval.ts` (1)
 - **Journeys and checks:** N4
 
+### LAUNCH
+
+Faro can be put on a phone's home screen and is easy to see there: a web app manifest (/manifest.webmanifest, linked from index.html) names it Faro, with Faro's paper as its colours and 192 and 512 px PNG icons, both plain and maskable, plus a 180 px apple-touch icon. Every icon, and the favicon, is a solid deep-teal tile (#183638) with the F in paper white, the amber beam and the teal bar, the F inside the maskable safe zone. Each launch (the first load in a browser session, or opening it from the home screen) shows a splash over the app as it loads: the amber beam swings half a turn round the stem in 3D like a lighthouse's light, the screen flashing once as it points at you, and settles into the F; then the teal bar and “aro” are drawn in; about 1.5 s, never on navigation, ended at once by a tap or any key, with no layout shift. Under reduced motion the logo just fades in and out. Automated browsers don't see it unless they ask.
+
+- **Help:** “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** N4
+
 ## People
 
 ### PROFILES
