@@ -581,6 +581,23 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
   await h.click(p.getByRole('button', { name: 'Reset the example' }));
   await h.click(p.getByRole('button', { name: 'Yes, reset it' }));
   await see(p, 'The example is back to its starting point');
+  // Start over in the Demo panel clears what the demo keeps besides its saves (demo review, 8 Nov, item 1): a half-typed
+  // check-in, What's new marked as read, a walkthrough in progress. The person you're viewing as stays.
+  await p.evaluate(() => {
+    localStorage.setItem('goals-app-draft:platform-org:checkin:any:45', '{"value":"7"}');
+    localStorage.setItem('goals-app-draft:platform-org:checkin:any:45:step', 'account');
+    localStorage.setItem('goals-whats-new-seen', 'anything');
+    sessionStorage.setItem('goals-tour', '{"id":"checkin","step":1}');
+  });
+  // Not counted against the journey's budget: this is a second way to do the same thing.
+  const again = await demoPanel(p);
+  await again.getByRole('button', { name: /^Start over/ }).click();
+  await again.getByRole('button', { name: 'Yes, start over' }).click();
+  await see(p, 'The example is back to its starting point');
+  const left = await p.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage).map((k) => 'session:' + k)]);
+  const stale = left.filter((k) => /goals-app-draft:|goals-whats-new-seen|session:goals-tour/.test(k));
+  if (stale.length) fail('Start over left behind: ' + stale.join(', '));
+  if (!left.includes('goals-app-viewer:platform-org')) fail('Start over forgot who you are viewing as');
   h.set('finish', true);
   await p.context().close();
 }, ['errors', 'logged']);
@@ -2491,6 +2508,22 @@ journey('U27', ['WALKTHROUGHS', 'DEMO-MODE'], 'Take a walkthrough: the coach poi
   await h.click(coach.getByRole('button', { name: 'Finish' }));
   h.set('finish', (await p.locator('.coach').count()) === 0, 'the coach did not close');
   h.set('attention', true);
+  // Demo review, 8 Nov, item 4: with a check-in left as a draft, Home's button says "Pick up where you left off". The
+  // walkthrough still points at it, and never says Rhea is all set while Home says a check-in is to do.
+  await p.goto(url('/'));
+  const start = p.locator('.hero a.btn.primary[href$="/check-in"]');
+  if (await start.isVisible().catch(() => false)) {
+    await start.click();
+    await p.getByLabel('This week’s value').fill('1');
+    await p.goto(url('/'));
+    await see(p, 'Pick up where you left off', 'a half-typed check-in is not offered back on Home');
+    const again = await demoPanel(p);
+    await again.getByRole('button', { name: /Post your weekly check-in/ }).click();
+    await coach.waitFor();
+    await p.waitForTimeout(800);
+    if (/all set/.test(await coach.innerText())) fail('with a check-in draft, the walkthrough says Rhea is all set while Home has one to do');
+    if (!(await p.locator('.coach-ring').isVisible().catch(() => false))) fail('with a check-in draft, the walkthrough points at nothing');
+  }
   await p.context().close();
 }, ['errors', 'logged']);
 

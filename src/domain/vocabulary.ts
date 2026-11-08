@@ -183,7 +183,7 @@ export const WARNING: Record<WarningKind, Term<WarningKind>> = {
   'missed-quarter': term('missed-quarter', {
     label: 'Last quarter not met', short: 'behind its quarter plan',
     meaning: 'It didn’t meet the plan for the quarter that has just ended.',
-    long: 'In a goal year: at the end of the last quarter it was short of where its own plan said it would be.',
+    long: 'In a goal year: at the end of the last quarter it was worse than its own plan said it would be (short of it, or over it when lower is better), compared at the goal’s decimals.',
     rule: 'year#quarterResults',
   }),
 };
@@ -229,13 +229,13 @@ export const QUARTER: Record<QuarterKind, Term<QuarterKind>> = {
   met: term('met', {
     label: 'Met', short: 'at its plan',
     meaning: 'At the quarter’s end it was where its plan said, or better.',
-    long: 'A quarter’s target is the plan’s number at its end (or the stages due by then, or staying in range). Met: it was there or better.',
+    long: 'A quarter’s target is the plan’s number at its end (or the stages due by then, or staying in range). Met: it was there or better, compared at the goal’s decimals, so a number shown equal to its plan is met.',
     rule: 'year#quarterResults', same: 'result.completed',
   }),
   missed: term('missed', {
-    label: 'Not met', short: 'short of its plan',
-    meaning: 'At the quarter’s end it was short of its plan.',
-    long: 'At the quarter’s end it was short of where its plan said it would be, or had no number to show.',
+    label: 'Not met', short: 'worse than its plan',
+    meaning: 'At the quarter’s end it was worse than its plan: short of it, or over it when lower is better.',
+    long: 'At the quarter’s end it was worse than where its plan said it would be, compared at the goal’s decimals (equal is met), or had no number to show.',
     rule: 'year#quarterResults', same: 'result.missed',
     retired: ['Missed its plan', 'Missed last quarter'],
   }),
@@ -350,6 +350,15 @@ export const GAP: Record<GapWord, Term<GapWord>> = {
   'on-plan': term('on-plan', { label: 'On plan', short: 'exactly the plan', meaning: 'Exactly the plan for its week, at the goal’s decimals.', long: 'The latest number is the plan for its week, as written to the goal’s decimals.', rule: 'format#gapText' }),
   reached: term('reached', { label: 'Target reached', short: 'there already', meaning: 'The latest number has reached the target (or every stage is done).', long: 'The latest number is at or past the target, or every stage is done. It is a gap, not a result: the result comes when the goal is due.', rule: 'format#gapText' }),
 };
+
+/**
+ * The word for an amount on the wrong side of a plan or target (demo review, 8 Nov): "short" when higher is better,
+ * "over" when lower is better. "1 pt short" of a 46% plan; "1 min over" a 6 min plan, never "1 min short". `better` is
+ * the goal's better direction: +1 when higher is better, −1 when lower is.
+ */
+export function shortWord(better: number): 'short' | 'over' {
+  return better < 0 ? 'over' : 'short';
+}
 
 /** "9 hours behind plan", "3 pts ahead of plan", "On plan": `better` is the difference in the better direction, `amount` it said in the goal's units. */
 export function gapPhrase(better: number, amount: string): string {

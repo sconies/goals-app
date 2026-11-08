@@ -52,7 +52,7 @@ Group `warning`.
 |---|---|---|---|---|
 | `slipped` | Date slipped | While it has been behind, the week its path to green names has moved later than the first one given. Never said: “Recovery date slipped”. | `story#storyOf` | screens, exports, help, ai |
 | `same-cause` | Same cause again | Behind, with the same cause given at each of its last three check-ins. | `story#storyOf` | screens, exports, help, ai |
-| `missed-quarter` | Last quarter not met | In a goal year: at the end of the last quarter it was short of where its own plan said it would be. | `year#quarterResults` | screens, exports, help, ai |
+| `missed-quarter` | Last quarter not met | In a goal year: at the end of the last quarter it was worse than its own plan said it would be (short of it, or over it when lower is better), compared at the goal’s decimals. | `year#quarterResults` | screens, exports, help, ai |
 
 ## Which way it’s heading
 
@@ -92,8 +92,8 @@ Group `quarter`.
 
 | Code | Word | Meaning | Rule | Where |
 |---|---|---|---|---|
-| `met` | Met | A quarter’s target is the plan’s number at its end (or the stages due by then, or staying in range). Met: it was there or better. Same meaning as `result.completed`. | `year#quarterResults` | screens, exports, help, ai |
-| `missed` | Not met | At the quarter’s end it was short of where its plan said it would be, or had no number to show. Same meaning as `result.missed`. Never said: “Missed its plan”, “Missed last quarter”. | `year#quarterResults` | screens, exports, help, ai |
+| `met` | Met | A quarter’s target is the plan’s number at its end (or the stages due by then, or staying in range). Met: it was there or better, compared at the goal’s decimals, so a number shown equal to its plan is met. Same meaning as `result.completed`. | `year#quarterResults` | screens, exports, help, ai |
+| `missed` | Not met | At the quarter’s end it was worse than where its plan said it would be, compared at the goal’s decimals (equal is met), or had no number to show. Same meaning as `result.missed`. Never said: “Missed its plan”, “Missed last quarter”. | `year#quarterResults` | screens, exports, help, ai |
 | `open` | In progress | The quarter hasn’t ended, so it is neither met nor not met yet. | `year#quarterResults` | screens, exports, help, ai |
 
 ## The owner’s view at the wrap-up

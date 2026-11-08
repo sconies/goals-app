@@ -81,6 +81,20 @@ describe('quarters read off the owner’s plan', () => {
     expect(r.text).toMatch(/^Q3: 10% against a plan of \d+%, \d+ pts short$/);
     expect(storyOf(g, { ...s, checkIns: low }, cycle, week, today).warnings.join(' ')).toMatch(/Last quarter not met\. Q3: 10%/);
   });
+  it('says "over" when lower is better, and counts a number shown equal to its plan as met (demo review, 8 Nov)', () => {
+    const g = s.goals.find((x): x is MetricGoal => x.kind === 'metric' && x.plan.target < x.plan.start && (x.plan.fromWeek ?? 0) < 27 && !!x.unit && x.unit !== '%')!;
+    const q3 = quarters(cycle)[2]!;
+    const t = targetAt(goalAsOf(g, q3.to), cycle, q3.to)!;
+    const at = (v: number) => quarterResult(g, cycle, s.checkIns.map((c) => (c.goalId === g.id && c.week <= q3.to && c.week >= q3.to - 1 ? { ...c, value: v } : c)), q3, week);
+    const over = at(t + 1);
+    expect(over.kind).toBe('missed');
+    expect(over.text).toMatch(/, 1(\.0+)? \S+ over$/);
+    expect(over.text).not.toMatch(/short/);
+    // Worse than the plan by less than the goal's last decimal place: shown the same, so met.
+    const step = 10 ** -g.decimals;
+    expect(at(Number(t.toFixed(g.decimals)) + 0.4 * step).kind).toBe('met');
+    expect(at(Number(t.toFixed(g.decimals)) + step).kind).toBe('missed');
+  });
   it('milestone quarters count the stages due in them', () => {
     const r = quarterResult(goal('cfr-halt'), cycle, s.checkIns, quarters(cycle)[3]!, week);
     expect(r.kind).toBe('open');

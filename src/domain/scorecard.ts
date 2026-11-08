@@ -12,7 +12,7 @@ import { planEnd, projectionFor, valueSeries } from './plan';
 import { assessMilestone, assessPosted, checkInsFor } from './status';
 import { summaryFacts } from './summaryFacts';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
-import { GAP, gapPhrase, LABEL, lower, STAGE, stagesBehind, STATUS } from './vocabulary';
+import { GAP, gapPhrase, LABEL, lower, shortWord, STAGE, stagesBehind, STATUS } from './vocabulary';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 
@@ -139,7 +139,8 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
   if (a.actual == null) cells.push({ key: 'target', label: 'To target', value: NO_VALUE, sub: `target ${fmt(target, goal)}${by}`, tone: 'flat' });
   else {
     const left = round((target - a.actual) * better, goal.decimals);
-    cells.push({ key: 'target', label: 'To target', value: left <= 0 ? GAP.reached.label : `${amount(left, goal)} to go`, sub: `target ${fmt(target, goal)}${by}`, tone: left <= 0 ? 'good' : 'flat' });
+    // Lower is better: what's left is the amount over the target, said as "over", like every gap (demo review, 8 Nov).
+    cells.push({ key: 'target', label: 'To target', value: left <= 0 ? GAP.reached.label : `${amount(left, goal)} ${better < 0 ? shortWord(better) : 'to go'}`, sub: `target ${fmt(target, goal)}${by}`, tone: left <= 0 ? 'good' : 'flat' });
   }
 
   // Will it hit the target: where the target sits against the projected range.
@@ -154,7 +155,7 @@ function metricCard(goal: MetricGoal, cycle: Cycle, checkIns: CheckIn[], week: n
     const tone: CellTone = l === 'likely' ? 'good' : l === 'possible' ? 'flat' : 'bad';
     cells.push({ key: 'hit', label, value: LIKELIHOOD_WORD[l], sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}`, tone, likelihood: l });
     const short = round((target - p.value) * better, goal.decimals);
-    end = { week: a.projection.week, likely: p.value, target, likelyText: `likely ${bareValue(p.value, goal)}`, gapText: short > 0 ? `${bare(short, goal)} short` : 'on course', tone: short > 0 ? 'bad' : 'good' };
+    end = { week: a.projection.week, likely: p.value, target, likelyText: `likely ${bareValue(p.value, goal)}`, gapText: short > 0 ? `${bare(short, goal)} ${shortWord(better)}` : 'on course', tone: short > 0 ? 'bad' : 'good' };
   }
   return { cells, gap, marks: { now, end } };
 }

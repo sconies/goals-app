@@ -47,8 +47,12 @@ export function Coach() {
     const tick = () => {
       // When the step's target isn't there (the demo has moved on), point at its alternative and say why.
       const main = find(step.target);
-      const alt = !main && step.ifMissing ? find(step.ifMissing.target) : null;
-      setMissing(!main && !!step.ifMissing);
+      // The alternative only while the page agrees (its `when`): otherwise the step waits for its own target.
+      const w = step.ifMissing?.when;
+      const agrees = !w || (!!w.selector && !!document.querySelector(w.selector)) || (!!w.text && (typeof w.text === 'string' ? document.body.innerText.includes(w.text) : w.text.test(document.body.innerText)));
+      const useAlt = !main && !!step.ifMissing && agrees;
+      const alt = useAlt ? find(step.ifMissing!.target) : null;
+      setMissing(useAlt);
       const el = main ?? alt;
       const r = el?.getBoundingClientRect();
       // Below the fold (or under a bar): bring it to the middle of the screen first. The map pans itself, so not there.
@@ -103,7 +107,10 @@ export function Coach() {
           {state.step > 0 && <button type="button" className="btn sm" onClick={() => writeTour({ id: tour.id, step: state.step - 1 })}>Back</button>}
           {last
             ? <button type="button" className="btn sm" onClick={() => writeTour(null)}>Finish</button>
-            : <button type="button" className="btn ghost sm coach-skip" onClick={() => writeTour({ id: tour.id, step: state.step + 1 })}>Skip this step</button>}
+            // Nothing to do here when the demo has moved on (the alternative is showing): Next, not Skip.
+            : missing
+              ? <button type="button" className="btn sm coach-next" onClick={() => writeTour({ id: tour.id, step: state.step + 1 })}>Next</button>
+              : <button type="button" className="btn ghost sm coach-skip" onClick={() => writeTour({ id: tour.id, step: state.step + 1 })}>Skip this step</button>}
         </span>
       </aside>
     </>

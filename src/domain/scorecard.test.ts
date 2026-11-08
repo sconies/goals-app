@@ -65,13 +65,13 @@ describe('the scorecard on made-up goals', () => {
     expect(plan!.sub).toBe('plan 26.8 days');
     // Up 0.1 days, and lower is better: worse, with an upward arrow.
     expect(since).toMatchObject({ value: '0.1 days worse', sub: 'was 25.3 days in week 13', tone: 'bad', move: 'up' });
-    expect(target).toMatchObject({ value: '7.4 days to go', sub: 'target 18.0 days' });
+    expect(target).toMatchObject({ value: '7.4 days over', sub: 'target 18.0 days' });
     // Rising while it should fall: nowhere near.
     expect(hit).toMatchObject({ value: 'Very unlikely', likelihood: 'very-unlikely' });
     expect(hit!.sub).toMatch(/^likely \d+\.\d days by year end$/);
     expect(card.gap).toBe('1.4 days ahead of plan');
     expect(card.marks?.now?.text).toBe('1.4 days ahead of plan');
-    expect(card.marks?.end?.gapText).toMatch(/^\d+\.\d short$/);
+    expect(card.marks?.end?.gapText).toMatch(/^\d+\.\d over$/);
     expect(card.marks?.end?.likelyText).toMatch(/^likely \d+\.\d$/);
   });
 

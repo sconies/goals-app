@@ -14,6 +14,32 @@ module.exports = {
     const kofiToCarry = async (p) => { await p.locator('.bignum input').fill('40'); await p.getByRole('button', { name: 'Continue' }).click(); await p.getByRole('button', { name: 'Something changed' }).waitFor(); };
 
     // ---------- the check-in ----------
+    // Demo review, 8 Nov, item 2: a draft reopened at step 2 has Back, so a wrong number is corrected without posting,
+    // and any draft can be discarded.
+    {
+      const [c, p] = await open(390, 844, 'rhea', '/check-in/ns-lead');
+      await kofiToCarry(p);
+      await p.getByRole('button', { name: 'Something changed' }).click();
+      await p.reload();
+      await p.locator('.focus-foot').waitFor();
+      const back = p.locator('.focus-foot').getByRole('button', { name: 'Back' });
+      if (!(await back.isVisible().catch(() => false))) fail('drafts: a check-in draft reopened past step 1 has no Back');
+      else {
+        // Back, once per step, to the number.
+        for (let i = 0; i < 3 && !(await p.locator('.bignum input').isVisible().catch(() => false)); i++) await back.click();
+        const v = await p.locator('.bignum input').inputValue().catch(() => null);
+        if (v !== '40') fail(`drafts: Back from a reopened draft doesn't return to the number (it shows ${v})`);
+      }
+      const discard = p.getByRole('button', { name: 'Discard draft' });
+      if (!(await discard.isVisible().catch(() => false))) fail('drafts: a reopened check-in draft has no Discard');
+      else {
+        await discard.click();
+        const v = await p.locator('.bignum input').inputValue().catch(() => null);
+        const kept = await p.evaluate(() => Object.keys(localStorage).filter((k) => k.includes(':checkin:ns-lead:')));
+        if (v !== '' || kept.length) fail(`drafts: Discard left the draft (value “${v}”, kept ${kept.join(', ')})`);
+      }
+      await c.close();
+    }
     // Check-in 4: step dots on every first step, one kind of dot row, and to-do dots you can see (3:1).
     for (const who of ['rhea', 'farah', 'chen']) {
       const [c, p] = await open(390, 844, who, '/check-in');

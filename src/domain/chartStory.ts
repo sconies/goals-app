@@ -7,7 +7,7 @@ import type { Cycle, MetricGoal, RangeGoal } from './types';
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 import { planAt, weekDates } from './plan';
 import { gapTrend } from './trend';
-import { GAP, lower, TREND } from './vocabulary';
+import { GAP, lower, shortWord, TREND } from './vocabulary';
 
 const CURRENCY = /^([£$€]|USD|GBP|EUR)\s?([km]?)$/i;
 const SYMBOL: Record<string, string> = { USD: '$', GBP: '£', EUR: '€' };
@@ -82,7 +82,9 @@ export function headingSentence(goal: MetricGoal, p: { likely: number; low: numb
   const span = Math.abs(goal.plan.target - goal.plan.start) || Math.abs(goal.plan.target) || 1;
   const off = Math.abs(p.likely - goal.plan.target) / span;
   const close = off < 0.05 ? 'just ' : off > 0.25 ? 'well ' : '';
-  const outcome = misses ? `${close === 'well ' ? 'well short of' : close === 'just ' ? 'just missing' : 'missing'} its target of ${target}` : `${close === 'well ' ? 'comfortably beating' : 'reaching'} its target of ${target}`;
+  // "Well over" a target where lower is better, as every gap says it (demo review, 8 Nov).
+  const wellMiss = `well ${shortWord(goal.plan.target >= goal.plan.start ? 1 : -1)} of`.replace('over of', 'over');
+  const outcome = misses ? `${close === 'well ' ? wellMiss : close === 'just ' ? 'just missing' : 'missing'} its target of ${target}` : `${close === 'well ' ? 'comfortably beating' : 'reaching'} its target of ${target}`;
   return `On its recent trend it ends at about ${likely} ${when}${range}, ${outcome}. Projected by the app from the last eight weeks, not the owner’s date.`;
 }
 

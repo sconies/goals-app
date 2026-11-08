@@ -18,6 +18,7 @@ import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/ch
 import { ACTIONS } from '../mcp/parity';
 import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
+import { forgetDemoBrowser } from './demoBrowser';
 import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, UNDO_MS } from '../domain/vocabulary';
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
@@ -444,8 +445,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       createWorkspace,
       resetExample: async () => {
         const s = await store.resetExample(ws.kind === 'example' ? ws.id : EXAMPLE.id);
+        // Everything else the demo keeps in this browser goes too: drafts, what's been seen, walkthroughs, layouts.
+        forgetDemoBrowser();
         if (ws.kind === 'example') setLoaded({ ws: ws.id, snap: s, at: Date.now() });
-        toast('The example is back to its starting point');
+        toast('The example is back to its starting point, drafts and all');
       },
       deleteWorkspace: async () => {
         if (ws.kind === 'example') throw new Error('Examples can be reset, not deleted.');

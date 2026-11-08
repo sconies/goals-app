@@ -9,8 +9,12 @@ export interface TourStep {
   target?: { selector: string; text?: string };
   /** The step is done when the route matches, an element shows, or some text shows. None: a closing step with a Finish button. */
   doneWhen?: { route?: RegExp; selector?: string; text?: string | RegExp };
-  /** What to say and point at instead when the target isn't on screen (the demo has moved on: say, the check-ins are already in). */
-  ifMissing?: { say: string; target?: { selector: string; text?: string } };
+  /**
+   * What to say and point at instead when the target isn't on screen (the demo has moved on: say, the check-ins are
+   * already in). With `when`, only while the page says so too, so the walkthrough never claims something the page
+   * contradicts (demo review, 8 Nov, item 4). Its button says Next, not Skip: there is nothing left to do at this step.
+   */
+  ifMissing?: { say: string; target?: { selector: string; text?: string }; when?: { selector?: string; text?: string | RegExp } };
 }
 export interface Tour {
   id: string;
@@ -28,8 +32,9 @@ export const TOURS: Tour[] = [
   {
     id: 'checkin', title: 'Post your weekly check-in', role: 'Goal owner', personId: 'rhea', start: '/',
     steps: [
-      { say: 'This is Rhea’s Home. She runs CI/CD and owns eight goals. What she needs to do this week comes first. Start her check-in.', target: { selector: 'a.btn.primary', text: 'check-in' }, doneWhen: { route: /^\/check-in/ },
-        ifMissing: { say: 'Rhea’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' } } },
+      // Home's one check-in button, whatever it says ("Start check-in", or "Pick up where you left off" with a draft).
+      { say: 'This is Rhea’s Home. She runs CI/CD and owns eight goals. What she needs to do this week comes first. Start her check-in.', target: { selector: '.hero a.btn.primary[href$="/check-in"]' }, doneWhen: { route: /^\/check-in/ },
+        ifMissing: { say: 'Rhea’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' }, when: { selector: '.hero-allset' } } },
       { say: 'Type this week’s number. The verdict says at once whether it’s on plan, and against which week.', target: { selector: 'input[aria-label="This week’s value"], #value' }, doneWhen: { selector: '.verdict' },
         ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Rhea’s goals to check in again.', target: { selector: '.again-links a' } } },
       { say: 'Off plan, it asks why and how it gets back on track. Keep what you said last week if it still holds, or say what changed, then post.', target: { selector: '.focus-foot button[type=submit]' }, doneWhen: { text: 'Check-in saved' } },
