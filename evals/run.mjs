@@ -306,13 +306,14 @@ if (quick) {
   const j = fs.existsSync(path.join(out, 'journeys.json')) ? read(path.join(out, 'journeys.json')) : { journeys: [], platform: [] };
   const bad = [
     ...(cases.length ? [] : ['the spec scenarios did not run']),
-    ...cases.filter((t) => t.status !== 'passed').map((t) => `scenario ${t.title}`),
+    // Built without a module, the scenarios that need it skip (it.skipIf); anything else that didn't pass failed.
+    ...cases.filter((t) => t.status !== 'passed' && !(LEFT_OUT.modules.length && ['skipped', 'pending'].includes(t.status))).map((t) => `scenario ${t.title}`),
     ...quick.journeys.filter((id) => !j.journeys.some((x) => x.id === id)).map((id) => `journey ${id} did not run`),
     ...j.journeys.filter((x) => !x.pass || (['U1', 'U2', 'U3', 'U4', 'U5'].includes(x.id) && x.score < 10)).map((x) => `journey ${x.id} ${x.title} (${x.score}/10): ${x.phone.error || x.desktop.error || 'below 10'}`),
     ...[...quick.checks, 'P5'].filter((id) => !j.platform.some((x) => x.id === id)).map((id) => `check ${id} did not run`),
     ...j.platform.filter((x) => !x.pass).map((x) => `check ${x.id}: ${x.error}`),
   ];
-  const md = `# ${quick.name} run\n\nSpec scenarios ${cases.filter((t) => t.status === 'passed').length}/${cases.length}. Journeys ${j.journeys.map((x) => `${x.id} ${x.score}`).join(' · ')}. Checks ${j.platform.map((x) => `${x.id} ${x.pass ? 'pass' : 'FAIL'}`).join(' · ')}.\n${bad.length ? `\n## Failed\n\n${bad.map((x) => `- ${x}`).join('\n')}\n` : ''}`;
+  const md = `# ${quick.name} run\n\nSpec scenarios ${cases.filter((t) => t.status === 'passed').length}/${cases.length}${cases.some((t) => t.status !== 'passed' && t.status !== 'failed') ? ` (${cases.filter((t) => t.status !== 'passed' && t.status !== 'failed').length} skipped: they need a module this build leaves out)` : ''}. Journeys ${j.journeys.map((x) => `${x.id} ${x.score}`).join(' · ')}. Checks ${j.platform.map((x) => `${x.id} ${x.pass ? 'pass' : 'FAIL'}`).join(' · ')}.\n${bad.length ? `\n## Failed\n\n${bad.map((x) => `- ${x}`).join('\n')}\n` : ''}`;
   fs.writeFileSync(path.join(out, smoke ? 'smoke.md' : 'changed.md'), md);
   console.log(`\n▸ ${quick.name} ${bad.length ? 'FAILED' : 'passed'} in ${took()}s\n${md}`);
   process.exit(bad.length ? 1 : 0);

@@ -2419,7 +2419,9 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await see(p, 'Import from a spreadsheet', 'Import did not come back');
   h.set('progress', true);
   h.set('errors', true);
-  // Someone who isn't an admin sees no switches.
+  // Someone who isn't an admin sees no switches. (Import is a focused page with no Demo control on a phone: leave it first.)
+  await p.goto(url('/workspace'));
+  await p.locator('.page-head').waitFor();
   await viewAs(p, 'Oskar');
   await p.goto(url('/workspace'));
   await p.locator('.page-head').waitFor();

@@ -32505,7 +32505,9 @@ var CORE_ARTICLES = [
 		reqs: [
 			"DATA-TABLES",
 			"TABLE-LAYOUTS",
-			"ROUND-TRIP"
+			"ROUND-TRIP",
+			"ONE-FORMAT",
+			"SHARED-DOWNLOADS"
 		],
 		keywords: [
 			"tables",
