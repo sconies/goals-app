@@ -2158,7 +2158,10 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the i
   await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand');
   await see(detail, 'Marked in hand by Rhea Kapoor', 'the markup does not say who marked it');
   const [tab] = await Promise.all([p.context().waitForEvent('page'), h.click(detail.getByRole('button', { name: 'Open GitHub issue' }))]);
-  const issue = new URL(tab.url());
+  // The address the app opened. GitHub sends a browser that isn't signed in on to its sign-in page, with that address
+  // as return_to (a public repository does this since 8 Nov), so read it from there when it has.
+  const opened = new URL(tab.url());
+  const issue = opened.pathname === '/login' && opened.searchParams.get('return_to') ? new URL(opened.searchParams.get('return_to'), 'https://github.com') : opened;
   await tab.close();
   await h.fill(detail.getByLabel('Paste issue link'), 'https://github.com/sconies/goals-app/issues/101');
   await h.click(detail.getByRole('button', { name: 'Keep the link' }));
