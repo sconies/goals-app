@@ -31975,6 +31975,8 @@ var help_default = [{
 		routes: ["/data/metrics"],
 		screens: [
 			"Metrics",
+			"MetricForm",
+			"MetricsLink",
 			"MeasuredBy",
 			"GoalMetric"
 		],
