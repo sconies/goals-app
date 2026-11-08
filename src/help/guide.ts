@@ -769,6 +769,7 @@ const CORE_ARTICLES: Article[] = [
         'Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.',
         'Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.',
         'It meets the same rules as you, with exactly your rights, and every change is logged as you, via the AI assistant.',
+        'Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.',
       ] },
       { heading: 'How to connect', list: [
         'An admin makes a personal token for you under Workspace, AI assistants. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.',

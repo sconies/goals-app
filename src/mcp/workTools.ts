@@ -27,6 +27,7 @@ import { newsDate, newsSince } from '../help/whatsNew';
 import { canUndoImport, importUndone } from '../domain/removal';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { MODULES, modulesOn } from '../core/registry';
+import { RULE_PAGES, systemOverview } from '../spec/overview';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });
@@ -321,6 +322,16 @@ export const WORK_TOOLS: ToolDef[] = [
       }
       const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
       return { data: { articles: list.map(brief) }, text: lines(list.map((x) => `${x.id} · ${x.title}: ${x.summary}`), `No help article matches “${String(a.search)}”.`) };
+    },
+  },
+  {
+    name: 'describe_system',
+    title: 'What Faro is: an overview for an AI',
+    description: 'What Faro is and how it is built, in one page: the core (goals, weekly check-ins, the status rules and their numbers, flags and the change engine), its feature modules, and where the generated spec says the rest (the data model, every rule with worked examples, the vocabulary, the screens, the journeys and requirements, and the conformance data a rebuild proves itself against). The same text as llms.txt at the root of the repository. Paths are relative to that root.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: READ,
+    async run() {
+      return { data: { rulePages: RULE_PAGES.map(([id, title]) => ({ title, path: `spec/core/rules/${id}.md` })), modules: MODULES.map((m) => ({ id: m.id, name: m.name, path: `spec/modules/${m.id}/README.md` })) }, text: systemOverview() };
     },
   },
   {

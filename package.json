@@ -19,7 +19,8 @@
     "visual": "node evals/visual.mjs",
     "build:mcp": "vite build -c vite.mcp.config.ts --logLevel warn",
     "glossary": "node scripts/glossary.mjs",
-    "export-format": "node scripts/export-format.mjs"
+    "export-format": "node scripts/export-format.mjs",
+    "spec": "node scripts/spec.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

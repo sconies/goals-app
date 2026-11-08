@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'describe-system',
+    date: '2026-11-08',
+    title: 'An AI assistant can ask what Faro is',
+    points: [
+      'Connected AI assistants have a new tool, describe system: a one-page overview of what Faro is, how its rules work and where its spec says the rest.',
+      'Nothing on screen changes.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
     id: 'spreadsheets-on-data',
     date: '2026-11-08',
     title: 'Spreadsheets have one home: Data',

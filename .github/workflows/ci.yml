@@ -1,4 +1,4 @@
-# Pull requests: a smoke gate (typecheck, the layers lint, unit tests, What's new, the MCP bundle, the spec scenarios and
+# Pull requests: a smoke gate (typecheck, the layers lint, unit tests, What's new, the generated spec, the MCP bundle, the spec scenarios and
 # the core journeys, a few minutes), the core journeys again with each feature module left out of the build, and a
 # screenshot comparison against the base branch. Merges to main run the full eval suite as four
 # parallel shards, then one scorecard; a failure there opens an issue to fix or revert straight away. Merges to main
@@ -37,6 +37,8 @@ jobs:
       - name: "Layers: src/domain has no database, screen or network code, and the core imports no module"
         run: npm run lint:layers
       - run: npm test
+      - name: "The spec matches the code (spec/ and llms.txt: npm run spec)"
+        run: npm run spec -- --check
       - name: The MCP server bundle matches its source
         run: |
           npm run build:mcp

@@ -12,6 +12,8 @@ const FULL = 'FULL';
 const RULES = [
   // Nothing extra: words for people, the database's paste-in copies, the backlog. (What's new and the guide are N7.)
   [/^(docs\/|README|CLAUDE\.md|supabase\/manual\/|\.github\/|evals\/(report\.md|requirements\.json))/, []],
+  // The spec (backlog 8a, 8b): generated files and their generator. npm test checks them; no screen reads them.
+  [/^(spec\/|llms\.txt$|src\/spec\/|scripts\/spec\.mjs$)/, []],
   [/^src\/help\//, ['N7', 'U27', 'U29']],
   // Shared by every screen: the full suite.
   [/^(src\/(App|main)\.tsx|src\/styles\.css|src\/styles\/[^/]+\.css|src\/app\/state\.tsx|src\/ui\/|src\/domain\/(vocabulary|status|types|plan|cycle|year)\.ts|src\/data\/(store|examples)\.ts|src\/data\/platformOrg\/|index\.html|vite\.config\.ts|package(-lock)?\.json)/, [FULL]],
