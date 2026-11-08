@@ -135,7 +135,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin.'] },
       { heading: 'How to use it', list: [
-        'Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
+        'A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
         'In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.',
         'Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.',
         'A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later.',

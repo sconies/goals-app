@@ -337,11 +337,11 @@ module.exports = {
       const c = await browser.newContext({ viewport: { width: 390, height: 844 } });
       const p = await c.newPage();
       await p.goto(live('/'));
-      await p.getByRole('heading', { name: 'Weekly goals that stay on track' }).waitFor({ timeout: 5000 });
+      await p.getByRole('heading', { name: 'Run the company on outcomes, and manage by exception' }).waitFor({ timeout: 5000 });
       const logo = p.locator('.welcome').getByRole('img', { name: 'Faro', exact: true });
       fail(await logo.count() === 1 && await logo.isVisible(), '[BRAND] the welcome page has no logo named “Faro”');
       const order = await p.evaluate(() => { const l = document.querySelector('.welcome .faro-logo'), h = document.querySelector('.welcome h1'); return !!l && !!h && !!(l.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING); });
-      fail(order, '[BRAND] the logo is not above “Weekly goals that stay on track”');
+      fail(order, '[BRAND] the logo is not above “Run the company on outcomes, and manage by exception”');
       fail(/Faro$/.test(await p.title()), `[BRAND] the welcome page's title is “${await p.title()}”`);
       // The favicon: linked from the page, and an SVG that is really served, from the demo too.
       for (const at of [live('/'), url('/')]) {
@@ -382,7 +382,7 @@ module.exports = {
         await s.locator('.faro-splash').waitFor({ state: 'detached', timeout: 4000 }).catch(() => {});
         const took = Date.now() - t0;
         fail(took < 2200, `[LAUNCH] the splash took ${took}ms to go (want about 1.5s)`);
-        fail(await s.getByRole('heading', { name: 'Weekly goals that stay on track' }).isVisible(), '[LAUNCH] the app is not there when the splash ends');
+        fail(await s.getByRole('heading', { name: 'Run the company on outcomes, and manage by exception' }).isVisible(), '[LAUNCH] the app is not there when the splash ends');
         await s.reload(); await s.waitForTimeout(400);
         fail(await s.locator('.faro-splash').count() === 0, '[LAUNCH] the splash shows again in the same session (on a reload or navigation)');
         await sc.close();

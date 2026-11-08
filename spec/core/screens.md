@@ -195,9 +195,9 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/workspace/new` (`Onboarding`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
 
-- **Named parts:** “Weekly goals that stay on track”, “What’s this workspace for?”, “Who are you?”, “Who else is on it?”, “Where do you want to start?”, “What outcome are you after?”, “What feeds it?”
+- **Named parts:** “Run the company on outcomes, and manage by exception”, “What’s this workspace for?”, “Who are you?”, “Who else is on it?”, “Where do you want to start?”, “What outcome are you after?”, “What feeds it?”
 - **Main action:** Set up a workspace, one question a screen.
-- **Primary buttons in its markup:** none written as plain text
+- **Primary buttons in its markup:** “Try the demo”
 - **AI tools:** none, on purpose: Setting up a new workspace happens before there is a token for it.
 
 ## Settings

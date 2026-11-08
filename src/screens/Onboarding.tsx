@@ -29,6 +29,7 @@ import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { StageFields } from '../ui/GoalFields';
 import { FaroLogo } from '../ui/Brand';
+import { PROTOTYPE_LINE } from '../help/about';
 
 interface PersonRow { name: string; email: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string }
@@ -114,17 +115,19 @@ export function Welcome() {
     <div className="welcome">
       <div className="welcome-body">
         <FaroLogo size={48} className="welcome-logo" />
-        <h1 className="title-xl">Weekly goals that stay on track</h1>
+        {/* Written for leaders seeing Faro for the first time (Lane, 8 Nov): what it's for, not how to set it up. */}
+        <h1 className="title-xl">Run the company on outcomes, and manage by exception</h1>
         <ul className="welcome-points">
-          <li><strong>Set an outcome</strong> and the few goals that move it.</li>
-          <li><strong>Owners check in weekly</strong>, in under a minute each.</li>
-          <li><strong>Anyone can watch</strong> the goals they care about, and run a review on them.</li>
+          <li><strong>Outcomes broken into owned goals</strong>, each with a plan and a measure.</li>
+          <li><strong>Owners update in a minute a week</strong>, so the picture stays current.</li>
+          <li><strong>You see only what’s off track</strong>, with why and what’s being done.</li>
         </ul>
         <div className="stack" style={{ gap: 'var(--s3)' }}>
-          <button className="btn primary big-btn" onClick={() => setStart(true)}>Set up your workspace</button>
+          <a className="btn primary big-btn" href="/demo">Try the demo</a>
+          <button className="btn" onClick={() => setStart(true)}>Set up your workspace</button>
           <span className="hint">About 3 minutes. Start from a template and change what you need.</span>
-          <a className="linkish tap" href="/demo">Or try the demo first</a>
         </div>
+        <p className="hint welcome-foot">{PROTOTYPE_LINE}</p>
       </div>
     </div>
   );
