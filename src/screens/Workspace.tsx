@@ -1,5 +1,5 @@
-/* Workspace: its name and teams, switching workspaces (when there's more than one), the builder inbox (markups, for the
-   people building Faro, who sign in to it), and (for admins) the people in it, AI assistants, what the app records here,
+/* Workspace: its name and teams, switching workspaces (when there's more than one), the inbox (markups and feedback, open to
+   anyone, with no sign-in), and (for admins) the people in it, AI assistants, what the app records here,
    feedback, and deleting it. */
 import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router';
@@ -73,7 +73,7 @@ export function WorkspaceHome() {
             </span>
           </div>
         )}
-        {/* The builder inbox: markups people send. Loads only on Workspace (src/markup/Inbox.tsx). */}
+        {/* The inbox: markups and feedback people send, open to anyone. Loads only on Workspace (src/markup/Inbox.tsx). */}
         <Suspense fallback={null}><Inbox /></Suspense>
       </section>
       <aside className="split-side" aria-label="Teams and settings">

@@ -264,7 +264,7 @@ export const markupFromRow = (r: MarkupRow): Markup => ({
 
 /* ---------- triage ---------- */
 
-/** A change of status, as a builder asks for it. */
+/** A change of status, as someone in the inbox (or an assistant) asks for it. */
 export interface StatusChange { status: MarkupStatus; fixedIn?: string | null; reason?: string | null; by: string }
 
 /** Checks a status change and gives the fields it sets. Fixed names the What's new entry; Won't fix needs a reason. */
@@ -276,6 +276,12 @@ export function statusPatch(c: StatusChange, now: string, entries: string[]): Pi
   const reason = c.status === 'wont-fix' ? (c.reason ?? '').trim() : '';
   if (c.status === 'wont-fix' && !reason) throw new MarkupError('Say why it won’t be fixed.');
   return { status: c.status, fixedIn: fixedIn || null, wontFixReason: reason ? reason.slice(0, 2000) : null, statusBy: c.by.slice(0, 200), statusAt: now };
+}
+
+/** Undoing a status change: the change that puts back the status it replaced (with its What's new entry or reason),
+    through the same rule, recorded as whoever undoes it. */
+export function undoChange(before: Pick<Markup, 'status' | 'fixedIn' | 'wontFixReason'>, by: string): StatusChange {
+  return { status: before.status, fixedIn: before.fixedIn, reason: before.wontFixReason, by };
 }
 
 export const ISSUE_URL = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+$/;
@@ -316,7 +322,7 @@ export function issueBody(m: Markup, o: { inboxUrl?: string | null } = {}): stri
   const out: string[] = [];
   out.push(`> ${esc(m.line)}`, '');
   out.push(`${m.personName || 'Someone'} sent this ${m.demo ? 'from the demo' : `from ${m.workspaceName || m.workspaceId}`} on ${when(m.createdAt)}${m.mood ? `, saying “${MOOD_WORD[m.mood]}”` : ''}.`, '');
-  out.push(o.inboxUrl ? `**The picture, with the drawing:** [open markup \`${m.id}\` in Faro’s inbox](${o.inboxUrl}) (builders, signed in).` : `The picture is in Faro’s inbox: markup \`${m.id}\`.`, '');
+  out.push(o.inboxUrl ? `**The picture, with the drawing:** [open markup \`${m.id}\` in Faro’s inbox](${o.inboxUrl}) (anyone can open it).` : `The picture is in Faro’s inbox: markup \`${m.id}\`.`, '');
   const parts = namedParts(m);
   out.push('## Parts named', '');
   out.push(...(parts.length ? parts.map((p) => `- ${esc(partText(p))}`) : ['- No named part under the drawing.']), '');

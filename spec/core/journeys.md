@@ -50,11 +50,11 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U39 | Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at |  | `ONE-ACCOUNT` `PATH-TO-GREEN` `WALKTHROUGHS` | 14 | `evals/journeys.cjs` |
 | U40 | Research notes followed up: a cause for anything else, demo feedback that says where it goes, and a research session that ends after its last task |  | `OTHER-CAUSE` `DEMO-FEEDBACK` `RESEARCH` | 16 | `evals/journeys.cjs` |
 | U41 | Mark up a screen on a phone and a desktop: draw, add a note, check the picture, say what should change, send | Anyone using the app | `MARKUP` | 14 | `evals/journeys.cjs` |
-| U42 | A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand | A builder | `MARKUP` `MARKUP-INBOX` `FEEDBACK-INBOX` | 21 | `evals/journeys.cjs` |
+| U42 | Anyone opens the inbox with no sign-in, opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand | Anyone using the app | `MARKUP` `MARKUP-INBOX` `FEEDBACK-INBOX` | 21 | `evals/journeys.cjs` |
 | U43 | An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name | An admin | `PERSON-LEFT` `UNDO-REMOVE` `REMOVE-ANYTHING` | 10 | `evals/journeys.cjs` |
 | U44 | An owner stops a goal with history, then deletes a goal set up by mistake and undoes it | A goal owner | `GOAL-STOP` `UNDO-REMOVE` `REMOVE-ANYTHING` | 11 | `evals/journeys.cjs` |
 | U45 | Undo an import: every row back as it was, and a row changed since skipped and listed | A goal owner | `IMPORT-UNDO` `BULK-EDIT` | 8 | `evals/journeys.cjs` |
-| U47 | A test round with only a builder token: a markup sent from the demo is read in the demo’s inbox with the token, no email sign-in, its picture coming from the server; then the token is forgotten |  | `CONNECT-CLAUDE` `MARKUP-INBOX` | 12 | `evals/journeys.cjs` |
+| U47 | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so |  | `CONNECT-CLAUDE` `MARKUP-INBOX` | 12 | `evals/journeys.cjs` |
 
 ## Platform checks
 

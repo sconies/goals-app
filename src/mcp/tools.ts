@@ -47,9 +47,9 @@ export interface McpContext {
   full?: Snapshot;
   /** Deletes the whole workspace (admins, confirmed by name); not every server can. */
   deleteWorkspace?: () => Promise<void>;
-  /** The builder inbox (src/markup/ops.ts): only when the request carries the builder passcode and the server can read markups. */
+  /** The open inbox's markups (src/markup/ops.ts): with any token, when the server has an inbox. */
   markups?: MarkupOps;
-  /** The builders' feedback triage (src/markup/feedback.ts): only with a builder token, as for markups. */
+  /** The open inbox's feedback triage (src/markup/feedback.ts): with any token, as for markups. */
   feedback?: FeedbackOps;
 }
 

@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'open-inbox',
+    date: '2026-11-08',
+    title: 'The inbox is open to everyone',
+    points: [
+      'The inbox on Workspace no longer asks you to sign in: anyone can read the markups and feedback people send, with their pictures, on any device. Faro holds no real data, so there is nothing to hide.',
+      'Anyone can change a status. Each change says who made it, and Undo puts back the status it replaced.',
+      'Connect Claude works with any token: an admin makes one right there, and Claude’s inbox tools no longer need a builder token.',
+    ],
+    articles: ['inbox', 'ai-assistants'],
+  },
+  {
     id: 'demo-polish',
     date: '2026-11-08',
     title: 'Clearer words and a cleaner Start over',

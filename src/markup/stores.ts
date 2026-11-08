@@ -1,24 +1,44 @@
-/* Where markups are kept, for markupOps (ops.ts), in Supabase. No secrets in either:
-   - signedInMarkups: the inbox, as a builder signed in with Supabase Auth. The database lets builders read and triage
-     markups (migration 0024, okr_is_builder) and read the pictures, through links signed for them.
-   - tokenMarkups: the MCP server, with a builder token, through the database's functions for it (okr_markups_for_token
-     and the others), on whatever key the server has. Pictures need Storage's own access: only a server holding the
-     service role key can read or sign them, so without it the tools say plainly what to add where (PICTURES_NEED_KEY). */
+/* Where markups are kept, for markupOps (ops.ts), in Supabase. No secrets in either, and no sign-in: Faro's inbox is
+   open to anyone on purpose (backlog O, migration 0031; the internal app keeps its own restricted, spec R1 rule 6).
+   - openMarkups: the inbox, on the app's public key, which reads every markup and changes its triage columns.
+   - tokenMarkups: the MCP server, with any live token, through the database's functions for it
+     (okr_markups_for_token and the others), on whatever key the server has.
+   Pictures are in the public-read bucket "markups": each is opened by its address, which anyone can make from the
+   markup's id; nobody can list the bucket. So neither needs the service role key to show or read one. */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { markupFromRow, type MarkupRow } from './model';
-import type { MarkupStore } from './ops';
+import { MarkupError, markupFromRow, type MarkupRow } from './model';
+import { PICTURES_UNREADABLE, type MarkupStore } from './ops';
 
-/** Reads one picture's bytes from the private bucket (Storage's own access: a signed-in builder, or the service role). */
+/** A picture's address in the public-read bucket. */
+const publicUrl = (db: SupabaseClient, id: string, name: string) => db.storage.from('markups').getPublicUrl(`${id}/${name}`).data.publicUrl;
+
+/** One picture's bytes, read from its address (null when it isn't there, or the bucket isn't open yet). */
 async function download(db: SupabaseClient, id: string, name: string): Promise<Uint8Array | null> {
-  const { data, error } = await db.storage.from('markups').download(`${id}/${name}`);
-  return error || !data ? null : new Uint8Array(await data.arrayBuffer());
+  try {
+    const r = await fetch(publicUrl(db, id, name));
+    return r.ok ? new Uint8Array(await r.arrayBuffer()) : null;
+  } catch { return null; }
+}
+
+/** Pictures by their public address. Reading the bytes first asks the database, once, whether the bucket is open
+    (okr_markup_pictures_open, migration 0031), so an assistant is told why there's no picture rather than "none". */
+function pictures(db: SupabaseClient): Pick<MarkupStore, 'pictureUrl' | 'pictureBytes'> {
+  let open: Promise<boolean> | null = null;
+  const isOpen = () => (open ??= Promise.resolve(db.rpc('okr_markup_pictures_open')).then(({ data, error }) => !error && data === true, () => false));
+  return {
+    pictureUrl: async (id, name) => publicUrl(db, id, name),
+    async pictureBytes(id, name) {
+      if (!(await isOpen())) throw new MarkupError(PICTURES_UNREADABLE);
+      return download(db, id, name);
+    },
+  };
 }
 
 const COLUMN: Record<string, string> = { status: 'status', fixedIn: 'fixed_in', wontFixReason: 'wont_fix_reason', statusBy: 'status_by', statusAt: 'status_at', issueUrl: 'issue_url' };
 const toRow = (patch: object) => Object.fromEntries(Object.entries(patch).map(([k, v]) => [COLUMN[k] ?? k, v]));
 const rows = (data: unknown) => ((data ?? []) as MarkupRow[]).map(markupFromRow);
 
-export function signedInMarkups(db: SupabaseClient): MarkupStore {
+export function openMarkups(db: SupabaseClient): MarkupStore {
   return {
     async list(o) {
       let q = db.from('okr_markups').select('*').order('created_at', { ascending: false }).limit(o.limit);
@@ -38,15 +58,11 @@ export function signedInMarkups(db: SupabaseClient): MarkupStore {
       if (error) throw new Error('Saving the markup: ' + error.message);
       return rows(data)[0] ?? null;
     },
-    async pictureUrl(id, name, seconds) {
-      const { data, error } = await db.storage.from('markups').createSignedUrl(`${id}/${name}`, seconds);
-      return error ? null : data?.signedUrl ?? null;
-    },
-    pictureBytes: (id, name) => download(db, id, name),
+    ...pictures(db),
   };
 }
 
-export function tokenMarkups(db: SupabaseClient, hash: string, signer?: SupabaseClient | null): MarkupStore {
+export function tokenMarkups(db: SupabaseClient, hash: string): MarkupStore {
   const call = async (fn: string, args: Record<string, unknown>, what: string) => {
     const { data, error } = await db.rpc(fn, args);
     if (error) throw new Error(`${what}: ${error.message}`);
@@ -56,12 +72,6 @@ export function tokenMarkups(db: SupabaseClient, hash: string, signer?: Supabase
     list: (o) => call('okr_markups_for_token', { hash, ws: o.workspaceId ?? null, st: o.status ?? null, lim: o.limit }, 'Markups'),
     get: async (id) => (await call('okr_markup_for_token', { hash, mid: id }, 'Markups'))[0] ?? null,
     update: async (id, patch) => (await call('okr_markup_triage_for_token', { hash, mid: id, patch: toRow(patch) }, 'Saving the markup'))[0] ?? null,
-    async pictureUrl(id, name, seconds) {
-      if (!signer) return null;
-      const { data, error } = await signer.storage.from('markups').createSignedUrl(`${id}/${name}`, seconds);
-      return error ? null : data?.signedUrl ?? null;
-    },
-    // Only with the service role key: without it there is no pictureBytes, and the tools say what to add where.
-    ...(signer ? { pictureBytes: (id: string, name: string) => download(signer, id, name) } : {}),
+    ...pictures(db),
   };
 }

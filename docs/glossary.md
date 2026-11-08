@@ -31,8 +31,8 @@ Decided in release 1 of the consolidation (5 Nov 2026). The words for states (st
 | Import | Loading a spreadsheet of changes (`/data/import`, opened from Data’s Spreadsheets menu): new goals, plan numbers, check-ins and past weeks, all shown before anything is saved. Its button, menu item, page, walkthrough and help say Import. | `Load changes from a spreadsheet`, `upload changes` |
 | Export | Saving goals as a workbook, CSV, JSON or a brief for an AI chat. | download (as the name of the action) |
 | Markup | A picture of a screen with marks drawn on it and a line saying what should change, sent to the people building Faro from Send feedback (Mark up this screen). Its status is New, In hand, Fixed or Won't fix. | screenshot, annotation, bug report, ticket |
-| Builder | One of the people building Faro, whose email is on the builders list; signs in to the inbox on Workspace. | developer, staff |
-| Inbox | Where builders read and triage what people send with Send feedback: markups, and feedback (a mood and a few words), each New, In hand, Fixed or Won't fix. | queue, tracker, backlog |
+| Builder | One of the people building Faro. Faro's inbox is open to anyone, so builders need no sign-in; in the internal app, a directory group that alone reads the inbox. | developer, staff |
+| Inbox | Where anyone (in Faro; builders, in the internal app) reads and triages what people send with Send feedback: markups, and feedback (a mood and a few words), each New, In hand, Fixed or Won't fix. | queue, tracker, backlog |
 | Left | A person who has left the workspace: out of pickers, counts, reviews and Home, named in history as "Name (left)". Shown as a shape and the word. | departed, deactivated, archived (for a person) |
 | Stopped | A goal stopped before the end of its year, with a reason: out of every list, still on its page, in exports and in Activity. Shown as a shape and the word. Not a status. | `Cancelled`, abandoned, archived (for a goal) |
 | Ended | A review that has ended: it keeps its notes and actions and is no longer due. | closed (for a review), archived |

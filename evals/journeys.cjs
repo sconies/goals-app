@@ -1944,34 +1944,18 @@ journey('U41', ['MARKUP'], 'Mark up a screen on a phone and a desktop: draw, add
   await p.context().close();
 }, ['progress']);
 
-/** The builder token the fake database knows (a real one is made in the inbox, under Connect Claude). */
-const BUILDER_TOKEN = 'gk_' + 'B'.repeat(40);
-
-/** A database for the build whose database never answers (DOWN): just enough of Supabase (REST, Storage and Auth) for
-    markups and feedback in the inbox, answered by Playwright. Keeps what was sent, and says what the inbox asked for. */
+/** A database for the build whose database never answers (DOWN): just enough of Supabase (REST and Storage) for
+    markups and feedback in the open inbox, answered by Playwright. Keeps what was sent, and says what the inbox asked
+    for. No sign-in anywhere: the inbox reads and triages on the public key (migration 0031). */
 async function fakeSupabase(ctx) {
-  const db = { markups: [], inserted: [], uploads: [], issued: [], patches: [], otp: [], signedOut: 0, fbPatches: [], revoked: [], tokenReads: 0, pictureReads: [],
-    // A builder token Lane made (migration 0029's okr_builder_tokens lists it; okr_token_find knows its hash).
-    tokens: [{ id: 'tok_b1', workspace_id: 'acme', workspace_name: 'Acme', person_id: 'lane', person_name: 'Lane Hirschfield', name: 'Claude, reviewing markups', created_at: '2026-11-04T09:00:00.000Z', last_used_at: null }],
-    // Feedback someone sent from another workspace two days ago (migration 0026's okr_feedback_inbox).
+  const db = { markups: [], inserted: [], uploads: [], issued: [], patches: [], fbPatches: [], pictureReads: [], signIns: 0,
+    // Feedback someone sent from another workspace two days ago (okr_feedback_inbox).
     feedback: [{ id: 'fb_j1', workspace_id: 'acme', workspace_name: 'Acme', person_id: 'mateo', person_name: 'Mateo Silva', path: '/check-in', mood: 'meh', text: 'The reason box is too small on a phone', at: '2026-11-04T10:00:00.000Z', status: 'new', fixed_in: null, wont_fix_reason: null, status_by: null, status_at: null }] };
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS', 'Access-Control-Expose-Headers': '*' };
   const ok = (route, body, status = 200) => route.fulfill({ status, headers: { ...cors, 'Content-Type': 'application/json' }, body: body === undefined ? '' : JSON.stringify(body) });
-  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
-  const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: 'u-lane', email: 'lanehirschfield@gmail.com', role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.c2lnbmF0dXJl`;
-  const user = { id: 'u-lane', aud: 'authenticated', role: 'authenticated', email: 'lanehirschfield@gmail.com', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() };
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
-  const builderHash = require('crypto').createHash('sha256').update(BUILDER_TOKEN).digest('hex');
-  const asToken = (r) => { const b = JSON.parse(r.postData() || '{}'); return b.hash === builderHash; };
-  // The MCP server's picture and check answers (GET /api/mcp?picture=…, ?check), as on a deploy with the key set.
-  await ctx.route(/\/api\/mcp\?/, async (route) => {
-    const r = route.request();
-    const u = new URL(r.url());
-    if (u.searchParams.has('check')) return ok(route, { ok: true, database: true, pictures: true, problems: [] });
-    if (r.headers().authorization !== `Bearer ${BUILDER_TOKEN}`) return ok(route, { error: { message: 'Only a builder token reads markup pictures.' } }, 403);
-    db.pictureReads.push(u.searchParams.get('picture'));
-    return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'image/png' }, body: PNG });
-  });
+  // The MCP server's check (GET /api/mcp?check), as on a deploy where the markups bucket is open.
+  await ctx.route(/\/api\/mcp\?/, (route) => ok(route, { ok: true, database: true, pictures: true, problems: [] }));
   await ctx.route(/127\.0\.0\.1:\d+\//, async (route) => {
     const r = route.request();
     const u = new URL(r.url());
@@ -1979,58 +1963,31 @@ async function fakeSupabase(ctx) {
     const path = u.pathname;
     if (path.startsWith('/rest/v1/okr_telemetry_') || path === '/rest/v1/okr_research_notes') return ok(route, undefined, 201);
     if (path === '/rest/v1/rpc/okr_markup_new_id') { const id = 'mk_' + Math.random().toString(16).slice(2, 10).padEnd(8, '0') + Date.now().toString(16).slice(-8); db.issued.push(id); return ok(route, id); }
-    if (path === '/rest/v1/rpc/okr_is_builder') return ok(route, (r.headers().authorization || '').includes(jwt));
-    if (path === '/rest/v1/rpc/okr_feedback_inbox') return ok(route, (r.headers().authorization || '').includes(jwt) ? db.feedback : []);
-    // Connect Claude (migration 0029): the signed-in builder's tokens, and revoking one.
-    if (path === '/rest/v1/rpc/okr_builder_tokens') return (r.headers().authorization || '').includes(jwt) ? ok(route, db.tokens) : ok(route, { message: 'Only builders, signed in to the inbox, list builder tokens.' }, 400);
-    if (path === '/rest/v1/rpc/okr_builder_token_revoke') { const { token_id } = JSON.parse(r.postData() || '{}'); db.revoked.push(token_id); db.tokens = db.tokens.filter((t) => t.id !== token_id); return ok(route, true); }
-    // A builder token, on the public key (migrations 0024 and 0028).
-    if (path === '/rest/v1/rpc/okr_token_find') return ok(route, asToken(r) ? [{ id: 'tok_b1', workspace_id: 'acme', person_id: 'lane', name: 'Claude', builder: true }] : []);
-    if (path === '/rest/v1/rpc/okr_markups_for_token') { if (!asToken(r)) return ok(route, { message: 'Only a builder token can read markups.' }, 400); db.tokenReads++; return ok(route, [...db.markups].reverse()); }
-    if (path === '/rest/v1/rpc/okr_markup_for_token') { const b = JSON.parse(r.postData() || '{}'); return asToken(r) ? ok(route, db.markups.filter((x) => x.id === b.mid)) : ok(route, { message: 'Only a builder token can read markups.' }, 400); }
-    if (path === '/rest/v1/rpc/okr_markup_triage_for_token') {
-      const b = JSON.parse(r.postData() || '{}');
-      if (!asToken(r)) return ok(route, { message: 'Only a builder token can change markups.' }, 400);
-      db.patches.push(b.patch);
-      const m = db.markups.find((x) => x.id === b.mid);
-      Object.assign(m, b.patch);
-      return ok(route, [m]);
-    }
-    if (path === '/rest/v1/rpc/okr_feedback_for_token') return asToken(r) ? ok(route, db.feedback) : ok(route, { message: 'Only a builder token can read feedback.' }, 400);
+    if (path === '/rest/v1/rpc/okr_feedback_inbox') return ok(route, db.feedback);
     if (path === '/rest/v1/rpc/okr_feedback_triage') {
-      if (!(r.headers().authorization || '').includes(jwt)) return ok(route, { message: 'Only builders, signed in to the inbox, change feedback.' }, 400);
       const { fid, patch } = JSON.parse(r.postData() || '{}');
       db.fbPatches.push(patch);
       const f = db.feedback.find((x) => x.id === fid);
       if (f) Object.assign(f, patch);
       return ok(route, f ? [f] : []);
     }
-    if (path.startsWith('/storage/v1/object/sign/markups/')) return ok(route, { signedURL: `/object/sign/markups/${path.split('/markups/')[1]}?token=t` });
+    // Pictures: uploaded under an issued id, opened by their public address.
+    if (path.startsWith('/storage/v1/object/public/markups/')) { db.pictureReads.push(path.split('/markups/')[1]); return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'image/png' }, body: PNG }); }
     if (path.startsWith('/storage/v1/object/markups/')) { db.uploads.push(path.split('/markups/')[1]); return ok(route, { Key: path.slice(18), Id: 'x' }); }
-    if (path.startsWith('/storage/v1/object/sign/')) return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'image/png' }, body: PNG });
     if (path === '/rest/v1/okr_markups') {
-      const builder = (r.headers().authorization || '').includes(jwt);
       if (r.method() === 'POST') { const row = JSON.parse(r.postData()); db.inserted.push(row); db.markups.push({ status: 'new', issue_url: null, fixed_in: null, wont_fix_reason: null, status_by: null, status_at: null, created_at: new Date().toISOString(), ...row }); return ok(route, undefined, 201); }
-      if (!builder) return ok(route, []);
       const id = (u.searchParams.get('id') || '').replace(/^eq\./, '');
       if (r.method() === 'PATCH') { const patch = JSON.parse(r.postData()); db.patches.push(patch); const m = db.markups.find((x) => x.id === id); Object.assign(m, patch); return ok(route, [m]); }
       return ok(route, id ? db.markups.filter((x) => x.id === id) : [...db.markups].reverse());
     }
-    if (path === '/auth/v1/otp') { db.otp.push({ ...JSON.parse(r.postData() || '{}'), redirect_to: u.searchParams.get('redirect_to') }); return ok(route, {}); }
-    if (path === '/auth/v1/user') return (r.headers().authorization || '').includes(jwt) ? ok(route, user) : ok(route, { message: 'invalid' }, 401);
-    if (path === '/auth/v1/logout') { db.signedOut++; return route.fulfill({ status: 204, headers: cors }); }
+    if (path.startsWith('/auth/v1/')) { db.signIns++; return ok(route, { message: 'no sign-in in the open inbox' }, 404); }
     return ok(route, { message: 'not in the fake' }, 404);
   });
-  return { db, jwt };
+  return { db };
 }
 
-journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in to the inbox, opens a markup, toggles the drawing, marks it in hand, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand', 21, async (h, device) => {
-  if (!DOWN) fail('U42 needs the build with a database address (DOWN)');
-  const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
-  const p = h.use(await newPage(device, 'rhea'));
-  const { db, jwt } = await fakeSupabase(p.context());
-  // Rhea marks up Home in the demo (her markup goes to the database, marked demo), with the shortcut.
-  await p.goto(down('/'));
+/** Sends a markup of Home from the demo, as the person on this page. */
+async function sendHomeMarkup(p, device, line) {
   await p.locator('.page.home').waitFor();
   await p.waitForTimeout(500);
   await p.keyboard.press('Control+Shift+M');
@@ -2040,36 +1997,35 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in
   await markupBar(p).getByRole('button', { name: 'Next', exact: true }).click();
   const send = p.getByRole('dialog', { name: 'Send the markup' });
   await send.locator('.mk-preview img').waitFor();
-  await send.getByLabel('What should change?').fill('The week strip should say which week it is');
+  await send.getByLabel('What should change?').fill(line);
   await send.getByRole('button', { name: 'Send', exact: true }).click();
   await see(p, 'Sent. You’ll hear when it’s fixed.');
+}
+
+journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the inbox with no sign-in, opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand', 21, async (h, device) => {
+  if (!DOWN) fail('U42 needs the build with a database address (DOWN)');
+  const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
+  const p = h.use(await newPage(device, 'rhea'));
+  const { db } = await fakeSupabase(p.context());
+  // Rhea marks up Home in the demo (her markup goes to the database, marked demo), with the shortcut.
+  await p.goto(down('/'));
+  await sendHomeMarkup(p, device, 'The week strip should say which week it is');
   const sent = db.markups[0];
   const shared = !!sent && sent.demo === true && db.issued.includes(sent.id) && ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'].every((x) => db.uploads.includes(`${sent.id}/${x}`)) && sent.route === '/' && !('status' in db.inserted[0]);
-  // The builder: the inbox on Workspace asks them to sign in with their email.
+  // The inbox on Workspace: open, no sign-in and no token to paste.
   await p.goto(down('/workspace'));
   const inbox = p.locator('#inbox');
-  await inbox.getByLabel(/Sign in with your email/).waitFor();
-  h.set('entry', await inbox.getByLabel(/Sign in with your email/).isVisible(), 'no way to sign in to the inbox');
-  await inbox.getByRole('button', { name: 'Email me a sign-in link' }).click();
-  h.set('errors', db.otp.length === 0 && await inbox.getByRole('button', { name: 'Email me a sign-in link' }).isVisible(), 'a sign-in link was asked for with no email');
-  await h.fill(inbox.getByLabel(/Sign in with your email/), 'lanehirschfield@gmail.com');
-  await h.click(inbox.getByRole('button', { name: 'Email me a sign-in link' }));
-  await see(inbox, 'Check your email', 'no word that the link was sent');
-  const asked = db.otp[0] || {};
-  // …and the link in the email brings them back here, signed in.
-  await p.goto(`${DOWN}/demo/workspace?inbox=1&today=${TODAY}#access_token=${jwt}&refresh_token=r1&expires_in=3600&expires_at=${Math.floor(Date.now() / 1000) + 3600}&token_type=bearer&type=magiclink`);
   const row = inbox.locator('.mk-row').first();
   await row.waitFor({ timeout: 10000 });
+  h.set('entry', await inbox.locator('input[type=email], input[type=password]').count() === 0 && await inbox.getByText(/Sign in/).count() === 0, 'the inbox still asks to sign in or for a token');
   h.set('attention', await row.locator('.mk-status').innerText() === 'New' && (await row.innerText()).includes('The week strip should say which week it is') && (await row.innerText()).includes('the demo'), 'the markup is not listed as New, with its line and where it came from');
   await h.checkpoint('inbox');
-  // Connect Claude sits at the top of the inbox: in the demo it lists the builder's tokens (made in the app) and revokes one.
+  // Connect Claude sits at the top: in the demo it says tokens are made in the real app, and gives the set-up.
   const connect = inbox.locator('.connect');
-  await see(connect, 'Claude, reviewing markups', 'Connect Claude does not list the builder’s tokens');
   const atTop = await inbox.evaluate((el) => { const c = el.querySelector('.connect'); const l = el.querySelector('.mk-list'); return !!c && !!l && !!(c.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING); });
   const setUp = (await connect.getByLabel('Claude Code command', { exact: true }).inputValue()).includes('/api/mcp --header "Authorization: Bearer gk_');
-  await h.click(connect.getByRole('button', { name: 'Revoke Claude, reviewing markups' }));
-  await see(p, 'Revoked “Claude, reviewing markups”', 'no word that the token was revoked');
-  h.set('finish', atTop && setUp && db.revoked[0] === 'tok_b1' && await see(connect, 'Pictures for Claude: ready').then(() => true, () => false), `Connect Claude at the top ${atTop}, set-up ${setUp}, revoked ${JSON.stringify(db.revoked)}`);
+  const says = await see(connect, 'any token from it reads the demo’s markups too').then(() => true, () => false);
+  h.set('finish', atTop && setUp && says && await see(connect, 'Pictures for Claude: ready').then(() => true, () => false), `Connect Claude at the top ${atTop}, set-up ${setUp}, says any token works ${says}`);
   await h.click(row);
   const detail = p.getByRole('dialog', { name: /^Markup: / });
   await detail.locator('.mk-layers img').first().waitFor();
@@ -2077,9 +2033,16 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in
   await h.click(detail.getByLabel('Show the drawing'));
   const hidden = await detail.locator('.mk-ink-layer').count();
   await h.checkpoint('markup');
+  // Mark in hand, then Undo: the status it replaced comes back.
   await h.click(detail.getByRole('button', { name: 'Mark in hand' }));
   await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand');
-  // Open GitHub issue: GitHub opens in a new tab with the issue filled in; the builder pastes its address back.
+  await see(detail, 'Marked in hand by Rhea Kapoor', 'the markup does not say who marked it');
+  await h.click(detail.getByRole('button', { name: 'Undo' }));
+  await see(detail.locator('.mk-status').first(), 'New', 'Undo did not put the markup back to New');
+  h.set('errors', db.markups[0].status === 'new' && db.patches.length === 2, `after Undo the markup is ${db.markups[0].status}, ${db.patches.length} changes saved`);
+  await h.click(detail.getByRole('button', { name: 'Mark in hand' }));
+  await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand again');
+  // Open GitHub issue: GitHub opens in a new tab with the issue filled in; the address is pasted back.
   const [tab] = await Promise.all([p.context().waitForEvent('page'), h.click(detail.getByRole('button', { name: 'Open GitHub issue' }))]);
   const issue = new URL(tab.url());
   await tab.close();
@@ -2092,9 +2055,9 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in
   const m = db.markups[0];
   const link = issue.origin + issue.pathname === 'https://github.com/sconies/goals-app/issues/new' && /The week strip/.test(issue.searchParams.get('title') || '') && (issue.searchParams.get('body') || '').includes(`markup=${m.id}`);
   h.set('finish', drawn === 1 && hidden === 0 && link, `drawing layer ${drawn} then ${hidden}; issue link ${tab.url().slice(0, 120)}`);
-  h.set('logged', shared && asked.email === 'lanehirschfield@gmail.com' && /\/demo\/workspace\?inbox=1$/.test(asked.redirect_to || '')
-    && m.status === 'fixed' && m.fixed_in && m.issue_url === 'https://github.com/sconies/goals-app/issues/101' && m.status_by === 'lanehirschfield@gmail.com' && db.patches.length === 3,
-  `sent ${shared}, sign-in ${JSON.stringify(asked)}, stored ${JSON.stringify({ status: m.status, fixed: m.fixed_in, issue: m.issue_url, by: m.status_by, patches: db.patches.length })}`);
+  h.set('logged', shared && db.signIns === 0 && db.pictureReads.includes(`${m.id}/screen.png`)
+    && m.status === 'fixed' && m.fixed_in && m.issue_url === 'https://github.com/sconies/goals-app/issues/101' && m.status_by === 'Rhea Kapoor' && db.patches.length === 5,
+  `sent ${shared}, sign-ins ${db.signIns}, pictures ${JSON.stringify(db.pictureReads)}, stored ${JSON.stringify({ status: m.status, fixed: m.fixed_in, issue: m.issue_url, by: m.status_by, patches: db.patches.length })}`);
   // Feedback sent with a mood and a few words is in the same inbox, below the newer markup, with the same states.
   await h.click(detail.getByRole('button', { name: 'Close' }));
   const fbRow = inbox.locator('.fb-row').first();
@@ -2108,63 +2071,46 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'A builder signs in
   await h.click(fbDetail.getByRole('button', { name: 'Close' }));
   await see(fbRow.locator('.mk-status'), 'In hand', 'the inbox list does not show the feedback in hand');
   const fp = db.fbPatches[0] || {};
-  h.set('logged', db.fbPatches.length === 1 && fp.status === 'in-hand' && fp.status_by === 'lanehirschfield@gmail.com' && db.feedback[0].status === 'in-hand', `feedback stored ${JSON.stringify(db.fbPatches)}`);
-  // Signing out: the inbox asks to sign in again.
-  await h.click(inbox.getByRole('button', { name: 'Sign out' }));
-  await inbox.getByLabel(/Sign in with your email/).waitFor();
+  h.set('logged', db.fbPatches.length === 1 && fp.status === 'in-hand' && fp.status_by === 'Rhea Kapoor' && db.feedback[0].status === 'in-hand', `feedback stored ${JSON.stringify(db.fbPatches)}`);
   await p.context().close();
 }, ['progress']);
 
-journey('U47', ['CONNECT-CLAUDE', 'MARKUP-INBOX'], 'A test round with only a builder token: a markup sent from the demo is read in the demo’s inbox with the token, no email sign-in, its picture coming from the server; then the token is forgotten', 12, async (h, device) => {
+journey('U47', ['CONNECT-CLAUDE', 'MARKUP-INBOX'], 'Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so', 12, async (h, device) => {
   if (!DOWN) fail('U47 needs the build with a database address (DOWN)');
   const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
-  const p = h.use(await newPage(device, 'rhea'));
-  const { db } = await fakeSupabase(p.context());
   // Rhea marks up Home in the demo.
-  await p.goto(down('/'));
-  await p.locator('.page.home').waitFor();
-  await p.waitForTimeout(500);
-  await p.keyboard.press('Control+Shift+M');
-  await markupBar(p).waitFor({ timeout: 15000 });
-  const vp = DEVICES[device];
-  await drag(p, [vp.width * 0.3, vp.height * 0.3], [vp.width * 0.7, vp.height * 0.35]);
-  await markupBar(p).getByRole('button', { name: 'Next', exact: true }).click();
-  const send = p.getByRole('dialog', { name: 'Send the markup' });
-  await send.locator('.mk-preview img').waitFor();
-  await send.getByLabel('What should change?').fill('Say which week the strip is showing');
-  await send.getByRole('button', { name: 'Send', exact: true }).click();
-  await see(p, 'Sent. You’ll hear when it’s fixed.');
-  const sent = db.markups[0];
-  // The inbox, with no sign-in: a wrong token is refused in words, a builder token opens it.
+  const sender = await newPage(device, 'rhea');
+  const { db } = await fakeSupabase(sender.context());
+  await sender.goto(down('/'));
+  await sendHomeMarkup(sender, device, 'Say which week the strip is showing');
+  await sender.context().close();
+  // Grace, in a browser of her own, opens the inbox: no sign-in, no token.
+  const p = h.use(await newPage(device, 'grace'));
+  const other = await fakeSupabase(p.context());
+  other.db.markups.push(...db.markups);
   await p.goto(down('/workspace'));
   const inbox = p.locator('#inbox');
-  const field = inbox.getByLabel('Or read it with a builder token');
-  await field.waitFor();
-  h.set('entry', await field.isVisible(), 'no way to read the inbox with a token');
-  await h.fill(field, 'gk_' + 'X'.repeat(40));
-  await h.click(inbox.getByRole('button', { name: 'Use the token' }));
-  await see(inbox, 'That token isn’t valid or has been revoked.', 'a made-up token was not refused in words');
-  h.set('errors', db.tokenReads === 0, 'the inbox read markups with a made-up token');
-  await h.fill(field, BUILDER_TOKEN);
-  await h.click(inbox.getByRole('button', { name: 'Use the token' }));
   const row = inbox.locator('.mk-row').first();
   await row.waitFor({ timeout: 10000 });
   const rowText = await row.innerText();
+  h.set('entry', await inbox.locator('input[type=email], input[type=password]').count() === 0, 'the inbox still asks for a sign-in or a token');
   h.set('attention', rowText.includes('Say which week the strip is showing') && rowText.includes('the demo') && await row.locator('.mk-status').innerText() === 'New', `the markup from the demo is not listed as New: ${rowText.replace(/\n/g, ' | ')}`);
-  await see(inbox.locator('.connect'), 'You’re reading the inbox with a builder token', 'Connect Claude does not say the inbox is read with a token');
   await h.checkpoint('inbox');
   await h.click(row);
   const detail = p.getByRole('dialog', { name: /^Markup: / });
   await detail.locator('.mk-layers img').first().waitFor();
-  await h.click(detail.getByRole('button', { name: 'Mark in hand' }));
-  await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand');
+  const shown = await detail.locator('.mk-layers img').first().evaluate((img) => img.complete && img.naturalWidth > 0);
+  await h.click(detail.getByRole('button', { name: 'Won’t fix' }));
+  h.set('errors', await detail.locator('.mk-form').getByRole('button', { name: 'Won’t fix' }).isDisabled() && other.db.patches.length === 0, 'a markup can be marked won’t fix with no reason');
+  await h.fill(detail.getByLabel('Why it won’t be fixed'), 'The strip already says the week on wider screens.');
+  await h.click(detail.locator('.mk-form').getByRole('button', { name: 'Won’t fix' }));
+  await see(detail.locator('.mk-status').first(), 'Won’t fix', 'not marked won’t fix');
+  const by = await see(detail, 'Marked won’t fix by Grace').then(() => true, () => false);
   await h.click(detail.getByRole('button', { name: 'Close' }));
-  h.set('logged', !!sent && sent.context.host === new URL(DOWN).host && db.pictureReads.includes(`${sent.id}/screen.png`) && sent.status === 'in-hand' && sent.status_by === 'A builder token' && db.otp.length === 0,
-    `host ${sent && sent.context.host}, pictures read ${JSON.stringify(db.pictureReads)}, stored ${JSON.stringify(sent && { status: sent.status, by: sent.status_by })}`);
-  // Forgetting the token: the inbox asks again, and the token is gone from this browser.
-  await h.click(inbox.getByRole('button', { name: 'Forget the token' }));
-  await field.waitFor();
-  h.set('finish', await p.evaluate(() => localStorage.getItem('faro-builder-token')) === null, 'the token is still kept in this browser');
+  const m = other.db.markups[0];
+  h.set('finish', shown && by, `picture shown ${shown}, says who ${by}`);
+  h.set('logged', !!m && m.status === 'wont-fix' && /^Grace/.test(m.status_by || '') && other.db.pictureReads.includes(`${m.id}/screen.png`) && other.db.signIns === 0,
+    `stored ${JSON.stringify(m && { status: m.status, by: m.status_by })}, pictures read ${JSON.stringify(other.db.pictureReads)}, sign-ins ${other.db.signIns}`);
   await p.context().close();
 }, ['progress']);
 

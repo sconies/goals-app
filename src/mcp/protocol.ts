@@ -1,6 +1,6 @@
 /* The Model Context Protocol over HTTP, stateless: each POST carries JSON-RPC messages and gets JSON back.
    Implements initialize, ping, tools/list and tools/call, and one prompt (prompts/list, prompts/get): review_inbox,
-   which an assistant such as Claude Code offers as a command, for a builder to triage the inbox in one step. */
+   which an assistant such as Claude Code offers as a command, for anyone to triage the inbox in one step. */
 import { callTool, TOOLS, type McpContext, type ToolResult } from './tools';
 
 /** Wraps each tool call, for the server's own telemetry: the context loading and the tool itself, in one span. */
@@ -15,7 +15,7 @@ const INSTRUCTIONS = 'Faro: goals and weekly check-ins for one workspace, acting
 export const PROMPTS = [{
   name: 'review_inbox',
   title: 'Review Faro’s inbox',
-  description: 'Builders: look at everything new in the inbox (markups with their pictures, and feedback), grouped by screen part, and propose what to do with each.',
+  description: 'Look at everything new in the inbox (markups with their pictures, and feedback), grouped by screen part, and propose what to do with each.',
   text: 'Call the review_inbox tool. For each group of markups, look at its picture and say in a line what the person wants changed and where, then propose one of: in hand (and what to build), won’t fix (with the reason), or a duplicate of another. Do the same for the feedback. List your proposals as one batch and ask me before changing any status with update_markup or update_feedback.',
 }];
 

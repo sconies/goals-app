@@ -1,10 +1,11 @@
-/* Feedback in the builder inbox (Lane, 6 Nov): what people send with Send feedback's moods and words is listed beside
+/* Feedback in the inbox (Lane, 6 Nov): what people send with Send feedback's moods and words is listed beside
    markups and triaged the same way, with the same states (New, In hand, Fixed, Won't fix) and the same rules
-   (statusPatch in model.ts). Where it's kept is passed in, as for markups:
-   - signedInFeedback: a builder signed in to the inbox, through the database's functions for it (migration 0026:
-     okr_feedback_inbox reads every workspace's feedback, okr_feedback_triage changes one's status);
-   - tokenFeedback: the MCP server's feedback tools, with a builder token, through the database's functions for it
-     (migration 0028: okr_feedback_for_token, okr_feedback_triage_for_token), as the markup tools reach markups;
+   (statusPatch in model.ts). Anyone reads and triages it (backlog O, migration 0031). Where it's kept is passed in, as
+   for markups:
+   - openFeedback: the inbox, on the app's public key, through the database's functions for it (okr_feedback_inbox
+     reads every workspace's feedback, okr_feedback_triage changes one's status);
+   - tokenFeedback: the MCP server's feedback tools, with any token, through the database's functions for it
+     (okr_feedback_for_token, okr_feedback_triage_for_token), as the markup tools reach markups;
    - localFeedback: with no database, this workspace's feedback from the app, its statuses kept in this browser. */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Feedback } from '../domain/types';
@@ -76,7 +77,7 @@ export function feedbackOps(o: { store: FeedbackStore; entries: string[]; now?: 
 }
 export type FeedbackOps = ReturnType<typeof feedbackOps>;
 
-export function signedInFeedback(db: SupabaseClient): FeedbackStore {
+export function openFeedback(db: SupabaseClient): FeedbackStore {
   const all = async (limit: number) => {
     const { data, error } = await db.rpc('okr_feedback_inbox', { lim: limit });
     if (error) throw new Error('Feedback: ' + error.message);
@@ -95,7 +96,7 @@ export function signedInFeedback(db: SupabaseClient): FeedbackStore {
   };
 }
 
-/** The MCP server, with a builder token: through the database's functions for it (migration 0028), on whatever key it has. */
+/** The MCP server, with any token: through the database's functions for it (migration 0028), on whatever key it has. */
 export function tokenFeedback(db: SupabaseClient, hash: string): FeedbackStore {
   const read = async (args: { ws?: string | null; st?: string | null; fid?: string | null; lim: number }) => {
     const { data, error } = await db.rpc('okr_feedback_for_token', { hash, ws: args.ws ?? null, st: args.st ?? null, fid: args.fid ?? null, lim: args.lim });
@@ -119,7 +120,7 @@ const readKept = (): Record<string, Triage> => { try { return JSON.parse(localSt
 /** With no database: the What's new entry each piece of feedback was marked fixed in, in this browser ("You raised this"). */
 export const keptFixes = (): Record<string, string | null> => Object.fromEntries(Object.entries(readKept()).map(([id, t]) => [id, t.fixedIn ?? null]));
 
-/** With no database: this workspace's feedback, as the app has it, with the statuses builders set kept in this browser. */
+/** With no database: this workspace's feedback, as the app has it, with the statuses set kept in this browser. */
 export function localFeedback(o: { workspaceId: string; workspaceName: string; feedback: () => Feedback[]; personName: (id: string) => string }): FeedbackStore {
   const all = (): InboxFeedback[] => {
     const kept = readKept();
