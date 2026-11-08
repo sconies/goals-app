@@ -54,6 +54,7 @@ Other assistants:
 | `export` | JSON, the brief, or CSV |
 | `get_help` | The app's own guide, as its Help pages show it: an article by `id` (for example `check-in`), a `search`, or every article |
 | `whats_new` | The app's release notes, newest first; `since` a date (yyyy-mm-dd) |
+| `describe_system` | What Faro is and how it is built, in one page, and where the generated spec (`spec/`) says the rest: the same text as `llms.txt` |
 
 **Doing**
 

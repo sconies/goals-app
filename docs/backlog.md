@@ -4,7 +4,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **How items are ordered:** by what they unblock first, then value against effort. Effort: S (under a day), M (a release), L (more than one release).
 
-**In progress (8 Nov):** nothing; the next build starts from item 8a.
+**In progress (8 Nov):** item 8a and 8b together, core only (the spec and its conformance data), on branch `journeys`.
 
 ## Up next, in order
 

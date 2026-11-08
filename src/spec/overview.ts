@@ -1,0 +1,63 @@
+/* What Faro is, in one page, for an AI: the root llms.txt and the AI assistant's describe_system tool both say this,
+   word for word (npm run spec writes llms.txt from it; src/spec/spec.test.ts checks they agree). Pure: the MCP
+   server bundles it. Paths are relative to the repository root. */
+import { MODULES } from '../core/registry';
+import { RULES } from '../domain/thresholds';
+import { LABEL, STATUS_ORDER } from '../domain/vocabulary';
+
+const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+/** The rule pages under spec/core/rules/, in reading order: [file, title, what it decides]. */
+export const RULE_PAGES: [string, string, string][] = [
+  ['weeks-and-plans', 'Weeks and plans', 'which week it is, and what the plan says a number should be'],
+  ['status', 'A goal’s status', 'what the numbers say, and the official status (the owner’s call unless stale)'],
+  ['projection', 'The projection', 'where a number lands by its due week, as a range'],
+  ['check-in', 'What a check-in must say', 'what is needed before a check-in can be posted'],
+  ['flags', 'Flags, the trend and needs attention', 'why a goal is flagged, and whether it needs attention'],
+  ['scorecard', 'The scorecard', 'vs plan, since last week, to target, and how likely it is to hit'],
+  ['change-engine', 'The change engine', 'spreadsheets, bulk edits and the AI assistant’s changes, checked by the same rules'],
+];
+
+export function systemOverview(): string {
+  const mods = [...MODULES].sort((a, b) => a.id.localeCompare(b.id));
+  return [
+    '# Faro',
+    '',
+    '> Faro is an internal goals (OKR) app for a large company. Owners set goals with a weekly plan, check in on them each week, and the app works out from the numbers whether each goal is on track, what needs attention, and where it is heading. It is a modular monolith: a small core plus feature modules, one app and one database. This file points an AI at the spec in `spec/`, which is generated from the code by `npm run spec` and checked in CI, so it says what the code does.',
+    '',
+    'The core in a few lines:',
+    '',
+    '- A workspace has people, teams, a cycle (a goal year or quarter counted in weeks from week 0) and goals. A goal is one of three kinds: a number to move from a start to a target along a plan, a number to keep within a limit, or dated stages.',
+    '- Each week the owner checks in: the number (or each stage), their call on the status, and the words the numbers ask for (why it is behind or ahead, and a path back to green when behind).',
+    `- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
+    `- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(', ')}. Always shown as a shape and a word.`,
+    '- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). A goal someone has looked at since its latest check-in is being handled until something new happens.',
+    '- One change engine takes many changes at once (spreadsheets, bulk edits, the AI assistant) and checks every row with the same rules as the app’s forms.',
+    '',
+    '## The spec',
+    '',
+    '- [Start here](spec/README.md): how the spec is organised, and what it marks as not self-explanatory',
+    '- [The data model](spec/core/data-model.md): every record and field, and the database tables',
+    '- [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it',
+    ...RULE_PAGES.map(([id, title, what]) => `- [${title}](spec/core/rules/${id}.md): ${what}`),
+    '- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action',
+    '- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them',
+    '- [The requirements](spec/core/requirements.md): each one, linked to its code and tests',
+    '',
+    '## Conformance data',
+    '',
+    '- [How a rebuild proves itself](spec/conformance/README.md): the demo workspace, and the status, flags, projection and scorecard the real rules give for every goal in every week, as CSV',
+    '',
+    '## Feature modules',
+    '',
+    ...(mods.length ? mods.map((m) => `- [${m.name}](spec/modules/${m.id}/README.md): ${m.summary}`) : ['- None in this build.']),
+    '',
+    '## The code',
+    '',
+    '- `src/domain`: the rules, pure functions with no database, screen or network code',
+    '- `src/core`: the extension points modules register into; `src/modules/<id>`: one folder per module, with its `module.json`',
+    '- `src/screens`, `src/ui`: the core screens; `src/data`: the stores and the demo workspace; `src/mcp`, `server`: the AI assistant’s tools',
+    '- `docs/architecture.md`: how the core and modules fit; `CLAUDE.md`: the rules for working here',
+    '',
+  ].join('\n');
+}

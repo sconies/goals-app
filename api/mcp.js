@@ -21720,7 +21720,7 @@ function codeFrom(terms, input) {
 	const coded = /\(([^)]+)\)\s*$/.exec(String(input ?? ""));
 	return coded ? codeFrom(terms, coded[1]) : null;
 }
-var ALL, pct$2, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
+var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
 var init_vocabulary = __esmMin((() => {
 	init_thresholds();
 	ALL = [
@@ -21729,7 +21729,7 @@ var init_vocabulary = __esmMin((() => {
 		"help",
 		"ai"
 	];
-	pct$2 = (n) => `${Math.round(n * 100)}%`;
+	pct$3 = (n) => `${Math.round(n * 100)}%`;
 	term = (code, t) => ({
 		code,
 		where: ALL,
@@ -21739,22 +21739,22 @@ var init_vocabulary = __esmMin((() => {
 		on: term("on", {
 			label: "On track",
 			short: "on plan so far",
-			meaning: `On plan so far: at least ${pct$2(RULES.onTrack)} of the progress planned by now.`,
-			long: `At least ${pct$2(RULES.onTrack)} of the progress planned by now, inside its limit, or every stage on schedule. If the recent trend says it will still finish short, it is flagged as getting worse.`,
+			meaning: `On plan so far: at least ${pct$3(RULES.onTrack)} of the progress planned by now.`,
+			long: `At least ${pct$3(RULES.onTrack)} of the progress planned by now, inside its limit, or every stage on schedule. If the recent trend says it will still finish short, it is flagged as getting worse.`,
 			rule: "status#goalStatus"
 		}),
 		risk: term("risk", {
 			label: "At risk",
 			short: "could miss without a change",
-			meaning: `Could miss without a change: ${pct$2(RULES.atRisk)}–${pct$2(RULES.onTrack)} of the planned progress, or close to a limit.`,
-			long: `${pct$2(RULES.atRisk)}–${pct$2(RULES.onTrack)} of the progress planned by now, inside a limit’s warning margin or over it for one week, or a stage up to ${RULES.lateWeeksOff} weeks late. The owner says how it gets back: its path to green.`,
+			meaning: `Could miss without a change: ${pct$3(RULES.atRisk)}–${pct$3(RULES.onTrack)} of the planned progress, or close to a limit.`,
+			long: `${pct$3(RULES.atRisk)}–${pct$3(RULES.onTrack)} of the progress planned by now, inside a limit’s warning margin or over it for one week, or a stage up to ${RULES.lateWeeksOff} weeks late. The owner says how it gets back: its path to green.`,
 			rule: "status#goalStatus"
 		}),
 		off: term("off", {
 			label: "Off track",
 			short: "will miss without intervention",
-			meaning: `Will miss without intervention: under ${pct$2(RULES.atRisk)} of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running.`,
-			long: `Under ${pct$2(RULES.atRisk)} of the progress planned by now, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. It needs a decision, help or a new plan.`,
+			meaning: `Will miss without intervention: under ${pct$3(RULES.atRisk)} of the planned progress, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running.`,
+			long: `Under ${pct$3(RULES.atRisk)} of the progress planned by now, a stage more than ${RULES.lateWeeksOff} weeks late, or over a limit two weeks running. It needs a decision, help or a new plan.`,
 			rule: "status#goalStatus"
 		}),
 		stale: term("stale", {
@@ -30339,7 +30339,7 @@ var COUNT_WORDS = [
 /** "two", "three" … for small counts in a sentence; digits from 11. */
 var countWord = (n) => COUNT_WORDS[n] ?? String(n);
 var plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
-var pct$1 = (r) => `${Math.round(r * 100)}%`;
+var pct$2 = (r) => `${Math.round(r * 100)}%`;
 var round$1 = (v, decimals) => Number(v.toFixed(decimals));
 /** "weeks 42–44", or "week 44" for one. */
 var weekSpan = (cs) => cs.length > 1 && cs[0].week !== cs[cs.length - 1].week ? `weeks ${cs[0].week}–${cs[cs.length - 1].week}` : `week ${cs[cs.length - 1].week}`;
@@ -30382,7 +30382,7 @@ function metricFacts(goal, cycle, all, own, week, stale) {
 			key: "plan",
 			label: "Against plan",
 			value: gapPhrase(diff === 0 ? 0 : ahead ? 1 : -1, fmtDiff(diff, goal)),
-			detail: `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${a.week}${a.ratio != null ? ` · ${pct$1(a.ratio)} of the planned progress` : ""}`,
+			detail: `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${a.week}${a.ratio != null ? ` · ${pct$2(a.ratio)} of the planned progress` : ""}`,
 			tone: a.calc === "risk" || a.calc === "off" ? "bad" : diff === 0 || a.calc !== "on" ? "flat" : "good"
 		});
 	}
@@ -31363,7 +31363,7 @@ var GROUPS = [
 		title: "Workspace, settings and assistants"
 	}
 ];
-var pct = (n) => `${Math.round(n * 100)}%`;
+var pct$1 = (n) => `${Math.round(n * 100)}%`;
 var causes = (list) => list.map(([, l]) => l).join(", ");
 /** The core's articles. Each module adds its own (its help.ts), and ARTICLES is all of them. */
 var CORE_ARTICLES = [
@@ -31637,7 +31637,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Start check-in on Home walks through every goal due this week. From a goal’s page, Check in does just that goal.",
 					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
-					`On plan, that’s it: post. Behind (under ${pct(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
+					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
 					`Causes when behind: ${causes(CAUSES_BEHIND)}. When ahead: ${causes(CAUSES_AHEAD)}. Something else lets you say it in your own words.`,
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
 					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
@@ -32892,7 +32892,8 @@ var CORE_ARTICLES = [
 				list: [
 					"Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.",
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
-					"It meets the same rules as you, with exactly your rights, and every change is logged as you, via the AI assistant."
+					"It meets the same rules as you, with exactly your rights, and every change is logged as you, via the AI assistant.",
+					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest."
 				]
 			},
 			{
@@ -33209,6 +33210,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "describe-system",
+		date: "2026-11-08",
+		title: "An AI assistant can ask what Faro is",
+		points: ["Connected AI assistants have a new tool, describe system: a one-page overview of what Faro is, how its rules work and where its spec says the rest.", "Nothing on screen changes."],
+		articles: ["ai-assistants"]
+	},
 	{
 		id: "spreadsheets-on-data",
 		date: "2026-11-08",
@@ -33879,6 +33887,91 @@ var moduleById = (id) => MODULES.find((m) => m.id === id);
 var modulesOn = (ws) => resolveModules(MODULES, ws?.modulesOff ?? []);
 /** Whether a module is on in a workspace. */
 var isModuleOn = (ws, id) => modulesOn(ws).on.has(id);
+// src/spec/overview.ts
+init_thresholds();
+init_vocabulary();
+var pct = (n) => `${Math.round(n * 100)}%`;
+/** The rule pages under spec/core/rules/, in reading order: [file, title, what it decides]. */
+var RULE_PAGES = [
+	[
+		"weeks-and-plans",
+		"Weeks and plans",
+		"which week it is, and what the plan says a number should be"
+	],
+	[
+		"status",
+		"A goal’s status",
+		"what the numbers say, and the official status (the owner’s call unless stale)"
+	],
+	[
+		"projection",
+		"The projection",
+		"where a number lands by its due week, as a range"
+	],
+	[
+		"check-in",
+		"What a check-in must say",
+		"what is needed before a check-in can be posted"
+	],
+	[
+		"flags",
+		"Flags, the trend and needs attention",
+		"why a goal is flagged, and whether it needs attention"
+	],
+	[
+		"scorecard",
+		"The scorecard",
+		"vs plan, since last week, to target, and how likely it is to hit"
+	],
+	[
+		"change-engine",
+		"The change engine",
+		"spreadsheets, bulk edits and the AI assistant’s changes, checked by the same rules"
+	]
+];
+function systemOverview() {
+	const mods = [...MODULES].sort((a, b) => a.id.localeCompare(b.id));
+	return [
+		"# Faro",
+		"",
+		"> Faro is an internal goals (OKR) app for a large company. Owners set goals with a weekly plan, check in on them each week, and the app works out from the numbers whether each goal is on track, what needs attention, and where it is heading. It is a modular monolith: a small core plus feature modules, one app and one database. This file points an AI at the spec in `spec/`, which is generated from the code by `npm run spec` and checked in CI, so it says what the code does.",
+		"",
+		"The core in a few lines:",
+		"",
+		"- A workspace has people, teams, a cycle (a goal year or quarter counted in weeks from week 0) and goals. A goal is one of three kinds: a number to move from a start to a target along a plan, a number to keep within a limit, or dated stages.",
+		"- Each week the owner checks in: the number (or each stage), their call on the status, and the words the numbers ask for (why it is behind or ahead, and a path back to green when behind).",
+		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
+		`- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
+		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). A goal someone has looked at since its latest check-in is being handled until something new happens.",
+		"- One change engine takes many changes at once (spreadsheets, bulk edits, the AI assistant) and checks every row with the same rules as the app’s forms.",
+		"",
+		"## The spec",
+		"",
+		"- [Start here](spec/README.md): how the spec is organised, and what it marks as not self-explanatory",
+		"- [The data model](spec/core/data-model.md): every record and field, and the database tables",
+		"- [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it",
+		...RULE_PAGES.map(([id, title, what]) => `- [${title}](spec/core/rules/${id}.md): ${what}`),
+		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
+		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
+		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
+		"",
+		"## Conformance data",
+		"",
+		"- [How a rebuild proves itself](spec/conformance/README.md): the demo workspace, and the status, flags, projection and scorecard the real rules give for every goal in every week, as CSV",
+		"",
+		"## Feature modules",
+		"",
+		...mods.length ? mods.map((m) => `- [${m.name}](spec/modules/${m.id}/README.md): ${m.summary}`) : ["- None in this build."],
+		"",
+		"## The code",
+		"",
+		"- `src/domain`: the rules, pure functions with no database, screen or network code",
+		"- `src/core`: the extension points modules register into; `src/modules/<id>`: one folder per module, with its `module.json`",
+		"- `src/screens`, `src/ui`: the core screens; `src/data`: the stores and the demo workspace; `src/mcp`, `server`: the AI assistant’s tools",
+		"- `docs/architecture.md`: how the core and modules fit; `CLAUDE.md`: the rules for working here",
+		""
+	].join("\n");
+}
 // src/mcp/workTools.ts
 init_actions();
 init_attention();
@@ -34561,6 +34654,33 @@ var WORK_TOOLS = [
 			return {
 				data: { articles: list.map(brief) },
 				text: lines(list.map((x) => `${x.id} · ${x.title}: ${x.summary}`), `No help article matches “${String(a.search)}”.`)
+			};
+		}
+	},
+	{
+		name: "describe_system",
+		title: "What Faro is: an overview for an AI",
+		description: "What Faro is and how it is built, in one page: the core (goals, weekly check-ins, the status rules and their numbers, flags and the change engine), its feature modules, and where the generated spec says the rest (the data model, every rule with worked examples, the vocabulary, the screens, the journeys and requirements, and the conformance data a rebuild proves itself against). The same text as llms.txt at the root of the repository. Paths are relative to that root.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {}
+		},
+		annotations: READ$3,
+		async run() {
+			return {
+				data: {
+					rulePages: RULE_PAGES.map(([id, title]) => ({
+						title,
+						path: `spec/core/rules/${id}.md`
+					})),
+					modules: MODULES.map((m) => ({
+						id: m.id,
+						name: m.name,
+						path: `spec/modules/${m.id}/README.md`
+					}))
+				},
+				text: systemOverview()
 			};
 		}
 	},
