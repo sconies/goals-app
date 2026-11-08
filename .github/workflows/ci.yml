@@ -1,4 +1,4 @@
-# Pull requests: a smoke gate (typecheck, the layers lint, unit tests, What's new, the generated spec, the MCP bundle, the spec scenarios and
+# Pull requests: a smoke gate (typecheck, the layers lint, unit tests, What's new, the generated spec, the rebuild kit, the MCP bundle, the spec scenarios and
 # the core journeys, a few minutes), the core journeys again with each feature module left out of the build, and a
 # screenshot comparison against the base branch. Merges to main run the full eval suite as four
 # parallel shards, then one scorecard; a failure there opens an issue to fix or revert straight away. Merges to main
@@ -39,6 +39,10 @@ jobs:
       - run: npm test
       - name: "The spec matches the code (spec/ and llms.txt: npm run spec)"
         run: npm run spec -- --check
+      - name: "Rebuild kit: every feature module has a rebuild stage (spec/rebuild)"
+        run: node scripts/check-rebuild.mjs
+      - name: "Rebuild kit: the drill harness scores Faro's own rules at 100%"
+        run: npm run drill -- scripts/drill-faro --diffs 5
       - name: The MCP server bundle matches its source
         run: |
           npm run build:mcp

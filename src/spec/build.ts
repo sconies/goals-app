@@ -3,7 +3,7 @@
    can't drift from the code. Node only: it reads the repository (src/spec/sources.ts).
 
    Organised as the code is (docs/architecture.md): spec/core/ for the core, spec/modules/<id>/ for each feature module
-   from its module.json, and spec/conformance/ for the conformance data. */
+   from its module.json, spec/conformance/ for the conformance data, and spec/rebuild/ for the rebuild kit (8k). */
 import { ARTICLES, type Article } from '../help/guide';
 import { SCREENS } from '../mcp/parity';
 import { GROUPS, type Term } from '../domain/vocabulary';
@@ -13,7 +13,8 @@ import { dataModelMarkdown } from './model';
 import { RULE_LIST, wrongExamples, type Rule } from './rules';
 import { MAIN_ACTION } from './screens';
 import { RULE_PAGES, systemOverview } from './overview';
-import { checks, coreRoutes, moduleFacts, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
+import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
+import { rebuildFiles, stages, type ModuleWithRebuild, type Stage } from './rebuild';
 import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, HEADERS, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 
@@ -25,7 +26,7 @@ function readme(mods: ModuleFacts[]): string {
   return GENERATED('src/spec/build.ts') + [
     '# The Faro spec',
     '',
-    'What Faro is and does, generated from the code, so it can’t drift: `npm run spec` writes every file here and `llms.txt` at the root, and CI fails a change that leaves them out of date (`npm run spec -- --check`, and `src/spec/spec.test.ts` in `npm test`). It is written so that someone with only this folder and `llms.txt` can rebuild the core rules and prove them against the conformance data.',
+    'What Faro is and does, generated from the code, so it can’t drift: `npm run spec` writes every file here and `llms.txt` at the root, and CI fails a change that leaves them out of date (`npm run spec -- --check`, and `src/spec/spec.test.ts` in `npm test`). It is written so that someone with only this folder and `llms.txt` can rebuild the core rules and prove them against the conformance data: [the rebuild kit](rebuild/README.md) says how, stage by stage.',
     '',
     '## How it is organised',
     '',
@@ -40,6 +41,7 @@ function readme(mods: ModuleFacts[]): string {
       ['[core/requirements.md](core/requirements.md)', 'Every core requirement, linked to its code, its Help article, its tests and its journeys'],
       ['[modules/](modules/README.md)', 'One section per feature module, from its `module.json`'],
       ['[conformance/](conformance/README.md)', 'The demo workspace and what the rules give for every goal in every week, as CSV, with how a rebuild proves itself'],
+      ['[rebuild/](rebuild/README.md)', 'The rebuild kit: the stages of a rebuild with entry and exit criteria, and the drill harness that scores stage 1'],
     ]),
     '',
     '## Reading order for a rebuild of the core rules',
@@ -48,6 +50,7 @@ function readme(mods: ModuleFacts[]): string {
     '2. [The vocabulary](core/vocabulary.md): the codes the rules return and the words people read.',
     `3. The rules, in order: ${RULE_PAGES.map(([id, title]) => `[${title}](core/rules/${id}.md)`).join(', ')}.`,
     '4. [The conformance data](conformance/README.md): run the rebuild on `workspace.json` and match every row.',
+    '5. [Stage 1 of the rebuild kit](rebuild/stage-1-core-rules.md): the contract, and how the drill harness scores it.',
     '',
     '## What is marked',
     '',
@@ -227,7 +230,7 @@ function modulesIndex(mods: ModuleFacts[]): string {
   return GENERATED('src/modules/*/module.json') + ['# Feature modules', '', 'Each feature module is one folder, `src/modules/<id>/`, with a `module.json` saying what it adds to the core and what it needs (`docs/architecture.md`). Each section here is made from that file. A workspace can switch a module off; the core works without any of them.', '', mods.length ? table(['Module', 'What it does', 'Needs'], mods.map((m) => [`[${m.name}](${m.id}/README.md)`, cell(m.summary), m.needs.join(', ') || 'nothing'])) : '_None yet._', ''].join('\n');
 }
 
-function modulePage(m: ModuleFacts, r: Repo, tests: TestCase[]): string {
+function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Stage | undefined): string {
   const req = requirements(r);
   const all = checks(r);
   const arts = ARTICLES.filter((a) => a.module === m.id);
@@ -267,7 +270,8 @@ function modulePage(m: ModuleFacts, r: Repo, tests: TestCase[]): string {
     '',
     '## Rules, conformance and rebuild stage',
     '',
-    `${UNCLEAR} this module’s rules section, conformance rows and rebuild stage come with backlog item 8k. Until then it uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.`,
+    stage ? `Its rebuild stage: [stage ${stage.n}](../../rebuild/${stage.file}) (${stage.status === 'drill' ? 'with a drill' : 'an outline, with no drill yet'}).` : `${UNCLEAR} it has no rebuild stage: add \`rebuild\` to its module.json (CI fails until it has one).`,
+    `${UNCLEAR} it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.`,
     '',
   ].join('\n');
 }
@@ -363,13 +367,15 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
     'spec/modules/README.md': modulesIndex(mods),
   };
   for (const rule of RULE_LIST) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText);
-  for (const m of mods) out[`spec/modules/${m.id}/README.md`] = modulePage(m, r, tests);
+  for (const m of mods) out[`spec/modules/${m.id}/README.md`] = modulePage(m, r, tests, stages(mods).find((s) => s.module === m.id));
   const { buildPlatformOrg } = await import('../data/platformOrg/generate');
   const w = conformanceWorkspace(buildPlatformOrg(new Date(CHECK_IN_MOMENT)));
   const files = conformanceFiles(w);
   out['spec/conformance/workspace.json'] = workspaceJson(w);
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
+  const rows = Object.fromEntries(Object.entries(files).map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
+  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs')));
   return out;
 }
 
