@@ -12,9 +12,11 @@
 
 .layout-about .strong { color: var(--fg); }
 
+.views-menu-phone { display: none; }
 @container app (max-width: 600px) {
-  /* Views sits at the left on its own line: its menu opens from its left edge, so the names stay on screen. */
-  .goals-tabs > .views-menu .view-menu-list { left: 0; right: auto; }
+  /* Views moves up beside New goal, so the wrapped tabs don't push the goals down a whole row. */
+  .views-menu-wide { display: none !important; }
+  .views-menu-phone { display: block; }
   /* The tabs wrap to a second line rather than run off the edge. */
   .goals-tabs { flex-wrap: wrap; }
   .goals-tabs > .seg.tabs > button { flex: 0 0 auto; }

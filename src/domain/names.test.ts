@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { planChanges, type ChangeInput, type Rec } from './changeset';
+import { buildWorkspace } from './importer';
 import { currentWeek } from './plan';
 import { avatarHues, AVATAR_HUES, duplicateTitles, goalTell, nameWithTell, personProblems, personTell, sameNameNote, sameTitleNote } from './people';
 import { MIN_NAME, nameProblem } from './thresholds';
@@ -44,6 +45,12 @@ describe('people with the same name', () => {
     const hues = avatarHues(many);
     expect(new Set(many.map((p) => hues.get(p.id))).size).toBe(AVATAR_HUES);
     expect(avatarHues(many).get('p3')).toBe(hues.get('p3'));
+  });
+
+  it('can be set up together, with a note on the second one’s row', () => {
+    const people = 'Name\tEmail\tTeam\tAdmin\nGrace Achterberg\tgrace@example.com\tLeadership\tyes\nGrace Achterberg\t\tLeadership\t\n';
+    const r = buildWorkspace({ name: 'Two Graces', startDate: '2026-01-05', people, goals: '', now: today, idSuffix: 'graces' });
+    expect(r.notes?.find((x) => x.table === 'People' && x.row === 3)?.message).toMatch(/Grace Achterberg \(Leadership\) is already here/);
   });
 
   it('can be added by spreadsheet, with a note', () => {

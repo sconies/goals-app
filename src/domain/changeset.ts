@@ -243,6 +243,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
       // Someone new: an admin adds them, with a name, an email and a team.
       if (!admin()) return err('People', row, name, 'Only an admin can add people.');
       if (!name) return err('People', row, email, 'Add their name.');
+      // A name someone here (or an earlier row) already has: allowed, as the email is who someone is (backlog N), and said,
+      // so a second row for one person is noticed. Said before the email is asked for, so it's on the row from the start.
+      { const same = sameNameNote({ id: '', name }, [...people.values()], (tid) => teams.get(tid)?.name ?? ''); if (same) note('People', row, name, same); }
       if (!email) return err('People', row, name, `Add ${name}’s email: everyone new needs one.`);
       const p: Person = { id: newId('p', name), name, role: val(r, 'job title'), initials: initialsOf(name), teamId: tm?.id ?? null, admin: adminWord?.code === 'yes', email };
       if (create && !people.size) { p.admin = true; actor = p; }
@@ -283,9 +286,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const after = people.get(id)!;
     const problems = personProblems(after, [...people.values()], t.before);
     if (problems.length) err('People', t.row, t.before?.name ?? after.name, problems.join(' '));
-    // A new person, or one renamed, with a name someone else has: allowed (the email is who someone is, backlog N), and
-    // said, so a second row for the same person is noticed.
-    else if (!t.before || norm(t.before.name) !== norm(after.name)) {
+    // Renamed to a name someone else has: allowed (the email is who someone is, backlog N), and said. (A new person with
+    // one is said where their row is read.)
+    if (t.before && norm(t.before.name) !== norm(after.name)) {
       const same = sameNameNote(after, [...people.values()], (tid) => teams.get(tid)?.name ?? '');
       if (same) note('People', t.row, after.name, same);
     }

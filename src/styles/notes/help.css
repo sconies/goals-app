@@ -77,5 +77,10 @@ main.work:has(.map-canvas) .page-help-link { min-height: 24px; font-size: 0.8125
 .home-news-close:hover { color: var(--fg); background: var(--surface-3); }
 @media (pointer: coarse) { .home-news-close { width: 44px; height: 44px; margin: -12px -8px -12px 0; } }
 
-/* Under the greeting on every screen (backlog N, 8 Nov). */
+/* Under the greeting from a tablet up; on a phone just after your goals that need attention (backlog N, 8 Nov). */
+.home-news-phone { display: none; }
+@container app (max-width: 760px) {
+  .home-news-head { display: none; }
+  .home-news-phone { display: flex; }
+}
 @media print { .page-help, .home-news { display: none !important; } }

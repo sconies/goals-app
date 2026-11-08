@@ -28205,6 +28205,13 @@ function planChanges(input) {
 		if (!before) {
 			if (!admin()) return err("People", row, name, "Only an admin can add people.");
 			if (!name) return err("People", row, email, "Add their name.");
+			{
+				const same = sameNameNote({
+					id: "",
+					name
+				}, [...people.values()], (tid) => teams.get(tid)?.name ?? "");
+				if (same) note("People", row, name, same);
+			}
 			if (!email) return err("People", row, name, `Add ${name}’s email: everyone new needs one.`);
 			const p = {
 				id: newId("p", name),
@@ -28278,7 +28285,7 @@ function planChanges(input) {
 		const after = people.get(id);
 		const problems = personProblems(after, [...people.values()], t.before);
 		if (problems.length) err("People", t.row, t.before?.name ?? after.name, problems.join(" "));
-		else if (!t.before || norm$1(t.before.name) !== norm$1(after.name)) {
+		if (t.before && norm$1(t.before.name) !== norm$1(after.name)) {
 			const same = sameNameNote(after, [...people.values()], (tid) => teams.get(tid)?.name ?? "");
 			if (same) note("People", t.row, after.name, same);
 		}
@@ -31588,7 +31595,7 @@ var CORE_ARTICLES = [
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
-					"After a release you haven’t seen, a quiet line under the greeting says what’s new, on a phone too. Open it, or dismiss it with the cross."
+					"After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross."
 				]
 			},
 			{
@@ -33591,7 +33598,7 @@ var WHATS_NEW = [
 			"Letters in a number get one message everywhere, every number has its thousands grouped (1,250), and a number far outside the plan, a negative time or a billion is questioned, not refused.",
 			"Two goals can share a name: you’re told when you make one, and each shows its key beside the title wherever both could be on screen. Two people can share a name too: the email tells them apart, with their team or job title beside the name and different avatar colours.",
 			"A team’s goal count no longer includes goals that were removed. When the AI assistant is refused, it says who its token acts as.",
-			"On a phone, the layout buttons have names and a line saying what each layout shows, tabs and filters wrap instead of being cut off, and What’s new sits under Home’s greeting. Saved views keep their whole name."
+			"On a phone, the layout buttons have names and a line saying what each layout shows, tabs and filters wrap instead of being cut off, and What’s new sits near the top of Home instead of at its foot. Saved views keep their whole name."
 		],
 		articles: [
 			"check-in",

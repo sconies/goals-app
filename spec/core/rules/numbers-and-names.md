@@ -66,6 +66,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - people with the same name › are allowed: the email is who someone is
 - people with the same name › are told apart by team, else job title, else email, wherever both could be on screen
 - people with the same name › get avatar colours that differ when their initials match
+- people with the same name › can be set up together, with a note on the second one’s row
 - people with the same name › can be added by spreadsheet, with a note
 - goals with the same title › are allowed with a warning on create
 - goals with the same title › show their key (or team) beside the title, and only when another goal has it

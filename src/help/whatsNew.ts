@@ -29,7 +29,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'Letters in a number get one message everywhere, every number has its thousands grouped (1,250), and a number far outside the plan, a negative time or a billion is questioned, not refused.',
       'Two goals can share a name: you’re told when you make one, and each shows its key beside the title wherever both could be on screen. Two people can share a name too: the email tells them apart, with their team or job title beside the name and different avatar colours.',
       'A team’s goal count no longer includes goals that were removed. When the AI assistant is refused, it says who its token acts as.',
-      'On a phone, the layout buttons have names and a line saying what each layout shows, tabs and filters wrap instead of being cut off, and What’s new sits under Home’s greeting. Saved views keep their whole name.',
+      'On a phone, the layout buttons have names and a line saying what each layout shows, tabs and filters wrap instead of being cut off, and What’s new sits near the top of Home instead of at its foot. Saved views keep their whole name.',
     ],
     articles: ['check-in', 'new-goal', 'edit-goal', 'goals', 'workspace-people', 'home'],
   },

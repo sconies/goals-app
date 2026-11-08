@@ -57,7 +57,7 @@ function Streak({ weeks }: { weeks: number }) {
  * The week's one main action comes first. What's addressed to you (`side`) follows it on a narrow screen and sits beside
  * it on a wide one; then your goals and what changed (`after`).
  */
-function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
+function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; news?: ReactNode }) {
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
@@ -159,6 +159,8 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
                 <AttentionList list={needs} />
               </div>
             )}
+            {/* What's new on a phone: after the goals that need you, so the first screen stays the week's work (U2). */}
+            {news}
             <HandledGroup list={handled} folded />
             {rest.length > 0 && (
               <div className="home-sub">
@@ -173,6 +175,8 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
             who owns none sees the goals they watch on the first screen (U9). */}
         <FirstReports among={[...mine, ...watchedGoals(app.viewer.id, app.snapshot)].map((g) => g.id)} />
         {after}
+        {/* Someone who owns no goal: after the goals they watch, the first screen's work (U9). */}
+        {mine.length === 0 && news}
       </div>
     </>
   );
@@ -370,7 +374,7 @@ export function Home() {
       </div>
       <DashStrip d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} streakNote={streakNote(app)} />
       <div className="home-grid split">
-        <MyWeek side={<><NeedsYou /><AdminCard /></>} after={<><WatchedGoals />{/* Modules' blocks (the home.blocks place). */}<Place name="home.blocks" /></>} />
+        <MyWeek news={<HomeNews at="phone" />} side={<><NeedsYou /><AdminCard /></>} after={<><WatchedGoals />{/* Modules' blocks (the home.blocks place). */}<Place name="home.blocks" /></>} />
       </div>
     </div>
   );
