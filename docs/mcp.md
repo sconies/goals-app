@@ -83,6 +83,16 @@ Other assistants:
 | `send_feedback` | Feedback about the app |
 | `delete_workspace` | Admins: delete the workspace. Needs its exact name, and can't be undone |
 
+**The metric library** (the metrics module, backlog 0b; the rules are `src/domain/metrics.ts`)
+
+| Tool | What it does |
+|---|---|
+| `list_metrics` | Every metric in the library, by name: unit, which way is better, owner and how many goals it measures. `search` narrows by name, meaning or source |
+| `get_metric` | One metric in full, by ID or name: meaning and calculation, unit, decimals, direction, source and its owner, refresh, owner, caveats, and every goal it measures with its slice and the goal's target |
+| `save_metric` | Add a metric (anyone; needs a name, a unit and a `direction`, `higher` or `lower`), or change one by `id` (its owner or an admin). Fields left out keep their value |
+| `remove_metric` | Its owner or an admin: remove a metric, unlinking every goal it measures in the same save. `restore_removed` (kind `metric`) brings it back without its links |
+| `link_goal_metric` | The goal's owner or an admin: measure a goal by a metric for a `team`'s slice, or the whole company (no team); `unlink: true` stops it. The goal needs a number in the metric's unit; a goal aiming the other way from the metric's better direction links with a warning |
+
 **Removing, archiving and undoing**
 
 Nothing is erased: each of these keeps the record, marked with when and by whom, takes it out of every list, logs it, and can be restored for 30 days with `restore_removed` (or by an admin on Workspace → Recently removed). The rules are the app's own (`src/domain/removal.ts`).

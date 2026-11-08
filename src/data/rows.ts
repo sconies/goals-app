@@ -1,6 +1,6 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
-import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
+import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, Metric, MetricLink, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
 
 type W = { workspace_id: string };
 /** Removal columns (migration 0025): written only when the record says (a restore says null), so rows for older tables
@@ -52,6 +52,24 @@ export const personToRow = (ws: string, p: Person): PersonRow => ({ workspace_id
 export const personFromRow = (r: PersonRow): Person => ({ id: r.id, name: r.name, role: r.role, initials: r.initials, teamId: r.team_id, admin: !!r.is_admin, ...(r.email ? { email: r.email } : {}), ...when('leftAt', r.left_at), ...who('leftBy', r.left_by), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
 export const cycleToRow = (ws: string, c: Cycle): CycleRow => ({ workspace_id: ws, id: c.id, name: c.name, start_date: c.startDate, weeks: c.weeks, review_day: c.reviewDay, ...set({ removed_at: c.removedAt, removed_by: c.removedBy }) });
 export const cycleFromRow = (r: CycleRow): Cycle => ({ id: r.id, name: r.name, startDate: r.start_date.slice(0, 10), weeks: Number(r.weeks), reviewDay: Number(r.review_day ?? 3), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
+
+/* ---------- the metric library (migration 0033) ---------- */
+export interface MetricRow extends W, Removal {
+  id: string; name: string; meaning: string; unit: string; decimals: number; direction: Metric['direction']; source: string; source_owner: string;
+  refresh: Metric['refresh']; owner_id: string; caveats: string; created_by: string; created_at: string; updated_at: string;
+}
+export interface GoalMetricRow extends W, Removal { id: string; goal_id: string; metric_id: string; team_id: string | null; linked_by: string; linked_at: string }
+export const metricToRow = (ws: string, m: Metric): MetricRow => ({
+  workspace_id: ws, id: m.id, name: m.name, meaning: m.meaning, unit: m.unit, decimals: m.decimals, direction: m.direction, source: m.source, source_owner: m.sourceOwner,
+  refresh: m.refresh, owner_id: m.ownerId, caveats: m.caveats, created_by: m.createdBy, created_at: m.createdAt, updated_at: m.updatedAt, ...set({ removed_at: m.removedAt, removed_by: m.removedBy }),
+});
+export const metricFromRow = (r: MetricRow): Metric => ({
+  id: r.id, name: r.name, meaning: r.meaning ?? '', unit: r.unit, decimals: Number(r.decimals ?? 0), direction: r.direction, source: r.source ?? '', sourceOwner: r.source_owner ?? '',
+  refresh: r.refresh ?? null, ownerId: r.owner_id, caveats: r.caveats ?? '', createdBy: r.created_by, createdAt: iso(r.created_at), updatedAt: iso(r.updated_at),
+  ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
+});
+export const metricLinkToRow = (ws: string, l: MetricLink): GoalMetricRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
+export const metricLinkFromRow = (r: GoalMetricRow): MetricLink => ({ id: r.id, goalId: r.goal_id, metricId: r.metric_id, teamId: r.team_id ?? null, linkedBy: r.linked_by, linkedAt: iso(r.linked_at), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
 
 export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageRow[] } {
   const goal: GoalRow = {
@@ -184,6 +202,9 @@ export function commitPayload(ws: string, c: import('./store').Commit) {
     tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
     views: (c.views ?? []).map((x) => viewToRow(ws, x)),
     requests: (c.requests ?? []).map((x) => requestToRow(ws, x)),
+    // The metric library (migration 0033's okr_write); only when a save has some, so saves before it look as they did.
+    ...(c.metrics?.length ? { metrics: c.metrics.map((x) => metricToRow(ws, x)) } : {}),
+    ...(c.metricLinks?.length ? { goal_metrics: c.metricLinks.map((x) => metricLinkToRow(ws, x)) } : {}),
     // Teams (migration 0020 adds removing them and renaming the workspace to the same transaction).
     ...(c.teams?.length ? { teams: c.teams.map((x) => teamToRow(ws, x)) } : {}),
     ...(c.removeTeams?.length ? { remove_teams: c.removeTeams } : {}),

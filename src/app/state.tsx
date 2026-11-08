@@ -18,6 +18,7 @@ import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/ch
 import { ACTIONS } from '../mcp/parity';
 import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
+import * as M from '../domain/metrics';
 import { forgetDemoBrowser, forgetWorkspaceBrowser } from './demoBrowser';
 import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, UNDO_MS } from '../domain/vocabulary';
 
@@ -129,6 +130,15 @@ export interface AppState {
   saveTableView(v: { id?: string; name: string; layout: TableLayout }, head?: readonly string[]): Promise<string>;
   /** Delete one of your views (an admin: anyone's), with Undo. */
   deleteView(id: string): Promise<void>;
+  /* The metric library (domain/metrics, backlog 0b): what its screens call. The rules say no with a message, shown. */
+  /** Add a metric (anyone; they own it unless `ownerId` says) or change one (`id`: its owner or an admin). Returns its id; nothing is saved when nothing changed. */
+  saveMetric(m: M.MetricInput & { id?: string }): Promise<string>;
+  /** Owner or admin: remove a metric, unlinking the goals it measures, with Undo. */
+  removeMetric(id: string): Promise<void>;
+  /** The goal's owner or an admin: measure a goal by a metric, for a team (`teamId`) or the whole company (null). */
+  linkGoalMetric(goal: Goal, metricId: string, teamId: string | null): Promise<void>;
+  /** The goal's owner or an admin: stop measuring a goal by its metric, with Undo. */
+  unlinkGoalMetric(goal: Goal): Promise<void>;
   /* Removing, archiving and undoing (domain/removal): each shows a message with Undo for 10 seconds and is logged. */
   /** Admins: mark someone as left, handing their goals and open asks to the people given. */
   markPersonLeft(id: string, to: { goalsTo?: string | null; asksTo?: string | null }): Promise<void>;
@@ -561,6 +571,14 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       deleteView: async (id) => {
         const before = snapshot;
         const out = await act(() => A.deleteView(ax(), id));
+        if (out) toast(out.changes[0]!.summary, 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), out, before)).then(() => toast('Undone')).catch(() => undefined); } });
+      },
+      saveMetric: async (m) => { const out = await act(() => M.saveMetric(ax(), m)); return out.metric.id; },
+      removeMetric: async (id) => { await removal(() => M.removeMetric(ax(), id), (o) => o.changes[0]!.summary); },
+      linkGoalMetric: async (goal, metricId, teamId) => { await act(() => M.linkGoalMetric(ax(), goal, metricId, teamId)); },
+      unlinkGoalMetric: async (goal) => {
+        const before = snapshot;
+        const out = await act(() => M.unlinkGoalMetric(ax(), goal));
         if (out) toast(out.changes[0]!.summary, 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), out, before)).then(() => toast('Undone')).catch(() => undefined); } });
       },
       markPersonLeft: async (id, to) => { await removal(() => R.markPersonLeft(ax(), id, to), () => `${people.get(id)?.name ?? 'They'} ${people.get(id) ? 'is' : 'are'} marked as left`); },

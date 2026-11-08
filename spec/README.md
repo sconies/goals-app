@@ -37,6 +37,7 @@ Anything a rebuild could not take from the spec alone is marked **Not self-expla
 
 | Module | What it does |
 |---|---|
+| [Metric library](modules/metrics/README.md) | Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company. |
 | [Spreadsheets](modules/spreadsheets/README.md) | Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved. |
 
 ## Keeping it true

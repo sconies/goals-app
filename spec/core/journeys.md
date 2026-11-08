@@ -3,7 +3,7 @@
 
 # The core journeys
 
-What people do with Faro end to end, and the checks that drive it (`npm run evals`; `[evals/journeys.cjs](../../evals/journeys.cjs)`). Journeys and checks a module owns are in its own section ([Spreadsheets](../modules/spreadsheets/README.md)). Who the journeys are for: `docs/journeys.md`.
+What people do with Faro end to end, and the checks that drive it (`npm run evals`; `[evals/journeys.cjs](../../evals/journeys.cjs)`). Journeys and checks a module owns are in its own section ([Metric library](../modules/metrics/README.md), [Spreadsheets](../modules/spreadsheets/README.md)). Who the journeys are for: `docs/journeys.md`.
 
 ## Journeys
 

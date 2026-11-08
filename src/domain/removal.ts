@@ -427,11 +427,11 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
 
 /* ---------- recently removed, and restoring ---------- */
 
-export type RemovedKind = 'left' | 'person' | 'goal' | 'stopped' | 'check-in' | 'review' | 'ended' | 'comment' | 'note' | 'view' | 'watch' | 'cycle';
+export type RemovedKind = 'left' | 'person' | 'goal' | 'stopped' | 'check-in' | 'review' | 'ended' | 'comment' | 'note' | 'view' | 'watch' | 'cycle' | 'metric';
 /** How each kind is named on Recently removed. */
 export const REMOVED_LABEL: Record<RemovedKind, string> = {
   left: 'Person who left', person: 'Person', goal: 'Goal', stopped: 'Stopped goal', 'check-in': 'Check-in', review: 'Review', ended: 'Ended review',
-  comment: 'Comment', note: 'Review note', view: 'Saved view', watch: 'Watch', cycle: 'Cycle',
+  comment: 'Comment', note: 'Review note', view: 'Saved view', watch: 'Watch', cycle: 'Cycle', metric: 'Metric',
 };
 export interface Removed {
   kind: RemovedKind;
@@ -460,6 +460,7 @@ export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS):
   for (const v of full.views ?? []) if (v.deletedAt) add('view', v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
   for (const w of full.watches ?? []) if (w.removedAt) add('watch', w.id, `${nameIn(full, w.personId)} on ${w.kind === 'level' ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
   for (const c of full.cycles) if (c.removedAt) add('cycle', c.id, c.name, c.removedBy, c.removedAt);
+  for (const m of full.metrics ?? []) if (m.removedAt) add('metric', m.id, m.name, m.removedBy, m.removedAt);
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 
@@ -518,6 +519,13 @@ export function restoreRemoved(x: ActionContext, kind: RemovedKind, id: string):
       if (full.cycles.some((v) => v.id !== id && !v.removedAt && v.startDate === c.startDate)) no(`Another cycle starting ${c.startDate} has been set up since, so this one can’t come back.`);
       return { cycles: [{ ...c, removedAt: null, removedBy: null }], changes: [restored('cycle', `Restored the cycle ${c.name}`)] };
     }
+    case 'metric': {
+      // The goals it measured stay unlinked (Undo, straight after removing, links them again).
+      const m = (full.metrics ?? []).find((v) => v.id === id)!;
+      const same = (full.metrics ?? []).find((v) => v.id !== id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+      if (same) no(`There’s a metric called ${same.name} again. Rename it first.`);
+      return { metrics: [{ ...m, removedAt: null, removedBy: null, updatedAt: x.now }], changes: [restored('metric', `Restored the metric “${m.name}”`, null, [{ field: 'Metric', from: '—', to: m.name }])] };
+    }
   }
 }
 
@@ -539,6 +547,8 @@ export function undoRemoval(x: ActionContext, removal: Commit, before: Snapshot)
     views: back(removal.views, before.views),
     cycles: back(removal.cycles, before.cycles),
     teams: back(removal.teams, before.teams),
+    metrics: back(removal.metrics, before.metrics),
+    metricLinks: back(removal.metricLinks, before.metricLinks),
     changes: [],
   };
   for (const k of Object.keys(out) as (keyof Commit)[]) if (Array.isArray(out[k]) && !(out[k] as unknown[]).length && k !== 'changes') delete out[k];

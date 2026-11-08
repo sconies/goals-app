@@ -23247,6 +23247,68 @@ var cycleFromRow = (r) => ({
 	...when$1("removedAt", r.removed_at),
 	...who("removedBy", r.removed_by)
 });
+var metricToRow = (ws, m) => ({
+	workspace_id: ws,
+	id: m.id,
+	name: m.name,
+	meaning: m.meaning,
+	unit: m.unit,
+	decimals: m.decimals,
+	direction: m.direction,
+	source: m.source,
+	source_owner: m.sourceOwner,
+	refresh: m.refresh,
+	owner_id: m.ownerId,
+	caveats: m.caveats,
+	created_by: m.createdBy,
+	created_at: m.createdAt,
+	updated_at: m.updatedAt,
+	...set({
+		removed_at: m.removedAt,
+		removed_by: m.removedBy
+	})
+});
+var metricFromRow = (r) => ({
+	id: r.id,
+	name: r.name,
+	meaning: r.meaning ?? "",
+	unit: r.unit,
+	decimals: Number(r.decimals ?? 0),
+	direction: r.direction,
+	source: r.source ?? "",
+	sourceOwner: r.source_owner ?? "",
+	refresh: r.refresh ?? null,
+	ownerId: r.owner_id,
+	caveats: r.caveats ?? "",
+	createdBy: r.created_by,
+	createdAt: iso$2(r.created_at),
+	updatedAt: iso$2(r.updated_at),
+	...when$1("removedAt", r.removed_at),
+	...who("removedBy", r.removed_by)
+});
+var metricLinkToRow = (ws, l) => ({
+	workspace_id: ws,
+	id: l.id,
+	goal_id: l.goalId,
+	metric_id: l.metricId,
+	team_id: l.teamId,
+	linked_by: l.linkedBy,
+	linked_at: l.linkedAt,
+	...set({
+		removed_at: l.removedAt,
+		removed_by: l.removedBy
+	})
+});
+var metricLinkFromRow = (r) => ({
+	id: r.id,
+	goalId: r.goal_id,
+	metricId: r.metric_id,
+	teamId: r.team_id ?? null,
+	linkedBy: r.linked_by,
+	linkedAt: iso$2(r.linked_at),
+	...when$1("removedAt", r.removed_at),
+	...who("removedBy", r.removed_by)
+});
 function goalToRows(ws, g) {
 	return {
 		goal: {
@@ -23702,6 +23764,8 @@ function commitPayload(ws, c) {
 		tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
 		views: (c.views ?? []).map((x) => viewToRow(ws, x)),
 		requests: (c.requests ?? []).map((x) => requestToRow(ws, x)),
+		...c.metrics?.length ? { metrics: c.metrics.map((x) => metricToRow(ws, x)) } : {},
+		...c.metricLinks?.length ? { goal_metrics: c.metricLinks.map((x) => metricLinkToRow(ws, x)) } : {},
 		...c.teams?.length ? { teams: c.teams.map((x) => teamToRow(ws, x)) } : {},
 		...c.removeTeams?.length ? { remove_teams: c.removeTeams } : {},
 		...c.workspace ? { workspace_name: c.workspace.name } : {},
@@ -24424,6 +24488,8 @@ function scopeToCycle(s, cycle) {
 		reviews: reviews.filter((r) => !r.endedAt),
 		watches: (s.watches ?? []).filter((w) => !w.removedAt && here.has(w.personId)),
 		views: (s.views ?? []).filter((v) => !v.deletedAt),
+		...s.metrics ? { metrics: s.metrics.filter((m) => !m.removedAt) } : {},
+		...s.metricLinks ? { metricLinks: s.metricLinks.filter((l) => !l.removedAt && ids.has(l.goalId) && (s.metrics ?? []).some((m) => m.id === l.metricId && !m.removedAt)) } : {},
 		retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
 		requests: (s.requests ?? requestsFromCheckIns({
 			...s,
@@ -25090,6 +25156,440 @@ var init_review = __esmMin((() => {
 	});
 	ASK_KIND.action.label;
 }));
+// src/domain/changes.ts
+function goalFields(g, l) {
+	const f = {
+		Name: g.title,
+		Type: kindLabel(g),
+		Team: l.teamName(g.teamId),
+		Owner: l.person(g.ownerId)?.name ?? g.ownerId,
+		"Feeds into": g.parentId ? l.goal(g.parentId)?.title ?? "—" : "Nothing",
+		"Why it helps": g.parentId ? g.whyHelps || "—" : "—",
+		"Also helps": g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(", ") : "—",
+		Level: LEVEL_LABEL[g.level],
+		Role: g.io === "input" ? "Input" : "Output",
+		Guardrail: g.guardrail ? "Yes" : "No",
+		"Estimated effect": g.effect == null ? "—" : String(g.effect),
+		"Data source": g.source || "—",
+		Definition: g.definition || "—"
+	};
+	if (g.kind !== "milestone") {
+		f.Unit = g.unit || "—";
+		f.Decimals = String(g.decimals);
+	}
+	if (g.kind === "metric") {
+		f.Start = fmt(g.plan.start, g);
+		f.Target = fmt(g.plan.target, g);
+		f["Plan shape"] = shapeName[g.plan.shape];
+		f["Plan from week"] = g.plan.fromWeek ? `Week ${g.plan.fromWeek}` : "—";
+		f["Target due"] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : "—";
+		f["Plan numbers"] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(", ") : "—";
+	}
+	if (g.kind === "range") {
+		f.Limit = (g.range.bound === "atMost" ? "At most " : "At least ") + fmt(g.range.limit, g);
+		f["Warning margin"] = fmt(g.range.margin, g);
+	}
+	if (g.kind === "milestone") f.Stages = g.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(", ") || "—";
+	return f;
+}
+function checkInFields(c, g) {
+	const f = { "Status call": LABEL[c.status] };
+	if (g.kind !== "milestone") f.Value = c.value == null ? "—" : fmt(c.value, g);
+	if (g.kind === "milestone" && c.stages) f.Stages = assessMilestone(g, c.week, c.stages).stages.map((s) => `${s.name}: ${s.kind === "done" ? "done wk " + s.doneWeek : s.weeksLate > 0 ? "expected wk " + s.expectedWeek : "on schedule"}`).join("; ");
+	f.Cause = c.cause ? causeLabel(c.cause) : "—";
+	f.Note = c.why || "—";
+	f["Why greener"] = c.greenerWhy || "—";
+	f["Path to green"] = c.pathToGreen ? `${c.pathToGreen.what} (${c.pathToGreen.byWeek != null ? `by week ${c.pathToGreen.byWeek}` : RECOVERY_LABEL[c.pathToGreen.state ?? "plan"].toLowerCase()})` : "—";
+	f["Needs"] = c.pathToGreen?.needs || "—";
+	f["Proposed target"] = c.proposeTarget == null || g.kind === "milestone" ? "—" : fmt(c.proposeTarget, g);
+	f["Next step"] = c.next || "—";
+	return f;
+}
+function diffFields(before, after) {
+	return Object.keys(after).filter((k) => !before || before[k] !== after[k]).filter((k) => before || after[k] !== "—").map((k) => ({
+		field: k,
+		from: before ? before[k] ?? "—" : "—",
+		to: after[k]
+	}));
+}
+/** The change record for saving a goal, or null when nothing changed. */
+function goalChange(before, after, l, actorId, at, id) {
+	const diffs = diffFields(before ? goalFields(before, l) : null, goalFields(after, l));
+	if (before && !diffs.length) return null;
+	return {
+		id,
+		at,
+		actorId,
+		goalId: after.id,
+		entity: "goal",
+		entityId: after.id,
+		action: before ? "edited" : "created",
+		summary: before ? `Changed ${list$2(diffs)}` : `Created the goal “${after.title}”`,
+		diffs
+	};
+}
+/** The change record for posting or editing a check-in, or null when nothing changed. */
+function checkInChange(before, after, g, actorId, id) {
+	const diffs = diffFields(before ? checkInFields(before, g) : null, checkInFields(after, g));
+	if (before && !diffs.length) return null;
+	const headline = g.kind === "milestone" ? LABEL[after.status] : `${after.value == null ? "—" : fmt(after.value, g)} · ${LABEL[after.status]}`;
+	return {
+		id,
+		at: after.postedAt,
+		actorId,
+		goalId: g.id,
+		entity: "check-in",
+		entityId: after.id,
+		action: before ? "edited" : "posted",
+		summary: before ? `Posted an update for week ${after.week}: ${headline}` : `Checked in for week ${after.week}: ${headline}`,
+		diffs
+	};
+}
+var shapeName, RECOVERY_LABEL, list$2;
+var init_changes = __esmMin((() => {
+	init_checkin();
+	init_format();
+	init_status();
+	shapeName = {
+		straight: "Straight line",
+		back: "Back-loaded",
+		stepped: "Three steps"
+	};
+	RECOVERY_LABEL = {
+		plan: "Plan",
+		investigating: "Still investigating",
+		help: "Needs a decision or help",
+		target: "Target should change"
+	};
+	list$2 = (d) => {
+		const names = d.map((x) => x.field.toLowerCase());
+		return names.length <= 3 ? names.join(", ") : names.slice(0, 2).join(", ") + ` and ${names.length - 2} more`;
+	};
+}));
+// src/domain/metrics.ts
+/** A live metric by id, or by name (any case). */
+function findMetric(s, ref) {
+	const t = ref.trim().toLowerCase();
+	const live = liveMetrics(s);
+	return live.find((m) => m.id === ref) ?? live.find((m) => m.name.trim().toLowerCase() === t);
+}
+/** A goal's link to a metric, if it has one that's in force (the metric not removed either). */
+function linkOf(s, goalId) {
+	const l = (s.metricLinks ?? []).find((v) => v.goalId === goalId && !v.removedAt);
+	return l && liveMetrics(s).some((m) => m.id === l.metricId) ? l : void 0;
+}
+/** The goals a metric measures now (links in force, to goals in the snapshot). */
+function goalsMeasuredBy(s, metricId) {
+	const ids = new Set((s.metricLinks ?? []).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+	return s.goals.filter((g) => ids.has(g.id));
+}
+/** A goal's target in its metric: a metric goal's plan target, or a range goal's limit. Milestones have none. */
+function goalTarget(g) {
+	if (g.kind === "metric") return {
+		value: g.plan.target,
+		kind: "target"
+	};
+	if (g.kind === "range") return {
+		value: g.range.limit,
+		kind: g.range.bound === "atMost" ? "at most" : "at least"
+	};
+	return null;
+}
+function measureOf(s, goal) {
+	const link = linkOf(s, goal.id);
+	if (!link) return null;
+	return {
+		link,
+		metric: liveMetrics(s).find((m) => m.id === link.metricId),
+		slice: sliceName(s, link.teamId),
+		target: goalTarget(goal)
+	};
+}
+/** The metric as it would be saved: text trimmed, defaults filled in. Throws nothing; metricProblems says what's wrong. */
+function metricFrom(input, before, x) {
+	const pick = (k, fallback) => input[k] !== void 0 ? input[k] : before ? before[k] : fallback;
+	return {
+		id: before?.id ?? x.newId("metric"),
+		name: clean$1(pick("name", "")),
+		meaning: (pick("meaning", "") ?? "").trim(),
+		unit: clean$1(pick("unit", "")),
+		decimals: pick("decimals", 0) ?? 0,
+		direction: pick("direction", null),
+		source: clean$1(pick("source", "")),
+		sourceOwner: clean$1(pick("sourceOwner", "")),
+		refresh: pick("refresh", null) ?? null,
+		ownerId: pick("ownerId", x.actor.id) || x.actor.id,
+		caveats: (pick("caveats", "") ?? "").trim(),
+		createdBy: before?.createdBy ?? x.actor.id,
+		createdAt: before?.createdAt ?? x.now,
+		updatedAt: x.now,
+		...before?.removedAt ? {
+			removedAt: before.removedAt,
+			removedBy: before.removedBy ?? null
+		} : {}
+	};
+}
+/**
+* What's wrong with a metric, in words someone can act on; empty when it can be saved. Required: a name (3 to 120
+* characters, not one another metric here uses), a unit (up to 20 characters) and a direction (higher or lower is
+* better). Optional: the meaning, decimals (0 to 4), source and its owner, refresh (one of REFRESHES), owner (someone in
+* the workspace) and caveats, each text up to 2,000 characters.
+*/
+function metricProblems(m, s) {
+	const out = [];
+	if (!m.name) out.push("Give the metric a name.");
+	else if (m.name.length < 3) out.push("Give the metric a name of at least three characters.");
+	else if (m.name.length > METRIC_LIMITS.name) out.push(`Keep the name to ${METRIC_LIMITS.name} characters or fewer.`);
+	else {
+		const same = liveMetrics(s).find((v) => v.id !== m.id && v.name.toLowerCase() === m.name.toLowerCase());
+		if (same) out.push(`There’s already a metric called ${same.name}. Use it, or give this one a different name.`);
+	}
+	if (!m.unit) out.push("Say its unit: %, min, hours, USD, deploys…");
+	else if (m.unit.length > METRIC_LIMITS.unit) out.push(`Keep the unit to ${METRIC_LIMITS.unit} characters or fewer.`);
+	if (m.direction !== "higher" && m.direction !== "lower") out.push("Say which way is better: higher or lower.");
+	if (!Number.isInteger(m.decimals) || m.decimals < 0 || m.decimals > METRIC_LIMITS.decimals) out.push(`Decimals is a whole number from 0 to ${METRIC_LIMITS.decimals}.`);
+	if (m.refresh != null && !REFRESHES.includes(m.refresh)) out.push(`Refresh is one of ${REFRESHES.join(", ")}, or left empty.`);
+	if (!s.people.some((p) => p.id === m.ownerId)) out.push("The metric’s owner isn’t in this workspace.");
+	for (const [k, label] of [
+		["meaning", "meaning"],
+		["source", "source"],
+		["sourceOwner", "source’s owner"],
+		["caveats", "caveats"]
+	]) if (m[k].length > METRIC_LIMITS.text) out.push(`Keep the ${label} to ${METRIC_LIMITS.text.toLocaleString("en-GB")} characters or fewer.`);
+	return out;
+}
+/** A metric's fields as the change log reads them. */
+function metricFields(m, s) {
+	return {
+		Name: m.name,
+		Meaning: m.meaning || "—",
+		Unit: m.unit || "—",
+		Decimals: String(m.decimals),
+		Direction: DIRECTION_LABEL[m.direction] ?? "—",
+		Source: m.source || "—",
+		"Source owner": m.sourceOwner || "—",
+		Refresh: m.refresh ? REFRESH_LABEL[m.refresh] : "—",
+		Owner: s.people.find((p) => p.id === m.ownerId)?.name ?? "—",
+		Caveats: m.caveats || "—"
+	};
+}
+/**
+* Add a metric (anyone; they own it unless they name someone else), or change one (its owner or an admin). `id` names
+* the metric to change; left out, it's a new one. Returns the commit and the metric as saved; the commit is null when
+* nothing changed.
+*/
+function saveMetric(x, input) {
+	const before = input.id ? live(x, input.id) : null;
+	if (before && !ownsOrAdmin$2(x, before)) no$2(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
+	const m = metricFrom(input, before, x);
+	const problems = metricProblems(m, x.snapshot);
+	if (problems.length) no$2(problems.join(" "));
+	const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
+	if (before && !diffs.length) return {
+		commit: null,
+		metric: before
+	};
+	const summary = before ? before.name !== m.name ? `Renamed the metric “${before.name}” to “${m.name}”` : `Changed the metric “${m.name}”` : `Added the metric “${m.name}”`;
+	return {
+		metric: m,
+		commit: {
+			metrics: [m],
+			changes: [log$1(x, {
+				entityId: m.id,
+				action: before ? "edited" : "created",
+				summary,
+				diffs
+			})]
+		}
+	};
+}
+/**
+* Remove a metric: its owner or an admin. It keeps its row and comes back with Undo or from Recently removed. Every goal
+* it measured is unlinked by the same save (and Undo links them again); the goals themselves don't change.
+*/
+function removeMetric(x, id) {
+	const m = live(x, id);
+	if (!ownsOrAdmin$2(x, m)) no$2(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
+	const links = (x.full ?? x.snapshot).metricLinks?.filter((l) => l.metricId === id && !l.removedAt) ?? [];
+	const n = links.length;
+	return {
+		metrics: [{
+			...m,
+			removedAt: x.now,
+			removedBy: x.actor.id,
+			updatedAt: x.now
+		}],
+		...n ? { metricLinks: links.map((l) => ({
+			...l,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		})) } : {},
+		changes: [log$1(x, {
+			entityId: m.id,
+			action: "removed",
+			summary: `Removed the metric “${m.name}”${n ? `, unlinking ${n} ${n === 1 ? "goal" : "goals"}` : ""}`,
+			diffs: [{
+				field: "Metric",
+				from: m.name,
+				to: "—"
+			}]
+		}), ...links.map((l) => log$1(x, {
+			entityId: m.id,
+			goalId: l.goalId,
+			action: "edited",
+			summary: `No longer measured by “${m.name}”, as the metric was removed`,
+			diffs: [{
+				field: "Measured by",
+				from: m.name,
+				to: "—"
+			}]
+		}))]
+	};
+}
+/**
+* What's wrong with measuring a goal by a metric: errors stop the link, warnings are said but allowed. A milestone goal
+* has stages, not a number, so it can't be measured by one. The goal's unit must be the metric's (a goal in hours
+* measured by a metric in minutes would read wrong). A goal whose plan moves the other way from the metric's better
+* direction (a lower-is-better metric planned to go up) is a warning: it may be a guardrail's allowance, or a mistake.
+*/
+function linkProblems(goal, m) {
+	const errors = [], warnings = [];
+	if (goal.kind === "milestone") errors.push("A goal with dated stages has no number, so a metric can’t measure it.");
+	else {
+		if (goal.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase()) errors.push(`The goal is in ${goal.unit || "no unit"} and the metric is in ${m.unit}. Use the same unit for both.`);
+		const up = goal.kind === "metric" ? goal.plan.target > goal.plan.start : goal.range.bound === "atLeast";
+		if (!(goal.kind === "metric" && goal.plan.target === goal.plan.start) && (up ? "higher" : "lower") !== m.direction) warnings.push(`The goal aims ${up ? "up" : "down"}, but for ${m.name} ${DIRECTION_LABEL[m.direction].toLowerCase()}. Check it’s meant.`);
+	}
+	return {
+		errors,
+		warnings
+	};
+}
+/**
+* Measure a goal by a metric, for a slice: a team (teamId) or the whole company (null). The goal's owner or an admin.
+* Linking again with the same metric and slice changes nothing (null); with another, it's changed and logged.
+*/
+function linkGoalMetric(x, goal, metricId, teamId = null) {
+	if (!canLinkGoal(x.actor, goal)) no$2("Only the goal’s owner or an admin can choose what measures it.");
+	const m = live(x, metricId);
+	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no$2("There’s no team with that ID. Leave the slice empty for the whole company.");
+	const { errors } = linkProblems(goal, m);
+	if (errors.length) no$2(errors.join(" "));
+	const old = (x.full?.metricLinks ?? x.snapshot.metricLinks ?? []).find((l) => l.id === goal.id);
+	const current = old && !old.removedAt ? old : void 0;
+	if (current && current.metricId === m.id && current.teamId === teamId) return null;
+	const metricName = (id) => (x.full ?? x.snapshot).metrics?.find((v) => v.id === id)?.name ?? "—";
+	const link = {
+		id: goal.id,
+		goalId: goal.id,
+		metricId: m.id,
+		teamId,
+		linkedBy: x.actor.id,
+		linkedAt: x.now,
+		removedAt: null,
+		removedBy: null
+	};
+	const slice = sliceName(x.snapshot, teamId);
+	const diffs = [...!current || current.metricId !== m.id ? [{
+		field: "Measured by",
+		from: current ? metricName(current.metricId) : "—",
+		to: m.name
+	}] : [], ...!current || current.teamId !== teamId ? [{
+		field: "Slice",
+		from: current ? sliceName(x.snapshot, current.teamId) : "—",
+		to: slice
+	}] : []];
+	return {
+		metricLinks: [link],
+		changes: [log$1(x, {
+			entityId: m.id,
+			goalId: goal.id,
+			action: current ? "edited" : "linked",
+			summary: `Measured by “${m.name}” for ${slice === "The whole company" ? "the whole company" : slice}`,
+			diffs
+		})]
+	};
+}
+/** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
+function unlinkGoalMetric(x, goal) {
+	if (!canLinkGoal(x.actor, goal)) no$2("Only the goal’s owner or an admin can choose what measures it.");
+	const l = (x.snapshot.metricLinks ?? []).find((v) => v.goalId === goal.id && !v.removedAt);
+	if (!l) return null;
+	const name = (x.full ?? x.snapshot).metrics?.find((v) => v.id === l.metricId)?.name ?? "its metric";
+	return {
+		metricLinks: [{
+			...l,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}],
+		changes: [log$1(x, {
+			entityId: l.metricId,
+			goalId: goal.id,
+			action: "removed",
+			summary: `No longer measured by “${name}”`,
+			diffs: [{
+				field: "Measured by",
+				from: name,
+				to: "—"
+			}]
+		})]
+	};
+}
+var no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log$1, live, ownsOrAdmin$2, canEditMetric, canLinkGoal;
+var init_metrics = __esmMin((() => {
+	init_actions();
+	init_changes();
+	no$2 = (msg) => {
+		throw new NotAllowed(msg);
+	};
+	DIRECTION_LABEL = {
+		higher: "Higher is better",
+		lower: "Lower is better"
+	};
+	REFRESHES = [
+		"live",
+		"hourly",
+		"daily",
+		"weekly",
+		"monthly",
+		"quarterly"
+	];
+	REFRESH_LABEL = {
+		live: "Live",
+		hourly: "Hourly",
+		daily: "Daily",
+		weekly: "Weekly",
+		monthly: "Monthly",
+		quarterly: "Quarterly"
+	};
+	COMPANY = "The whole company";
+	METRIC_LIMITS = {
+		name: 120,
+		unit: 20,
+		text: 2e3,
+		decimals: 4
+	};
+	liveMetrics = (s) => (s.metrics ?? []).filter((m) => !m.removedAt).sort((a, b) => a.name.localeCompare(b.name));
+	sliceName = (s, teamId) => teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? "A removed team";
+	clean$1 = (v) => (v ?? "").trim().replace(/[ \t]+/g, " ");
+	log$1 = (x, v) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actor.id,
+		goalId: null,
+		entity: "metric",
+		diffs: [],
+		...v
+	});
+	live = (x, id) => {
+		const m = (x.snapshot.metrics ?? []).find((v) => v.id === id);
+		if (!m || m.removedAt) no$2("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
+		return m;
+	};
+	ownsOrAdmin$2 = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
+	canEditMetric = (actor, m) => actor.admin || m.ownerId === actor.id;
+	canLinkGoal = (actor, g) => actor.admin || g.ownerId === actor.id;
+}));
 // src/domain/columns.ts
 /** A word's code; null for an empty cell; undefined for a word it doesn't know. */
 function codeOf(w, raw) {
@@ -25122,11 +25622,12 @@ function contextOf(x, s) {
 		goal: (id) => id ? goals.get(id) : void 0
 	};
 }
-var ROLE_WORD, ROLE_LOADED, roleLoaded, norm$2, unknownWord, oneOf, LEVEL_WORDS, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m, e, w, sh, blank, or, metricOf, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, SHEET_NAMES, specOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor;
+var ROLE_WORD, ROLE_LOADED, roleLoaded, norm$2, unknownWord, oneOf, LEVEL_WORDS, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m, e, w, sh, blank, or, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, METRICS, SHEETS, SHEET_NAMES, specOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, metricsFor, notesFor;
 var init_columns = __esmMin((() => {
 	init_asks();
 	init_checkin();
 	init_plan();
+	init_metrics();
 	init_review();
 	init_vocabulary();
 	init_people();
@@ -25327,7 +25828,7 @@ var init_columns = __esmMin((() => {
 	});
 	blank = () => null;
 	or = (v) => v == null || v === "" ? null : v;
-	metricOf = (g) => g.kind === "metric" ? g : null;
+	metricOf$1 = (g) => g.kind === "metric" ? g : null;
 	rangeOf = (g) => g.kind === "range" ? g : null;
 	parentOf = (r) => r.c.goal(r.g.parentId);
 	quarter = (n) => (r) => {
@@ -25365,18 +25866,18 @@ var init_columns = __esmMin((() => {
 			e("Type", `${oneOf(Object.values(TYPE_WORDS.word))}: move a number, keep one in range, or hit dated stages.`, (r) => TYPE_WORDS.word[r.g.kind], "Sets a new goal’s type; it can’t change on an existing goal"),
 			e("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or(r.g.unit)),
 			e("Decimals", "Number and range goals: how many decimal places the number has (0 to 3).", (r) => r.g.kind === "milestone" ? null : r.g.decimals),
-			e("Start", "Number goals: where the plan starts.", (r) => metricOf(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
-			e("Target", "Number goals: where the plan ends, by its due week.", (r) => metricOf(r.g)?.plan.target ?? null, "Changes the plan; needs a reason once check-ins have started"),
+			e("Start", "Number goals: where the plan starts.", (r) => metricOf$1(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
+			e("Target", "Number goals: where the plan ends, by its due week.", (r) => metricOf$1(r.g)?.plan.target ?? null, "Changes the plan; needs a reason once check-ins have started"),
 			e("Plan", `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => {
-				const g = metricOf(r.g);
+				const g = metricOf$1(r.g);
 				return g ? SHAPE_WORDS.word[g.plan.shape] : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Plan from week", "Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).", (r) => {
-				const g = metricOf(r.g);
+				const g = metricOf$1(r.g);
 				return g ? g.plan.fromWeek ?? 0 : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Due week", "Number goals: the week the target is due, counted from the cycle’s start.", (r) => {
-				const g = metricOf(r.g);
+				const g = metricOf$1(r.g);
 				return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Limit", "Range goals: the number it must stay within.", (r) => rangeOf(r.g)?.range.limit ?? null),
@@ -25557,6 +26058,29 @@ var init_columns = __esmMin((() => {
 			sh("At", "When.", (r) => r.d.at)
 		]
 	};
+	METRICS = {
+		kind: "metrics",
+		name: "Metrics",
+		rowIs: "metric in the library",
+		loaded: false,
+		about: "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app.",
+		columns: [
+			m("ID", "The metric’s identity.", (r) => r.m.id),
+			sh("Metric", "Its name.", (r) => r.m.name),
+			sh("Meaning", "What it means and how it’s calculated.", (r) => or(r.m.meaning)),
+			sh("Unit", "Its unit.", (r) => r.m.unit),
+			sh("Decimals", "Places after the decimal point it’s shown with.", (r) => r.m.decimals),
+			sh("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
+			sh("Source", "Where the number comes from.", (r) => or(r.m.source)),
+			sh("Source owner", "Who owns that source.", (r) => or(r.m.sourceOwner)),
+			sh("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
+			sh("Owner", "Who answers for the definition.", (r) => or(r.c.name(r.m.ownerId))),
+			sh("Owner email", "Who answers for it, by email.", (r) => r.c.email(r.m.ownerId)),
+			sh("Caveats", "What to watch out for when reading it.", (r) => or(r.m.caveats)),
+			sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
+			sh("Goal keys", "Their keys.", (r) => or(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
+		]
+	};
 	SHEETS = [
 		GOALS,
 		PLAN,
@@ -25564,7 +26088,8 @@ var init_columns = __esmMin((() => {
 		PEOPLE,
 		RESULTS,
 		ASKS,
-		NOTES
+		NOTES,
+		METRICS
 	];
 	SHEET_NAMES = [...SHEETS.map((x) => x.name), "README"];
 	specOf = (kind) => SHEETS.find((x) => x.kind === kind);
@@ -25582,10 +26107,21 @@ var init_columns = __esmMin((() => {
 		people: ["Email", "ID"],
 		results: ["Key", "ID"],
 		asks: ["ID"],
-		notes: ["Goal key", "Goal ID"]
+		notes: ["Goal key", "Goal ID"],
+		metrics: ["ID"]
 	};
 	rowsOf = (spec, items) => [spec.columns.map((c) => c.header), ...items.map((it) => spec.columns.map((c) => c.write(it)))];
 	asksFor = (s, ids) => asksOf(s).filter((r) => r.goalIds.some((id) => ids.has(id)));
+	metricsFor = (s, ids) => liveMetrics(s).map((m) => ({
+		m,
+		measures: (s.metricLinks ?? []).filter((l) => l.metricId === m.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => {
+			const g = s.goals.find((v) => v.id === l.goalId);
+			return g ? [{
+				g,
+				slice: sliceName(s, l.teamId)
+			}] : [];
+		})
+	}));
 	notesFor = (s, ids) => saidIn(s).filter((d) => ids.has(d.goalId) && [
 		"note",
 		"ask",
@@ -26794,116 +27330,6 @@ var init_actions = __esmMin((() => {
 	};
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
 }));
-// src/domain/changes.ts
-function goalFields(g, l) {
-	const f = {
-		Name: g.title,
-		Type: kindLabel(g),
-		Team: l.teamName(g.teamId),
-		Owner: l.person(g.ownerId)?.name ?? g.ownerId,
-		"Feeds into": g.parentId ? l.goal(g.parentId)?.title ?? "—" : "Nothing",
-		"Why it helps": g.parentId ? g.whyHelps || "—" : "—",
-		"Also helps": g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(", ") : "—",
-		Level: LEVEL_LABEL[g.level],
-		Role: g.io === "input" ? "Input" : "Output",
-		Guardrail: g.guardrail ? "Yes" : "No",
-		"Estimated effect": g.effect == null ? "—" : String(g.effect),
-		"Data source": g.source || "—",
-		Definition: g.definition || "—"
-	};
-	if (g.kind !== "milestone") {
-		f.Unit = g.unit || "—";
-		f.Decimals = String(g.decimals);
-	}
-	if (g.kind === "metric") {
-		f.Start = fmt(g.plan.start, g);
-		f.Target = fmt(g.plan.target, g);
-		f["Plan shape"] = shapeName[g.plan.shape];
-		f["Plan from week"] = g.plan.fromWeek ? `Week ${g.plan.fromWeek}` : "—";
-		f["Target due"] = g.plan.endWeek ? `Week ${g.plan.endWeek}` : "—";
-		f["Plan numbers"] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(", ") : "—";
-	}
-	if (g.kind === "range") {
-		f.Limit = (g.range.bound === "atMost" ? "At most " : "At least ") + fmt(g.range.limit, g);
-		f["Warning margin"] = fmt(g.range.margin, g);
-	}
-	if (g.kind === "milestone") f.Stages = g.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(", ") || "—";
-	return f;
-}
-function checkInFields(c, g) {
-	const f = { "Status call": LABEL[c.status] };
-	if (g.kind !== "milestone") f.Value = c.value == null ? "—" : fmt(c.value, g);
-	if (g.kind === "milestone" && c.stages) f.Stages = assessMilestone(g, c.week, c.stages).stages.map((s) => `${s.name}: ${s.kind === "done" ? "done wk " + s.doneWeek : s.weeksLate > 0 ? "expected wk " + s.expectedWeek : "on schedule"}`).join("; ");
-	f.Cause = c.cause ? causeLabel(c.cause) : "—";
-	f.Note = c.why || "—";
-	f["Why greener"] = c.greenerWhy || "—";
-	f["Path to green"] = c.pathToGreen ? `${c.pathToGreen.what} (${c.pathToGreen.byWeek != null ? `by week ${c.pathToGreen.byWeek}` : RECOVERY_LABEL[c.pathToGreen.state ?? "plan"].toLowerCase()})` : "—";
-	f["Needs"] = c.pathToGreen?.needs || "—";
-	f["Proposed target"] = c.proposeTarget == null || g.kind === "milestone" ? "—" : fmt(c.proposeTarget, g);
-	f["Next step"] = c.next || "—";
-	return f;
-}
-function diffFields(before, after) {
-	return Object.keys(after).filter((k) => !before || before[k] !== after[k]).filter((k) => before || after[k] !== "—").map((k) => ({
-		field: k,
-		from: before ? before[k] ?? "—" : "—",
-		to: after[k]
-	}));
-}
-/** The change record for saving a goal, or null when nothing changed. */
-function goalChange(before, after, l, actorId, at, id) {
-	const diffs = diffFields(before ? goalFields(before, l) : null, goalFields(after, l));
-	if (before && !diffs.length) return null;
-	return {
-		id,
-		at,
-		actorId,
-		goalId: after.id,
-		entity: "goal",
-		entityId: after.id,
-		action: before ? "edited" : "created",
-		summary: before ? `Changed ${list$2(diffs)}` : `Created the goal “${after.title}”`,
-		diffs
-	};
-}
-/** The change record for posting or editing a check-in, or null when nothing changed. */
-function checkInChange(before, after, g, actorId, id) {
-	const diffs = diffFields(before ? checkInFields(before, g) : null, checkInFields(after, g));
-	if (before && !diffs.length) return null;
-	const headline = g.kind === "milestone" ? LABEL[after.status] : `${after.value == null ? "—" : fmt(after.value, g)} · ${LABEL[after.status]}`;
-	return {
-		id,
-		at: after.postedAt,
-		actorId,
-		goalId: g.id,
-		entity: "check-in",
-		entityId: after.id,
-		action: before ? "edited" : "posted",
-		summary: before ? `Posted an update for week ${after.week}: ${headline}` : `Checked in for week ${after.week}: ${headline}`,
-		diffs
-	};
-}
-var shapeName, RECOVERY_LABEL, list$2;
-var init_changes = __esmMin((() => {
-	init_checkin();
-	init_format();
-	init_status();
-	shapeName = {
-		straight: "Straight line",
-		back: "Back-loaded",
-		stepped: "Three steps"
-	};
-	RECOVERY_LABEL = {
-		plan: "Plan",
-		investigating: "Still investigating",
-		help: "Needs a decision or help",
-		target: "Target should change"
-	};
-	list$2 = (d) => {
-		const names = d.map((x) => x.field.toLowerCase());
-		return names.length <= 3 ? names.join(", ") : names.slice(0, 2).join(", ") + ` and ${names.length - 2} more`;
-	};
-}));
 // src/domain/chartStory.ts
 /** An amount people read at a glance: "£3.41m", "£61k", "83%", "12 days". Money units ("£k", "$m", "€") get the symbol
 in front and a k or m to suit the size; everything else keeps its unit. */
@@ -27690,6 +28116,7 @@ function recentlyRemoved(full, now, days = 30) {
 	for (const v of full.views ?? []) if (v.deletedAt) add("view", v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
 	for (const w of full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
 	for (const c of full.cycles) if (c.removedAt) add("cycle", c.id, c.name, c.removedBy, c.removedAt);
+	for (const m of full.metrics ?? []) if (m.removedAt) add("metric", m.id, m.name, m.removedBy, m.removedAt);
 	return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 /**
@@ -27826,6 +28253,24 @@ function restoreRemoved(x, kind, id) {
 				changes: [restored("cycle", `Restored the cycle ${c.name}`)]
 			};
 		}
+		case "metric": {
+			const m = (full.metrics ?? []).find((v) => v.id === id);
+			const same = (full.metrics ?? []).find((v) => v.id !== id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+			if (same) no(`There’s a metric called ${same.name} again. Rename it first.`);
+			return {
+				metrics: [{
+					...m,
+					removedAt: null,
+					removedBy: null,
+					updatedAt: x.now
+				}],
+				changes: [restored("metric", `Restored the metric “${m.name}”`, null, [{
+					field: "Metric",
+					from: "—",
+					to: m.name
+				}])]
+			};
+		}
 	}
 }
 var no, fullOf, plural$2, ownsOrAdmin, log, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, liveReview, importEntry, importUndone, canUndoImport, REMOVED_LABEL, excerpt;
@@ -27892,7 +28337,8 @@ var init_removal = __esmMin((() => {
 		note: "Review note",
 		view: "Saved view",
 		watch: "Watch",
-		cycle: "Cycle"
+		cycle: "Cycle",
+		metric: "Metric"
 	};
 	excerpt = (t, n = 60) => t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t;
 }));
@@ -29145,6 +29591,8 @@ function applyCommit(s, c) {
 		feedback: upsert(s.feedback ?? [], c.feedback),
 		tokens: upsert(s.tokens ?? [], c.tokens),
 		views: upsert(s.views ?? [], c.views),
+		...c.metrics?.length || s.metrics ? { metrics: upsert(s.metrics ?? [], c.metrics) } : {},
+		...c.metricLinks?.length || s.metricLinks ? { metricLinks: upsert(s.metricLinks ?? [], c.metricLinks) } : {},
 		requests: c.requests?.length || s.requests ? upsert(s.requests ?? asksOf(s), c.requests) : s.requests
 	};
 }
@@ -29206,7 +29654,7 @@ var SupabaseStore = class {
 		return (data ?? []).map(workspaceFromRow).filter((w) => w.kind !== "example" && w.id !== EXAMPLE.id);
 	}
 	async load(ws) {
-		const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests] = await Promise.all([
+		const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests, metrics, metricLinks] = await Promise.all([
 			this.all("okr_teams", ws),
 			this.all("okr_people", ws),
 			this.all("okr_cycles", ws),
@@ -29221,7 +29669,9 @@ var SupabaseStore = class {
 			this.viaRpc("okr_feedback_list", ws, "okr_feedback").catch(() => []),
 			this.viaRpc("okr_token_list", ws, "okr_api_tokens").catch(() => []),
 			this.all("okr_views", ws).catch(() => []),
-			this.all("okr_requests", ws).catch(() => null)
+			this.all("okr_requests", ws).catch(() => null),
+			this.all("okr_metrics", ws).catch(() => null),
+			this.all("okr_goal_metrics", ws).catch(() => null)
 		]);
 		if (!cycles.length) throw new Error("This workspace has no cycle yet.");
 		return upgradeAsks({
@@ -29238,7 +29688,9 @@ var SupabaseStore = class {
 			feedback: feedback.map(feedbackFromRow),
 			tokens: tokens.map(tokenFromRow),
 			views: views.map(viewFromRow),
-			...requests ? { requests: requests.map(requestFromRow) } : {}
+			...requests ? { requests: requests.map(requestFromRow) } : {},
+			...metrics?.length ? { metrics: metrics.map(metricFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)) } : {},
+			...metricLinks?.length ? { metricLinks: metricLinks.map(metricLinkFromRow) } : {}
 		});
 	}
 	/** A workspace's rows from a database function that returns them (migration 0024), or from the table before it. */
@@ -29350,6 +29802,8 @@ var SupabaseStore = class {
 		if (c.tokens?.length) await this.must(this.db.from("okr_api_tokens").upsert(c.tokens.map((x) => tokenToRow(ws, x))), "Saving the token");
 		if (c.views?.length) await this.must(this.db.from("okr_views").upsert(c.views.map((x) => viewToRow(ws, x))), "Saving the view");
 		if (c.requests?.length) await this.must(this.db.from("okr_requests").upsert(c.requests.map((x) => requestToRow(ws, x))), "Saving the request");
+		if (c.metrics?.length) await this.must(this.db.from("okr_metrics").upsert(c.metrics.map((x) => metricToRow(ws, x))), "Saving the metric");
+		if (c.metricLinks?.length) await this.must(this.db.from("okr_goal_metrics").upsert(c.metricLinks.map((x) => metricLinkToRow(ws, x))), "Saving what measures the goal");
 		for (const id of c.unwatch ?? []) await this.must(this.db.from("okr_watches").delete().eq("id", id), "Stopping watching");
 		await this.teamsAndName(ws, c);
 		if (c.changes.length) await this.must(this.db.from("okr_changes").insert(c.changes.map((x) => changeToRow(ws, x))), "Logging the change");
@@ -29372,6 +29826,8 @@ var SupabaseStore = class {
 		await chunk("okr_watches", s.watches.map((w) => watchToRow(ws, w)), "Adding watches");
 		await chunk("okr_retros", (s.retros ?? []).map((r) => retroToRow(ws, r)), "Adding retros");
 		if (s.requests?.length) await chunk("okr_requests", s.requests.map((r) => requestToRow(ws, r)), "Adding requests");
+		if (s.metrics?.length) await chunk("okr_metrics", s.metrics.map((m) => metricToRow(ws, m)), "Adding metrics");
+		if (s.metricLinks?.length) await chunk("okr_goal_metrics", s.metricLinks.map((l) => metricLinkToRow(ws, l)), "Adding what measures each goal");
 		await chunk("okr_changes", s.changes.map((c) => changeToRow(ws, c)), "Adding the change log");
 	}
 	async createWorkspace(w, data) {
@@ -29947,7 +30403,7 @@ function planRows(x, sums, c) {
 		g: metric[i]
 	}, w))])];
 }
-/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes and the README. */
+/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and the README. */
 function workbook(x) {
 	const { goals, sums, s, c } = prepare(x, true);
 	const ids = new Set(goals.map((g) => g.id));
@@ -29977,6 +30433,10 @@ function workbook(x) {
 		["notes", rowsOf(NOTES, notesFor(s, ids).map((d) => ({
 			c,
 			d
+		})))],
+		["metrics", rowsOf(METRICS, metricsFor(x.snapshot, ids).map((v) => ({
+			c,
+			...v
 		})))]
 	].map(([kind, rows]) => ({
 		name: SHEETS.find((v) => v.kind === kind).name,
@@ -31116,7 +31576,7 @@ function parseActivity(p) {
 		since: date(p.get("since"))
 	};
 }
-var VIA$2 = (c) => c.diffs.find((d) => d.field === "Via")?.to ?? null;
+var VIA$3 = (c) => c.diffs.find((d) => d.field === "Via")?.to ?? null;
 var PLAN_FIELDS = [
 	"Start",
 	"Target",
@@ -31129,9 +31589,10 @@ var PLAN_FIELDS = [
 ];
 /** What kind of change this is. A goal change that touches its plan or target counts as a plan change. */
 function kindOf(c) {
-	if (VIA$2(c) === "AI assistant (MCP)") return "ai";
+	if (VIA$3(c) === "AI assistant (MCP)") return "ai";
 	if (c.action === "imported" || c.action === "undone") return "imports";
 	if (c.entity === "check-in") return "checkins";
+	if (c.entity === "metric") return "goals";
 	if (c.entity === "goal") return c.action !== "created" && c.diffs.some((d) => PLAN_FIELDS.includes(d.field)) ? "plans" : "goals";
 	if (c.entity === "decision" || c.entity === "review") return "reviews";
 	if (c.entity === "note") return "comments";
@@ -31285,7 +31746,7 @@ var help_default = [{
 			list: [
 				"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the blank template to start from nothing.",
 				"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
-				"Each sheet is known by its header row, whatever the file or sheet is called. Results, Asks, Notes and the README are for reading, and left out.",
+				"Each sheet is known by its header row, whatever the file or sheet is called. Results, Asks, Notes, Metrics and the README are for reading, and left out.",
 				"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 				"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored. A word a column doesn’t know, such as a level of “vp”, is a problem to fix, never a guess.",
 				"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over, by email). The same rules as the app apply, and the preview shows what each does.",
@@ -33095,6 +33556,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.",
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
+					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, via the AI assistant.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest."
 				]
@@ -33127,7 +33589,10 @@ var CORE_ARTICLES = [
 			"token",
 			"api",
 			"automation",
-			"agent"
+			"agent",
+			"metric",
+			"metric library",
+			"measured by"
 		],
 		related: [
 			"workspace",
@@ -33420,6 +33885,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "metric-library-ai",
+		date: "2026-11-08",
+		title: "A metric library, for AI assistants first",
+		points: ["Faro now keeps a library of metrics: each number goals are measured by, defined once, with its meaning, unit, which way is better, source and owner.", "An AI assistant can list them, read one, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company."],
+		articles: ["ai-assistants"]
+	},
 	{
 		id: "workspace-sections",
 		date: "2026-11-08",
@@ -34101,6 +34573,89 @@ function newsDate(date) {
 }
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [{
+	id: "metrics",
+	name: "Metric library",
+	summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
+	needs: [],
+	routes: [],
+	redirects: [],
+	navigation: [],
+	places: [],
+	tables: [{
+		"name": "okr_metrics",
+		"migration": "0033_metric_library.sql",
+		"purpose": "The metric library: one row per metric, never deleted (removed_at when removed)."
+	}, {
+		"name": "okr_goal_metrics",
+		"migration": "0033_metric_library.sql",
+		"purpose": "Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked."
+	}],
+	aiTools: [
+		"list_metrics",
+		"get_metric",
+		"save_metric",
+		"remove_metric",
+		"link_goal_metric"
+	],
+	help: [],
+	requirements: [],
+	journeys: [],
+	elsewhere: ["src/domain/metrics.ts", "src/data/platformOrg/metrics.ts"],
+	rebuild: {
+		"status": "outline",
+		"builds": "The metric library: a metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) defined once per workspace, and a goal’s link to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules.",
+		"entry": ["The change log and undo (stage 2) take a new kind of record: a removal saves the records as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
+		"exit": [
+			"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
+			"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
+			"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
+			"Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.",
+			"The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move)."
+		],
+		"gaps": [
+			"No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).",
+			"No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.",
+			"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
+		]
+	},
+	growth: [
+		{
+			"idea": "Draft and Ready states",
+			"why": "A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.",
+			"how": "Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes."
+		},
+		{
+			"idea": "Versions, with a reason for each change",
+			"why": "Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.",
+			"how": "Keep each saved definition as a version with a required reason (as a goal’s plan keeps its earlier plans), show which version a goal’s numbers were read under, and let a reader compare two."
+		},
+		{
+			"idea": "Owner-only editing and other governance",
+			"why": "Owners and admins can change a metric, as with goals. Stricter rules (only the owner, or changes approved by a data steward) need roles Faro doesn’t have.",
+			"how": "Add a steward role per metric or per source, and route changes through an ask to them (the asks model already carries who must respond)."
+		},
+		{
+			"idea": "Dimensions an admin defines, and slices side by side",
+			"why": "A slice is a team or the whole company, which covers how Faro’s goals are set. Other cuts (region, product, tier) and comparing slices need data Faro doesn’t hold.",
+			"how": "Let an admin define dimensions and their values, let a link name any of them, and add a view that lists every goal on one metric by slice, with their targets side by side."
+		},
+		{
+			"idea": "Suggestions and grouping look-alikes for existing goals",
+			"why": "Linking is by hand, by each goal’s owner. Suggesting a metric for a goal, or spotting goals that measure the same thing under different names, needs matching that is easy to get wrong in a demo.",
+			"how": "Compare each unlinked goal’s title, unit and source with the library and suggest the closest metric; group goals whose definitions look alike and offer to link them all to one metric."
+		},
+		{
+			"idea": "“Metric not defined” enforcement",
+			"why": "A goal doesn’t have to be measured by a metric. Requiring one before a goal can be saved would block every workspace that hasn’t built its library yet.",
+			"how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
+		},
+		{
+			"idea": "Loading the Metrics sheet back, and numbers from the source",
+			"why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
+			"how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
+		}
+	]
+}, {
 	id: "spreadsheets",
 	name: "Spreadsheets",
 	summary: "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
@@ -34314,7 +34869,7 @@ init_removal();
 var said = (k) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 var askState = (r) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : "");
-var str$5 = (description, extra = {}) => ({
+var str$6 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -34337,22 +34892,22 @@ var LEVELS$1 = [
 	"svp",
 	"team"
 ];
-var READ$3 = {
+var READ$4 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
-var WRITE$1 = {
+var WRITE$2 = {
 	readOnlyHint: false,
 	destructiveHint: false,
 	idempotentHint: false,
 	openWorldHint: false
 };
-var VIA$1 = {
+var VIA$2 = {
 	field: "Via",
 	from: "—",
 	to: "AI assistant (MCP)"
 };
-var ax$1 = (ctx) => ({
+var ax$2 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
@@ -34363,25 +34918,25 @@ var ax$1 = (ctx) => ({
 	...ctx.full ? { full: ctx.full } : {}
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
-async function save$1(ctx, c, done, nothing) {
+async function save$2(ctx, c, done, nothing) {
 	if (!c) return { text: nothing };
 	await ctx.save({
 		...c,
 		changes: c.changes.map((x) => ({
 			...x,
-			diffs: [...x.diffs, VIA$1]
+			diffs: [...x.diffs, VIA$2]
 		}))
 	});
 	return { text: `${done} (as ${ctx.actor.name}).` };
 }
-var name = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
+var name$1 = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
 /** A goal by its ID or its key (G-12). */
-var goalOf$1 = (ctx, id) => {
+var goalOf$2 = (ctx, id) => {
 	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
 	if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
-var goalIds = (ctx, v) => v?.map((id) => goalOf$1(ctx, id).id);
+var goalIds = (ctx, v) => v?.map((id) => goalOf$2(ctx, id).id);
 var requestOf = (ctx, id) => {
 	const r = asksOf(ctx.snapshot).find((x) => x.id === id);
 	if (!r) throw new Error(`There’s no ask with ID ${String(id)}. Use list_requests to get IDs.`);
@@ -34393,7 +34948,7 @@ var reviewOf = (ctx, id) => {
 	return r;
 };
 /** A person by ID or by name (whole or the start of it), for tools that name someone. */
-var personOf$1 = (ctx, ref) => {
+var personOf$2 = (ctx, ref) => {
 	const t = String(ref ?? "").trim().toLowerCase();
 	const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => !!t && (x.email ?? "").toLowerCase() === t) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
 	if (!t || !p) throw new Error(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
@@ -34421,8 +34976,8 @@ var requestData = (ctx, r) => ({
 	dueWeek: r.dueWeek,
 	overdue: isOverdue(r, ctx.week),
 	review: ctx.snapshot.reviews.find((v) => v.id === r.reviewId)?.name ?? null,
-	askedBy: name(ctx, r.askedBy),
-	askedOf: r.recipientId ? name(ctx, r.recipientId) : "anyone",
+	askedBy: name$1(ctx, r.askedBy),
+	askedOf: r.recipientId ? name$1(ctx, r.recipientId) : "anyone",
 	goals: r.goalIds.map((g) => {
 		const x = ctx.snapshot.goals.find((y) => y.id === g);
 		return {
@@ -34433,7 +34988,7 @@ var requestData = (ctx, r) => ({
 	}),
 	raisedAt: r.createdAt,
 	answer: r.answer,
-	answeredBy: r.answeredBy ? name(ctx, r.answeredBy) : null,
+	answeredBy: r.answeredBy ? name$1(ctx, r.answeredBy) : null,
 	youCanAnswer: r.status === "open" && canAnswer(r, ctx.actor),
 	youCanMarkDone: r.status === "open" && canMarkDone(r, ctx.actor)
 });
@@ -34480,7 +35035,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(_a, ctx) {
 			const s = ctx.snapshot, me = ctx.actor.id;
 			const mine = s.goals.filter((g) => g.ownerId === me);
@@ -34609,23 +35164,23 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$5(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
+				status: str$6(`Which asks: the words or the code, any of ${choices(ASK_STATUS, [
 					"open",
 					"answered",
 					"done",
 					"withdrawn"
 				])}, or all.`),
-				kind: str$5("Only one kind.", { enum: [
+				kind: str$6("Only one kind.", { enum: [
 					"decision",
 					"update",
 					"question",
 					"action"
 				] }),
 				for_me: bool$1("Only asks waiting on you (or asked of anyone)."),
-				goal_id: str$5("Only asks on a goal (its ID or key).")
+				goal_id: str$6("Only asks on a goal (its ID or key).")
 			}
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(a, ctx) {
 			const st = a.status == null || String(a.status).toLowerCase() === "all" ? a.status == null ? "open" : "all" : codeFrom(ASK_STATUS, a.status);
 			if (!st || st === "overdue") throw new Error(`“${String(a.status)}” isn’t where an ask can stand. Use one of: ${choices(ASK_STATUS, [
@@ -34634,7 +35189,7 @@ var WORK_TOOLS = [
 				"done",
 				"withdrawn"
 			])}, or all.`);
-			const list = asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$1(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
+			const list = asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$2(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
 			return {
 				data: { requests: list },
 				text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${askState(r)} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(", ")}${r.answer ? ` · answer: ${r.answer}` : ""}`), "No asks match.")
@@ -34650,7 +35205,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(_a, ctx) {
 			const list = ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -34661,7 +35216,7 @@ var WORK_TOOLS = [
 					everyWeeks: r.everyWeeks,
 					weekday: r.weekday,
 					scope: r.scope,
-					people: r.people.map((p) => name(ctx, p)),
+					people: r.people.map((p) => name$1(ctx, p)),
 					sessionWeek: x.week,
 					sessionDate: x.date,
 					reviewed: x.done,
@@ -34686,9 +35241,9 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$5("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$6("The review’s ID, from list_reviews.") }
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(a, ctx) {
 			const r = reviewOf(ctx, a.review_id);
 			const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -34696,7 +35251,7 @@ var WORK_TOOLS = [
 			const item = (g) => ({
 				id: g.goal.id,
 				title: g.goal.title,
-				owner: name(ctx, g.goal.ownerId),
+				owner: name$1(ctx, g.goal.ownerId),
 				status: g.status.status,
 				statusLabel: LABEL[g.status.status],
 				why: g.flags.map((f) => f.detail),
@@ -34707,9 +35262,9 @@ var WORK_TOOLS = [
 				goalId: d.goalId,
 				kind: d.kind,
 				note: d.note,
-				by: name(ctx, d.byId),
+				by: name$1(ctx, d.byId),
 				...d.kind === "action" ? {
-					who: name(ctx, d.assigneeId ?? null),
+					who: name$1(ctx, d.assigneeId ?? null),
 					dueWeek: d.dueWeek ?? null
 				} : {},
 				...d.ask ? {
@@ -34744,7 +35299,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(_a, ctx) {
 			const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
 				id: w.id,
@@ -34774,7 +35329,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(_a, ctx) {
 			const team = (id) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
 			const people = ctx.snapshot.people.map((p) => ({
@@ -34790,11 +35345,11 @@ var WORK_TOOLS = [
 				data: {
 					people,
 					teams: ctx.snapshot.teams.map((t) => {
-						const m = teamMembers(ax$1(ctx), t.id);
+						const m = teamMembers(ax$2(ctx), t.id);
 						return {
 							id: t.id,
 							name: t.name,
-							lead: name(ctx, t.leadId),
+							lead: name$1(ctx, t.leadId),
 							people: m.people.length,
 							goals: m.goals.length
 						};
@@ -34812,14 +35367,14 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				query: str$5("An Activity link’s query string."),
+				query: str$6("An Activity link’s query string."),
 				limit: int$2("How many changes, newest first (default 50, at most 500).")
 			}
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(a, ctx) {
 			const q = parseActivity(new URLSearchParams(String(a.query ?? "").replace(/^.*\?/, "")));
-			if (q.goal) q.goal = goalOf$1(ctx, q.goal).id;
+			if (q.goal) q.goal = goalOf$2(ctx, q.goal).id;
 			const keep = activityFilter(q, {
 				snapshot: ctx.snapshot,
 				cycle: ctx.cycle,
@@ -34829,7 +35384,7 @@ var WORK_TOOLS = [
 			const n = Math.min(500, Math.max(1, Number(a.limit ?? 50)));
 			const list = ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n).map((c) => ({
 				at: c.at,
-				by: name(ctx, c.actorId),
+				by: name$1(ctx, c.actorId),
 				goal: c.goalId ? ctx.snapshot.goals.find((g) => g.id === c.goalId)?.title ?? c.goalId : null,
 				summary: c.summary,
 				changes: c.diffs.map((d) => ({
@@ -34858,7 +35413,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
 				const l = isTableView(v) ? parseLayout(v.params) : null;
@@ -34873,7 +35428,7 @@ var WORK_TOOLS = [
 					} : {},
 					query: v.params,
 					pinned: v.pinned,
-					owner: name(ctx, v.personId)
+					owner: name$1(ctx, v.personId)
 				};
 			});
 			return {
@@ -34891,12 +35446,12 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(_a, ctx) {
 			const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
 				id: t.id,
 				name: t.name,
-				person: name(ctx, t.personId),
+				person: name$1(ctx, t.personId),
 				createdAt: t.createdAt,
 				lastUsedAt: t.lastUsedAt
 			}));
@@ -34915,7 +35470,7 @@ var WORK_TOOLS = [
 			properties: {},
 			additionalProperties: false
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(_a, ctx) {
 			const retros = ctx.snapshot.retros ?? [];
 			const list = ctx.snapshot.goals.map((g) => {
@@ -34923,7 +35478,7 @@ var WORK_TOOLS = [
 				return {
 					id: g.id,
 					title: g.title,
-					owner: name(ctx, g.ownerId),
+					owner: name$1(ctx, g.ownerId),
 					wrappedUp: !!r,
 					result: r?.result ?? null,
 					learned: r?.learned ?? null,
@@ -34949,11 +35504,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				id: str$5("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
-				search: str$5("Words to look for, e.g. \"plan change reason\". Every word must appear.")
+				id: str$6("An article’s id, e.g. \"check-in\", \"reviews\" or \"data\"."),
+				search: str$6("Words to look for, e.g. \"plan change reason\". Every word must appear.")
 			}
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(a) {
 			const brief = (x) => ({
 				id: x.id,
@@ -34994,7 +35549,7 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			properties: {}
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run() {
 			return {
 				data: {
@@ -35020,11 +35575,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				since: str$5("Only entries on or after this date (yyyy-mm-dd)."),
+				since: str$6("Only entries on or after this date (yyyy-mm-dd)."),
 				limit: int$2("How many entries, newest first (default all).")
 			}
 		},
-		annotations: READ$3,
+		annotations: READ$4,
 		async run(a) {
 			const since = a.since ? String(a.since) : void 0;
 			if (since && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return {
@@ -35054,14 +35609,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "answer"],
 			properties: {
-				request_id: str$5("The ask’s ID, from list_requests or get_my_work."),
-				answer: str$5("The answer, decision or help offered.")
+				request_id: str$6("The ask’s ID, from list_requests or get_my_work."),
+				answer: str$6("The answer, decision or help offered.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
 			const r = requestOf(ctx, a.request_id);
-			return save$1(ctx, answerRequest(ax$1(ctx), r, String(a.answer ?? "")), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
+			return save$2(ctx, answerRequest(ax$2(ctx), r, String(a.answer ?? "")), `Answered the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
 		}
 	},
 	{
@@ -35073,13 +35628,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$5("The action’s ID, from list_requests (kind action) or get_my_work."),
-				note: str$5("Optional: what was done.")
+				request_id: str$6("The action’s ID, from list_requests (kind action) or get_my_work."),
+				note: str$6("Optional: what was done.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			return save$1(ctx, markActionDone(ax$1(ctx), requestOf(ctx, a.request_id), String(a.note ?? "")), "Marked the action done", "");
+			return save$2(ctx, markActionDone(ax$2(ctx), requestOf(ctx, a.request_id), String(a.note ?? "")), "Marked the action done", "");
 		}
 	},
 	{
@@ -35091,14 +35646,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "question"],
 			properties: {
-				goal_id: str$5("The goal’s ID or its key, e.g. G-12."),
-				question: str$5("The question.")
+				goal_id: str$6("The goal’s ID or its key, e.g. G-12."),
+				question: str$6("The question.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			const g = goalOf$1(ctx, a.goal_id);
-			return save$1(ctx, askQuestion(ax$1(ctx), g, String(a.question ?? "")), `Asked ${name(ctx, g.ownerId)} a question on ${g.title}`, "");
+			const g = goalOf$2(ctx, a.goal_id);
+			return save$2(ctx, askQuestion(ax$2(ctx), g, String(a.question ?? "")), `Asked ${name$1(ctx, g.ownerId)} a question on ${g.title}`, "");
 		}
 	},
 	{
@@ -35110,13 +35665,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id", "goal_id"],
 			properties: {
-				request_id: str$5("The request’s ID."),
-				goal_id: str$5("The goal that waits on it (its ID or key).")
+				request_id: str$6("The request’s ID."),
+				goal_id: str$6("The goal that waits on it (its ID or key).")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			return save$1(ctx, linkRequest(ax$1(ctx), requestOf(ctx, a.request_id), goalOf$1(ctx, a.goal_id)), "Linked the goal to the request", "");
+			return save$2(ctx, linkRequest(ax$2(ctx), requestOf(ctx, a.request_id), goalOf$2(ctx, a.goal_id)), "Linked the goal to the request", "");
 		}
 	},
 	{
@@ -35128,14 +35683,14 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["request_id"],
 			properties: {
-				request_id: str$5("The ask’s ID."),
-				goal_id: str$5("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
+				request_id: str$6("The ask’s ID."),
+				goal_id: str$6("Optional: the goal withdrawing it (its ID or key). Defaults to the goal it was raised on.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
 			const r = requestOf(ctx, a.request_id);
-			return save$1(ctx, withdrawRequest(ax$1(ctx), r, a.goal_id ? goalOf$1(ctx, a.goal_id) : void 0), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
+			return save$2(ctx, withdrawRequest(ax$2(ctx), r, a.goal_id ? goalOf$2(ctx, a.goal_id) : void 0), `Withdrew the ${ASK_KIND_LABEL[r.kind].toLowerCase()}`, "");
 		}
 	},
 	{
@@ -35146,15 +35701,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$5("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$6("The goal’s ID or its key, e.g. G-12.") }
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			const g = goalOf$1(ctx, a.goal_id);
-			return save$1(ctx, askForUpdate(ax$1(ctx), g), `Asked ${name(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? "ask"}) until they check in.`);
+			const g = goalOf$2(ctx, a.goal_id);
+			return save$2(ctx, askForUpdate(ax$2(ctx), g), `Asked ${name$1(ctx, g.ownerId)} for an update on ${g.title}`, `Already asked: it’s open on their Home (${openUpdateAsk(g.id, ctx.snapshot)?.id ?? "ask"}) until they check in.`);
 		}
 	},
 	{
@@ -35165,11 +35720,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$5("The goal’s ID or its key, e.g. G-12.") }
+			properties: { goal_id: str$6("The goal’s ID or its key, e.g. G-12.") }
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			return save$1(ctx, undoUpdateAsk(ax$1(ctx), goalOf$1(ctx, a.goal_id)), "Withdrew the ask for an update", "There’s no open ask for an update on that goal.");
+			return save$2(ctx, undoUpdateAsk(ax$2(ctx), goalOf$2(ctx, a.goal_id)), "Withdrew the ask for an update", "There’s no open ask for an update on that goal.");
 		}
 	},
 	{
@@ -35185,22 +35740,22 @@ var WORK_TOOLS = [
 				"kind"
 			],
 			properties: {
-				review_id: str$5("The review’s ID."),
-				goal_id: str$5("The goal’s ID or its key, e.g. G-12."),
-				kind: str$5("What it is.", { enum: [
+				review_id: str$6("The review’s ID."),
+				goal_id: str$6("The goal’s ID or its key, e.g. G-12."),
+				kind: str$6("What it is.", { enum: [
 					"acknowledge",
 					"note",
 					"ask",
 					"action"
 				] }),
-				text: str$5("The note, question or action. Optional when acknowledging."),
-				who: str$5("Actions: who does it (name or ID). Defaults to the goal’s owner."),
+				text: str$6("The note, question or action. Optional when acknowledging."),
+				who: str$6("Actions: who does it (name or ID). Defaults to the goal’s owner."),
 				due_week: int$2("Actions: the week it’s due by.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			const r = reviewOf(ctx, a.review_id), g = goalOf$1(ctx, a.goal_id);
+			const r = reviewOf(ctx, a.review_id), g = goalOf$2(ctx, a.goal_id);
 			const kind = a.kind;
 			if (![
 				"acknowledge",
@@ -35208,8 +35763,8 @@ var WORK_TOOLS = [
 				"ask",
 				"action"
 			].includes(kind)) throw new Error("kind is acknowledge, note, ask or action.");
-			const assigneeId = kind === "action" && a.who ? personOf$1(ctx, a.who).id : void 0;
-			return save$1(ctx, reviewCall(ax$1(ctx), g, r, kind, String(a.text ?? ""), {
+			const assigneeId = kind === "action" && a.who ? personOf$2(ctx, a.who).id : void 0;
+			return save$2(ctx, reviewCall(ax$2(ctx), g, r, kind, String(a.text ?? ""), {
 				assigneeId,
 				dueWeek: a.due_week
 			}), `${{
@@ -35229,13 +35784,13 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["call_id", "text"],
 			properties: {
-				call_id: str$5("Its ID, from get_review."),
-				text: str$5("The new wording."),
-				who: str$5("Actions: who does it."),
+				call_id: str$6("Its ID, from get_review."),
+				text: str$6("The new wording."),
+				who: str$6("Actions: who does it."),
 				due_week: int$2("Actions: the week it’s due by (0 for none).")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
 			const d = ctx.snapshot.decisions.find((x) => x.id === a.call_id) ?? asksOf(ctx.snapshot).find((x) => x.id === a.call_id);
 			if (!d) throw new Error(`There’s nothing said with ID ${String(a.call_id)}. Use get_review.`);
@@ -35248,10 +35803,10 @@ var WORK_TOOLS = [
 				due: d.dueWeek ?? null
 			};
 			const extra = action ? {
-				assigneeId: a.who ? personOf$1(ctx, a.who).id : was.who,
+				assigneeId: a.who ? personOf$2(ctx, a.who).id : was.who,
 				dueWeek: a.due_week === void 0 ? was.due : Number(a.due_week) || null
 			} : void 0;
-			return save$1(ctx, editCall(ax$1(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
+			return save$2(ctx, editCall(ax$2(ctx), d, String(a.text ?? ""), extra), "Corrected it", "Nothing to change: it already says that.");
 		}
 	},
 	{
@@ -35262,10 +35817,10 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				review_id: str$5("The review to change. Leave out to set up a new one."),
-				name: str$5("Its name, e.g. \"Platform weekly review\"."),
+				review_id: str$6("The review to change. Leave out to set up a new one."),
+				name: str$6("Its name, e.g. \"Platform weekly review\"."),
 				every_weeks: int$2("Held every 1, 2 or 4 weeks."),
-				weekday: str$5("The weekday.", { enum: [
+				weekday: str$6("The weekday.", { enum: [
 					"Monday",
 					"Tuesday",
 					"Wednesday",
@@ -35278,7 +35833,7 @@ var WORK_TOOLS = [
 				people: ids$1("Who’s in it (names or IDs). New reviews include you.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
 			const day = a.weekday === void 0 ? void 0 : [
 				"monday",
@@ -35288,7 +35843,7 @@ var WORK_TOOLS = [
 				"friday"
 			].indexOf(String(a.weekday).toLowerCase());
 			if (day === -1) throw new Error("weekday is Monday to Friday.");
-			const people = a.people ? [.../* @__PURE__ */ new Set([...a.people.map((p) => personOf$1(ctx, p).id)])] : void 0;
+			const people = a.people ? [.../* @__PURE__ */ new Set([...a.people.map((p) => personOf$2(ctx, p).id)])] : void 0;
 			if (a.review_id) {
 				const before = reviewOf(ctx, a.review_id);
 				const scope = {
@@ -35304,9 +35859,9 @@ var WORK_TOOLS = [
 					scope,
 					people: people ?? before.people
 				};
-				return save$1(ctx, saveReview(ax$1(ctx), after, before), `Changed the review “${after.name}”`, "");
+				return save$2(ctx, saveReview(ax$2(ctx), after, before), `Changed the review “${after.name}”`, "");
 			}
-			const r = newReview(ax$1(ctx), {
+			const r = newReview(ax$2(ctx), {
 				name: String(a.name ?? ""),
 				everyWeeks: Number(a.every_weeks ?? 1),
 				weekday: day ?? ctx.cycle.reviewDay,
@@ -35316,7 +35871,7 @@ var WORK_TOOLS = [
 				people: people ? [.../* @__PURE__ */ new Set([ctx.actor.id, ...people])] : void 0
 			});
 			return {
-				...await save$1(ctx, saveReview(ax$1(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
+				...await save$2(ctx, saveReview(ax$2(ctx), r, null), `Set up the review “${r.name}” (ID ${r.id})`, ""),
 				data: { id: r.id }
 			};
 		}
@@ -35330,21 +35885,21 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "ref"],
 			properties: {
-				kind: str$5("What to watch.", { enum: [
+				kind: str$6("What to watch.", { enum: [
 					"goal",
 					"tree",
 					"level"
 				] }),
-				ref: str$5("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
+				ref: str$6("A goal’s ID or key (G-12), or a level (north-star, svp, team).")
 			}
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf$1(ctx, a.ref).id;
-			return save$1(ctx, watch(ax$1(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$1(ctx, ref).title}`, "Already watching that.");
+			const ref = a.kind === "level" ? String(a.ref ?? "") : goalOf$2(ctx, a.ref).id;
+			return save$2(ctx, watch(ax$2(ctx), a.kind, ref), `Watching ${a.kind === "level" ? `every ${ref} goal` : goalOf$2(ctx, ref).title}`, "Already watching that.");
 		}
 	},
 	{
@@ -35355,11 +35910,11 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["watch_id"],
-			properties: { watch_id: str$5("The watch’s ID, from list_watching.") }
+			properties: { watch_id: str$6("The watch’s ID, from list_watching.") }
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			return save$1(ctx, unwatch(ax$1(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
+			return save$2(ctx, unwatch(ax$2(ctx), String(a.watch_id ?? "")), "Stopped watching", "");
 		}
 	},
 	{
@@ -35370,17 +35925,17 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				person_id: str$5("The person to change (their ID or email). Leave out to add someone."),
-				name: str$5("Their full name."),
-				email: str$5("Their email: required for someone new."),
-				job_title: str$5("Their job title."),
-				team: str$5("Their team (name or ID); empty string for none."),
+				person_id: str$6("The person to change (their ID or email). Leave out to add someone."),
+				name: str$6("Their full name."),
+				email: str$6("Their email: required for someone new."),
+				job_title: str$6("Their job title."),
+				team: str$6("Their team (name or ID); empty string for none."),
 				admin: bool$1("Whether they’re an admin.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			const before = a.person_id ? personOf$1(ctx, a.person_id) : null;
+			const before = a.person_id ? personOf$2(ctx, a.person_id) : null;
 			const nm = a.name !== void 0 ? String(a.name).trim() : before?.name ?? "";
 			const email = a.email !== void 0 ? String(a.email).trim().toLowerCase() : before?.email ?? "";
 			const p = {
@@ -35393,7 +35948,7 @@ var WORK_TOOLS = [
 				...email ? { email } : {}
 			};
 			return {
-				...await save$1(ctx, savePerson(ax$1(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
+				...await save$2(ctx, savePerson(ax$2(ctx), p, before), before ? `Changed ${p.name}` : `Added ${p.name} (ID ${p.id})`, "Nothing to change: it already says that."),
 				data: { id: p.id }
 			};
 		}
@@ -35412,29 +35967,29 @@ var WORK_TOOLS = [
 				"next"
 			],
 			properties: {
-				goal_id: str$5("The goal’s ID or its key, e.g. G-12."),
-				result: str$5("How it landed.", { enum: [
+				goal_id: str$6("The goal’s ID or its key, e.g. G-12."),
+				result: str$6("How it landed.", { enum: [
 					"hit",
 					"partly",
 					"missed"
 				] }),
-				learned: str$5("One thing worth knowing next time (a sentence)."),
-				next: str$5("Next cycle.", { enum: ["carry", "stop"] })
+				learned: str$6("One thing worth knowing next time (a sentence)."),
+				next: str$6("Next cycle.", { enum: ["carry", "stop"] })
 			}
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			const g = goalOf$1(ctx, a.goal_id);
+			const g = goalOf$2(ctx, a.goal_id);
 			if (![
 				"hit",
 				"partly",
 				"missed"
 			].includes(String(a.result))) throw new Error("result is hit, partly or missed.");
 			if (!["carry", "stop"].includes(String(a.next))) throw new Error("next is carry or stop.");
-			return save$1(ctx, saveRetro(ax$1(ctx), g, {
+			return save$2(ctx, saveRetro(ax$2(ctx), g, {
 				result: a.result,
 				learned: String(a.learned ?? ""),
 				next: a.next
@@ -35452,7 +36007,7 @@ var WORK_TOOLS = [
 			properties: { confirm: bool$1("True, once the person has said to start it.") }
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			destructiveHint: true
 		},
 		async run(a, ctx) {
@@ -35460,9 +36015,9 @@ var WORK_TOOLS = [
 				isError: true,
 				text: "Ask the person first, then call again with confirm: true."
 			};
-			const out = startNextCycle(ax$1(ctx));
+			const out = startNextCycle(ax$2(ctx));
 			return {
-				...await save$1(ctx, out.commit, `Started ${out.name}`, ""),
+				...await save$2(ctx, out.commit, `Started ${out.name}`, ""),
 				data: { name: out.name }
 			};
 		}
@@ -35476,20 +36031,20 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "query"],
 			properties: {
-				view_id: str$5("The view to change."),
-				name: str$5("Its name."),
-				query: str$5("The Goals query, e.g. \"status=off,risk&sort=gap\".")
+				view_id: str$6("The view to change."),
+				name: str$6("Its name."),
+				query: str$6("The Goals query, e.g. \"status=off,risk&sort=gap\".")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			const out = saveView(ax$1(ctx), {
+			const out = saveView(ax$2(ctx), {
 				id: a.view_id,
 				name: String(a.name ?? ""),
 				params: String(a.query ?? "").replace(/^.*\?/, "")
 			});
 			return {
-				...await save$1(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$2(ctx, out.commit, `Saved the view “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -35503,28 +36058,28 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name", "table"],
 			properties: {
-				view_id: str$5("The saved layout to change."),
-				name: str$5("Its name."),
-				table: str$5("Which data table.", { enum: TABLE_ORDER }),
+				view_id: str$6("The saved layout to change."),
+				name: str$6("Its name."),
+				table: str$6("Which data table.", { enum: TABLE_ORDER }),
 				columns: ids$1("The columns to show, in order, by their names as the table heads them (e.g. \"Key\", \"Owner\", \"Status\"). Leave out for the usual columns."),
 				widths: {
 					type: "object",
 					additionalProperties: { type: "number" },
 					description: `Column widths in pixels by column name, e.g. {"Owner": 200}. Kept between each column’s least width (56 to 120) and 640.`
 				},
-				query: str$5("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
+				query: str$6("Search, filters and sort as the Data link carries them, e.g. \"q=pipeline&f=Owner~is~Maya Chen&s=Week~desc\". Filter conditions: is, isNot, contains, notContains, eq, ne, gt, gte, lt, lte, empty, notEmpty; several values for is or isNot separated by |.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
 			const layout = layoutFrom(ctx, a);
-			const out = saveTableView(ax$1(ctx), {
+			const out = saveTableView(ax$2(ctx), {
 				id: a.view_id,
 				name: String(a.name ?? ""),
 				layout
 			}, headOf(ctx, layout.table));
 			return {
-				...await save$1(ctx, out.commit, `Saved the layout “${String(a.name).trim()}” (ID ${out.id})`, ""),
+				...await save$2(ctx, out.commit, `Saved the layout “${String(a.name).trim()}” (ID ${out.id})`, ""),
 				data: { id: out.id }
 			};
 		}
@@ -35537,15 +36092,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["view_id"],
-			properties: { view_id: str$5("The view’s ID, from list_views.") }
+			properties: { view_id: str$6("The view’s ID, from list_views.") }
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			destructiveHint: true,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$1(ctx, deleteView(ax$1(ctx), String(a.view_id ?? "")), "Deleted the view", "That view is already gone.");
+			return save$2(ctx, deleteView(ax$2(ctx), String(a.view_id ?? "")), "Deleted the view", "That view is already gone.");
 		}
 	},
 	{
@@ -35557,16 +36112,16 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["view_id", "pinned"],
 			properties: {
-				view_id: str$5("The view’s ID."),
+				view_id: str$6("The view’s ID."),
 				pinned: bool$1("True to pin it for everyone, false to stop.")
 			}
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$1(ctx, pinView(ax$1(ctx), String(a.view_id ?? ""), !!a.pinned), a.pinned ? "Pinned the view for everyone" : "Unpinned the view", "It already is.");
+			return save$2(ctx, pinView(ax$2(ctx), String(a.view_id ?? ""), !!a.pinned), a.pinned ? "Pinned the view for everyone" : "Unpinned the view", "It already is.");
 		}
 	},
 	{
@@ -35578,19 +36133,19 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["person", "name"],
 			properties: {
-				person: str$5("Who it acts as (name or ID)."),
-				name: str$5("What it’s for, e.g. \"Claude on Maya’s laptop\".")
+				person: str$6("Who it acts as (name or ID)."),
+				name: str$6("What it’s for, e.g. \"Claude on Maya’s laptop\".")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			const p = personOf$1(ctx, a.person);
-			const c = createToken(ax$1(ctx), p.id, String(a.name ?? ""));
+			const p = personOf$2(ctx, a.person);
+			const c = createToken(ax$2(ctx), p.id, String(a.name ?? ""));
 			const token = await ctx.issueToken({
 				...c,
 				changes: c.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA$1]
+					diffs: [...x.diffs, VIA$2]
 				}))
 			});
 			return {
@@ -35607,15 +36162,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["token_id"],
-			properties: { token_id: str$5("The token’s ID, from list_tokens.") }
+			properties: { token_id: str$6("The token’s ID, from list_tokens.") }
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			destructiveHint: true,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
-			return save$1(ctx, revokeToken(ax$1(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
+			return save$2(ctx, revokeToken(ax$2(ctx), String(a.token_id ?? "")), "Revoked the token", "That token is already revoked.");
 		}
 	},
 	{
@@ -35627,17 +36182,17 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["mood", "text"],
 			properties: {
-				mood: str$5("How it felt.", { enum: [
+				mood: str$6("How it felt.", { enum: [
 					"good",
 					"meh",
 					"bad"
 				] }),
-				text: str$5("What happened, or what would help.")
+				text: str$6("What happened, or what would help.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
-			return save$1(ctx, sendFeedback(ax$1(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
+			return save$2(ctx, sendFeedback(ax$2(ctx), a.mood, String(a.text ?? ""), "mcp"), "Sent the feedback", "");
 		}
 	},
 	{
@@ -35648,15 +36203,15 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["name"],
-			properties: { name: str$5("The new name.") }
+			properties: { name: str$6("The new name.") }
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			const from = ctx.ws.name;
-			return save$1(ctx, renameWorkspace(ax$1(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
+			return save$2(ctx, renameWorkspace(ax$2(ctx), ctx.ws, String(a.name ?? "")), `Renamed the workspace from “${from}” to “${String(a.name ?? "").trim().replace(/\s+/g, " ")}”`, "Nothing to change: it already has that name.");
 		}
 	},
 	{
@@ -35670,14 +36225,14 @@ var WORK_TOOLS = [
 			properties: { on: bool$1("true to record how the app is used here, false to stop.") }
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			if (typeof a.on !== "boolean") throw new Error("Say on: true to record, or on: false to stop.");
 			const on = a.on;
 			return {
-				...await save$1(ctx, setRecording(ax$1(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
+				...await save$2(ctx, setRecording(ax$2(ctx), ctx.ws, on), on ? "Turned recording back on for this workspace" : "Turned recording off for this workspace: nothing more is recorded or sent", `Nothing to change: recording is already ${on ? "on" : "off"}.`),
 				data: { recording: ctx.ws.recording !== false }
 			};
 		}
@@ -35691,19 +36246,19 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["feature", "on"],
 			properties: {
-				feature: str$5("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
+				feature: str$6("The feature’s id.", { enum: MODULES.map((m) => m.id) }),
 				on: bool$1("true to switch it on, false to switch it off.")
 			}
 		},
 		annotations: {
-			...WRITE$1,
+			...WRITE$2,
 			idempotentHint: true
 		},
 		async run(a, ctx) {
 			if (typeof a.on !== "boolean") throw new Error("Say on: true to switch it on, or on: false to switch it off.");
 			const id = String(a.feature ?? "");
 			const m = MODULES.find((x) => x.id === id);
-			const res = await save$1(ctx, setModule(ax$1(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
+			const res = await save$2(ctx, setModule(ax$2(ctx), ctx.ws, MODULES, id, a.on), `${a.on ? "Switched on" : "Switched off"} ${m?.name ?? id} in ${ctx.ws.name}`, `Nothing to change: ${m?.name ?? id} is already ${a.on ? "on" : "off"}.`);
 			const r = modulesOn(ctx.ws);
 			return {
 				...res,
@@ -35723,22 +36278,22 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["name"],
 			properties: {
-				team: str$5("The team to change (name or ID). Leave out to add a team."),
-				name: str$5("The team’s name."),
-				lead: str$5("The team lead (a person’s name or ID); empty string for none.")
+				team: str$6("The team to change (name or ID). Leave out to add a team."),
+				name: str$6("The team’s name."),
+				lead: str$6("The team lead (a person’s name or ID); empty string for none.")
 			}
 		},
-		annotations: WRITE$1,
+		annotations: WRITE$2,
 		async run(a, ctx) {
 			const id = a.team !== void 0 ? teamOf(ctx, a.team) ?? void 0 : void 0;
-			const leadId = a.lead === void 0 ? void 0 : a.lead === "" || a.lead === null ? null : personOf$1(ctx, a.lead).id;
-			const out = saveTeam(ax$1(ctx), {
+			const leadId = a.lead === void 0 ? void 0 : a.lead === "" || a.lead === null ? null : personOf$2(ctx, a.lead).id;
+			const out = saveTeam(ax$2(ctx), {
 				id,
 				name: String(a.name ?? ""),
 				...leadId !== void 0 ? { leadId } : {}
 			});
 			return {
-				...await save$1(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
+				...await save$2(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
 				data: { id: out.id }
 			};
 		}
@@ -35752,8 +36307,8 @@ var WORK_TOOLS = [
 			additionalProperties: false,
 			required: ["team"],
 			properties: {
-				team: str$5("The team to remove (name or ID)."),
-				move_to: str$5("Where its people and goals go (a team’s name or ID).")
+				team: str$6("The team to remove (name or ID)."),
+				move_to: str$6("Where its people and goals go (a team’s name or ID).")
 			}
 		},
 		annotations: {
@@ -35767,7 +36322,7 @@ var WORK_TOOLS = [
 			if (!id) throw new Error("Name the team to remove.");
 			const name = ctx.snapshot.teams.find((t) => t.id === id).name;
 			const to = a.move_to !== void 0 && a.move_to !== "" ? teamOf(ctx, a.move_to) : null;
-			return save$1(ctx, removeTeam(ax$1(ctx), id, to), `Removed the team ${name}`, "");
+			return save$2(ctx, removeTeam(ax$2(ctx), id, to), `Removed the team ${name}`, "");
 		}
 	},
 	{
@@ -35778,7 +36333,7 @@ var WORK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["confirm_name"],
-			properties: { confirm_name: str$5("The workspace’s exact name.") }
+			properties: { confirm_name: str$6("The workspace’s exact name.") }
 		},
 		annotations: {
 			readOnlyHint: false,
@@ -36078,12 +36633,12 @@ function markupOps(o) {
 	};
 }
 // src/mcp/markupTools.ts
-var str$4 = (description, extra = {}) => ({
+var str$5 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var READ$2 = {
+var READ$3 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -36143,15 +36698,15 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$4("Only markups with this status.", { enum: STATUSES$1 }),
-				workspace: str$4("Only this workspace’s (its id)."),
+				status: str$5("Only markups with this status.", { enum: STATUSES$1 }),
+				workspace: str$5("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
 				}
 			}
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a, ctx) {
 			const rows = (await inbox(ctx).list({
 				...a.workspace ? { workspaceId: String(a.workspace) } : {},
@@ -36184,11 +36739,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$4("The markup’s id (mk_…), from list_markups or review_inbox."),
-				picture: str$4("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
+				id: str$5("The markup’s id (mk_…), from list_markups or review_inbox."),
+				picture: str$5("Which picture to send: marked (the screen with the drawing, the default), screen (the screen alone) or none.", { enum: Object.keys(PICTURE_NAMES) })
 			}
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a, ctx) {
 			const ops = inbox(ctx);
 			const m = await ops.open(String(a.id ?? ""));
@@ -36234,15 +36789,15 @@ var MARKUP_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$4("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
-				workspace: str$4("Only this workspace’s (its id)."),
+				status: str$5("Review markups and feedback with this status instead of new.", { enum: STATUSES$1 }),
+				workspace: str$5("Only this workspace’s (its id)."),
 				pictures: {
 					type: "integer",
 					description: "How many groups get a picture (default 6, at most 12; 0 for none)."
 				}
 			}
 		},
-		annotations: READ$2,
+		annotations: READ$3,
 		async run(a, ctx) {
 			const ops = inbox(ctx);
 			const status = a.status ?? "new";
@@ -36332,11 +36887,11 @@ var MARKUP_TOOLS = [
 			additionalProperties: false,
 			required: ["id"],
 			properties: {
-				id: str$4("The markup’s id (mk_…)."),
-				status: str$4("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$4("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$4("With wont-fix: why it won’t be fixed."),
-				issue_url: str$4("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
+				id: str$5("The markup’s id (mk_…)."),
+				status: str$5("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$5("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$5("With wont-fix: why it won’t be fixed."),
+				issue_url: str$5("The GitHub issue’s address, https://github.com/owner/repo/issues/123.")
 			}
 		},
 		annotations: {
@@ -36367,12 +36922,12 @@ var MARKUP_TOOLS = [
 	}
 ];
 // src/mcp/feedbackTools.ts
-var str$3 = (description, extra = {}) => ({
+var str$4 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
 });
-var READ$1 = {
+var READ$2 = {
 	readOnlyHint: true,
 	openWorldHint: false
 };
@@ -36394,15 +36949,15 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				status: str$3("Only feedback with this status.", { enum: STATUSES$1 }),
-				workspace: str$3("Only this workspace’s (its id)."),
+				status: str$4("Only feedback with this status.", { enum: STATUSES$1 }),
+				workspace: str$4("Only this workspace’s (its id)."),
 				limit: {
 					type: "integer",
 					description: "At most this many (default 50)."
 				}
 			}
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			if (ctx.feedback) {
 				const list = await ctx.feedback.list(Number(a.limit ?? 50), {
@@ -36456,9 +37011,9 @@ var FEEDBACK_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["id"],
-			properties: { id: str$3("The feedback’s id, from list_feedback.") }
+			properties: { id: str$4("The feedback’s id, from list_feedback.") }
 		},
-		annotations: READ$1,
+		annotations: READ$2,
 		async run(a, ctx) {
 			const f = await triage(ctx).open(String(a.id ?? ""));
 			const text = [
@@ -36482,10 +37037,10 @@ var FEEDBACK_TOOLS = [
 			additionalProperties: false,
 			required: ["id", "status"],
 			properties: {
-				id: str$3("The feedback’s id."),
-				status: str$3("Its new status.", { enum: STATUSES$1 }),
-				fixed_in: str$3("With fixed: the What’s new entry’s id that has the fix."),
-				reason: str$3("With wont-fix: why it won’t be fixed.")
+				id: str$4("The feedback’s id."),
+				status: str$4("Its new status.", { enum: STATUSES$1 }),
+				fixed_in: str$4("With fixed: the What’s new entry’s id that has the fix."),
+				reason: str$4("With wont-fix: why it won’t be fixed.")
 			}
 		},
 		annotations: {
@@ -36519,7 +37074,7 @@ init_goalKey();
 init_removal();
 init_status();
 init_vocabulary();
-var str$2 = (description, extra = {}) => ({
+var str$3 = (description, extra = {}) => ({
 	type: "string",
 	description,
 	...extra
@@ -36534,19 +37089,19 @@ var REMOVE = {
 	idempotentHint: false,
 	openWorldHint: false
 };
-var WRITE = {
+var WRITE$1 = {
 	readOnlyHint: false,
 	destructiveHint: false,
 	idempotentHint: false,
 	openWorldHint: false
 };
-var VIA = {
+var VIA$1 = {
 	field: "Via",
 	from: "—",
 	to: "AI assistant (MCP)"
 };
 var KINDS = Object.keys(REMOVED_LABEL);
-var ax = (ctx) => ({
+var ax$1 = (ctx) => ({
 	snapshot: ctx.snapshot,
 	cycle: ctx.cycle,
 	week: ctx.week,
@@ -36556,29 +37111,29 @@ var ax = (ctx) => ({
 	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
 	...ctx.full ? { full: ctx.full } : {}
 });
-async function save(ctx, c, done) {
+async function save$1(ctx, c, done) {
 	await ctx.save({
 		...c,
 		changes: c.changes.map((x) => ({
 			...x,
-			diffs: [...x.diffs, VIA]
+			diffs: [...x.diffs, VIA$1]
 		}))
 	});
 	return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
 }
-var goalOf = (ctx, id) => {
+var goalOf$1 = (ctx, id) => {
 	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
 	if (!g) throw new Error(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
 /** A person here now, by ID or by name. */
-var personOf = (ctx, ref) => {
+var personOf$1 = (ctx, ref) => {
 	const t = String(ref ?? "").trim().toLowerCase();
 	const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t) ?? ctx.snapshot.people.filter((x) => x.name.toLowerCase().startsWith(t)).at(0);
 	if (!t || !p) throw new Error(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
 	return p;
 };
-var optPerson = (ctx, ref) => ref == null || ref === "" ? null : personOf(ctx, ref).id;
+var optPerson = (ctx, ref) => ref == null || ref === "" ? null : personOf$1(ctx, ref).id;
 var REMOVE_TOOLS = [
 	{
 		name: "list_removed",
@@ -36619,19 +37174,19 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["kind", "id"],
 			properties: {
-				kind: str$2("Its kind, from list_removed.", { enum: KINDS }),
-				id: str$2("Its ID, from list_removed.")
+				kind: str$3("Its kind, from list_removed.", { enum: KINDS }),
+				id: str$3("Its ID, from list_removed.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
 			if (!KINDS.includes(a.kind)) throw new Error(`kind is one of ${KINDS.join(", ")}.`);
-			const c = restoreRemoved(ax(ctx), a.kind, String(a.id ?? ""));
+			const c = restoreRemoved(ax$1(ctx), a.kind, String(a.id ?? ""));
 			await ctx.save({
 				...c,
 				changes: c.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA]
+					diffs: [...x.diffs, VIA$1]
 				}))
 			});
 			return { text: `${c.changes[0]?.summary ?? "Restored"} (as ${ctx.actor.name}).` };
@@ -36646,15 +37201,15 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["person"],
 			properties: {
-				person: str$2("Their ID or full name."),
-				goals_to: str$2("Who takes over their goals: an ID or full name."),
-				asks_to: str$2("Who takes over their open asks: an ID or full name.")
+				person: str$3("Their ID or full name."),
+				goals_to: str$3("Who takes over their goals: an ID or full name."),
+				asks_to: str$3("Who takes over their open asks: an ID or full name.")
 			}
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
-			const p = personOf(ctx, a.person);
-			return save(ctx, markPersonLeft(ax(ctx), p.id, {
+			const p = personOf$1(ctx, a.person);
+			return save$1(ctx, markPersonLeft(ax$1(ctx), p.id, {
 				goalsTo: optPerson(ctx, a.goals_to),
 				asksTo: optPerson(ctx, a.asks_to)
 			}), `Marked ${p.name} as left`);
@@ -36668,12 +37223,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["person"],
-			properties: { person: str$2("Their ID or full name.") }
+			properties: { person: str$3("Their ID or full name.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
-			const p = personOf(ctx, a.person);
-			return save(ctx, deletePerson(ax(ctx), p.id), `Deleted ${p.name}`);
+			const p = personOf$1(ctx, a.person);
+			return save$1(ctx, deletePerson(ax$1(ctx), p.id), `Deleted ${p.name}`);
 		}
 	},
 	{
@@ -36685,14 +37240,14 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["goal_id", "reason"],
 			properties: {
-				goal_id: str$2("The goal’s ID or key, e.g. G-12."),
-				reason: str$2("Why it’s stopping, in a sentence (10 characters or more).")
+				goal_id: str$3("The goal’s ID or key, e.g. G-12."),
+				reason: str$3("Why it’s stopping, in a sentence (10 characters or more).")
 			}
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
-			const g = goalOf(ctx, a.goal_id);
-			return save(ctx, stopGoal(ax(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
+			const g = goalOf$1(ctx, a.goal_id);
+			return save$1(ctx, stopGoal(ax$1(ctx), g.id, String(a.reason ?? "")), `Stopped ${g.title}`);
 		}
 	},
 	{
@@ -36703,12 +37258,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["goal_id"],
-			properties: { goal_id: str$2("The goal’s ID or key, e.g. G-12.") }
+			properties: { goal_id: str$3("The goal’s ID or key, e.g. G-12.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
-			const g = goalOf(ctx, a.goal_id);
-			return save(ctx, deleteGoal(ax(ctx), g.id), `Deleted ${g.title}`);
+			const g = goalOf$1(ctx, a.goal_id);
+			return save$1(ctx, deleteGoal(ax$1(ctx), g.id), `Deleted ${g.title}`);
 		}
 	},
 	{
@@ -36719,8 +37274,8 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				check_in_id: str$2("The check-in’s ID, from get_goal."),
-				goal_id: str$2("Or: the goal’s ID or key…"),
+				check_in_id: str$3("The check-in’s ID, from get_goal."),
+				goal_id: str$3("Or: the goal’s ID or key…"),
 				week: int$1("…and the week of its latest check-in.")
 			}
 		},
@@ -36728,13 +37283,13 @@ var REMOVE_TOOLS = [
 		async run(a, ctx) {
 			let id = a.check_in_id ? String(a.check_in_id) : "";
 			if (!id) {
-				const g = goalOf(ctx, a.goal_id);
+				const g = goalOf$1(ctx, a.goal_id);
 				const c = checkInsFor(g, ctx.snapshot.checkIns).filter((x) => a.week == null || x.week === Number(a.week)).at(-1);
 				if (!c) throw new Error(`${g.title} has no check-in${a.week != null ? ` for week ${String(a.week)}` : ""}.`);
 				id = c.id;
 			}
 			const c = ctx.snapshot.checkIns.find((x) => x.id === id);
-			return save(ctx, deleteCheckIn(ax(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
+			return save$1(ctx, deleteCheckIn(ax$1(ctx), id), `Deleted the check-in for week ${c?.week ?? "?"}`);
 		}
 	},
 	{
@@ -36745,13 +37300,13 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$3("The review’s ID, from list_reviews.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-			const out = endReview(ax(ctx), String(a.review_id ?? ""));
-			return save(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
+			const out = endReview(ax$1(ctx), String(a.review_id ?? ""));
+			return save$1(ctx, out.commit, `${out.deleted ? "Deleted (it was never held)" : ENDED} the review “${r?.name ?? ""}”`);
 		}
 	},
 	{
@@ -36762,12 +37317,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["review_id"],
-			properties: { review_id: str$2("The review’s ID, from list_reviews.") }
+			properties: { review_id: str$3("The review’s ID, from list_reviews.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const r = ctx.snapshot.reviews.find((x) => x.id === a.review_id);
-			return save(ctx, deleteReview(ax(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
+			return save$1(ctx, deleteReview(ax$1(ctx), String(a.review_id ?? "")), `Deleted the review “${r?.name ?? ""}”`);
 		}
 	},
 	{
@@ -36779,33 +37334,33 @@ var REMOVE_TOOLS = [
 			additionalProperties: false,
 			required: ["comment_id", "text"],
 			properties: {
-				comment_id: str$2("The comment’s or note’s ID."),
-				text: str$2("The corrected words.")
+				comment_id: str$3("The comment’s or note’s ID."),
+				text: str$3("The corrected words.")
 			}
 		},
-		annotations: WRITE,
+		annotations: WRITE$1,
 		async run(a, ctx) {
 			const id = String(a.comment_id ?? "");
 			const note = ctx.snapshot.decisions.find((d) => d.id === id);
 			if (note) {
-				const c = editCall(ax(ctx), note, String(a.text ?? ""));
+				const c = editCall(ax$1(ctx), note, String(a.text ?? ""));
 				if (!c) return { text: "Nothing to change: it already says that." };
 				await ctx.save({
 					...c,
 					changes: c.changes.map((x) => ({
 						...x,
-						diffs: [...x.diffs, VIA]
+						diffs: [...x.diffs, VIA$1]
 					}))
 				});
 				return { text: `Corrected the note (as ${ctx.actor.name}).` };
 			}
-			const c = editComment(ax(ctx), id, String(a.text ?? ""));
+			const c = editComment(ax$1(ctx), id, String(a.text ?? ""));
 			if (!c) return { text: "Nothing to change: it already says that." };
 			await ctx.save({
 				...c,
 				changes: c.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA]
+					diffs: [...x.diffs, VIA$1]
 				}))
 			});
 			return { text: `Edited the comment (as ${ctx.actor.name}).` };
@@ -36819,13 +37374,13 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["comment_id"],
-			properties: { comment_id: str$2("The comment’s or note’s ID.") }
+			properties: { comment_id: str$3("The comment’s or note’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const id = String(a.comment_id ?? "");
-			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save(ctx, deleteNote(ax(ctx), id), "Removed the note");
-			return save(ctx, deleteComment(ax(ctx), id), "Removed the comment");
+			if (ctx.snapshot.decisions.some((d) => d.id === id)) return save$1(ctx, deleteNote(ax$1(ctx), id), "Removed the note");
+			return save$1(ctx, deleteComment(ax$1(ctx), id), "Removed the comment");
 		}
 	},
 	{
@@ -36836,12 +37391,12 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["cycle_id"],
-			properties: { cycle_id: str$2("The cycle’s ID.") }
+			properties: { cycle_id: str$3("The cycle’s ID.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
 			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
-			return save(ctx, deleteCycle(ax(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
+			return save$1(ctx, deleteCycle(ax$1(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
 		}
 	},
 	{
@@ -36852,16 +37407,16 @@ var REMOVE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			required: ["import_id"],
-			properties: { import_id: str$2("The import’s ID (imp_…), from get_activity.") }
+			properties: { import_id: str$3("The import’s ID (imp_…), from get_activity.") }
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
-			const out = undoImport(ax(ctx), String(a.import_id ?? ""));
+			const out = undoImport(ax$1(ctx), String(a.import_id ?? ""));
 			await ctx.save({
 				...out.commit,
 				changes: out.commit.changes.map((x) => ({
 					...x,
-					diffs: [...x.diffs, VIA]
+					diffs: [...x.diffs, VIA$1]
 				}))
 			});
 			return {
@@ -36871,6 +37426,332 @@ var REMOVE_TOOLS = [
 				},
 				text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? "row" : "rows"} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.join("; ")}.` : ""}`
 			};
+		}
+	}
+];
+// src/modules/metrics/tools.ts
+init_actions();
+init_goalKey();
+init_metrics();
+var str$2 = (description, extra = {}) => ({
+	type: "string",
+	description,
+	...extra
+});
+var READ$1 = {
+	readOnlyHint: true,
+	openWorldHint: false
+};
+var WRITE = {
+	readOnlyHint: false,
+	destructiveHint: false,
+	idempotentHint: true,
+	openWorldHint: false
+};
+var VIA = {
+	field: "Via",
+	from: "—",
+	to: "AI assistant (MCP)"
+};
+var ax = (ctx) => ({
+	snapshot: ctx.snapshot,
+	cycle: ctx.cycle,
+	week: ctx.week,
+	actor: ctx.actor,
+	now: ctx.now,
+	newId: ctx.newId,
+	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
+	...ctx.full ? { full: ctx.full } : {}
+});
+var save = (ctx, c) => ctx.save({
+	...c,
+	changes: c.changes.map((x) => ({
+		...x,
+		diffs: [...x.diffs, VIA]
+	}))
+});
+/** A rule that says no is the assistant's to fix, so it reads as an error result, not a crash. */
+async function ruled(run) {
+	try {
+		return await run();
+	} catch (e) {
+		if (e instanceof NotAllowed) return {
+			isError: true,
+			text: e.message
+		};
+		throw e;
+	}
+}
+var metricOf = (ctx, ref) => {
+	const m = findMetric(ctx.snapshot, String(ref ?? ""));
+	if (!m) throw new NotAllowed(`There’s no metric called or with the ID ${String(ref)}. Use list_metrics.`);
+	return m;
+};
+var goalOf = (ctx, id) => {
+	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	if (!g) throw new NotAllowed(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
+	return g;
+};
+/** A person here now, by ID, email or name. */
+var personOf = (ctx, ref) => {
+	const t = String(ref ?? "").trim().toLowerCase();
+	const p = ctx.snapshot.people.find((x) => x.id === ref) ?? ctx.snapshot.people.find((x) => !!t && (x.email ?? "").toLowerCase() === t) ?? ctx.snapshot.people.find((x) => x.name.toLowerCase() === t);
+	if (!t || !p) throw new NotAllowed(`There’s no one called ${String(ref)} in this workspace. Use list_people.`);
+	return p.id;
+};
+/** A slice: a team by ID or name, or the whole company (left out, empty, null or "company"). */
+var sliceOf = (ctx, ref) => {
+	if (ref == null || ref === "" || /^(the )?(whole )?company$/i.test(String(ref).trim())) return null;
+	const t = String(ref).trim().toLowerCase();
+	const team = ctx.snapshot.teams.find((x) => x.id === ref || x.name.toLowerCase() === t);
+	if (!team) throw new NotAllowed(`There’s no team called ${String(ref)}. Leave team out for the whole company. Teams: ${ctx.snapshot.teams.map((x) => x.name).join(", ")}.`);
+	return team.id;
+};
+var name = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? null;
+/** A metric as the tools return it: its definition, in words and codes, and the goals it measures. */
+function metricData(ctx, m) {
+	return {
+		id: m.id,
+		name: m.name,
+		meaning: m.meaning,
+		unit: m.unit,
+		decimals: m.decimals,
+		direction: m.direction,
+		directionLabel: DIRECTION_LABEL[m.direction],
+		source: m.source,
+		sourceOwner: m.sourceOwner,
+		refresh: m.refresh,
+		owner: name(ctx, m.ownerId),
+		ownerId: m.ownerId,
+		caveats: m.caveats,
+		updatedAt: m.updatedAt,
+		youCanChange: canEditMetric(ctx.actor, m),
+		measures: goalsMeasuredBy(ctx.snapshot, m.id).map((g) => {
+			const me = measureOf(ctx.snapshot, g);
+			return {
+				goalId: g.id,
+				key: g.key ?? null,
+				goal: g.title,
+				owner: name(ctx, g.ownerId),
+				slice: me.slice,
+				target: me.target
+			};
+		})
+	};
+}
+var FIELDS = {
+	name: str$2("Its name, e.g. “Build time (p90)”. Required for a new metric; no two metrics share one."),
+	meaning: str$2("What it means and how it’s calculated: what is counted, over what period, what is left out."),
+	unit: str$2("Its unit: %, min, hours, USD, deploys… Required for a new metric. A goal it measures must use the same unit."),
+	decimals: {
+		type: "integer",
+		minimum: 0,
+		maximum: 4,
+		description: "Places after the decimal point it’s shown with (0 to 4; 0 when left out)."
+	},
+	direction: str$2("Which way is better. Required for a new metric.", { enum: ["higher", "lower"] }),
+	source: str$2("Where the number comes from: a dashboard, a tool, a query."),
+	source_owner: str$2("Who owns that source: a team or a person, as text."),
+	refresh: str$2("How often the source refreshes. Empty for not said.", { enum: [...REFRESHES, ""] }),
+	owner: str$2("Who answers for the definition, by ID, email or name. Whoever adds it, when left out."),
+	caveats: str$2("What to watch out for when reading it.")
+};
+var tools$1 = [
+	{
+		name: "list_metrics",
+		title: "List the metric library",
+		description: "Every metric in the library, by name: its unit, which way is better, its owner and how many goals it measures. Give a search to narrow it by name, meaning or source. get_metric has one in full.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: { search: str$2("Words to look for in the name, meaning or source.") }
+		},
+		annotations: READ$1,
+		async run(a, ctx) {
+			const q = String(a.search ?? "").trim().toLowerCase();
+			const rows = liveMetrics(ctx.snapshot).filter((m) => !q || [
+				m.name,
+				m.meaning,
+				m.source
+			].some((t) => t.toLowerCase().includes(q))).map((m) => ({
+				id: m.id,
+				name: m.name,
+				unit: m.unit,
+				direction: m.direction,
+				owner: name(ctx, m.ownerId),
+				goals: goalsMeasuredBy(ctx.snapshot, m.id).length
+			}));
+			return {
+				data: { metrics: rows },
+				text: rows.length ? rows.map((r) => `${r.id} · ${r.name} (${r.unit}, ${DIRECTION_LABEL[r.direction].toLowerCase()}) · owner ${r.owner ?? "—"} · measures ${r.goals} ${r.goals === 1 ? "goal" : "goals"}`).join("\n") : q ? `No metric matches “${q}”.` : "The metric library is empty. Add one with save_metric."
+			};
+		}
+	},
+	{
+		name: "get_metric",
+		title: "Read a metric",
+		description: "One metric in full, by ID or name: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats, and every goal it measures with its slice (a team, or the whole company) and the goal’s target.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["metric"],
+			properties: { metric: str$2("The metric’s ID or name.") }
+		},
+		annotations: READ$1,
+		async run(a, ctx) {
+			return ruled(async () => {
+				const d = metricData(ctx, metricOf(ctx, a.metric));
+				return {
+					data: d,
+					text: [
+						`${d.name} (${d.id})`,
+						`Unit: ${d.unit}, ${d.decimals} decimals · ${d.directionLabel}`,
+						`Meaning: ${d.meaning || "—"}`,
+						`Source: ${d.source || "—"} (owned by ${d.sourceOwner || "—"}) · refresh: ${d.refresh ?? "not said"}`,
+						`Owner: ${d.owner ?? "—"}`,
+						`Caveats: ${d.caveats || "—"}`,
+						d.measures.length ? `Measures: ${d.measures.map((x) => `${x.key ?? x.goalId} ${x.goal} (${x.slice})`).join("; ")}` : "Measures no goal yet."
+					].join("\n")
+				};
+			});
+		}
+	},
+	{
+		name: "save_metric",
+		title: "Add or change a metric",
+		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				id: str$2("The metric to change, by ID or name. Leave out to add one."),
+				...FIELDS
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			return ruled(async () => {
+				const input = {
+					...a.id != null && a.id !== "" ? { id: metricOf(ctx, a.id).id } : {},
+					...a.name !== void 0 ? { name: String(a.name) } : {},
+					...a.meaning !== void 0 ? { meaning: String(a.meaning) } : {},
+					...a.unit !== void 0 ? { unit: String(a.unit) } : {},
+					...a.decimals !== void 0 ? { decimals: Number(a.decimals) } : {},
+					...a.direction !== void 0 ? { direction: String(a.direction).toLowerCase() } : {},
+					...a.source !== void 0 ? { source: String(a.source) } : {},
+					...a.source_owner !== void 0 ? { sourceOwner: String(a.source_owner) } : {},
+					...a.refresh !== void 0 ? { refresh: a.refresh ? String(a.refresh).toLowerCase() : null } : {},
+					...a.owner !== void 0 ? { ownerId: personOf(ctx, a.owner) } : {},
+					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {}
+				};
+				const { commit, metric } = saveMetric(ax(ctx), input);
+				if (!commit) return {
+					data: {
+						saved: false,
+						id: metric.id
+					},
+					text: `Nothing changed: ${metric.name} already says that.`
+				};
+				await save(ctx, commit);
+				return {
+					data: {
+						saved: true,
+						id: metric.id,
+						changes: commit.changes[0].diffs
+					},
+					text: `${commit.changes[0].summary} (as ${ctx.actor.name}). Its ID is ${metric.id}.`
+				};
+			});
+		}
+	},
+	{
+		name: "remove_metric",
+		title: "Remove a metric",
+		description: "Remove a metric from the library: its owner or an admin. Every goal it measures is unlinked by the same save; the goals themselves don’t change. It can be restored for 30 days with restore_removed (kind metric), without its old links.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["metric"],
+			properties: { metric: str$2("The metric’s ID or name.") }
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: false,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			return ruled(async () => {
+				const c = removeMetric(ax(ctx), metricOf(ctx, a.metric).id);
+				await save(ctx, c);
+				return {
+					data: {
+						removed: true,
+						unlinked: (c.metricLinks ?? []).map((l) => l.goalId)
+					},
+					text: `${c.changes[0].summary} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.`
+				};
+			});
+		}
+	},
+	{
+		name: "link_goal_metric",
+		title: "Say which metric measures a goal",
+		description: "Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out). Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal"],
+			properties: {
+				goal: str$2("The goal’s ID or key (G-12)."),
+				metric: str$2("The metric’s ID or name. Required unless unlinking."),
+				team: str$2("The slice: a team by ID or name. Leave out for the whole company."),
+				unlink: {
+					type: "boolean",
+					description: "Stop measuring the goal by its metric."
+				}
+			}
+		},
+		annotations: WRITE,
+		async run(a, ctx) {
+			return ruled(async () => {
+				const g = goalOf(ctx, a.goal);
+				if (a.unlink === true) {
+					const c = unlinkGoalMetric(ax(ctx), g);
+					if (!c) return {
+						data: { saved: false },
+						text: `${g.title} isn’t measured by a metric.`
+					};
+					await save(ctx, c);
+					return {
+						data: { saved: true },
+						text: `${g.title}: ${c.changes[0].summary.charAt(0).toLowerCase()}${c.changes[0].summary.slice(1)} (as ${ctx.actor.name}).`
+					};
+				}
+				if (a.metric == null || a.metric === "") return {
+					isError: true,
+					text: "Say which metric, by ID or name, or give unlink true."
+				};
+				const m = metricOf(ctx, a.metric);
+				const teamId = sliceOf(ctx, a.team);
+				const { warnings } = linkProblems(g, m);
+				const c = linkGoalMetric(ax(ctx), g, m.id, teamId);
+				if (!c) return {
+					data: {
+						saved: false,
+						warnings
+					},
+					text: `${g.title} is already measured by ${m.name} for ${sliceName(ctx.snapshot, teamId)}.`
+				};
+				await save(ctx, c);
+				return {
+					data: {
+						saved: true,
+						warnings
+					},
+					text: [`${g.title}: ${c.changes[0].summary.charAt(0).toLowerCase()}${c.changes[0].summary.slice(1)} (as ${ctx.actor.name}).`, ...warnings.map((w) => `Warning: ${w}`)].join("\n")
+				};
+			});
 		}
 	}
 ];
@@ -36893,89 +37774,93 @@ var READ = {
 };
 /** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
 var CSV_FORMATS = SHEET_NAMES.filter((n) => n !== "README").map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, "_")}_csv`, n]);
+var tools = [{
+	name: "export",
+	title: "Export the goals",
+	description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or one sheet of the spreadsheet export as CSV: goals, plan, check-ins, people, results (each goal’s result and quarters), asks, notes or metrics (the metric library). The goals, plan, check-ins and people CSVs load back with bulk_change.",
+	inputSchema: {
+		type: "object",
+		additionalProperties: false,
+		required: ["format"],
+		properties: { format: str$1("Which export.", { enum: [
+			"json",
+			"brief",
+			...CSV_FORMATS.map(([f]) => f)
+		] }) }
+	},
+	annotations: {
+		readOnlyHint: true,
+		openWorldHint: false
+	},
+	async run(a, ctx) {
+		const x = {
+			ws: ctx.ws,
+			snapshot: ctx.snapshot,
+			cycle: ctx.cycle,
+			week: ctx.week,
+			today: ctx.today
+		};
+		if (a.format === "json") {
+			const j = toJson(x);
+			return {
+				data: j,
+				text: JSON.stringify(j)
+			};
+		}
+		if (a.format === "brief") return { text: aiBrief(x) };
+		const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];
+		if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
+		return {
+			isError: true,
+			text: `format should be json, brief or one of ${CSV_FORMATS.map(([f]) => f).join(", ")}.`
+		};
+	}
+}, {
+	name: "export_table",
+	title: "Export a data table as shown",
+	description: "One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted, then any column that says which record a row is (a goal’s Key and ID, a person’s Email…) the layout leaves out, so the rows load back with bulk_change. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.",
+	inputSchema: {
+		type: "object",
+		additionalProperties: false,
+		properties: {
+			view: str$1("The name of a saved layout: one of yours, or one pinned for everyone."),
+			table: str$1("Which data table, when not using a view.", { enum: TABLE_ORDER }),
+			columns: ids("The columns, in order. Leave out for the usual columns."),
+			query: str$1("Search, filters and sort, as for save_table_view."),
+			format: str$1("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
+		}
+	},
+	annotations: READ,
+	async run(a, ctx) {
+		const layout = layoutFrom(ctx, a);
+		const rows = exportedTable(sheetOf(ctx, layout.table), layout).rows;
+		const [head = [], ...body] = rows;
+		const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? "row" : "rows"}, ${head.length} columns`;
+		if (a.format === "json") return {
+			data: {
+				table: layout.table,
+				columns: head,
+				rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null])))
+			},
+			text: what
+		};
+		return {
+			data: {
+				table: layout.table,
+				columns: head,
+				count: body.length
+			},
+			text: toCsv(rows)
+		};
+	}
+}];
 // \0virtual:faro-modules/tools
 var tools_default = [{
+	id: "metrics",
+	part: tools$1
+}, {
 	id: "spreadsheets",
-	part: [{
-		name: "export",
-		title: "Export the goals",
-		description: "Every goal in the current cycle as JSON (each goal with its plan by week and check-ins), a Markdown brief, or one sheet of the spreadsheet export as CSV: goals, plan, check-ins, people, results (each goal’s result and quarters), asks or notes. The CSVs load back with bulk_change.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			required: ["format"],
-			properties: { format: str$1("Which export.", { enum: [
-				"json",
-				"brief",
-				...CSV_FORMATS.map(([f]) => f)
-			] }) }
-		},
-		annotations: {
-			readOnlyHint: true,
-			openWorldHint: false
-		},
-		async run(a, ctx) {
-			const x = {
-				ws: ctx.ws,
-				snapshot: ctx.snapshot,
-				cycle: ctx.cycle,
-				week: ctx.week,
-				today: ctx.today
-			};
-			if (a.format === "json") {
-				const j = toJson(x);
-				return {
-					data: j,
-					text: JSON.stringify(j)
-				};
-			}
-			if (a.format === "brief") return { text: aiBrief(x) };
-			const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];
-			if (sheet) return { text: toCsv(sheetNamed(workbook(x), sheet).rows) };
-			return {
-				isError: true,
-				text: `format should be json, brief or one of ${CSV_FORMATS.map(([f]) => f).join(", ")}.`
-			};
-		}
-	}, {
-		name: "export_table",
-		title: "Export a data table as shown",
-		description: "One of Data’s tables (goals, checkIns, plan, requests, people) exactly as a layout shows it: its columns in order and the rows that pass its search and filters, sorted, then any column that says which record a row is (a goal’s Key and ID, a person’s Email…) the layout leaves out, so the rows load back with bulk_change. Give a saved layout by name, or the table with columns and a query. CSV by default, or rows as JSON.",
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				view: str$1("The name of a saved layout: one of yours, or one pinned for everyone."),
-				table: str$1("Which data table, when not using a view.", { enum: TABLE_ORDER }),
-				columns: ids("The columns, in order. Leave out for the usual columns."),
-				query: str$1("Search, filters and sort, as for save_table_view."),
-				format: str$1("CSV text, or rows as JSON.", { enum: ["csv", "json"] })
-			}
-		},
-		annotations: READ,
-		async run(a, ctx) {
-			const layout = layoutFrom(ctx, a);
-			const rows = exportedTable(sheetOf(ctx, layout.table), layout).rows;
-			const [head = [], ...body] = rows;
-			const what = `${TABLES[layout.table].label}: ${body.length} ${body.length === 1 ? "row" : "rows"}, ${head.length} columns`;
-			if (a.format === "json") return {
-				data: {
-					table: layout.table,
-					columns: head,
-					rows: body.map((r) => Object.fromEntries(head.map((h, i) => [String(h), r[i] ?? null])))
-				},
-				text: what
-			};
-			return {
-				data: {
-					table: layout.table,
-					columns: head,
-					count: body.length
-				},
-				text: toCsv(rows)
-			};
-		}
-	}]
+	part: tools
 }];
 // src/mcp/tools.ts
 init_actions();

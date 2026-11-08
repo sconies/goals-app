@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-library-ai',
+    date: '2026-11-08',
+    title: 'A metric library, for AI assistants first',
+    points: [
+      'Faro now keeps a library of metrics: each number goals are measured by, defined once, with its meaning, unit, which way is better, source and owner.',
+      'An AI assistant can list them, read one, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
     id: 'workspace-sections',
     date: '2026-11-08',
     title: 'Workspace in sections, and an inbox you can work through',

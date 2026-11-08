@@ -50,6 +50,9 @@ export interface ModuleFacts {
   journeys: string[];
   /** The source files that belong to it outside its folder, if any (there should be none once it's fully moved). */
   elsewhere?: string[];
+  /** What it deliberately leaves out, why, and how it could grow: written into the spec as spec/modules/<id>/growth.md,
+      so a rebuild can tell a choice from a gap. Optional. */
+  growth?: { idea: string; why: string; how: string }[];
 }
 
 /** Workspace's sections in menu order: the core's, then each module's after the section it names in `after` (or at the

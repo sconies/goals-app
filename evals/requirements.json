@@ -239,7 +239,7 @@
     {
       "id": "EXPORT",
       "area": "Data",
-      "text": "Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."
+      "text": "Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."
     },
     {
       "id": "BULK-IMPORT",
