@@ -25,11 +25,13 @@ export function MotionLab() {
     window.addEventListener('keydown', key);
     return () => { window.removeEventListener('goals-motion-lab', show); window.removeEventListener('keydown', key); };
   }, []);
-  const changed = look.pace !== PACE.default || look.impact !== IMPACT.default || look.off.length > 0 || look.landing !== 'thump' || look.sound || look.buzz;
+  const changed = look.pace !== PACE.default || look.impact !== IMPACT.default || look.off.length > 0 || look.landing !== 'thump' || look.sound || look.buzz || look.story;
   return (
     <Sheet open={open} onClose={() => setOpen(false)} title="Motion lab">
       <div className="motion-lab motion-settings">
         <p className="hint" style={{ marginTop: 0 }}>How a goal’s page moves when it opens. Kept in this browser.</p>
+        <label className="check"><input type="checkbox" checked={look.story} onChange={(e) => setAppearance({ story: e.target.checked })} /> Play the story when a goal’s page opens</label>
+        <p className="hint">Off, the page shows its chart and number at once. On, the chart draws itself in and the number counts up and lands, at the speed and impact below.</p>
         <label className="slider-row" htmlFor="lab-pace">
           <span>Speed</span>
           <input id="lab-pace" type="range" min={PACE.min} max={PACE.max} step={PACE.step} value={look.pace} aria-valuetext={paceWords(look.pace)} onChange={(e) => setAppearance({ pace: Number(e.target.value) })} />
@@ -59,7 +61,7 @@ export function MotionLab() {
         <MotionPreview pace={look.pace} countOn={!look.off.includes('count')} replayKey={`${look.pace}-${look.impact}-${look.off.join('.')}-${look.landing}`} />
         <div className="row" style={{ gap: 'var(--s3)', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
           <button type="button" className="btn sm" onClick={() => { setOpen(false); window.dispatchEvent(new Event('goals-replay')); }}>Replay this page</button>
-          {changed && <button type="button" className="btn sm ghost" onClick={() => setAppearance({ pace: PACE.default, impact: IMPACT.default, off: [], landing: 'thump', sound: false, buzz: false })}>Back to the default</button>}
+          {changed && <button type="button" className="btn sm ghost" onClick={() => setAppearance({ story: false, pace: PACE.default, impact: IMPACT.default, off: [], landing: 'thump', sound: false, buzz: false })}>Back to the default</button>}
         </div>
         <p className="hint">None of it moves when your device asks for reduced motion.</p>
       </div>

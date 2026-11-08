@@ -5,8 +5,8 @@ import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
 import { dashboard, groupWatched, type Dashboard } from '../domain/home';
-import { daysToReview, onTimeStreak, reviewDate, weekProgress, WEEKDAY } from '../domain/progress';
-import { agendaOf, dayText, reviewSession, watchedGoals } from '../domain/review';
+import { daysToReview, onTimeStreak, reviewDate, weekCompletion, weekProgress, WEEKDAY } from '../domain/progress';
+import { agendaOf, dayText, reviewedLabel, reviewSession, watchedGoals } from '../domain/review';
 import { weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
@@ -70,13 +70,14 @@ function MyWeek({ side, after }: { side?: ReactNode; after?: ReactNode }) {
   const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => s.week === Math.max(1, app.week) && s.done < s.total);
   const resuming = p.due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
-  const allIn = p.goals.length > 0 && !p.due.length && p.done.length >= p.goals.length;
+  // The same reading as the check-in's confirmation (domain/progress weekCompletion).
+  const allIn = weekCompletion(p).complete;
   return (
     <>
       <section className="hero home-hero split-a" data-part="This week’s main action">
-        {p.goals.length > 0 && !(myReview && !p.due.length && !wrapLeft.length) && !(p.upcoming.length && !p.due.length && !p.done.length)
+        {p.goals.length > 0 && !(myReview && (allIn || !p.done.length) && !p.due.length && !wrapLeft.length) && !(p.upcoming.length && !p.due.length && !p.done.length)
           ? <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
-          : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={56} label={`${myReview.done} of ${myReview.total} goals covered in ${myReview.review.name}`} /> : null}
+          : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={56} label={reviewedLabel(myReview, myReview.review.name)} /> : null}
         <div className="hero-body">
           {p.due.length ? (
             <>

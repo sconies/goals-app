@@ -772,7 +772,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'Light or dark: light, dark, or follow your device.',
         'Accent colour: Faro’s teal (the default), or the earlier cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.',
-        'Motion lab, at the bottom: play with how a goal’s page moves. Speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.',
+        'Motion lab, at the bottom: play with how a goal’s page moves. It is off by default, so a goal’s page shows its chart and number the moment it opens; switch on “Play the story when a goal’s page opens” to watch the chart draw itself in and the number land. Then speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.',
         'Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.',
         'You: your name, job title and team. An admin changes these.',
         'What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.',

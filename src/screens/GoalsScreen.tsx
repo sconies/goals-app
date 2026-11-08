@@ -164,7 +164,7 @@ export function GoalsScreen() {
       </div>
 
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
-      {show === 'attention' && !activeView && att.length > 0 && <p className="hint attention-counts">{attentionCounts(att)}</p>}
+      {show === 'attention' && !activeView && att.length > 0 && <p className="hint attention-counts">{attentionCounts(att, handled)}</p>}
       <FirstReports />
       {refined && shown.length === 0 && <EmptyResult title="No goals match" action={<button type="button" className="btn" onClick={() => { const p = new URLSearchParams(); for (const k of ['today', 'store', 'view']) { const x = params.get(k); if (x) p.set(k, x); } setParams(p, { replace: true }); }}>Clear search and filters</button>}>Remove a filter above, or clear them all.</EmptyResult>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
@@ -252,16 +252,21 @@ export function GoalsScreen() {
 
 /**
  * What the Needs attention count counts, in words (demo review, 8 Nov, item 5): the Board groups the same goals by
- * status, so a goal flagged while on track or done (getting worse, a missed date, an ask waiting) is said too.
+ * status, so a goal flagged while on track (getting worse, a missed date, an ask waiting) is said too. The goals being
+ * handled are on the same page and board but not in the count, so the line says how many and why (re-review, 8 Nov,
+ * backlog T: the tab said 48 and the Board 51), and that Home's strip counts every goal by its status instead.
  */
-function attentionCounts(att: GoalAttention[]): string {
+function attentionCounts(att: GoalAttention[], handled: GoalAttention[]): string {
   const by = new Map<string, number>();
   for (const a of att) by.set(a.status.status, (by.get(a.status.status) ?? 0) + 1);
   // The statuses that are themselves a reason for attention, in the order the vocabulary gives them.
   const behind = ATTENTION_FLAGS.filter((k): k is 'off' | 'risk' | 'stale' => k in STATUS && k !== 'greener').sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b));
   const named = behind.filter((k) => by.get(k)).map((k) => `${by.get(k)} ${STATUS[k].label.toLowerCase()}`);
   const rest = att.length - behind.reduce((n, k) => n + (by.get(k) ?? 0), 0);
-  const parts = [...named, ...(rest ? [`${rest} on track or done but flagged for something else, such as getting worse, a missed date or an ask waiting for an answer`] : [])];
+  const parts = [...named, ...(rest ? [`${rest} on track but flagged for something else, such as getting worse, a missed date or an ask waiting for an answer`] : [])];
   const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
-  return `${att.length} ${att.length === 1 ? 'goal' : 'goals'} flagged for something new that nobody has picked up yet: ${list}.`;
+  const also = handled.length
+    ? ` Not counted: ${handled.length} more ${handled.length === 1 ? 'is' : 'are'} being handled, because someone has looked since the latest check-in. ${handled.length === 1 ? 'It is' : 'They are'} listed after the others, so the table and board show ${att.length + handled.length}.`
+    : '';
+  return `${att.length} ${att.length === 1 ? 'goal' : 'goals'} flagged for something new that nobody has picked up yet: ${list}.${also} Home counts every goal by its status instead.`;
 }

@@ -142,6 +142,35 @@ function harness(device) {
   };
 }
 
+/**
+ * How many goals of a review are reviewed, as each place that shows it says it (backlog T, 8 Nov: they once disagreed):
+ * Home's ring (its count and its label) when it is this review's, the Reviews list, and the review's own ring and line.
+ * Read in a second tab of the same browser, so the journey's own page stays where it is. Returns the problems.
+ */
+async function reviewedEverywhere(p, reviewId, name) {
+  const q = await p.context().newPage();
+  const seen = [];
+  try {
+    await q.goto(url('/'));
+    await q.locator('.home-hero').first().waitFor();
+    const home = await q.evaluate(() => [...document.querySelectorAll('.home-hero .ring')].map((r) => ({ text: r.querySelector('.ring-text')?.textContent || '', label: r.getAttribute('aria-label') || '' })));
+    for (const r of home) if (r.label.endsWith(' in ' + name)) seen.push(['Home ring', r.text.replace('/', ' of ')], ['Home ring label', r.label.replace(/ goals reviewed in .*$/, '')]);
+    await q.goto(url('/reviews'));
+    await q.locator('main.work h1').first().waitFor();
+    const row = await q.getByRole('link', { name: new RegExp(name) }).first().innerText();
+    const m = /(\d+) of (\d+) reviewed/.exec(row);
+    seen.push(['Reviews list', m ? `${m[1]} of ${m[2]}` : /Not started/.test(row) ? '0 of ?' : /Held/.test(row) ? 'all' : row]);
+    await q.goto(url('/reviews/' + reviewId));
+    await q.locator('.review-home').waitFor();
+    const page = await q.evaluate(() => { const r = document.querySelector('.review-home .ring'); return { text: r?.querySelector('.ring-text')?.textContent || '', label: r?.getAttribute('aria-label') || '', complete: !!r?.classList.contains('complete') }; });
+    seen.push(['review ring', page.complete ? 'all' : page.text.replace('/', ' of ')], ['review ring label', page.label.replace(/ goals reviewed$/, '')]);
+  } finally { await q.close(); }
+  const [n, of] = (seen.find(([, v]) => /^\d+ of \d+$/.test(v))?.[1] || '').split(' of ');
+  const ok = (v) => v === `${n} of ${of}` || (v === '0 of ?' && n === '0') || (v === 'all' && n === of);
+  const bad = seen.filter(([, v]) => !ok(v));
+  return bad.length ? [`${name}: ${seen.map(([k, v]) => `${k} ${v}`).join(', ')}`] : [];
+}
+
 async function newPage(device, viewer) {
   const ctx = await browser.newContext({ viewport: DEVICES[device] });
   if (viewer) await ctx.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, viewer);
@@ -340,6 +369,8 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   await h.click(line);
   await p.locator('.review-home').waitFor();
   await h.progressShown('review home');
+  // Home's ring, the Reviews list and the review's page say the same count before, during and after (backlog T).
+  const disagree = await reviewedEverywhere(p, 'reliability', 'Reliability weekly');
   await h.click(p.getByRole('button', { name: /^Continue review/ }));
   // The review walks the goal pages themselves, one at a time, with what to say at the bottom.
   await p.locator('.reviewbar').waitFor();
@@ -380,6 +411,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     items++;
     await p.waitForURL((u) => u.href !== here);
     await p.waitForTimeout(120);
+    if (items === 2) disagree.push(...await reviewedEverywhere(p, 'reliability', 'Reliability weekly'));
   }
   // The walk is the exceptions; goals on track with nothing flagged are acknowledged together (Senior UX review, 2 Nov).
   await see(p, 'Nothing flagged', 'healthy goals are not grouped after the exceptions');
@@ -389,6 +421,8 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   await h.checkpoint('healthy group');
   await h.click(ack);
   await see(p, 'What was said', 'the held review leads with its record');
+  disagree.push(...await reviewedEverywhere(p, 'reliability', 'Reliability weekly'));
+  h.set('progress', !disagree.length, `the reviewed count differs between views: ${disagree.join('; ')}`);
   await see(p, 'Can this be back on plan', 'what was said is kept on the review');
   h.set('finish', await p.getByRole('link', { name: 'Reviews' }).first().isVisible(), 'no way on from the review record');
   const s = await h.snapshot();
@@ -646,6 +680,24 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await see(p, 'Your first check-in is next week', 'Home doesn’t say the first check-in is next week');
   if (await p.getByText(/days? late/).count()) fail('a new workspace starts with something late');
   await see(p, 'Weekly review', 'Home has no next review');
+  // Checking in early on one goal says 1 of them, as Home's ring does, never that all are in (re-review, 8 Nov, backlog T).
+  const early = s.goals.find((g) => g.title === 'Support response time');
+  await p.goto(sunday('/check-in/' + early.id));
+  await h.fill(p.getByLabel('This week’s value'), '8');
+  for (let i = 0; i < 4 && !(await p.getByText('Check-in saved').isVisible()); i++) {
+    const why = p.getByLabel('What happened');
+    if (await why.isVisible().catch(() => false)) { await p.locator('.cause-pick button, [aria-label^="Why is it"] button').first().click().catch(() => {}); await why.fill('Starting point for the first week.'); }
+    const post = p.getByRole('button', { name: 'Post check-in' });
+    await (await post.isVisible() ? post : p.getByRole('button', { name: 'Continue' })).click();
+    await p.waitForTimeout(250);
+  }
+  await see(p, 'Check-in saved');
+  const said = (await p.locator('.ci-week-done').innerText().catch(() => '')).trim();
+  const owned = s.goals.filter((g) => g.ownerId === early.ownerId).length;
+  await p.goto(sunday('/'));
+  await p.locator('.home-hero').first().waitFor();
+  const ringSays = await p.locator('.home-hero .ring').first().getAttribute('aria-label').catch(() => '');
+  h.set('progress', said.startsWith(`1 of ${owned} checked in for week 45`) && !/^(All|Both)/.test(said) && ringSays === `1 of ${owned} check-ins done this week`, `after one early check-in the confirmation said “${said}” and Home’s ring “${ringSays}”`);
   await p.goto(sunday('/reviews'));
   await see(p, 'Session Thu 12 Nov', 'the first review session is not next Thursday');
   // A goal page asks for how it's measured while it isn't said.

@@ -68,9 +68,13 @@
 .goal-page .goal-bar.compact > .bar-actions { margin-left: auto; flex: none; }
 .goal-page .goal-bar.compact .bar-actions > .btn { display: none; }
 
-/* A status that changed since you last looked turns in once; a target reached gives the status a soft pulse. */
-.goal-page .bar-status.moved .status-shape { animation: pm-shape-swap calc(.55s * var(--pace)) calc(.1s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
-.goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse calc(.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+/* A status that changed since you last looked turns in once; a target reached gives the status a soft pulse. At the
+   story's pace only when the story is switched on (data-story, the Motion lab); otherwise within 250ms like the rest of
+   the interface (backlog T, 8 Nov). */
+.goal-page .bar-status.moved .status-shape { animation: pm-shape-swap .22s ease-out both; transform-box: fill-box; transform-origin: center; }
+.goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse .24s ease-out both; transform-box: fill-box; transform-origin: center; }
+:root[data-story] .goal-page .bar-status.moved .status-shape { animation: pm-shape-swap calc(.55s * var(--pace)) calc(.1s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
+:root[data-story] .goal-page .goal-bar.hit .bar-status .status-shape { animation: pm-pulse calc(.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
 
 /* How a goal's page moves, set in Settings (src/app/appearance.ts) with two sliders and five switches: --pace is how many
    times slower than the original the story runs (2 by default), --impact how hard it lands (0 none, 1 the default,
@@ -187,7 +191,8 @@
 .chart.draw .c-ptg-dot { animation: pm-dot-in calc(.3s * var(--pace)) calc(1.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
 .chart.draw .c-today { animation: gp-now calc(.4s * var(--pace)) calc(1.1s * var(--pace)) ease-out both; }
 .chart .c-dot.landed, .chart .c-breach.landed { animation: gp-land calc(.6s * var(--pace)) ease-out both; transform-box: fill-box; transform-origin: center; }
-.chart.hit .c-target { stroke-dasharray: none; stroke-width: 2.5; animation: gp-lit calc(.6s * var(--pace)) ease-out both; }
+.chart.hit .c-target { stroke-dasharray: none; stroke-width: 2.5; }
+:root[data-story] .chart.hit .c-target { animation: gp-lit calc(.6s * var(--pace)) ease-out both; }
 
 /* ---------- why ---------- */
 .goal-page .why-block p { margin: 0; font-size: 0.9375rem; color: var(--fg-2); max-width: 72ch; }
@@ -239,10 +244,10 @@
 .goal-page .feeds .show-all { align-self: flex-start; }
 
 /* ---------- this year by quarter: the tiles fill in turn ---------- */
-.goal-page .quarters > li { animation: rise calc(.4s * var(--pace)) ease-out both; }
-.goal-page .quarters > li:nth-child(2) { animation-delay: calc(.15s * var(--pace)); }
-.goal-page .quarters > li:nth-child(3) { animation-delay: calc(.3s * var(--pace)); }
-.goal-page .quarters > li:nth-child(4) { animation-delay: calc(.45s * var(--pace)); }
+:root[data-story] .goal-page .quarters > li { animation: rise calc(.4s * var(--pace)) ease-out both; }
+:root[data-story] .goal-page .quarters > li:nth-child(2) { animation-delay: calc(.15s * var(--pace)); }
+:root[data-story] .goal-page .quarters > li:nth-child(3) { animation-delay: calc(.3s * var(--pace)); }
+:root[data-story] .goal-page .quarters > li:nth-child(4) { animation-delay: calc(.45s * var(--pace)); }
 
 /* ---------- activity ---------- */
 .goal-page .activity-filter { align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }

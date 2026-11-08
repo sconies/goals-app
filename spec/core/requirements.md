@@ -331,7 +331,7 @@ A goal's page follows how you arrived: Home's Answer, Respond and Reply open it 
 
 ### GOAL-PAGE-ALIVE
 
-A goal's page moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see and lands with an impact, both set in Settings: the pace (Quick, Steady or Slow; Steady, the default, is half the speed of Quick, the chart drawing over about two seconds and everything done within four) and how hard it lands (Gentle, Strong or Big: the number and the latest point thump, a ring spreads from the point, the bar and the chart jolt, and an off-track status shakes). None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys.
+A goal's page is readable the moment it opens: its chart and number show their final state at once (backlog T). With the story switched on in the Motion lab, it moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see and lands with an impact, both set in Settings: the pace (Quick, Steady or Slow; Steady, the default, is half the speed of Quick, the chart drawing over about two seconds and everything done within four) and how hard it lands (Gentle, Strong or Big: the number and the latest point thump, a ring spreads from the point, the bar and the chart jolt, and an off-track status shakes). None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys.
 
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/printMotion.eval.ts` (2)
@@ -450,7 +450,7 @@ Needs attention means new since someone looked: a goal that is red or amber but 
 
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
-- **Tests:** `evals/attention.eval.ts` (7)
+- **Tests:** `evals/attention.eval.ts` (9)
 - **Journeys and checks:** N3
 
 ### ONE-ATTENTION-RULE
@@ -830,7 +830,7 @@ Goals is one section of the navigation with Mine, Watching and All, and your sav
 
 ### MOTION-ALIVE
 
-The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; interface motion is under 250ms, the goal page's story (its chart and headline number) up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion.
+The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every page is readable from its first frame (nothing fades it in), interface motion is under 250ms, charts show their final state at once or draw within that, the goal page's story (its chart and headline number) runs only when switched on in the Motion lab, up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Tests:** `evals/printMotion.eval.ts` (3)

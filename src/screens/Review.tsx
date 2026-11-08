@@ -8,7 +8,7 @@ import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
-import { answerOf, dayText, daysPast, goalsIn, isHealthy, lastHeld, nextSessionWeek, openActions, pastText, reviewSession, sessionDate, sessionState, sessionStateText, type ReviewSession, type SessionState } from '../domain/review';
+import { answerOf, dayText, daysPast, goalsIn, isHealthy, lastHeld, nextSessionWeek, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionDate, sessionState, sessionStateText, type ReviewSession, type SessionState } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
 import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
@@ -200,14 +200,14 @@ export function ReviewHome() {
   const line = done
     ? `${sessionStateText(st)} · next ${dayText(sessionDate(review, app.cycle, nextSessionWeek(review, s.week)))}`
     : st.kind === 'in-progress'
-      ? `${dayText(s.date)}${daysPast(s, app.today) ? ` (${pastText(daysPast(s, app.today))})` : ''} · ${s.done} of ${s.total} reviewed`
+      ? `${dayText(s.date)}${daysPast(s, app.today) ? ` (${pastText(daysPast(s, app.today))})` : ''} · ${reviewedText(s)}`
       : [dayText(s.date) + (daysPast(s, app.today) ? ` (${pastText(daysPast(s, app.today))})` : ''), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} with nothing flagged` : ''].filter(Boolean).join(' · ');
 
   return (
     <div className="page narrow review-home" data-part="Review">
       <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link></nav>
       <section className="hero">
-        <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={`${s.done} of ${s.total} goals reviewed`} />
+        <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={reviewedLabel(s)} />
         <div className="hero-body">
           <span className="eyebrow">{cadence(review)}</span>
           <h1 className="title-xl">{review.name}</h1>

@@ -32,7 +32,7 @@ export const DEMO_SESSION = [
 /** Kept on purpose (see above). Listed so the test can tell a forgotten key from a kept one. */
 export const KEPT = [
   'goals-app-workspace', 'goals-app-viewer:', 'goals-app-v2', 'goals-live-', 'goals-theme', 'goals-accent', 'goals-sidebar',
-  'goals-pace', 'goals-impact', 'goals-motion-off', 'goals-landing', 'goals-sound', 'goals-buzz', 'goals-motion-lab',
+  'goals-pace', 'goals-impact', 'goals-motion-off', 'goals-landing', 'goals-sound', 'goals-buzz', 'goals-motion-lab', 'goals-story',
   'goals-present', 'goals-research', 'goals-demo-visitor', 'goals-telemetry', 'faro-',
 ] as const;
 

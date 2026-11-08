@@ -8,7 +8,7 @@ import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
-import { daysToReview, onTimeStreak, weekProgress } from '../domain/progress';
+import { daysToReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { MetricChart, RangeChart } from '../ui/charts';
@@ -114,6 +114,7 @@ function NoDataSheet({ goal, onClose, onDone }: { goal: Goal; onClose: () => voi
 function AllDone({ first }: { first?: boolean }) {
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
+  const w = weekCompletion(p);
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(() => ref.current?.focus(), []);
@@ -121,15 +122,15 @@ function AllDone({ first }: { first?: boolean }) {
     <div className="focus ci">
       <div className="celebrate" role="status">
         <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} />
-        <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : p.due.length ? `${p.done.length} of ${p.goals.length} checked in` : `Week ${app.week} is done`}</h1>
-        <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : p.due.length ? `Still to do: ${p.due.map((g) => g.title).join(', ')}.` : p.goals.length === 1 ? 'Your goal is checked in for the review.' : p.goals.length === 2 ? 'Both your goals are checked in for the review.' : `All ${p.goals.length} of your goals are checked in for the review.`}</p>
-        {streak >= 2 && !p.due.length && <p className="streak big">{streak} weeks in a row on time</p>}
+        <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : w.complete ? `Week ${app.week} is done` : `${w.done} of ${w.total} checked in`}</h1>
+        <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : first && !p.done.length ? 'None of your goals is due this week.' : weekDoneText(p, app.week)}</p>
+        {streak >= 2 && w.complete && <p className="streak big">{streak} weeks in a row on time</p>}
         <div className="row done-actions">
           {p.due.length > 0 && <Link className="btn primary big-btn" to={`/check-in/${p.due[0]!.id}`}>Check in on {p.due[0]!.title}</Link>}
           <Link ref={ref} className={'btn big-btn' + (p.due.length ? '' : ' primary')} to="/">Back to home</Link>
         </div>
         {p.due.filter((g) => g.kind !== 'milestone').length >= 2 && <Link className="linkish small" to="/quick-check-in">Or type all your numbers in one table</Link>}
-        {!p.due.length && p.goals.length > 0 && (
+        {w.complete && (
           <p className="small again-links">Something changed since? Check in again on{' '}
             {p.goals.map((g, i) => <span key={g.id}>{i > 0 ? (i === p.goals.length - 1 ? ' or ' : ', ') : ''}<Link className="linkish" to={`/check-in/${g.id}`}>{g.title}</Link></span>)}.
           </p>
@@ -152,7 +153,7 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
       <h1 className="title-xl">Check-in saved</h1>{updated && <p className="muted">Kept alongside your earlier check-in this week; this one is now the week’s status.</p>}
       <p className="muted">{goal.title}{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''}. Its status <span className="nobr">is <Chip k={c.status} /></span></p>
       {c.pathToGreen?.needs && <p className="small">Asked for: {c.pathToGreen.needs}. It shows on the goal and on their Home.</p>}
-      {!left && <p className="muted">{p.due.length ? `Still due this week: ${p.due.map((g) => g.title).join(', ')}.` : `${p.goals.length === 1 ? 'Your goal is' : p.goals.length === 2 ? 'Both your goals are' : `All ${p.goals.length} of your goals are`} checked in for week ${app.week}${late ? ', after the review day' : ''}.`}</p>}
+      {!left && p.goals.length > 0 && <p className="muted ci-week-done">{weekDoneText(p, app.week, late)}</p>}
       <div className="row done-actions">
         {left
           ? <button ref={btn} className="btn primary big-btn" onClick={onNext}>Next: {nextTitle}</button>

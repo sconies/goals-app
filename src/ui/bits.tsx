@@ -7,7 +7,6 @@ import type { DisplayStatus, Level, Person } from '../domain/types';
 import { LEVEL_LABEL } from '../domain/format';
 import { Icon } from './Icon';
 import { useToasts } from '../app/state';
-import { useCountUp } from './motion';
 
 /**
  * Status is shape plus word, never colour alone. When a shape's status changes in place (a check-in previewed or
@@ -106,10 +105,9 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 
 /** A ring that fills as work gets done. The number in the middle is what's left. */
 export function ProgressRing({ done, total, size = 56, label }: { done: number; total: number; size?: number; label?: string }) {
-  // The arc draws in from empty (CSS); the count starts at its value and counts on from there when
-  // another goal is done. It never passes through numbers that weren't true (3/7, 5/7 on the way to 6/7: demo review,
-  // 8 Nov, item 16), so a screenshot or a check reads the real count at any moment.
-  const shown = Math.round(useCountUp(done));
+  // The arc draws in from empty and moves on when another goal is done (CSS). The count is always the true one, the
+  // same as the label: it never counts (a count caught mid-way, or held back by a busy browser, once read 2/56 beside
+  // a label of 0 of 56: re-review, 8 Nov, backlog T).
   const r = (size - 8) / 2, c = 2 * Math.PI * r, frac = total ? done / total : 1;
   const complete = total > 0 && done >= total;
   return (
@@ -119,7 +117,7 @@ export function ProgressRing({ done, total, size = 56, label }: { done: number; 
         {frac > 0 && <circle cx={size / 2} cy={size / 2} r={r} className="ring-fill" strokeDasharray={`${c * frac} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />}
       </svg>
       <span className="ring-text" aria-hidden="true">
-        {complete ? <svg viewBox="0 0 16 16" width={size / 2.6} height={size / 2.6}><path d="m3.5 8.5 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> : `${shown}/${total}`}
+        {complete ? <svg viewBox="0 0 16 16" width={size / 2.6} height={size / 2.6}><path d="m3.5 8.5 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> : `${done}/${total}`}
       </span>
     </span>
   );

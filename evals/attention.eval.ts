@@ -69,6 +69,27 @@ describe('needs attention means new since someone looked', () => {
   });
 });
 
+describe('one counting rule for attention (re-review, 8 Nov, backlog T)', () => {
+  for (const at of [today, new Date('2026-11-08T18:20:00Z')]) {
+    const s = seed(at);
+    const all = attentionList(s, cycle, at);
+    const { needs, handled: inHand } = splitAttention(all);
+    it(R('ATTENTION-HANDLED', `on ${at.toISOString().slice(0, 10)}, every flagged goal either needs attention or is being handled, so the tab and the board add up`), () => {
+      expect(needs.length + inHand.length).toBe(all.length);
+      expect(needs.some((a) => inHand.includes(a))).toBe(false);
+    });
+    it(R('ATTENTION-HANDLED', `on ${at.toISOString().slice(0, 10)}, a done goal never needs attention and is never on a review's list to discuss`), () => {
+      const done = s.goals.filter((g) => attentionFor(g, s, cycle, at).status.status === 'done');
+      expect(done.length).toBeGreaterThan(0);
+      expect(needs.filter((a) => a.status.status === 'done').map((a) => a.goal.id)).toEqual([]);
+      for (const r of s.reviews) {
+        const { discuss } = agendaOf(reviewSession(r, s, cycle, at, currentWeek(cycle, at)));
+        expect(discuss.filter((a) => a.status.status === 'done').map((a) => a.goal.id)).toEqual([]);
+      }
+    });
+  }
+});
+
 describe('Home at a glance', () => {
   it(R('HOME-DASHBOARD', 'an owner sees their goals by status, their on-time streak, what they watch and their next review'), () => {
     const d = dashboard('pavel', s0, cycle, week, today);
