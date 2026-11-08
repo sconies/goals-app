@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { periodLabel } from '../domain/year';
-import { weekProgress, WEEKDAY } from '../domain/progress';
+import { firstReview, weekProgress, WEEKDAY } from '../domain/progress';
+import { dayText } from '../domain/review';
+import { WEEKLY_REVIEW } from '../domain/importer';
 import { Avatar } from '../ui/bits';
 
 /** Until sign-in comes with SSO, people say who they are once per workspace on this device. */
@@ -48,6 +50,7 @@ export function Ready() {
   const mine = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const [copied, setCopied] = useState(false);
   const goals = app.snapshot.goals.length;
+  const review = app.snapshot.reviews.find((r) => r.name === WEEKLY_REVIEW) ?? app.snapshot.reviews[0];
   const link = typeof location !== 'undefined' ? location.origin + (app.mode === 'demo' ? '/demo' : '/') : '';
   const copy = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); } catch { setCopied(false); }
@@ -57,14 +60,17 @@ export function Ready() {
       <div className="celebrate" role="status">
         <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
         <h1 className="title-xl">{app.ws.name} is ready</h1>
-        <p className="muted">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'}{goals ? `, ${goals} ${goals === 1 ? 'goal' : 'goals'}` : ''}. {app.week < 1 ? `The goals start this week; the first check-ins are due in week 1, before ${WEEKDAY[app.cycle.reviewDay]}’s review.` : `${periodLabel(app.cycle, app.week)}.`}</p>
+        <p className="muted">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'}{goals ? `, ${goals} ${goals === 1 ? 'goal' : 'goals'}` : ''}. {periodLabel(app.cycle, app.week)}.</p>
+        {/* The review set-up made, and when the first check-ins are due: never already late (setup review, 8 Nov). */}
+        <p className="muted">{review ? `${review.name} for everyone on ${WEEKDAY[review.weekday]}s. ` : ''}The first check-ins are due before {WEEKDAY[app.cycle.reviewDay]} {dayText(firstReview(app.cycle, app.today).date).slice(4)}{review ? '’s review' : ''}.</p>
         <div className="stack" style={{ gap: 'var(--s3)', alignItems: 'center' }}>
-          {mine.due.length > 0
-            ? <Link className="btn primary big-btn" to="/check-in">Check in on your {mine.due.length === 1 ? 'goal' : `${mine.due.length} goals`}</Link>
+          {mine.due.length + mine.upcoming.length > 0
+            ? <Link className="btn primary big-btn" to={mine.due.length ? '/check-in' : '/'}>{mine.due.length ? `Check in on your ${mine.due.length === 1 ? 'goal' : `${mine.due.length} goals`}` : 'Go to Home'}</Link>
             : goals ? <Link className="btn primary big-btn" to="/goals">See your goals</Link>
               : <Link className="btn primary big-btn" to="/goals/new">Set up the first goal</Link>}
-          <span className="hint">Then share the link so owners can check in.</span>
-          <button className="linkish tap" onClick={() => void copy()}>{copied ? 'Link copied' : 'Copy the link for your team'}</button>
+          {/* Inviting is a link to pass on: Faro sends no email (UX report, 8 Nov). */}
+          <span className="hint">Then invite your team: copy the link and send it to them yourself. Faro doesn’t send any email.</span>
+          <button className="linkish tap" onClick={() => void copy()}>{copied ? 'Link copied: paste it into an email or chat' : 'Copy the link to send'}</button>
         </div>
       </div>
     </div>
