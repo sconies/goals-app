@@ -1,5 +1,6 @@
 # Working on this repository
 
+- **What Faro is for (Lane, 8 Nov):** a model for an internal application to copy, plus demos and an off-site. It never holds real company data. Build what the rebuild should copy (product ideas, rules, screen patterns); write what the internal platform provides anyway (sign-in, single sign-on, scale, backups, observability) into the spec as requirements instead. See `docs/backlog.md`.
 - **Design:** read `docs/design-rules.md` before changing anything visual. It must not look like a default AI interface. In particular:
   - no coloured edge stripes on cards, rows or tiles;
   - no quote bars;
