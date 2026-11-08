@@ -3071,7 +3071,9 @@ async function platformChecks() {
       await r.locator('.outcome, .gtable tbody tr, .board-card').first().waitFor();
       // Measured without the first-reports banner (two goals still waiting for a first check-in, all year in the example).
       const top = await r.evaluate(() => { const b = document.querySelector('.first-reports'); const n = b?.nextElementSibling; return document.querySelector('.outcome, .gtable tbody tr, .board-card').getBoundingClientRect().top - (b && n ? n.getBoundingClientRect().top - b.getBoundingClientRect().top : 0); });
-      const limit = vp.height * (device === 'phone' ? 0.5 : 0.4);
+      // A phone's first goal may start in the top 60% (backlog N, 8 Nov: the tabs wrap rather than being cut off, and a
+      // line says what the layout is); it was 50%. Still well inside the first screen, above the tab bar.
+      const limit = vp.height * (device === 'phone' ? 0.6 : 0.4);
       if (top > limit) fold.push(`${device} ${v}: the first goal starts at ${Math.round(top)}px (limit ${Math.round(limit)})`);
     }
     await c7.close();

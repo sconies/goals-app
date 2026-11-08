@@ -243,6 +243,8 @@ module.exports = {
       const [c, p] = await open(1440, 900, 'amara', '/goals?view=board&status=off,risk');
       await p.emulateMedia({ colorScheme: 'dark' });
       await p.waitForTimeout(200);
+      // The cards fade to their dark colour (.15s); under load that can still be running at 200ms, so wait for it to end.
+      await p.waitForFunction(() => document.getAnimations().every((x) => x.playState !== 'running'), null, { timeout: 3000 }).catch(() => {});
       const m = await p.evaluate(() => ({ w: [...document.querySelectorAll('.board-col')].map((l) => Math.round(l.getBoundingClientRect().width)), lane: getComputedStyle(document.querySelector('.board-col')).backgroundColor, card: getComputedStyle(document.querySelector('.board-card')).backgroundColor }));
       chk(m.w.every((w) => w <= 320), `B&C 2: filtered lanes are ${m.w.join('/')}px`);
       chk(m.lane === 'rgb(21, 36, 38)' && m.card === 'rgb(28, 46, 48)', `B&C 17: dark lane ${m.lane}, card ${m.card}`);

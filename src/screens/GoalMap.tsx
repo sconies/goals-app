@@ -132,7 +132,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   });
-  const height = phone ? `${Math.max(360, room?.phone ?? 520)}px` : `max(360px, calc(100dvh - ${(room?.top ?? 250) + 24 + (room?.tabs ?? 0)}px))`;
+  const height = phone ? `${Math.max(360, room?.phone ?? 520)}px` : `max(320px, calc(100dvh - ${(room?.top ?? 250) + 24 + (room?.tabs ?? 0)}px))`;
   const flow = useRef<Pick<ReactFlowInstance<Node<GoalNodeData>, Edge>, 'setViewport' | 'getViewport'> | null>(null);
   const [view, setView] = useState<Frame>('readable');
   /**
