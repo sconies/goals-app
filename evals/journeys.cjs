@@ -157,7 +157,7 @@ async function reviewedEverywhere(p, reviewId, name) {
     for (const r of home) if (r.label.endsWith(' in ' + name)) seen.push(['Home ring', r.text.replace('/', ' of ')], ['Home ring label', r.label.replace(/ goals reviewed in .*$/, '')]);
     await q.goto(url('/reviews'));
     await q.locator('main.work h1').first().waitFor();
-    const row = await q.getByRole('link', { name: new RegExp(name) }).first().innerText();
+    const row = await q.locator('.reviews-list').getByRole('link', { name: new RegExp(name) }).first().innerText();
     const m = /(\d+) of (\d+) reviewed/.exec(row);
     seen.push(['Reviews list', m ? `${m[1]} of ${m[2]}` : /Not started/.test(row) ? '0 of ?' : /Held/.test(row) ? 'all' : row]);
     await q.goto(url('/reviews/' + reviewId));
@@ -364,7 +364,8 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   await see(p, 'goals to discuss');
   await h.checkpoint('home');
   await navTo(h, p, 'Reviews');
-  const line = p.getByRole('link', { name: /Reliability weekly/ }).first();
+  // On the Reviews page itself: Home's strip can link to the same review when its session is past (backlog T).
+  const line = p.locator('.reviews-list').getByRole('link', { name: /Reliability weekly/ }).first();
   await h.inView(line, 'entry', 'the Reliability weekly on Reviews');
   await h.click(line);
   await p.locator('.review-home').waitFor();
