@@ -142,10 +142,10 @@ export interface AppState {
   saveMetric(m: M.MetricInput & { id?: string }): Promise<string>;
   /** Owner or admin: remove a metric, unlinking the goals it measures, with Undo. */
   removeMetric(id: string): Promise<void>;
-  /** The goal's owner or an admin: measure a goal by a metric, for a team (`teamId`) or the whole company (null). */
-  linkGoalMetric(goal: Goal, metricId: string, teamId: string | null): Promise<void>;
-  /** The goal's owner or an admin: stop measuring a goal by its metric, with Undo. */
-  unlinkGoalMetric(goal: Goal): Promise<void>;
+  /** The goal's owner or an admin: measure a goal by a metric, for a team (`teamId`) or the whole company (null). Changing it once the goal has check-ins needs a `reason` (M.linkNeedsReason). */
+  linkGoalMetric(goal: Goal, metricId: string, teamId: string | null, reason?: string): Promise<void>;
+  /** The goal's owner or an admin: stop measuring a goal by its metric, with Undo. Once it has check-ins, with a `reason`. */
+  unlinkGoalMetric(goal: Goal, reason?: string): Promise<void>;
   /* Removing, archiving and undoing (domain/removal): each shows a message with Undo for 10 seconds and is logged. */
   /** Admins: mark someone as left, handing their goals and open asks to the people given. */
   markPersonLeft(id: string, to: { goalsTo?: string | null; asksTo?: string | null }): Promise<void>;
@@ -594,10 +594,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       saveMetric: async (m) => { const out = await act(() => M.saveMetric(ax(), m)); return out.metric.id; },
       removeMetric: async (id) => { await removal(() => M.removeMetric(ax(), id), (o) => o.changes[0]!.summary); },
-      linkGoalMetric: async (goal, metricId, teamId) => { await act(() => M.linkGoalMetric(ax(), goal, metricId, teamId)); },
-      unlinkGoalMetric: async (goal) => {
+      linkGoalMetric: async (goal, metricId, teamId, reason) => { await act(() => M.linkGoalMetric(ax(), goal, metricId, teamId, reason)); },
+      unlinkGoalMetric: async (goal, reason) => {
         const before = snapshot;
-        const out = await act(() => M.unlinkGoalMetric(ax(), goal));
+        const out = await act(() => M.unlinkGoalMetric(ax(), goal, reason));
         if (out) toast(out.changes[0]!.summary, 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), out, before)).then(() => toast('Undone')).catch(() => undefined); } });
       },
       markPersonLeft: async (id, to) => { await removal(() => R.markPersonLeft(ax(), id, to), () => `${people.get(id)?.name ?? 'They'} ${people.get(id) ? 'is' : 'are'} marked as left`); },

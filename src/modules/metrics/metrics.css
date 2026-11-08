@@ -1,0 +1,25 @@
+/* The metric library's screens: hairline-divided rows, no cards, no stripes (docs/design-rules.md). */
+.metrics-search { max-width: 420px; }
+.metrics-table { width: 100%; border-collapse: collapse; }
+.metrics-table th, .metrics-table td { text-align: left; padding: var(--s3) var(--s2); border-bottom: 1px solid var(--line); vertical-align: top; }
+.metrics-table thead th { font-size: 13px; font-weight: 500; color: var(--muted); }
+.metrics-table .linkish { text-align: left; min-height: 44px; }
+@container page (max-width: 720px) {
+  .metrics-table thead { display: none; }
+  .metrics-table tr { display: flex; flex-wrap: wrap; gap: 2px var(--s3); padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+  .metrics-table th, .metrics-table td { border: 0; padding: 0; }
+  .metrics-table th { flex-basis: 100%; }
+}
+.metric-form, .measured-by { display: flex; flex-direction: column; gap: var(--s3); }
+.metric-form-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s3); }
+.metric-form-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.metric-problems { margin: 0; padding-left: 1.2em; }
+.metric-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s3) var(--s5); margin: 0; }
+.metric-facts dd { margin: 2px 0 0; }
+.metric-goals, .measured-list { list-style: none; margin: 0; padding: 0; }
+.metric-goals li { padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+.measured-option { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: var(--s2) 0; min-height: 44px; cursor: pointer; color: inherit; font: inherit; }
+.measured-option:hover, .measured-option:focus-visible { background: var(--wash, transparent); }
+.measured-pick, .measured-slice { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; }
+.measured-slice label { display: inline-flex; gap: 6px; align-items: center; min-height: 44px; }
+.goal-metric p { margin: 4px 0 0; }

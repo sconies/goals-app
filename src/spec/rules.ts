@@ -467,7 +467,7 @@ RULE_LIST.push({
   module: 'metrics',
   title: 'The metric library',
   summary: 'What a metric must say, who may add, change, remove, link and unlink one, and which metric measures a goal, for which slice.',
-  code: [{ file: 'src/domain/metrics.ts', names: ['metricProblems', 'saveMetric', 'removeMetric', 'linkProblems', 'linkGoalMetric', 'unlinkGoalMetric', 'measureOf', 'goalTarget'] }, { file: 'src/domain/removal.ts', names: ['undoRemoval', 'restoreRemoved'] }],
+  code: [{ file: 'src/domain/metrics.ts', names: ['metricProblems', 'saveMetric', 'removeMetric', 'linkProblems', 'linkNeedsReason', 'linkGoalMetric', 'unlinkGoalMetric', 'measureOf', 'goalTarget'] }, { file: 'src/domain/removal.ts', names: ['undoRemoval', 'restoreRemoved'] }],
   tests: ['src/domain/metrics.test.ts', 'src/modules/metrics/tools.test.ts'],
   reqs: [],
   body: `
@@ -476,6 +476,8 @@ A **metric** is one number defined once per workspace, so every goal about it me
 **Who may.** Anyone adds a metric. Only its owner or an admin changes or removes it. Only a goal’s owner or an admin says which metric measures the goal, or stops it being measured by one, whoever owns the metric.
 
 **Measuring a goal.** A goal is measured by at most one metric, for one **slice**: a team’s number, or the whole company’s. The goal’s own target is the target in that metric (a number to move: its plan’s target; a number to keep in range: its limit); nothing is copied. A goal with dated stages has no number, so no metric measures it. The goal and the metric must have the same unit, any case. A goal aiming the other way from the metric’s better direction (planned to go up when lower is better, or kept at least a level when lower is better) is linked with a warning, since a guardrail may mean it. So is a goal that keeps more decimal places than its metric. The goal's target in the metric is shown as every number is ([numbers and names](../../core/rules/numbers-and-names.md)): at the goal's decimals, digits grouped, with its unit. Linking again with the same metric and slice changes nothing; another metric or slice is a change.
+
+**Changing it after check-ins.** Once a goal has check-ins and is measured by a metric, changing that metric or its slice, or unlinking it, is like a plan change: the numbers so far were read under the old one. It needs a reason of at least ten characters, logged on the goal as “Why”. Linking a goal for the first time needs none, check-ins or not.
 
 **Logged, never lost.** Every change is in the change log as a metric change (adding, changing field by field, removing, restoring; linking and unlinking on the goal it measures). Removing a metric keeps its row, unlinks every goal it measured in the same save, and leaves the goals as they were. Undo straight after puts the metric and its links back; restoring it later from Recently removed brings the metric back without its old links. Unlinking keeps the link’s row too, and Undo puts it back.`,
   examples: [
@@ -492,6 +494,8 @@ A **metric** is one number defined once per workspace, so every goal about it me
     { given: 'Grace measures the merge queue goal (lead-mq, dated stages) by Lead time for changes.', then: 'refused: A goal with dated stages has no number, so a metric can’t measure it.', run: () => summaryOf(asPerson('grace', (x) => MET.linkGoalMetric(x, goalIn('lead-mq'), 'metric_lead-time'))) },
     { given: 'Oskar measures ns-ci, which Daniel owns, by CI pipeline time on main (p90).', then: 'refused: Only the goal’s owner or an admin can choose what measures it.', run: () => summaryOf(asPerson('oskar', (x) => MET.linkGoalMetric(x, goalIn('ns-ci'), 'metric_ci-time'))) },
     { given: 'Rhea measures ns-lead by Lead time for changes for the whole company, as it already is.', then: 'nothing to save', run: () => summaryOf(asPerson('rhea', (x) => MET.linkGoalMetric(x, goalIn('ns-lead'), 'metric_lead-time', null))) },
+    { given: 'Rhea moves ns-lead, which has check-ins, to the CI/CD slice without saying why.', then: 'refused: This goal has check-ins, so changing what measures it needs a reason, in a sentence, as a plan change does.', run: () => summaryOf(asPerson('rhea', (x) => MET.linkGoalMetric(x, goalIn('ns-lead'), 'metric_lead-time', 'cicd'))) },
+    { given: 'Rhea moves ns-lead to the CI/CD slice because “CI/CD owns the number now”.', then: 'Measured by “Lead time for changes” for CI/CD', run: () => summaryOf(asPerson('rhea', (x) => MET.linkGoalMetric(x, goalIn('ns-lead'), 'metric_lead-time', 'cicd', 'CI/CD owns the number now'))) },
     { given: 'Rhea removes Lead time for changes, which measures one goal.', then: 'Removed the metric “Lead time for changes”, unlinking 1 goal / No longer measured by “Lead time for changes”, as the metric was removed', run: () => summaryOf(asPerson('rhea', (x) => MET.removeMetric(x, 'metric_lead-time'))) },
   ],
   unclear: ['Two people changing the same metric at once: the later save wins (metrics carry no version yet, unlike goals and reviews).', 'The words for a slice are the team’s name, or “The whole company”; the change log says “for the whole company” or “for <team>”.'],

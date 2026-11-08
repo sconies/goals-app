@@ -2709,6 +2709,57 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.context().close();
 });
 
+journey('U53', ['METRIC-LIBRARY', 'MEASURED-BY'], 'Rhea finds a metric on Data, adds one (refused until it has a unit and a direction), then moves her goal’s metric to her team’s slice, which asks why because it has check-ins, and the goal’s page shows it', 22, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  // The way in: a quiet Metrics link among Data's tools (the metrics module).
+  await p.goto(url('/data'));
+  const link = p.locator('.data-tools').getByRole('link', { name: 'Metrics' });
+  await h.inView(link, 'entry', 'Metrics on Data');
+  await h.click(link);
+  await p.waitForURL(/\/data\/metrics/);
+  await see(p, 'Flaky test rate');
+  await h.checkpoint('metrics');
+  // Search by name.
+  await p.getByLabel('Search metrics by name').fill('flaky');
+  await see(p, '1 of 13 metrics');
+  h.set('parity', await p.getByRole('button', { name: 'Flaky test rate' }).isVisible(), 'search did not find Flaky test rate');
+  // Add one: refused with the rule's words until it has a unit and a direction.
+  await p.getByLabel('Search metrics by name').fill('');
+  await h.click(p.getByRole('button', { name: 'Add a metric' }));
+  await p.getByRole('heading', { name: 'Add a metric' }).waitFor();
+  await p.getByLabel('Name', { exact: true }).fill('Rollback rate');
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await see(p, 'Say its unit', 'a metric with no unit was not refused');
+  h.set('errors', await p.getByText('Say which way is better').isVisible(), 'the missing direction was not said');
+  await p.getByLabel('Unit', { exact: true }).fill('%');
+  await p.getByLabel('Which way is better').selectOption('lower');
+  await h.checkpoint('new metric');
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await see(p, 'Goals it measures');
+  // Her north star (ns-lead) has check-ins: moving its metric to her team's slice asks why.
+  await p.goto(url('/goals/ns-lead/edit'));
+  const field = p.getByRole('group', { name: 'Measured by' });
+  await see(field, 'Lead time for changes');
+  const radios = field.getByRole('radiogroup', { name: 'For' }).getByRole('radio');
+  await h.click(radios.first());
+  await see(p, 'Why change what measures it?', 'changing the slice after check-ins did not ask why');
+  await p.getByLabel('Why change what measures it?').fill('CI/CD owns the number now');
+  await h.checkpoint('measured by');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/goals\/ns-lead$/);
+  // The goal's page shows its metric and what it means.
+  const section = p.getByRole('region', { name: 'Measured by' });
+  await see(section, 'Lead time for changes', 'the goal page does not show its metric');
+  const s = await h.snapshot();
+  const goal = s.goals.find((g) => g.id === 'ns-lead');
+  const lk = (s.metricLinks || []).find((l) => l.goalId === 'ns-lead' && !l.removedAt);
+  const added = (s.metrics || []).find((m) => m.name === 'Rollback rate');
+  h.set('finish', !!added && added.ownerId === 'rhea' && !!lk && lk.teamId === goal.teamId, `the metric ${added ? 'was' : 'was not'} added; the goal’s slice is ${lk ? lk.teamId : 'none'}`);
+  h.set('logged', s.changes.some((c) => c.entity === 'metric' && c.action === 'created' && /Rollback rate/.test(c.summary)) && s.changes.some((c) => c.goalId === 'ns-lead' && c.entity === 'metric' && c.diffs.some((d) => d.field === 'Why' && d.to === 'CI/CD owns the number now')), 'the new metric or the reason was not logged');
+  h.set('progress', true);
+  h.set('attention', true);
+});
+
 journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/workspace/features'));

@@ -31,7 +31,9 @@ export interface PlaceProps {
 }
 
 /** What a goal form saves after the goal, from the goal.measure place: a metric, for a team or the whole company (null). */
-export interface MeasurePick { metricId: string; teamId: string | null }
+/** What the goal.measure place picked: a metric for a slice, or `metricId: null` to stop measuring it. `reason` is said
+    when the goal has check-ins and is already measured (domain/metrics linkNeedsReason). */
+export interface MeasurePick { metricId: string | null; teamId: string | null; reason?: string }
 
 export interface ModuleRoute {
   /** As React Router writes it; listed in the module's module.json too, and each has a Help article. */

@@ -20,16 +20,17 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 
 ## Exit criteria
 
-1. Its requirements hold: none listed (words in [its section](../modules/metrics/README.md#requirements)).
-2. Its journeys and checks can be done: none listed ([its section](../modules/metrics/README.md#journeys-and-checks)).
+1. Its requirements hold: `METRIC-LIBRARY`, `MEASURED-BY` (words in [its section](../modules/metrics/README.md#requirements)).
+2. Its journeys and checks can be done: U53 ([its section](../modules/metrics/README.md#journeys-and-checks)).
 3. A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.
 4. Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.
 5. A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.
 6. Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.
 7. The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).
+8. Once a goal has check-ins and is measured by a metric, changing that metric or its slice, or unlinking it, is refused without a reason of at least ten characters; with one, the reason is logged on the goal as “Why”. Linking for the first time needs none.
 
 ## Gaps in the kit
 
-- No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).
+- The screens are built (the Metrics page under Data, “Measured by” in the goal forms, the metric on a goal’s page); src/modules/metrics/README.md says what they call.
 - No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.
 - Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md.

@@ -84,8 +84,8 @@ function EditSheet({ goal }: { goal: Goal }) {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined);
-      if (measure) await app.linkGoalMetric(after, measure.metricId, measure.teamId);
-      else if (measure === null) await app.unlinkGoalMetric(after);
+      if (measure?.metricId) await app.linkGoalMetric(after, measure.metricId, measure.teamId, measure.reason);
+      else if (measure === null || measure?.metricId === null) await app.unlinkGoalMetric(after, measure?.reason);
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
       clear();
       back();

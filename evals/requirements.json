@@ -237,6 +237,16 @@
       "text": "Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template (every sheet’s headers and README, no rows), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets)."
     },
     {
+      "id": "METRIC-LIBRARY",
+      "area": "Data",
+      "text": "A Metrics page under Data (/data/metrics, the metrics module) lists every metric in use by name, with its unit, which way is better, its owner, how many goals it measures and which teams use it, and finds one by name. One form adds and changes a metric: name, unit and direction required; meaning and calculation, decimals, source and its owner, refresh, owner and caveats optional. Anyone adds one; its owner or an admin changes or removes it, with Undo."
+    },
+    {
+      "id": "MEASURED-BY",
+      "area": "Goals",
+      "text": "New goal and goal edit offer “Measured by”: pick a metric (those in the goal’s unit first) or add one in place, for the goal’s team or the whole company, with the rule’s errors and warnings shown as you pick. Once a goal has check-ins, changing or removing its metric needs a reason, as a plan change does, and the reason is logged on the goal. The goal’s page shows its metric, what it means, the slice and the goal’s target in it."
+    },
+    {
       "id": "EXPORT",
       "area": "Data",
       "text": "Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."

@@ -113,8 +113,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
     const g = buildGoal(d, cycle, { id: existing?.id ?? newId('goal'), createdAt: existing?.createdAt ?? app.stamp() }, existing, started, week);
     try {
       await app.saveGoal(g, existing);
-      if (measure) await app.linkGoalMetric(g, measure.metricId, measure.teamId);
-      else if (measure === null && existing) await app.unlinkGoalMetric(g);
+      if (measure?.metricId) await app.linkGoalMetric(g, measure.metricId, measure.teamId, measure.reason);
+      else if ((measure === null || measure?.metricId === null) && existing) await app.unlinkGoalMetric(g, measure?.reason);
       clear();
       app.toast(existing ? 'Saved. The change is in the goal’s activity.' : `Published “${g.title}”`);
       nav('/goals/' + g.id + (existing ? '' : '?published=1'));

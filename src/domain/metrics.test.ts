@@ -120,8 +120,23 @@ describe('linking a goal to a metric', () => {
     const w = world();
     const g = w.goal('ns-lead');
     expect(M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', null)).toBeNull();
-    const c = M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd')!;
-    expect(c.changes[0]).toMatchObject({ action: 'edited', diffs: [{ field: 'Slice', from: M.COMPANY, to: 'CI/CD' }] });
+    const c = M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd', 'CI/CD owns the number now')!;
+    expect(c.changes[0]).toMatchObject({ action: 'edited', diffs: [{ field: 'Slice', from: M.COMPANY, to: 'CI/CD' }, { field: 'Why', from: '—', to: 'CI/CD owns the number now' }] });
+  });
+  it('once a goal has check-ins, changing or unlinking its metric needs a reason; linking it the first time doesn’t', () => {
+    const w = world();
+    const g = w.goal('ns-lead');
+    expect(w.scoped.checkIns.some((c) => c.goalId === g.id)).toBe(true);
+    expect(M.linkNeedsReason(w.scoped, g)).toBe(true);
+    refused(() => M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd'), /needs a reason/);
+    refused(() => M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd', 'short'), /needs a reason/);
+    refused(() => M.unlinkGoalMetric(w.x('rhea'), g), /needs a reason/);
+    const c = M.unlinkGoalMetric(w.x('rhea'), g, 'Read from its own definition now')!;
+    expect(c.changes[0]!.diffs).toContainEqual({ field: 'Why', from: '—', to: 'Read from its own definition now' });
+    w.apply(c);
+    // Not measured any more: linking it again is a first link, with no reason needed.
+    expect(M.linkNeedsReason(w.scoped, g)).toBe(false);
+    expect(M.linkGoalMetric(w.x('rhea'), w.goal('ns-lead'), 'metric_lead-time', null)).not.toBeNull();
   });
   it('refuses a milestone goal, a different unit, a team that isn’t here and a removed metric', () => {
     const w = world();
@@ -144,11 +159,11 @@ describe('linking a goal to a metric', () => {
   it('unlinking keeps the row, logs it, and Undo puts it back', () => {
     const w = world();
     const before = w.full;
-    const c = M.unlinkGoalMetric(w.x('rhea'), w.goal('ns-lead'))!;
+    const c = M.unlinkGoalMetric(w.x('rhea'), w.goal('ns-lead'), 'Measured by its own definition instead')!;
     expect(c.changes[0]).toMatchObject({ action: 'removed', goalId: 'ns-lead', summary: 'No longer measured by “Lead time for changes”' });
     w.apply(c);
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))).toBeNull();
-    expect(M.unlinkGoalMetric(w.x('rhea'), w.goal('ns-lead'))).toBeNull();
+    expect(M.unlinkGoalMetric(w.x('rhea'), w.goal('ns-lead'), 'Measured by its own definition instead')).toBeNull();
     w.apply(R.undoRemoval(w.x('rhea'), c, before));
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.id).toBe('metric_lead-time');
   });

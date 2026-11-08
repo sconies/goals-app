@@ -13,6 +13,8 @@ A **metric** is one number defined once per workspace, so every goal about it me
 
 **Measuring a goal.** A goal is measured by at most one metric, for one **slice**: a team’s number, or the whole company’s. The goal’s own target is the target in that metric (a number to move: its plan’s target; a number to keep in range: its limit); nothing is copied. A goal with dated stages has no number, so no metric measures it. The goal and the metric must have the same unit, any case. A goal aiming the other way from the metric’s better direction (planned to go up when lower is better, or kept at least a level when lower is better) is linked with a warning, since a guardrail may mean it. So is a goal that keeps more decimal places than its metric. The goal's target in the metric is shown as every number is ([numbers and names](../../core/rules/numbers-and-names.md)): at the goal's decimals, digits grouped, with its unit. Linking again with the same metric and slice changes nothing; another metric or slice is a change.
 
+**Changing it after check-ins.** Once a goal has check-ins and is measured by a metric, changing that metric or its slice, or unlinking it, is like a plan change: the numbers so far were read under the old one. It needs a reason of at least ten characters, logged on the goal as “Why”. Linking a goal for the first time needs none, check-ins or not.
+
 **Logged, never lost.** Every change is in the change log as a metric change (adding, changing field by field, removing, restoring; linking and unlinking on the goal it measures). Removing a metric keeps its row, unlinks every goal it measured in the same save, and leaves the goals as they were. Undo straight after puts the metric and its links back; restoring it later from Recently removed brings the metric back without its old links. Unlinking keeps the link’s row too, and Undo puts it back.
 
 ## Worked examples
@@ -34,6 +36,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Grace measures the merge queue goal (lead-mq, dated stages) by Lead time for changes. | `refused: A goal with dated stages has no number, so a metric can’t measure it.` |
 | Oskar measures ns-ci, which Daniel owns, by CI pipeline time on main (p90). | `refused: Only the goal’s owner or an admin can choose what measures it.` |
 | Rhea measures ns-lead by Lead time for changes for the whole company, as it already is. | `nothing to save` |
+| Rhea moves ns-lead, which has check-ins, to the CI/CD slice without saying why. | `refused: This goal has check-ins, so changing what measures it needs a reason, in a sentence, as a plan change does.` |
+| Rhea moves ns-lead to the CI/CD slice because “CI/CD owns the number now”. | `Measured by “Lead time for changes” for CI/CD` |
 | Rhea removes Lead time for changes, which measures one goal. | `Removed the metric “Lead time for changes”, unlinking 1 goal / No longer measured by “Lead time for changes”, as the metric was removed` |
 
 ## Not self-explanatory
@@ -43,7 +47,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/metrics.ts](../../../src/domain/metrics.ts): `metricProblems`, `saveMetric`, `removeMetric`, `linkProblems`, `linkGoalMetric`, `unlinkGoalMetric`, `measureOf`, `goalTarget`
+- [src/domain/metrics.ts](../../../src/domain/metrics.ts): `metricProblems`, `saveMetric`, `removeMetric`, `linkProblems`, `linkNeedsReason`, `linkGoalMetric`, `unlinkGoalMetric`, `measureOf`, `goalTarget`
 - [src/domain/removal.ts](../../../src/domain/removal.ts): `undoRemoval`, `restoreRemoved`
 
 ## Requirements
@@ -65,6 +69,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - adding and changing a metric › the owner can hand it on; saving it unchanged saves nothing
 - linking a goal to a metric › the goal’s owner or an admin, for the company or a team
 - linking a goal to a metric › the same metric and slice again changes nothing; another slice is a logged edit
+- linking a goal to a metric › once a goal has check-ins, changing or unlinking its metric needs a reason; linking it the first time doesn’t
 - linking a goal to a metric › refuses a milestone goal, a different unit, a team that isn’t here and a removed metric
 - linking a goal to a metric › warns, without refusing, when the goal aims the other way from the metric
 - linking a goal to a metric › warns when the goal keeps more decimal places than the metric (one number, two precisions)
