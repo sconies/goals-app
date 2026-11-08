@@ -33846,7 +33846,14 @@ var _virtual_faro_modules_default = [{
 		"F8",
 		"N5"
 	],
-	elsewhere: []
+	elsewhere: [],
+	rebuild: {
+		"status": "outline",
+		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Tools for it on Data and Goals.",
+		"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks."],
+		"exit": ["A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged.", "A workbook with one wrong row saves nothing, and the preview names the row and the problem."],
+		"gaps": ["The spreadsheet format (every sheet, column and how each is read) is in docs/export-format.md, which is not in the kit yet.", "No conformance rows for a download or a load yet, so nothing scores this stage; its journeys are Faro’s own eval scripts."]
+	}
 }];
 // src/core/module.ts
 /**
@@ -33958,6 +33965,11 @@ function systemOverview() {
 		"## Conformance data",
 		"",
 		"- [How a rebuild proves itself](spec/conformance/README.md): the demo workspace, and the status, flags, projection and scorecard the real rules give for every goal in every week, as CSV",
+		"",
+		"## The rebuild kit",
+		"",
+		"- [Rebuild Faro stage by stage](spec/rebuild/README.md): each stage’s entry and exit criteria, which stages have a drill today, where a rebuild is written and how it is scored",
+		"- [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data",
 		"",
 		"## Feature modules",
 		"",

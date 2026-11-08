@@ -31,6 +31,11 @@ The core in a few lines:
 
 - [How a rebuild proves itself](spec/conformance/README.md): the demo workspace, and the status, flags, projection and scorecard the real rules give for every goal in every week, as CSV
 
+## The rebuild kit
+
+- [Rebuild Faro stage by stage](spec/rebuild/README.md): each stage’s entry and exit criteria, which stages have a drill today, where a rebuild is written and how it is scored
+- [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data
+
 ## Feature modules
 
 - [Spreadsheets](spec/modules/spreadsheets/README.md): Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.

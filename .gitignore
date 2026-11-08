@@ -3,3 +3,4 @@ dist
 evals/out
 *.log
 visual
+drill-out/

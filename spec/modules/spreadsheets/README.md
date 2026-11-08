@@ -46,4 +46,5 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 
 ## Rules, conformance and rebuild stage
 
-**Not self-explanatory:** this module’s rules section, conformance rows and rebuild stage come with backlog item 8k. Until then it uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.
+Its rebuild stage: [stage 4](../../rebuild/stage-4-module-spreadsheets.md) (an outline, with no drill yet).
+**Not self-explanatory:** it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.

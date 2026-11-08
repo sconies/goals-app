@@ -58,7 +58,7 @@ One folder, `src/modules/<id>/`:
 
 | File | What it is |
 |---|---|
-| `module.json` | The facts, as plain data (`ModuleFacts` in `src/core/module.ts`): id, name, summary, `needs`, routes, redirects, navigation, places, tables, aiTools, help, requirements, journeys. Generators read this without running anything (`npm run modules` lists them) |
+| `module.json` | The facts, as plain data (`ModuleFacts` in `src/core/module.ts`): id, name, summary, `needs`, routes, redirects, navigation, places, tables, aiTools, help, requirements, journeys, and `rebuild`: its stage in the rebuild kit (`status` drill or outline, what it `builds`, `entry` and `exit` criteria, and the `gaps` the kit doesn't cover yet; typed as `ModuleRebuild` in `src/spec/rebuild.ts`). Generators read this without running anything (`npm run modules` lists them; `npm run spec` writes the stage to `spec/rebuild/`; CI fails a module without one) |
 | `app.tsx` | Optional. Default-exports an `AppModule`: its routes, navigation and what it puts in each place |
 | `help.ts` | Optional. Its Help articles. Pure data |
 | `tools.ts` | Optional. Its AI tools |

@@ -2,7 +2,7 @@
 
 # The Faro spec
 
-What Faro is and does, generated from the code, so it can’t drift: `npm run spec` writes every file here and `llms.txt` at the root, and CI fails a change that leaves them out of date (`npm run spec -- --check`, and `src/spec/spec.test.ts` in `npm test`). It is written so that someone with only this folder and `llms.txt` can rebuild the core rules and prove them against the conformance data.
+What Faro is and does, generated from the code, so it can’t drift: `npm run spec` writes every file here and `llms.txt` at the root, and CI fails a change that leaves them out of date (`npm run spec -- --check`, and `src/spec/spec.test.ts` in `npm test`). It is written so that someone with only this folder and `llms.txt` can rebuild the core rules and prove them against the conformance data: [the rebuild kit](rebuild/README.md) says how, stage by stage.
 
 ## How it is organised
 
@@ -18,6 +18,7 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 | [core/requirements.md](core/requirements.md) | Every core requirement, linked to its code, its Help article, its tests and its journeys |
 | [modules/](modules/README.md) | One section per feature module, from its `module.json` |
 | [conformance/](conformance/README.md) | The demo workspace and what the rules give for every goal in every week, as CSV, with how a rebuild proves itself |
+| [rebuild/](rebuild/README.md) | The rebuild kit: the stages of a rebuild with entry and exit criteria, and the drill harness that scores stage 1 |
 
 ## Reading order for a rebuild of the core rules
 
@@ -25,6 +26,7 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 2. [The vocabulary](core/vocabulary.md): the codes the rules return and the words people read.
 3. The rules, in order: [Weeks and plans](core/rules/weeks-and-plans.md), [A goal’s status](core/rules/status.md), [The projection](core/rules/projection.md), [What a check-in must say](core/rules/check-in.md), [Flags, the trend and needs attention](core/rules/flags.md), [The scorecard](core/rules/scorecard.md), [The change engine](core/rules/change-engine.md).
 4. [The conformance data](conformance/README.md): run the rebuild on `workspace.json` and match every row.
+5. [Stage 1 of the rebuild kit](rebuild/stage-1-core-rules.md): the contract, and how the drill harness scores it.
 
 ## What is marked
 
