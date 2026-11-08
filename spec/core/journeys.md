@@ -86,6 +86,7 @@ Per-area checks from the fit-and-finish reports.
 | F4 | Fit and finish, goal-history | `FIT-AND-FINISH-AREAS` | `evals/finish/4-goal-history.cjs` |
 | F5 | Fit and finish, list-board | `FIT-AND-FINISH-AREAS` | `evals/finish/5-list-board.cjs` |
 | F6 | Fit and finish, map-reviews | `FIT-AND-FINISH-AREAS` | `evals/finish/6-map-reviews.cjs` |
+| F9 | Numbers and names: never rounded quietly, odd numbers asked about, shared names told apart | `NO-SILENT-ROUNDING` `SAME-NAMES` `PLAN-CHANGE` | `evals/finish/9-numbers-names.cjs` |
 
 ## Review notes
 

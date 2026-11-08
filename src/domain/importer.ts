@@ -20,6 +20,8 @@ export interface ImportIssue {
 export interface ImportResult {
   snapshot: Snapshot;
   issues: ImportIssue[];
+  /** Said on the row, never blocking: a shared name, a number worth checking (backlog N). */
+  notes?: ImportIssue[];
 }
 
 /** The set-up template's columns: the one format's, the ones a new workspace needs (domain/columns). */
@@ -100,7 +102,8 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
     tables: { people, goals, ...(input.tables?.plan ? { plan: input.tables.plan } : {}), ...(input.tables?.checkIns ? { checkIns: input.tables.checkIns } : {}) },
     snapshot: empty, cycle, week: Math.max(0, currentWeek(cycle, input.now)), actor: setter, now: input.now.toISOString(), newId, via: 'setup', mode: 'create',
   });
-  for (const i of cs.issues) if (i.severity === 'error') issues.push({ table: i.sheet, row: i.row, message: i.goal && !i.message.includes(i.goal) ? `“${i.goal}”: ${i.message}` : i.message });
+  const notes: ImportIssue[] = [];
+  for (const i of cs.issues) (i.severity === 'error' ? issues : i.severity === 'note' ? notes : []).push({ table: i.sheet, row: i.row, message: i.goal && !i.message.includes(i.goal) ? `“${i.goal}”: ${i.message}` : i.message });
   if (!people.length && !issues.length) issues.push({ table: 'People', row: 1, message: 'Add at least one person.' });
   const c = cs.created!;
   // The weekly review and the pinned views, set up by the first person (you).
@@ -108,7 +111,7 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
   const review: Review = { id: newId('rev', 'weekly'), name: WEEKLY_REVIEW, everyWeeks: 1, weekday: cycle.reviewDay, scope: { goals: [], trees: [], levels: ['north-star', 'svp', 'team'] }, people: c.people.map((p) => p.id), createdBy: by, createdAt: at };
   const views: SavedView[] = DEFAULT_VIEWS.map(([name, params]) => ({ id: newId('view', name), personId: by, name, params, pinned: true, createdAt: at, updatedAt: at, deletedAt: null }));
   const logged: Change = { id: newId('chg', 'weekly review'), at, actorId: by, goalId: null, entity: 'review', entityId: review.id, action: 'created', summary: `Set up a review: “${review.name}”`, diffs: [{ field: 'Review', from: '—', to: review.name }] };
-  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, reviews: [review], views, changes: [logged], ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues };
+  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, reviews: [review], views, changes: [logged], ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues, ...(notes.length ? { notes } : {}) };
 }
 
 /** Today's Monday, as an ISO date: the default start of a new cycle. */

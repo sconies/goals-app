@@ -468,7 +468,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
             <label className="field"><span className="field-label">Who can decide or help?</span>
               <select className="input" value={helpFrom} onChange={(ev) => setHelpFrom(ev.target.value)}>
                 <option value="">Pick someone</option>
-                {app.snapshot.people.filter((p) => p.id !== app.viewer.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {app.snapshot.people.filter((p) => p.id !== app.viewer.id).map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}
               </select>
               {tried && !helpFrom && <span className="hint tone-off" role="alert">Pick who it goes to.</span>}
             </label>

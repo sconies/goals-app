@@ -315,7 +315,7 @@ describe('what a check-in still needs, as stable codes', () => {
     expect(e.canPost).toBe(e.codes.length === 0);
   });
   it('groups the codes the screens read: the number itself, and the reason', () => {
-    expect(VALUE_CODES).toEqual(['value', 'value-not-number', 'value-impossible']);
+    expect(VALUE_CODES).toEqual(['value', 'value-not-number', 'value-precision', 'value-impossible']);
     expect(REASON_CODES).toEqual(['reason-behind', 'reason-ahead']);
     // A path back by a week past the end of the cycle is still missing: the screen reads this, it doesn't recompute it.
     expect(codes({ value: '40', cause: 'slower', why: 'Rollout paused for a week', ptgWhat: 'Restart the rollout', ptgBy: 14 })).toEqual(['path']);

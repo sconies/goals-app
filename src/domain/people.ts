@@ -1,5 +1,5 @@
 /* People: the rules for a person's record, shared by Workspace, the data tables and the bulk-change engine. */
-import type { Change, Person } from './types';
+import type { Change, Goal, Person } from './types';
 
 const norm = (s: string) => s.trim().toLowerCase();
 
@@ -18,8 +18,8 @@ export const personByEmail = (people: Person[], email: string) => { const e = no
 export function personProblems(p: Person, people: Person[], before: Person | null): string[] {
   const out: string[] = [];
   if (!p.name.trim()) out.push('Add a name.');
-  const dup = people.find((x) => x.id !== p.id && norm(x.name) === norm(p.name));
-  if (p.name.trim() && dup) out.push(`${dup.name} is already here. Add a middle initial so people can tell you apart.`);
+  // Two people can share a name in a company this size: the email is who someone is (backlog N), so a shared name is
+  // noted (sameNameNote), never refused.
   const email = normalEmail(p.email);
   if (!email && !before) out.push('Add their email.');
   else if (!email && before?.email) out.push('Their email can be changed, not taken away.');
@@ -30,6 +30,74 @@ export function personProblems(p: Person, people: Person[], before: Person | nul
   }
   if (before?.admin && !p.admin && people.filter((x) => x.admin && x.id !== p.id).length === 0) out.push('The only admin stays one: make someone else an admin first.');
   return out;
+}
+
+/** Someone else with this person's name, said beside the name field: allowed, and how they'll be told apart. */
+export function sameNameNote(p: Pick<Person, 'id' | 'name'>, people: Person[], teamName: (id: string) => string): string | null {
+  const twin = p.name.trim() ? people.find((x) => x.id !== p.id && norm(x.name) === norm(p.name)) : undefined;
+  if (!twin) return null;
+  const where = twin.teamId ? teamName(twin.teamId) : twin.role;
+  return `${twin.name}${where ? ` (${where})` : ''} is already here. That’s fine: their email tells you apart, and Faro shows a team or job title beside the name.`;
+}
+
+/**
+ * What tells a person apart from someone with the same name, shown beside the name wherever both could be on screen: their
+ * team, else their job title, else their email. Null when no one else has the name.
+ */
+export function personTell(p: Person, people: Person[], teamName: (id: string) => string): string | null {
+  const twins = people.filter((x) => x.id !== p.id && norm(x.name) === norm(p.name));
+  if (!twins.length) return null;
+  const team = p.teamId ? teamName(p.teamId) : '';
+  if (team && twins.every((t) => t.teamId !== p.teamId)) return team;
+  if (p.role && twins.every((t) => norm(t.role) !== norm(p.role))) return p.role;
+  return p.email || team || p.role || null;
+}
+
+/** A person's name with what tells them apart, when someone else shares it: "Sam Lee (Payments)". */
+export const nameWithTell = (p: Person, people: Person[], teamName: (id: string) => string) => {
+  const t = personTell(p, people, teamName);
+  return t ? `${p.name} (${t})` : p.name;
+};
+
+/** How many avatar colours there are. */
+export const AVATAR_HUES = 6;
+const hash = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+/**
+ * Each person's avatar colour: from who they are (their ID), so two people with the same name differ; and among people with
+ * the same initials, each takes a colour none of the others has, while there are colours to go round.
+ */
+export function avatarHues(people: Pick<Person, 'id' | 'initials'>[]): Map<string, number> {
+  const out = new Map<string, number>();
+  const groups = new Map<string, Pick<Person, 'id' | 'initials'>[]>();
+  for (const p of people) { const k = norm(p.initials); groups.set(k, [...(groups.get(k) ?? []), p]); }
+  for (const list of groups.values()) {
+    const taken = new Set<number>();
+    for (const p of [...list].sort((a, b) => a.id.localeCompare(b.id))) {
+      let h = hash(p.id) % AVATAR_HUES;
+      for (let k = 0; k < AVATAR_HUES && taken.has(h); k++) h = (h + 1) % AVATAR_HUES;
+      taken.add(h);
+      if (taken.size === AVATAR_HUES) taken.clear();
+      out.set(p.id, h);
+    }
+  }
+  return out;
+}
+
+/** Goal titles more than one goal has (compared without case or outer spaces): where a key or team goes beside the title. */
+export function duplicateTitles(goals: Pick<Goal, 'title'>[]): Set<string> {
+  const seen = new Set<string>(), twice = new Set<string>();
+  for (const g of goals) { const k = norm(g.title); if (seen.has(k)) twice.add(k); seen.add(k); }
+  return twice;
+}
+/** What goes beside a goal's title when another goal has the same one: its key, or else its team. */
+export const goalTell = (g: Pick<Goal, 'title' | 'key' | 'teamId'>, dups: Set<string>, teamName: (id: string) => string): string | null =>
+  dups.has(norm(g.title)) ? g.key || teamName(g.teamId) || null : null;
+
+/** The warning when a new goal's title is one another goal already has: allowed (two teams can both "Reduce latency"). */
+export function sameTitleNote(title: string, id: string | null, goals: Pick<Goal, 'id' | 'title' | 'key' | 'teamId'>[], teamName: (id: string) => string): string | null {
+  const twin = title.trim() ? goals.find((g) => g.id !== id && norm(g.title) === norm(title)) : undefined;
+  if (!twin) return null;
+  return `Another goal is called “${twin.title}” (${[twin.key, teamName(twin.teamId)].filter(Boolean).join(', ')}). That’s allowed; Faro shows each one’s key beside the title so people can tell them apart.`;
 }
 
 /** The change-log entry for adding or changing a person; null when nothing changed. */

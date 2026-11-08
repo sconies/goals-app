@@ -152,7 +152,7 @@ function SayComposer({ goal, mode, existing, onClose, onSaved }: { goal: Goal; m
         {mode === 'action' && (
           <div className="pair">
             <label className="field"><span className="field-label">Who</span>
-              <select className="input" value={who} onChange={(e) => setWho(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              <select className="input" value={who} onChange={(e) => setWho(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}</select>
             </label>
             <label className="field"><span className="field-label">By <span className="hint">optional</span></span>
               <select className="input" value={due ?? ''} onChange={(e) => setDue(e.target.value ? Number(e.target.value) : null)}><option value="">No date</option>{weeks.map((w) => <option key={w} value={w}>{w === app.week ? 'This week' : `Week ${w}`} · {weekDates(app.cycle, w)}</option>)}</select>

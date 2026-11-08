@@ -1,3 +1,4 @@
+import { sameTitleNote } from '../domain/people';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -5,7 +6,7 @@ import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { LEVEL_LABEL } from '../domain/format';
-import { buildGoal, draftOf, overHundredHint, planChanged, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
+import { buildGoal, draftOf, planHint, planChanged, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
 import type { Goal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
@@ -48,7 +49,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const partParam = params.get('part');
   const part = partParam === 'definition' || partParam === 'plan' || partParam === 'owner' ? partParam : null;
   const show = (p: 'definition' | 'plan' | 'owner') => !part || part === p;
-  const errors = validateGoal(d, cycle);
+  const errors = validateGoal(d, cycle, goal);
   const err = (k: keyof GoalErrors) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
   const valid = Object.keys(errors).length === 0;
   const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
@@ -113,6 +114,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           <span className="field-label">Name</span>
           <input className="input" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
           {err('title')}
+          {!errors.title && d.title.trim() !== goal.title && (() => { const twin = sameTitleNote(d.title, goal.id, app.snapshot.goals, (id) => app.team(id)?.name ?? ''); return twin ? <span className="hint tone-risk" role="status">{twin}</span> : null; })()}
         </label>
         )}
         {part === 'definition' && (
@@ -132,7 +134,7 @@ function EditSheet({ goal }: { goal: Goal }) {
             <>
               <div className="pair">
                 <label className="field"><span className="field-label">Start{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
-                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}{overHundredHint(d.unit, d.start, d.target) && <span className="hint tone-risk" role="status">{overHundredHint(d.unit, d.start, d.target)}</span>}</label>
+                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}{planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
               </div>
               {reasonField}
               <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
@@ -159,7 +161,7 @@ function EditSheet({ goal }: { goal: Goal }) {
                   <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
                 </div>
               </div>
-              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
+              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}{planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
               <label className="field"><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried && !!errors.margin} />{err('margin')}</label>
             </div>
           )}
@@ -175,7 +177,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           <h2 className="block-title" id="fit-h">Owner and links</h2>
           <div className="pair">
             <label className="field"><span className="field-label">Owner</span>
-              <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}</select>
             </label>
             <label className="field"><span className="field-label">Team</span>
               <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>

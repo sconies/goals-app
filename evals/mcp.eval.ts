@@ -184,7 +184,12 @@ describe('AI assistants can do what the person can', () => {
     const added = await grace.call('save_person', { name: 'Ada Lovelace', email: 'Ada.Lovelace@example.com', job_title: 'Staff engineer', team: 'Site Reliability Engineering' });
     const p = grace.data().people.find((x) => x.id === added.data!.id)!;
     expect([p.name, p.initials, p.teamId, p.admin, p.email]).toEqual(['Ada Lovelace', 'AL', 'sre', false, 'ada.lovelace@example.com']);
-    expect((await grace.call('save_person', { name: 'Ada Lovelace' })).text).toMatch(/already here/);
+    // A shared name is allowed (the email is who someone is, backlog N); a second record with the same email isn't.
+    expect((await grace.call('save_person', { name: 'Ada Lovelace', email: 'ada.lovelace@example.com' })).text).toMatch(/already has the email/);
+    const twin = await grace.call('save_person', { name: 'Ada Lovelace', email: 'ada.lovelace2@example.com', team: 'Site Reliability Engineering' });
+    expect(twin.text).not.toMatch(/no team|isn’t|can’t/);
+    expect(twin.error).toBe(false);
+    expect(grace.data().people.filter((x) => x.name === 'Ada Lovelace').length).toBe(2);
     await grace.call('save_person', { person_id: p.id, admin: true });
     expect(grace.data().people.find((x) => x.id === p.id)!.admin).toBe(true);
     expect((await grace.call('list_people')).data!.people.length).toBe(grace.data().people.length);

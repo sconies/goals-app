@@ -10,13 +10,14 @@
    People who aren't admins see Overview, People, Teams, Inbox and Privacy. Sections are the settings extension point: a module
    adds its own (AppModule `sections`, src/core/app.tsx). Old addresses (/workspace?inbox=1&markup=…, #people) lead to
    the section they meant. */
+import { nameProblem } from '../domain/thresholds';
 import { createContext, lazy, Suspense, useContext, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
 import { placeSections } from '../core/module';
 import { initials } from '../domain/importer';
-import { normalEmail, personProblems } from '../domain/people';
+import { normalEmail, personProblems, sameNameNote } from '../domain/people';
 import type { Person, Team } from '../domain/types';
 import { teamMembers } from '../domain/actions';
 import { newId } from '../data/store';
@@ -294,7 +295,7 @@ function PeopleSection() {
             <span className="label">{team} · {list.length}</span>
             <div className="optlist">
               {list.map((x) => {
-                const body = <><Avatar p={x} size="sm" /><span className="person-text"><span className="person-name">{x.name}</span>{x.role && <span className="hint">{x.role}</span>}</span>{x.admin && <span className="chip tag">Admin</span>}</>;
+                const body = <><Avatar p={x} size="sm" /><span className="person-text"><span className="person-name">{app.personName(x.id)}</span>{x.role && <span className="hint">{x.role}</span>}</span>{x.admin && <span className="chip tag">Admin</span>}</>;
                 return admin
                   ? <button key={x.id} className="opt person-opt" onClick={() => setEditing(x)}>{body}</button>
                   : <div key={x.id} className="opt static person-opt">{body}</div>;
@@ -381,7 +382,7 @@ function WorkspaceName({ several }: { several: boolean }) {
   const [tried, setTried] = useState(false);
   const save = async () => {
     setTried(true);
-    if (name === null || !name.trim() || busy) return;
+    if (name === null || nameProblem(name, 'workspace') || busy) return;
     setBusy(true);
     try {
       const same = name.trim().replace(/\s+/g, ' ') === app.ws.name;
@@ -396,9 +397,9 @@ function WorkspaceName({ several }: { several: boolean }) {
       <form className="stack ws-rename" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="field">
           <label className="field"><span className="field-label">Workspace name</span>
-            <input className={'input' + (tried && !name.trim() ? ' invalid' : '')} aria-invalid={tried && !name.trim() ? true : undefined} autoFocus maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+            <input className={'input' + (tried && nameProblem(name, 'workspace') ? ' invalid' : '')} aria-invalid={tried && nameProblem(name, 'workspace') ? true : undefined} autoFocus maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          {tried && !name.trim() && <span className="hint tone-off" role="alert">Give the workspace a name.</span>}
+          {tried && nameProblem(name, 'workspace') && <span className="hint tone-off" role="alert">{nameProblem(name, 'workspace')}</span>}
         </div>
         <span className="ws-rename-buttons"><button type="submit" className="btn">{busy ? 'Saving…' : 'Save the name'}</button><button type="button" className="btn ghost" onClick={() => { setName(null); setTried(false); }}>Cancel</button></span>
       </form>
@@ -446,7 +447,7 @@ function TeamsSection() {
               <li key={t.id} className="opt static team-opt">
                 <span className="person-text">
                   <span className="person-name">{t.name}</span>
-                  <span className="hint">{[lead ? `Led by ${lead.name}` : 'No lead', `${m.people.length} ${m.people.length === 1 ? 'person' : 'people'}`, `${m.goals.length} ${m.goals.length === 1 ? 'goal' : 'goals'}`].join(' · ')}</span>
+                  <span className="hint">{[lead ? `Led by ${lead.name}` : 'No lead', `${m.people.length} ${m.people.length === 1 ? 'person' : 'people'}`, `${m.current.length} ${m.current.length === 1 ? 'goal' : 'goals'}`].join(' · ')}</span>
                 </span>
                 {admin && (
                   <span className="team-actions">
@@ -496,7 +497,7 @@ function TeamSheet({ team, onClose }: { team: Team | null; onClose: () => void }
         <label className="field"><span className="field-label">Team lead <span className="hint">optional</span></span>
           <select className="input" value={leadId} onChange={(e) => setLeadId(e.target.value)}>
             <option value="">No lead</option>
-            {app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}
           </select>
         </label>
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{busy ? 'Saving…' : team ? 'Save' : 'Add the team'}</button></div>
@@ -605,7 +606,8 @@ function PersonSheet({ person, onClose, onLeave }: { person: Person | null; onCl
   const [p, setP] = useState<Person>(person ?? { id: newId('p'), name: '', role: '', initials: '', teamId: app.viewer.teamId ?? app.snapshot.teams[0]?.id ?? null, admin: false, email: '' });
   const [tried, setTried] = useState(false);
   const self = person?.id === app.viewer.id;
-  const dup = app.snapshot.people.find((x) => x.id !== p.id && !!p.name.trim() && x.name.trim().toLowerCase() === p.name.trim().toLowerCase());
+  // A shared name is allowed (the email is who someone is), and said, so a second record for one person is noticed.
+  const twin = sameNameNote(p, app.snapshot.people, (id) => app.team(id)?.name ?? '');
   const lastAdmin = !!person?.admin && app.snapshot.people.filter((x) => x.admin).length === 1;
   // An email is needed for anyone new; someone added before emails existed can be saved without one until it's known.
   const clean: Person = { ...p, name: p.name.trim(), role: p.role.trim(), initials: initials(p.name.trim()), ...(normalEmail(p.email) ? { email: normalEmail(p.email) } : person?.email ? {} : { email: undefined }) };
@@ -622,10 +624,10 @@ function PersonSheet({ person, onClose, onLeave }: { person: Person | null; onCl
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="field">
           <label className="field"><span className="field-label">Name</span>
-            <input className={'input' + (tried && (!p.name.trim() || dup) ? ' invalid' : '')} aria-invalid={tried && (!p.name.trim() || !!dup) ? true : undefined} autoFocus={!person} value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} />
+            <input className={'input' + (tried && !p.name.trim() ? ' invalid' : '')} aria-invalid={tried && !p.name.trim() ? true : undefined} autoFocus={!person} value={p.name} onChange={(e) => setP({ ...p, name: e.target.value })} />
           </label>
           {tried && !p.name.trim() && <span className="hint tone-off" role="alert">Add a name.</span>}
-          {tried && dup && <span className="hint tone-off" role="alert">{dup.name} is already here. Add a middle initial so people can tell you apart.</span>}
+          {twin && <span className="hint tone-risk" role="status">{twin}</span>}
         </div>
         <div className="field">
           <label className="field"><span className="field-label">Email{person && !person.email ? <span className="hint"> not added yet</span> : null}</span>

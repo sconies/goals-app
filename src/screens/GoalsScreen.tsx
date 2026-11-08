@@ -17,7 +17,7 @@ import { WatchingBody } from './Watching';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
+import { LAYOUT_ABOUT, LAYOUTS, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
 import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
@@ -73,6 +73,8 @@ export function GoalsScreen() {
   }, [refined, query, app.snapshot, app.cycle, app.today, app.week]);
   const views = useViews();
   const activeView = views.find((v) => v.params === viewParams(params));
+  // The saved views, once for both places the Views menu sits: beside the tabs, or on a phone beside New goal.
+  const viewItems = views.map((v) => ({ label: v.name + (v.pinned ? ' (pinned)' : ''), current: activeView?.id === v.id, onClick: () => openView(v) }));
   const groups: ViewGroup[] = useMemo(() => {
     if (!ranked) return grouped;
     const pos = new Map(ranked.map((id, i) => [id, i]));
@@ -132,7 +134,7 @@ export function GoalsScreen() {
           {/* The week line breaks only between its parts, never inside one. */}
           <span className="hint goals-period">{periodLabel(app.cycle, app.week).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
         </span>
-        <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
+        <span className="actions">{views.length > 0 && <MenuButton className="views-menu views-menu-phone" label="Views" items={viewItems} />}{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>
       {/* One toolbar: which goals on the left, how to see them on the right. It wraps on a narrow screen. */}
       <div className="goals-toolbar">
@@ -150,7 +152,7 @@ export function GoalsScreen() {
               </button>
             )}
           </div>
-          {views.length > 0 && <MenuButton className="views-menu" label="Views" items={views.map((v) => ({ label: v.name + (v.pinned ? ' (pinned)' : ''), current: activeView?.id === v.id, onClick: () => openView(v) }))} />}
+          {views.length > 0 && <MenuButton className="views-menu views-menu-wide" label="Views" items={viewItems} />}
         </div>
         {app.snapshot.goals.length > 0 && (
           <div className="row view-bar">
@@ -163,6 +165,7 @@ export function GoalsScreen() {
         )}
       </div>
 
+      {app.snapshot.goals.length > 0 && <p className="hint layout-about" aria-live="polite"><span className="strong">{LAYOUTS.find(([k]) => k === layout)?.[1]}</span>: {LAYOUT_ABOUT[layout]}</p>}
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
       {show === 'attention' && !activeView && att.length > 0 && <p className="hint attention-counts">{attentionCounts(att, handled)}</p>}
       <FirstReports />

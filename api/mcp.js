@@ -23735,13 +23735,69 @@ function newToken() {
 	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
 }
 var init_token = __esmMin((() => {}));
+// src/domain/numbers.ts
+/** How many decimal places a typed number has: "12.5" 1, "1,250" 0, "29,4" (a decimal comma) 1. */
+function typedDecimals(raw) {
+	let t = raw.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, "").replace(/\s/g, "");
+	if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(",", ".");
+	else t = t.replace(/,/g, "");
+	return (/\.(\d*)$/.exec(t)?.[1] ?? "").replace(/0+$/, "").length;
+}
+/**
+* Why a typed number can't be kept as typed in a goal with `decimals` places, or null. Faro shows every number at its goal's
+* decimals, so 12.5 in a whole-number goal would read 13 everywhere: it is refused, with the two ways forward.
+*/
+function precisionProblem(raw, n, decimals) {
+	if (n == null || !Number.isInteger(decimals) || decimals < 0) return null;
+	const has = typedDecimals(raw);
+	if (has <= decimals) return null;
+	const shown = groupDigits(n.toFixed(decimals));
+	return `${raw.trim()} has ${placesText(has)}, but this goal keeps ${placesText(decimals)}, so it would show as ${shown}. Type ${shown}, or set the goal’s Decimals to ${Math.min(3, has)}.`;
+}
+/** Digits in groups of three, as every number on screen is shown: "1250.5" → "1,250.5", "-12000" → "-12,000". */
+function groupDigits(s) {
+	return s.replace(/^([-+]?)(\d{4,})/, (_, sign, int) => sign + int.replace(/\B(?=(\d{3})+(?!\d))/g, ","));
+}
+/**
+* A check worth making on a number far outside its plan, or null. Never refused: real numbers can be odd (backlog N).
+* `lo` and `hi` are the plan's two ends.
+*/
+function farOutside(n, lo, hi) {
+	const width = Math.abs(hi - lo);
+	if (!width) return false;
+	return n < Math.min(lo, hi) - 2 * width || n > Math.max(lo, hi) + 2 * width;
+}
+/** A plan's start and target (or a range's limit) worth questioning as typed, or null. Asked, never refused. */
+function setupProblem(unit, start, target) {
+	const nums = [start, target].filter((x) => x != null);
+	if (nums.some((x) => x < 0) && usuallyPositive(unit)) return `Below zero${unit.trim() ? " " + unit.trim() : ""}. Fine for a change or a balance; otherwise check the sign.`;
+	if (start != null && target != null && start !== 0 && target !== 0 && Math.sign(start) === Math.sign(target)) {
+		const r = Math.abs(target / start);
+		if (r >= 100 || r <= 1 / 100) return `The target is ${r >= 1 ? "over 100 times" : "under a 100th of"} the start (${groupDigits(String(start))} to ${groupDigits(String(target))}). Is that right?`;
+	}
+	if (nums.some((x) => Math.abs(x) >= 1e9)) return "That’s a billion or more. Is it right?";
+	return null;
+}
+var PLACES, placesText, notNumberText, fixed, usuallyPositive;
+var init_numbers = __esmMin((() => {
+	PLACES = [
+		"whole numbers",
+		"1 decimal place",
+		"2 decimal places",
+		"3 decimal places"
+	];
+	placesText = (d) => PLACES[d] ?? `${d} decimal places`;
+	notNumberText = (raw) => `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.`;
+	fixed = (v, decimals) => groupDigits(v.toFixed(decimals));
+	usuallyPositive = (unit) => unit.trim() === "%" || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit);
+}));
 // src/domain/format.ts
 /** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
 function unitFor(n, unit) {
 	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
 }
 function fmt(v, g) {
-	const n = v.toFixed(g.decimals);
+	const n = fixed(v, g.decimals);
 	if (!g.unit) return n;
 	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
 }
@@ -23751,7 +23807,7 @@ function nowText(g, a) {
 }
 /** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
 function fmtDiff(v, g) {
-	const n = Math.abs(v).toFixed(g.decimals);
+	const n = fixed(Math.abs(v), g.decimals);
 	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
 	return g.unit ? n + " " + unitFor(n, g.unit) : n;
 }
@@ -23763,7 +23819,7 @@ function rangeText(p, g, share = false) {
 	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
 	const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
 	if (lo === hi) return lo;
-	const bare = (v) => clamp(v).toFixed(g.decimals);
+	const bare = (v) => fixed(clamp(v), g.decimals);
 	return `${bare(p.low)}–${hi}`;
 }
 function kindLabel(g) {
@@ -23859,6 +23915,7 @@ function gapText(g, a) {
 }
 var NO_VALUE$1, weekLabel, LEVEL_LABEL;
 var init_format = __esmMin((() => {
+	init_numbers();
 	init_vocabulary();
 	NO_VALUE$1 = "No value yet";
 	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
@@ -23891,9 +23948,14 @@ function valueProblem(raw, last, unit, goal) {
 	const n = parseNumber(raw);
 	if (n == null) return {
 		block: true,
-		text: `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.`
+		text: notNumberText(raw)
 	};
-	if (n < 0 && (unit === "%" || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit))) return {
+	const precise = goal && goal.kind !== "milestone" ? precisionProblem(raw, n, goal.decimals) : null;
+	if (precise) return {
+		block: true,
+		text: precise
+	};
+	if (n < 0 && usuallyPositive(unit)) return {
 		block: true,
 		text: `It can’t be below zero${unit ? " " + unit : ""}.`
 	};
@@ -23904,9 +23966,16 @@ function valueProblem(raw, last, unit, goal) {
 		block: false,
 		text: "That’s over 100%. Is that right?"
 	};
+	if (goal?.kind === "metric" && farOutside(n, goal.plan.start, goal.plan.target)) {
+		const d = goal.decimals, u = unit === "%" ? "%" : unit ? " " + unit : "";
+		return {
+			block: false,
+			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`
+		};
+	}
 	if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return {
 		block: false,
-		text: `Last week was ${last}. Is ${n} right?`
+		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`
 	};
 	return null;
 }
@@ -23933,6 +24002,7 @@ function evaluate(goal, cycle, week, draft, all) {
 	const needsPath = status === "risk" || status === "off";
 	const codes = [];
 	if (goal.kind !== "milestone" && value == null) codes.push(draft.value.trim() ? "value-not-number" : "value");
+	else if (goal.kind !== "milestone" && precisionProblem(draft.value, value, goal.decimals)) codes.push("value-precision");
 	else if (goal.kind !== "milestone" && valueProblem(draft.value, null, goal.unit, goal)?.block) codes.push("value-impossible");
 	if (greener && draft.greenerWhy.trim().length < 10) codes.push("greener-why");
 	if (reason && (!draft.cause || draft.why.trim().length < 10)) codes.push(reason === "ahead" ? "reason-ahead" : "reason-behind");
@@ -23983,10 +24053,11 @@ function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
 		dataFlagged: draft.dataFlagged
 	};
 }
-var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, MISSING_TEXT;
+var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT;
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
+	init_numbers();
 	CAUSES_BEHIND = [
 		["aggressive", "Plan too aggressive"],
 		["slower", "Delivery slower"],
@@ -24004,9 +24075,11 @@ var init_checkin = __esmMin((() => {
 		["other", "Something else"]
 	];
 	causeLabel = (c) => [...CAUSES_BEHIND, ...CAUSES_AHEAD].find(([k]) => k === c)?.[1] ?? "";
+	decimalsOf = (goal, n) => goal && goal.kind !== "milestone" ? goal.decimals : (String(n).split(".")[1] ?? "").length;
 	MISSING_TEXT = {
 		value: "this week’s value",
 		"value-not-number": "a number for this week’s value",
+		"value-precision": "this week’s value at the goal’s decimal places",
 		"value-impossible": "a possible value",
 		"greener-why": "why your call is greener",
 		"reason-behind": "why it’s behind",
@@ -24085,28 +24158,41 @@ function draftOf(g) {
 	}));
 	return d;
 }
-function validateGoal(d, cycle) {
+function validateGoal(d, cycle, existing) {
 	const e = {};
 	const named = nameProblem(d.title, "goal");
 	if (named) e.title = named;
 	if (!d.teamId) e.teamId = "Choose a team.";
 	if (!d.ownerId) e.ownerId = "Choose an owner.";
-	if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = "Enter a number, or leave it empty.";
-	if (d.kind !== "milestone") {
-		const dp = parseNumber(d.decimals);
-		if (dp == null || dp < 0 || dp > 3 || !Number.isInteger(dp)) e.decimals = "Between 0 and 3.";
-	}
+	if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = notNumberText(d.effect);
+	const dp = d.kind === "milestone" ? null : parseNumber(d.decimals);
+	const places = dp != null && dp >= 0 && dp <= 3 && Number.isInteger(dp) ? dp : null;
+	const numberProblem = (raw, empty) => {
+		if (!raw.trim()) return empty;
+		const n = parseNumber(raw);
+		if (n == null) return notNumberText(raw);
+		return places == null ? null : precisionProblem(raw, n, places);
+	};
+	if (d.kind !== "milestone" && places == null) e.decimals = "Between 0 and 3.";
 	if (d.kind === "metric") {
-		const s = parseNumber(d.start), t = parseNumber(d.target);
-		if (s == null) e.start = "Enter where it starts.";
-		if (t == null) e.target = "Enter the target.";
-		else if (s != null && s === t) e.target = "The target has to differ from the start.";
-		if (Object.values(d.points).some((v) => v.trim() !== "" && parseNumber(v) == null)) e.points = "Every plan number has to be a number.";
+		const sp = numberProblem(d.start, "Enter where it starts."), tp = numberProblem(d.target, "Enter the target.");
+		if (sp) e.start = sp;
+		if (tp) e.target = tp;
+		else if (!sp && parseNumber(d.start) === parseNumber(d.target)) e.target = "The target has to differ from the start.";
+		const stored = new Map(existing?.kind === "metric" ? (existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
+		const bad = Object.entries(d.points).filter(([w, v]) => v.trim() !== "" && parseNumber(v) !== stored.get(w)).map(([, v]) => parseNumber(v) == null ? notNumberText(v) : places == null ? null : precisionProblem(v, parseNumber(v), places)).find(Boolean);
+		if (bad) e.points = bad;
 	}
 	if (d.kind === "range") {
-		if (parseNumber(d.limit) == null) e.limit = "Enter the limit.";
+		const lp = numberProblem(d.limit, "Enter the limit.");
+		if (lp) e.limit = lp;
 		const m = parseNumber(d.margin);
-		if (m == null || m < 0) e.margin = "Enter a warning margin of zero or more.";
+		if (d.margin.trim() && m == null) e.margin = notNumberText(d.margin);
+		else if (m == null || m < 0) e.margin = "Enter a warning margin of zero or more.";
+		else if (places != null) {
+			const mp = precisionProblem(d.margin, m, places);
+			if (mp) e.margin = mp;
+		}
 	}
 	if (d.kind === "milestone") {
 		const rows = d.stages.filter((s) => s.name.trim() || s.dueWeek.trim());
@@ -24118,6 +24204,15 @@ function validateGoal(d, cycle) {
 		})) e.stages = "Every stage needs a due week between 1 and " + cycle.weeks + ".";
 	}
 	return e;
+}
+/**
+* Checks worth making on a goal's numbers as typed: asked beside the field, never refused (backlog N). Over 100% first
+* (overHundredHint), then a negative time, money or percentage, a target a hundred times the start, or a billion or more.
+*/
+function planHint(d) {
+	if (d.kind === "metric") return overHundredHint(d.unit, d.start, d.target) ?? setupProblem(d.unit, parseNumber(d.start), parseNumber(d.target));
+	if (d.kind === "range") return setupProblem(d.unit, parseNumber(d.limit), null);
+	return null;
 }
 /** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
 function planChanged(a, b) {
@@ -24243,9 +24338,20 @@ function replanned(existing, plan, started, week) {
 		planHistory: next
 	};
 }
+/**
+* A percentage goal planned past 100% is either growth (fine) or a share like coverage that can't pass 100% (a mistake).
+* Only the person setting it up knows which, so ask, in the same words everywhere a goal is set.
+*/
+function overHundredHint(unit, start, target) {
+	if (unit.trim() !== "%") return null;
+	const s = parseNumber(start), t = parseNumber(target);
+	if ((s == null || s <= 100) && (t == null || t <= 100)) return null;
+	return "Over 100%. Fine for growth; but if this is a share of something (coverage, adoption), it can’t pass 100%, so check the target.";
+}
 var init_goal = __esmMin((() => {
 	init_checkin();
 	init_thresholds();
+	init_numbers();
 	init_plan();
 }));
 // src/domain/year.ts
@@ -24550,8 +24656,6 @@ var init_cycle = __esmMin((() => {
 function personProblems(p, people, before) {
 	const out = [];
 	if (!p.name.trim()) out.push("Add a name.");
-	const dup = people.find((x) => x.id !== p.id && norm$3(x.name) === norm$3(p.name));
-	if (p.name.trim() && dup) out.push(`${dup.name} is already here. Add a middle initial so people can tell you apart.`);
 	const email = normalEmail(p.email);
 	if (!email && !before) out.push("Add their email.");
 	else if (!email && before?.email) out.push("Their email can be changed, not taken away.");
@@ -24562,6 +24666,19 @@ function personProblems(p, people, before) {
 	}
 	if (before?.admin && !p.admin && people.filter((x) => x.admin && x.id !== p.id).length === 0) out.push("The only admin stays one: make someone else an admin first.");
 	return out;
+}
+/** Someone else with this person's name, said beside the name field: allowed, and how they'll be told apart. */
+function sameNameNote(p, people, teamName) {
+	const twin = p.name.trim() ? people.find((x) => x.id !== p.id && norm$3(x.name) === norm$3(p.name)) : void 0;
+	if (!twin) return null;
+	const where = twin.teamId ? teamName(twin.teamId) : twin.role;
+	return `${twin.name}${where ? ` (${where})` : ""} is already here. That’s fine: their email tells you apart, and Faro shows a team or job title beside the name.`;
+}
+/** The warning when a new goal's title is one another goal already has: allowed (two teams can both "Reduce latency"). */
+function sameTitleNote(title, id, goals, teamName) {
+	const twin = title.trim() ? goals.find((g) => g.id !== id && norm$3(g.title) === norm$3(title)) : void 0;
+	if (!twin) return null;
+	return `Another goal is called “${twin.title}” (${[twin.key, teamName(twin.teamId)].filter(Boolean).join(", ")}). That’s allowed; Faro shows each one’s key beside the title so people can tell them apart.`;
 }
 /** The change-log entry for adding or changing a person; null when nothing changed. */
 function personChange(before, after, teamName, actorId, at, id) {
@@ -24729,7 +24846,7 @@ function goalTrend(goal, cycle, checkIns) {
 		const word = gapTrend(gaps.map((x) => x.raw), true);
 		if (word === "worse") {
 			const last = gaps.slice(-3);
-			const n = (v) => Math.abs(v).toFixed(goal.decimals);
+			const n = (v) => fixed(Math.abs(v), goal.decimals);
 			return {
 				word,
 				detail: `Further behind plan at each of the last two check-ins: ${last.map((x) => x.gap < 0 ? n(x.gap) + " behind" : x.gap > 0 ? n(x.gap) + " ahead" : "on plan").join(" → ")}${goal.unit ? ` (${goal.unit === "%" ? "pts" : goal.unit})` : ""}.`
@@ -24771,6 +24888,7 @@ function goalTrend(goal, cycle, checkIns) {
 	};
 }
 var init_trend = __esmMin((() => {
+	init_numbers();
 	init_checkin();
 	init_format();
 	init_plan();
@@ -26700,11 +26818,18 @@ function saveTeam(x, t) {
 		}
 	};
 }
-/** What still belongs to a team: its people, and its goals in every cycle (the workspace's goals when known). */
+/**
+* What still belongs to a team: its people; its goals in every cycle, not counting removed ones (`goals`); the goals the
+* Board shows for it now, this cycle's that are neither removed nor stopped (`current`, what its card counts); and every goal
+* that names it, removed ones too (`named`, what moves when the team is removed, so nothing points at a team that's gone).
+*/
 function teamMembers(x, teamId) {
+	const named = (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId);
 	return {
 		people: x.snapshot.people.filter((p) => p.teamId === teamId),
-		goals: (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId)
+		goals: named.filter((g) => !g.removedAt),
+		current: x.snapshot.goals.filter((g) => g.teamId === teamId && !g.removedAt && !g.stoppedAt),
+		named
 	};
 }
 /** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
@@ -26712,7 +26837,7 @@ function removeTeam(x, id, moveTo) {
 	if (!x.actor.admin) no$1("Only admins can remove teams.");
 	const team = x.snapshot.teams.find((t) => t.id === id);
 	if (!team) no$1("There’s no team with that ID.");
-	const { people, goals } = teamMembers(x, id);
+	const { people, goals, named } = teamMembers(x, id);
 	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 	const what = [people.length ? plural(people.length, "person", "people") : "", goals.length ? plural(goals.length, "goal", "goals") : ""].filter(Boolean).join(" and ");
 	const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : void 0;
@@ -26722,12 +26847,16 @@ function removeTeam(x, id, moveTo) {
 		...p,
 		teamId: to.id
 	}));
-	const movedGoals = goals.map((g) => ({
+	const home = to ?? x.snapshot.teams.find((t) => t.id !== id);
+	const movedGoals = [...goals.map((g) => ({
 		...g,
 		teamId: to.id
-	}));
+	})), ...home ? named.filter((g) => g.removedAt).map((g) => ({
+		...g,
+		teamId: home.id
+	})) : []];
 	const l = lookupOf(x.snapshot);
-	const goalChanges = goals.map((g, i) => ({
+	const goalChanges = goals.map((g) => ({
 		id: x.newId("chg"),
 		at: x.now,
 		actorId: x.actor.id,
@@ -26739,7 +26868,7 @@ function removeTeam(x, id, moveTo) {
 		diffs: [{
 			field: "Team",
 			from: team.name,
-			to: l.teamName(movedGoals[i].teamId)
+			to: l.teamName(to.id)
 		}]
 	}));
 	return {
@@ -28054,7 +28183,6 @@ function planChanges(input) {
 		}
 		if (before && peopleTouched.has(before.id)) return err("People", row, before.name, `${before.name} has another row in this file. Give each person one row.`);
 		if (create && email && byEmail(email)) return err("People", row, name, `${byEmail(email).name} already has the email ${email}: each person needs their own.`);
-		if (create && name && named(name).length) return err("People", row, name, `${name} appears twice. Give each person one row, or add a middle initial so people can tell them apart.`);
 		const teamName = has(r, "team") ? ref(r, "team") : null;
 		let tm = teamName ? teamNamed(teamName) : void 0;
 		if (teamName && !tm) {
@@ -28088,6 +28216,13 @@ function planChanges(input) {
 		if (!before) {
 			if (!admin()) return err("People", row, name, "Only an admin can add people.");
 			if (!name) return err("People", row, email, "Add their name.");
+			{
+				const same = sameNameNote({
+					id: "",
+					name
+				}, [...people.values()], (tid) => teams.get(tid)?.name ?? "");
+				if (same) note("People", row, name, same);
+			}
 			if (!email) return err("People", row, name, `Add ${name}’s email: everyone new needs one.`);
 			const p = {
 				id: newId("p", name),
@@ -28161,6 +28296,10 @@ function planChanges(input) {
 		const after = people.get(id);
 		const problems = personProblems(after, [...people.values()], t.before);
 		if (problems.length) err("People", t.row, t.before?.name ?? after.name, problems.join(" "));
+		if (t.before && norm$1(t.before.name) !== norm$1(after.name)) {
+			const same = sameNameNote(after, [...people.values()], (tid) => teams.get(tid)?.name ?? "");
+			if (same) note("People", t.row, after.name, same);
+		}
 	}
 	if (create && !people.size && (input.tables.people ?? []).length && !issues.length) err("People", 1, "", "Add at least one person.");
 	const team = (name) => teamNamed(name);
@@ -28222,7 +28361,8 @@ function planChanges(input) {
 		if (!existing) {
 			if (!title) return err("Goals", row, "", "Name the goal in the Goal column.");
 			const same = [...work.values()].find((g) => norm$1(g.title) === norm$1(title));
-			if (same) return err("Goals", row, title, `A goal called “${same.title}” already exists. Put its key in the Key column to change it, or give this one another name.`);
+			const rowTeam = ref(r, "team") ? teamNamed(ref(r, "team")) : void 0;
+			if (same && (!rowTeam || rowTeam.id === same.teamId)) return err("Goals", row, title, `A goal called “${same.title}” already exists${rowTeam ? " in " + rowTeam.name : ""}. Put its key in the Key column to change it, give this one another name, or name another team in Team.`);
 		}
 		const label = title || existing?.title || "";
 		const currentOwner = existing ? people.get(existing.ownerId) ?? null : null;
@@ -28259,7 +28399,7 @@ function planChanges(input) {
 			"start",
 			"target",
 			"limit"
-		].map((k) => (val(r, k).split(".")[1] ?? "").length))));
+		].map((k) => typedDecimals(val(r, k))))));
 		if (val(r, "start")) d.start = val(r, "start");
 		if (val(r, "target")) d.target = val(r, "target");
 		const shape = word(SHAPE_WORDS, val(r, "plan"));
@@ -28302,8 +28442,14 @@ function planChanges(input) {
 		if (has(r, "effect")) d.effect = val(r, "effect");
 		if (has(r, "source")) d.source = val(r, "source");
 		if (has(r, "definition")) d.definition = val(r, "definition");
-		const errs = Object.values(validateGoal(d, cycle));
+		const errs = Object.values(validateGoal(d, cycle, existing));
 		if (errs.length) return err("Goals", row, d.title, errs.join(" "));
+		const hint = planHint(d);
+		if (!existing) {
+			const twin = sameTitleNote(d.title, null, s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt), (t) => teams.get(t)?.name ?? "");
+			if (twin) note("Goals", row, d.title, twin);
+		}
+		if (hint && (!existing || planHint(draftOf(existing)) !== hint)) note("Goals", row, d.title, hint);
 		const gid = existing?.id ?? newId("goal", d.title);
 		if (create && id) fileIds.set(id, gid);
 		const key = existing ? existing.key : create && normalKey(keyRef) || formatKey(++lastKeyGiven);
@@ -28451,13 +28597,17 @@ function planChanges(input) {
 		const origEnd = planEnd(orig.plan, cycle.weeks);
 		const tol = .5 * 10 ** -g.decimals;
 		const startTyped = val(r, "start") ? parseNumber(val(r, "start")) : null;
-		if (val(r, "start") && startTyped == null) return err("Plan", row, g.title, `Start: “${val(r, "start")}” isn’t a number.`);
+		if (val(r, "start") && startTyped == null) return err("Plan", row, g.title, `Start: ${notNumberText(val(r, "start"))}`);
+		const startPrecise = val(r, "start") ? precisionProblem(val(r, "start"), startTyped, g.decimals) : null;
+		if (startPrecise) return err("Plan", row, g.title, `Start: ${startPrecise}`);
 		const typed = /* @__PURE__ */ new Map();
 		for (const [k, v] of Object.entries(r)) {
 			const m = /^week (\d+)$/.exec(k);
 			if (!m || !String(v).trim()) continue;
 			const n = parseNumber(String(v));
-			if (n == null) return err("Plan", row, g.title, `Week ${m[1]}: “${v}” isn’t a number.`);
+			if (n == null) return err("Plan", row, g.title, `Week ${m[1]}: ${notNumberText(String(v))}`);
+			const precise = precisionProblem(String(v), n, g.decimals);
+			if (precise) return err("Plan", row, g.title, `Week ${m[1]}: ${precise}`);
 			const w = Number(m[1]);
 			const was = w <= (orig.plan.fromWeek ?? 0) || w > origEnd ? null : w === origEnd ? orig.plan.target : planAt(orig.plan, w, cycle.weeks);
 			if (was == null || Math.abs(n - was) > tol) typed.set(w, n);
@@ -28695,6 +28845,7 @@ function planChanges(input) {
 			const hint = {
 				value: "a Value",
 				"value-not-number": "a number in Value",
+				"value-precision": "a Value at the goal’s decimal places",
 				"value-impossible": "a possible Value",
 				"greener-why": `Why greener (the call is ${lower(FLAG.greener)})`,
 				"reason-behind": `a Cause and a Why of 10 characters or more (it’s behind plan)`,
@@ -28702,7 +28853,8 @@ function planChanges(input) {
 				path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
 				target: MISSING_TEXT.target
 			};
-			err("Check-ins", row, g.title, `Week ${w} needs ${e.codes.map((c) => hint[c]).join("; ")}.`);
+			const typedValue = g.kind === "milestone" ? null : e.codes[0] === "value-not-number" ? notNumberText(draft.value) : e.codes[0] === "value-precision" ? precisionProblem(draft.value, parseNumber(draft.value), g.decimals) : null;
+			err("Check-ins", row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join("; ")}.`);
 			continue;
 		}
 		const backfilled = w < week;
@@ -29047,6 +29199,7 @@ var init_changeset = __esmMin((() => {
 	init_checkin();
 	init_columns();
 	init_goal();
+	init_numbers();
 	init_goalKey();
 	init_people();
 	init_plan();
@@ -30413,6 +30566,7 @@ function aiBrief(x) {
 	return out.join("\n");
 }
 // src/domain/summaryFacts.ts
+init_numbers();
 init_checkin();
 init_format();
 init_plan();
@@ -30503,7 +30657,7 @@ function metricFacts(goal, cycle, all, own, week, stale) {
 		const word = gapTrend(span.map((x) => x.raw), true);
 		const direction = DIRECTION[word];
 		const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
-		const num = (v) => Math.abs(v).toFixed(goal.decimals);
+		const num = (v) => fixed(Math.abs(v), goal.decimals);
 		const words = fmtDiff(2, goal).replace(/^[0-9.]+ ?/, "");
 		const tail = words ? " " + words : "";
 		const value = span.every((x) => x.gap === 0) ? `${GAP["on-plan"].label} at each check-in` : behind ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ${GAP.behind.label}` : ahead ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ${GAP.ahead.label}` : span.map((x, i) => x.gap === 0 ? GAP["on-plan"].label.toLowerCase() : `${num(x.gap)}${i === span.length - 1 ? tail : ""} ${x.gap > 0 ? "ahead" : "behind"}`).join(" → ") + (latest.gap > 0 ? " of plan" : latest.gap < 0 ? " plan" : "");
@@ -30752,6 +30906,7 @@ function milestoneFacts(goal, own, week, stale) {
 	return out;
 }
 // src/domain/scorecard.ts
+init_numbers();
 init_format();
 init_plan();
 init_status();
@@ -30787,15 +30942,15 @@ var likelihoodFloor = (span, decimals) => Math.max(Math.abs(span) * .02, 10 ** -
 var round = (v, d) => Number(v.toFixed(d));
 /** An amount in the goal's units, "1 hour" not "1 hours": "9 hours", "0.4 days", "3 pts". */
 function amount(v, g) {
-	const n = Math.abs(v).toFixed(g.decimals);
+	const n = fixed(Math.abs(v), g.decimals);
 	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
 	if (!g.unit) return n;
 	return `${n} ${Number(n) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
 }
 /** The same, as short as the chart needs: "9", "0.4", "3 pts". */
-var bare = (v, g) => g.unit === "%" ? amount(v, g) : Math.abs(v).toFixed(g.decimals);
+var bare = (v, g) => g.unit === "%" ? amount(v, g) : fixed(Math.abs(v), g.decimals);
 /** A value as short as the chart needs: "37", "83%". */
-var bareValue = (v, g) => v.toFixed(g.decimals) + (g.unit === "%" ? "%" : "");
+var bareValue = (v, g) => fixed(v, g.decimals) + (g.unit === "%" ? "%" : "");
 /** The target or limit as the question says it: "24", "80%", "0.10%". */
 var markWord = (v, g) => bareValue(v, g);
 /** "by year end", "by cycle end", "by week 40". */
@@ -31465,7 +31620,7 @@ var CORE_ARTICLES = [
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
-					"After a release you haven’t seen, a quiet line says what’s new. Open it, or dismiss it with the cross."
+					"After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross."
 				]
 			},
 			{
@@ -31737,7 +31892,10 @@ var CORE_ARTICLES = [
 					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
 					"What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.",
-					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`
+					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
+					"A number is kept exactly as you type it, never rounded quietly. One with more decimal places than the goal keeps (12.5 in a goal of whole numbers) is refused with what it would show as: type it to the goal’s places, or ask the owner to allow more.",
+					"A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.",
+					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, like 29.4. Every number Faro shows has its thousands grouped: 1,250."
 				]
 			},
 			{
@@ -31757,6 +31915,7 @@ var CORE_ARTICLES = [
 		routes: ["/check-in", "/check-in/:goalId"],
 		screens: ["CheckInFlow"],
 		reqs: [
+			"NO-SILENT-ROUNDING",
 			"CARRY-OVER",
 			"GREENER",
 			"REASON-BEHIND",
@@ -31961,7 +32120,9 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.",
-					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. Your last layout is remembered and is in the link.",
+					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. Each button has its name, on a phone too, and a line under the buttons says what the open layout shows. Your last layout is remembered and is in the link.",
+					"On a phone the tabs and the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full.",
+					"When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.",
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
 					"In the sidebar, Goals has Mine, Watching, All and your saved views under it.",
@@ -32342,7 +32503,10 @@ var CORE_ARTICLES = [
 				"For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.",
 				"Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.",
 				"Check and publish. The owner is then offered the first check-in.",
-				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft."
+				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
+				"Decimals says how many decimal places the goal’s numbers have (0 to 3). A start, target, limit or plan number typed with more is refused, not rounded, so what you see is what was saved.",
+				"Some numbers are asked about, never refused: a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), and a billion or more.",
+				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told when another goal has it, and wherever both could be on screen each shows its key beside the title."
 			]
 		}, {
 			heading: "Who can",
@@ -32355,7 +32519,9 @@ var CORE_ARTICLES = [
 			"PLAN-SHAPE",
 			"LEVELS",
 			"FIRST-CHECKIN",
-			"HIERARCHY"
+			"HIERARCHY",
+			"NO-SILENT-ROUNDING",
+			"SAME-NAMES"
 		],
 		keywords: [
 			"create",
@@ -32387,7 +32553,8 @@ var CORE_ARTICLES = [
 				"Open the goal and choose Edit.",
 				"Change the title, definition, data source, owner, level, what it feeds and what it also helps.",
 				"Plan by week shows the numbers week by week; type over any week.",
-				"After check-ins have started, a change to the plan or target asks why, in a sentence. Watchers see it flagged, and it is in the goal’s activity.",
+				"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s activity. A change made from one part of Change this goal always asks why.",
+				"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about.",
 				"The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.",
 				"A goal’s type can’t change once check-ins have started."
 			]
@@ -32822,6 +32989,7 @@ var CORE_ARTICLES = [
 				"Find a person by name, job title or team, or pick a team. Each shows their job title, team and whether they are an admin. A long list shows 60 at a time, with Show more.",
 				"Admins: Add a person is the main action. Open someone to change their name, email, job title, team, or whether they are an admin. There is always at least one admin. Everyone new needs an email, and no two people share one.",
 				"People without an email: people added before emails were needed are listed for admins, with a box for each. Type the emails you know and save them together.",
+				"Two people can have the same name: the email is who someone is. Adding one says so, and wherever both could be on screen (pickers, this list) each shows their team, or job title, beside the name. Their avatars differ in colour.",
 				"Someone who has left: open them and choose Mark as left. You’re asked who takes over their goals and their open asks first; they then leave every picker and count, and history keeps their name, as “Name (left)”. Someone with no history is deleted instead."
 			]
 		}, {
@@ -32833,7 +33001,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"PROFILES",
 			"PERSON-LEFT",
-			"PERSON-EMAIL"
+			"PERSON-EMAIL",
+			"SAME-NAMES"
 		],
 		keywords: [
 			"people",
@@ -33467,6 +33636,26 @@ var WHATS_NEW = [
 			"home",
 			"inbox",
 			"recording"
+		]
+	},
+	{
+		id: "numbers-and-names",
+		date: "2026-11-08",
+		title: "Numbers kept as typed, and names told apart",
+		points: [
+			"A number is never rounded quietly. 12.5 in a goal of whole numbers is refused with what it would show as, in a check-in, a new goal, an edit, a spreadsheet and the AI assistant alike.",
+			"Letters in a number get one message everywhere, every number has its thousands grouped (1,250), and a number far outside the plan, a negative time or a billion is questioned, not refused.",
+			"Two goals can share a name: you’re told when you make one, and each shows its key beside the title wherever both could be on screen. Two people can share a name too: the email tells them apart, with their team or job title beside the name and different avatar colours.",
+			"A team’s goal count no longer includes goals that were removed. When the AI assistant is refused, it says who its token acts as.",
+			"On a phone, the layout buttons have names and a line saying what each layout shows, tabs and filters wrap instead of being cut off, and What’s new sits near the top of Home instead of at its foot. Saved views keep their whole name."
+		],
+		articles: [
+			"check-in",
+			"new-goal",
+			"edit-goal",
+			"goals",
+			"workspace-people",
+			"home"
 		]
 	},
 	{
@@ -34251,6 +34440,11 @@ var RULE_PAGES = [
 		"what is needed before a check-in can be posted"
 	],
 	[
+		"numbers-and-names",
+		"Numbers and names",
+		"a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart"
+	],
+	[
 		"flags",
 		"Flags, the trend and needs attention",
 		"why a goal is flagged, and whether it needs attention"
@@ -34845,7 +35039,7 @@ var WORK_TOOLS = [
 							name: t.name,
 							lead: name(ctx, t.leadId),
 							people: m.people.length,
-							goals: m.goals.length
+							goals: m.current.length
 						};
 					})
 				},
@@ -37699,13 +37893,16 @@ async function callTool(name, args, ctx) {
 	try {
 		return await t.run(args ?? {}, ctx);
 	} catch (e) {
+		const text = e instanceof Error ? e.message : String(e);
 		return {
 			isError: true,
-			text: e instanceof Error ? e.message : String(e),
+			text: e instanceof NotAllowed ? `${text} ${actingAs(ctx.actor)}` : text,
 			cause: e
 		};
 	}
 }
+/** Who a token acts as, in a sentence: said with every refusal. */
+var actingAs = (p) => `This token acts as ${p.name}, who ${p.admin ? "is an admin" : "isn’t an admin"}.`;
 // src/mcp/protocol.ts
 init_token();
 /** The name stays 'goals' (assistants already have it saved); the title is the product's. */

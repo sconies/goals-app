@@ -1,10 +1,11 @@
+import { sameTitleNote } from '../domain/people';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { dueOptions, isYear } from '../domain/year';
 import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
-import { blankGoal, buildGoal, draftOf, overHundredHint, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
+import { blankGoal, buildGoal, draftOf, planHint, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
 import { fmt, LEVEL_LABEL } from '../domain/format';
 import type { Goal, GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
 
@@ -87,7 +88,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
   useMark(existing ? null : STEP_MARKS[step] ?? null);
   const endOptions = dueOptions(cycle, week, yearEnd);
   const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
-  const errors = validateGoal(d, cycle);
+  const errors = validateGoal(d, cycle, existing);
   const stepErrors = (i: number) => STEP_FIELDS[i]!.filter((k) => errors[k]);
   const showErr = (k: keyof GoalErrors) => tried.includes(step) && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
   const top = useRef<HTMLDivElement>(null);
@@ -162,6 +163,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
               <span className="small strong">Name it the way your team would say it</span>
               <input className="input big-input" value={d.title} onChange={(e) => set({ title: e.target.value })} placeholder="e.g. Requests triaged within 2 days" aria-invalid={tried.includes(0) && !!errors.title} />
               {showErr('title')}
+              {!errors.title && (() => { const twin = sameTitleNote(d.title, existing?.id ?? null, app.snapshot.goals, (id) => app.team(id)?.name ?? ''); return twin ? <span className="hint tone-risk" role="status">{twin}</span> : null; })()}
             </label>
             <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
               <legend className="small strong" style={{ marginBottom: 8 }}>How will you know it worked?</legend>
@@ -194,7 +196,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <div className="num-pair with-arrow">
                   <label className="field"><span className="small strong">Today (week {existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried.includes(1) && !!errors.start} />{showErr('start')}</label>
                   <span className="arrow"><Icon name="arrow-right" /></span>
-                  <label className="field"><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}{overHundredHint(d.unit, d.start, d.target) && <span className="hint tone-risk" role="status">{overHundredHint(d.unit, d.start, d.target)}</span>}</label>
+                  <label className="field"><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried.includes(1) && !!errors.target} />{showErr('target')}{planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
                 </div>
                 <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
                   <legend className="small strong" style={{ marginBottom: 8 }}>How will progress come?</legend>
@@ -223,7 +225,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                     <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
                   </div>
                 </div>
-                <label className="field"><span className="small strong">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried.includes(1) && !!errors.limit} />{showErr('limit')}</label>
+                <label className="field"><span className="small strong">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried.includes(1) && !!errors.limit} />{showErr('limit')}{planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
                 <label className="field"><span className="small strong">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried.includes(1) && !!errors.margin} />{showErr('margin')}</label>
               </div>
             )}
@@ -255,7 +257,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
               </label>
               <label className="field"><span className="small strong">Owner · checks in weekly</span>
-                <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}</select>
               </label>
             </div>
             {d.parentId && (

@@ -11,7 +11,7 @@ A check-in is one week's report on one goal, by its owner (or an admin): the num
 
 **Reading a number** (`parseNumber`): spaces and a trailing unit or `%` are ignored; a decimal comma with one or two digits (`29,4`) is a decimal point; commas grouping thousands (`1,250`, `1,250.5`) are dropped. Anything else that isn't plain digits with one optional point and sign (hex, exponents, words, two points) is not a number; nor is anything 10¹² or more.
 
-**Impossible and surprising numbers** (`valueProblem`): below zero is refused for a percentage or a time or money unit; over 100% is refused for a share (see [the projection](projection.md)) and only questioned otherwise; a number more than 3 times or less than a third of last week's is questioned ("Last week was 29.4. Is 294 right?"), never refused.
+**Impossible and surprising numbers** (`valueProblem`): letters are refused with the one message of [numbers and names](numbers-and-names.md); a number with more decimal places than the goal keeps is refused (never rounded, the same rule); below zero is refused for a percentage or a time or money unit; over 100% is refused for a share (see [the projection](projection.md)) and only questioned otherwise; a number goal's value more than 2 times the plan's width beyond either end of its plan is questioned ("That's far outside this goal's plan (30 to 75%). Is 400 right?"); a number more than 3 times or less than a third of last week's is questioned ("Last week was 29.4. Is 294 right?"). Questions never refuse.
 
 **Judging the draft** (`evaluate`, for the goal, the week, the draft and the goal's check-ins): the check-in is judged as in [the status](status.md), with the goal's earlier check-ins (weeks before this one). The calculated call is the calculation, with `planned` and `none` counting as `on`. The owner's call defaults to it.
 
@@ -22,7 +22,7 @@ A check-in is one week's report on one goal, by its owner (or an admin): the num
 
 What is still missing, as codes, in this order:
 
-1. `value` (none typed), `value-not-number`, or `value-impossible` (refused above). Not asked of dated stages.
+1. `value` (none typed), `value-not-number`, `value-precision` (more decimal places than the goal keeps), or `value-impossible` (refused above). Not asked of dated stages.
 2. `greener-why`: a greener call needs its own reason of at least 10 characters.
 3. `reason-behind` / `reason-ahead`: a cause (one of the listed causes, or "Something else") and a why of at least 10 characters.
 4. `path`: what changes (at least 8 characters) and, when the recovery state is `plan` (the default), a week to be back on plan by that is after this week and no later than the cycle's last week. The other recovery states (`investigating`, `help`, `target`) need no week.

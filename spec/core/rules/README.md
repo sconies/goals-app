@@ -10,6 +10,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [A goal’s status](status.md) | What the numbers say (the calculated status), and the official status everyone sees: the owner’s call, unless it has gone stale. |
 | [The projection](projection.md) | Where a number lands by its due week if the recent trend holds: the likeliest value and a range around it. |
 | [What a check-in must say](check-in.md) | What a check-in needs before it can be posted, and the record it becomes. |
+| [Numbers and names](numbers-and-names.md) | How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart. |
 | [Flags, the trend and needs attention](flags.md) | Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled. |
 | [The scorecard](scorecard.md) | The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target. |
 | [The change engine](change-engine.md) | The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and the AI assistant. |

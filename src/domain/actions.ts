@@ -435,9 +435,19 @@ export function saveTeam(x: ActionContext, t: { id?: string; name: string; leadI
   return { id: team.id, commit: { teams: [team], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: team.id, action: before ? 'edited' : 'created', summary: before ? (before.name !== team.name ? `Renamed the team “${before.name}” to “${team.name}”` : `Changed the team “${team.name}”`) : `Added the team “${team.name}”`, diffs }] } };
 }
 
-/** What still belongs to a team: its people, and its goals in every cycle (the workspace's goals when known). */
+/**
+ * What still belongs to a team: its people; its goals in every cycle, not counting removed ones (`goals`); the goals the
+ * Board shows for it now, this cycle's that are neither removed nor stopped (`current`, what its card counts); and every goal
+ * that names it, removed ones too (`named`, what moves when the team is removed, so nothing points at a team that's gone).
+ */
 export function teamMembers(x: Pick<ActionContext, 'snapshot' | 'allGoals'>, teamId: string) {
-  return { people: x.snapshot.people.filter((p) => p.teamId === teamId), goals: (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId) };
+  const named = (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId);
+  return {
+    people: x.snapshot.people.filter((p) => p.teamId === teamId),
+    goals: named.filter((g) => !g.removedAt),
+    current: x.snapshot.goals.filter((g) => g.teamId === teamId && !g.removedAt && !g.stoppedAt),
+    named,
+  };
 }
 
 /** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
@@ -445,16 +455,19 @@ export function removeTeam(x: ActionContext, id: string, moveTo?: string | null)
   if (!x.actor.admin) no('Only admins can remove teams.');
   const team = x.snapshot.teams.find((t) => t.id === id);
   if (!team) no('There’s no team with that ID.');
-  const { people, goals } = teamMembers(x, id);
+  const { people, goals, named } = teamMembers(x, id);
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const what = [people.length ? plural(people.length, 'person', 'people') : '', goals.length ? plural(goals.length, 'goal', 'goals') : ''].filter(Boolean).join(' and ');
   const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : undefined;
   if (moveTo && (!to || moveTo === id)) no('Move them to another team that’s in this workspace.');
   if (what && !to) no(`${team!.name} still has ${what}. Move them to another team first.`);
   const movedPeople = people.map((p) => ({ ...p, teamId: to!.id }));
-  const movedGoals = goals.map((g) => ({ ...g, teamId: to!.id }));
+  // Removed goals move too, quietly (to the team chosen, or else the first other team): they aren't counted or logged, but
+  // one restored later still belongs to a team that exists.
+  const home = to ?? x.snapshot.teams.find((t) => t.id !== id);
+  const movedGoals = [...goals.map((g) => ({ ...g, teamId: to!.id })), ...(home ? named.filter((g) => g.removedAt).map((g) => ({ ...g, teamId: home.id })) : [])];
   const l = lookupOf(x.snapshot);
-  const goalChanges = goals.map((g, i) => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: g.id, entity: 'goal' as const, entityId: g.id, action: 'edited' as const, summary: `Moved to ${to!.name}, as ${team!.name} was removed`, diffs: [{ field: 'Team', from: team!.name, to: l.teamName(movedGoals[i]!.teamId) }] }));
+  const goalChanges = goals.map((g) => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: g.id, entity: 'goal' as const, entityId: g.id, action: 'edited' as const, summary: `Moved to ${to!.name}, as ${team!.name} was removed`, diffs: [{ field: 'Team', from: team!.name, to: l.teamName(to!.id) }] }));
   return {
     ...(movedPeople.length ? { people: movedPeople } : {}),
     ...(movedGoals.length ? { goals: movedGoals } : {}),

@@ -3,10 +3,10 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Flag, GoalAttention } from '../domain/attention';
 import { LABEL } from '../domain/status';
-import type { DisplayStatus, Level, Person } from '../domain/types';
+import type { DisplayStatus, Goal, Level, Person } from '../domain/types';
 import { LEVEL_LABEL } from '../domain/format';
 import { Icon } from './Icon';
-import { useToasts } from '../app/state';
+import { useMaybeApp, useToasts } from '../app/state';
 
 /**
  * Status is shape plus word, never colour alone. When a shape's status changes in place (a check-in previewed or
@@ -60,10 +60,20 @@ export const Tag = ({ children }: { children: ReactNode }) => <span className="c
 
 export const Dot = ({ k }: { k: DisplayStatus }) => <span className={'dot ' + chipClass(k)} aria-hidden="true" />;
 
-export const Avatar = ({ p, size }: { p: Pick<Person, 'initials' | 'name'>; size?: 'sm' | 'lg' }) => (
-  <span className={'avatar' + (size ? ' ' + size : '')} aria-hidden="true" data-hue={hue(p.name)}>{p.initials}</span>
-);
+/** A person's initials in their colour: from who they are, so two people with the same name or initials differ (backlog N). */
+export function Avatar({ p, size }: { p: Pick<Person, 'initials' | 'name'> & { id?: string }; size?: 'sm' | 'lg' }) {
+  const app = useMaybeApp();
+  const h = (p.id != null ? app?.avatarHue(p.id) : undefined) ?? hue(p.id ?? p.name);
+  return <span className={'avatar' + (size ? ' ' + size : '')} aria-hidden="true" data-hue={h}>{p.initials}</span>;
+}
 const hue = (s: string) => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 6;
+
+/** The key (or team) beside a goal's title, only when another goal has the same title: so two are never confused. */
+export function TitleTell({ goal }: { goal: Goal }) {
+  const app = useMaybeApp();
+  const t = app?.goalTell(goal);
+  return t ? <span className="gkey title-tell" title="Another goal has this title">{t}</span> : null;
+}
 
 /** A goal's level, for reporting at major reviews. Team goals show nothing; north star and SVP stand out a little. */
 export function LevelTag({ level, always }: { level: Level; always?: boolean }) {
