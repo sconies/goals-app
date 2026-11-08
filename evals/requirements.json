@@ -169,7 +169,7 @@
     {
       "id": "MOTION",
       "area": "Platform",
-      "text": "Motion is subtle and never blocks; it switches off under reduced motion. Loading shows a skeleton, not a blank page."
+      "text": "Motion is subtle and never blocks; it switches off under reduced motion. The launch splash (LAUNCH) is the one longer animation, once per launch. Loading shows a skeleton, not a blank page."
     },
     {
       "id": "OUTCOME-TREE",
@@ -575,6 +575,11 @@
       "id": "BRAND",
       "area": "Platform",
       "text": "The app is called Faro. The page title ends “Faro”; the browser tab shows Faro’s mark (an SVG favicon at /favicon.svg, linked from index.html and served in the demo too); the welcome page shows the Faro logo, named “Faro”; the sidebar shows the logo (the mark alone on the icon rail). The default look is Faro’s warm paper, ink and teal; the logo’s amber is used nowhere else in the app, since amber means At risk. In light and dark, body text passes 7:1 on the page, links 4.5:1 and primary button text 4.5:1. The earlier accents stay in Settings, with Faro the default."
+    },
+    {
+      "id": "LAUNCH",
+      "area": "Platform",
+      "text": "Faro can be put on a phone's home screen and is easy to see there: a web app manifest (/manifest.webmanifest, linked from index.html) names it Faro, with Faro's paper as its colours and 192 and 512 px PNG icons, both plain and maskable, plus a 180 px apple-touch icon. Every icon, and the favicon, is a solid deep-teal tile (#183638) with the F in paper white, the amber beam and the teal bar, the F inside the maskable safe zone. Each launch (the first load in a browser session, or opening it from the home screen) shows a splash over the app as it loads: the amber beam swings wide across the screen and half a turn round the stem in 3D like a lighthouse's light, the screen flashing once as it points at you, overshoots and settles into the F; then the teal bar and “aro” are drawn in; about 2.5 s, the finished logo holding a moment (the one exception to the 250 ms motion rule, as it plays once per launch), never on navigation, ended at once by a tap or any key, with no layout shift. Under reduced motion the logo just fades in and out. Automated browsers don't see it unless they ask."
     },
     {
       "id": "MARKUP",

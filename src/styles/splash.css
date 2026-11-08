@@ -1,0 +1,15 @@
+/* Faro's splash (src/ui/Splash.tsx): over the app, which loads behind it. Fixed, so it shifts nothing. */
+.faro-splash { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; background: var(--bg, #F6F5F1); color: var(--brand-ink, #183638); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.faro-splash.is-leaving { pointer-events: none; }
+.faro-splash-logo { position: relative; width: min(64vw, 340px); aspect-ratio: 472 / 210; }
+.faro-splash-logo svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+/* The beam turns about the stem's middle (x 25 of 472) and shows from behind as it swings round. The bar grows out
+   from the stem's edge (x 58). Both wait unseen until their turn. */
+.faro-splash .sp-light { transform-origin: 5.3% 50%; backface-visibility: visible; will-change: transform, filter, opacity; opacity: 0; }
+.faro-splash .sp-bar { transform-origin: 12.3% 50%; opacity: 0; }
+/* The flash as the beam points at you: the beam's light over the whole screen, from where the lamp is. */
+.faro-splash .sp-flash { position: fixed; inset: 0; opacity: 0; pointer-events: none; background: radial-gradient(circle at 50% 42%, #FFF6DF 0%, rgba(247, 174, 46, .55) 45%, rgba(247, 174, 46, 0) 80%); }
+.faro-splash .sp-letter { fill: currentColor; fill-opacity: 0; stroke: currentColor; stroke-width: 2.5; stroke-dasharray: 1; stroke-dashoffset: 1; stroke-linejoin: round; }
+/* Reduced motion: the whole logo, drawn and still. */
+.faro-splash.is-still .sp-letter { fill-opacity: 1; stroke-dashoffset: 0; }
+.faro-splash.is-still .sp-light, .faro-splash.is-still .sp-bar { opacity: 1; }

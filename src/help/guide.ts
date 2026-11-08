@@ -135,7 +135,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin.'] },
       { heading: 'How to use it', list: [
-        'Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
+        'A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
         'In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.',
         'Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.',
         'A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later.',
@@ -790,7 +790,7 @@ const CORE_ARTICLES: Article[] = [
         'Detail pages have a Back link to where you came from.',
       ] },
       { heading: 'Good to know', text: ['How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion.'] },
-      { heading: 'Faro’s look', text: ['The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), on the welcome page and in the browser tab.', 'Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk.'] },
+      { heading: 'Faro’s look', text: ['The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), on the welcome page and in the browser tab.', 'Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk.', 'On a phone’s home screen and in the browser tab, the F sits on a deep-teal tile so it’s easy to spot. See On a phone, a tablet or a big screen for adding it to your home screen.'] },
     ],
     routes: ['/settings'],
     screens: ['Settings'],
@@ -978,11 +978,16 @@ const CORE_ARTICLES: Article[] = [
         'Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.',
         'Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.',
       ] },
+      { heading: 'On your home screen', list: [
+        'Put Faro on your phone’s home screen like an app: in Chrome on Android, open the menu and choose Add to home screen (or Install app); in Safari on an iPhone, tap Share, then Add to Home Screen. It opens full screen, without the browser around it.',
+        'Its icon is a deep-teal tile with the F in white and a bright amber beam and teal bar, so it stands out on light and dark wallpapers.',
+        'Each time you open Faro, the amber beam sweeps across the screen like a lighthouse’s light, flashing as it points at you, then settles into the F; the teal bar and “aro” are drawn in. It takes about two and a half seconds, the app loads behind it, and a tap or any key skips it. It doesn’t play again as you move around, and with reduced motion on your device the logo simply fades in.',
+      ] },
     ],
     routes: [],
     screens: [],
-    reqs: ['PHONE', 'A11Y', 'NO-ERRORS', 'EVERY-WIDTH', 'WIDE-SCREENS', 'FIT-AND-FINISH', 'FIT-AND-FINISH-AREAS', 'NO-LOST-UPDATES', 'DRAFTS', 'PERSIST', 'MOTION', 'NAV-GOALS'],
-    keywords: ['phone', 'mobile', 'tablet', 'desktop', 'more', 'tabs', 'feedback', 'drafts', 'offline', 'accessibility', 'keyboard', 'text size'],
+    reqs: ['LAUNCH', 'PHONE', 'A11Y', 'NO-ERRORS', 'EVERY-WIDTH', 'WIDE-SCREENS', 'FIT-AND-FINISH', 'FIT-AND-FINISH-AREAS', 'NO-LOST-UPDATES', 'DRAFTS', 'PERSIST', 'MOTION', 'NAV-GOALS'],
+    keywords: ['phone', 'mobile', 'tablet', 'desktop', 'more', 'tabs', 'feedback', 'drafts', 'offline', 'accessibility', 'keyboard', 'text size', 'home screen', 'install', 'icon', 'app icon', 'splash', 'lighthouse', 'add to home screen'],
     related: ['settings', 'help'],
   },
   {

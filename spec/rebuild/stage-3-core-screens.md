@@ -34,3 +34,4 @@ Where the kit doesn’t yet hold what this stage needs, so a rebuild would have 
 - The journeys are driven by Faro’s own eval scripts against Faro’s own markup (`evals/journeys.cjs`), which are not in the kit and would not run against another build. There is no portable journey runner yet.
 - The design rules (`docs/design-rules.md`) and the look are not in the kit; a heading or button whose words are worked out when it shows isn’t listed (the screens page says so).
 - The Help guide’s articles are summarised on the screens page, not given in full.
+- Faro’s mark (the F’s stem, beam and bar, and “aro”) is drawn from paths in `src/ui/brandPaths.ts`, which are not in the kit: the home-screen icon and the launch splash (requirement `LAUNCH`) are described in words, so a rebuild draws its own mark to them.

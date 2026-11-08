@@ -97,7 +97,7 @@ Checks that Lane’s review notes stay fixed.
 | N1 | Review notes, reviews | `REVIEW-LIST-STATE` `REVIEW-AGENDA` | `evals/notes/1-reviews.cjs` |
 | N2 | Review notes, goal-page (the flagship page) | `GOAL-SUMMARY` `GOAL-PAGE-BAR` `GOAL-PAGE` | `evals/notes/2-goal-page.cjs` |
 | N3 | Review notes, attention-home | `ATTENTION-HANDLED` `HOME-DASHBOARD` | `evals/notes/3-attention-home.cjs` |
-| N4 | Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours | `SETTINGS` `NAV-GOALS` `WORKSPACE-ADMIN` `BRAND` | `evals/notes/4-shell-settings.cjs` |
+| N4 | Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours | `SETTINGS` `NAV-GOALS` `WORKSPACE-ADMIN` `BRAND` `LAUNCH` | `evals/notes/4-shell-settings.cjs` |
 | N6 | Review notes, print-motion | `PRINT-EXPORT` `MOTION-ALIVE` | `evals/notes/6-print-motion.cjs` |
 | N7 | ([^ | `HELP-GUIDE` `WHATS-NEW` | `evals/notes/7-help.cjs` |
 | N8 | Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send | `TELEMETRY-SIGNALS` `TELEMETRY-PRIVACY` `TELEMETRY-FLOWS` `TELEMETRY-SWITCH` | `evals/notes/8-telemetry.cjs` |

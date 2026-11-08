@@ -21,6 +21,7 @@
     "glossary": "node scripts/glossary.mjs",
     "export-format": "node scripts/export-format.mjs",
     "spec": "node scripts/spec.mjs",
+    "icons": "node scripts/icons.mjs",
     "drill": "node scripts/drill.mjs"
   },
   "dependencies": {
