@@ -14,6 +14,7 @@ import { RULE_LIST, wrongExamples, type Rule } from './rules';
 import { MAIN_ACTION } from './screens';
 import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
+import { internalFiles, wrongInternalExamples } from './internal';
 import { rebuildFiles, stages, type ModuleWithRebuild, type Stage } from './rebuild';
 import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, HEADERS, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
@@ -42,6 +43,7 @@ function readme(mods: ModuleFacts[]): string {
       ['[modules/](modules/README.md)', 'One section per feature module, from its `module.json`'],
       ['[conformance/](conformance/README.md)', 'The demo workspace and what the rules give for every goal in every week, as CSV, with how a rebuild proves itself'],
       ['[rebuild/](rebuild/README.md)', 'The rebuild kit: the stages of a rebuild with entry and exit criteria, and the drill harness that scores stage 1'],
+      ['[requirements/internal/](requirements/internal/README.md)', 'What the internal app must do that Faro doesn’t build (sign-in and access, single sign-on, time zones, scale and safety), each with acceptance checks and its nearest rebuild stage'],
     ]),
     '',
     '## Reading order for a rebuild of the core rules',
@@ -350,7 +352,7 @@ export function workspaceJson(w: ConformanceWorkspace): string {
 /** Every file the spec has, by path from the root: spec/… and llms.txt. Throws if a worked example is wrong. */
 export async function buildSpec(root: string): Promise<Record<string, string>> {
   const r: Repo = { root };
-  const wrong = await wrongExamples();
+  const wrong = [...await wrongExamples(), ...wrongInternalExamples()];
   if (wrong.length) throw new Error(`These worked examples don't say what the code gives (src/spec/rules.ts):\n${wrong.join('\n')}`);
   const mods = moduleFacts(r);
   const tests = testIndex(r);
@@ -375,6 +377,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
   const rows = Object.fromEntries(Object.entries(files).map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
+  Object.assign(out, internalFiles());
   Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs')));
   return out;
 }

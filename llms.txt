@@ -36,6 +36,15 @@ The core in a few lines:
 - [Rebuild Faro stage by stage](spec/rebuild/README.md): each stage’s entry and exit criteria, which stages have a drill today, where a rebuild is written and how it is scored
 - [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data
 
+## Requirements for the internal app (spec only)
+
+- [What Faro doesn’t build](spec/requirements/internal/README.md): rules the internal rebuild must meet that its own platform provides the machinery for, each with why, the rule, worked examples, acceptance checks and the nearest rebuild stage
+- [R1. Sign-in and access](spec/requirements/internal/r1-sign-in-and-access.md): who can see and change what, workspace membership, AI and builder tokens, who may read a sent markup
+- [R2. Company single sign-on](spec/requirements/internal/r2-single-sign-on.md): signing in through the company’s identity provider, and leavers losing access the day they leave
+- [R3. Time zones](spec/requirements/internal/r3-time-zones.md): real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone
+- [R4. Scale and safety](spec/requirements/internal/r4-scale-and-safety.md): 15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key
+- [Observability, as an idea](spec/requirements/internal/observability.md): not a requirement: what Faro records today, and what the internal app might take from it
+
 ## Feature modules
 
 - [Spreadsheets](spec/modules/spreadsheets/README.md): Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.
