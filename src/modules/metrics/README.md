@@ -26,7 +26,7 @@ Read from `app.snapshot` (the open cycle, removed metrics already left out) and 
 | `liveMetrics(app.snapshot)` | Every metric in use, by name: the Metrics page's list |
 | `findMetric(app.snapshot, idOrName)` | One metric, by id or name (any case) |
 | `goalsMeasuredBy(app.snapshot, metricId)` | The goals a metric measures: a count on the list, the list on its page |
-| `measureOf(app.snapshot, goal)` | `{ metric, slice, target, link }` or `null`: what "Measured by" shows. `slice` is the team's name or "The whole company"; `target` is `{ value, kind }`, `kind` being `target`, `at most` or `at least` |
+| `measureOf(app.snapshot, goal)` | `{ metric, slice, target, targetText, link }` or `null`: what "Measured by" shows. `slice` is the team's name or "The whole company"; `target` is `{ value, kind }`, `kind` being `target`, `at most` or `at least`; `targetText` is it as every screen writes it (the numbers rule, `src/domain/numbers.ts`: "At most 2.0%", "Target 1,250 deploys"). Show it as given; don't round or format it again |
 | `canEditMetric(app.viewer, metric)` | Whether to offer Edit and Remove |
 | `canLinkGoal(app.viewer, goal)` | Whether to offer "Measured by" on a goal |
 | `metricProblems(metricFrom(input, before, ctx), app.snapshot)` | The add/edit form's messages as someone types, before saving (`ctx` needs `actor`, `now`, `newId`: `{ actor: app.viewer, now: app.stamp(), newId }`) |

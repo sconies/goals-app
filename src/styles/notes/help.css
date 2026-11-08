@@ -77,10 +77,10 @@ main.work:has(.map-canvas) .page-help-link { min-height: 24px; font-size: 0.8125
 .home-news-close:hover { color: var(--fg); background: var(--surface-3); }
 @media (pointer: coarse) { .home-news-close { width: 44px; height: 44px; margin: -12px -8px -12px 0; } }
 
-/* Under the greeting from a tablet up; at the foot of Home on a phone. */
-.home-news-foot { display: none; }
+/* Under the greeting from a tablet up; on a phone just after your goals that need attention (backlog N, 8 Nov). */
+.home-news-phone { display: none; }
 @container app (max-width: 760px) {
   .home-news-head { display: none; }
-  .home-news-foot { display: flex; padding-top: var(--s3); border-top: 1px solid var(--line-2); }
+  .home-news-phone { display: flex; }
 }
 @media print { .page-help, .home-news { display: none !important; } }

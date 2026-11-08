@@ -2,6 +2,7 @@
    against its plan, which way it's heading over the last check-ins (in the goal's own units, never a share of plan), what
    changed since the last update, and where the app projects it lands by its due date, as a range. For number goals,
    ranges and dated stages alike. Pure: the goal page, its shared image and anything else asks here, never restates it. */
+import { fixed } from './numbers';
 import { isShare } from './checkin';
 import { fmt, fmtDiff, NO_VALUE, rangeText } from './format';
 import { goalAsOf, planAt, planEnd, projectionFor, type Projection } from './plan';
@@ -103,7 +104,7 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
     const word = gapTrend(span.map((x) => x.raw), true);
     const direction = DIRECTION[word];
     const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
-    const num = (v: number) => Math.abs(v).toFixed(goal.decimals);
+    const num = (v: number) => fixed(Math.abs(v), goal.decimals);
     // The unit as a difference is said ("pts", "days"), after the last number only.
     const words = fmtDiff(2, goal).replace(/^[0-9.]+ ?/, '');
     const tail = words ? ' ' + words : '';

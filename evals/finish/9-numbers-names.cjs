@@ -1,0 +1,116 @@
+/* F9: numbers and names (backlog N, 8 Nov). run({ open }) returns a list of failures.
+   No silent rounding (check-in, New goal), numbers far outside the plan asked about with their thousands grouped, the
+   reason box in goal edit once the plan changes, a duplicate goal name warned about, and a shared person name allowed. */
+module.exports = {
+  id: 'F9',
+  area: 'numbers-names',
+  reqs: ['NO-SILENT-ROUNDING', 'SAME-NAMES', 'PLAN-CHANGE'],
+  title: 'Numbers and names: never rounded quietly, odd numbers asked about, shared names told apart',
+  async run({ open }) {
+    const fails = [];
+    const fail = (m) => fails.push(m);
+    const text = (p, sel) => p.locator(sel).allInnerTexts().then((t) => t.join(' | ')).catch(() => '');
+
+    // The check-in: Rhea's lead time keeps whole hours (52 → 24).
+    {
+      const [c, p] = await open(390, 844, 'rhea', '/check-in/ns-lead');
+      const input = p.locator('.bignum input');
+      await input.fill('12.5');
+      await p.getByRole('button', { name: 'Continue' }).click();
+      const msg = await text(p, '#value-msg');
+      if (!/12\.5 has 1 decimal place, but this goal keeps whole numbers, so it would show as 13/.test(msg)) fail(`check-in: 12.5 in a whole-number goal isn’t refused with what it would show as (“${msg}”)`);
+      if (await p.getByRole('button', { name: 'Something changed' }).isVisible().catch(() => false)) fail('check-in: 12.5 moved on past the number');
+      await input.fill('1500');
+      await p.waitForTimeout(200);
+      const far = await text(p, '#value-msg');
+      if (!/far outside this goal’s plan \(52 to 24 hours\)\. Is 1,500 right\?/.test(far)) fail(`check-in: 1500 hours isn’t asked about, with its thousands grouped (“${far}”)`);
+      await input.fill('a12');
+      await p.getByRole('button', { name: 'Continue' }).click();
+      const letters = await text(p, '#value-msg');
+      if (!/“a12” isn’t a number\. Type digits only, like 29\.4\./.test(letters)) fail(`check-in: letters don’t get the one message (“${letters}”)`);
+      await c.close();
+    }
+
+    // New goal: a name another goal has is warned about (not refused); a start finer than Decimals is refused.
+    {
+      const [c, p] = await open(1280, 900, 'rhea', '/goals/new');
+      await p.locator('.big-input').first().fill('Lead time for changes');
+      const warn = await text(p, '.field .hint.tone-risk');
+      if (!/Another goal is called “Lead time for changes” \(G-1/.test(warn)) fail(`New goal: a duplicate name isn’t warned about (“${warn}”)`);
+      await p.getByRole('button', { name: 'Continue' }).click();
+      const start = p.getByLabel(/^Today/);
+      if (!(await start.isVisible().catch(() => false))) fail('New goal: a duplicate name stopped the wizard at its first step');
+      else {
+        await start.fill('12.5');
+        await p.getByLabel(/^Target/).fill('20');
+        await p.getByRole('button', { name: 'Continue' }).click();
+        const err = await text(p, '.field-error, [role="alert"]');
+        if (!/would show as 13/.test(err)) fail(`New goal: 12.5 with whole-number Decimals isn’t refused (“${err}”)`);
+      }
+      await c.close();
+    }
+
+    // Goal edit: once check-ins have started, a target change brings the reason box.
+    {
+      const [c, p] = await open(1280, 900, 'rhea', '/goals/ns-lead/edit');
+      if (await p.locator('.reason-field').isVisible().catch(() => false)) fail('goal edit: the reason box shows before anything changed');
+      await p.getByLabel(/^Target/).first().fill('20');
+      await p.waitForTimeout(200);
+      if (!(await p.locator('.reason-field').isVisible().catch(() => false))) fail('goal edit: changing the target after check-ins doesn’t ask why');
+      await c.close();
+    }
+
+    // People: a second Rhea Kapoor can be added; the note says the email tells them apart.
+    {
+      const [c, p] = await open(1280, 900, 'amara', '/workspace/people');
+      await p.getByRole('button', { name: 'Add a person' }).click();
+      const sheet = p.getByRole('dialog');
+      await sheet.getByLabel('Name').fill('Rhea Kapoor');
+      await sheet.getByLabel(/^Email/).fill('rhea.kapoor.two@example.com');
+      const note = await text(p, '[role="dialog"] .hint.tone-risk');
+      if (!/Rhea Kapoor \(.+\) is already here\. That’s fine: their email tells you apart/.test(note)) fail(`people: a shared name isn’t noted (“${note}”)`);
+      await sheet.locator('form').evaluate((f) => f.requestSubmit());
+      await p.waitForTimeout(400);
+      if (await sheet.isVisible().catch(() => false)) fail(`people: a second Rhea Kapoor couldn’t be added (${await text(p, '[role="dialog"] [role="alert"]')})`);
+      else {
+        await p.getByLabel('Find a person').fill('Rhea');
+        await p.waitForTimeout(200);
+        const names = await p.locator('.person-name').allInnerTexts();
+        const both = names.filter((n) => n.startsWith('Rhea Kapoor'));
+        if (both.length !== 2 || both[0] === both[1]) fail(`people: the two Rhea Kapoors aren’t told apart in the list (${both.join(', ')})`);
+      }
+      await c.close();
+    }
+    // Phones (demo review item 14): the layout buttons labelled with a line saying what the layout is; tabs and active
+    // filters wrap, none cut off; the What's new line under Home's greeting.
+    for (const w of [360, 390]) {
+      const [c, p] = await open(w, 800, 'rhea', '/goals?view=board&status=off,risk&level=team&owner=rhea', true);
+      const m = await p.evaluate(() => {
+        const off = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.left < -0.5 || r.right > innerWidth + 0.5 || e.scrollWidth > e.clientWidth + 1); };
+        const labels = [...document.querySelectorAll('.layout-switch button')].map((b) => { const l = b.querySelector('.ls-label'); const r = l?.getBoundingClientRect(); return r && r.width > 4 && getComputedStyle(l).display !== 'none' ? l.textContent : ''; });
+        return { labels, about: document.querySelector('.layout-about')?.textContent ?? '', tabs: [...document.querySelectorAll('.goals-tabs [role="tab"]')].filter(off).map((e) => e.textContent), chips: [...document.querySelectorAll('.filter-chips .filter-chip')].filter(off).map((e) => e.textContent), sideways: document.documentElement.scrollWidth - innerWidth };
+      });
+      if (m.labels.length !== 6 || m.labels.some((l) => !l)) fail(`${w}px: layout buttons not all labelled (${m.labels.join(', ')})`);
+      if (!/^Board: a column for each status\.$/.test(m.about)) fail(`${w}px: no line saying what the Board layout is (“${m.about}”)`);
+      if (m.tabs.length) fail(`${w}px: tabs cut off: ${m.tabs.join(', ')}`);
+      if (m.chips.length) fail(`${w}px: filter chips cut off: ${m.chips.join(', ')}`);
+      if (m.sideways > 1) fail(`${w}px: Goals scrolls sideways by ${m.sideways}px`);
+      await c.close();
+    }
+
+    // A saved view's long name in full on a wide monitor, as its tab.
+    {
+      const long = 'Platform goals at risk this quarter that need a decision from the steering group';
+      const [c, p] = await open(1920, 1000, 'rhea', '/goals?status=off,risk');
+      await p.getByRole('button', { name: 'Save view' }).first().click();
+      await p.getByRole('dialog').getByLabel('Name').fill(long);
+      await p.getByRole('dialog').getByRole('button', { name: 'Save view' }).click();
+      const tab = p.locator('.goals-tabs .view-tab');
+      await tab.waitFor({ timeout: 4000 }).catch(() => {});
+      const m = await tab.evaluate((e) => ({ text: e.textContent, cut: e.scrollWidth > e.clientWidth + 1 })).catch(() => null);
+      if (!m || m.text !== long || m.cut) fail(`1920px: the saved view’s name is cut short (${m ? m.text : 'no tab'})`);
+      await c.close();
+    }
+    return fails;
+  },
+};

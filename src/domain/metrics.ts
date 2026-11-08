@@ -10,6 +10,8 @@
 import { NotAllowed, type ActionContext } from './actions';
 import { diffFields } from './changes';
 import type { Commit } from './commit';
+import { fmt } from './format';
+import { placesText } from './numbers';
 import type { Change, Goal, Metric, MetricDirection, MetricLink, MetricRefresh, Snapshot } from './types';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
@@ -60,13 +62,16 @@ export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most'
   return null;
 }
 
-/** What a goal is measured by, ready to show: the metric, the slice in words, and the goal's target in it. */
-export interface Measure { link: MetricLink; metric: Metric; slice: string; target: ReturnType<typeof goalTarget> }
+/** What a goal is measured by, ready to show: the metric, the slice in words, and the goal's target in it, as a number
+    and as every screen writes it (domain/numbers: at the goal's decimals, digits grouped, with its unit: "At most 2.0%"). */
+export interface Measure { link: MetricLink; metric: Metric; slice: string; target: ReturnType<typeof goalTarget>; targetText: string | null }
 export function measureOf(s: Pick<Snapshot, 'goals' | 'teams' | 'metrics' | 'metricLinks'>, goal: Goal): Measure | null {
   const link = linkOf(s, goal.id);
   if (!link) return null;
   const metric = liveMetrics(s).find((m) => m.id === link.metricId)!;
-  return { link, metric, slice: sliceName(s, link.teamId), target: goalTarget(goal) };
+  const target = goalTarget(goal);
+  const targetText = target && goal.kind !== 'milestone' ? `${target.kind === 'target' ? 'Target' : target.kind === 'at most' ? 'At most' : 'At least'} ${fmt(target.value, goal)}` : null;
+  return { link, metric, slice: sliceName(s, link.teamId), target, targetText };
 }
 /** A slice in words: the team's name (or "a removed team"), or the whole company. */
 export const sliceName = (s: Pick<Snapshot, 'teams'>, teamId: string | null) => (teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? 'A removed team');
@@ -205,6 +210,8 @@ export function linkProblems(goal: Goal, m: Metric): { errors: string[]; warning
     if (goal.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase()) errors.push(`The goal is in ${goal.unit || 'no unit'} and the metric is in ${m.unit}. Use the same unit for both.`);
     const up = goal.kind === 'metric' ? goal.plan.target > goal.plan.start : goal.range.bound === 'atLeast';
     const flat = goal.kind === 'metric' && goal.plan.target === goal.plan.start;
+    // One number, two precisions would read differently on the goal and in the library (domain/numbers).
+    if (goal.decimals > m.decimals) warnings.push(`The goal keeps ${placesText(goal.decimals)} and ${m.name} ${placesText(m.decimals)}. Check which is meant.`);
     if (!flat && (up ? 'higher' : 'lower') !== m.direction) warnings.push(`The goal aims ${up ? 'up' : 'down'}, but for ${m.name} ${DIRECTION_LABEL[m.direction].toLowerCase()}. Check it’s meant.`);
   }
   return { errors, warnings };

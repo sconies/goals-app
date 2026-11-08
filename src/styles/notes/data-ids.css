@@ -59,3 +59,4 @@ body.col-dragging, body.col-dragging * { cursor: grabbing !important; user-selec
 .table-views { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line-2); }
 .table-views li { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: 40px; border-bottom: 1px solid var(--line-2); font-size: 0.875rem; }
 @media (pointer: coarse) { .table-views li { min-height: 48px; } .table-views .linkish { min-height: 44px; display: inline-flex; align-items: center; } }
+.title-tell { margin-left: 6px; }

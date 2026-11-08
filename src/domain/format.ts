@@ -1,5 +1,6 @@
 import type { Assessment } from './status';
 import type { Goal, Level, MetricGoal, RangeGoal } from './types';
+import { fixed } from './numbers';
 import { GAP, gapPhrase, LABEL, STAGE } from './vocabulary';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
@@ -10,7 +11,7 @@ export function unitFor(n: string, unit: string): string {
 }
 
 export function fmt(v: number, g: Numeric): string {
-  const n = v.toFixed(g.decimals);
+  const n = fixed(v, g.decimals);
   if (!g.unit) return n;
   return g.unit === '%' ? n + '%' : n + ' ' + unitFor(n, g.unit);
 }
@@ -25,7 +26,7 @@ export function nowText(g: Goal, a: Assessment): string {
 
 /** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
 export function fmtDiff(v: number, g: Numeric): string {
-  const n = Math.abs(v).toFixed(g.decimals);
+  const n = fixed(Math.abs(v), g.decimals);
   if (g.unit === '%') return n + (Number(n) === 1 ? ' pt' : ' pts');
   return g.unit ? n + ' ' + unitFor(n, g.unit) : n;
 }
@@ -39,7 +40,7 @@ export function rangeText(p: { low: number; high: number }, g: Numeric, share = 
   const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
   if (lo === hi) return lo;
   // "81–85%" and "12–15 days": the unit once, after the range.
-  const bare = (v: number) => clamp(v).toFixed(g.decimals);
+  const bare = (v: number) => fixed(clamp(v), g.decimals);
   return `${bare(p.low)}–${hi}`;
 }
 

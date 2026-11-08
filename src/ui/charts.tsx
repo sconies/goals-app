@@ -1,3 +1,4 @@
+import { fixed } from '../domain/numbers';
 import { isShare } from '../domain/checkin';
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { planAt, planEnd, type Point, type Projection } from '../domain/plan';
@@ -197,7 +198,7 @@ function MetricSvg({ goal, weeks: cycleWeeks, week, series: allSeries, forecast:
   const lo = ticks[0]!, hi = ticks[ticks.length - 1]!;
   const step = ticks.length > 1 ? ticks[1]! - ticks[0]! : 1;
   const dec = step >= 1 ? 0 : Math.min(3, Math.ceil(-Math.log10(step) - 1e-9));
-  const tickText = ticks.map((v) => v.toFixed(dec));
+  const tickText = ticks.map((v) => fixed(v, dec));
   const padL = Math.max(28, Math.ceil(Math.max(...tickText.map(textW))) + 8);
   // 20px under the plot is kept for the week labels.
   // With a tick each week (the plan preview), the last label is centred on the end, so it needs room to the right.

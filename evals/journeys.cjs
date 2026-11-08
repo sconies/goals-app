@@ -470,9 +470,10 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   await h.fill(p.getByLabel('Your email'), 'grace.achterberg@example.com');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await see(p, 'Who else is on it?');
-  // A second person with your name is explained on their row before anything is saved; a row with no team takes yours.
+  // A second person with your name is allowed (the email is who someone is, backlog N), and said on their row; a row
+  // with no team takes yours.
   await p.getByLabel('Person 1: name').fill('Grace Achterberg');
-  h.set('errors', await p.getByRole('alert').filter({ hasText: 'appears twice' }).isVisible(), 'a duplicate name is not explained on its row');
+  h.set('errors', await p.getByRole('status').filter({ hasText: 'is already here' }).isVisible().catch(() => false), 'a shared name is not noted on its row');
   // Pasting rows from a spreadsheet fills the table.
   await p.getByLabel('Person 1: name').evaluate((el) => {
     const dt = new DataTransfer();
@@ -1504,7 +1505,7 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   // Back later: plain Goals, then the view, from the Views menu, brings it all back (saved views wait in one menu
   // rather than adding tabs that run off a phone's screen, L&T 2).
   await p.goto(url('/goals?view=list'));
-  await h.click(p.locator('.views-menu > summary'));
+  await h.click(p.locator('.views-menu:visible > summary'));
   await h.click(p.getByRole('button', { name: /Slipped dates/ }));
   await see(p, '21 of 126 goals', 'opening the saved view did not bring its filters back');
   // A shared link opens the same goals for anyone.
@@ -3071,7 +3072,9 @@ async function platformChecks() {
       await r.locator('.outcome, .gtable tbody tr, .board-card').first().waitFor();
       // Measured without the first-reports banner (two goals still waiting for a first check-in, all year in the example).
       const top = await r.evaluate(() => { const b = document.querySelector('.first-reports'); const n = b?.nextElementSibling; return document.querySelector('.outcome, .gtable tbody tr, .board-card').getBoundingClientRect().top - (b && n ? n.getBoundingClientRect().top - b.getBoundingClientRect().top : 0); });
-      const limit = vp.height * (device === 'phone' ? 0.5 : 0.4);
+      // A phone's first goal may start in the top 60% (backlog N, 8 Nov: the tabs wrap rather than being cut off, and a
+      // line says what the layout is); it was 50%. Still well inside the first screen, above the tab bar.
+      const limit = vp.height * (device === 'phone' ? 0.6 : 0.4);
       if (top > limit) fold.push(`${device} ${v}: the first goal starts at ${Math.round(top)}px (limit ${Math.round(limit)})`);
     }
     await c7.close();

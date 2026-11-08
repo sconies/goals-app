@@ -44,8 +44,14 @@ module.exports = {
         });
         fail(fold.bottom !== null && fold.bottom <= fold.limit, `[WHATS-NEW] ${w}: Start check-in ends at ${fold.bottom}px, below the fold (${fold.limit})`);
         fail(fold.newsH > 0 && fold.newsH <= (w < 400 ? 56 : 28), `[WHATS-NEW] ${w}: the Home line is ${fold.newsH}px tall`);
-        // On a phone the first screen is the week's work: the line waits at the foot of Home. From a tablet up it sits under the greeting.
-        fail(w < 761 ? fold.afterGrid : !fold.afterGrid, `[WHATS-NEW] ${w}: the Home line is ${fold.afterGrid ? 'at the foot of Home' : 'under the greeting'}`);
+        // Never at the foot of Home (backlog N, 8 Nov): under the greeting from a tablet up, and on a phone just after the
+        // goals that need you, so the first screen stays the week's work (U2).
+        fail(!fold.afterGrid, `[WHATS-NEW] ${w}: the Home line is at the foot of Home`);
+        if (w < 761) {
+          // Right after the goals that need attention: before the rest of your goals and everything below them.
+          const order = await p.evaluate(() => { const n = [...document.querySelectorAll('.home-news')].find((e) => e.getClientRects().length); const rest = document.querySelector('.home-mine .glist'); return !n ? 'none' : !rest || (n.compareDocumentPosition(rest) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'ok' : 'after'; });
+          fail(order === 'ok', `[WHATS-NEW] ${w}: the Home line isn’t just after the goals that need attention (${order})`);
+        }
         await line.scrollIntoViewIfNeeded();
         await line.getByRole('link', { name: /See what’s new/ }).click();
         await p.waitForTimeout(300);

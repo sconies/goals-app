@@ -241,7 +241,7 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(_a, ctx) {
       const team = (id: string | null) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
       const people = ctx.snapshot.people.map((p) => ({ id: p.id, name: p.name, email: p.email ?? null, jobTitle: p.role, team: team(p.teamId), admin: p.admin, goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length }));
-      const teams = ctx.snapshot.teams.map((t) => { const m = A.teamMembers(ax(ctx), t.id); return { id: t.id, name: t.name, lead: name(ctx, t.leadId), people: m.people.length, goals: m.goals.length }; });
+      const teams = ctx.snapshot.teams.map((t) => { const m = A.teamMembers(ax(ctx), t.id); return { id: t.id, name: t.name, lead: name(ctx, t.leadId), people: m.people.length, goals: m.current.length }; });
       return { data: { people, teams }, text: people.map((p) => `${p.id} · ${p.name}${p.email ? ` <${p.email}>` : ''}${p.jobTitle ? `, ${p.jobTitle}` : ''} · ${p.team ?? 'no team'}${p.admin ? ' · admin' : ''}`).join('\n') };
     },
   },

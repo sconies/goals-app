@@ -84,8 +84,8 @@ module.exports = {
     if (back.join() !== h.join() || !near(await thWidth(p, 'Owner'), w1, 1) || !near(await thWidth(p, 'Team'), 72, 1)) fails.push(`[TABLE-LAYOUTS] 1280 reopening “Owners first”: ${back.slice(0, 6).join(', ')}, Owner ${Math.round(await thWidth(p, 'Owner'))}px, Team ${Math.round(await thWidth(p, 'Team'))}px`);
     // It isn't one of the Goals screen's views.
     await p.goto(p.url().replace(/\/data.*$/, '/goals?today=2026-11-05')); await p.waitForTimeout(400);
-    if (await p.locator('.views-menu').count()) {
-      await p.locator('.views-menu > summary').click();
+    if (await p.locator('.views-menu:visible').count()) {
+      await p.locator('.views-menu:visible > summary').click();
       if (await p.getByRole('button', { name: 'Owners first' }).count()) fails.push('[TABLE-LAYOUTS] the table view shows among the Goals screen’s views');
     }
 

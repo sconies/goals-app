@@ -12,7 +12,7 @@ import { goalResult, RESULT_TEXT } from '../domain/story';
 import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
 import type { Goal, Level, Watch } from '../domain/types';
 import { Spark, StageSpark } from './charts';
-import { Chip, LevelTag, Sheet, StatusWord } from './bits';
+import { Chip, LevelTag, Sheet, StatusWord, TitleTell } from './bits';
 import { Icon } from './Icon';
 import { valueSeries } from '../domain/plan';
 import { LABEL as STATUS_WORD } from '../domain/vocabulary';
@@ -60,7 +60,7 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
     return (
       <Link to={to} className={'gline' + (className ? ' ' + className : '')}>
         <StatusWord k={st.status} className="gline-status" />
-        <span className="gline-title">{g.title}</span>
+        <span className="gline-title">{g.title}</span><TitleTell goal={g} />
         <span className="gline-now">{now}{(stale || gap) && <span className={'tone-' + (stale ? 'stale' : gap!.tone)}> · {stale ? 'no recent update' : gap!.short}</span>}</span>
         <span className="gline-spark">
           {g.kind !== 'milestone' ? <Spark goal={g} weeks={app.cycle.weeks} series={valueSeries(app.checkInsOf(g))} /> : a.kind === 'milestone' ? <StageSpark a={a} /> : null}
@@ -73,7 +73,7 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
     return (
       <Link to={to} className={'agenda-row' + (className ? ' ' + className : '')} data-tone={st.status}>
         <StatusWord k={st.status} className="agenda-status" />
-        <span className="agenda-name"><span className="agenda-title">{g.title}</span><LevelTag level={g.level} /></span>
+        <span className="agenda-name"><span className="agenda-title">{g.title}</span><TitleTell goal={g} /><LevelTag level={g.level} /></span>
         <span className="agenda-now">
           <span className="agenda-num">{now}</span>
           {stale ? (asOf ? <span className="agenda-gap muted">{asOf}</span> : null) : gap && <span className={'agenda-gap tone-' + gap.tone}>{gap.short}</span>}
@@ -94,7 +94,7 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
       {/* Status is always a shape and a word, in a slot of its own so they line up down a list. */}
       <StatusWord k={st.status} className="trow-icon" wordClass="trow-status" />
       <span className="trow-main">
-        <span className="trow-title"><span className="trow-name">{g.title}</span><LevelTag level={g.level} /></span>
+        <span className="trow-title"><span className="trow-name">{g.title}</span><TitleTell goal={g} /><LevelTag level={g.level} /></span>
         {/* The whole reason is in the title when a wide row clamps it to three lines. */}
         <span className="trow-why" title={title}>
           {why ?? <>
@@ -137,7 +137,7 @@ export function TreeCard({ node }: { node: TreeNode }) {
   const counts = (['off', 'risk', 'stale', 'on', 'done', 'planned'] as const).map((k) => [k, feed.filter((c) => app.statusOf(c).status === k).length] as const).filter(([, n]) => n);
   return (
     <Link to={'/goals/' + g.id} className="outcome-card">
-      <span className="outcome-title">{g.title}<LevelTag level={g.level} /></span>
+      <span className="outcome-title">{g.title}<TitleTell goal={g} /><LevelTag level={g.level} /></span>
       <span className="outcome-now">
         <Chip k={st.status} />
         <span className="big">{nowText(g, a)}</span>

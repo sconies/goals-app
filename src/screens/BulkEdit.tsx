@@ -64,7 +64,7 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
         <label className="field"><span className="field-label">{kind === 'owner' ? 'New owner' : 'Level'}</span>
           <select className="input" value={value} onChange={(e) => { setValue(e.target.value); setCs(null); }}>
             <option value="">Choose…</option>
-            {kind === 'owner' ? app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>) : levels.map((l) => <option key={l} value={l}>{LEVEL_LABEL[l]}</option>)}
+            {kind === 'owner' ? app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>) : levels.map((l) => <option key={l} value={l}>{LEVEL_LABEL[l]}</option>)}
           </select>
         </label>
         <span className="hint">{app.viewer.admin ? 'As an admin you can change any goal.' : 'You can change the goals you own. Leave others out of the selection.'} Each change is logged on its goal.</span>

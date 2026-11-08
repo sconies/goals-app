@@ -20,6 +20,7 @@ import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
 import * as M from '../domain/metrics';
 import { forgetDemoBrowser, forgetWorkspaceBrowser } from './demoBrowser';
+import { avatarHues, duplicateTitles, goalTell, nameWithTell } from '../domain/people';
 import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, UNDO_MS } from '../domain/vocabulary';
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
@@ -74,6 +75,12 @@ export interface AppState {
   viewer: Person;
   setViewer(id: string): void;
   person(id: string): Person | undefined;
+  /** A person's name, with their team or job title beside it when someone else here has the same name (backlog N). */
+  personName(id: string): string;
+  /** What goes beside a goal's title when another goal this cycle has the same title: its key, or its team. */
+  goalTell(g: Goal): string | null;
+  /** A person's avatar colour: different for two people with the same initials (domain/people avatarHues). */
+  avatarHue(id: string): number | undefined;
   team(id: string): Team | undefined;
   goal(id: string): Goal | undefined;
   statusOf(goal: Goal): GoalStatus;
@@ -199,6 +206,11 @@ export function useSetup(): SetupState {
   const v = useContext(SetupCtx);
   if (!v) throw new Error('useSetup outside AppProvider');
   return v;
+}
+
+/** The app's state where there is one (inside AppProvider), else null: for small shared pieces like the avatar. */
+export function useMaybeApp(): AppState | null {
+  return useContext(Ctx);
 }
 
 export function useApp(): AppState {
@@ -411,6 +423,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     // The whole workspace without deleted check-ins and notes: what attention reads across cycles.
     const live = withoutRemoved(snapshot);
     let comments: Map<string, import('../domain/types').Comment> | null = null;
+    // Worked out once per snapshot, when first asked for.
+    let dups: Set<string> | null = null, hueMap: Map<string, number> | null = null;
+    const dupTitles = () => (dups ??= duplicateTitles(sc.goals));
+    const hues = () => (hueMap ??= avatarHues([...people.values()]));
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
     const fallback = sc.people.find((p) => p.id === 'rhea') ?? sc.people.find((p) => sc.goals.some((g) => g.ownerId === p.id)) ?? sc.people[0]!;
     const chosen = !!viewerId && sc.people.some((p) => p.id === viewerId);
@@ -493,6 +509,9 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
+      personName: (id) => { const p = people.get(id); return !p ? id : sc.people.some((x) => x.id === id) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
+      goalTell: (g) => goalTell(g, dupTitles(), lookup.teamName),
+      avatarHue: (id) => hues().get(id),
       team: (id) => sc.teams.find((t) => t.id === id),
       // By ID or by key, so /goals/G-12 opens the same goal as its ID does. A stopped goal still opens (its page says so).
       goal: (id) => findGoal(sc.goals, id) ?? archived(id),

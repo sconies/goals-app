@@ -46,7 +46,7 @@ describe('the demo’s library', () => {
     // Lead time: a north star, the whole company's number, target 24 hours (its plan's target).
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))).toMatchObject({ metric: { name: 'Lead time for changes', unit: 'hours' }, slice: M.COMPANY, target: { value: 24, kind: 'target' } });
     // Flaky tests: CI/CD's slice of a range goal, at most 2%.
-    expect(M.measureOf(w.scoped, w.goal('lead-flaky'))).toMatchObject({ metric: { name: 'Flaky test rate' }, slice: 'CI/CD', target: { value: 2, kind: 'at most' } });
+    expect(M.measureOf(w.scoped, w.goal('lead-flaky'))).toMatchObject({ metric: { name: 'Flaky test rate' }, slice: 'CI/CD', target: { value: 2, kind: 'at most' }, targetText: 'At most 2.0%' });
     // A goal with no metric.
     expect(M.measureOf(w.scoped, w.goal('lead-mq'))).toBeNull();
   });
@@ -135,6 +135,11 @@ describe('linking a goal to a metric', () => {
   it('warns, without refusing, when the goal aims the other way from the metric', () => {
     const up = { ...w0().goal('lead-cache') } as Goal;
     expect(M.linkProblems(up, { ...M.findMetric(w0().scoped, 'metric_flaky-rate')!, unit: '%' })).toEqual({ errors: [], warnings: ['The goal aims up, but for Flaky test rate lower is better. Check it’s meant.'] });
+  });
+  it('warns when the goal keeps more decimal places than the metric (one number, two precisions)', () => {
+    const w = world();
+    const g = { ...w.goal('ns-lead'), decimals: 1 } as Goal;
+    expect(M.linkProblems(g, M.findMetric(w.scoped, 'metric_lead-time')!).warnings).toEqual(['The goal keeps 1 decimal place and Lead time for changes whole numbers. Check which is meant.']);
   });
   it('unlinking keeps the row, logs it, and Undo puts it back', () => {
     const w = world();

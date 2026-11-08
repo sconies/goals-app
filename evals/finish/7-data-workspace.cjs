@@ -198,7 +198,8 @@ module.exports = {
     // Name, email and team side by side (release 3: everyone has an email): each wide enough to read what's typed.
     if (pg.focus > 801 || pg.focus < 760 || pg.n < 200 || pg.em < 200 || pg.t < 140) fails.push(`[W4] 1280 people step ${Math.round(pg.focus)}px: Name ${Math.round(pg.n)}, Email ${Math.round(pg.em)}, Team ${Math.round(pg.t)}`);
     if (pg.chk.join('x') !== '44x44' || pg.ph !== 'Team') fails.push(`[W11, W4] Admin cell ${pg.chk.join('x')}, Team placeholder "${pg.ph}"`);
-    if (pg.red !== 'rgb(200, 55, 43)' || pg.issueW > pg.n + pg.em + pg.t + 17) fails.push(`[W6] a duplicate name: border ${pg.red}, message ${Math.round(pg.issueW)}px wide`);
+    // Backlog N (8 Nov): two people may share a name (the email is who someone is), so a shared name isn't marked as an error.
+    if (pg.red === 'rgb(200, 55, 43)') fails.push(`[W6, N] a shared name is marked as an error (border ${pg.red})`);
     await r.getByLabel('Person 1: name').fill('Cat Lee'); await r.getByLabel('Person 1: email').fill('cat.lee@example.com');
     await r.getByRole('button', { name: 'Next' }).click(); await r.waitForTimeout(250);
     await r.locator('.opt[role="radio"]').nth(1).click(); await r.waitForTimeout(150);

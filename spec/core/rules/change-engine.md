@@ -80,6 +80,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - removing, archiving and undoing › marks someone as left: their goals and open asks are handed over first, and they leave every list
 - removing, archiving and undoing › deletes someone with no history outright, and refuses anyone with history
 - removing, archiving and undoing › stops a goal with history: what fed it moves up, its open asks are withdrawn, and it leaves every list but keeps its page
+- removing, archiving and undoing › stops counting a deleted goal on its team’s card, as the Board does (backlog N)
 - removing, archiving and undoing › deletes a goal with no check-ins, and an admin restores it later
 - removing, archiving and undoing › deletes a check-in only while it is the latest; the status falls back to the one before
 - removing, archiving and undoing › ends a review that was held, deletes one that never was, and edits and removes comments and notes

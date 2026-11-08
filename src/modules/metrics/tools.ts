@@ -57,7 +57,7 @@ function metricData(ctx: McpContext, m: Metric) {
     youCanChange: M.canEditMetric(ctx.actor, m),
     measures: M.goalsMeasuredBy(ctx.snapshot, m.id).map((g) => {
       const me = M.measureOf(ctx.snapshot, g)!;
-      return { goalId: g.id, key: g.key ?? null, goal: g.title, owner: name(ctx, g.ownerId), slice: me.slice, target: me.target };
+      return { goalId: g.id, key: g.key ?? null, goal: g.title, owner: name(ctx, g.ownerId), slice: me.slice, target: me.target, targetText: me.targetText };
     }),
   };
 }
