@@ -73,7 +73,7 @@ p { margin: 0; }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- motion ---------- */
-@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { transform: translateY(4px); } to { transform: none; } } /* no fade: readable from the first frame (backlog T) */
 @keyframes pop { 0% { transform: scale(.85); opacity: 0; } 60% { transform: scale(1.04); opacity: 1; } 100% { transform: none; } }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes sheet-up { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }

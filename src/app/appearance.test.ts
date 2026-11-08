@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /* Faro's teal is the default accent (6 Nov), with the earlier colours kept as choices, and a saved choice still counts. */
-import { ACCENTS, applyAppearance, setAppearance } from './appearance';
+import { ACCENTS, applyAppearance, setAppearance, storyOn } from './appearance';
 
 describe('Accent colours', () => {
   it('offers Faro first, as the default, and keeps cobalt, violet, petrol and graphite', () => {
@@ -24,5 +24,22 @@ describe('Accent colours', () => {
     setAppearance({ accent: 'faro' });
     expect(localStorage.getItem('goals-accent')).toBeNull();
     expect(document.documentElement.hasAttribute('data-accent')).toBe(false);
+  });
+});
+
+/* Backlog T (8 Nov): a goal's page is readable the moment it opens; its slow story is the Motion lab's to switch on. */
+describe('The goal page story', () => {
+  it('is off by default, stores nothing for it, and marks the page only when switched on', () => {
+    localStorage.clear();
+    applyAppearance();
+    expect(storyOn()).toBe(false);
+    expect(document.documentElement.hasAttribute('data-story')).toBe(false);
+    setAppearance({ story: true });
+    expect(storyOn()).toBe(true);
+    expect(localStorage.getItem('goals-story')).toBe('1');
+    expect(document.documentElement.hasAttribute('data-story')).toBe(true);
+    setAppearance({ story: false });
+    expect(localStorage.getItem('goals-story')).toBeNull();
+    expect(document.documentElement.hasAttribute('data-story')).toBe(false);
   });
 });

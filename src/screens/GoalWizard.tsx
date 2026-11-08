@@ -229,6 +229,12 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <label className="field"><span className="small strong">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried.includes(1) && !!errors.margin} />{showErr('margin')}</label>
               </div>
             )}
+            {/* Asked in the open, as set-up does, so a new goal page doesn't say "not described yet" (re-review, 8 Nov, backlog T). */}
+            {d.kind !== 'milestone' && (
+              <label className="field"><span className="small strong">How it’s measured <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span>
+                <textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="Exactly what is counted, so everyone reads it the same way, e.g. Median hours to the first reply, from the help desk" />
+              </label>
+            )}
             {d.kind === 'milestone' && (
               <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="small strong" error={tried.includes(1) ? errors.stages ?? null : null}
                 onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
@@ -266,9 +272,9 @@ function Wizard({ existing }: { existing: Goal | null }) {
             )}
             <LevelField level={d.level} onChange={(level) => set({ level })} labelClass="small strong" />
             <label className="check"><input type="checkbox" checked={d.guardrail} onChange={(e) => set({ guardrail: e.target.checked })} /><span>It’s a guardrail: protects quality while the rest moves</span></label>
-            <details className="disclose"><summary>Data source and definition (optional)</summary>
+            <details className="disclose"><summary>Data source (optional)</summary>
               <label className="field"><span className="small strong">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} placeholder="e.g. Jira intake board" /></label>
-              <label className="field"><span className="small strong">Definition</span><textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="Exactly what is counted, so everyone reads it the same way" /></label>
+              {d.kind === 'milestone' && <label className="field"><span className="small strong">Definition</span><textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="Exactly what is counted, so everyone reads it the same way" /></label>}
             </details>
           </>
         )}

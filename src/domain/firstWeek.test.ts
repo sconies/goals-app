@@ -1,7 +1,7 @@
 /* Set up part way through a week (setup review, 8 Nov): the first check-in and a review's first session are never
    already past. The rule is plan.firstWeekFrom; progress.firstDueWeek and review.sessionWeek use it. */
 import { firstWeekFrom } from './plan';
-import { firstDueWeek, firstReview, onTimeStreak, weekProgress } from './progress';
+import { firstDueWeek, firstReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from './progress';
 import { reviewSession, sessionWeek } from './review';
 import { buildWorkspace, DEFAULT_VIEWS, GOALS_TEMPLATE, PEOPLE_TEMPLATE, WEEKLY_REVIEW } from './importer';
 import { attentionFor } from './attention';
@@ -48,6 +48,25 @@ describe('first week', () => {
     // And the pinned views.
     expect(s.views!.map((v) => [v.name, v.params, v.pinned])).toEqual(DEFAULT_VIEWS.map(([n, q]) => [n, q, true]));
     expect(onTimeStreak(me, s, cycle, 45)).toBe(0);
+  });
+
+  it('says 1 of 4 after one check-in on day one, never that all of them are in (backlog T)', () => {
+    const now = new Date('2026-11-08T18:20:00Z');
+    const { snapshot: s } = buildWorkspace({ name: 'Voss Test Workspace', startDate: YEAR.startDate, reviewDay: 3, people: PEOPLE_TEMPLATE, goals: GOALS_TEMPLATE, now, idSuffix: 'voss' });
+    const cycle = s.cycles[0]!;
+    // Whoever owns the most goals (four, the set-up's cap, in the review that found it).
+    const me = [...new Set(s.goals.map((g) => g.ownerId))].sort((a, b) => s.goals.filter((g) => g.ownerId === b).length - s.goals.filter((g) => g.ownerId === a).length)[0]!;
+    const mine = s.goals.filter((g) => g.ownerId === me);
+    expect(mine.length).toBeGreaterThan(1);
+    const before = weekProgress(me, s, cycle, 45, now);
+    expect(weekCompletion(before)).toEqual({ done: 0, total: mine.length, complete: false });
+    const g = mine[0]!;
+    const posted = { ...s, checkIns: [...s.checkIns, { id: 'ci1', goalId: g.id, week: 45, value: 1, status: 'on' as const, authorId: me, postedAt: now.toISOString() } as never] };
+    const after = weekProgress(me, posted, cycle, 45, now);
+    expect(weekCompletion(after)).toEqual({ done: 1, total: mine.length, complete: false });
+    const rest = mine.length - 1;
+    expect(weekDoneText(after, 45)).toBe(`1 of ${mine.length} checked in for week 45. ${rest === 1 ? 'The other one isn’t' : `The other ${rest} aren’t`} due until next week.`);
+    expect(weekDoneText(after, 45)).not.toMatch(/^All|Both|Your goal is/);
   });
 
   it('leaves a review set up before its day this week in this week', () => {

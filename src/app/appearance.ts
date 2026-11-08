@@ -37,9 +37,9 @@ export const paceWords = (p: number) => (p <= 1 ? 'Original speed' : `${Number(p
 /** Words for an impact. */
 export const impactWords = (i: number) => (i <= 0 ? 'None' : i < 0.6 ? 'Gentle' : i < 1.3 ? 'Strong' : i < 1.7 ? 'Big' : 'Very big');
 
-const KEYS = { theme: 'goals-theme', accent: 'goals-accent', sidebar: 'goals-sidebar', pace: 'goals-pace', impact: 'goals-impact', off: 'goals-motion-off', landing: 'goals-landing', sound: 'goals-sound', buzz: 'goals-buzz' } as const;
-export interface Appearance { theme: Theme; accent: Accent; sidebar: Sidebar; pace: number; impact: number; off: Effect[]; landing: Landing; sound: boolean; buzz: boolean }
-const DEFAULT: Appearance = { theme: 'system', accent: 'faro', sidebar: 'full', pace: PACE.default, impact: IMPACT.default, off: [], landing: 'thump', sound: false, buzz: false };
+const KEYS = { story: 'goals-story', theme: 'goals-theme', accent: 'goals-accent', sidebar: 'goals-sidebar', pace: 'goals-pace', impact: 'goals-impact', off: 'goals-motion-off', landing: 'goals-landing', sound: 'goals-sound', buzz: 'goals-buzz' } as const;
+export interface Appearance { story: boolean; theme: Theme; accent: Accent; sidebar: Sidebar; pace: number; impact: number; off: Effect[]; landing: Landing; sound: boolean; buzz: boolean }
+const DEFAULT: Appearance = { story: false, theme: 'system', accent: 'faro', sidebar: 'full', pace: PACE.default, impact: IMPACT.default, off: [], landing: 'thump', sound: false, buzz: false };
 
 const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const pick = <T extends string>(v: string | null, list: [T, string][], d: T): T => (list.some(([k]) => k === v) ? (v as T) : d);
@@ -62,6 +62,7 @@ function read(): Appearance {
     off: effectsOff(get(KEYS.off)),
     landing: (LANDINGS.some(([k]) => k === get(KEYS.landing)) ? get(KEYS.landing) : DEFAULT.landing) as Landing,
     sound: get(KEYS.sound) === '1', buzz: get(KEYS.buzz) === '1',
+    story: get(KEYS.story) === '1',
   };
   return cached;
 }
@@ -75,8 +76,13 @@ export function applyAppearance(a: Appearance = read()) {
   d.style.setProperty('--impact', String(a.impact));
   if (a.off.length) d.setAttribute('data-motion-off', a.off.join(' ')); else d.removeAttribute('data-motion-off');
   if (a.landing === 'thump') d.removeAttribute('data-landing'); else d.setAttribute('data-landing', a.landing);
+  if (a.story) d.setAttribute('data-story', ''); else d.removeAttribute('data-story');
 }
 
+/** Whether the goal page plays its story (the chart drawing in over seconds, the number counting up and landing). Off
+    by default since backlog T (8 Nov): a page is readable the moment it opens, and its motion stays under 250ms like the
+    rest of the interface. Switched on in the Motion lab. */
+export const storyOn = (): boolean => read().story;
 /** The chosen pace as a multiple (2 by default), for motion driven from code (the count-up). */
 export const storyPace = (): number => read().pace;
 /** The moment it lands: a soft "tock" and a buzz on phones, each only if switched on in the Motion lab, never under

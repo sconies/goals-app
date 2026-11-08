@@ -91,4 +91,5 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - first week › is the week it was set up in, up to and including the review day, and the next week after it
 - first week › is week 1 for anything set up before the year starts, or with no date
 - first week › starts a workspace made on a Sunday with nothing due, nothing late and its first review in the future
+- first week › says 1 of 4 after one check-in on day one, never that all of them are in (backlog T)
 - first week › leaves a review set up before its day this week in this week

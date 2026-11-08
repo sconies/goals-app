@@ -142,6 +142,35 @@ function harness(device) {
   };
 }
 
+/**
+ * How many goals of a review are reviewed, as each place that shows it says it (backlog T, 8 Nov: they once disagreed):
+ * Home's ring (its count and its label) when it is this review's, the Reviews list, and the review's own ring and line.
+ * Read in a second tab of the same browser, so the journey's own page stays where it is. Returns the problems.
+ */
+async function reviewedEverywhere(p, reviewId, name) {
+  const q = await p.context().newPage();
+  const seen = [];
+  try {
+    await q.goto(url('/'));
+    await q.locator('.home-hero').first().waitFor();
+    const home = await q.evaluate(() => [...document.querySelectorAll('.home-hero .ring')].map((r) => ({ text: r.querySelector('.ring-text')?.textContent || '', label: r.getAttribute('aria-label') || '' })));
+    for (const r of home) if (r.label.endsWith(' in ' + name)) seen.push(['Home ring', r.text.replace('/', ' of ')], ['Home ring label', r.label.replace(/ goals reviewed in .*$/, '')]);
+    await q.goto(url('/reviews'));
+    await q.locator('main.work h1').first().waitFor();
+    const row = await q.locator('.reviews-list').getByRole('link', { name: new RegExp(name) }).first().innerText();
+    const m = /(\d+) of (\d+) reviewed/.exec(row);
+    seen.push(['Reviews list', m ? `${m[1]} of ${m[2]}` : /Not started/.test(row) ? '0 of ?' : /Held/.test(row) ? 'all' : row]);
+    await q.goto(url('/reviews/' + reviewId));
+    await q.locator('.review-home').waitFor();
+    const page = await q.evaluate(() => { const r = document.querySelector('.review-home .ring'); return { text: r?.querySelector('.ring-text')?.textContent || '', label: r?.getAttribute('aria-label') || '', complete: !!r?.classList.contains('complete') }; });
+    seen.push(['review ring', page.complete ? 'all' : page.text.replace('/', ' of ')], ['review ring label', page.label.replace(/ goals reviewed$/, '')]);
+  } finally { await q.close(); }
+  const [n, of] = (seen.find(([, v]) => /^\d+ of \d+$/.test(v))?.[1] || '').split(' of ');
+  const ok = (v) => v === `${n} of ${of}` || (v === '0 of ?' && n === '0') || (v === 'all' && n === of);
+  const bad = seen.filter(([, v]) => !ok(v));
+  return bad.length ? [`${name}: ${seen.map(([k, v]) => `${k} ${v}`).join(', ')}`] : [];
+}
+
 async function newPage(device, viewer) {
   const ctx = await browser.newContext({ viewport: DEVICES[device] });
   if (viewer) await ctx.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, viewer);
@@ -335,11 +364,14 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   await see(p, 'goals to discuss');
   await h.checkpoint('home');
   await navTo(h, p, 'Reviews');
-  const line = p.getByRole('link', { name: /Reliability weekly/ }).first();
+  // On the Reviews page itself: Home's strip can link to the same review when its session is past (backlog T).
+  const line = p.locator('.reviews-list').getByRole('link', { name: /Reliability weekly/ }).first();
   await h.inView(line, 'entry', 'the Reliability weekly on Reviews');
   await h.click(line);
   await p.locator('.review-home').waitFor();
   await h.progressShown('review home');
+  // Home's ring, the Reviews list and the review's page say the same count before, during and after (backlog T).
+  const disagree = await reviewedEverywhere(p, 'reliability', 'Reliability weekly');
   await h.click(p.getByRole('button', { name: /^Continue review/ }));
   // The review walks the goal pages themselves, one at a time, with what to say at the bottom.
   await p.locator('.reviewbar').waitFor();
@@ -380,6 +412,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     items++;
     await p.waitForURL((u) => u.href !== here);
     await p.waitForTimeout(120);
+    if (items === 2) disagree.push(...await reviewedEverywhere(p, 'reliability', 'Reliability weekly'));
   }
   // The walk is the exceptions; goals on track with nothing flagged are acknowledged together (Senior UX review, 2 Nov).
   await see(p, 'Nothing flagged', 'healthy goals are not grouped after the exceptions');
@@ -389,6 +422,8 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   await h.checkpoint('healthy group');
   await h.click(ack);
   await see(p, 'What was said', 'the held review leads with its record');
+  disagree.push(...await reviewedEverywhere(p, 'reliability', 'Reliability weekly'));
+  h.set('progress', !disagree.length, `the reviewed count differs between views: ${disagree.join('; ')}`);
   await see(p, 'Can this be back on plan', 'what was said is kept on the review');
   h.set('finish', await p.getByRole('link', { name: 'Reviews' }).first().isVisible(), 'no way on from the review record');
   const s = await h.snapshot();
@@ -647,6 +682,24 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await see(p, 'Your first check-in is next week', 'Home doesn’t say the first check-in is next week');
   if (await p.getByText(/days? late/).count()) fail('a new workspace starts with something late');
   await see(p, 'Weekly review', 'Home has no next review');
+  // Checking in early on one goal says 1 of them, as Home's ring does, never that all are in (re-review, 8 Nov, backlog T).
+  const early = s.goals.find((g) => g.title === 'Support response time');
+  await p.goto(sunday('/check-in/' + early.id));
+  await h.fill(p.getByLabel('This week’s value'), '8');
+  for (let i = 0; i < 4 && !(await p.getByText('Check-in saved').isVisible()); i++) {
+    const why = p.getByLabel('What happened');
+    if (await why.isVisible().catch(() => false)) { await p.locator('.cause-pick button, [aria-label^="Why is it"] button').first().click().catch(() => {}); await why.fill('Starting point for the first week.'); }
+    const post = p.getByRole('button', { name: 'Post check-in' });
+    await (await post.isVisible() ? post : p.getByRole('button', { name: 'Continue' })).click();
+    await p.waitForTimeout(250);
+  }
+  await see(p, 'Check-in saved');
+  const said = (await p.locator('.ci-week-done').innerText().catch(() => '')).trim();
+  const owned = s.goals.filter((g) => g.ownerId === early.ownerId).length;
+  await p.goto(sunday('/'));
+  await p.locator('.home-hero').first().waitFor();
+  const ringSays = await p.locator('.home-hero .ring').first().getAttribute('aria-label').catch(() => '');
+  h.set('progress', said.startsWith(`1 of ${owned} checked in for week 45`) && !/^(All|Both)/.test(said) && ringSays === `1 of ${owned} check-ins done this week`, `after one early check-in the confirmation said “${said}” and Home’s ring “${ringSays}”`);
   await p.goto(sunday('/reviews'));
   await see(p, 'Session Thu 12 Nov', 'the first review session is not next Thursday');
   // A goal page asks for how it's measured while it isn't said.
@@ -852,7 +905,7 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
 }, ['errors']);
 
 
-journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a review: name, cadence, goals, people', 10, async (h, device) => {
+journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a review: name, cadence, goals, people', 11, async (h, device) => {
   const p = h.use(await newPage(device, 'jun'));
   await p.goto(url('/'));
   await navTo(h, p, 'Reviews');
@@ -864,8 +917,12 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Give the review a name' }).isVisible(), 'an unnamed review is not explained');
   await h.fill(p.getByLabel('Name', { exact: true }), 'SRE fortnightly');
   await h.click(p.getByRole('button', { name: 'Every 4 weeks' }));
-  await p.getByLabel('On').selectOption('4');
+  await p.getByRole('combobox', { name: /^On/ }).selectOption('4');
   await h.click(p.getByRole('button', { name: 'North star', exact: true }));
+  // People are found by name, as goals are (re-review, 8 Nov, backlog T): the list narrows to the match.
+  await h.fill(p.getByLabel('Find a person by name or team'), 'Mateo');
+  const listed = await p.getByRole('group', { name: 'Who takes part' }).getByRole('checkbox').count();
+  h.set('attention', listed <= 3, `finding “Mateo” left ${listed} people in the list`);
   await h.click(p.getByRole('checkbox', { name: /Mateo Fernández/ }));
   await see(p, /[2-9] goals so far/, 'the form counts the goals picked');
   await h.checkpoint('set up');
@@ -2263,7 +2320,7 @@ function seed75() {
 }
 
 
-journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Inbox, and old links still land', 14, async (h, device) => {
+journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams, Inbox and Privacy (read-only), and old links still land', 14, async (h, device) => {
   const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['inbox', 'Inbox'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'grace'));
@@ -2308,14 +2365,18 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.goto(BASE + '/demo/workspace?today=' + TODAY + '#people');
   const toPeople = await p.waitForURL(/\/workspace\/people/, { timeout: 5000 }).then(() => true, () => false);
   h.set('errors', toInbox && toPeople, `old links: the inbox’s ${toInbox}, #people ${toPeople}`);
-  // Someone who isn't an admin: Overview, People, Teams and Inbox, and an admins' section says whose it is.
+  // Someone who isn't an admin: Overview, People, Teams, Inbox and Privacy, and an admins' section says whose it is.
   await viewAs(p, 'Oskar');
   await p.goto(url('/workspace'));
   await menu.waitFor();
   const theirs = (await menu.getByRole('link').allInnerTexts()).map((x) => x.split(/\n| · /)[0].trim());
   await p.goto(url('/workspace/access'));
   const told = await see(p, 'Access is for the workspace’s admins.').then(() => true, () => false);
-  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Inbox']) && told && await p.getByRole('button', { name: 'Make a token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}`);
+  // Privacy reads for everyone, what the app records about them; only admins have its switch (re-review, 8 Nov, backlog T).
+  await p.goto(url('/workspace/privacy'));
+  const reads = await see(p, 'Only admins change it').then(() => true, () => false);
+  const noSwitch = await p.getByRole('checkbox', { name: /Record how the app is used/ }).count() === 0;
+  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Inbox', 'Privacy']) && told && reads && noSwitch && await p.getByRole('button', { name: 'Make a token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}`);
   await p.context().close();
 }, ['logged']);
 
@@ -2669,6 +2730,9 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await see(p, 'Page not found', 'Import still opens with spreadsheets off');
   await p.goto(url('/import'));
   await see(p, 'Page not found', 'the old Import link still leads somewhere with spreadsheets off');
+  // A page that isn't there offers the way home, and it works (re-review, 8 Nov, backlog T).
+  await p.getByRole('link', { name: 'Go to Home' }).click();
+  await p.locator('.page.home').waitFor({ timeout: 5000 }).catch(() => fail('the not-found page has no way home'));
   await p.goto(url('/help'));
   await see(p, 'Data in and out');
   const helpGone = !(await p.getByRole('link', { name: 'Importing from a spreadsheet' }).count());

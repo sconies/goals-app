@@ -158,7 +158,7 @@ describe('lists that show attention', () => {
     const s = withSaid(s0, action('ns-env', { dueWeek: 47 }));
     const x = reviewSession(s.reviews.find((r) => r.id === 'weekly')!, s, cycle, today, week);
     const ids = x.items.map((a) => a.goal.id);
-    const tier = (id: string) => { const a = x.items.find((i) => i.goal.id === id)!; return a.handled ? 1 : a.status.status === 'on' && a.flags.every((f) => f.kind === 'due') ? 2 : 0; };
+    const tier = (id: string) => { const a = x.items.find((i) => i.goal.id === id)!; return a.handled ? 1 : (a.status.status === 'on' || a.status.status === 'done') && a.flags.every((f) => f.kind === 'due') ? 2 : 0; };
     expect(ids.map(tier)).toEqual([...ids.map(tier)].sort((a, b) => a - b));
     const ag = agendaOf(x);
     expect(ag.handled.map((a) => a.goal.id)).toContain('ns-env');

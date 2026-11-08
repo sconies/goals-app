@@ -15,7 +15,8 @@
 
 const SIZES = [[390, 844, true], [1280, 800, false]];
 const LIMIT = 250;
-// The page's story moves slower so it can be seen (Lane, 5 Nov): up to 4 seconds end to end at the default pace; everything else 250ms.
+// The page's story, when switched on in the Motion lab (off by default since backlog T, 8 Nov), moves slower so it can be
+// seen (Lane, 5 Nov): up to 4 seconds end to end at the default pace; everything else 250ms.
 const STORY_LIMIT = 4000;
 const story = (a) => /^(gp-|pm-draw|pm-dot-in|pm-shape-swap|pm-pulse|rise\b)|countup/.test(a.name);
 
@@ -333,9 +334,13 @@ module.exports = {
       }
     }
 
-    /* ---------- motion: the page comes alive slowly enough to see (4s at most at the default pace), lands with an impact, and not at all under reduced motion ---------- */
-    for (const reduced of [false, true]) {
+    /* ---------- motion: by default the page is readable at once and nothing moves for over 250ms (backlog T, 8 Nov); with
+       the story switched on (the Motion lab) it comes alive slowly enough to see (4s at most at the default pace) and
+       lands with an impact; under reduced motion nothing moves ---------- */
+    for (const mode of ['default', 'story', 'reduced']) {
+      const reduced = mode === 'reduced';
       const c = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
+      if (mode === 'story') await c.addInitScript(() => localStorage.setItem('goals-story', '1'));
       await c.addInitScript(() => {
         window.__gp = { anims: new Map(), counts: [] };
         const tick = () => {
@@ -362,6 +367,11 @@ module.exports = {
       if (reduced) {
         chk(m.anims.length === 0, `reduced motion: ${m.anims.length} animations ran (${[...new Set(m.anims.map((a) => a.name))].slice(0, 3).join(', ')})`);
         chk(m.counts.length === 1, `reduced motion: the number counted (${m.counts.join(' → ')})`);
+      } else if (mode === 'default') {
+        const over = m.anims.filter((a) => a.total > LIMIT);
+        chk(!over.length, `motion: by default nothing moves for over ${LIMIT}ms: ${[...new Set(over.map((a) => a.name + ' ' + a.total))].slice(0, 3).join(', ')}`);
+        chk(!(await p.locator('.chart.draw').count()), 'motion: by default the chart should show its final state, not draw itself in');
+        chk(m.counts.at(-1) === '73%', `motion: the number should land on 73% (${m.counts.join(' → ')})`);
       } else {
         const names = m.anims.map((a) => a.name).join(' | ');
         chk(/c-plan/.test(names) && /c-act/.test(names) && /c-fc|c-band/.test(names) && /c-today/.test(names), `motion: the chart doesn't draw itself in turn (${names.slice(0, 200)})`);

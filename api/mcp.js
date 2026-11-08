@@ -24924,7 +24924,7 @@ function flagsFor(goal, s, cycle, today) {
 	if (status.status === "risk") add("risk", why ?? `The owner called it ${lower(FLAG.risk)}.`, "risk");
 	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
 	if (trend) add("trend", trend, "risk");
-	if (status.greener && latest && status.status !== "stale") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
+	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
 	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
@@ -25135,10 +25135,20 @@ function sessionState(s) {
 	};
 	return { kind: "not-started" };
 }
+/**
+* How many days a session not yet held is past its date (demo review, 8 Nov, item 9): 0 on the day or before it.
+* `today` is the viewer's day, as the rest of the app counts it.
+*/
+function daysPast(s, today) {
+	if (sessionState(s).kind === "held") return 0;
+	const day = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+	const due = Date.parse(s.date.slice(0, 10) + "T00:00:00Z");
+	return Math.max(0, Math.round((day - due) / 864e5));
+}
 /** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
 function sessionStateText(st) {
 	if (st.kind === "held") return `${SESSION.held.label} ${dayText(st.on)}`;
-	if (st.kind === "in-progress") return `${SESSION["in-progress"].label} · ${st.done} of ${st.total} reviewed`;
+	if (st.kind === "in-progress") return `${SESSION["in-progress"].label} · ${reviewedText(st)}`;
 	return SESSION["not-started"].label;
 }
 /**
@@ -25191,7 +25201,7 @@ function answerOf(d) {
 		byId: a.answeredBy ?? ""
 	};
 }
-var isHealthy, tier, dayText;
+var isHealthy, tier, dayText, reviewedText;
 var init_review = __esmMin((() => {
 	init_attention();
 	init_vocabulary();
@@ -25206,6 +25216,7 @@ var init_review = __esmMin((() => {
 		month: "short",
 		timeZone: "UTC"
 	});
+	reviewedText = (s) => `${s.done} of ${s.total} reviewed`;
 	ASK_KIND.action.label;
 }));
 // src/domain/columns.ts
@@ -31405,6 +31416,19 @@ function nextReview(personId, s, cycle, week, today) {
 		};
 	}).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))[0] ?? null;
 }
+/** This week's sessions the person is in that are past their date and not held, longest past first. */
+function missedReviews(personId, s, cycle, week, today) {
+	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
+		const sx = reviewSession(r, s, cycle, today, week);
+		return {
+			id: r.id,
+			name: r.name,
+			week: sx.week,
+			date: sx.date,
+			daysPast: daysPast(sx, today)
+		};
+	}).filter((x) => x.daysPast > 0).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
+}
 function dashboard(personId, s, cycle, week, today) {
 	const mine = s.goals.filter((g) => g.ownerId === personId);
 	const goals = mine.length ? mine : s.goals;
@@ -31423,7 +31447,8 @@ function dashboard(personId, s, cycle, week, today) {
 		total: goals.length,
 		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
 		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
-		next: nextReview(personId, s, cycle, week, today)
+		next: nextReview(personId, s, cycle, week, today),
+		missed: missedReviews(personId, s, cycle, week, today)
 	};
 }
 // \0virtual:faro-modules/help
@@ -31589,7 +31614,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. Each part opens the page behind it. The streak counts weeks with every check-in in before the review; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
+					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it. The streak counts weeks with every check-in in before the review; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
 					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
@@ -31811,7 +31836,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.",
-				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on. From a workspace you set up in the demo, they open the example, whose people and goals they follow.",
+				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.",
 				"Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.",
 				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.",
 				"Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.",
@@ -32475,7 +32500,7 @@ var CORE_ARTICLES = [
 			list: [
 				"Choose New goal. Name it the way your team would say it.",
 				"Pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.",
-				"For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over.",
+				"For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.",
 				"Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.",
 				"Check and publish. The owner is then offered the first check-in.",
 				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
@@ -32881,7 +32906,7 @@ var CORE_ARTICLES = [
 	{
 		id: "workspace",
 		title: "Running the workspace",
-		summary: "Workspace is in sections, each with its own page: Overview, People, Teams and the Inbox for everyone, and Cycles, Access, Features, Privacy and Recently removed for admins.",
+		summary: "Workspace is in sections, each with its own page: Overview, People, Teams, the Inbox and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.",
 		group: "you",
 		sections: [
 			{
@@ -32907,7 +32932,7 @@ var CORE_ARTICLES = [
 					"People: the directory. See Workspace: People.",
 					"Teams: find a team, with its lead and counts. See Workspace: Teams.",
 					"Inbox: the markups and feedback people send, worked like an inbox. See The inbox.",
-					"Cycles, Access, Features, Privacy and Recently removed: for admins. Each has its own article."
+					"Privacy: what the app records, for everyone to read; only admins switch it. Cycles, Access, Features and Recently removed: for admins. Each has its own article."
 				]
 			},
 			{
@@ -33089,7 +33114,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Light or dark: light, dark, or follow your device.",
 					"Accent colour: Faro’s teal (the default), or the earlier cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
-					"Motion lab, at the bottom: play with how a goal’s page moves. Speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.",
+					"Motion lab, at the bottom: play with how a goal’s page moves. It is off by default, so a goal’s page shows its chart and number the moment it opens; switch on “Play the story when a goal’s page opens” to watch the chart draw itself in and the number land. Then speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.",
 					"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
 					"You: your name, job title and team. An admin changes these.",
 					"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
@@ -33223,7 +33248,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Turning it off",
-				list: ["Everyone is recorded by default. Settings says whether it is on where you are.", "An admin can turn it off for the whole workspace on Workspace, under Privacy. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
+				list: ["Everyone is recorded by default. Settings says whether it is on where you are.", "Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it off there, for the whole workspace. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
 			}
 		],
 		routes: ["/workspace/privacy"],
@@ -33589,6 +33614,30 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "tuesday-fixes",
+		date: "2026-11-08",
+		title: "Pages you can read at once, and counts that agree",
+		points: [
+			"Every page is readable the moment it opens: nothing fades in, and a goal’s chart and number show at once. The goal page’s slow story is now a switch in the Motion lab, off by default.",
+			"After a check-in, the confirmation says where your week stands as Home’s ring does: 1 of 4 checked in, and what isn’t due yet, never “all” after one.",
+			"Home, Reviews, a review’s page and its walkthrough say the same reviewed count, and a ring always shows its true count.",
+			"A done goal no longer counts as needing attention or waits to be discussed in a review. Goals’ Needs attention line says how many more are being handled, so its count and the board add up.",
+			"Walkthroughs have a Next button; a page that isn’t there offers the way home; New goal asks how it’s measured under the numbers; a review’s people can be found by name or team.",
+			"Home shows a review session that has passed without being held. The inbox names people and never shows an email address. Privacy, under Workspace, is open to everyone to read; only admins switch it."
+		],
+		articles: [
+			"settings",
+			"check-in",
+			"reviews",
+			"needs-attention",
+			"demo",
+			"new-goal",
+			"home",
+			"inbox",
+			"recording"
+		]
+	},
 	{
 		id: "numbers-and-names",
 		date: "2026-11-08",
@@ -36044,13 +36093,22 @@ function sentFrom(m, o = {}) {
 	return b === "preview" ? `${where} on a preview build${o.host === false ? "" : ` (${m.context.host})`}` : b === "local" ? `${where} on a laptop` : where;
 }
 var MarkupError = class extends Error {};
+/**
+* A person as the inbox names them: their name only, never an email address (re-review, 8 Nov, backlog T: the inbox is
+* open to anyone, and a status once said who changed it by their email). "Lane Hirschfield <lane@…>" is "Lane
+* Hirschfield"; a bare address is "Someone". Used wherever a markup or a piece of feedback is read, so the app and the AI
+* inbox tools say the same.
+*/
+function nameOnly(v) {
+	return (v ?? "").replace(/<[^>]*@[^>]*>/g, "").replace(/\(?[^\s()<>]+@[^\s()<>]+\)?/g, "").replace(/\s+/g, " ").trim() || (v && v.includes("@") ? "Someone" : "");
+}
 var markupFromRow = (r) => ({
 	id: r.id,
 	workspaceId: r.workspace_id,
 	workspaceName: r.workspace_name,
 	demo: !!r.demo,
 	personId: r.person_id,
-	personName: r.person_name,
+	personName: nameOnly(r.person_name),
 	line: r.line,
 	mood: r.mood ?? null,
 	route: r.route,
@@ -36067,7 +36125,7 @@ var markupFromRow = (r) => ({
 	issueUrl: r.issue_url,
 	fixedIn: r.fixed_in,
 	wontFixReason: r.wont_fix_reason,
-	statusBy: r.status_by,
+	statusBy: r.status_by == null ? null : nameOnly(r.status_by),
 	statusAt: r.status_at,
 	createdAt: new Date(r.created_at).toISOString()
 });
@@ -36083,7 +36141,7 @@ function statusPatch(c, now, entries) {
 		status: c.status,
 		fixedIn: fixedIn || null,
 		wontFixReason: reason ? reason.slice(0, 2e3) : null,
-		statusBy: c.by.slice(0, 200),
+		statusBy: nameOnly(c.by).slice(0, 200) || "Someone",
 		statusAt: now
 	};
 }
@@ -38520,7 +38578,7 @@ var triageFromRow = (r) => ({
 	status: r.status ?? "new",
 	fixedIn: r.fixed_in ?? null,
 	wontFixReason: r.wont_fix_reason ?? null,
-	statusBy: r.status_by ?? null,
+	statusBy: r.status_by == null ? null : nameOnly(r.status_by),
 	statusAt: iso(r.status_at)
 });
 var feedbackFromInboxRow = (r) => ({
@@ -38528,7 +38586,7 @@ var feedbackFromInboxRow = (r) => ({
 	workspaceId: r.workspace_id,
 	workspaceName: r.workspace_name ?? "",
 	personId: r.person_id,
-	personName: r.person_name ?? "",
+	personName: nameOnly(r.person_name),
 	path: r.path ?? "",
 	mood: r.mood,
 	text: r.text ?? "",
