@@ -8,7 +8,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **How items are ordered:** by what they unblock first, then value against effort. Effort: S (under a day), M (a release), L (more than one release).
 
-**In progress (8 Nov):** the metric library back end, 0b (PR #52, adding the empty "Measured by" place), and I, home-screen icon and splash (branch `journeys-brand`). For Lane's presentation on Tuesday 10 Nov.
+**In progress (8 Nov):** I, home-screen icon and splash (branch `journeys-brand`). The metric library's back end is on main (PR #52); its screens are built live on Tuesday 10 Nov.
 
 ## Build, in order
 
@@ -57,6 +57,7 @@ Kept for their detail; 8r turns each into a requirement for the internal rebuild
 
 | Item | Shipped |
 |---|---|
+| Metric library back end (0b, part 1): metric records and goal links with rules, migration 0033, 13 demo metrics (12 linked), AI tools (list, get, save, link, remove), read-only Metrics sheet, spec and growth notes, the empty `goal.measure` place in goal forms; screens left for the live build | PR #52, 8 Nov |
 | Tuesday blockers (T): no blank-page fade (pages move without fading; the goal page's slow story is a Motion lab switch, off by default, Lane 8 Nov); the check-in confirmation uses Home's count; one reviewed count everywhere; Needs attention explains the goals being handled; Done goals never flagged greener; walkthrough Next; 404 links home; "How it's measured" in New goal; search on review people; missed sessions on Home; inbox shows names, never emails; Privacy readable by everyone | PR #53, 8 Nov |
 | Numbers and names (N): extra decimals refused, never rounded silently (one rule everywhere); team cards count only current goals; thousand separators and one not-a-number message; duplicate goal titles warned and shown with their key or team; same-named people allowed and told apart, avatar colours by person; plausibility questions; reason-for-change checked (F9); phone toolbar labelled with a line per layout, tabs and chips wrap, saved-view names in full. Phone eval limits relaxed (first goal ≤440 px on a 360 px phone, was ≤300) | PR #51, 8 Nov |
 | Workspace in sections and a real inbox (W): /workspace/<section> with a side menu (Overview, People, Teams, Inbox, Cycles, Access, Features, Privacy, Recently removed); the inbox with New / In hand / Closed tabs, list and detail, same-part markups folded, Next after each change, keys, bulk close, 25 a page; sections as an extension point; long workspace names wrap to two lines; U42 follows GitHub's sign-in redirect now the repo is public | PR #50, 8 Nov |
