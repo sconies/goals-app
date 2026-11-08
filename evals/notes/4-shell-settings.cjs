@@ -381,7 +381,7 @@ module.exports = {
         const t0 = Date.now();
         await s.locator('.faro-splash').waitFor({ state: 'detached', timeout: 4000 }).catch(() => {});
         const took = Date.now() - t0;
-        fail(took < 2500, `[LAUNCH] the splash took ${took}ms to go (want under 2s)`);
+        fail(took < 3200, `[LAUNCH] the splash took ${took}ms to go (want about 2.5s)`);
         fail(await s.getByRole('heading', { name: 'Run the company on outcomes, and manage by exception' }).isVisible(), '[LAUNCH] the app is not there when the splash ends');
         await s.reload(); await s.waitForTimeout(400);
         fail(await s.locator('.faro-splash').count() === 0, '[LAUNCH] the splash shows again in the same session (on a reload or navigation)');

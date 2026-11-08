@@ -981,7 +981,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'On your home screen', list: [
         'Put Faro on your phone’s home screen like an app: in Chrome on Android, open the menu and choose Add to home screen (or Install app); in Safari on an iPhone, tap Share, then Add to Home Screen. It opens full screen, without the browser around it.',
         'Its icon is a deep-teal tile with the F in white and a bright amber beam and teal bar, so it stands out on light and dark wallpapers.',
-        'Each time you open Faro, the amber beam sweeps across the screen like a lighthouse’s light, flashing as it points at you, then settles into the F; the teal bar and “aro” are drawn in. It takes under two seconds, the app loads behind it, and a tap or any key skips it. It doesn’t play again as you move around, and with reduced motion on your device the logo simply fades in.',
+        'Each time you open Faro, the amber beam sweeps across the screen like a lighthouse’s light, flashing as it points at you, then settles into the F; the teal bar and “aro” are drawn in. It takes about two and a half seconds, the app loads behind it, and a tap or any key skips it. It doesn’t play again as you move around, and with reduced motion on your device the logo simply fades in.',
       ] },
     ],
     routes: [],

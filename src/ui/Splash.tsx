@@ -8,7 +8,8 @@
    as it faces you): it starts far off to one side, long, as if crossing the screen, and swings half a turn about the
    stem in 3D (rotateY in perspective, glowing); halfway round it points straight at you and the screen flashes once with
    its light; it overshoots wide to the other side, swings back and settles into the F. Then the teal bar is drawn out
-   of the stem and "aro" is drawn in, outline first, then filled. Under 2 s in all: the one exception to the app's
+   of the stem and "aro" is drawn in, outline first, then filled, and the whole logo holds for a moment (Lane: "hold the
+   screen for just a bit longer"). About 2.5 s in all: the one exception to the app's
    250 ms motion rule (backlog T), since it plays once per launch and never in front of work.
    With reduced motion the whole logo simply fades in (200 ms), holds a moment and fades out: nothing turns or draws.
    Animated with the Web Animations API, so the app-wide reduced-motion rule (styles.css) doesn't cut it short and it
@@ -21,7 +22,7 @@ import '../styles/splash.css';
 export const SPLASH_SEEN = 'faro-splash-seen';
 
 /** Timings in ms. The beam and bar sweep, then "aro" draws, then the splash fades away. */
-export const SPLASH_TIMING = { sweep: 1080, flashAt: 0.3, flash: 320, barAt: 1040, bar: 260, drawAt: 1100, draw: 420, letterGap: 70, fillAt: 1400, fill: 220, outAt: 1700, out: 220, skip: 140, reduced: { in: 200, hold: 350, out: 200 } } as const;
+export const SPLASH_TIMING = { sweep: 1080, flashAt: 0.3, flash: 320, barAt: 1040, bar: 260, drawAt: 1100, draw: 420, letterGap: 70, fillAt: 1400, fill: 220, outAt: 2400, out: 260, skip: 140, reduced: { in: 200, hold: 350, out: 200 } } as const;
 
 interface Env { webdriver: boolean; forced: boolean; storage: Pick<Storage, 'getItem' | 'setItem'> | null }
 

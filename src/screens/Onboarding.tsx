@@ -115,12 +115,13 @@ export function Welcome() {
     <div className="welcome">
       <div className="welcome-body">
         <FaroLogo size={48} className="welcome-logo" />
-        {/* Written for leaders seeing Faro for the first time (Lane, 8 Nov): what it's for, not how to set it up. */}
+        {/* Written for leaders seeing Faro for the first time (Lane, 8 Nov): what it's for, not how to set it up, and no promise
+            of how long an update takes or how often (Lane, 8 Nov, line by line). */}
         <h1 className="title-xl">Run the company on outcomes, and manage by exception</h1>
         <ul className="welcome-points">
-          <li><strong>Outcomes broken into owned goals</strong>, each with a plan and a measure.</li>
-          <li><strong>Owners update in a minute a week</strong>, so the picture stays current.</li>
-          <li><strong>You see only what’s off track</strong>, with why and what’s being done.</li>
+          <li><strong>Each outcome broken into the goals that move it</strong>, each with an owner, a measure and a plan.</li>
+          <li><strong>Owners keep their goals current</strong> with quick check-ins, on the rhythm that suits the work.</li>
+          <li><strong>What’s slipping comes to you</strong>, with why and what’s being done about it; the rest runs itself.</li>
         </ul>
         <div className="stack" style={{ gap: 'var(--s3)' }}>
           <a className="btn primary big-btn" href="/demo">Try the demo</a>
