@@ -34,7 +34,7 @@ export const TOURS: Tour[] = [
     steps: [
       // Home's one check-in button, whatever it says ("Start check-in", or "Pick up where you left off" with a draft).
       { say: 'This is Rhea’s Home. She runs CI/CD and owns eight goals. What she needs to do this week comes first. Start her check-in.', target: { selector: '.hero a.btn.primary[href$="/check-in"]' }, doneWhen: { route: /^\/check-in/ },
-        ifMissing: { say: 'Rhea’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' }, when: { selector: '.hero-allset' } } },
+        ifMissing: { say: 'Rhea’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' }, when: { text: /check-ins are in|check-ins? (is )?posted|all set/i } } },
       { say: 'Type this week’s number. The verdict says at once whether it’s on plan, and against which week.', target: { selector: 'input[aria-label="This week’s value"], #value' }, doneWhen: { selector: '.verdict' },
         ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Rhea’s goals to check in again.', target: { selector: '.again-links a' } } },
       { say: 'Off plan, it asks why and how it gets back on track. Keep what you said last week if it still holds, or say what changed, then post.', target: { selector: '.focus-foot button[type=submit]' }, doneWhen: { text: 'Check-in saved' } },

@@ -39,6 +39,9 @@ function Flow({ goalId }: { goalId?: string }) {
   const [noData, setNoData] = useState(false);
   // Bumped when a draft is discarded, so the goal's check-in starts again from empty.
   const [fresh, setFresh] = useState(0);
+  // The goal's check-in has a draft (picked up, or typed into): the top bar offers to discard it, beside Close.
+  const [drafting, setDrafting] = useState(false);
+  const discardRef = useRef<() => void>(() => undefined);
   const goal = queue[index] ? app.goal(queue[index]) : undefined;
 
   if (app.week < 1) {
@@ -67,12 +70,15 @@ function Flow({ goalId }: { goalId?: string }) {
       <div className="focus-top">
         {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
         <span className="small strong">Check-in{queue.length > 1 ? ` ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
-        <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
+        <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
+          {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
+          <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
+        </span>
       </div>
       {justPosted ? (
         <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (
-        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => setFresh((n) => n + 1)} />
+        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
       )}
     </div>
     </>
@@ -168,7 +174,7 @@ type Step = 'measure' | 'carry' | 'account';
  * something changed, one short account on one screen: what changed, what happens next, by when (Senior UX review,
  * finding 11). An on-plan goal is just the number. The button says Continue until the step that posts.
  */
-function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded }: { goal: Goal; onPosted: (c: CheckIn, updated: boolean) => void; onSkip?: () => void; onDiscarded: () => void }) {
+function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardRef }: { goal: Goal; onPosted: (c: CheckIn, updated: boolean) => void; onSkip?: () => void; onDiscarded: () => void; onDrafting: (on: boolean) => void; discardRef: { current: () => void } }) {
   const app = useApp();
   const { week, cycle } = app;
   const own = app.checkInsOf(goal);
@@ -241,6 +247,8 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded }: { goal: Goal; onPo
   const back = () => { setStep(trail[trail.length - 1] ?? before()); setTrail((t) => t.slice(0, -1)); setTried(false); };
   // Something typed (or a draft picked up) can be thrown away: the check-in starts again from empty.
   const discard = () => { clear(); try { localStorage.removeItem(stepKey); } catch { /* private mode */ } onDiscarded(); };
+  discardRef.current = discard;
+  useEffect(() => { onDrafting(restored || touched); }, [restored, touched]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A second press, Enter then a click, or a double tap mustn't post twice: state updates too late to stop it, a ref doesn't.
   const inFlight = useRef(false);
@@ -341,7 +349,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded }: { goal: Goal; onPo
       )}
       <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
       {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>}
-      {(restored || touched) && <p className="hint ci-draft">{restored ? 'Picked up where you left off. ' : 'Saved as a draft as you type. '}<button type="button" className="linkish" onClick={discard}>Discard draft</button></p>}
+      {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
       {step === 'measure' && (
         <section className="qsection" aria-label="This week">

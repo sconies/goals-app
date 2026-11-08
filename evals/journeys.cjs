@@ -1531,11 +1531,12 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   const weekCol = (await p.locator('.dtable thead th').allInnerTexts()).findIndex((t) => /^Week/.test(t.trim()));
   const weeks = await p.locator('.dtable tbody tr').evaluateAll((trs, i) => trs.map((tr) => tr.querySelectorAll('td')[i]?.textContent ?? ''), weekCol);
   h.set('progress', weeks.length > 0 && weeks.every((w, i) => Number(w) >= 38 && (i === 0 || Number(w) >= Number(weeks[i - 1]))) && /f=Goal/.test(p.url()) && /s=Week/.test(p.url()), `filtered and sorted weeks: ${weeks.join(', ')}`);
-  await h.fill(p.getByPlaceholder('Search check-ins'), 'moved over');
+  // A note the demo's generator gives this goal in weeks 41 and 44 (demo text varied in the 8 Nov review).
+  await h.fill(p.getByPlaceholder('Search check-ins'), 'No surprises');
   const why = p.getByLabel(/^Why, Pull requests with AI-assisted review, week/).first();
   await why.waitFor();
   const was = await why.inputValue();
-  await h.fill(why, was.replace('Another team', 'Two teams'));
+  await h.fill(why, was.replace('No surprises', 'Nothing unexpected'));
   await see(p, '2 changes in 2 rows, not saved yet', 'the tables do not say what is waiting to be saved');
   h.set('attention', (await p.locator('.dcell.edited').count()) === 1 && (await why.getAttribute('aria-label')) !== null, 'a changed cell is not marked as changed');
   await h.checkpoint('edited');

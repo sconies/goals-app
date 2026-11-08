@@ -30,7 +30,7 @@ import { applyQuery, filters } from '../domain/query';
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
-import { ATTENTION, STATUS } from '../domain/vocabulary';
+import { ATTENTION, ATTENTION_FLAGS, STATUS, STATUS_ORDER } from '../domain/vocabulary';
 import type { GoalAttention } from '../domain/attention';
 
 // The map loads only when someone opens it, so the rest of the app stays small.
@@ -257,8 +257,10 @@ export function GoalsScreen() {
 function attentionCounts(att: GoalAttention[]): string {
   const by = new Map<string, number>();
   for (const a of att) by.set(a.status.status, (by.get(a.status.status) ?? 0) + 1);
-  const named = (['off', 'risk', 'stale'] as const).filter((k) => by.get(k)).map((k) => `${by.get(k)} ${STATUS[k].label.toLowerCase()}`);
-  const rest = att.length - (['off', 'risk', 'stale'] as const).reduce((n, k) => n + (by.get(k) ?? 0), 0);
+  // The statuses that are themselves a reason for attention, in the order the vocabulary gives them.
+  const behind = ATTENTION_FLAGS.filter((k): k is 'off' | 'risk' | 'stale' => k in STATUS && k !== 'greener').sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b));
+  const named = behind.filter((k) => by.get(k)).map((k) => `${by.get(k)} ${STATUS[k].label.toLowerCase()}`);
+  const rest = att.length - behind.reduce((n, k) => n + (by.get(k) ?? 0), 0);
   const parts = [...named, ...(rest ? [`${rest} on track or done but flagged for something else, such as getting worse, a missed date or an ask waiting for an answer`] : [])];
   const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
   return `${att.length} ${att.length === 1 ? 'goal' : 'goals'} flagged for something new that nobody has picked up yet: ${list}.`;

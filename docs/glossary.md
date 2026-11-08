@@ -132,7 +132,7 @@ One meaning for every word the app uses for a state. Each is defined once, in `s
 | Code | Word | What it means | Decided by | Where | Don’t say |
 |---|---|---|---|---|---|
 | `met` | Met | At the quarter’s end it was where its plan said, or better. The same word, and meaning, as result.completed. | `quarterResults` (year.ts) | screens, exports, help, ai |  |
-| `missed` | Not met | At the quarter’s end it was short of its plan. The same word, and meaning, as result.missed. | `quarterResults` (year.ts) | screens, exports, help, ai | `Missed its plan`, `Missed last quarter` |
+| `missed` | Not met | At the quarter’s end it was worse than its plan: short of it, or over it when lower is better. The same word, and meaning, as result.missed. | `quarterResults` (year.ts) | screens, exports, help, ai | `Missed its plan`, `Missed last quarter` |
 | `open` | In progress | The quarter is still running. | `quarterResults` (year.ts) | screens, exports, help, ai |  |
 
 ### The owner’s view at the wrap-up
