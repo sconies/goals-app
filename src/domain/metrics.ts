@@ -10,6 +10,7 @@
 import { NotAllowed, type ActionContext } from './actions';
 import { diffFields } from './changes';
 import type { Commit } from './commit';
+import { MIN_REASON } from './checkin';
 import { fmt } from './format';
 import { placesText } from './numbers';
 import type { Change, Goal, Metric, MetricDirection, MetricLink, MetricRefresh, Snapshot } from './types';
@@ -218,10 +219,23 @@ export function linkProblems(goal: Goal, m: Metric): { errors: string[]; warning
 }
 
 /**
+ * Whether changing what measures a goal needs a reason: once the goal has check-ins and is already measured by a
+ * metric, changing the metric or its slice, or unlinking it, is like a plan change (the numbers so far were read under
+ * the old one), so it says why, in a sentence, and the reason goes in the goal's activity. Linking a goal for the first
+ * time never needs one.
+ */
+export function linkNeedsReason(s: Pick<Snapshot, 'checkIns' | 'metricLinks'>, goal: Pick<Goal, 'id'>): boolean {
+  const current = (s.metricLinks ?? []).some((l) => l.goalId === goal.id && !l.removedAt);
+  return current && (s.checkIns ?? []).some((c) => c.goalId === goal.id);
+}
+const REASON_NEEDED = 'This goal has check-ins, so changing what measures it needs a reason, in a sentence, as a plan change does.';
+const reasonOk = (reason: string | undefined) => (reason ?? '').trim().length >= MIN_REASON;
+
+/**
  * Measure a goal by a metric, for a slice: a team (teamId) or the whole company (null). The goal's owner or an admin.
  * Linking again with the same metric and slice changes nothing (null); with another, it's changed and logged.
  */
-export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, teamId: string | null = null): Commit | null {
+export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, teamId: string | null = null, reason?: string): Commit | null {
   if (!canLinkGoal(x.actor, goal)) no('Only the goal’s owner or an admin can choose what measures it.');
   const m = live(x, metricId);
   if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no('There’s no team with that ID. Leave the slice empty for the whole company.');
@@ -231,23 +245,29 @@ export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, t
   const old = all.find((l) => l.id === goal.id);
   const current = old && !old.removedAt ? old : undefined;
   if (current && current.metricId === m.id && current.teamId === teamId) return null;
+  const why = current && linkNeedsReason(x.snapshot, goal) ? (reasonOk(reason) ? reason!.trim() : no(REASON_NEEDED)) : null;
   const metricName = (id: string) => (x.full ?? x.snapshot).metrics?.find((v) => v.id === id)?.name ?? '—';
   const link: MetricLink = { id: goal.id, goalId: goal.id, metricId: m.id, teamId, linkedBy: x.actor.id, linkedAt: x.now, removedAt: null, removedBy: null };
   const slice = sliceName(x.snapshot, teamId);
   const diffs = [
     ...(!current || current.metricId !== m.id ? [{ field: 'Measured by', from: current ? metricName(current.metricId) : '—', to: m.name }] : []),
     ...(!current || current.teamId !== teamId ? [{ field: 'Slice', from: current ? sliceName(x.snapshot, current.teamId) : '—', to: slice }] : []),
+    ...(why ? [{ field: 'Why', from: '—', to: why }] : []),
   ];
   return { metricLinks: [link], changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary: `Measured by “${m.name}” for ${slice === COMPANY ? 'the whole company' : slice}`, diffs })] };
 }
 
-/** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
-export function unlinkGoalMetric(x: ActionContext, goal: Goal): Commit | null {
+/**
+ * Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none.
+ * Once the goal has check-ins it needs a reason (linkNeedsReason).
+ */
+export function unlinkGoalMetric(x: ActionContext, goal: Goal, reason?: string): Commit | null {
   if (!canLinkGoal(x.actor, goal)) no('Only the goal’s owner or an admin can choose what measures it.');
   const l = (x.snapshot.metricLinks ?? []).find((v) => v.goalId === goal.id && !v.removedAt);
   if (!l) return null;
+  const why = linkNeedsReason(x.snapshot, goal) ? (reasonOk(reason) ? reason!.trim() : no(REASON_NEEDED)) : null;
   const name = (x.full ?? x.snapshot).metrics?.find((v) => v.id === l.metricId)?.name ?? 'its metric';
-  return { metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }], changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] })] };
+  return { metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }], changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }, ...(why ? [{ field: 'Why', from: '—', to: why }] : [])] })] };
 }
 
 /** Two saves as one (a new goal and its link, made in one form): records and change-log entries together, in order. */

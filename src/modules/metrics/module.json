@@ -3,10 +3,16 @@
   "name": "Metric library",
   "summary": "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
   "needs": [],
-  "routes": [],
+  "routes": [
+    "/data/metrics"
+  ],
   "redirects": [],
   "navigation": [],
-  "places": [],
+  "places": [
+    "data.tools",
+    "goal.measure",
+    "goal.sections"
+  ],
   "tables": [
     {
       "name": "okr_metrics",
@@ -26,9 +32,16 @@
     "remove_metric",
     "link_goal_metric"
   ],
-  "help": [],
-  "requirements": [],
-  "journeys": [],
+  "help": [
+    "metrics"
+  ],
+  "requirements": [
+    "METRIC-LIBRARY",
+    "MEASURED-BY"
+  ],
+  "journeys": [
+    "U53"
+  ],
   "elsewhere": [
     "src/domain/metrics.ts",
     "src/data/platformOrg/metrics.ts"
@@ -45,10 +58,11 @@
       "Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
       "A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
       "Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.",
-      "The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move)."
+      "The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
+      "Once a goal has check-ins and is measured by a metric, changing that metric or its slice, or unlinking it, is refused without a reason of at least ten characters; with one, the reason is logged on the goal as “Why”. Linking for the first time needs none."
     ],
     "gaps": [
-      "No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).",
+      "The screens are built (the Metrics page under Data, “Measured by” in the goal forms, the metric on a goal’s page); src/modules/metrics/README.md says what they call.",
       "No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.",
       "Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
     ]

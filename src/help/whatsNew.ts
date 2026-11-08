@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-library-screens',
+    date: '2026-11-08',
+    title: 'The metric library: Metrics on Data, and Measured by on goals',
+    points: [
+      'Data has a Metrics page: every number goals are measured by, with its unit, which way is better, its owner, how many goals use it and which teams. Search it by name.',
+      'Anyone can add a metric with a name, a unit and which way is better; the meaning, source, refresh and caveats can follow. Its owner or an admin changes or removes it, with Undo.',
+      'New goal and Edit have Measured by: pick a metric, or add one there and then, for the goal’s team or the whole company.',
+      'Once a goal has check-ins, changing or removing its metric asks why, as a plan change does.',
+      'A goal’s page shows its metric and what it means.',
+    ],
+    articles: ['metrics', 'new-goal', 'edit-goal'],
+  },
+  {
     id: 'home-screen-icon-and-splash',
     date: '2026-11-08',
     title: 'A clearer icon, a lighthouse, a new first page',

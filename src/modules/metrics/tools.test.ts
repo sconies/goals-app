@@ -73,11 +73,13 @@ describe('metric library tools', () => {
     const r = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Remote build cache hit rate', team: 'CI/CD' });
     expect(r.isError).toBe(false);
     expect(data().metricLinks!.find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_cache-hit', teamId: 'cicd' });
-    const wrong = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Flaky test rate' });
+    // ci-shard has check-ins, so changing its metric needs a reason, as a plan change does.
+    expect((await call('link_goal_metric', { goal: 'ci-shard', metric: 'Flaky test rate' })).content[0]!.text).toMatch(/needs a reason/);
+    const wrong = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Flaky test rate', reason: 'Flaky tests are what slows the shards' });
     expect(wrong.content[0]!.text).toMatch(/Warning: The goal aims up, but for Flaky test rate lower is better/);
     expect(data().metricLinks!.find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_flaky-rate', teamId: null });
     expect((await call('link_goal_metric', { goal: 'ns-lead', metric: 'CI pipeline time on main (p90)' })).content[0]!.text).toMatch(/The goal is in hours and the metric is in min/);
-    expect((await call('link_goal_metric', { goal: 'ci-shard', unlink: true })).isError).toBe(false);
+    expect((await call('link_goal_metric', { goal: 'ci-shard', unlink: true, reason: 'Measured by its own definition instead' })).isError).toBe(false);
     expect(data().metricLinks!.find((l) => l.goalId === 'ci-shard')!.removedAt).toBeTruthy();
     expect((await call('link_goal_metric', { goal: 'ns-ci', metric: 'CI pipeline time on main (p90)' })).content[0]!.text).toMatch(/Only the goal’s owner or an admin/);
   });

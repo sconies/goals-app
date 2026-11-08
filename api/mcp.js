@@ -25601,10 +25601,19 @@ function linkProblems(goal, m) {
 	};
 }
 /**
+* Whether changing what measures a goal needs a reason: once the goal has check-ins and is already measured by a
+* metric, changing the metric or its slice, or unlinking it, is like a plan change (the numbers so far were read under
+* the old one), so it says why, in a sentence, and the reason goes in the goal's activity. Linking a goal for the first
+* time never needs one.
+*/
+function linkNeedsReason(s, goal) {
+	return (s.metricLinks ?? []).some((l) => l.goalId === goal.id && !l.removedAt) && (s.checkIns ?? []).some((c) => c.goalId === goal.id);
+}
+/**
 * Measure a goal by a metric, for a slice: a team (teamId) or the whole company (null). The goal's owner or an admin.
 * Linking again with the same metric and slice changes nothing (null); with another, it's changed and logged.
 */
-function linkGoalMetric(x, goal, metricId, teamId = null) {
+function linkGoalMetric(x, goal, metricId, teamId = null, reason) {
 	if (!canLinkGoal(x.actor, goal)) no$2("Only the goal’s owner or an admin can choose what measures it.");
 	const m = live(x, metricId);
 	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no$2("There’s no team with that ID. Leave the slice empty for the whole company.");
@@ -25613,6 +25622,7 @@ function linkGoalMetric(x, goal, metricId, teamId = null) {
 	const old = (x.full?.metricLinks ?? x.snapshot.metricLinks ?? []).find((l) => l.id === goal.id);
 	const current = old && !old.removedAt ? old : void 0;
 	if (current && current.metricId === m.id && current.teamId === teamId) return null;
+	const why = current && linkNeedsReason(x.snapshot, goal) ? reasonOk(reason) ? reason.trim() : no$2(REASON_NEEDED) : null;
 	const metricName = (id) => (x.full ?? x.snapshot).metrics?.find((v) => v.id === id)?.name ?? "—";
 	const link = {
 		id: goal.id,
@@ -25625,15 +25635,23 @@ function linkGoalMetric(x, goal, metricId, teamId = null) {
 		removedBy: null
 	};
 	const slice = sliceName(x.snapshot, teamId);
-	const diffs = [...!current || current.metricId !== m.id ? [{
-		field: "Measured by",
-		from: current ? metricName(current.metricId) : "—",
-		to: m.name
-	}] : [], ...!current || current.teamId !== teamId ? [{
-		field: "Slice",
-		from: current ? sliceName(x.snapshot, current.teamId) : "—",
-		to: slice
-	}] : []];
+	const diffs = [
+		...!current || current.metricId !== m.id ? [{
+			field: "Measured by",
+			from: current ? metricName(current.metricId) : "—",
+			to: m.name
+		}] : [],
+		...!current || current.teamId !== teamId ? [{
+			field: "Slice",
+			from: current ? sliceName(x.snapshot, current.teamId) : "—",
+			to: slice
+		}] : [],
+		...why ? [{
+			field: "Why",
+			from: "—",
+			to: why
+		}] : []
+	];
 	return {
 		metricLinks: [link],
 		changes: [log$1(x, {
@@ -25645,11 +25663,15 @@ function linkGoalMetric(x, goal, metricId, teamId = null) {
 		})]
 	};
 }
-/** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
-function unlinkGoalMetric(x, goal) {
+/**
+* Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none.
+* Once the goal has check-ins it needs a reason (linkNeedsReason).
+*/
+function unlinkGoalMetric(x, goal, reason) {
 	if (!canLinkGoal(x.actor, goal)) no$2("Only the goal’s owner or an admin can choose what measures it.");
 	const l = (x.snapshot.metricLinks ?? []).find((v) => v.goalId === goal.id && !v.removedAt);
 	if (!l) return null;
+	const why = linkNeedsReason(x.snapshot, goal) ? reasonOk(reason) ? reason.trim() : no$2(REASON_NEEDED) : null;
 	const name = (x.full ?? x.snapshot).metrics?.find((v) => v.id === l.metricId)?.name ?? "its metric";
 	return {
 		metricLinks: [{
@@ -25666,14 +25688,19 @@ function unlinkGoalMetric(x, goal) {
 				field: "Measured by",
 				from: name,
 				to: "—"
-			}]
+			}, ...why ? [{
+				field: "Why",
+				from: "—",
+				to: why
+			}] : []]
 		})]
 	};
 }
-var no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log$1, live, ownsOrAdmin$2, canEditMetric, canLinkGoal;
+var no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log$1, live, ownsOrAdmin$2, canEditMetric, canLinkGoal, REASON_NEEDED, reasonOk;
 var init_metrics = __esmMin((() => {
 	init_actions();
 	init_changes();
+	init_checkin();
 	init_format();
 	init_numbers();
 	no$2 = (msg) => {
@@ -25726,6 +25753,8 @@ var init_metrics = __esmMin((() => {
 	ownsOrAdmin$2 = (x, m) => x.actor.admin || m.ownerId === x.actor.id;
 	canEditMetric = (actor, m) => actor.admin || m.ownerId === actor.id;
 	canLinkGoal = (actor, g) => actor.admin || g.ownerId === actor.id;
+	REASON_NEEDED = "This goal has check-ins, so changing what measures it needs a reason, in a sentence, as a plan change does.";
+	reasonOk = (reason) => (reason ?? "").trim().length >= 10;
 }));
 // src/domain/columns.ts
 /** A word's code; null for an empty cell; undefined for a word it doesn't know. */
@@ -31922,6 +31951,55 @@ function dashboard(personId, s, cycle, week, today) {
 }
 // \0virtual:faro-modules/help
 var help_default = [{
+	id: "metrics",
+	part: [{
+		id: "metrics",
+		title: "Metrics",
+		summary: "The metric library: each number goals are measured by, defined once, with what it means, its unit, which way is better and who owns it.",
+		group: "data",
+		after: "data",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"On Data, choose Metrics. Every metric in use is listed by name, with its unit, which way is better, its owner, how many goals it measures and which teams use it. Search finds one by name.",
+				"Add a metric: a name, a unit and which way is better are enough to start. What it means and how it’s worked out, decimals, the source and who owns it, how often it refreshes, its owner and caveats can be added now or later.",
+				"Open a metric to read its definition and the goals it measures, each with its slice: a team, or the whole company.",
+				"On New goal and Edit, Measured by picks the metric that measures a goal, or adds a new one in place. The goal’s own target is its target in that metric.",
+				"Once a goal has check-ins, changing or removing its metric asks why, as a plan change does. The reason goes in the goal’s activity.",
+				"Removing a metric stops it measuring its goals; Undo puts it all back, and Workspace → Recently removed brings the metric back later."
+			]
+		}, {
+			heading: "Who can",
+			text: ["Anyone adds a metric. Its owner or an admin changes or removes it. A goal’s owner or an admin chooses what measures the goal."]
+		}],
+		routes: ["/data/metrics"],
+		screens: [
+			"Metrics",
+			"MetricForm",
+			"MetricsLink",
+			"MeasuredBy",
+			"GoalMetric"
+		],
+		reqs: ["METRIC-LIBRARY", "MEASURED-BY"],
+		keywords: [
+			"metric",
+			"metrics",
+			"library",
+			"measured by",
+			"definition",
+			"unit",
+			"direction",
+			"source",
+			"owner",
+			"slice"
+		],
+		related: [
+			"data",
+			"new-goal",
+			"edit-goal"
+		]
+	}]
+}, {
 	id: "spreadsheets",
 	part: [{
 		id: "import",
@@ -32970,6 +33048,7 @@ var CORE_ARTICLES = [
 				"Choose New goal. Name it the way your team would say it.",
 				"Pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.",
 				"For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.",
+				"Measured by, under how it’s measured, picks the metric from the library that measures the goal (those in its unit first), for its team or the whole company, or adds a new one in place. It’s optional.",
 				"Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.",
 				"Check and publish. The owner is then offered the first check-in.",
 				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
@@ -33025,7 +33104,8 @@ var CORE_ARTICLES = [
 				"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s activity. A change made from one part of Change this goal always asks why.",
 				"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about.",
 				"The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.",
-				"A goal’s type can’t change once check-ins have started."
+				"A goal’s type can’t change once check-ins have started.",
+				"Measured by, under the name, changes the metric that measures it or its slice. Once check-ins have started, changing or removing it asks why, as a plan change does, and the reason is in the goal’s activity."
 			]
 		}, {
 			heading: "Who can",
@@ -34111,6 +34191,23 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "metric-library-screens",
+		date: "2026-11-08",
+		title: "The metric library: Metrics on Data, and Measured by on goals",
+		points: [
+			"Data has a Metrics page: every number goals are measured by, with its unit, which way is better, its owner, how many goals use it and which teams. Search it by name.",
+			"Anyone can add a metric with a name, a unit and which way is better; the meaning, source, refresh and caveats can follow. Its owner or an admin changes or removes it, with Undo.",
+			"New goal and Edit have Measured by: pick a metric, or add one there and then, for the goal’s team or the whole company.",
+			"Once a goal has check-ins, changing or removing its metric asks why, as a plan change does.",
+			"A goal’s page shows its metric and what it means."
+		],
+		articles: [
+			"metrics",
+			"new-goal",
+			"edit-goal"
+		]
+	},
+	{
 		id: "home-screen-icon-and-splash",
 		date: "2026-11-08",
 		title: "A clearer icon, a lighthouse, a new first page",
@@ -34862,10 +34959,14 @@ var _virtual_faro_modules_default = [{
 	name: "Metric library",
 	summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
 	needs: [],
-	routes: [],
+	routes: ["/data/metrics"],
 	redirects: [],
 	navigation: [],
-	places: [],
+	places: [
+		"data.tools",
+		"goal.measure",
+		"goal.sections"
+	],
 	tables: [{
 		"name": "okr_metrics",
 		"migration": "0033_metric_library.sql",
@@ -34882,9 +34983,9 @@ var _virtual_faro_modules_default = [{
 		"remove_metric",
 		"link_goal_metric"
 	],
-	help: [],
-	requirements: [],
-	journeys: [],
+	help: ["metrics"],
+	requirements: ["METRIC-LIBRARY", "MEASURED-BY"],
+	journeys: ["U53"],
 	elsewhere: ["src/domain/metrics.ts", "src/data/platformOrg/metrics.ts"],
 	rebuild: {
 		"status": "outline",
@@ -34895,10 +34996,11 @@ var _virtual_faro_modules_default = [{
 			"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
 			"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
 			"Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.",
-			"The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move)."
+			"The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
+			"Once a goal has check-ins and is measured by a metric, changing that metric or its slice, or unlinking it, is refused without a reason of at least ten characters; with one, the reason is logged on the goal as “Why”. Linking for the first time needs none."
 		],
 		"gaps": [
-			"No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).",
+			"The screens are built (the Metrics page under Data, “Measured by” in the goal forms, the metric on a goal’s page); src/modules/metrics/README.md says what they call.",
 			"No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.",
 			"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
 		]
@@ -37997,7 +38099,7 @@ var tools$1 = [
 	{
 		name: "link_goal_metric",
 		title: "Say which metric measures a goal",
-		description: "Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out). Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.",
+		description: "Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out). Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Changing or unlinking the metric once the goal has check-ins needs a reason. Linking again the same way changes nothing.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -38009,7 +38111,8 @@ var tools$1 = [
 				unlink: {
 					type: "boolean",
 					description: "Stop measuring the goal by its metric."
-				}
+				},
+				reason: str$2("Why, in a sentence. Needed to change or unlink the metric once the goal has check-ins, as for a plan change.")
 			}
 		},
 		annotations: WRITE,
@@ -38017,7 +38120,7 @@ var tools$1 = [
 			return ruled(async () => {
 				const g = goalOf(ctx, a.goal);
 				if (a.unlink === true) {
-					const c = unlinkGoalMetric(ax(ctx), g);
+					const c = unlinkGoalMetric(ax(ctx), g, typeof a.reason === "string" ? a.reason : void 0);
 					if (!c) return {
 						data: { saved: false },
 						text: `${g.title} isn’t measured by a metric.`
@@ -38035,7 +38138,7 @@ var tools$1 = [
 				const m = metricOf(ctx, a.metric);
 				const teamId = sliceOf(ctx, a.team);
 				const { warnings } = linkProblems(g, m);
-				const c = linkGoalMetric(ax(ctx), g, m.id, teamId);
+				const c = linkGoalMetric(ax(ctx), g, m.id, teamId, typeof a.reason === "string" ? a.reason : void 0);
 				if (!c) return {
 					data: {
 						saved: false,

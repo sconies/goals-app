@@ -152,19 +152,20 @@ const tools: ToolDef[] = [
   {
     name: 'link_goal_metric',
     title: 'Say which metric measures a goal',
-    description: 'Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out). Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.',
+    description: 'Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out). Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Changing or unlinking the metric once the goal has check-ins needs a reason. Linking again the same way changes nothing.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal'], properties: {
       goal: str('The goal’s ID or key (G-12).'),
       metric: str('The metric’s ID or name. Required unless unlinking.'),
       team: str('The slice: a team by ID or name. Leave out for the whole company.'),
       unlink: { type: 'boolean', description: 'Stop measuring the goal by its metric.' },
+      reason: str('Why, in a sentence. Needed to change or unlink the metric once the goal has check-ins, as for a plan change.'),
     } },
     annotations: WRITE,
     async run(a, ctx) {
       return ruled(async () => {
         const g = goalOf(ctx, a.goal);
         if (a.unlink === true) {
-          const c = M.unlinkGoalMetric(ax(ctx), g);
+          const c = M.unlinkGoalMetric(ax(ctx), g, typeof a.reason === 'string' ? a.reason : undefined);
           if (!c) return { data: { saved: false }, text: `${g.title} isn’t measured by a metric.` };
           await save(ctx, c);
           return { data: { saved: true }, text: `${g.title}: ${c.changes[0]!.summary.charAt(0).toLowerCase()}${c.changes[0]!.summary.slice(1)} (as ${ctx.actor.name}).` };
@@ -173,7 +174,7 @@ const tools: ToolDef[] = [
         const m = metricOf(ctx, a.metric);
         const teamId = sliceOf(ctx, a.team);
         const { warnings } = M.linkProblems(g, m);
-        const c = M.linkGoalMetric(ax(ctx), g, m.id, teamId);
+        const c = M.linkGoalMetric(ax(ctx), g, m.id, teamId, typeof a.reason === 'string' ? a.reason : undefined);
         if (!c) return { data: { saved: false, warnings }, text: `${g.title} is already measured by ${m.name} for ${M.sliceName(ctx.snapshot, teamId)}.` };
         await save(ctx, c);
         return { data: { saved: true, warnings }, text: [`${g.title}: ${c.changes[0]!.summary.charAt(0).toLowerCase()}${c.changes[0]!.summary.slice(1)} (as ${ctx.actor.name}).`, ...warnings.map((w) => `Warning: ${w}`)].join('\n') };

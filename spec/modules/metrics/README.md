@@ -11,26 +11,30 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 | Extension point | What |
 |---|---|
 | Needs | none |
-| Routes | none |
+| Routes | `/data/metrics` |
 | Old addresses | none |
 | Navigation | none |
-| Places on core screens | none |
+| Places on core screens | `data.tools`, `goal.measure`, `goal.sections` |
 | Workspace sections | none |
 | Database tables | `okr_metrics` (0033_metric_library.sql): The metric library: one row per metric, never deleted (removed_at when removed).; `okr_goal_metrics` (0033_metric_library.sql): Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked. |
 | AI tools | `list_metrics`, `get_metric`, `save_metric`, `remove_metric`, `link_goal_metric` |
-| Help articles | none |
+| Help articles | “Metrics” (`metrics`) |
 | Outside its folder | src/domain/metrics.ts, src/data/platformOrg/metrics.ts |
 
 ## Requirements
 
+- `METRIC-LIBRARY`: A Metrics page under Data (/data/metrics, the metrics module) lists every metric in use by name, with its unit, which way is better, its owner, how many goals it measures and which teams use it, and finds one by name. One form adds and changes a metric: name, unit and direction required; meaning and calculation, decimals, source and its owner, refresh, owner and caveats optional. Anyone adds one; its owner or an admin changes or removes it, with Undo.
+- `MEASURED-BY`: New goal and goal edit offer “Measured by”: pick a metric (those in the goal’s unit first) or add one in place, for the goal’s team or the whole company, with the rule’s errors and warnings shown as you pick. Once a goal has check-ins, changing or removing its metric needs a reason, as a plan change does, and the reason is logged on the goal. The goal’s page shows its metric, what it means, the slice and the goal’s target in it.
 
 ## Journeys and checks
 
-_None._
+| Id | What | Where |
+|---|---|---|
+| U53 | Rhea finds a metric on Data, adds one (refused until it has a unit and a direction), then moves her goal’s metric to her team’s slice, which asks why because it has check-ins, and the goal’s page shows it | `evals/journeys.cjs` |
 
 ## Help
 
-_None._
+- **Metrics** (`metrics`): The metric library: each number goals are measured by, defined once, with what it means, its unit, which way is better and who owns it.
 
 ## Rules, conformance and rebuild stage
 
