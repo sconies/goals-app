@@ -7,7 +7,8 @@ import { RESTORE_DAYS } from '../domain/vocabulary';
 import { whenText } from './ChangeItem';
 
 /** Everything removed in the last 30 days, newest first: what it was, who removed it, when, and Restore. */
-export function RecentlyRemoved() {
+/** `bare` leaves out its heading: on Workspace, Recently removed is a section with its own. */
+export function RecentlyRemoved({ bare = false }: { bare?: boolean } = {}) {
   const app = useApp();
   const [busy, setBusy] = useState<string | null>(null);
   const [limit, setLimit] = useState(8);
@@ -20,8 +21,8 @@ export function RecentlyRemoved() {
     setBusy(null);
   };
   return (
-    <section className="block removed-block" aria-labelledby="ws-removed">
-      <h2 className="block-title" id="ws-removed">Recently removed{list.length > 0 && <span className="hint count-after">· {list.length}</span>}</h2>
+    <section className="block removed-block" aria-labelledby={bare ? undefined : 'ws-removed'} aria-label={bare ? 'Recently removed' : undefined}>
+      {!bare && <h2 className="block-title" id="ws-removed">Recently removed{list.length > 0 && <span className="hint count-after">· {list.length}</span>}</h2>}
       <p className="hint">Anything removed, stopped, ended or marked as left in the last {RESTORE_DAYS} days. Restore brings it back as it was. After {RESTORE_DAYS} days it leaves this list, but it’s never erased.</p>
       {!list.length ? <p className="hint">Nothing has been removed recently.</p> : (
         <ul className="removed-list" aria-label="Recently removed">
@@ -43,13 +44,14 @@ export function RecentlyRemoved() {
 }
 
 /** The workspace's cycles: a cycle no one has checked in to can be deleted (started by mistake, say), and comes back with Undo or Restore. */
-export function CycleList() {
+/** The cycles, newest first. `bare` (Workspace's Cycles section, which has its own heading) lists even a single one. */
+export function CycleList({ bare = false }: { bare?: boolean } = {}) {
   const app = useApp();
   const cycles = app.full.cycles.filter((c) => !c.removedAt).sort((a, b) => b.startDate.localeCompare(a.startDate));
-  if (cycles.length < 2) return null;
+  if (cycles.length < 2 && !bare) return null;
   return (
-    <section className="block cycles-block" aria-labelledby="ws-cycles">
-      <h2 className="block-title" id="ws-cycles">Cycles<span className="hint count-after">· {cycles.length}</span></h2>
+    <section className="block cycles-block" aria-labelledby={bare ? undefined : 'ws-cycles'} aria-label={bare ? 'Cycles' : undefined}>
+      {!bare && <h2 className="block-title" id="ws-cycles">Cycles<span className="hint count-after">· {cycles.length}</span></h2>}
       <p className="hint">A cycle nobody has checked in to yet can be deleted, with its goals. One with check-ins stays.</p>
       <ul className="removed-list" aria-label="Cycles">
         {cycles.map((c) => {

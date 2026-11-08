@@ -252,6 +252,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
       row('Old addresses', m.redirects.map(([a, b]) => `\`${a}\` → \`${b}\``).join(', ')),
       row('Navigation', m.navigation.join(', ')),
       row('Places on core screens', m.places.map((x) => `\`${x}\``).join(', ')),
+      row('Workspace sections', (m.sections ?? []).map((x) => `\`/workspace/${x}\``).join(', ')),
       row('Database tables', m.tables.map((t) => `\`${t.name}\` (${t.migration}): ${t.purpose}`).join('; ')),
       row('AI tools', m.aiTools.map((x) => `\`${x}\``).join(', ')),
       row('Help articles', arts.map((a) => `“${a.title}” (\`${a.id}\`)`).join(', ')),

@@ -5,10 +5,11 @@ import path from 'node:path';
 import type { ModuleFacts } from './module';
 import { MODULES } from './registry';
 
-/** Every route: App.tsx's own, each module's (module.json `routes`), and the old addresses modules lead on. */
+/** Every route: App.tsx's own, each module's (module.json `routes`), the old addresses modules lead on, and the
+    Workspace sections modules add (/workspace/<id>). */
 export function appRoutes(root: string): string[] {
   const app = fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8');
-  return [...[...app.matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]!), ...MODULES.flatMap((m) => [...m.routes, ...m.redirects.map(([from]) => from)])];
+  return [...[...app.matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]!), ...MODULES.flatMap((m) => [...m.routes, ...m.redirects.map(([from]) => from), ...(m.sections ?? []).map((id) => `/workspace/${id}`)])];
 }
 
 /** Every screen file, by name without .tsx: src/screens, and each module's components (a capitalised .tsx in its folder). */

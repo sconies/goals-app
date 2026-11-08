@@ -64,12 +64,23 @@ export function Routed() {
         <Route path="/data" element={<DataTables />} />
         <Route path="/workspace" element={<WorkspaceHome />} />
         <Route path="/workspace/new" element={<Onboarding />} />
+        {/* Workspace's sections (backlog W); a module's sections are added with its routes below. */}
+        <Route path="/workspace/overview" element={<WorkspaceHome section="overview" />} />
+        <Route path="/workspace/people" element={<WorkspaceHome section="people" />} />
+        <Route path="/workspace/teams" element={<WorkspaceHome section="teams" />} />
+        <Route path="/workspace/inbox" element={<WorkspaceHome section="inbox" />} />
+        <Route path="/workspace/cycles" element={<WorkspaceHome section="cycles" />} />
+        <Route path="/workspace/access" element={<WorkspaceHome section="access" />} />
+        <Route path="/workspace/features" element={<WorkspaceHome section="features" />} />
+        <Route path="/workspace/privacy" element={<WorkspaceHome section="privacy" />} />
+        <Route path="/workspace/removed" element={<WorkspaceHome section="removed" />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/help" element={<HelpHome />} />
         <Route path="/help/:id" element={<HelpArticle />} />
         <Route path="/whats-new" element={<WhatsNew />} />
         <Route path="/ready" element={<Ready />} />
         {modules.screens.flatMap((m) => (m.routes ?? []).map((r) => <Route key={r.path} path={r.path} element={r.element} />))}
+        {modules.screens.flatMap((m) => (m.sections ?? []).map((x) => <Route key={x.id} path={'/workspace/' + x.id} element={<WorkspaceHome section={x.id} />} />))}
         {modules.redirects.map(([from, to]) => <Route key={from} path={from} element={<Moved to={to} />} />)}
         <Route path="*" element={<div className="page narrow"><Empty title="Page not found" /></div>} />
       </Routes>

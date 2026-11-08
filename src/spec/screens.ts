@@ -17,7 +17,7 @@ export const MAIN_ACTION: Record<string, string> = {
   Print: 'Print the page.',
   Activity: 'Read what changed, filtered to what you need.',
   DataTables: 'Correct records in a table, every change checked and shown before it’s saved.',
-  Workspace: 'Admins run the workspace: people, teams, AI tokens and features.',
+  Workspace: 'Run the workspace one section at a time, each with its own main action: Add a person on People, Add a team on Teams, and on the Inbox, handle the open item and go on to the next.',
   Onboarding: 'Set up a workspace, one question a screen.',
   Settings: 'Change your own settings.',
   Help: 'Find an answer: search, or open an article.',

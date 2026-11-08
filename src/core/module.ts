@@ -12,9 +12,9 @@
    never imports a module, and a module left out of the build (FARO_WITHOUT=<id>) is simply not there.
    This file is plain TypeScript, with no screens: the server and the guide use it too. */
 
-/** Places on core screens a module can put something: Home's blocks, a goal page's sections, Workspace's settings, Data's
-    tools and Goals' tools. src/core/app.tsx says what each is given. */
-export const PLACES = ['home.blocks', 'goal.sections', 'workspace.settings', 'data.tools', 'goals.tools'] as const;
+/** Places on core screens a module can put something: Home's blocks, a goal page's sections, Data's tools and Goals'
+    tools. src/core/app.tsx says what each is given. (Workspace takes whole sections instead: `sections` below.) */
+export const PLACES = ['home.blocks', 'goal.sections', 'data.tools', 'goals.tools'] as const;
 export type PlaceName = (typeof PLACES)[number];
 
 /** A module's module.json: what it is, what it needs and what it adds, as data. */
@@ -35,6 +35,9 @@ export interface ModuleFacts {
   navigation: string[];
   /** The places on core screens it fills. */
   places: PlaceName[];
+  /** The Workspace sections its app.tsx adds, by id: each is at /workspace/<id>, in Workspace's menu, with a Help
+      article (backlog W). Optional: most modules add none. */
+  sections?: string[];
   /** The database tables it owns, each with its migration. */
   tables: { name: string; migration: string; purpose: string }[];
   /** The AI tools its tools.ts adds, by name. */
@@ -47,6 +50,20 @@ export interface ModuleFacts {
   journeys: string[];
   /** The source files that belong to it outside its folder, if any (there should be none once it's fully moved). */
   elsewhere?: string[];
+}
+
+/** Workspace's sections in menu order: the core's, then each module's after the section it names in `after` (or at the
+    end). Two modules naming the same section keep their own order, one after the other. */
+export function placeSections<T extends { id: string; after?: string }>(core: readonly T[], added: readonly T[]): T[] {
+  const all = [...core];
+  for (const s of added) {
+    if (all.some((x) => x.id === s.id)) continue;
+    let at = s.after ? all.findIndex((x) => x.id === s.after) : -1;
+    if (at < 0) { all.push(s); continue; }
+    while (at + 1 < all.length && added.includes(all[at + 1]!) && all[at + 1]!.after === s.after) at++;
+    all.splice(at + 1, 0, s);
+  }
+  return all;
 }
 
 /** Why a module isn't on, when it isn't. */

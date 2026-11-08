@@ -682,7 +682,7 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
   await see(p, 'goals to discuss', 'Amara’s home leads with her review');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'no progress on Amara’s home');
   // A change in the demo stays in this browser and can be undone in one place.
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/overview'));
   await h.click(p.getByRole('button', { name: 'Reset the example' }));
   await h.click(p.getByRole('button', { name: 'Yes, reset it' }));
   await see(p, 'The example is back to its starting point');
@@ -884,7 +884,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
 
 journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them an admin', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/people'));
   await see(p, 'You’re an admin');
   await h.inView(p.getByRole('button', { name: 'Add a person' }), 'entry', 'Add a person');
   await h.checkpoint('workspace');
@@ -907,7 +907,7 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
   h.set('logged', s.people.some((x) => x.name === 'Ines Karim' && x.admin) && s.changes.some((c) => c.entity === 'person' && c.actorId === 'amara'), 'the new person is not saved and logged');
   // Someone who isn't an admin can't add people.
   await viewAs(p, 'Oskar');
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/people'));
   await see(p, 'Admins can add people');
   if (await p.getByRole('button', { name: 'Add a person' }).count()) fail('a non-admin was offered Add a person');
   await p.context().close();
@@ -1025,7 +1025,7 @@ journey('U16', ['ATTENTION', 'WATCHING', 'ONE-ASK', 'ONE-WATCHING'], 'Home by re
 
 journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without the bar, and deleting a workspace', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/overview'));
   // One example now (Platform Engineering): the other example companies are gone, and starting over is on this page.
   await see(p, 'Example: Platform Engineering');
   for (const name of ['Customer Support', 'B2B Sales', 'Product Growth', 'Developer Platform']) if (await p.getByText('Example: ' + name).count()) fail(`“Example: ${name}” is still offered`);
@@ -1050,7 +1050,7 @@ journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without 
     localStorage.setItem('goals-app-v2:ws_temp', JSON.stringify({ ...ex, people: ex.people.map((x) => ({ ...x, admin: x.id === 'rhea' ? true : x.admin })) }));
     localStorage.setItem('goals-app-workspace', 'ws_temp');
   });
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/overview'));
   await h.click(p.getByRole('button', { name: /Delete Temp team/ }));
   h.set('errors', await p.getByRole('button', { name: 'Delete it for good' }).isDisabled(), 'deleting does not ask for the name first');
   await h.fill(p.getByLabel('Type Temp team to confirm'), 'Temp team');
@@ -1237,7 +1237,7 @@ journey('U22', ['MCP-TOKENS'], 'An admin gives a teammate a token for an AI assi
     localStorage.setItem('goals-live-workspace', 'ws_live');
     localStorage.setItem('goals-live-me:ws_live', 'amara');
   });
-  await p.goto(live('/workspace'));
+  await p.goto(live('/workspace/access'));
   // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
   await p.getByRole('heading', { name: 'AI assistants' }).scrollIntoViewIfNeeded();
   await h.click(p.getByRole('button', { name: 'Make a token' }));
@@ -2105,7 +2105,12 @@ async function sendHomeMarkup(p, device, line) {
   await see(p, 'Sent. You’ll hear when it’s fixed.');
 }
 
-journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the inbox with no sign-in, opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand', 21, async (h, device) => {
+/** A tab's count, as the inbox shows it. */
+const tabCount = async (inbox, name) => Number((await inbox.getByRole('tab', { name: new RegExp('^' + name) }).locator('.ibx-tab-count').innerText()).trim() || NaN);
+/** On a phone an open item takes the screen: back to the list (and its tabs) first. */
+const toInboxList = async (h, inbox) => { const back = inbox.getByRole('button', { name: 'Back to the list' }); if (await back.isVisible().catch(() => false)) await h.click(back); };
+
+journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the inbox with no sign-in, opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand', 23, async (h, device) => {
   if (!DOWN) fail('U42 needs the build with a database address (DOWN)');
   const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
   const p = h.use(await newPage(device, 'rhea'));
@@ -2115,64 +2120,71 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the i
   await sendHomeMarkup(p, device, 'The week strip should say which week it is');
   const sent = db.markups[0];
   const shared = !!sent && sent.demo === true && db.issued.includes(sent.id) && ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'].every((x) => db.uploads.includes(`${sent.id}/${x}`)) && sent.route === '/' && !('status' in db.inserted[0]);
-  // The inbox on Workspace: open, no sign-in and no token to paste.
-  await p.goto(down('/workspace'));
+  // The inbox, a section of Workspace: open, no sign-in and no token to paste.
+  await p.goto(down('/workspace/inbox'));
   const inbox = p.locator('#inbox');
-  const row = inbox.locator('.mk-row').first();
+  const row = inbox.locator('.ibx-row').first();
   await row.waitFor({ timeout: 10000 });
   h.set('entry', await inbox.locator('input[type=email], input[type=password]').count() === 0 && await inbox.getByText(/Sign in/).count() === 0, 'the inbox still asks to sign in or for a token');
   h.set('attention', await row.locator('.mk-status').innerText() === 'New' && (await row.innerText()).includes('The week strip should say which week it is') && (await row.innerText()).includes('the demo'), 'the markup is not listed as New, with its line and where it came from');
   await h.checkpoint('inbox');
-  // Connect Claude sits at the top: in the demo it says tokens are made in the real app, and gives the set-up.
+  // Connect Claude opens from the top: in the demo it says tokens are made in the real app, and gives the set-up.
+  await h.click(inbox.getByRole('button', { name: 'Connect Claude' }));
   const connect = inbox.locator('.connect');
-  const atTop = await inbox.evaluate((el) => { const c = el.querySelector('.connect'); const l = el.querySelector('.mk-list'); return !!c && !!l && !!(c.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING); });
+  const atTop = await inbox.evaluate((el) => { const c = el.querySelector('.connect'); const l = el.querySelector('.ibx-list'); return !!c && !!l && !!(c.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING); });
   const setUp = (await connect.getByLabel('Claude Code command', { exact: true }).inputValue()).includes('/api/mcp --header "Authorization: Bearer gk_');
   const says = await see(connect, 'any token from it reads the demo’s markups too').then(() => true, () => false);
   h.set('finish', atTop && setUp && says && await see(connect, 'Pictures for Claude: ready').then(() => true, () => false), `Connect Claude at the top ${atTop}, set-up ${setUp}, says any token works ${says}`);
-  await h.click(row);
-  const detail = p.getByRole('dialog', { name: /^Markup: / });
+  await inbox.getByRole('button', { name: 'Connect Claude' }).click();
+  await h.click(row.locator('.ibx-open'));
+  const detail = inbox.getByRole('article', { name: /^Markup: / });
   await detail.locator('.mk-layers img').first().waitFor();
   const drawn = await detail.locator('.mk-ink-layer').count();
   await h.click(detail.getByLabel('Show the drawing'));
   const hidden = await detail.locator('.mk-ink-layer').count();
   await h.checkpoint('markup');
-  // Mark in hand, then Undo: the status it replaced comes back.
+  // Mark in hand: it leaves New and the next item (the feedback) opens; Undo puts the markup back as it was.
   await h.click(detail.getByRole('button', { name: 'Mark in hand' }));
-  await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand');
-  await see(detail, 'Marked in hand by Rhea Kapoor', 'the markup does not say who marked it');
-  await h.click(detail.getByRole('button', { name: 'Undo' }));
+  await inbox.getByRole('article', { name: /^Feedback: / }).waitFor({ timeout: 5000 }).catch(() => fail('handling the markup did not open the next item'));
+  await see(inbox, 'Marked in hand: “The week strip', 'the inbox does not say what was just done');
+  await h.click(inbox.getByRole('button', { name: 'Undo' }));
   await see(detail.locator('.mk-status').first(), 'New', 'Undo did not put the markup back to New');
   h.set('errors', db.markups[0].status === 'new' && db.patches.length === 2, `after Undo the markup is ${db.markups[0].status}, ${db.patches.length} changes saved`);
   await h.click(detail.getByRole('button', { name: 'Mark in hand' }));
-  await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand again');
-  // Open GitHub issue: GitHub opens in a new tab with the issue filled in; the address is pasted back.
+  // In hand: open it there, say who marked it, open its GitHub issue and keep the link, then mark it fixed.
+  await toInboxList(h, inbox);
+  await h.click(inbox.getByRole('tab', { name: /^In hand/ }));
+  await h.click(inbox.locator('.ibx-row').first().locator('.ibx-open'));
+  await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand');
+  await see(detail, 'Marked in hand by Rhea Kapoor', 'the markup does not say who marked it');
   const [tab] = await Promise.all([p.context().waitForEvent('page'), h.click(detail.getByRole('button', { name: 'Open GitHub issue' }))]);
-  const issue = new URL(tab.url());
+  // The address the app opened. GitHub sends a browser that isn't signed in on to its sign-in page, with that address
+  // as return_to (a public repository does this since 8 Nov), so read it from there when it has.
+  const opened = new URL(tab.url());
+  const issue = opened.pathname === '/login' && opened.searchParams.get('return_to') ? new URL(opened.searchParams.get('return_to'), 'https://github.com') : opened;
   await tab.close();
   await h.fill(detail.getByLabel('Paste issue link'), 'https://github.com/sconies/goals-app/issues/101');
   await h.click(detail.getByRole('button', { name: 'Keep the link' }));
   await see(detail, 'sconies/goals-app/issues/101', 'the issue link is not shown');
   await h.click(detail.getByRole('button', { name: 'Mark fixed', exact: true }));
   await h.click(detail.locator('.mk-form').getByRole('button', { name: 'Mark fixed' }));
-  await see(detail.locator('.mk-status').first(), 'Fixed', 'not marked fixed');
+  await see(inbox, 'Nothing is in hand.', 'the fixed markup is still in hand');
   const m = db.markups[0];
-  const link = issue.origin + issue.pathname === 'https://github.com/sconies/goals-app/issues/new' && /The week strip/.test(issue.searchParams.get('title') || '') && (issue.searchParams.get('body') || '').includes(`markup=${m.id}`);
-  h.set('finish', drawn === 1 && hidden === 0 && link, `drawing layer ${drawn} then ${hidden}; issue link ${tab.url().slice(0, 120)}`);
+  const link = issue.origin + issue.pathname === 'https://github.com/sconies/goals-app/issues/new' && /The week strip/.test(issue.searchParams.get('title') || '') && (issue.searchParams.get('body') || '').includes(`/workspace/inbox?markup=${m.id}`);
+  h.set('finish', drawn === 1 && hidden === 0 && link, `drawing layer ${drawn} then ${hidden}; issue link ${tab.url().slice(0, 160)}`);
   h.set('logged', shared && db.signIns === 0 && db.pictureReads.includes(`${m.id}/screen.png`)
     && m.status === 'fixed' && m.fixed_in && m.issue_url === 'https://github.com/sconies/goals-app/issues/101' && m.status_by === 'Rhea Kapoor' && db.patches.length === 5,
   `sent ${shared}, sign-ins ${db.signIns}, pictures ${JSON.stringify(db.pictureReads)}, stored ${JSON.stringify({ status: m.status, fixed: m.fixed_in, issue: m.issue_url, by: m.status_by, patches: db.patches.length })}`);
-  // Feedback sent with a mood and a few words is in the same inbox, below the newer markup, with the same states.
-  await h.click(detail.getByRole('button', { name: 'Close' }));
-  const fbRow = inbox.locator('.fb-row').first();
+  // Feedback sent with a mood and a few words is in the same inbox, with the same states.
+  await toInboxList(h, inbox);
+  await h.click(inbox.getByRole('tab', { name: /^New/ }));
+  const fbRow = inbox.locator('.ibx-row').filter({ has: p.locator('.fb-item') }).first();
   const fbText = await fbRow.innerText();
-  h.set('attention', await inbox.locator('.mk-list > li').first().locator('.fb-row').count() === 0 && await fbRow.locator('.mk-status').innerText() === 'New'
-    && fbText.includes('The reason box is too small on a phone') && fbText.includes('Feedback') && fbText.includes('Mateo Silva, Acme'), `the feedback is not listed as New, after the newer markup, with its words and who sent it: ${fbText.replace(/\n/g, ' | ')}`);
-  await h.click(fbRow);
-  const fbDetail = p.getByRole('dialog', { name: /^Feedback: / });
+  h.set('attention', await fbRow.locator('.mk-status').innerText() === 'New' && fbText.includes('The reason box is too small on a phone') && fbText.includes('Feedback') && fbText.includes('Mateo Silva, Acme'), `the feedback is not listed as New, with its words and who sent it: ${fbText.replace(/\n/g, ' | ')}`);
+  await h.click(fbRow.locator('.ibx-open'));
+  const fbDetail = inbox.getByRole('article', { name: /^Feedback: / });
   await h.click(fbDetail.getByRole('button', { name: 'Mark in hand' }));
-  await see(fbDetail.locator('.mk-status').first(), 'In hand', 'the feedback was not marked in hand');
-  await h.click(fbDetail.getByRole('button', { name: 'Close' }));
-  await see(fbRow.locator('.mk-status'), 'In hand', 'the inbox list does not show the feedback in hand');
+  await see(inbox, 'Nothing new.', 'the inbox does not say there is nothing new');
   const fp = db.fbPatches[0] || {};
   h.set('logged', db.fbPatches.length === 1 && fp.status === 'in-hand' && fp.status_by === 'Rhea Kapoor' && db.feedback[0].status === 'in-hand', `feedback stored ${JSON.stringify(db.fbPatches)}`);
   await p.context().close();
@@ -2191,25 +2203,28 @@ journey('U47', ['CONNECT-CLAUDE', 'MARKUP-INBOX'], 'Someone else, in another bro
   const p = h.use(await newPage(device, 'grace'));
   const other = await fakeSupabase(p.context());
   other.db.markups.push(...db.markups);
-  await p.goto(down('/workspace'));
+  await p.goto(down('/workspace/inbox'));
   const inbox = p.locator('#inbox');
-  const row = inbox.locator('.mk-row').first();
+  const row = inbox.locator('.ibx-row').filter({ has: p.locator('.mk-item') }).first();
   await row.waitFor({ timeout: 10000 });
   const rowText = await row.innerText();
   h.set('entry', await inbox.locator('input[type=email], input[type=password]').count() === 0, 'the inbox still asks for a sign-in or a token');
   h.set('attention', rowText.includes('Say which week the strip is showing') && rowText.includes('the demo') && await row.locator('.mk-status').innerText() === 'New', `the markup from the demo is not listed as New: ${rowText.replace(/\n/g, ' | ')}`);
   await h.checkpoint('inbox');
-  await h.click(row);
-  const detail = p.getByRole('dialog', { name: /^Markup: / });
+  await h.click(row.locator('.ibx-open'));
+  const detail = inbox.getByRole('article', { name: /^Markup: / });
   await detail.locator('.mk-layers img').first().waitFor();
   const shown = await detail.locator('.mk-layers img').first().evaluate((img) => img.complete && img.naturalWidth > 0);
   await h.click(detail.getByRole('button', { name: 'Won’t fix' }));
   h.set('errors', await detail.locator('.mk-form').getByRole('button', { name: 'Won’t fix' }).isDisabled() && other.db.patches.length === 0, 'a markup can be marked won’t fix with no reason');
   await h.fill(detail.getByLabel('Why it won’t be fixed'), 'The strip already says the week on wider screens.');
   await h.click(detail.locator('.mk-form').getByRole('button', { name: 'Won’t fix' }));
+  // It leaves New for Closed, where it says who closed it and why.
+  await toInboxList(h, inbox);
+  await h.click(inbox.getByRole('tab', { name: /^Closed/ }));
+  await h.click(inbox.locator('.ibx-row').first().locator('.ibx-open'));
   await see(detail.locator('.mk-status').first(), 'Won’t fix', 'not marked won’t fix');
   const by = await see(detail, 'Marked won’t fix by Grace').then(() => true, () => false);
-  await h.click(detail.getByRole('button', { name: 'Close' }));
   const m = other.db.markups[0];
   h.set('finish', shown && by, `picture shown ${shown}, says who ${by}`);
   h.set('logged', !!m && m.status === 'wont-fix' && /^Grace/.test(m.status_by || '') && other.db.pictureReads.includes(`${m.id}/screen.png`) && other.db.signIns === 0,
@@ -2217,12 +2232,191 @@ journey('U47', ['CONNECT-CLAUDE', 'MARKUP-INBOX'], 'Someone else, in another bro
   await p.context().close();
 }, ['progress']);
 
+/* Backlog W (8 Nov): Workspace in sections, and an inbox that works at 75 items. */
+/** 75 inbox items, as the database keeps them: 45 markups (6 on one part of Home, 3 on a goal page's scorecard, 36
+    elsewhere) and 30 pieces of feedback, from five people, over the last three weeks. */
+function seed75() {
+  const people = [['rhea', 'Rhea Kapoor'], ['mateo', 'Mateo Silva'], ['amara', 'Amara Okafor'], ['jun', 'Jun Park'], ['oskar', 'Oskar Lind']];
+  const pages = ['/', '/goals', '/goals/:goalId', '/check-in/:goalId', '/reviews/:reviewId', '/activity', '/data', '/workspace/people'];
+  const at = (i) => new Date(Date.parse('2026-11-05T09:00:00Z') - i * 6.5 * 3600e3).toISOString();
+  const ctx = { viewport: { w: 1440, h: 900, dpr: 2 }, theme: 'light', themeChoice: 'light', accent: 'teal', appVersion: 'w', sessionId: 's' };
+  const markups = [];
+  for (let i = 0; i < 45; i++) {
+    const [pid, pname] = people[i % 5];
+    const part = i < 6 ? ['Home', 'Week strip'] : i < 9 ? ['Goal page', 'Scorecard'] : [['Goals', 'Table'], ['Check-in', 'Reason'], ['Review', 'Agenda'], ['Activity', 'Filters'], ['Data', 'Toolbar'], ['People', 'Directory']][i % 6].concat(['Part ' + i]);
+    const route = i < 6 ? '/' : i < 9 ? '/goals/:goalId' : pages[(i % 7) + 1];
+    const line = i < 6 ? `The week strip should say which week it is (${i + 1})` : i < 9 ? `The scorecard needs a label for the target (${i - 5})` : `Seeded markup ${i}: ${part[1].toLowerCase()} could be clearer`;
+    markups.push({ id: 'mk_seed' + String(i).padStart(3, '0'), workspace_id: 'platform-org', workspace_name: 'Platform Engineering', demo: true, person_id: pid, person_name: pname, line, mood: null,
+      route, path: route.replace(':goalId', 'ns-lead').replace(':reviewId', 'weekly'), goal_id: null, review_id: null, parts: [[part]], strokes: [{ kind: 'box', x: 10, y: 10, w: 100, h: 40 }], context: ctx, steps: [], errors: [], pictures: [],
+      status: 'new', issue_url: null, fixed_in: null, wont_fix_reason: null, status_by: null, status_at: null, created_at: at(i * 1.3) });
+  }
+  const moods = ['good', 'meh', 'bad'];
+  const feedback = [];
+  for (let i = 0; i < 30; i++) {
+    const [pid, pname] = people[(i + 2) % 5];
+    feedback.push({ id: 'fb_seed' + String(i).padStart(3, '0'), workspace_id: i % 4 ? 'platform-org' : 'acme', workspace_name: i % 4 ? 'Platform Engineering' : 'Acme', person_id: pid, person_name: pname,
+      path: pages[i % pages.length].replace(':goalId', 'ns-lead').replace(':reviewId', 'weekly'), mood: moods[i % 3], text: i % 7 === 3 ? '' : `Seeded feedback ${i}: ${['the chart is hard to read', 'love the check-in', 'too many clicks to find my team', 'what does stale mean?', 'the reason box is small'][i % 5]}`,
+      at: at(i * 1.9 + 0.5), status: 'new', fixed_in: null, wont_fix_reason: null, status_by: null, status_at: null });
+  }
+  return { markups, feedback };
+}
+
+
+journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Inbox, and old links still land', 14, async (h, device) => {
+  const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['inbox', 'Inbox'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
+  const phone = device === 'phone';
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/workspace'));
+  // A side menu on a computer, the overview beside it; a list of the sections on a phone.
+  const menu = phone ? p.getByRole('list', { name: 'Workspace sections' }) : p.getByRole('navigation', { name: 'Workspace sections' });
+  await menu.waitFor();
+  const labels = (await menu.getByRole('link').allInnerTexts()).map((x) => x.split(/\n| · /)[0].trim());
+  h.set('attention', JSON.stringify(labels) === JSON.stringify(SECTIONS.map(([, l]) => l)), `an admin’s sections are ${labels.join(', ')}`);
+  // A long workspace name wraps to two lines in the sidebar, then ends with … and the full name on hover.
+  if (!phone) {
+    await p.evaluate(() => { const n = document.querySelector('.side .ws-name'); if (n) n.textContent = 'Voss Test Workspace for the platform engineering off-site in November'; });
+    const nm = await p.evaluate(() => { const n = document.querySelector('.side .ws-name'); const lh = parseFloat(getComputedStyle(n).lineHeight); return { lines: Math.round(n.getBoundingClientRect().height / lh), clipped: n.scrollHeight > n.clientHeight + 1, hover: n.closest('[title]')?.getAttribute('title') || '' }; });
+    h.set('attention', nm.lines === 2 && nm.clipped && nm.hover.length > 0, `a long workspace name shows on ${nm.lines} lines (clipped ${nm.clipped}, hover “${nm.hover}”)`);
+    await p.reload(); await menu.waitFor();
+  }
+  h.set('progress', phone ? await p.locator('.ws-menu').count() === 0 && await p.locator('.ws-counts').count() === 0 : await p.locator('.ws-counts').isVisible(), phone ? 'a phone shows the side menu or the overview instead of the list' : 'a computer does not show the overview beside the menu');
+  await h.checkpoint('sections');
+  // Into a section and back, from the menu or the list: its address, its heading, and (on a phone) the way back.
+  await h.click(menu.getByRole('link', { name: /^People/ }));
+  await p.waitForURL(/\/workspace\/people(\?|$)/);
+  await p.getByRole('button', { name: 'Add a person' }).waitFor();
+  const heading = phone ? await p.locator('.page-head h1').innerText() : await p.locator('.ws-body h2').first().innerText();
+  h.set('entry', heading === 'People' && await p.getByRole('button', { name: 'Add a person' }).isVisible(), `People opened with the heading “${heading}”`);
+  await h.inView(p.getByRole('button', { name: 'Add a person' }), 'entry', 'Add a person');
+  await h.checkpoint('people');
+  if (phone) { await h.click(p.getByRole('link', { name: 'Workspace', exact: true })); await menu.waitFor(); }
+  else h.set('attention', await menu.getByRole('link', { name: /^People/ }).getAttribute('aria-current') === 'page', 'the menu does not mark the section that’s open');
+  // Every address opens its own section, with one main action at most.
+  const broken = [];
+  for (const [id, label] of SECTIONS) {
+    await p.goto(url('/workspace/' + id));
+    await p.locator('.page-head').first().waitFor();
+    const title = phone ? await p.locator('.page-head h1').innerText() : await p.locator('.ws-body h2').first().innerText().catch(() => '');
+    const primaries = await p.locator('.ws-body .btn.primary:visible').count();
+    if (title !== label || await p.getByText('Page not found').count() || primaries > 1) broken.push(`${id}: “${title}”, ${primaries} main actions`);
+  }
+  h.set('finish', !broken.length, `sections that don’t open as themselves: ${broken.join('; ')}`);
+  // Old links: the inbox's from a GitHub issue, and the one-page Workspace's anchors.
+  await p.goto(url('/workspace?inbox=1&markup=mk_old'));
+  const toInbox = await p.waitForURL(/\/workspace\/inbox\?markup=mk_old/, { timeout: 5000 }).then(() => true, () => false);
+  await p.goto(BASE + '/demo/workspace?today=' + TODAY + '#people');
+  const toPeople = await p.waitForURL(/\/workspace\/people/, { timeout: 5000 }).then(() => true, () => false);
+  h.set('errors', toInbox && toPeople, `old links: the inbox’s ${toInbox}, #people ${toPeople}`);
+  // Someone who isn't an admin: Overview, People, Teams and Inbox, and an admins' section says whose it is.
+  await viewAs(p, 'Oskar');
+  await p.goto(url('/workspace'));
+  await menu.waitFor();
+  const theirs = (await menu.getByRole('link').allInnerTexts()).map((x) => x.split(/\n| · /)[0].trim());
+  await p.goto(url('/workspace/access'));
+  const told = await see(p, 'Access is for the workspace’s admins.').then(() => true, () => false);
+  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Inbox']) && told && await p.getByRole('button', { name: 'Make a token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}`);
+  await p.context().close();
+}, ['logged']);
+
+journey('U52', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time', 30, async (h, device) => {
+  if (!DOWN) fail('U52 needs the build with a database address (DOWN)');
+  const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
+  const phone = device === 'phone';
+  const p = h.use(await newPage(device, 'grace'));
+  const { db } = await fakeSupabase(p.context());
+  const seeded = seed75();
+  db.markups.push(...seeded.markups);
+  db.feedback.splice(0, db.feedback.length, ...seeded.feedback);
+  await p.goto(down('/workspace/inbox'));
+  const inbox = p.locator('#inbox');
+  await inbox.locator('.ibx-row').first().waitFor({ timeout: 10000 });
+  await h.inView(inbox.locator('.ibx-row').first(), 'entry', 'the newest item');
+  // 75 new, in 68 rows (6 markups on Home's week strip fold into one, 3 on a goal's scorecard into another), 25 a page.
+  const rows = inbox.locator('.ibx-row');
+  const menuSays = phone ? '75 new' : (await p.locator('.ws-menu-item', { hasText: 'Inbox' }).locator('.ws-menu-note').innerText()).trim();
+  h.set('attention', await tabCount(inbox, 'New') === 75 && await rows.count() === 25 && menuSays === '75 new' && await see(inbox, '1–25 of 68').then(() => true, () => false)
+    && await see(rows.first(), '6 on this part').then(() => true, () => false), `New ${await tabCount(inbox, 'New')}, ${await rows.count()} rows on the page, the menu says “${menuSays}”`);
+  await h.checkpoint('inbox of 75');
+  // Search finds the folded row; it opens, and marking it in hand marks all 6.
+  await h.fill(inbox.getByLabel('Search the inbox'), 'week strip');
+  await rows.first().waitFor();
+  const found = await rows.count();
+  await h.click(rows.first().locator('.ibx-open'));
+  const detail = inbox.getByRole('article', { name: /^Markup: / });
+  await see(detail, '6 on this part.', 'the folded row does not say it holds 6');
+  await h.click(detail.getByRole('button', { name: 'Mark in hand (all 6)' }));
+  await see(inbox, 'Nothing here matches.', 'the folded row is still in New');
+  const sixInHand = db.markups.filter((m) => /week strip/.test(m.line) && m.status === 'in-hand').length;
+  await h.click(inbox.getByRole('button', { name: 'Clear the filters' }));
+  // Filters: feedback only, then one person.
+  if (phone) await h.click(inbox.getByRole('button', { name: /^Filters/ }));
+  await inbox.getByLabel('Kind').selectOption('feedback');
+  await p.waitForTimeout(200);
+  const kinds = await inbox.locator('.ibx-row .mk-item').count();
+  const fbNew = await tabCount(inbox, 'New');
+  await inbox.getByLabel('Kind').selectOption('all');
+  await inbox.getByLabel('Person').selectOption('Jun Park');
+  await p.waitForTimeout(200);
+  const jun = (await inbox.locator('.ibx-row').allInnerTexts()).every((x) => x.includes('Jun Park'));
+  await inbox.getByLabel('Person').selectOption('');
+  h.set('finish', found === 1 && sixInHand === 6 && kinds === 0 && fbNew === 30 && jun, `search found ${found}; ${sixInHand} of 6 in hand; feedback filter left ${kinds} markups and counts ${fbNew}; person filter ${jun}`);
+  // One at a time: keys on a computer (J moves, I marks in hand, W won't fix), Next on a phone; each opens the next.
+  const before = await tabCount(inbox, 'New');
+  if (phone) {
+    await h.click(rows.first().locator('.ibx-open'));
+    await h.click(inbox.getByRole('button', { name: 'Next', exact: true }));
+    await see(inbox, '2 of', 'Next did not go on to the second item');
+    await h.click(inbox.locator('.ibx-detail').getByRole('button', { name: /^Mark in hand/ }));
+    await see(inbox, '2 of', 'handling an item did not open the next one');
+    await h.click(inbox.getByRole('button', { name: 'Back to the list' }));
+  } else {
+    const opened = async () => (await inbox.locator('.ibx-row[aria-current]').getAttribute('data-row'));
+    const first = await opened();
+    await p.locator('body').press('j');
+    await p.waitForFunction((k) => document.querySelector('.ibx-row[aria-current]')?.getAttribute('data-row') !== k, first);
+    const second = await opened();
+    await p.keyboard.press('i');
+    await p.waitForFunction((k) => !!document.querySelector('.ibx-row[aria-current]') && document.querySelector('.ibx-row[aria-current]').getAttribute('data-row') !== k, second);
+    await p.keyboard.press('w');
+    await h.fill(inbox.getByLabel('Why it won’t be fixed'), 'Seen it: already on the list.');
+    await h.click(inbox.locator('.ibx-detail .mk-form').getByRole('button', { name: 'Won’t fix' }));
+    h.set('progress', first !== second, 'J did not move to the next row');
+  }
+  await p.waitForTimeout(300);
+  const after = await tabCount(inbox, 'New');
+  h.set('progress', after === before - (phone ? 1 : 2), `one at a time: New went from ${before} to ${after}`);
+  // A page at a time: tick the page and close the batch as won't fix, until nothing is new.
+  let rounds = 0;
+  while (await tabCount(inbox, 'New') > 0 && rounds++ < 5) {
+    const n = await tabCount(inbox, 'New');
+    await h.click(inbox.getByLabel('Select this page'));
+    await h.click(inbox.getByRole('button', { name: 'Won’t fix…' }));
+    await h.fill(inbox.locator('.ibx-bulk').getByLabel('Why it won’t be fixed'), 'Closed in the triage of 8 November.');
+    await h.click(inbox.locator('.ibx-bulk .mk-form').getByRole('button', { name: /^Won’t fix \d+/ }));
+    await p.waitForFunction((k) => Number(document.querySelector('.ibx-tab[aria-selected=true] .ibx-tab-count')?.textContent) < k, n, { timeout: 10000 });
+    if (rounds === 1) await h.checkpoint('a batch closed');
+  }
+  await see(inbox, 'Nothing new.', 'the inbox does not say there is nothing new');
+  const menuAfter = phone ? 'Nothing new' : (await p.locator('.ws-menu-item', { hasText: 'Inbox' }).locator('.ws-menu-note').innerText()).trim();
+  // What's in hand, fixed in a batch.
+  await h.click(inbox.getByRole('tab', { name: /^In hand/ }));
+  await h.click(inbox.getByLabel('Select this page'));
+  await h.click(inbox.getByRole('button', { name: 'Mark fixed…' }));
+  await h.click(inbox.locator('.ibx-bulk .mk-form').getByRole('button', { name: /^Mark \d+ fixed/ }));
+  await see(inbox, 'Nothing is in hand.', 'the batch was not marked fixed');
+  const closed = await tabCount(inbox, 'Closed');
+  const all = [...db.markups, ...db.feedback];
+  h.set('errors', menuAfter === 'Nothing new' && closed === 75, `the menu says “${menuAfter}”; Closed holds ${closed}`);
+  h.set('logged', all.length === 75 && all.every((x) => (x.status === 'fixed' || x.status === 'wont-fix') && /^Grace/.test(x.status_by || '')), `not all closed by Grace: ${all.filter((x) => !(x.status === 'fixed' || x.status === 'wont-fix')).map((x) => x.id + ' ' + x.status).slice(0, 5).join(', ')}`);
+  await p.context().close();
+});
+
 /* Release 1b: remove, archive and undo. */
 const liveCycle = (s) => [...s.cycles].filter((c) => !c.removedAt).sort((a, b) => a.startDate.localeCompare(b.startDate)).filter((c) => c.startDate <= '2026-11-12').pop();
 
 journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/people'));
   await p.locator('.page-head').first().waitFor();
   const s0 = await h.snapshot();
   const cycle = liveCycle(s0).id;
@@ -2242,8 +2436,9 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
   await see(p, 'Mateo Fernández is marked as left', 'no message that he left');
   h.set('attention', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'the message has no Undo');
-  // Gone from the directory; on Recently removed, with Restore.
+  // Gone from the directory; on Recently removed (its own section), with Restore.
   await see(p, 'No one matches', 'Mateo is still in the directory');
+  await p.goto(url('/workspace/removed'));
   const removed = p.locator('.removed-block');
   await see(removed, 'Person who left', 'Recently removed does not list him');
   await see(removed, 'Mateo Fernández');
@@ -2438,7 +2633,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
     const wen = s.people.find((x) => x.id === 'wen');
     await window.__goalsStore.commit('platform-org', { people: [{ ...wen, email: null }], changes: [] });
   });
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/people'));
   const list = p.getByRole('region', { name: /People without an email/ }).or(p.locator('section.missing-emails'));
   await list.first().waitFor();
   await see(p, 'People without an email · 1', 'Workspace does not list the person without an email');
@@ -2454,7 +2649,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
 
 journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/features'));
   // An admin setting, down the Workspace page with the others: 'entry' is judged on everyday journeys, not this one.
   const box = p.getByRole('checkbox', { name: /^Spreadsheets/ });
   await box.scrollIntoViewIfNeeded();
@@ -2480,7 +2675,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.entity === 'workspace' && c.actorId === 'grace' && c.summary === 'Switched off Spreadsheets' && c.diffs.some((d) => d.field === 'Spreadsheets' && d.to === 'Off')), 'the switch was not logged');
   // Back on: everything is back.
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/features'));
   await box.scrollIntoViewIfNeeded();
   await h.click(box);
   await see(p, 'Spreadsheets is on in');
@@ -2495,7 +2690,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.goto(url('/workspace'));
   await p.locator('.page-head').waitFor();
   await viewAs(p, 'Oskar');
-  await p.goto(url('/workspace'));
+  await p.goto(url('/workspace/features'));
   await p.locator('.page-head').waitFor();
   if (await p.getByRole('checkbox', { name: /^Spreadsheets/ }).count()) fail('someone who isn’t an admin was offered the Features switches');
   await p.context().close();
@@ -2749,7 +2944,7 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/workspace/people'], ['grace', '/workspace/inbox'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();
@@ -2783,7 +2978,7 @@ async function platformChecks() {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?view=table'], ['rhea', '/goals?view=board'], ['rhea', '/goals?view=history'], ['rhea', '/goals?view=cards'], ['rhea', '/goals?view=map'],
-      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/workspace/people'], ['grace', '/workspace/inbox'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();

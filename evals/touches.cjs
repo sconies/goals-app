@@ -23,7 +23,7 @@ const RULES = [
   // A feature module: the journeys and checks its module.json lists, and the design check.
   [/^src\/modules\/([^/]+)\//, (m) => { try { return [...require(`../src/modules/${m[1]}/module.json`).journeys, 'P6']; } catch { return [FULL]; } }],
   // One area each.
-  [/^src\/markup\/|^src\/styles\/notes\/markup\.css/, ['U41', 'U42', 'U47', 'P6']],
+  [/^src\/markup\/|^src\/styles\/notes\/(markup|workspace)\.css/, ['U41', 'U42', 'U47', 'U52', 'P6']],
   [/^src\/telemetry\//, ['N8']],
   [/^(src\/mcp\/|server\/|api\/)/, ['U22']],
   [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U2', 'U16', 'U33', 'F1', 'N3', 'N6', 'P6']],
@@ -35,7 +35,7 @@ const RULES = [
   [/^src\/screens\/GoalMap\.tsx|^src\/domain\/(map|tree)\.ts/, ['U26', 'U30', 'U34', 'F6']],
   [/^src\/screens\/(Review|Retro)\.tsx|^src\/domain\/review\.ts/, ['U3', 'U10', 'U13', 'U36', 'F6', 'N1']],
   [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],
-  [/^src\/screens\/(Workspace|Settings|Onboarding|Start)\.tsx|^src\/app\/appearance\.ts/, ['U5', 'U11', 'U49', 'U14', 'U17', 'U22', 'U43', 'F7', 'N4']],
+  [/^src\/screens\/(Workspace|Settings|Onboarding|Start)\.tsx|^src\/app\/appearance\.ts/, ['U5', 'U11', 'U49', 'U14', 'U17', 'U22', 'U43', 'U51', 'U52', 'F7', 'N4']],
   [/^src\/screens\/Activity\.tsx|^src\/domain\/activity\.ts/, ['U6', 'U35']],
   [/^src\/screens\/Print\.tsx|^src\/domain\/onePager\.ts/, ['N6']],
   [/^src\/screens\/Research\.tsx|^src\/app\/research\.ts/, ['U28', 'U40']],
