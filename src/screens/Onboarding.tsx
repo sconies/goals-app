@@ -120,7 +120,7 @@ export function Welcome() {
         <h1 className="title-xl">Run the company on outcomes, and manage by exception</h1>
         <ul className="welcome-points">
           <li><strong>Each outcome broken into the goals that move it</strong>, each with an owner, a measure and a plan.</li>
-          <li><strong>Owners keep their goals current</strong> with quick check-ins, on the rhythm that suits the work.</li>
+          <li><strong>Owners keep their goals current</strong> with short check-ins, on the rhythm that suits the work.</li>
           <li><strong>What’s slipping comes to you</strong>, with why and what’s being done about it; the rest runs itself.</li>
         </ul>
         <div className="stack" style={{ gap: 'var(--s3)' }}>
