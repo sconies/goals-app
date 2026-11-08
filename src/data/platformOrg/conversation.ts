@@ -176,7 +176,8 @@ export const WATCHES: [string, 'goal' | 'tree' | 'level', string][] = [
 /** Saved views: [person, name, params, pinned by an admin?] */
 export const VIEWS: [string, string, string, boolean?][] = [
   ['grace', 'Division at a glance', 'show=levels&view=table', true],
-  ['grace', 'Quiet for three weeks or more', 'quiet=3&sort=last', true],
+  // The No recent update rule's own threshold (two weeks, RULES.staleDays), not a second one (demo review, 8 Nov, item 6).
+  ['grace', 'No update for 2 weeks or more', 'quiet=2&sort=last', true],
   ['amara', 'North stars off track or at risk', 'level=north-star&status=off,risk'],
   ['amara', 'Waiting on a decision', 'needs=decision&sort=worst'],
   ['rhea', 'My goals by status', 'show=mine&view=board'],

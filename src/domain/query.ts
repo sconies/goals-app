@@ -144,7 +144,8 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
     const by = q.due === 'quarter' ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
     if (s.dueWeek > by) return false;
   }
-  if (q.quiet != null && s.quietDays < q.quiet * 7) return false;
+  // A done goal has nothing left to report, so it never counts as quiet (demo review, 8 Nov, item 6).
+  if (q.quiet != null && (s.status === 'done' || s.quietDays < q.quiet * 7)) return false;
   if (q.quarter) {
     const last = [...s.story.quarters].reverse().find((x) => x.kind === 'met' || x.kind === 'missed');
     if (last?.kind !== q.quarter) return false;

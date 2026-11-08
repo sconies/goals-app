@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentWeek } from './plan';
-import { dayText, isHealthy, lastHeld, nextSessionWeek, openActions, reviewSession, sessionState, sessionStateText, sessionWeek } from './review';
+import { dayText, daysPast, isHealthy, pastText, lastHeld, nextSessionWeek, openActions, reviewSession, sessionState, sessionStateText, sessionWeek } from './review';
 import { storyOf } from './story';
 import type { Ask, Decision, Snapshot } from './types';
 
@@ -47,6 +47,16 @@ describe('where a review session stands (Lane, 5 Nov)', () => {
   const withD = (extra: Decision[]): Snapshot => ({ ...s, decisions: [...s.decisions, ...extra] });
   const withA = (extra: Ask[]): Snapshot => ({ ...s, requests: [...(s.requests ?? []), ...extra] });
 
+  it('[REVIEW-LIST-STATE] says how many days a session not yet held is past its date (demo review, 8 Nov)', () => {
+    const at = (iso: string) => new Date(iso + 'T12:00:00Z');
+    expect(daysPast(base, at(base.date.slice(0, 10)))).toBe(0);
+    const later = new Date(Date.parse(base.date.slice(0, 10) + 'T12:00:00Z') + 3 * 86_400_000);
+    expect(daysPast(base, later)).toBe(3);
+    expect(pastText(3)).toBe('3 days past');
+    expect(pastText(1)).toBe('1 day past');
+    const held = reviewSession(review, withD(base.items.map((a) => ack(a.goal.id, '2026-10-29T10:00:00Z'))), cycle, today, week);
+    expect(daysPast(held, later)).toBe(0);
+  });
   it('[REVIEW-LIST-STATE] has not started when nothing has been said in this session', () => {
     expect(sessionState(base)).toEqual({ kind: 'not-started' });
     expect(sessionStateText(sessionState(base))).toBe('Not started');

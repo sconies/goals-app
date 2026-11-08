@@ -134,6 +134,20 @@ export function sessionState(s: ReviewSession): SessionState {
   return { kind: 'not-started' };
 }
 
+/**
+ * How many days a session not yet held is past its date (demo review, 8 Nov, item 9): 0 on the day or before it.
+ * `today` is the viewer's day, as the rest of the app counts it.
+ */
+export function daysPast(s: ReviewSession, today: Date): number {
+  if (sessionState(s).kind === 'held') return 0;
+  const day = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const due = Date.parse(s.date.slice(0, 10) + 'T00:00:00Z');
+  return Math.max(0, Math.round((day - due) / 86_400_000));
+}
+
+/** "3 days past": a session not held after its date, said plainly. */
+export const pastText = (days: number) => (days === 1 ? '1 day past' : `${days} days past`);
+
 /** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
 export function sessionStateText(st: SessionState): string {
   if (st.kind === 'held') return `${SESSION.held.label} ${dayText(st.on)}`;

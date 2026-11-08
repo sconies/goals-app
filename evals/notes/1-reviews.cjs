@@ -207,6 +207,36 @@ module.exports = {
       fail(!!btn && n(btn.height) >= 44, `Held review at 390: Edit review setup is ${n(btn?.height)}px tall`);
       await c.close();
     }
+
+    // ---------- Demo review, 8 Nov, item 9: a session past its date and not held says so ----------
+    {
+      const [c, p] = await open(1280, 800, 'amara', '/reviews');
+      await p.locator('.rv-line').first().waitFor();
+      const rows = await p.evaluate(() => [...document.querySelectorAll('.rv-line')].map((r) => ({ state: r.querySelector('.session-state')?.innerText.trim(), session: [...r.querySelectorAll('.rv-fact')].find((f) => f.querySelector('.rv-fact-k')?.textContent === 'Session')?.innerText ?? '', mark: !!r.querySelector('.rv-past svg') })));
+      // Today is Thursday 5 November: Reliability weekly was Wednesday 4 November and is still in progress.
+      const late = rows.filter((r) => /^(Not started|In progress)/.test(r.state || '') && /Wed 4 Nov/.test(r.session));
+      fail(late.length > 0 && late.every((r) => /1 day past/.test(r.session) && r.mark), `Reviews: a session a day past its date isn’t flagged (${JSON.stringify(late)})`);
+      fail(!rows.some((r) => /Thu 5 Nov/.test(r.session) && /past/.test(r.session)), 'Reviews: today’s session is called past');
+      await c.close();
+    }
+
+    // ---------- Demo review, 8 Nov, items 7 and 8: the walk and the review count the same goals ----------
+    {
+      const [c, p] = await open(1280, 800, 'amara', '/reviews/weekly');
+      const ring = await p.locator('.review-home .ring').first().getAttribute('aria-label').catch(() => null)
+        ?? await p.locator('.review-home [role=img]').first().getAttribute('aria-label').catch(() => null);
+      const shown = await p.locator('.review-home .ring').first().innerText().catch(() => '');
+      const [, rd, rt] = /(\d+) of (\d+)/.exec(ring || '') || [];
+      fail(!!rt, `Review ring: no "n of N" in its text alternative (“${ring}”)`);
+      if (shown && rd) fail(shown.replace(/\D+/g, ' ').trim().split(' ')[0] === rd, `Review ring: shows “${shown.trim()}” but its text alternative says “${ring}”`);
+      await p.getByRole('button', { name: /^(Start|Continue) review/ }).click();
+      await p.locator('.reviewbar').waitFor();
+      const bar = (await p.locator('.reviewbar .hint').innerText()).trim();
+      const m = /^Goal \d+ of (\d+)( to discuss)? · (\d+) of (\d+) reviewed$/.exec(bar);
+      fail(!!m && m[4] === rt && m[3] === rd, `Walk: the bar says “${bar}”, the review ${rd} of ${rt} reviewed`);
+      if (m) fail(m[1] === rt ? !m[2] : !!m[2], `Walk: “${bar}” doesn’t say the walk is the goals to discuss`);
+      await c.close();
+    }
     return fails;
   },
 };
