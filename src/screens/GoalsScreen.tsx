@@ -173,7 +173,7 @@ export function GoalsScreen() {
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
       {alt && shown.length > 0 && layout === 'cards' && <GoalCards groups={groups} />}
-      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="skeleton" />}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={query.attention} onAttention={(on) => setQuery((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] }))} /></Suspense>}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="map-wait" role="status">Drawing the map…</div>}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={query.attention} onAttention={(on) => setQuery((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] }))} /></Suspense>}
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
       {!alt && refined && !watchingList && groups.map((g) => (

@@ -140,6 +140,8 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
    * path; everything: every goal. Never smaller than 75% (titles stay at least 10.5px) nor larger than 100%; what doesn't
    * fit is a pan away, and the readable frame then keeps the critical path in view.
    */
+  // Until the map has laid itself out and framed the goals, say so, instead of a blank canvas (demo review, 8 Nov).
+  const [drawn, setDrawn] = useState(false);
   const frame = (rf: Pick<ReactFlowInstance, 'setViewport'>, mode: Frame = view) => {
     const box = canvas.current?.getBoundingClientRect();
     const pos = (n: (typeof placed)[number]) => moved[n.id] ?? { x: n.x, y: n.y };
@@ -229,10 +231,11 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
             fromKeys.current = node;
             setSelected(node.dataset.id ?? null);
           }}>
+          {!drawn && <div className="map-loading" role="status">Drawing the map of {goals.length} goals…</div>}
           <ReactFlow
             key={(attention ? 'a' : 'all') + goals.length + '-' + collapsed.size}
             nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={0.3} maxZoom={1.6}
-            onInit={(rf) => { flow.current = rf; frame(rf); }}
+            onInit={(rf) => { flow.current = rf; frame(rf); requestAnimationFrame(() => setDrawn(true)); }}
             nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
             onNodeClick={(_, n) => { fromKeys.current = null; setSelected(n.id); }} onPaneClick={() => setSelected(null)}
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}

@@ -12,6 +12,24 @@ module.exports = {
     const fails = [];
     const fail = (ok, msg) => { if (!ok) fails.push(msg); };
 
+    // ---------- Demo review, 8 Nov, item 15: from the moment Map is chosen, it says it's drawing or shows the goals ----------
+    {
+      const [c, p] = await open(1280, 800, 'amara', '/goals');
+      await p.locator('[aria-label="Map"]').first().click();
+      await p.waitForURL(/view=map/, { timeout: 3000 }).catch(() => {});
+      const blank = [];
+      for (let t = 0; t < 6000; t += 100) {
+        const s = await p.evaluate(() => ({ wait: !!document.querySelector('.map-loading, .map-wait'), nodes: document.querySelectorAll('.react-flow__node').length }));
+        // Two samples in a row: the one frame before the click's change is drawn doesn't count.
+        if (!s.wait && !s.nodes) blank.push(t);
+        else if (blank.length === 1 && blank[0] === t - 100) blank.length = 0;
+        if (s.nodes && !s.wait) break;
+        await p.waitForTimeout(100);
+      }
+      fail(blank.length < 2, `Map: blank with nothing said while it loads, at ${blank.slice(0, 5).join(', ')} ms`);
+      await c.close();
+    }
+
     // ---------- the map, 1280×800: no page scroll, zoom top right, the walkthrough beside what it points at ----------
     {
       const [c, p] = await open(1280, 800, 'amara', MAP);

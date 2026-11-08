@@ -840,7 +840,9 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.8125
 .key-line.dotted { border-top-style: dashed; }
 .key-line.critical { border-top: 3px solid var(--off-mark); }
 .map-body { display: flex; gap: var(--s3); }
-.map-canvas { flex: 1 1 auto; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); overflow: hidden; }
+.map-canvas { position: relative; flex: 1 1 auto; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); overflow: hidden; }
+.map-loading { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; color: var(--muted); font-size: 0.875rem; background: var(--surface-2); }
+.map-wait { display: grid; place-items: center; min-height: 50vh; color: var(--muted); font-size: 0.875rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
 .map-panel { flex: 0 0 320px; display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); max-height: min(72vh, 760px); overflow: auto; }
 .map-node { position: relative; width: 240px; min-height: 96px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 1px 2px rgba(16, 24, 40, .08); font-family: inherit; cursor: pointer; }
 .map-node[data-tone="off"] { background: var(--off-wash); } .map-node[data-tone="stale"] { border-style: dashed; }
