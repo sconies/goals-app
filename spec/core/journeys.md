@@ -55,6 +55,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U44 | An owner stops a goal with history, then deletes a goal set up by mistake and undoes it | A goal owner | `GOAL-STOP` `UNDO-REMOVE` `REMOVE-ANYTHING` | 11 | `evals/journeys.cjs` |
 | U45 | Undo an import: every row back as it was, and a row changed since skipped and listed | A goal owner | `IMPORT-UNDO` `BULK-EDIT` | 8 | `evals/journeys.cjs` |
 | U47 | A test round with only a builder token: a markup sent from the demo is read in the demo’s inbox with the token, no email sign-in, its picture coming from the server; then the token is forgotten |  | `CONNECT-CLAUDE` `MARKUP-INBOX` | 12 | `evals/journeys.cjs` |
+| U49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all | Someone trying Faro after the demo | `ONBOARDING` `WORKSPACES` `REVIEWS` `CALENDAR-WEEKS` `DEMO-MODE` | 30 | `evals/journeys.cjs` |
 
 ## Platform checks
 

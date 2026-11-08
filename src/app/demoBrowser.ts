@@ -56,3 +56,20 @@ export function forgetDemoBrowser() {
   listeners.forEach((l) => l());
   try { window.dispatchEvent(new Event('goals-tour')); } catch { /* not in a browser */ }
 }
+
+/**
+ * Forgets what this browser keeps about one workspace besides its saves, when the workspace is deleted (setup review,
+ * 8 Nov): its drafts, what was seen, layouts and review orders, and who you were viewing it as. Keys name the workspace
+ * by its id; other workspaces' keys stay.
+ */
+export function forgetWorkspaceBrowser(wsId: string) {
+  const about = (k: string) => k.includes(':' + wsId) || k.endsWith(wsId);
+  const forget = (s: Storage | null, list: readonly string[]) => {
+    if (!s) return;
+    const doomed: string[] = [];
+    for (let i = 0; i < s.length; i++) { const k = s.key(i); if (k && about(k) && matches(k, list)) doomed.push(k); }
+    doomed.forEach((k) => s.removeItem(k));
+  };
+  try { forget(localStorage, [...DEMO_LOCAL, 'goals-app-viewer:', 'goals-live-me:']); } catch { /* storage blocked */ }
+  try { forget(sessionStorage, DEMO_SESSION); } catch { /* storage blocked */ }
+}

@@ -21,6 +21,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'setup-polish',
+    date: '2026-11-08',
+    title: 'Setting up a workspace, smoothed out',
+    points: [
+      'Set-up now makes the weekly review it promises (everyone, every goal, on your day) and pins three views for everyone.',
+      'Nothing is late on day one: set up after this week’s review, the first check-ins and the first review are next week.',
+      'Each goal can say how it’s measured as you set it up, and the goal page asks for it until it’s there.',
+      'Each field says what it needs. Teams: leave it empty for yours, Same as above, and a typo like “Suport” is caught before it makes a second team.',
+      'Check shows where each goal starts as well as its target. Add a goal stops at four, removing one has Undo, and Ready says plainly that the invite is a link you send.',
+      'In the demo, a workspace you made has walkthroughs and Start over in the Demo panel.',
+    ],
+    articles: ['set-up', 'home', 'goal-page', 'demo'],
+  },
+  {
     id: 'demo-polish',
     date: '2026-11-08',
     title: 'Clearer words and a cleaner Start over',

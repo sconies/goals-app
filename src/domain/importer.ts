@@ -8,7 +8,8 @@ import { currentWeek } from './plan';
 import { parseDelimited, recordsOf } from './sheets';
 import { yearWeeks } from './year';
 import { yearName } from './yearName';
-import type { Cycle, Person, Snapshot } from './types';
+import { LABEL } from './vocabulary';
+import type { Change, Cycle, Person, Review, SavedView, Snapshot } from './types';
 
 export interface ImportIssue {
   table: 'People' | 'Goals' | 'Plan' | 'Check-ins';
@@ -62,6 +63,16 @@ const SHORT: Record<string, string> = { p: 'p', team: 't', goal: 'g' };
  * and Check-ins; its people come in `people`, as the set-up steps show them). The person on the first row is whoever is
  * setting up: its first admin.
  */
+/** The weekly review set-up promises (setup review, 8 Nov): everyone, every goal at every level, on the review day. */
+export const WEEKLY_REVIEW = 'Weekly review';
+/** The views every new workspace starts with, pinned for everyone by the person who set it up: the same questions the
+    demo's pinned views answer, in words that fit any workspace. */
+export const DEFAULT_VIEWS: [string, string][] = [
+  ['Everything at a glance', 'show=levels&view=table'],
+  [`${LABEL.off} or ${LABEL.risk.toLowerCase()}`, 'status=off,risk&sort=worst'],
+  ['No update for 2 weeks or more', 'quiet=2&sort=last'],
+];
+
 export function buildWorkspace(input: { name: string; startDate: string; people: string; goals: string; tables?: Tables; now: Date; idSuffix: string; reviewDay?: number; weeks?: number }): ImportResult {
   const weeks = input.weeks ?? yearWeeks(input.startDate);
   const cycle: Cycle = { id: 'cycle-' + input.idSuffix, name: weeks >= 48 ? yearName(input.startDate, weeks) : input.name.trim() || 'My cycle', startDate: input.startDate, weeks, reviewDay: input.reviewDay ?? 3 };
@@ -92,7 +103,12 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
   for (const i of cs.issues) if (i.severity === 'error') issues.push({ table: i.sheet, row: i.row, message: i.goal && !i.message.includes(i.goal) ? `“${i.goal}”: ${i.message}` : i.message });
   if (!people.length && !issues.length) issues.push({ table: 'People', row: 1, message: 'Add at least one person.' });
   const c = cs.created!;
-  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues };
+  // The weekly review and the pinned views, set up by the first person (you).
+  const at = input.now.toISOString(), by = c.people[0]?.id ?? 'setting-up';
+  const review: Review = { id: newId('rev', 'weekly'), name: WEEKLY_REVIEW, everyWeeks: 1, weekday: cycle.reviewDay, scope: { goals: [], trees: [], levels: ['north-star', 'svp', 'team'] }, people: c.people.map((p) => p.id), createdBy: by, createdAt: at };
+  const views: SavedView[] = DEFAULT_VIEWS.map(([name, params]) => ({ id: newId('view', name), personId: by, name, params, pinned: true, createdAt: at, updatedAt: at, deletedAt: null }));
+  const logged: Change = { id: newId('chg', 'weekly review'), at, actorId: by, goalId: null, entity: 'review', entityId: review.id, action: 'created', summary: `Set up a review: “${review.name}”`, diffs: [{ field: 'Review', from: '—', to: review.name }] };
+  return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, reviews: [review], views, changes: [logged], ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues };
 }
 
 /** Today's Monday, as an ISO date: the default start of a new cycle. */

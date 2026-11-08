@@ -522,7 +522,7 @@ Unsaved answers survive leaving a flow and are offered back when the user return
 The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back.
 
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “Running the workspace” (`workspace`), screens `Workspace`
-- **Journeys and checks:** U5, U17
+- **Journeys and checks:** U5, U17, U49
 
 ### BULK-EDIT
 
@@ -595,7 +595,7 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 The demo lives under /demo: the example data in each visitor's own browser, a role switcher, a way to start over and a way to leave. The real app never shows the example or the demo controls. The demo marks itself with one quiet Demo control (sidebar on desktop, header on a phone) that opens a panel to see the app as someone else, listed by role first, take a walkthrough, research the app, reset or change the example data, present without controls, or leave. No bar changes how the app looks.
 
 - **Help:** “The demo” (`demo`), screens `Research`
-- **Journeys and checks:** U11, U12, U17, U27
+- **Journeys and checks:** U11, U12, U17, U27, U49
 
 ### WALKTHROUGHS
 
@@ -616,10 +616,10 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 
 ### ONBOARDING
 
-An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it. It ends with the one next thing to do.
+An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do.
 
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** U5, U11
+- **Journeys and checks:** U5, U11, U49
 
 ### IDENTITY
 
@@ -676,6 +676,7 @@ A goal year's weeks follow the calendar: week 1 is the week with the first Thurs
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “History: quarter results and weekly status” (`history`), screens `GoalHistory`
 - **Tests:** `evals/scenarios.eval.ts` (6)
+- **Journeys and checks:** U49
 
 ## Views
 
