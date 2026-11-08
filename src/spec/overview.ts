@@ -13,6 +13,7 @@ export const RULE_PAGES: [string, string, string][] = [
   ['status', 'A goal’s status', 'what the numbers say, and the official status (the owner’s call unless stale)'],
   ['projection', 'The projection', 'where a number lands by its due week, as a range'],
   ['check-in', 'What a check-in must say', 'what is needed before a check-in can be posted'],
+  ['numbers-and-names', 'Numbers and names', 'a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart'],
   ['flags', 'Flags, the trend and needs attention', 'why a goal is flagged, and whether it needs attention'],
   ['scorecard', 'The scorecard', 'vs plan, since last week, to target, and how likely it is to hit'],
   ['change-engine', 'The change engine', 'spreadsheets, bulk edits and the AI assistant’s changes, checked by the same rules'],

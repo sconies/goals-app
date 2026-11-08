@@ -2,6 +2,7 @@
 import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Assessment } from './status';
 import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
 import { isShare } from './plan';
+import { farOutside, fixed, notNumberText, precisionProblem, usuallyPositive } from './numbers';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
   ['aggressive', 'Plan too aggressive'], ['slower', 'Delivery slower'], ['blocked', 'Blocked by a dependency'], ['external', 'External factor'], ['data', 'Data problem'], ['other', 'Something else'],
@@ -75,17 +76,26 @@ export function parseNumber(s: string): number | null {
 // What values a goal's number can take (a share, a count) is plan.ts's, where projections are held to them.
 export { isCount, isShare } from './plan';
 
+/** The places to show a number at: its goal's, or as many as it has when there's no goal. */
+const decimalsOf = (goal: Goal | undefined, n: number) => (goal && goal.kind !== 'milestone' ? goal.decimals : (String(n).split('.')[1] ?? '').length);
+
 /** Why a typed value can't be used, or a check worth making before posting it. */
 export function valueProblem(raw: string, last: number | null, unit: string, goal?: Goal): { block: boolean; text: string } | null {
   if (!raw.trim()) return { block: true, text: 'Type this week’s number.' };
   const n = parseNumber(raw);
-  if (n == null) return { block: true, text: `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.` };
-  if (n < 0 && (unit === '%' || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit))) return { block: true, text: `It can’t be below zero${unit ? ' ' + unit : ''}.` };
+  if (n == null) return { block: true, text: notNumberText(raw) };
+  const precise = goal && goal.kind !== 'milestone' ? precisionProblem(raw, n, goal.decimals) : null;
+  if (precise) return { block: true, text: precise };
+  if (n < 0 && usuallyPositive(unit)) return { block: true, text: `It can’t be below zero${unit ? ' ' + unit : ''}.` };
   if (unit === '%' && n > 100) {
     // A share of something (coverage, adoption) can't pass 100%. A goal planned beyond 100% (growth, say) can.
     return isShare(goal) ? { block: true, text: 'It can’t be over 100%: this goal measures a share of something.' } : { block: false, text: 'That’s over 100%. Is that right?' };
   }
-  if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return { block: false, text: `Last week was ${last}. Is ${n} right?` };
+  if (goal?.kind === 'metric' && farOutside(n, goal.plan.start, goal.plan.target)) {
+    const d = goal.decimals, u = unit === '%' ? '%' : unit ? ' ' + unit : '';
+    return { block: false, text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?` };
+  }
+  if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return { block: false, text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?` };
   return null;
 }
 
@@ -93,11 +103,12 @@ export function valueProblem(raw: string, last: number | null, unit: string, goa
  * What a check-in can still be missing, as a stable code. Screens and the import read the codes; the words for each are
  * in MISSING_TEXT, so a change of wording never changes what a screen checks.
  */
-export type Missing = 'value' | 'value-not-number' | 'value-impossible' | 'greener-why' | 'reason-behind' | 'reason-ahead' | 'path' | 'target';
+export type Missing = 'value' | 'value-not-number' | 'value-precision' | 'value-impossible' | 'greener-why' | 'reason-behind' | 'reason-ahead' | 'path' | 'target';
 
 export const MISSING_TEXT: Record<Missing, string> = {
   value: 'this week’s value',
   'value-not-number': 'a number for this week’s value',
+  'value-precision': 'this week’s value at the goal’s decimal places',
   'value-impossible': 'a possible value',
   'greener-why': 'why your call is greener',
   'reason-behind': 'why it’s behind',
@@ -107,7 +118,7 @@ export const MISSING_TEXT: Record<Missing, string> = {
 };
 
 /** The codes that mean this week's number itself isn't usable yet. */
-export const VALUE_CODES: readonly Missing[] = ['value', 'value-not-number', 'value-impossible'];
+export const VALUE_CODES: readonly Missing[] = ['value', 'value-not-number', 'value-precision', 'value-impossible'];
 /** The codes that mean the reason (a cause and a sentence) is still needed. */
 export const REASON_CODES: readonly Missing[] = ['reason-behind', 'reason-ahead'];
 
@@ -152,6 +163,7 @@ export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, a
 
   const codes: Missing[] = [];
   if (goal.kind !== 'milestone' && value == null) codes.push(draft.value.trim() ? 'value-not-number' : 'value');
+  else if (goal.kind !== 'milestone' && precisionProblem(draft.value, value, goal.decimals)) codes.push('value-precision');
   else if (goal.kind !== 'milestone' && valueProblem(draft.value, null, goal.unit, goal)?.block) codes.push('value-impossible');
   if (greener && draft.greenerWhy.trim().length < MIN_REASON) codes.push('greener-why');
   if (reason && (!draft.cause || draft.why.trim().length < MIN_REASON)) codes.push(reason === 'ahead' ? 'reason-ahead' : 'reason-behind');

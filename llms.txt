@@ -20,6 +20,7 @@ The core in a few lines:
 - [A goal’s status](spec/core/rules/status.md): what the numbers say, and the official status (the owner’s call unless stale)
 - [The projection](spec/core/rules/projection.md): where a number lands by its due week, as a range
 - [What a check-in must say](spec/core/rules/check-in.md): what is needed before a check-in can be posted
+- [Numbers and names](spec/core/rules/numbers-and-names.md): a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart
 - [Flags, the trend and needs attention](spec/core/rules/flags.md): why a goal is flagged, and whether it needs attention
 - [The scorecard](spec/core/rules/scorecard.md): vs plan, since last week, to target, and how likely it is to hit
 - [The change engine](spec/core/rules/change-engine.md): spreadsheets, bulk edits and the AI assistant’s changes, checked by the same rules

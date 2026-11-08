@@ -194,7 +194,7 @@ function stage1(rows: Record<string, number>): string {
     '## Exit criteria',
     '',
     `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all four files match (${Object.values(rows).reduce((a, b) => a + b, 0)} rows).`,
-    '2. What a check-in must say gives what each of [its worked examples](../core/rules/check-in.md#worked-examples) says. The harness doesn’t score this yet (no conformance rows): show it with your own tests of those examples.',
+    '2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says. The harness doesn’t score these yet (no conformance rows): show it with your own tests of those examples.',
     '3. `rebuild/GAPS.md` lists everything you had to guess.',
     '',
   ].join('\n');

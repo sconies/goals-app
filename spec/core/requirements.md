@@ -41,7 +41,7 @@ Once check-ins have started, the owner (or an admin) can change the plan directl
 
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
-- **Journeys and checks:** U7
+- **Journeys and checks:** F9, U7
 
 ### CHART-READ
 
@@ -1062,3 +1062,23 @@ Faro is a small core with named extension points (routes, navigation, Home block
 - **Help:** “Features: switching parts of Faro on or off” (`features`)
 - **Tests:** `evals/modules.eval.ts` (4)
 - **Journeys and checks:** U48
+
+## Numbers
+
+### NO-SILENT-ROUNDING
+
+A number is never rounded quietly: one typed with more decimal places than its goal keeps is refused, with what it would show as, in the check-in, New goal, goal edit, the import and the AI tools. Letters in a number get one message everywhere, every number shown has its thousands grouped, and numbers far outside the plan are questioned, never refused.
+
+- **Rule:** [Numbers and names](rules/numbers-and-names.md)
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** F9
+
+## Names
+
+### SAME-NAMES
+
+Two goals may share a title and two people a name (the email is who someone is). Creating one warns; wherever both could be on screen, a goal shows its key and a person their team or job title beside the name, and people with the same initials get different avatar colours.
+
+- **Rule:** [Numbers and names](rules/numbers-and-names.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “Workspace: People” (`workspace-people`)
+- **Journeys and checks:** F9

@@ -9,7 +9,7 @@ import { LABEL } from '../domain/status';
 import { weeklyCalls, type GoalSummary } from '../domain/summary';
 import { isYear, quarterOf, quarterResults, quarters } from '../domain/year';
 import { QuarterMark, quarterWords } from '../ui/charts';
-import { StatusShape } from '../ui/bits';
+import { StatusShape, TitleTell } from '../ui/bits';
 import { StatusLegend } from '../ui/StatusLegend';
 import { useSummaries, GroupHead, type ViewGroup } from './GoalViews';
 import { QUARTER } from '../domain/vocabulary';
@@ -118,7 +118,7 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
                     const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, app.week);
                     return (
                       <tr key={goal.id}>
-                        <th scope="row" className={'gt-goal' + (depth ? ' child' : '')} style={depth ? { paddingLeft: 12 + depth * 16 } : undefined}><Link to={'/goals/' + goal.id}>{goal.title}</Link></th>
+                        <th scope="row" className={'gt-goal' + (depth ? ' child' : '')} style={depth ? { paddingLeft: 12 + depth * 16 } : undefined}><Link to={'/goals/' + goal.id}>{goal.title}</Link> <TitleTell goal={goal} /></th>
                         {rs.map((r) => (
                           <td key={r.quarter.n} className={'qcell q-' + r.kind + (r.quarter.n === nowQ ? ' q-now' : '')}>
                             <span className="qcell-label">{r.quarter.label} {r.quarter.months}{r.quarter.n === nowQ ? ' · now' : ''}</span>
@@ -172,7 +172,7 @@ function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
   const cellText = (s: GoalSummary, w: number, c: ReturnType<typeof weeklyCalls>) => {
     const ci = c.get(w);
     if (!ci) return w <= app.week ? 'No check-in' : 'Not yet';
-    const v = s.goal.kind === 'milestone' ? `${(ci.stages ?? []).filter((u) => u.doneWeek != null).length} of ${s.goal.stages.length} stages` : ci.value == null ? '' : String(ci.value) + (s.goal.unit ? (s.goal.unit === '%' ? '%' : ' ' + s.goal.unit) : '');
+    const v = s.goal.kind === 'milestone' ? `${(ci.stages ?? []).filter((u) => u.doneWeek != null).length} of ${s.goal.stages.length} stages` : ci.value == null ? '' : fmt(ci.value, s.goal);
     return `${LABEL[ci.status]}${v ? ', ' + v : ''}${ci.backfilled ? ' (loaded later)' : ''}`;
   };
   const move = (e: React.KeyboardEvent, rows: string[], goalId: string, wk: number) => {
@@ -220,7 +220,7 @@ function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
                     const calls = weeklyCalls(s.checkIns);
                     return (
                       <tr key={goal.id} className={goal.id === selGoal ? 'sel-row' : undefined}>
-                        <th scope="row" className={'hg-goal' + (depth ? ' child' : '')} style={depth ? ({ '--depth': depth } as React.CSSProperties) : undefined}><Link to={'/goals/' + goal.id} title={goal.title}>{goal.title}</Link></th>
+                        <th scope="row" className={'hg-goal' + (depth ? ' child' : '')} style={depth ? ({ '--depth': depth } as React.CSSProperties) : undefined}><Link to={'/goals/' + goal.id} title={goal.title}>{goal.title}</Link> <TitleTell goal={goal} /></th>
                         {weeks.map((wk) => {
                           const ci = calls.get(wk);
                           const text = cellText(s, wk, calls);
@@ -256,7 +256,7 @@ function WeekInspector({ s, week, text }: { s: GoalSummary; week: number; text: 
     <div className="week-inspector" role="status" aria-live="polite" aria-label="Selected week">
       <span className="wi-week">Week {week} <span className="hint">· {weekDates(app.cycle, week)}{week === app.week ? ' · this week' : ''}</span></span>
       <span className="wi-line">
-        <span className="wi-goal"><Link to={'/goals/' + g.id} title={g.title}>{g.title}</Link></span>
+        <span className="wi-goal"><Link to={'/goals/' + g.id} title={g.title}>{g.title}</Link> <TitleTell goal={g} /></span>
         <span className="wi-call">{ci && <StatusShape k={ci.status} />}<span>{text}</span>{planThen && <span className="hint">· plan {planThen}</span>}</span>
       </span>
     </div>

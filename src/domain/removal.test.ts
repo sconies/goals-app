@@ -3,7 +3,7 @@
    every kind of record: removed (then undone at once, or restored later) without anything left orphaned or lost. */
 import { buildPlatformOrg } from '../data/platformOrg';
 import { applyCommit, type Commit } from '../data/store';
-import { NotAllowed, addNote, reviewCall, saveView, unwatch, deleteView, newReview, saveReview, type ActionContext } from './actions';
+import { NotAllowed, addNote, removeTeam, teamMembers, reviewCall, saveView, unwatch, deleteView, newReview, saveReview, type ActionContext } from './actions';
 import { asksOf } from './asks';
 import { planChanges } from './changeset';
 import { currentCycle, scopeToCycle } from './cycle';
@@ -122,6 +122,24 @@ describe('removing, archiving and undoing', () => {
     w.apply(R.undoRemoval(w.x(g.ownerId), c, before));
     expect(kids.every((id) => w.full.goals.find((v) => v.id === id)!.parentId === g.id)).toBe(true);
     expect(plain(w.full.goals.find((v) => v.id === g.id))).toEqual(plain(before.goals.find((v) => v.id === g.id)));
+  });
+
+  it('stops counting a deleted goal on its team’s card, as the Board does (backlog N)', () => {
+    const w = world();
+    const parent = w.x('amara').snapshot.goals.find((g) => g.ownerId === 'rhea')!;
+    const g = { ...parent, id: 'g_count', key: 'G-998', title: 'A goal to count', parentId: parent.id, version: 0 };
+    w.apply({ goals: [g], changes: [] });
+    const before = teamMembers(w.x('amara'), g.teamId);
+    w.apply(R.deleteGoal(w.x('rhea'), g.id));
+    const after = teamMembers(w.x('amara'), g.teamId);
+    expect(after.current.length).toBe(before.current.length - 1);
+    expect(after.goals.length).toBe(before.goals.length - 1);
+    expect(after.current.length).toBe(w.x('amara').snapshot.goals.filter((v) => v.teamId === g.teamId).length);
+    // Removing the team still moves the removed goal, so a later restore finds a team that exists.
+    const other = w.x('amara').snapshot.teams.find((t) => t.id !== g.teamId)!;
+    w.apply(removeTeam(w.x('amara'), g.teamId, other.id));
+    expect(w.full.goals.find((v) => v.id === g.id)?.teamId).toBe(other.id);
+    expect(orphans(w.full)).toEqual([]);
   });
 
   it('deletes a goal with no check-ins, and an admin restores it later', () => {

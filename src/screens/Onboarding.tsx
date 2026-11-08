@@ -18,6 +18,7 @@ import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
 import { nameProblem } from '../domain/thresholds';
 import { parseNumber } from '../domain/checkin';
+import { notNumberText } from '../domain/numbers';
 import { fmt } from '../domain/format';
 import { closeTeam } from '../domain/people';
 import { Steps } from '../ui/bits';
@@ -155,6 +156,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const personIssue = (i: number) => { const at = filled.indexOf(i); return at < 0 ? undefined : issues('People').find((x) => x.row === at + 3)?.message; };
   const goalIssue = (row: number) => issues('Goals').find((x) => x.table === 'Goals' && x.row === row)?.message;
   const meIssue = issues('People').find((x) => x.row === 2)?.message;
+  // Said on the row and never blocking: a name someone else here also has (the email tells them apart, backlog N).
+  const personNote = (i: number) => { const at = filled.indexOf(i); return at < 0 ? undefined : (result.notes ?? []).find((x) => x.table === 'People' && x.row === at + 3)?.message; };
   const meEmail = normalEmail(me.email);
   const owners = [d.me, ...d.people].filter((p) => p.name.trim()).map((p) => p.name.trim());
   const skipGoalSteps = d.template === 'file' || d.template === 'later';
@@ -172,9 +175,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const teamTypo = (r: PersonRow) => (r.team.trim() && !(d.newTeams ?? []).includes(r.team.trim()) ? closeTeam(r.team, typed) : null);
   const goalErr = (g: GoalRow, headline = false) => ({
     title: nameProblem(g.title, headline ? 'outcome' : 'goal'),
-    start: g.kind === 'metric' && parseNumber(g.start) == null ? (g.start.trim() ? `“${g.start}” isn’t a number.` : 'Add today’s number.') : null,
-    target: g.kind === 'metric' && parseNumber(g.target) == null ? (g.target.trim() ? `“${g.target}” isn’t a number.` : 'Add the target.') : null,
-    limit: g.kind === 'range' && parseNumber(g.limit ?? '') == null ? 'Add the limit.' : null,
+    start: g.kind === 'metric' && parseNumber(g.start) == null ? (g.start.trim() ? notNumberText(g.start) : 'Add today’s number.') : null,
+    target: g.kind === 'metric' && parseNumber(g.target) == null ? (g.target.trim() ? notNumberText(g.target) : 'Add the target.') : null,
+    limit: g.kind === 'range' && parseNumber(g.limit ?? '') == null ? ((g.limit ?? '').trim() ? notNumberText(g.limit ?? '') : 'Add the limit.') : null,
   });
   const clean = (e: ReturnType<typeof goalErr>) => !e.title && !e.start && !e.target && !e.limit;
   const ok = [
@@ -351,6 +354,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                   <label className="pg-check"><input type="checkbox" aria-label={`Person ${i + 1}: admin`} checked={r.admin} onChange={(e) => updatePerson(i, { admin: e.target.checked })} /></label>
                   <button type="button" className="iconbtn" aria-label={`Remove person ${i + 1}`} onClick={() => set({ people: d.people.length > 1 ? d.people.filter((_, k) => k !== i) : [blankPerson()] })}><Icon name="close" /></button>
                   {issue && <span className="pg-issue hint tone-off" role="alert">{issue}</span>}
+                  {personNote(i) && <span className="pg-issue hint tone-risk" role="status">{personNote(i)}</span>}
                   {typo && (
                     <span className="pg-issue pg-fix hint">
                       <span className="tone-off" role={tried ? 'alert' : undefined}>“{r.team.trim()}” looks like {typo}. Use one name, so it doesn’t make a second team.</span>

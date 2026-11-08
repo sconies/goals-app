@@ -7,7 +7,7 @@ import { type GoalSummary } from '../domain/summary';
 import { SHORT_MEANING } from '../domain/story';
 import { LEVELS } from '../domain/query';
 import type { DisplayStatus } from '../domain/types';
-import { LevelTag, StatusShape } from '../ui/bits';
+import { LevelTag, StatusShape, TitleTell } from '../ui/bits';
 import { hasStory, Keep, ResultTag, StoryLines } from '../ui/GoalStory';
 import { useSummaries, type ViewGroup } from './GoalViews';
 
@@ -41,7 +41,7 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
             <Link key={s.goal.id} to={'/goals/' + s.goal.id} className="board-card" data-tone={s.status}>
               {/* The level on a short row of its own, right-aligned as on Cards; no row when the goal is a team goal. */}
               {s.goal.level !== 'team' && <span className="board-level"><LevelTag level={s.goal.level} /></span>}
-              <span className="board-title">{s.goal.title}</span>
+              <span className="board-title">{s.goal.title}</span><TitleTell goal={s.goal} />
               <span className="hint ellipsis">{s.owner} · {s.team}</span>
               <ResultTag s={s} />
               {/* The same evidence on every card: the number and its gap, then the owner's account when there is one. */}

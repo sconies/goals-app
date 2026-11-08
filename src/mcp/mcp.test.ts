@@ -200,6 +200,8 @@ describe('MCP server', () => {
     expect(rhea.data().goals.find((g) => g.id === 'ci-docker')!.title).toBe('Base image build time');
     // Admins only: marking someone as left, with their goals handed over; then their token stops working.
     expect((await rhea.call('mark_person_left', { person: 'Mateo', goals_to: 'Marisol', asks_to: 'Marisol' })).content[0]!.text).toMatch(/Only admins/);
+    // A refusal says who the token acts as (backlog N: a token made for a non-admin, taken for an admin's).
+    expect((await rhea.call('delete_workspace', { confirm_name: 'x' })).content[0]!.text).toBe('Only admins can delete the workspace. This token acts as Rhea Kapoor, who isn’t an admin.');
     const grace = await setup('grace');
     expect((await grace.call('mark_person_left', { person: 'Mateo' })).content[0]!.text).toMatch(/choose who takes them over/);
     expect((await grace.call('mark_person_left', { person: 'Mateo', goals_to: 'Marisol', asks_to: 'Marisol' })).isError).toBe(false);

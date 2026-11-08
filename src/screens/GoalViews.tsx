@@ -11,6 +11,15 @@ import type { Goal } from '../domain/types';
 
 export type Layout = 'list' | 'table' | 'board' | 'history' | 'cards' | 'map';
 export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['cards', 'Cards'], ['map', 'Map']];
+/** Each layout in one line, said under the toolbar and on its button (backlog N, 8 Nov). */
+export const LAYOUT_ABOUT: Record<Layout, string> = {
+  list: 'rows, grouped as the tab says.',
+  table: 'a row per goal; sort any column.',
+  board: 'a column for each status.',
+  history: 'each goal’s status, week by week.',
+  cards: 'a card per goal, with its gap.',
+  map: 'how the goals feed each other.',
+};
 const KEY = 'goals-app-layout';
 const isLayout = (v: string | null): v is Layout => !!v && LAYOUTS.some(([k]) => k === v);
 
@@ -34,7 +43,7 @@ export function LayoutSwitch({ layout, onChange }: { layout: Layout; onChange: (
   return (
     <div className="seg layout-switch" role="group" aria-label="Layout">
       {LAYOUTS.map(([k, label]) => (
-        <button key={k} type="button" aria-pressed={layout === k} aria-label={label} title={label} onClick={() => onChange(k)}>
+        <button key={k} type="button" aria-pressed={layout === k} aria-label={label} title={`${label}: ${LAYOUT_ABOUT[k]}`} onClick={() => onChange(k)}>
           <LayoutIcon k={k} /><span className="ls-label">{label}</span>
         </button>
       ))}

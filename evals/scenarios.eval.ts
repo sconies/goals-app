@@ -15,7 +15,7 @@ import { nextCycle } from '../src/domain/cycle';
 
 const cycle: Cycle = { id: 'c', name: 'Eval cycle', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
 const base = { cycleId: 'c', teamId: 't', ownerId: 'o', io: 'input' as const, level: 'team' as const, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '' };
-const up: MetricGoal = { ...base, id: 'up', title: 'Up', kind: 'metric', unit: '%', decimals: 0, plan: { start: 20, target: 72, shape: 'straight' }, originalPlan: null, rebaselinedWeek: null };
+const up: MetricGoal = { ...base, id: 'up', title: 'Up', kind: 'metric', unit: '%', decimals: 1, plan: { start: 20, target: 72, shape: 'straight' }, originalPlan: null, rebaselinedWeek: null };
 const down: MetricGoal = { ...up, id: 'down', title: 'Down', unit: 'days', decimals: 1, plan: { start: 34, target: 8, shape: 'straight' } };
 const cfr: RangeGoal = { ...base, id: 'cfr', title: 'CFR', kind: 'range', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 12, margin: 1 } };
 const ms: MilestoneGoal = { ...base, id: 'ms', title: 'MS', kind: 'milestone', stages: [{ id: 'a', name: 'A', dueWeek: 4 }, { id: 'b', name: 'B', dueWeek: 8 }] };

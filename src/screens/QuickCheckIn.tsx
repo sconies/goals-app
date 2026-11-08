@@ -10,7 +10,7 @@ import { fmt } from '../domain/format';
 import { planAt, weekDates } from '../domain/plan';
 import { checkInsFor } from '../domain/status';
 import type { Cause, Goal, MetricGoal, RangeGoal } from '../domain/types';
-import { Chip, Empty } from '../ui/bits';
+import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 
 /** A select with the app's own chevron, so its text sits where an input's does. */
@@ -112,7 +112,7 @@ export function QuickCheckIn() {
                 <div key={g.id} className={'qrow' + (bad ? ' invalid' : '')}>
                   <div className="qrow-main">
                     <span className="qname">
-                      <Link className="qlink strong" to={'/goals/' + g.id}>{g.title}</Link>
+                      <Link className="qlink strong" to={'/goals/' + g.id}>{g.title}</Link><TitleTell goal={g} />
                       {/* Each part keeps its words together, and a line never ends on a separator. */}
                       <span className="hint">
                         <span className="nobr">Plan {plan}</span>
