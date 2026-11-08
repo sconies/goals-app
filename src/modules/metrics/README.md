@@ -43,12 +43,17 @@ Read from `app.snapshot` (the open cycle, removed metrics already left out) and 
 
 Then, in the same change: list `/data/metrics` under `routes` and `data.tools` under `places` in `module.json`; add a Help article for the route in `src/modules/metrics/help.ts` and its id under `help`; add the screen to `SCREENS` in `src/mcp/parity.ts` (`Metrics: ['list_metrics', 'get_metric', 'save_metric', 'remove_metric']`); add its requirements to `evals/requirements.json` and `module.json`, and a journey. The screen file is `src/modules/metrics/Metrics.tsx` (a capitalised `.tsx` counts as a screen).
 
-**"Measured by" in New goal and goal edit.** These are core screens (`src/screens/GoalWizard.tsx`, `src/screens/GoalEdit.tsx`), so the field comes in through a new place, as `docs/architecture.md` says ("To add a place"):
+**"Measured by" in New goal and goal edit.** The core already has the place: `goal.measure` (`src/core/app.tsx`, `PlaceProps`). It renders after "How it's measured" in New goal (`src/screens/GoalWizard.tsx`, step 2) and after the name in goal edit (`src/screens/GoalEdit.tsx`, whole edit and "Improve the definition"). It's given:
 
-1. Add `'goal.measure'` to `PLACES` in `src/core/module.ts`, and its props to `PlaceProps` in `src/core/app.tsx`: the goal as saved (`Goal | null` for a new one), the form's current `kind`, `unit` and `teamId`, and `onChange(pick: { metricId: string; teamId: string | null } | null | undefined)` (`undefined`: left as it is; `null`: no metric).
-2. Render `<Place name="goal.measure" … />` in each form, after the unit. With the module off it renders nothing and `onChange` is never called.
-3. Each form keeps the pick in its state and, after `await app.saveGoal(...)` succeeds, calls `app.linkGoalMetric(goal, pick.metricId, pick.teamId)` or, for `null`, `app.unlinkGoalMetric(goal)`. The wizard knows the new goal's id before saving (`buildGoal(..., { id })`), so the link follows the goal straight away. Two log entries: the goal's, then "Measured by …".
-4. The field itself (`src/modules/metrics/MeasuredBy.tsx`) is the module's: pick a metric from `liveMetrics`, or create one in place with `app.saveMetric` (it returns the id), pick the slice (the goal's team, or the whole company), and show `linkProblems` as you go. Add `MeasuredBy: ['link_goal_metric', 'list_metrics', 'save_metric']` to `SCREENS` in `src/mcp/parity.ts`, and `goal.measure` to `places` in `module.json`.
+- `goal`: the goal as saved, or `null` while it's new;
+- `kind`, `unit`, `teamId`: the form's as typed (to filter metrics by unit, and offer the goal's team as the slice);
+- `onChange(pick)`: `{ metricId, teamId }` to measure it by a metric (`teamId` null for the whole company), `null` for no metric, `undefined` to leave it as it is.
+
+The form saves the pick straight after the goal: `app.linkGoalMetric` for a pick, `app.unlinkGoalMetric` for `null`. So the live build touches only the module:
+
+1. The field, `src/modules/metrics/MeasuredBy.tsx`: start from `measureOf(app.snapshot, goal)` when there's a goal; pick a metric from `liveMetrics` (those in the form's unit first), or create one in place with `app.saveMetric` (it returns the id); pick the slice (the goal's team, or the whole company); show `linkProblems` as you go; call `onChange`. Offer it only when `canLinkGoal(app.viewer, goal)` (a new goal is the viewer's own), and not for `kind === 'milestone'`.
+2. Register it in `app.tsx` under `places: { 'goal.measure': MeasuredBy }`, and add `goal.measure` to `places` in `module.json`.
+3. Add `MeasuredBy: ['link_goal_metric', 'list_metrics', 'save_metric']` to `SCREENS` in `src/mcp/parity.ts`.
 
 The pickers use a plain search list for now (backlog 0a brings the shared find-and-pick control).
 
