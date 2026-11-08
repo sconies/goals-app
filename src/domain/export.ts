@@ -14,7 +14,7 @@ import {
   ASK_STATUS, ATTENTION, FLAG, GROUPS, LABEL, lower, MEANING, QUARTER, RESULT_MEANING, RESULT_TEXT, STATUS, STOPPED, withCode, type GroupKey, type Term,
 } from './vocabulary';
 import {
-  ASKS, asksFor, CHECK_INS, contextOf, GOALS, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN, planWeekValue, RESULTS, roleLoaded, ROLE_WORD, rowsOf, SHEETS, WEEK_COLUMN,
+  ASKS, asksFor, CHECK_INS, contextOf, GOALS, isWorkedOut, METRICS, metricsFor, NOTES, notesFor, PEOPLE, PLAN, planWeekValue, RESULTS, roleLoaded, ROLE_WORD, rowsOf, SHEETS, WEEK_COLUMN,
   type Cell, type Ctx, type ExportInput, type SheetKind,
 } from './columns';
 import type { Goal, Snapshot } from './types';
@@ -83,7 +83,7 @@ function planRows(x: ExportInput, sums: GoalSummary[], c: Ctx): Cell[][] {
   return [[...head!, ...weeks.map((w) => `Week ${w}`)], ...body.map((r, i) => [...r, ...weeks.map((w) => planWeekValue({ c, g: metric[i]! }, w))])];
 }
 
-/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes and the README. */
+/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and the README. */
 export function workbook(x: ExportInput): Table[] {
   const { goals, sums, s, c } = prepare(x, true);
   const ids = new Set(goals.map((g) => g.id));
@@ -99,6 +99,7 @@ export function workbook(x: ExportInput): Table[] {
     ['results', rowsOf(RESULTS, goalRows)],
     ['asks', rowsOf(ASKS, asksFor(x.snapshot, ids).map((a) => ({ c, a })))],
     ['notes', rowsOf(NOTES, notesFor(s, ids).map((d) => ({ c, d })))],
+    ['metrics', rowsOf(METRICS, metricsFor(x.snapshot, ids).map((v) => ({ c, ...v })))],
   ];
   return [
     ...book.map(([kind, rows]) => ({ name: SHEETS.find((v) => v.kind === kind)!.name, rows, muted: muted(kind, rows[0] ?? []) })),
@@ -111,7 +112,7 @@ export function workbook(x: ExportInput): Table[] {
  * no rows. Filled in and loaded back, it adds what it says, as any workbook would.
  */
 export function blankWorkbook(x: ExportInput): Table[] {
-  const none = { ...x.snapshot, people: [], goals: [], checkIns: [], decisions: [], changes: [], requests: [], retros: [], reviews: [], watches: [] };
+  const none = { ...x.snapshot, people: [], goals: [], checkIns: [], decisions: [], changes: [], requests: [], retros: [], reviews: [], watches: [], metrics: [], metricLinks: [] };
   return workbook({ ...x, snapshot: none, goals: undefined });
 }
 

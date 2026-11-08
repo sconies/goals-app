@@ -1,0 +1,93 @@
+{
+  "id": "metrics",
+  "name": "Metric library",
+  "summary": "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
+  "needs": [],
+  "routes": [],
+  "redirects": [],
+  "navigation": [],
+  "places": [],
+  "tables": [
+    {
+      "name": "okr_metrics",
+      "migration": "0033_metric_library.sql",
+      "purpose": "The metric library: one row per metric, never deleted (removed_at when removed)."
+    },
+    {
+      "name": "okr_goal_metrics",
+      "migration": "0033_metric_library.sql",
+      "purpose": "Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked."
+    }
+  ],
+  "aiTools": [
+    "list_metrics",
+    "get_metric",
+    "save_metric",
+    "remove_metric",
+    "link_goal_metric"
+  ],
+  "help": [],
+  "requirements": [],
+  "journeys": [],
+  "elsewhere": [
+    "src/domain/metrics.ts",
+    "src/data/platformOrg/metrics.ts"
+  ],
+  "rebuild": {
+    "status": "outline",
+    "builds": "The metric library: a metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) defined once per workspace, and a goal’s link to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules.",
+    "entry": [
+      "The change log and undo (stage 2) take a new kind of record: a removal saves the records as changed, and Undo puts each back as it was just before.",
+      "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."
+    ],
+    "exit": [
+      "A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
+      "Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
+      "A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
+      "Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.",
+      "The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move)."
+    ],
+    "gaps": [
+      "No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).",
+      "No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.",
+      "Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
+    ]
+  },
+  "growth": [
+    {
+      "idea": "Draft and Ready states",
+      "why": "A metric is usable as soon as it has a name, a unit and a direction, which is all a team needs to start. A review step before anyone can use one would slow the first weeks for little gain at Faro’s size.",
+      "how": "Add a state to the metric (draft, ready), let goals link only to ready ones, and give whoever reviews definitions (a data owner, say) a list of drafts to approve. The rules page’s “who may” paragraph is where the new rule goes."
+    },
+    {
+      "idea": "Versions, with a reason for each change",
+      "why": "Every change is already in the change log, field by field, with who and when, which answers “what did this mean in March?” for now.",
+      "how": "Keep each saved definition as a version with a required reason (as a goal’s plan keeps its earlier plans), show which version a goal’s numbers were read under, and let a reader compare two."
+    },
+    {
+      "idea": "Owner-only editing and other governance",
+      "why": "Owners and admins can change a metric, as with goals. Stricter rules (only the owner, or changes approved by a data steward) need roles Faro doesn’t have.",
+      "how": "Add a steward role per metric or per source, and route changes through an ask to them (the asks model already carries who must respond)."
+    },
+    {
+      "idea": "Dimensions an admin defines, and slices side by side",
+      "why": "A slice is a team or the whole company, which covers how Faro’s goals are set. Other cuts (region, product, tier) and comparing slices need data Faro doesn’t hold.",
+      "how": "Let an admin define dimensions and their values, let a link name any of them, and add a view that lists every goal on one metric by slice, with their targets side by side."
+    },
+    {
+      "idea": "Suggestions and grouping look-alikes for existing goals",
+      "why": "Linking is by hand, by each goal’s owner. Suggesting a metric for a goal, or spotting goals that measure the same thing under different names, needs matching that is easy to get wrong in a demo.",
+      "how": "Compare each unlinked goal’s title, unit and source with the library and suggest the closest metric; group goals whose definitions look alike and offer to link them all to one metric."
+    },
+    {
+      "idea": "“Metric not defined” enforcement",
+      "why": "A goal doesn’t have to be measured by a metric. Requiring one before a goal can be saved would block every workspace that hasn’t built its library yet.",
+      "how": "A workspace setting that makes every number goal need a metric, a flag (like the other attention flags) on goals that have none, and a count on Home for admins."
+    },
+    {
+      "idea": "Loading the Metrics sheet back, and numbers from the source",
+      "why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
+      "how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
+    }
+  ]
+}

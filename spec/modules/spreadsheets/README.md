@@ -23,7 +23,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 
 ## Requirements
 
-- `EXPORT`: Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens.
+- `EXPORT`: Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens.
 - `BULK-IMPORT`: A workbook, a zip of CSVs or one CSV can add or change people, goals, plan numbers and check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any, and admins add and change people. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet.
 - `IMPORT-ACTIONS`: A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams. Tests: `evals/format.eval.ts`.
 - `SPREADSHEETS-ON-DATA`: Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template (every sheet’s headers and README, no rows), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets). Tests: `evals/modules.eval.ts`.
@@ -47,5 +47,5 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 
 ## Rules, conformance and rebuild stage
 
-Its rebuild stage: [stage 4](../../rebuild/stage-4-module-spreadsheets.md) (an outline, with no drill yet).
+Its rebuild stage: [stage 5](../../rebuild/stage-5-module-spreadsheets.md) (an outline, with no drill yet).
 **Not self-explanatory:** it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.

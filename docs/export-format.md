@@ -8,7 +8,7 @@ Week numbers count from the cycle’s start: week 0 is the start date. A check-i
 
 ## Files
 
-- **Excel workbook (.xlsx)**, the default: every sheet below (Goals, Plan, Check-ins, People, Results, Asks, Notes) and a README sheet that explains each column, made from the same definitions. Worked-out columns are set in grey.
+- **Excel workbook (.xlsx)**, the default: every sheet below (Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics) and a README sheet that explains each column, made from the same definitions. Worked-out columns are set in grey.
 - **CSV files (.zip)**: the same sheets, one CSV each with the same headers, named after the sheet (`Goals.csv`, `Check-ins.csv`…). UTF-8 with a byte-order mark, so Excel opens them correctly.
 - **One CSV**: any one sheet on its own.
 - **A table from Data** (CSV or .xlsx), exactly as its layout shows it: its columns in order and the rows that pass its search and filters. The columns that say which record a row is (below, “Matches the row”) are always written: any the layout leaves out are added at the end, in grey, so the file loads back. The AI assistant’s `export_table` does the same.
@@ -215,6 +215,29 @@ One row per note, question or action said in a review. What was said in reviews:
 | At | For reading | When. | Not loaded back |
 
 Always written by a table from Data: Goal key, Goal ID.
+
+## Metrics
+
+One row per metric in the library. The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app. Not loaded back.
+
+| Column | Kind | What it means | When loaded back |
+|---|---|---|---|
+| ID | Matches the row | The metric’s identity. | Not loaded back |
+| Metric | For reading | Its name. | Not loaded back |
+| Meaning | For reading | What it means and how it’s calculated. | Not loaded back |
+| Unit | For reading | Its unit. | Not loaded back |
+| Decimals | For reading | Places after the decimal point it’s shown with. | Not loaded back |
+| Direction | For reading | Higher is better or Lower is better. | Not loaded back |
+| Source | For reading | Where the number comes from. | Not loaded back |
+| Source owner | For reading | Who owns that source. | Not loaded back |
+| Refresh | For reading | How often the source refreshes: Live, Hourly, Daily, Weekly, Monthly or Quarterly, or empty when nobody has said. | Not loaded back |
+| Owner | For reading | Who answers for the definition. | Not loaded back |
+| Owner email | For reading | Who answers for it, by email. | Not loaded back |
+| Caveats | For reading | What to watch out for when reading it. | Not loaded back |
+| Measures | For reading | The goals it measures, each with its slice: a team, or the whole company. | Not loaded back |
+| Goal keys | For reading | Their keys. | Not loaded back |
+
+Always written by a table from Data: ID.
 
 ## Words
 

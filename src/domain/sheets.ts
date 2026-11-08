@@ -88,7 +88,7 @@ export interface ReadTables {
   tables: Tables;
   /** The sheets loaded, by the name they had. */
   read: { name: string; kind: SheetKind }[];
-  /** Sheets left out, and why: one this format writes but doesn't load back (Results, Asks, Notes), one it doesn't know. */
+  /** Sheets left out, and why: one this format writes but doesn't load back (Results, Asks, Notes, Metrics), one it doesn't know. */
   skipped: { name: string; why: string }[];
 }
 

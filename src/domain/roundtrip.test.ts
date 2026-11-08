@@ -54,7 +54,7 @@ describe('one format: export, load back, no change', () => {
     it(`${d.name}: the workbook loads back as no change at all`, async () => {
       const read = readTables(await asXlsx(bookOf(d)));
       expect(read.read.map((x) => x.kind).sort()).toEqual(['checkIns', 'goals', 'people', 'plan']);
-      expect(read.skipped.map((x) => x.name)).toEqual(['Results', 'Asks', 'Notes', 'README']);
+      expect(read.skipped.map((x) => x.name)).toEqual(['Results', 'Asks', 'Notes', 'Metrics', 'README']);
       const cs = load(d, read.tables);
       expect(errors(cs)).toEqual([]);
       expect(cs.items).toEqual([]);

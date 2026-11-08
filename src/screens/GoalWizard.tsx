@@ -19,6 +19,7 @@ import { weekDates, yearEndWeek } from '../domain/plan';
 import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
+import { Place, type MeasurePick } from '../core/app';
 
 const KINDS: [GoalKind, string, string, string][] = [
   ['metric', 'Move a number', 'From where it is to where it should be', 'e.g. Lead time from 4.2 to 2 days'],
@@ -94,6 +95,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
   const top = useRef<HTMLDivElement>(null);
   // After “Change …” on the summary, Continue comes straight back to it.
   const [fromSummary, setFromSummary] = useState(false);
+  // What measures the goal, when a module offers it (the goal.measure place): saved after the goal.
+  const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
   useEffect(() => { top.current?.querySelector<HTMLElement>('input, select, textarea, button.kindcard')?.focus(); }, [step]);
 
   const go = (to: number) => {
@@ -110,6 +113,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
     const g = buildGoal(d, cycle, { id: existing?.id ?? newId('goal'), createdAt: existing?.createdAt ?? app.stamp() }, existing, started, week);
     try {
       await app.saveGoal(g, existing);
+      if (measure) await app.linkGoalMetric(g, measure.metricId, measure.teamId);
+      else if (measure === null && existing) await app.unlinkGoalMetric(g);
       clear();
       app.toast(existing ? 'Saved. The change is in the goal’s activity.' : `Published “${g.title}”`);
       nav('/goals/' + g.id + (existing ? '' : '?published=1'));
@@ -235,6 +240,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="Exactly what is counted, so everyone reads it the same way, e.g. Median hours to the first reply, from the help desk" />
               </label>
             )}
+            {/* What measures it (the goal.measure place, backlog 0b): beside how it's measured; empty unless a module fills it. */}
+            <Place name="goal.measure" goal={existing} kind={d.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />
             {d.kind === 'milestone' && (
               <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="small strong" error={tried.includes(1) ? errors.stages ?? null : null}
                 onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
