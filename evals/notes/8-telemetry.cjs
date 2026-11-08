@@ -111,7 +111,7 @@ module.exports = {
       {
         const { c, p, sent } = await open(w, h, touch, 'grace');
         try {
-          await p.goto(url('/workspace'));
+          await p.goto(url('/workspace/privacy'));
           const box = p.getByRole('checkbox', { name: /Record how the app is used/ });
           await box.scrollIntoViewIfNeeded();
           fail(await box.isChecked(), `[TELEMETRY-SWITCH] ${w}: recording isn’t on to start with`);
@@ -134,7 +134,7 @@ module.exports = {
           await p.waitForTimeout(400);
           const after = sent.filter((s) => s.at > off);
           fail(!after.length, `[TELEMETRY-SWITCH] ${w}: ${after.length} requests sent after recording was turned off`);
-          await p.goto(url('/workspace'));
+          await p.goto(url('/workspace/privacy'));
           fail(!(await p.getByRole('checkbox', { name: /Record how the app is used/ }).isChecked()), `[TELEMETRY-SWITCH] ${w}: the switch didn’t stay off after a reload`);
         } catch (e) { fail(false, `[TELEMETRY-SWITCH] ${w}: ${String(e.message || e).split('\n')[0]}`); }
         await c.close();

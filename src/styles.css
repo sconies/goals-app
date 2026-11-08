@@ -1293,8 +1293,9 @@ h1, h2, h3, .title-xl, .hero-title, .qtitle, .gt-goal a, .gline-title, .map-titl
 }
 @container app (max-width: 760px) { .focus { padding-left: var(--s4); padding-right: var(--s4); } }
 
-/* The sidebar's workspace: its name on one line, the week on one line (10). */
-.ws-name { display: block; -webkit-line-clamp: unset; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The sidebar's workspace: its name on up to two lines, then … with the full name on hover (Lane, 8 Nov: "Voss Test
+   Worksp…" was cut short on one line); the week on one line (10). */
+.ws-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; white-space: normal; overflow: hidden; overflow-wrap: anywhere; }
 .ws-meta { white-space: nowrap; }
 
 /* Phone top bar: three controls, one height (13). */

@@ -24,10 +24,10 @@ export function ConnectClaude({ local = false }: { local?: boolean }) {
       <h3 className="connect-title" id="connect-title">Connect Claude</h3>
       <p className="hint">So Claude can read this inbox, pictures included, and triage it with the same rules, through Faro’s MCP server. Any Faro token works: the one an AI assistant already uses, or a new one.</p>
       {canMake && !made && <MakeToken onMade={setMade} />}
-      {!local && app.mode === 'live' && !app.viewer.admin && <p className="hint">Only admins make tokens. Ask {admins.length ? admins.join(', ') : 'an admin'} to make you one on Workspace, under AI assistants, or use one you have (<Link to="/settings">Settings</Link> lists yours).</p>}
+      {!local && app.mode === 'live' && !app.viewer.admin && <p className="hint">Only admins make tokens. Ask {admins.length ? admins.join(', ') : 'an admin'} to make you one on Workspace, under Access, or use one you have (<Link to="/settings">Settings</Link> lists yours).</p>}
       {!local && app.mode !== 'live' && <p className="hint">Tokens are made in the real app, not the demo: any token from it reads the demo’s markups too.</p>}
       {local && <p className="hint">No database is set up here, so there are no tokens. This is what the set-up looks like.</p>}
-      {made && <p className="hint tone-risk" role="status">Copy it now: it isn’t shown again. It acts as {app.viewer.name} in {app.ws.name}, like any token, and reads and triages the inbox. Revoke it on Workspace, under AI assistants.</p>}
+      {made && <p className="hint tone-risk" role="status">Copy it now: it isn’t shown again. It acts as {app.viewer.name} in {app.ws.name}, like any token, and reads and triages the inbox. Revoke it on Workspace, under Access.</p>}
       {made && <Copyable label="Token" value={made} />}
       <div className="connect-setup">
         <div className="stack connect-way">

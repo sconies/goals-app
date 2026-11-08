@@ -32649,7 +32649,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "What each removal does",
 				list: [
-					"A person who has left: an admin opens them on Workspace and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them). They then disappear from pickers, counts, reviews and Home, and their AI assistant token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.",
+					"A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them). They then disappear from pickers, counts, reviews and Home, and their AI assistant token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.",
 					"A goal with check-ins is stopped, with a reason (“…” menu → Stop this goal). It leaves the numbers, reviews, Home, Watching and the lists of what needs attention, but its page stays, marked Stopped with its reason, and so do its history, its place in exports and Activity. The goals feeding it now feed what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.",
 					"A check-in: Delete this check-in, under the latest one on the goal’s page, by whoever posted it or an admin. Once a newer one is posted it can only be corrected. The status goes back to the one before.",
 					"A review: End this review, at the foot of its page, by whoever set it up or an admin. It keeps its notes and actions and stops showing as due. One that was never held is deleted.",
@@ -32677,7 +32677,7 @@ var CORE_ARTICLES = [
 				]
 			}
 		],
-		routes: [],
+		routes: ["/workspace/removed"],
 		screens: [],
 		reqs: [
 			"REMOVE-ANYTHING",
@@ -32714,69 +32714,199 @@ var CORE_ARTICLES = [
 	{
 		id: "workspace",
 		title: "Running the workspace",
-		summary: "Workspace is the directory of people and teams, with the settings admins look after.",
+		summary: "Workspace is in sections, each with its own page: Overview, People, Teams and the Inbox for everyone, and Cycles, Access, Features, Privacy and Recently removed for admins.",
 		group: "you",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"Find a person, or filter by team. Each shows their job title, team and whether they are an admin.",
-				"Admins add a person, change their details, or make them an admin. There is always at least one admin. Everyone new needs an email, and no two people share one.",
-				"People without an email: people added before emails were needed are listed for admins, with a box for each. Type the emails you know and save them together.",
-				"Rename the workspace; add, rename and remove teams. A team with people or goals moves them to another team in the same save.",
-				"AI assistants: make a personal token for someone (shown once) and revoke tokens. Feedback: read what people sent with the feedback button.",
-				"What the app records: recording of how the app is used is on for everyone. Untick it to turn it off for the whole workspace; while it’s off, nothing is recorded or sent.",
-				"Someone who has left: open them and choose Mark as left. You’re asked who takes over their goals and their open asks first; they then leave every picker and count, and history keeps their name, as “Name (left)”. Someone with no history is deleted instead.",
-				"Recently removed lists everything removed, stopped, ended or marked as left in the last 30 days, with who and when, and Restore. Cycles lists the cycles; one nobody has checked in to can be deleted.",
-				"Delete the workspace, after typing its name. It can’t be undone; an example can only be reset.",
-				"Inbox: the markups and feedback people send, open to anyone. See The inbox."
-			]
-		}, {
-			heading: "Who can",
-			list: [
-				"Everyone can see the people and teams.",
-				"Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.",
-				"Anyone can read the inbox and change a markup’s or feedback’s status: Faro holds no real data. The internal app keeps it to the people who look after the app."
-			]
-		}],
-		routes: ["/workspace"],
+		sections: [
+			{
+				heading: "Finding your way",
+				list: [
+					"On a computer, the sections are in a menu down the left; on a phone, Workspace opens as a list of them, and each section has Workspace at the top to go back.",
+					"Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/inbox and so on.",
+					"Beside Inbox, the menu says how many new markups and pieces of feedback are waiting, in plain words.",
+					"Older links to Workspace (from a GitHub issue, say) still open the section they meant."
+				]
+			},
+			{
+				heading: "Overview",
+				list: [
+					"The workspace’s name (admins can rename it), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own and Reset the example).",
+					"What’s in it, each line leading to its section: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, and for admins the open cycle, how many features are on and what was removed lately.",
+					"Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset."
+				]
+			},
+			{
+				heading: "The sections",
+				list: [
+					"People: the directory. See Workspace: People.",
+					"Teams: find a team, with its lead and counts. See Workspace: Teams.",
+					"Inbox: the markups and feedback people send, worked like an inbox. See The inbox.",
+					"Cycles, Access, Features, Privacy and Recently removed: for admins. Each has its own article."
+				]
+			},
+			{
+				heading: "Who can",
+				list: [
+					"Everyone sees Overview, People, Teams and the Inbox. Someone who isn’t an admin and opens an admins’ section is told who the admins are.",
+					"Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.",
+					"Anyone can read the inbox and change a markup’s or feedback’s status: Faro holds no real data. The internal app keeps it to the people who look after the app."
+				]
+			},
+			{
+				heading: "For the people building Faro",
+				list: ["Sections are an extension point: a feature module adds its own with `sections` in its app.tsx and module.json, and it appears in the menu, at /workspace/<id>, for as long as the module is on."]
+			}
+		],
+		routes: ["/workspace", "/workspace/overview"],
 		screens: ["Workspace"],
 		reqs: [
 			"ADMIN",
 			"WORKSPACE-ADMIN",
-			"PROFILES",
 			"WORKSPACES",
-			"TELEMETRY-SWITCH",
-			"PERSON-LEFT",
-			"UNDO-REMOVE",
-			"PERSON-EMAIL"
+			"WORKSPACE-SECTIONS"
 		],
 		keywords: [
 			"admin",
-			"people",
-			"teams",
-			"add person",
+			"workspace",
+			"sections",
+			"overview",
 			"rename",
 			"delete workspace",
-			"directory",
-			"feedback",
-			"tokens",
-			"recording",
-			"inbox",
-			"left",
-			"leaver",
-			"recently removed",
-			"restore",
-			"cycles",
-			"email",
-			"missing email"
+			"switch workspace",
+			"new workspace",
+			"reset the example",
+			"menu",
+			"settings"
 		],
 		related: [
-			"ai-assistants",
-			"set-up",
-			"settings",
-			"recording",
+			"workspace-people",
+			"workspace-teams",
 			"inbox",
-			"removing"
+			"workspace-access",
+			"set-up",
+			"settings"
+		]
+	},
+	{
+		id: "workspace-people",
+		title: "Workspace: People",
+		summary: "The directory of everyone in the workspace: find someone by name, job title or team; admins add people, change their details, make admins and mark people as left.",
+		group: "you",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"Find a person by name, job title or team, or pick a team. Each shows their job title, team and whether they are an admin. A long list shows 60 at a time, with Show more.",
+				"Admins: Add a person is the main action. Open someone to change their name, email, job title, team, or whether they are an admin. There is always at least one admin. Everyone new needs an email, and no two people share one.",
+				"People without an email: people added before emails were needed are listed for admins, with a box for each. Type the emails you know and save them together.",
+				"Someone who has left: open them and choose Mark as left. You’re asked who takes over their goals and their open asks first; they then leave every picker and count, and history keeps their name, as “Name (left)”. Someone with no history is deleted instead."
+			]
+		}, {
+			heading: "Who can",
+			text: ["Everyone sees the directory. Only admins add or change people."]
+		}],
+		routes: ["/workspace/people"],
+		screens: [],
+		reqs: [
+			"PROFILES",
+			"PERSON-LEFT",
+			"PERSON-EMAIL"
+		],
+		keywords: [
+			"people",
+			"directory",
+			"add person",
+			"email",
+			"missing email",
+			"admin",
+			"left",
+			"leaver",
+			"job title",
+			"find a person"
+		],
+		related: [
+			"workspace",
+			"removing",
+			"workspace-access"
+		]
+	},
+	{
+		id: "workspace-teams",
+		title: "Workspace: Teams",
+		summary: "The workspace’s teams, each with its lead and how many people and goals it has. Admins add, rename and remove them.",
+		group: "you",
+		sections: [{
+			heading: "How to use it",
+			list: ["Each team shows its lead, how many people are in it and how many goals it owns. With more than a few teams, find one by its name or its lead’s.", "Admins: Add a team is the main action. Rename changes its name and lead. Remove takes an empty team away at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so."]
+		}, {
+			heading: "Who can",
+			text: ["Everyone sees the teams. Only admins change them."]
+		}],
+		routes: ["/workspace/teams"],
+		screens: [],
+		reqs: ["WORKSPACE-ADMIN"],
+		keywords: [
+			"teams",
+			"team lead",
+			"add team",
+			"rename team",
+			"remove team",
+			"move goals"
+		],
+		related: ["workspace", "workspace-people"]
+	},
+	{
+		id: "workspace-cycles",
+		title: "Workspace: Cycles",
+		summary: "For admins: the workspace’s cycles, newest first, and deleting one nobody has checked in to yet.",
+		group: "you",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"Each cycle says whether it’s the one open now and whether it has check-ins.",
+				"A cycle nobody has checked in to can be deleted, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays.",
+				"A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped."
+			]
+		}, {
+			heading: "Who can",
+			text: ["Admins."]
+		}],
+		routes: ["/workspace/cycles"],
+		screens: [],
+		reqs: ["UNDO-REMOVE"],
+		keywords: [
+			"cycles",
+			"year",
+			"quarter",
+			"delete cycle",
+			"new cycle"
+		],
+		related: ["workspace", "removing"]
+	},
+	{
+		id: "workspace-access",
+		title: "Workspace: Access",
+		summary: "For admins: who the admins are, and the tokens AI assistants use to act as someone in this workspace.",
+		group: "you",
+		sections: [{
+			heading: "How to use it",
+			list: ["Admins lists everyone who is one. Make someone an admin, or stop them being one, from their entry in People. There is always at least one.", "AI assistants: Make a token for someone (it’s shown once), and revoke any token. The assistant then acts as that person, with their rights, and every change says it came through the assistant. See AI assistants."]
+		}, {
+			heading: "Who can",
+			text: ["Admins. Everyone finds their own tokens in Settings."]
+		}],
+		routes: ["/workspace/access"],
+		screens: [],
+		reqs: ["ADMIN", "MCP-TOKENS"],
+		keywords: [
+			"access",
+			"admins",
+			"who is an admin",
+			"revoke",
+			"assistant access"
+		],
+		related: [
+			"workspace",
+			"ai-assistants",
+			"workspace-people"
 		]
 	},
 	{
@@ -32862,7 +32992,7 @@ var CORE_ARTICLES = [
 				list: ["Each feature is a module: one folder in src/modules with a module.json saying what it adds and what it needs. docs/architecture.md explains how to add one."]
 			}
 		],
-		routes: [],
+		routes: ["/workspace/features"],
 		screens: [],
 		reqs: ["MODULES"],
 		keywords: [
@@ -32924,10 +33054,10 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Turning it off",
-				list: ["Everyone is recorded by default. Settings says whether it is on where you are.", "An admin can turn it off for the whole workspace on Workspace, under What the app records. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
+				list: ["Everyone is recorded by default. Settings says whether it is on where you are.", "An admin can turn it off for the whole workspace on Workspace, under Privacy. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
 			}
 		],
-		routes: [],
+		routes: ["/workspace/privacy"],
 		screens: [],
 		reqs: [
 			"TELEMETRY-SIGNALS",
@@ -33059,54 +33189,66 @@ var CORE_ARTICLES = [
 	{
 		id: "inbox",
 		title: "The inbox",
-		summary: "Every markup and piece of feedback people send, open to anyone with no sign-in: read it, with a markup’s picture, the parts it names and what led up to it, and triage it.",
+		summary: "Every markup and piece of feedback people send, on Workspace, open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.",
 		group: "you",
 		sections: [
 			{
 				heading: "Who can read it",
-				list: ["The inbox is on Workspace, in the app and the demo. There’s no sign-in: anyone can read it and change a status, on any device. Faro holds no real data, so there is nothing to keep back.", "It holds what’s sent from every workspace and the demo, and says where each came from. The company’s own app keeps its inbox to the people who look after the app."]
+				list: [
+					"The inbox is a section of Workspace (Workspace, Inbox), in the app and the demo. There’s no sign-in: anyone can read it and change a status, on any device. Faro holds no real data, so there is nothing to keep back.",
+					"It holds what’s sent from every workspace and the demo, and says where each came from. The company’s own app keeps its inbox to the people who look after the app.",
+					"Workspace’s menu says how many are new, beside Inbox."
+				]
 			},
 			{
-				heading: "How to use it",
+				heading: "Working through it",
 				list: [
-					"Markups are listed newest first, each with a small picture, its line, the part of the page it’s about, who sent it and when, and its status as a shape and a word: New, In hand, Fixed or Won’t fix.",
-					"Markups about the same part of the same page are grouped, with a count.",
+					"Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.",
+					"Each row starts with its status as a shape and a word, then what was said, the part of the page it’s about (or, for feedback, its mood and page), who sent it, from where and when.",
+					"Markups about the same part of the same page are folded into one row that says how many (“6 on this part”). Open it to see each one; whatever you do to the row happens to all of them.",
+					"Find things with the search (what was said, the part, the page or who sent it) and the filters for kind (markups or feedback), page and person. On a phone the filters are under Filters.",
+					"On a computer the list and the open item sit side by side. Keys: J and K move down and up the list, I marks the open item in hand, F opens Mark fixed, W opens Won’t fix.",
+					"On a phone you see one item at a time: Next goes on to the next, and Back to the list returns.",
+					"Once you handle an item and it leaves the tab, the next one opens. Undo, at the top, puts back what you just changed.",
+					"Tick rows (or Select this page) to change a batch at once: Mark in hand, Mark fixed in a What’s new entry, Won’t fix with one reason, or Mark new again. A page shows 25 rows."
+				]
+			},
+			{
+				heading: "A markup",
+				list: [
 					"Open one to see its picture (hide the drawing to see the screen beneath), the parts its marks are on, its notes, the steps before it as a timeline, any errors, and where it was sent from.",
 					"Mark it in hand. Open GitHub issue opens a new issue on GitHub filled in with the line, the page, the parts, the steps and a link back here: press Submit there, then paste the issue’s address back with Paste issue link.",
 					"Mark it fixed in a What’s new entry, so its sender sees “You raised this” there; or say why it won’t be fixed.",
-					"Each change says who made it (you, as you chose on this device) and when. Changed your mind? Undo, beside the change, puts back the status it replaced."
+					"Each change says who made it (you, as you chose on this device) and when."
 				]
 			},
 			{
 				heading: "Connect Claude",
 				list: [
-					"Connect Claude is at the top of the inbox. Any Faro token works. An admin makes one there (in the app, not the demo); anyone else asks an admin. Then copy the set-up: for a Claude cloud session, the host and where the token goes; for Claude Code, one command.",
+					"Connect Claude opens from the top of the inbox. Any Faro token works. An admin makes one there (in the app, not the demo); anyone else asks an admin. Then copy the set-up: for a Claude cloud session, the host and where the token goes; for Claude Code, one command.",
 					"Claude then reviews the inbox in one step, with review_inbox: new markups grouped by the part of the screen they’re about, each with its picture, and new feedback by page. It sees the pictures without opening anything. Its changes say they were made by the token’s person, via the AI assistant.",
 					"Connect Claude says whether the server can send Claude the pictures, and if not, why.",
-					"Tokens are listed, and revoked, on Workspace under AI assistants, and yours in Settings."
+					"Tokens are listed, and revoked, on Workspace under Access, and yours in Settings."
 				]
 			},
 			{
 				heading: "Feedback",
-				list: [
-					"Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.",
-					"It has the same statuses: open it to mark it in hand, fixed in a What’s new entry (its sender then sees “You raised this” there; list its id in the entry’s fixes too), or won’t fix with a reason, or new again, with Undo. It has no picture and no GitHub issue.",
-					"Feedback always arrives as New. A workspace’s admins still see their own workspace’s on Workspace."
-				]
+				list: ["Feedback sent with a mood and a few words is in the inbox too, among the markups, newest first, with a speech mark where a markup has its picture. Each says it’s feedback, its mood, the page it was sent from, who sent it and from which workspace.", "It has the same statuses and is worked the same way. It has no picture and no GitHub issue. It always arrives as New."]
 			},
 			{
 				heading: "Without a database",
 				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser."]
 			}
 		],
-		routes: [],
+		routes: ["/workspace/inbox"],
 		screens: [],
 		reqs: [
 			"MARKUP-INBOX",
 			"FEEDBACK-INBOX",
 			"MCP-FEEDBACK",
 			"CONNECT-CLAUDE",
-			"MCP-PICTURES"
+			"MCP-PICTURES",
+			"INBOX-TRIAGE"
 		],
 		keywords: [
 			"inbox",
@@ -33278,6 +33420,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "workspace-sections",
+		date: "2026-11-08",
+		title: "Workspace in sections, and an inbox you can work through",
+		points: [
+			"Workspace is now in sections, each on its own page: Overview, People, Teams and Inbox, and for admins Cycles, Access, Features, Privacy and Recently removed. On a computer they’re in a menu on the left; on a phone, Workspace opens as a list of them.",
+			"Overview shows what’s in the workspace, each line leading to its section; deleting it is at the very end. A long workspace name in the sidebar now wraps to a second line (hover to see all of it).",
+			"The inbox works like an inbox: New, In hand and Closed, each with its count; search and filters for kind, page and person; 25 at a time.",
+			"Markups about the same part of a page fold into one row (“6 on this part”) and are handled together. Handle one and the next opens; Undo puts it back.",
+			"On a computer, the list and the open item sit side by side, with keys: J and K to move, I for in hand, F for fixed, W for won’t fix. On a phone, one at a time with Next.",
+			"Tick rows to close a batch at once. Beside Inbox, the menu says how many are new."
+		],
+		articles: [
+			"workspace",
+			"inbox",
+			"workspace-people",
+			"workspace-teams"
+		]
+	},
 	{
 		id: "setup-polish",
 		date: "2026-11-08",
@@ -38271,7 +38432,7 @@ function deps(origin) {
 			store: tokenMarkups(db, hash),
 			entries: WHATS_NEW.map((e) => e.id),
 			repo: MARKUP_REPO,
-			inboxLink: (id) => `${origin}/workspace?markup=${id}`
+			inboxLink: (id) => `${origin}/workspace/inbox?markup=${id}`
 		}),
 		feedback: (hash) => feedbackOps({
 			store: tokenFeedback(db, hash),

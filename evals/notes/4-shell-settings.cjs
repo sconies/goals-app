@@ -219,7 +219,7 @@ module.exports = {
         fail(await menu.getByRole('link', { name: /^Settings/ }).isVisible() && !(await menu.getByRole('group', { name: 'Workspaces' }).count()), `[NAV-GOALS] one workspace at ${w}: the person menu offers to switch workspace`);
         await p.keyboard.press('Escape');
       }
-      await p.goto(live('/workspace')); await p.locator('.page-head').first().waitFor();
+      await p.goto(live('/workspace/overview')); await p.locator('.page-head').first().waitFor();
       fail(!(await p.locator('.ws-line').count()) && await p.locator('.ws-title').innerText() === 'Acme', '[NAV-GOALS] one workspace: the Workspace page still lists workspaces to switch between');
       await c.close();
       // The demo has one example now (Platform Engineering), so its person menu offers no other example companies; with a
@@ -286,7 +286,7 @@ module.exports = {
     /* ---------- [WORKSPACE-ADMIN] rename the workspace; add, rename and remove teams; not for everyone ---------- */
     await step('workspace admin', async () => {
       for (const [w, h, touch] of [[1280, 800, false], [768, 1024, true], [390, 844, true]]) {
-        const [c, p] = await open(w, h, 'amara', '/workspace', touch);
+        const [c, p] = await open(w, h, 'amara', '/workspace/overview', touch);
         const click = (l) => (touch ? l.tap() : l.click());
         await click(p.getByRole('button', { name: /^Rename Example/ }));
         await p.getByLabel('Workspace name').fill('Acme Platform');
@@ -294,6 +294,8 @@ module.exports = {
         await p.waitForTimeout(300);
         const shown = await p.evaluate(() => [...document.querySelectorAll('.ws-title, .ws-name, .mtop .tiny, .ws-line[aria-current] .gline-title')].filter((e) => e.getClientRects().length).map((e) => e.textContent).join(' | '));
         fail(/Acme Platform/.test(shown), `[WORKSPACE-ADMIN] ${w}: after renaming, the app says "${shown}"`);
+        // Teams is a section of its own (backlog W).
+        await p.goto(p.url().replace('/workspace/overview', '/workspace/teams')); await p.locator('.team-opt').first().waitFor();
         await click(p.getByRole('button', { name: 'Add a team' }));
         await p.getByRole('dialog').getByLabel('Team name').fill('Insights');
         await click(p.getByRole('dialog').getByRole('button', { name: 'Add the team' }));
@@ -321,9 +323,11 @@ module.exports = {
         fail(m.side <= 1 && (!touch || !m.small), `[WORKSPACE-ADMIN] ${w}: scrolls sideways ${m.side}px; ${m.small} team buttons under 40px`);
         await c.close();
       }
-      const [c, p] = await open(1280, 800, 'rhea', '/workspace');
+      const [c, p] = await open(1280, 800, 'rhea', '/workspace/teams');
+      await p.locator('.team-opt').first().waitFor();
       fail(!(await p.getByRole('button', { name: /^Rename|Add a team|^Remove/ }).count()) && await p.locator('.team-opt').count() >= 6, '[WORKSPACE-ADMIN] someone who isn’t an admin is offered rename, add or remove, or can’t see the teams');
-      fail(await p.getByRole('link', { name: 'Settings' }).first().isVisible(), '[SETTINGS] a non-admin on Workspace is not pointed to Settings for their tokens');
+      // Tokens are admins' business on Workspace (Access); everyone's own are in Settings, in the sidebar.
+      fail(await p.getByRole('link', { name: 'Settings' }).first().isVisible() && await p.getByRole('link', { name: /^Access/ }).count() === 0, '[SETTINGS] a non-admin is not pointed to Settings, or is offered Workspace’s Access');
       await c.close();
     });
 

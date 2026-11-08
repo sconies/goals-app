@@ -305,7 +305,7 @@ function AdminCard() {
     return (
       <section className="block note-card">
         <span className="stack" style={{ gap: 'var(--s1)' }}><strong>Add your people</strong><span className="hint">Goal owners need to be here to check in.</span></span>
-        <Link className="btn" to="/workspace">Add people</Link>
+        <Link className="btn" to="/workspace/people">Add people</Link>
       </section>
     );
   }

@@ -15,6 +15,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | Old addresses | `/import` → `/data/import` |
 | Navigation | none |
 | Places on core screens | `data.tools`, `goals.tools` |
+| Workspace sections | none |
 | Database tables | none |
 | AI tools | `export`, `export_table` |
 | Help articles | “Importing from a spreadsheet” (`import`), “Exporting” (`export`) |

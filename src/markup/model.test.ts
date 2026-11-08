@@ -118,10 +118,10 @@ describe('the inbox', () => {
 describe('the GitHub issue', () => {
   const m = buildMarkup(input());
   it('says the line, links back to the markup in the inbox, and lists the page, parts, notes, steps and errors', () => {
-    const body = issueBody(m, { inboxUrl: 'https://faro.example/workspace?inbox=1&markup=mk_0123456789abcdef' });
+    const body = issueBody(m, { inboxUrl: 'https://faro.example/workspace/inbox?markup=mk_0123456789abcdef' });
     expect(issueTitle(m)).toBe('Markup: The “will it hit” cell wraps on a phone');
     expect(body).toContain('> The “will it hit” cell wraps on a phone');
-    expect(body).toContain('(https://faro.example/workspace?inbox=1&markup=mk_0123456789abcdef)');
+    expect(body).toContain('(https://faro.example/workspace/inbox?markup=mk_0123456789abcdef)');
     expect(body).toContain('- Goal page › Summary bar › Scorecard › Will it hit');
     expect(body).toContain('1. This dips');
     expect(body).toContain('`/goals/G-12?review=weekly`');

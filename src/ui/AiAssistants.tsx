@@ -37,7 +37,7 @@ export function AiAssistants({ mine = false }: { mine?: boolean }) {
               ))}
             </div>
           )}
-      {mine && app.viewer.admin && <p className="hint">As an admin, you see everyone’s tokens and make them for others on <Link to="/workspace">Workspace</Link>.</p>}
+      {mine && app.viewer.admin && <p className="hint">As an admin, you see everyone’s tokens and make them for others on <Link to="/workspace/access">Workspace, Access</Link>.</p>}
       {making && <TokenSheet onClose={() => setMaking(false)} />}
     </section>
   );
