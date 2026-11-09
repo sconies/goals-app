@@ -1357,12 +1357,12 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   await p.goto(url('/goals?view=history&hist=weekly'));
   const grid = p.locator('.hgrid').first();
   await grid.waitFor();
-  const quarterCols = await grid.locator('thead th').count();
+  const quarterCols = await grid.locator('thead th:not(.h-value)').count();
   const yearBtn = p.getByRole('group', { name: 'Weeks shown' }).getByRole('button', { name: 'Whole year' });
   await h.click(yearBtn);
   // The range is in the link now, so the grid redraws from it.
-  await p.waitForFunction(() => document.querySelectorAll('.hgrid thead th').length > 20, null, { timeout: 10000 }).catch(() => {});
-  const yearCols = await p.locator('.hgrid').first().locator('thead th').count();
+  await p.waitForFunction(() => document.querySelectorAll('.hgrid thead th:not(.h-value)').length > 20, null, { timeout: 10000 }).catch(() => {});
+  const yearCols = await p.locator('.hgrid').first().locator('thead th:not(.h-value)').count();
   const pressed = await yearBtn.getAttribute('aria-pressed').catch(() => '?');
   h.set('progress', quarterCols === WEEKS - 39 + 1 && yearCols === WEEKS + 1, `expected ${WEEKS - 39} then ${WEEKS} week columns, saw ${quarterCols - 1} then ${yearCols - 1} (Whole year pressed: ${pressed}; link ${new URL(p.url()).search})`);
   await h.checkpoint('year grid');
