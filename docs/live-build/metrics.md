@@ -1,4 +1,4 @@
-# Live build: the metric library's screens (Tuesday 10 November)
+# Live build: the metric library's screens (Wednesday 11 November)
 
 About 25 minutes in the talk. The point is to show **how a feature gets added with AI**: start from a manager's request, agree requirements with the room, refine them, then watch an AI build it on a tested foundation, inside the rules the project already has.
 

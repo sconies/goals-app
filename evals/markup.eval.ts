@@ -14,7 +14,8 @@ import { buildPlatformOrg } from '../src/data/platformOrg';
 import type { Snapshot } from '../src/domain/types';
 import { hashToken } from '../src/mcp/protocol';
 import { WHATS_NEW } from '../src/help/whatsNew';
-import { feedbackOps, tokenFeedback } from '../src/markup/feedback';
+import { feedbackOps } from '../src/markup/feedback';
+import { tokenFeedback } from '../src/adapters/supabase/feedback';
 import { raisedIn, raisedText } from '../src/markup/model';
 
 const M = (t: string) => `[MARKUP] ${t}`;
@@ -237,7 +238,7 @@ describe('Pictures for the assistant (backlog -2, opened by O)', () => {
 
   it(P('get_markup and review_inbox send any token the markup’s picture as image content, read by its public address; when the bucket isn’t open, they say why'), async () => {
     const { markupOps } = await import('../src/markup/ops');
-    const { tokenMarkups } = await import('../src/markup/stores');
+    const { tokenMarkups } = await import('../src/adapters/supabase/markups');
     const secret = (await as<{ s: string }>('anon', 'select okr_token_create($1, $2) as s', ['acme', JSON.stringify({ id: 'tok_pics', person_id: 'mateo', name: 'Claude, pictures', created_by: 'amara' })])).rows[0]!.s;
     const id = (await as<{ id: string }>('anon', 'select okr_markup_new_id() as id')).rows[0]!.id;
     await addMarkup({ id, workspace_id: 'platform-org', demo: true, line: 'The week strip needs the week', route: '/', parts: [[['Home', 'Week at a glance']]], strokes: [], pictures: ['screen.png', 'marked.jpg'], context: { viewport: { w: 390, h: 844, dpr: 3 }, theme: 'light', themeChoice: 'light', accent: 'faro', appVersion: 'x', sessionId: 's', host: 'goals-app-git-journeys-x.vercel.app' } });

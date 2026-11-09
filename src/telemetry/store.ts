@@ -7,7 +7,7 @@ import { errorType } from './errors';
 import type { Telemetry } from './client';
 
 export function tracedStore(store: Store, tel: Telemetry): Store {
-  const pg = store.kind === 'supabase';
+  const pg = store.kind !== 'browser';
   const timed = <T,>(op: string, run: () => Promise<T>, attrs: Record<string, unknown> = {}): Promise<T> => {
     // Read the parent now, while the action that called is still running.
     const span = tel.span(op, { kind: 'CLIENT', parent: tel.parent(), attributes: { 'db.system': pg ? 'postgresql' : 'browser', 'db.operation': op, ...attrs } });

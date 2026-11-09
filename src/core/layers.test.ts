@@ -26,9 +26,13 @@ describe('The layers', () => {
     put('src/modules/sheets/Import.tsx', "import { m } from '../maps/Map';\nexport const Import = 1;\n");
     put('src/modules/maps/module.json', '{ "id": "maps", "needs": ["sheets"] }');
     put('src/modules/maps/Map.tsx', "import { Import } from '../sheets/Import';\nexport const m = 1;\n");
+    put('src/data/leak.ts', "import type { SupabaseClient } from '@supabase/supabase-js';\nexport const db = () => import('@supabase/supabase-js');\n");
+    put('src/adapters/supabase/store.ts', "import { createClient } from '@supabase/supabase-js';\n");
     const found = check(dir);
     fs.rmSync(dir, { recursive: true, force: true });
     expect(found).toEqual([
+      expect.stringMatching(/^src\/data\/leak\.ts:1: imports @supabase\/supabase-js; only src\/adapters\/supabase\/ may import Supabase/),
+      expect.stringMatching(/^src\/data\/leak\.ts:2: imports @supabase\/supabase-js; only src\/adapters\/supabase\//),
       expect.stringMatching(/^src\/domain\/a\.ts:1: the rules layer \(src\/domain\) imports \.\.\/data\/store/),
       expect.stringMatching(/^src\/domain\/a\.ts:4: the rules layer \(src\/domain\) uses fetch/),
       expect.stringMatching(/^src\/domain\/b\.ts:2: the rules layer \(src\/domain\) uses localStorage/),

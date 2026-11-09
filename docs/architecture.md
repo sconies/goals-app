@@ -80,7 +80,8 @@ The build makes the registry (`vite.modules.ts`): every folder with a module.jso
 - **The layers lint** (`npm run lint:layers`, `scripts/check-layers.mjs`; also in `npm test` and CI):
   - `src/domain` imports only `src/domain` and uses no browser, network or storage;
   - nothing outside `src/modules` imports a module;
-  - a module imports another only if it lists it in `needs`.
+  - a module imports another only if it lists it in `needs`;
+  - only `src/adapters/supabase/` imports Supabase (8c).
 - **The manifest test** (`src/core/module.test.ts`) checks each module.json against its code: routes, places, help, tools, requirements, journeys and migrations.
 - **The spec** (`spec/`, `llms.txt`; `npm run spec`, items 8a and 8b) is generated from the code: `spec/core/` for the core, `spec/modules/<id>/` from each module.json, and `spec/conformance/` with what the rules give for every goal in every week of the demo. `src/spec/spec.test.ts` and CI's spec step fail when it is out of date; `src/spec/conformance.test.ts` recomputes the conformance rows.
 - **CI's "Core journeys without <module>" job** builds Faro with `FARO_WITHOUT=<module>` (that module, and anything that needs it, left out of the bundle). It then runs the smoke gate without the module's journeys. It runs for every folder in `src/modules`.
@@ -94,6 +95,10 @@ The build makes the registry (`vite.modules.ts`): every folder with a module.jso
 5. Run `npm test` and `npm run lint:layers`. Then run `FARO_WITHOUT=<id> npm run evals:smoke` to prove the core works without it.
 
 Moving an existing feature works the same way. Move its files into the folder, then replace the core's direct imports with places, routes and tools. Spreadsheets (Data's Spreadsheets menu, Import at `/data/import`, Goals' Export these goals, the `export` and `export_table` tools) is the worked example.
+
+## The outside parts (item 8c, 9 Nov)
+
+Everything Faro needs from outside its own code sits behind one interface in `src/ports/`, each with a contract test any replacement must pass (`src/ports/contracts/`): the goals store (`Store`), markups (`MarkupStore`), feedback (`FeedbackStore`), who is viewing (`Identity`), the time (`Clock`), files (`Files`) and where a metric's numbers come from (`NumberSource`). The adapters live in `src/adapters/`: `supabase/` (the real app's, and the only code that imports Supabase), `postgres/` (the goals store on plain Postgres, after `bootstrap.sql` and the same migrations), `demo/` (the demo's number source) and `local.ts` (the picker, the clocks, files in memory). `src/adapters/stores.test.ts` and `parts.test.ts` run every contract on Faro's adapters; Supabase's run on a stand-in for its client over real Postgres (PGlite), so they need no network. How to write one for another platform: `spec/rebuild/adapters.md`.
 
 ## Where it stands
 

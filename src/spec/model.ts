@@ -66,7 +66,7 @@ export function dataModelMarkdown(r: Repo): string {
     if (d.extends.length) out.push(`Has every field of ${d.extends.map((e) => `[${e}](#${e.toLowerCase()})`).join(', ')}, and:`, '');
     if (d.fields.length) out.push(table(['Field', 'Type', 'Required', 'Meaning'], d.fields.map((f) => [`\`${f.name}\``, `\`${cell(f.type)}\``, f.optional ? 'no' : 'yes', cell(f.doc)])), '');
   }
-  out.push('## Where they are stored', '', 'One Postgres database (Supabase). Each table holds one kind of record for every workspace (a `workspace_id` column), created by the migration named. `src/data/supabaseStore.ts` maps rows to the records above; `src/data/rows.ts` does the field-by-field conversion.', '');
+  out.push('## Where they are stored', '', 'One Postgres database (Supabase). Each table holds one kind of record for every workspace (a `workspace_id` column), created by the migration named. `src/adapters/supabase/goalsStore.ts` maps rows to the records above; `src/data/rows.ts` does the field-by-field conversion.', '');
   out.push(table(['Table', 'First created by'], tables(r).map((t) => [`\`${t.name}\``, `\`supabase/migrations/${t.migration}\``])), '');
   return out.join('\n');
 }
