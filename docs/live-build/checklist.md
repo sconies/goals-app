@@ -6,7 +6,7 @@ Tick each line on Tuesday evening, then do the "15 minutes before" block again o
 
 **The app**
 - [ ] `https://goals-app-puce-five.vercel.app/api/mcp?check` says database and pictures are true.
-- [ ] `/demo` → Demo controls → **Start over** works; view as **Rhea Kapoor**; light theme.
+- [ ] `/demo?today=2026-11-11` → Demo controls → **Start over** works; view as **Rhea Kapoor**; light theme.
 - [ ] The root page shows the splash then the welcome page (load it once first: the first load is slow).
 - [ ] Walk Parts 1 and 2 of `docs/demo-script.md` once, out loud, timed (targets 10 and 5 minutes). Note any screen that looks odd.
 - [ ] As Amara Nwosu: Home shows 126 goals and the review ring; this week's review walkthrough opens.
@@ -23,12 +23,12 @@ Tick each line on Tuesday evening, then do the "15 minutes before" block again o
 
 **The room**
 - [ ] Laptop at full width, browser zoom so the back row can read (try 125%), notifications off, a charger.
-- [ ] Tabs, in order: `/demo`; the root page; `docs/live-build/metrics.md` on GitHub; claude.ai/code; the fallback preview; the drill review (`docs/reviews/2026-11-08-drill-1.md`).
+- [ ] Tabs, in order: `/demo?today=2026-11-11`; the root page; `docs/live-build/metrics.md` on GitHub; claude.ai/code; the fallback preview; the drill reviews (`docs/reviews/2026-11-08-drill-1.md`, `docs/reviews/2026-11-09-drill-2.md`).
 - [ ] A phone hotspot in case the venue's network blocks claude.ai or Vercel.
 
 ## Wednesday, 15 minutes before
 
-- [ ] Health check link is true; `/demo` → **Start over** → Rhea Kapoor → light theme.
+- [ ] Health check link is true; `/demo?today=2026-11-11` → **Start over** → Rhea Kapoor → light theme.
 - [ ] Root page loaded once in its tab (so the splash is quick in front of the room).
 - [ ] Fallback preview opens.
 - [ ] A fresh Claude Code session is open on goals-app, environment goals-app, mode Auto, nothing typed yet.
