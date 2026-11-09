@@ -5,11 +5,12 @@ import { LEVEL_LABEL } from './format';
 import { weekDate } from './plan';
 import { quarterOf } from './year';
 import type { Change, Cycle, Level, Snapshot } from './types';
+import { VIA_LABEL, VIA_MCP_BEFORE } from './changeset';
 
 export type ActivityKind = 'checkins' | 'plans' | 'goals' | 'reviews' | 'comments' | 'people' | 'imports' | 'ai' | 'cycle';
 export const ACTIVITY_KINDS: [ActivityKind, string][] = [
   ['checkins', 'Check-ins'], ['plans', 'Plans and targets'], ['goals', 'Goal details'], ['reviews', 'Reviews'],
-  ['comments', 'Comments'], ['people', 'People and admins'], ['imports', 'Imports and bulk edits'], ['ai', 'AI assistant'], ['cycle', 'Wrap-ups and cycles'],
+  ['comments', 'Comments'], ['people', 'People and admins'], ['imports', 'Imports and bulk edits'], ['ai', 'Via MCP'], ['cycle', 'Wrap-ups and cycles'],
 ];
 export type When = 'this-week' | 'last-week' | 'quarter' | 'custom';
 export const WHEN_OPTIONS: [When, string][] = [['this-week', 'This week'], ['last-week', 'Last week'], ['quarter', 'This quarter'], ['custom', 'Between two dates']];
@@ -70,7 +71,7 @@ const PLAN_FIELDS = ['Start', 'Target', 'Plan shape', 'Target due', 'Plan number
 
 /** What kind of change this is. A goal change that touches its plan or target counts as a plan change. */
 export function kindOf(c: Change): ActivityKind {
-  if (VIA(c) === 'AI assistant (MCP)') return 'ai';
+  if (VIA(c) === VIA_LABEL.mcp || VIA(c) === VIA_MCP_BEFORE) return 'ai';
   if (c.action === 'imported' || c.action === 'undone') return 'imports';
   if (c.entity === 'check-in') return 'checkins';
   if (c.entity === 'metric') return 'goals';

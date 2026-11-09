@@ -1323,14 +1323,16 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await p.context().close();
 });
 
-journey('U22', ['MCP-TOKENS'], 'An admin gives a teammate a token for an AI assistant, then revokes it', 10, async (h, device) => {
+journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP token, then revokes it; a builder token made before is labelled apart', 10, async (h, device) => {
   const p = h.use(await newPage(device));
   // A real-app workspace (kept in the browser for the evals), copied from the example, with Amara as the admin.
   await p.goto(url('/'));
   await p.locator('.page-head').first().waitFor();
   await p.evaluate(async () => {
     const full = await window.__goalsStore.load('platform-org');
-    const ex = { ...full, tokens: [], changes: [], checkIns: full.checkIns.filter((c) => c.week >= 42) };
+    // One builder token made before the inbox opened (backlog 10a): it works as an ordinary one and is labelled apart.
+    const builder = { id: 'tok_builder', personId: 'amara', name: 'Inbox on my phone', createdBy: 'amara', createdAt: '2026-11-01T09:00:00Z', lastUsedAt: null, revokedAt: null, builder: true };
+    const ex = { ...full, tokens: [builder], changes: [], checkIns: full.checkIns.filter((c) => c.week >= 42) };
     localStorage.setItem('goals-live-v1:workspaces', JSON.stringify([{ id: 'ws_live', name: 'Platform', kind: 'own', createdAt: '2026-09-01T00:00:00Z' }]));
     localStorage.setItem('goals-live-v1:ws_live', JSON.stringify(ex));
     localStorage.setItem('goals-live-workspace', 'ws_live');
@@ -1338,8 +1340,9 @@ journey('U22', ['MCP-TOKENS'], 'An admin gives a teammate a token for an AI assi
   });
   await p.goto(live('/workspace/access'));
   // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
-  await p.getByRole('heading', { name: 'AI assistants' }).scrollIntoViewIfNeeded();
-  await h.click(p.getByRole('button', { name: 'Make a token' }));
+  await p.getByRole('heading', { name: 'MCP access' }).scrollIntoViewIfNeeded();
+  h.set('attention', /Connect Claude or another AI tool to Faro through MCP/.test(await p.locator('.ai-block').innerText()) && /builder token/.test(await p.locator('.ai-block').getByText('Inbox on my phone').first().innerText()), 'MCP access does not say what it is, or does not label the builder token apart');
+  await h.click(p.getByRole('button', { name: 'Make an MCP token' }));
   const dlg = p.getByRole('dialog');
   await dlg.getByLabel('Who it acts as').selectOption({ label: 'Mateo Fernández' });
   h.set('errors', await dlg.getByRole('button', { name: 'Make the token' }).isDisabled(), 'a token can be made without saying what it is for');
@@ -1351,13 +1354,13 @@ journey('U22', ['MCP-TOKENS'], 'An admin gives a teammate a token for an AI assi
   h.set('attention', /^gk_[A-Za-z0-9]{40}$/.test(token) && (await dlg.getByLabel('Claude Code command').inputValue()).includes('/api/mcp'), 'the token or the connection command is missing');
   await h.checkpoint('token');
   await h.click(dlg.getByRole('button', { name: 'Done' }));
-  const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-live-v1:ws_live')).tokens);
+  const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-live-v1:ws_live')).tokens.filter((t) => !t.builder));
   const hash = await p.evaluate(async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join(''), token);
   h.set('logged', stored.length === 1 && stored[0].tokenHash === hash && stored[0].personId === 'mateo' && !JSON.stringify(stored).includes(token), 'the token was stored in plain text, or not at all');
   await see(p, 'not used yet');
   await h.click(p.getByRole('button', { name: 'Revoke Claude on Mateo’s laptop' }));
   await see(p, 'Revoked');
-  const after = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-live-v1:ws_live')).tokens);
+  const after = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-live-v1:ws_live')).tokens.filter((t) => !t.builder));
   h.set('finish', !!after[0].revokedAt, 'the token was not revoked');
   h.set('progress', true);
   await p.context().close();
@@ -2362,7 +2365,7 @@ function seed75() {
 }
 
 
-journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Privacy (read-only), and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
+journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees Overview, People, Teams, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
   const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'grace'));
@@ -2407,7 +2410,7 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.goto(BASE + '/demo/workspace?today=' + TODAY + '#people');
   const toPeople = await p.waitForURL(/\/workspace\/people/, { timeout: 5000 }).then(() => true, () => false);
   h.set('errors', toInbox && toPeople, `old links: the inbox’s ${toInbox}, #people ${toPeople}`);
-  // Someone who isn't an admin: Overview, People, Teams and Privacy, and an admins' section says whose it is.
+  // Someone who isn't an admin: Overview, People, Teams, Cycles, Privacy and Recently removed, and an admins' section says whose it is.
   await viewAs(p, 'Oskar');
   await p.goto(url('/workspace'));
   await menu.waitFor();
@@ -2418,7 +2421,12 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.goto(url('/workspace/privacy'));
   const reads = await see(p, 'Only admins change it').then(() => true, () => false);
   const noSwitch = await p.getByRole('checkbox', { name: /Record how the app is used/ }).count() === 0;
-  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Privacy']) && told && reads && noSwitch && await p.getByRole('button', { name: 'Make a token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}`);
+  // Cycles reads for everyone, with nothing to delete; Recently removed lists only what they removed (8 Nov).
+  await p.goto(url('/workspace/cycles'));
+  const cyclesRead = await see(p, 'Only admins delete a cycle').then(() => true, () => false) && await p.getByRole('button', { name: /^Delete the cycle/ }).count() === 0;
+  await p.goto(url('/workspace/removed'));
+  const ownOnly = await see(p, 'Admins see what everyone has removed.').then(() => true, () => false);
+  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Cycles', 'Privacy', 'Recently removed']) && told && reads && noSwitch && cyclesRead && ownOnly && await p.getByRole('button', { name: 'Make an MCP token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}; Cycles read-only ${cyclesRead}; Recently removed their own ${ownOnly}`);
   await p.context().close();
 }, ['logged']);
 
@@ -2437,9 +2445,9 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   // Rhea isn't an admin: Workspace says her permissions and who the admins are; her badge doesn't say Admin.
   await p.goto(url('/workspace/overview'));
   const perms = await p.locator('.ws-perms').innerText();
-  h.set('attention', /you’re a member here/.test(perms) && /Grace Achterberg/.test(perms) && /Cycles, Access, Features and Recently removed/.test(perms), `a member’s permissions line says “${perms}”`);
+  h.set('attention', /you’re a member here/.test(perms) && /Grace Achterberg/.test(perms) && /Access and Features/.test(perms) && !/Cycles/.test(perms), `a member’s permissions line says “${perms}”`);
   if (!phone) h.set('attention', !/Admin/.test(await p.locator('.side .me').innerText()), 'a member’s badge says Admin');
-  h.set('attention', await p.getByRole('heading', { name: /To look at here/ }).isVisible() && await p.getByRole('list', { name: 'Every section' }).getByRole('link').count() === 3, 'the overview does not lead with what needs attention, then every section');
+  h.set('attention', await p.getByRole('heading', { name: /To look at here/ }).isVisible() && await p.getByRole('list', { name: 'Every section' }).getByRole('link').count() === 5, 'the overview does not lead with what needs attention, then every section');
   await h.checkpoint('member');
   // Part-way through a check-in, switching asks first and says the draft stays. (A phone's check-in takes the whole
   // screen, with no switcher: there you switch from Home.)
@@ -3193,6 +3201,8 @@ async function platformChecks() {
           else if (sides.length === 4 && (new Set(sides.map((x) => x.c)).size > 1 || new Set(sides.map((x) => x.w)).size > 1) && thick.length) out.push(name(el) + ': one edge unlike the others');
           if (/(^|, )[^,]*?([2-9]|\d{2})(\.\d+)?px 0px 0px 0px inset|0px ([2-9]|\d{2})px 0px 0px inset/.test(cs.boxShadow)) out.push(name(el) + ': an inset accent bar');
           if (/gradient/.test(cs.backgroundImage) && !el.closest('.skeleton')) out.push(name(el) + ': a gradient');
+          // Glass: a translucent bar blurring what scrolls under it (deep review D1). Surfaces are flat.
+          if ((cs.backdropFilter && cs.backdropFilter !== 'none') || (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none')) out.push(name(el) + ': glass (a backdrop blur)');
           if (parseFloat(cs.borderTopLeftRadius) >= 999 && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && /result|status|state|badge/.test(String(el.className)) && !/^\s*\d+\s*$/.test(el.textContent || '')) out.push(name(el) + ': a capsule badge for a state');
           for (const pseudo of ['::before', '::after']) { const c = getComputedStyle(el, pseudo).content; if (/[⚠✓✗✔❌⭐🔥★✕↘‹›⌄−▾↩]/.test(c)) out.push(name(el) + pseudo + ': a glyph used as an icon'); }
         }
@@ -3206,7 +3216,7 @@ async function platformChecks() {
     await c4.close();
   }
   lap('P6');
-  if (want('P6')) add('P6', ['DESIGN-RULES', 'SHAPE-MATCHES-WORD'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules, and every status shape beside its own word', !design.length, design.slice(0, 6).join(' | '));
+  if (want('P6')) add('P6', ['DESIGN-RULES', 'SHAPE-MATCHES-WORD'], 'Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients, glass or state capsules, and every status shape beside its own word', !design.length, design.slice(0, 6).join(' | '));
   // P7: wide screens and a short laptop. Each kind of page uses the room it has: no clipped tables, portfolio views and
   // the map fill the work area, Home, a goal and Watching put their side column beside the main one, and on a 1440×700
   // laptop a goal's chart starts above the fold.

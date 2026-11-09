@@ -52,7 +52,7 @@ describe('metric library tools', () => {
     expect(m).toMatchObject({ ownerId: 'oskar', refresh: 'daily', decimals: 0 });
     const log = data().changes.find((c) => c.entityId === m.id)!;
     expect(log).toMatchObject({ actorId: 'oskar', entity: 'metric', action: 'created' });
-    expect(log.diffs.at(-1)).toEqual({ field: 'Via', from: '—', to: 'AI assistant (MCP)' });
+    expect(log.diffs.at(-1)).toEqual({ field: 'Via', from: '—', to: 'MCP' });
     const again = await call('save_metric', { name: 'build TIME', unit: 'min', direction: 'lower' });
     expect(again).toMatchObject({ isError: true });
     expect(again.content[0]!.text).toMatch(/already a metric called Build time/);

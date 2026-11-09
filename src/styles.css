@@ -445,8 +445,8 @@ svg.chart { display: block; overflow: visible; }
   .shell { display: block; }
   .side { display: none; }
   .work { min-height: calc(100vh - 128px); padding-bottom: 76px; }
-  .mtop { display: flex; align-items: center; gap: 12px; padding: 12px 12px; position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line-2); }
-  .tabbar { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--line); }
+  .mtop { display: flex; align-items: center; gap: 12px; padding: 12px 12px; position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line-2); }
+  .tabbar { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--line); }
   .tabbar a, .tabbar button { min-height: 52px; border: 0; background: transparent; color: var(--muted); font-size: 0.7188rem; font-weight: 600; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
   .tabbar [aria-current="page"] { color: var(--accent-text); }
   .tabicon { position: relative; display: inline-flex; }
@@ -985,6 +985,10 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .iconbtn { min-width: 44px; min-height: 44px; }
   .seg button { padding-inline: 14px; }
 }
+
+/* Workspace's switches (Admin, a feature, recording) on a phone or a touch screen: the whole row is the target, 44px at
+   least (deep review D3). */
+@media (max-width: 640px), (pointer: coarse) { .admin-check, .feature-check, .record-check { min-height: 44px; } }
 
 /* A walkthrough moved to the top sits below a review's own bar rather than over its buttons. */
 

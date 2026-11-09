@@ -13,7 +13,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Numbers and names](numbers-and-names.md) | How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart. |
 | [Flags, the trend and needs attention](flags.md) | Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled. |
 | [The scorecard](scorecard.md) | The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target. |
-| [The change engine](change-engine.md) | The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and the AI assistant. |
+| [The change engine](change-engine.md) | The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP. |
 | [The workspace: cycles, teams, names, leaving and what needs attention](workspace.md) | What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention. |
 
 ## The numbers the rules turn on

@@ -347,7 +347,7 @@ export function createToken(x: ActionContext, personId: string, name: string): C
   if (!name.trim()) no('Say what the token is for, e.g. “Claude on my laptop”.');
   if (name.trim().length > 120) no('Keep what it’s for to 120 characters.');
   const t: ApiToken = { id: x.newId('tok'), personId, name: name.trim(), createdBy: x.actor.id, createdAt: x.now, lastUsedAt: null, revokedAt: null };
-  return { tokens: [t], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'person', entityId: personId, action: 'created', summary: `Gave ${who!.name} an AI assistant token: “${t.name}”`, diffs: [{ field: 'AI assistant token', from: '—', to: t.name }] }] };
+  return { tokens: [t], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'person', entityId: personId, action: 'created', summary: `Gave ${who!.name} an MCP token: “${t.name}”`, diffs: [{ field: 'MCP token', from: '—', to: t.name }] }] };
 }
 
 /** Stop a token working: an admin, or the token's person. Null when it's already revoked. */
@@ -356,7 +356,7 @@ export function revokeToken(x: ActionContext, id: string): Commit | null {
   if (!t) no('There’s no token with that ID.');
   if (t!.revokedAt) return null;
   if (!x.actor.admin && t!.personId !== x.actor.id) no('Only an admin or the token’s person can revoke it.');
-  return { tokens: [{ ...t!, revokedAt: x.now }], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'person', entityId: t!.personId, action: 'edited', summary: `Revoked the AI assistant token “${t!.name}”`, diffs: [{ field: 'AI assistant token', from: t!.name, to: 'Revoked' }] }] };
+  return { tokens: [{ ...t!, revokedAt: x.now }], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'person', entityId: t!.personId, action: 'edited', summary: `Revoked the MCP token “${t!.name}”`, diffs: [{ field: 'MCP token', from: t!.name, to: 'Revoked' }] }] };
 }
 
 /* ---------- Feedback about the app ---------- */

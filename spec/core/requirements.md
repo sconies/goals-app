@@ -707,21 +707,21 @@ A goal map shows every goal on a canvas that can be panned, zoomed and rearrange
 
 An admin can make a personal token for any person, named for what it is for; it is shown once, only its SHA-256 hash is stored, and it can be revoked. An AI assistant using it through the MCP server acts as that person: the same rights and rules as the app, every change logged as theirs via MCP, writes checkable with a dry run, and a revoked or wrong token refused.
 
-- **Help:** “Workspace: Access” (`workspace-access`); “AI assistants (MCP)” (`ai-assistants`)
+- **Help:** “Workspace: Access” (`workspace-access`); “MCP access” (`ai-assistants`)
 - **Journeys and checks:** U22
 
 ### MCP-PARITY
 
 Everything a person can do in the app, their AI assistant can do through the MCP server, with exactly that person's rights and the app's rules, logged as them via the assistant: reading every screen (what needs them, goals, reviews, requests, watching, people, activity, views, tokens, the wrap-up) and every action (check-ins, goals, plans, comments, asks for an update, answering, linking and withdrawing requests, review calls, reviews, watching, people, wrap-ups, the next cycle, views, tokens, feedback, deleting the workspace). Only workspace set-up and switching stay in the app. A parity map is checked against the app's actions and screens.
 
-- **Help:** “AI assistants (MCP)” (`ai-assistants`)
+- **Help:** “MCP access” (`ai-assistants`)
 - **Tests:** `evals/mcp.eval.ts` (12)
 
 ### TOKENS-SERVER-ONLY
 
 AI assistant tokens are made and revoked only by security-definer functions (okr_token_create, okr_token_revoke) that make the secret in the database, store only its SHA-256 hash and return it once. The public key can't read, add or change okr_api_tokens; the app lists token metadata (never the hash) with okr_token_list, and the MCP server finds a token with okr_token_find. The public key can't read okr_feedback; Workspace reads a workspace's with okr_feedback_list. AI assistants and Workspace's feedback keep working.
 
-- **Help:** “AI assistants (MCP)” (`ai-assistants`)
+- **Help:** “MCP access” (`ai-assistants`)
 
 ## Leaders
 

@@ -96,7 +96,7 @@ describe('MCP server', () => {
     expect(ok.isError).toBe(false);
     const c = data().checkIns.find((x) => x.goalId === 'mttr-pir' && x.week === NOW)!;
     expect(c.authorId).toBe('mateo');
-    expect(data().changes.at(-2)!.diffs).toEqual(expect.arrayContaining([{ field: 'Via', from: '—', to: 'AI assistant (MCP)' }]));
+    expect(data().changes.at(-2)!.diffs).toEqual(expect.arrayContaining([{ field: 'Via', from: '—', to: 'MCP' }]));
     expect(touched()).toBeGreaterThan(0);
   });
 

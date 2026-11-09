@@ -30,7 +30,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U17 | Demo data sets, presenting without the bar, and deleting a workspace |  | `DEMO-MODE` `WORKSPACES` | 12 | `evals/journeys.cjs` |
 | U18 | Set a goal for the year and its plan numbers by hand |  | `PLAN-SHAPE` `GOAL-CREATE` `YEAR` | 12 | `evals/journeys.cjs` |
 | U21 | Type the week’s numbers in one table, and change several goals at once |  | `BULK-EDIT` | 14 | `evals/journeys.cjs` |
-| U22 | An admin gives a teammate a token for an AI assistant, then revokes it |  | `MCP-TOKENS` | 10 | `evals/journeys.cjs` |
+| U22 | MCP access: an admin gives a teammate an MCP token, then revokes it; a builder token made before is labelled apart |  | `MCP-TOKENS` | 10 | `evals/journeys.cjs` |
 | U23 | See the year in quarters: where we are, each quarter met or missed, and the year’s history |  | `YEAR` | 6 | `evals/journeys.cjs` |
 | U24 | Two people change the same goal at once: the second is told, not overwritten |  | `NO-LOST-UPDATES` | 8 | `evals/journeys.cjs` |
 | U25 | Publish a goal, then post its first check-in straight away |  | `FIRST-CHECKIN` `GOAL-CREATE` | 12 | `evals/journeys.cjs` |
@@ -56,7 +56,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U45 | Undo an import: every row back as it was, and a row changed since skipped and listed | A goal owner | `IMPORT-UNDO` `BULK-EDIT` | 8 | `evals/journeys.cjs` |
 | U47 | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so |  | `CONNECT-CLAUDE` `MARKUP-INBOX` | 12 | `evals/journeys.cjs` |
 | U49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all | Someone trying Faro after the demo | `ONBOARDING` `WORKSPACES` `REVIEWS` `CALENDAR-WEEKS` `DEMO-MODE` | 30 | `evals/journeys.cjs` |
-| U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Privacy (read-only), and old links still land, the inbox’s at Feedback | An admin, then a team member | `WORKSPACE-SECTIONS` | 14 | `evals/journeys.cjs` |
+| U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees Overview, People, Teams, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback | An admin, then a team member | `WORKSPACE-SECTIONS` | 14 | `evals/journeys.cjs` |
 | U52 | Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time | Anyone | `INBOX-TRIAGE` `MARKUP-INBOX` `FEEDBACK-INBOX` | 30 | `evals/journeys.cjs` |
 | U53 | Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role and permissions are said, the overview leads with what needs attention, Feedback is beside Help, and a member leaves |  | `WORKSPACE-ONE-PLACE` `FEEDBACK-PAGE` `LEAVE-WORKSPACE` | 45 | `evals/journeys.cjs` |
 
@@ -68,7 +68,7 @@ Checks run across every screen: design rules, widths, motion, errors.
 |---|---|---|---|
 | P1 | Animation switches off under reduced motion | `MOTION` | `evals/journeys.cjs` |
 | P2 | Loading shows a skeleton, and an unreachable database becomes a clear error with Try again | `MOTION` `NO-ERRORS` | `evals/journeys.cjs` |
-| P6 | Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients or state capsules, and every status shape beside its own word | `DESIGN-RULES` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
+| P6 | Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients, glass or state capsules, and every status shape beside its own word | `DESIGN-RULES` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P7 | Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold | `WIDE-SCREENS` | `evals/journeys.cjs` |
 | P8 | The goals start in the first screen: the Goals header stays short on a phone and a desktop | `WIDE-SCREENS` `PHONE` | `evals/journeys.cjs` |
 | P9 | Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width | `EVERY-WIDTH` | `evals/journeys.cjs` |

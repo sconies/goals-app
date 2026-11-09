@@ -182,7 +182,7 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     expect((await as<{ id: string }>('anon', `select id from okr_feedback_for_token($1, fid => 'fb_m1')`, [hash])).rows.map((r) => r.id)).toEqual(['fb_m1']);
     expect((await as('anon', `select id from okr_feedback_for_token($1, ws => 'elsewhere')`, [hash])).rows).toEqual([]);
     const triage = (patch: object) => as<{ status: string }>('anon', 'select * from okr_feedback_triage_for_token($1, $2, $3)', [hash, 'fb_m1', JSON.stringify(patch)]);
-    expect((await triage({ status: 'in-hand', status_by: 'Mateo via AI assistant (MCP)' })).rows[0]!.status).toBe('in-hand');
+    expect((await triage({ status: 'in-hand', status_by: 'Mateo via MCP' })).rows[0]!.status).toBe('in-hand');
     await expect(triage({ status: 'fixed' })).rejects.toThrow();
     await expect(triage({ status: 'wont-fix' })).rejects.toThrow();
     // The inbox's own triage still works, through the same change.

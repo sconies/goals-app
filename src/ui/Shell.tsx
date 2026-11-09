@@ -78,7 +78,7 @@ function YouMenu({ onClose }: { onClose: () => void }) {
     <section className="stack you-menu" style={{ gap: 4 }} aria-label="You">
       <Link className="menuitem" to="/settings" onClick={onClose}>
         <Icon name="settings" size={18} />
-        <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, sidebar, your AI assistants</span></span>
+        <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, sidebar, your MCP access</span></span>
       </Link>
     </section>
   );
@@ -330,7 +330,7 @@ function ShellBody({ children }: { children: ReactNode }) {
             <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
           {moduleNav.map((n) => <Link key={n.id} to={n.to} className="menuitem" onClick={() => setSheet(null)}>{n.icon}<span className="strong">{n.label}</span></Link>)}
-          <Link className="menuitem" to="/settings" onClick={() => setSheet(null)}><Icon name="settings" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, your AI assistants</span></span></Link>
+          <Link className="menuitem" to="/settings" onClick={() => setSheet(null)}><Icon name="settings" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, your MCP access</span></span></Link>
           <Link className="menuitem more-help" to="/help" onClick={() => setSheet(null)}><Icon name="help" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Help{unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}</span><span className="tiny muted">What everything does, and what’s new</span></span></Link>
           <Link className="menuitem more-inbox" to="/feedback" onClick={() => setSheet(null)}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 9.5 4 3.5h8l1.5 6v3h-11z" /><path d="M2.5 9.5h3.2l.8 1.5h3l.8-1.5h3.2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Feedback</span><span className="tiny muted">From every workspace and the demo</span></span></Link>
           {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.5 2" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Demo controls</span><span className="tiny muted">See it as someone else, walkthroughs, research, reset</span></span></button>}

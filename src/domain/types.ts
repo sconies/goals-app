@@ -496,6 +496,9 @@ export interface ApiToken {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  /** Made as a builder token, before Faro opened its inbox (migration 0031): it now works as an ordinary token, and is
+      labelled apart (backlog 10a). Read from the database (okr_token_list, migration 0034); never saved by the app. */
+  builder?: boolean;
 }
 
 export interface Feedback {

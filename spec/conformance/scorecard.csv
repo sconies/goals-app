@@ -4949,7 +4949,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 10,G-57,target,32 pts to go,flat,,To target,target 100%
 10,G-57,hit,Possible,flat,possible,Will it hit 100%?,likely 100% by year end
 10,G-58,limit,Inside it,good,,Vs the limit,must stay at most 120 ms
-10,G-58,since,1 m worse,bad,,Vs last week,was 101 ms in week 9
+10,G-58,since,1 ms worse,bad,,Vs last week,was 101 ms in week 9
 10,G-58,room,18 ms of room,good,,Room to the limit,warning within 10 ms
 10,G-58,hit,Likely,good,likely,Will it stay within?,likely 96 ms by year end
 10,G-59,plan,On plan,flat,,Vs plan,plan 0.79 USD
@@ -7326,7 +7326,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 15,G-57,target,28 pts to go,flat,,To target,target 100%
 15,G-57,hit,Possible,flat,possible,Will it hit 100%?,likely 100% by year end
 15,G-58,limit,Inside it,good,,Vs the limit,must stay at most 120 ms
-15,G-58,since,1 m better,good,,Vs last week,was 103 ms in week 14
+15,G-58,since,1 ms better,good,,Vs last week,was 103 ms in week 14
 15,G-58,room,18 ms of room,good,,Room to the limit,warning within 10 ms
 15,G-58,hit,Likely,good,likely,Will it stay within?,likely 102 ms by year end
 15,G-59,plan,On plan,flat,,Vs plan,plan 0.77 USD
@@ -9711,7 +9711,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 20,G-57,target,24 pts to go,flat,,To target,target 100%
 20,G-57,hit,Possible,flat,possible,Will it hit 100%?,likely 98% by year end
 20,G-58,limit,Inside it,good,,Vs the limit,must stay at most 120 ms
-20,G-58,since,1 m better,good,,Vs last week,was 101 ms in week 19
+20,G-58,since,1 ms better,good,,Vs last week,was 101 ms in week 19
 20,G-58,room,20 ms of room,good,,Room to the limit,warning within 10 ms
 20,G-58,hit,Likely,good,likely,Will it stay within?,likely 101 ms by year end
 20,G-59,plan,0.01 USD behind plan,bad,,Vs plan,plan 0.74 USD
@@ -11142,7 +11142,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 23,G-57,target,23 pts to go,flat,,To target,target 100%
 23,G-57,hit,Unlikely,bad,unlikely,Will it hit 100%?,likely 96% by year end
 23,G-58,limit,Inside it,good,,Vs the limit,must stay at most 120 ms
-23,G-58,since,1 m better,good,,Vs last week,was 104 ms in week 22
+23,G-58,since,1 ms better,good,,Vs last week,was 104 ms in week 22
 23,G-58,room,17 ms of room,good,,Room to the limit,warning within 10 ms
 23,G-58,hit,Likely,good,likely,Will it stay within?,likely 112 ms by year end
 23,G-59,plan,0.01 USD behind plan,bad,,Vs plan,plan 0.73 USD
@@ -14958,7 +14958,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 31,G-57,target,16 pts to go,flat,,To target,target 100%
 31,G-57,hit,Possible,flat,possible,Will it hit 100%?,likely 99% by year end
 31,G-58,limit,Inside it,good,,Vs the limit,must stay at most 120 ms
-31,G-58,since,1 m better,good,,Vs last week,was 101 ms in week 29
+31,G-58,since,1 ms better,good,,Vs last week,was 101 ms in week 29
 31,G-58,room,20 ms of room,good,,Room to the limit,warning within 10 ms
 31,G-58,hit,Likely,good,likely,Will it stay within?,likely 94 ms by year end
 31,G-59,plan,On plan,flat,,Vs plan,plan 0.72 USD in week 30
@@ -15912,7 +15912,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 33,G-57,target,14 pts to go,flat,,To target,target 100%
 33,G-57,hit,Possible,flat,possible,Will it hit 100%?,likely 100% by year end
 33,G-58,limit,Inside it,good,,Vs the limit,must stay at most 120 ms
-33,G-58,since,1 m worse,bad,,Vs last week,was 102 ms in week 32
+33,G-58,since,1 ms worse,bad,,Vs last week,was 102 ms in week 32
 33,G-58,room,17 ms of room,good,,Room to the limit,warning within 10 ms
 33,G-58,hit,Likely,good,likely,Will it stay within?,likely 102 ms by year end
 33,G-59,plan,On plan,flat,,Vs plan,plan 0.70 USD
@@ -18297,7 +18297,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 38,G-57,target,10 pts to go,flat,,To target,target 100%
 38,G-57,hit,Possible,flat,possible,Will it hit 100%?,likely 100% by year end
 38,G-58,limit,Inside it,good,,Vs the limit,must stay at most 120 ms
-38,G-58,since,1 m worse,bad,,Vs last week,was 99 ms in week 37
+38,G-58,since,1 ms worse,bad,,Vs last week,was 99 ms in week 37
 38,G-58,room,20 ms of room,good,,Room to the limit,warning within 10 ms
 38,G-58,hit,Likely,good,likely,Will it stay within?,likely 99 ms by year end
 38,G-59,plan,On plan,flat,,Vs plan,plan 0.68 USD
@@ -21644,7 +21644,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 45,G-57,target,6 pts to go,flat,,To target,target 100%
 45,G-57,hit,Unlikely,bad,unlikely,Will it hit 100%?,likely 99% by year end
 45,G-58,limit,"Inside, near it",flat,,Vs the limit,must stay at most 120 ms
-45,G-58,since,1 m worse,bad,,Vs last week,was 110 ms in week 44
+45,G-58,since,1 ms worse,bad,,Vs last week,was 110 ms in week 44
 45,G-58,room,9 ms of room,flat,,Room to the limit,warning within 10 ms
 45,G-58,hit,Unlikely,bad,unlikely,Will it stay within?,likely 124 ms by year end
 45,G-59,plan,On plan,flat,,Vs plan,plan 0.65 USD

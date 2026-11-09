@@ -9,12 +9,13 @@ import * as R from '../domain/removal';
 import { checkInsFor } from '../domain/status';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { COMMENT_REMOVED, ENDED, NOTE_REMOVED } from '../domain/vocabulary';
+import { VIA_MCP } from '../domain/changeset';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });
 const REMOVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
-const VIA = { field: 'Via', from: '—', to: 'AI assistant (MCP)' };
+const VIA = VIA_MCP;
 const KINDS = Object.keys(R.REMOVED_LABEL) as R.RemovedKind[];
 
 const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}) });
@@ -44,7 +45,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(_a, ctx) {
-      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today).filter((r) => ctx.actor.admin || r.by === ctx.actor.id);
+      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today).filter((r) => R.canRestore(ctx.actor, r));
       const who = (id: string | null) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? '—';
       const list = all.map((r) => ({ kind: r.kind, label: R.REMOVED_LABEL[r.kind], id: r.id, name: r.name, removedBy: who(r.by), at: r.at }));
       return { data: { removed: list }, text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join('\n') : 'Nothing removed in the last 30 days.' };

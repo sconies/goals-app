@@ -8,11 +8,12 @@ import { findGoal, isKey } from '../../domain/goalKey';
 import * as M from '../../domain/metrics';
 import type { Metric, MetricDirection, MetricRefresh } from '../../domain/types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
+import { VIA_MCP } from '../../domain/changeset';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
-const VIA = { field: 'Via', from: '—', to: 'AI assistant (MCP)' };
+const VIA = VIA_MCP;
 
 const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}) });
 const save = (ctx: McpContext, c: Commit) => ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });

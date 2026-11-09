@@ -45,7 +45,7 @@ async function as(personId: string, today = TODAY, start?: Snapshot) {
   };
   return { call, data: () => data, deleted: () => deleted };
 }
-const viaMcp = (s: Snapshot) => s.changes.at(-1)!.diffs.some((d) => d.field === 'Via' && d.to === 'AI assistant (MCP)');
+const viaMcp = (s: Snapshot) => s.changes.at(-1)!.diffs.some((d) => d.field === 'Via' && d.to === 'MCP');
 
 describe('AI assistants can do what the person can', () => {
   it(R('every action in the app has a tool, and every tool the app’s parity map names exists'), () => {

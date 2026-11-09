@@ -157,7 +157,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
       const id = String(a.id ?? '');
       if (!a.status && !a.issue_url) return { isError: true, text: 'Give a status, an issue_url, or both.' };
       let m = a.issue_url ? await ops.setIssueUrl(id, String(a.issue_url)) : null;
-      if (a.status) m = await ops.setStatus(id, { status: a.status as MarkupStatus, fixedIn: a.fixed_in as string | undefined, reason: a.reason as string | undefined, by: `${ctx.actor.name} via AI assistant (MCP)` });
+      if (a.status) m = await ops.setStatus(id, { status: a.status as MarkupStatus, fixedIn: a.fixed_in as string | undefined, reason: a.reason as string | undefined, by: `${ctx.actor.name} via MCP` });
       return { data: { markup: m }, text: `${id} is ${STATUS_WORD[m!.status]}${m!.fixedIn ? `, fixed in ${m!.fixedIn}` : ''}${m!.issueUrl ? `, issue ${m!.issueUrl}` : ''}.` };
     },
   },

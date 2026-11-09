@@ -1,5 +1,5 @@
 /* Settings: one person's own choices (review notes, 5 Nov). How the app looks (light, dark or the system's, and an
-   accent colour), the sidebar, who you are, what the app records, and your AI assistants. The look and the sidebar are
+   accent colour), the sidebar, who you are, what the app records, and your MCP access. The look and the sidebar are
    kept in this browser. */
 import { useState } from 'react';
 import { Link } from 'react-router';

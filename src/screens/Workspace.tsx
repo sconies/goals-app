@@ -6,8 +6,10 @@
      Teams             find a team, with its lead and counts; add, rename and remove (admins)
      Inbox             markups and feedback, open to anyone, worked like an inbox (src/markup/Inbox.tsx)
      Privacy (what the app records): everyone reads it; only admins switch it.
-     Cycles, Access (admins and AI tokens), Features, Recently removed: admins only.
-   People who aren't admins see Overview, People, Teams, Inbox and Privacy. Sections are the settings extension point: a module
+     Cycles: everyone reads it; only admins delete one.
+     Recently removed: admins see everything; anyone else what they removed, which they can restore (8 Nov).
+     Access (admins and MCP tokens), Features: admins only.
+   People who aren't admins see Overview, People, Teams, Cycles, Privacy and Recently removed. Sections are the settings extension point: a module
    adds its own (AppModule `sections`, src/core/app.tsx). Old addresses (/workspace?inbox=1&markup=…, #people) lead to
    the section they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
@@ -24,7 +26,7 @@ import { newId } from '../data/store';
 import { useInboxData, type InboxData } from '../markup/inboxData';
 import { Avatar, Sheet, WarnMark } from '../ui/bits';
 import { cycleWhen, workspaceNeeds } from '../domain/workspaceAttention';
-import { cycleStanding } from '../domain/removal';
+import { canRestore, cycleStanding } from '../domain/removal';
 import { AiAssistants } from '../ui/AiAssistants';
 import { Icon } from '../ui/Icon';
 import { LeaveSheet, leaveLabel, LeaveWorkspaceSheet } from '../ui/RemoveSheets';
@@ -40,12 +42,12 @@ const CORE: WorkspaceSection[] = [
   { id: 'overview', label: 'Overview', summary: 'What to look at here, then every section.', element: <OverviewSection /> },
   { id: 'people', label: 'People', summary: 'Everyone in the workspace: find someone, or add a person.', element: <PeopleSection /> },
   { id: 'teams', label: 'Teams', summary: 'The teams, with their leads and how many people and goals each has.', element: <TeamsSection /> },
-  { id: 'cycles', label: 'Cycles', summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', admins: true, element: <CyclesSection /> },
-  { id: 'access', label: 'Access', summary: 'Who the admins are, and the tokens that let an AI assistant act as someone here.', admins: true, element: <AccessSection /> },
+  { id: 'cycles', label: 'Cycles', summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
+  { id: 'access', label: 'Access', summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
   { id: 'features', label: 'Features', summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
   // Everyone can read what is recorded about them; only admins switch it (re-review, 8 Nov, backlog T).
   { id: 'privacy', label: 'Privacy', summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
-  { id: 'removed', label: 'Recently removed', summary: 'Anything removed in the last 30 days, with Restore.', admins: true, element: <RemovedSection /> },
+  { id: 'removed', label: 'Recently removed', summary: 'Anything removed in the last 30 days, with Restore. Anyone who isn’t an admin sees what they removed.', element: <RemovedSection /> },
 ];
 
 /** Old anchors on the one-page Workspace, and the section each now is. */
@@ -142,7 +144,7 @@ function useSays(): Record<string, string> {
   const admin = app.viewer.admin;
   const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
   const noEmail = app.snapshot.people.filter((p) => !p.email).length;
-  const removed = admin ? app.recentlyRemoved().length : 0;
+  const removed = app.recentlyRemoved().filter((r) => canRestore(app.viewer, r)).length;
   const cycles = app.full.cycles.filter((c) => !c.removedAt).length;
   const admins = app.snapshot.people.filter((p) => p.admin).length;
   // Counted from the list the Features section shows, so the two always agree.
@@ -154,10 +156,10 @@ function useSays(): Record<string, string> {
     teams: n(app.snapshot.teams.length, 'team', 'teams'),
     cycles: `${app.cycle.name} is open${cycles > 1 ? `, of ${cycles}` : ''}`,
     // Tokens exist only in the real app: the demo's data stays in the browser, where an assistant can't reach it.
-    access: n(admins, 'admin', 'admins') + (app.mode === 'demo' ? '; AI tokens are for the real app' : `, ${n(tokens, 'AI token', 'AI tokens')}`),
+    access: n(admins, 'admin', 'admins') + (app.mode === 'demo' ? '; MCP tokens are for the real app' : `, ${n(tokens, 'MCP token', 'MCP tokens')}`),
     features: `${featuresOn} of ${installed.length} optional ${installed.length === 1 ? 'feature' : 'features'} on`,
     privacy: app.ws.recording !== false ? 'Recording how the app is used' : 'Recording is off',
-    removed: removed ? `${removed} in the last 30 days` : 'Nothing',
+    removed: removed ? `${removed} in the last 30 days` : admin ? 'Nothing' : 'Nothing of yours',
   };
 }
 
@@ -359,10 +361,13 @@ function PeopleSection() {
     check-ins, and what can be done with each: the running one's wrap-up, and deleting one nobody has checked in to. */
 function CyclesSection() {
   const app = useApp();
+  // Everyone reads the cycles; only admins delete one (8 Nov). The wrap-up is open to everyone, for their own goals.
+  const admin = app.viewer.admin;
+  const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
   const cycles = app.full.cycles.filter((c) => !c.removedAt).sort((a, b) => b.startDate.localeCompare(a.startDate));
   return (
     <>
-      <SectionHead id="cycles">A cycle is a goal year. One nobody has checked in to yet can be deleted with its goals; one with check-ins stays. The next one starts from the wrap-up at the end of the running one.</SectionHead>
+      <SectionHead id="cycles">A cycle is a goal year. One nobody has checked in to yet can be deleted with its goals; one with check-ins stays. The next one starts from the wrap-up at the end of the running one.{admin ? '' : ` Only admins delete a cycle or start the next${admins.length ? `: ${admins.join(', ')}` : ''}.`}</SectionHead>
       <section className="block cycles-block" aria-label="Cycles">
         <ul className="removed-list" aria-label="Cycles">
           {cycles.map((c) => {
@@ -378,7 +383,7 @@ function CyclesSection() {
                 </span>
                 <span className="team-actions">
                   {current && <Link className="btn sm" to="/retro">{wrapUpOpen(c, app.week) ? 'Wrap it up' : 'See the wrap-up'}</Link>}
-                  {st.deletable && <button type="button" className="btn sm" onClick={() => void app.deleteCycle(c.id).catch(() => undefined)} aria-label={`Delete the cycle ${c.name}`}>Delete</button>}
+                  {admin && st.deletable && <button type="button" className="btn sm" onClick={() => void app.deleteCycle(c.id).catch(() => undefined)} aria-label={`Delete the cycle ${c.name}`}>Delete</button>}
                 </span>
               </li>
             );
@@ -617,7 +622,7 @@ function RemoveTeamSheet({ team, onClose }: { team: Team; onClose: () => void })
 
 /**
  * For admins: the people added before everyone had an email. An email tells two people with the same name apart, in the
- * app, in a spreadsheet and for the AI assistant. Typed here and saved together, through the bulk-change engine.
+ * app, in a spreadsheet and through MCP. Typed here and saved together, through the bulk-change engine.
  */
 function MissingEmails() {
   const app = useApp();
@@ -646,7 +651,7 @@ function MissingEmails() {
   return (
     <section className="missing-emails stack" aria-labelledby="missing-emails" style={{ gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
       <h3 id="missing-emails" className="label">People without an email · {missing.length}</h3>
-      <p className="hint">An email tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant. Everyone added now has one; add these when you can.</p>
+      <p className="hint">An email tells two people with the same name apart, in the app, in spreadsheets and through MCP. Everyone added now has one; add these when you can.</p>
       <ul className="record email-list">
         {missing.slice(0, limit).map((p) => (
           <li key={p.id} className="email-row">
@@ -728,14 +733,17 @@ function Recording() {
   const [busy, setBusy] = useState(false);
   // Turning recording on asks first (Lane, 9 Nov): it's off unless chosen, at set-up or here.
   const [asking, setAsking] = useState(false);
-  const flip = async (next: boolean) => {
+  // Turning it on asks first; turning it off happens at once, with Undo (8 Nov). Undo puts back what was there.
+  const flip = async (next: boolean, undoing = false) => {
     if (busy) return;
-    if (next && !asking) { setAsking(true); return; }
+    if (next && !asking && !undoing) { setAsking(true); return; }
     setAsking(false);
     setBusy(true);
     try {
       await app.setRecording(next);
-      app.toast(next ? `Recording is on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}. Nothing more is sent.`);
+      const said = next ? `Recording is on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}. Nothing more is sent.`;
+      if (undoing) app.toast(said);
+      else app.toast(said, 'success', { label: 'Undo', run: () => { void app.setRecording(!next).then(() => app.toast(next ? `Recording is off again in ${app.ws.name}.` : `Recording is on again in ${app.ws.name}.`)).catch(() => undefined); } });
     } catch { /* the rule's message is shown */ }
     setBusy(false);
   };
@@ -783,7 +791,11 @@ function Features() {
     setBusy(id);
     try {
       await app.setModule(id, next);
-      app.toast(next ? `${nameOf(id)} is on in ${app.ws.name}.` : `${nameOf(id)} is off in ${app.ws.name}. Nothing it saved is lost.`);
+      // Every switch says what it did, with Undo (8 Nov): a feature leaves or comes back for everyone at once.
+      app.toast(next ? `${nameOf(id)} is on in ${app.ws.name}.` : `${nameOf(id)} is off in ${app.ws.name}. Nothing it saved is lost.`, 'success', {
+        label: 'Undo',
+        run: () => { void app.setModule(id, !next).then(() => app.toast(next ? `${nameOf(id)} is off again.` : `${nameOf(id)} is back on.`)).catch(() => undefined); },
+      });
     } catch { /* the rule's message is shown */ }
     setBusy(null);
   };

@@ -75,7 +75,7 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
   // The token: an Authorization header, or ?token= for assistants that only take a URL.
   const auth = req.headers.get('authorization') ?? '';
   const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1] ?? params.get('token') ?? '';
-  if (!token) return rpcError(401, 'Add your personal token: Authorization: Bearer gk_… An admin makes one under Workspace → AI assistants.', { 'WWW-Authenticate': 'Bearer' });
+  if (!token) return rpcError(401, 'Add your personal token: Authorization: Bearer gk_… An admin makes one under Workspace → Access → MCP access.', { 'WWW-Authenticate': 'Bearer' });
   const hash = await hashToken(token);
   const found = await deps.findToken(hash);
   if (!found) return rpcError(401, 'That token isn’t valid or has been revoked. Ask an admin for a new one.', { 'WWW-Authenticate': 'Bearer error="invalid_token"' });

@@ -73,7 +73,7 @@ describe('the MCP server’s markup tools', () => {
     const fixed = await b.call('update_markup', { id: 'mk_aaaaaaaaaaaaaaaa', status: 'fixed', fixed_in: WHATS_NEW[0]!.id, issue_url: 'https://github.com/sconies/goals-app/issues/9' });
     expect(fixed.isError).toBe(false);
     expect(b.list[0]).toMatchObject({ status: 'fixed', fixedIn: WHATS_NEW[0]!.id, issueUrl: 'https://github.com/sconies/goals-app/issues/9' });
-    expect(b.list[0]!.statusBy).toBe('Oskar Lindgren via AI assistant (MCP)');
+    expect(b.list[0]!.statusBy).toBe('Oskar Lindgren via MCP');
     // The rules are the inbox's: Won't fix needs a reason.
     expect((await b.call('update_markup', { id: 'mk_bbbbbbbbbbbbbbbb', status: 'wont-fix' })).isError).toBe(true);
   });

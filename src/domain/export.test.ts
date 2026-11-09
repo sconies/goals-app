@@ -121,3 +121,31 @@ describe('exports', () => {
     expect(json.goals.find((x) => x.id === 'ns-ai')!.checkIns.find((c) => c.week === early.week)!.planThatWeek).toBe(then);
   });
 });
+
+describe('a stopped goal in an export (backlog 7)', () => {
+  // An active number goal that makes a forecast today, then the same goal stopped and kept in the archive.
+  const live = s.goals.find((g) => g.kind === 'metric' && !g.stoppedAt && summarise(g, s, cycle, today, week).forecast)!;
+  const stopped = { ...live, stoppedAt: today.toISOString(), stoppedBy: live.ownerId, stopReason: 'No longer needed' };
+  const own = s.checkIns.filter((c) => c.goalId === live.id);
+  const snap = { ...s, goals: s.goals.filter((g) => g.id !== live.id), checkIns: s.checkIns.filter((c) => c.goalId !== live.id), archive: { goals: [stopped], checkIns: own, decisions: [], people: [], reviews: [] } };
+  const x = { ...input, snapshot: snap };
+
+  it('the live goal has a forecast to drop', () => {
+    expect(summarise(live, s, cycle, today, week).forecast).toBeTruthy();
+  });
+
+  it('the workbook and CSV leave its Forecast empty', () => {
+    const goals = workbook(x)[0]!.rows;
+    const head = goals[0]!;
+    const row = goals.find((r) => r[head.indexOf('ID')] === live.id)!;
+    expect(row[head.indexOf('Status')]).toBe('Stopped');
+    expect(row[head.indexOf('Forecast')] ?? null).toBeNull();
+  });
+
+  it('the JSON says no forecast and no projection', () => {
+    const j = toJson(x) as unknown as { goals: { id: string; now: { forecast: unknown; projection: unknown } }[] };
+    const g = j.goals.find((y) => y.id === live.id)!;
+    expect(g.now.forecast).toBeNull();
+    expect(g.now.projection).toBeNull();
+  });
+});

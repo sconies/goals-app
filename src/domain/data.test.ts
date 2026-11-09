@@ -117,7 +117,7 @@ describe('a filterable change log', () => {
     const mk = (field: string): Change => ({ id: 'x', at: '2026-10-30T09:00:00Z', actorId: 'tariq', goalId: 'ns-ai', entity: 'goal', entityId: 'ns-ai', action: 'edited', summary: 's', diffs: [{ field, from: '1', to: '2' }] });
     expect(kindOf(mk('Target'))).toBe('plans');
     expect(kindOf(mk('Owner'))).toBe('goals');
-    expect(kindOf({ ...mk('Owner'), diffs: [{ field: 'Via', from: '—', to: 'AI assistant (MCP)' }] })).toBe('ai');
+    expect(kindOf({ ...mk('Owner'), diffs: [{ field: 'Via', from: '—', to: 'MCP' }] })).toBe('ai');
   });
   it('limits to this week, says so in words, and exports what it shows', () => {
     const thisWeek = run({ when: 'this-week' });
