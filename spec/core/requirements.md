@@ -905,6 +905,13 @@ The app records traces, logs and metrics in its own database in OpenTelemetry's 
 - **Tests:** `evals/telemetry.eval.ts` (4)
 - **Journeys and checks:** N8
 
+### STALE-RELOAD
+
+After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop.
+
+- **Help:** “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** N8
+
 ### TELEMETRY-PRIVACY
 
 Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, in Settings and a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them.
