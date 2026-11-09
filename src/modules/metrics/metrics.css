@@ -1,0 +1,11 @@
+/* The metrics module's screens: hairline-divided rows, no cards or edges (docs/design-rules.md). */
+.metric-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.metric-row { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+.metric-row .metric-name { color: var(--fg); text-decoration: none; }
+.metric-row .metric-name:hover { text-decoration: underline; }
+.metric-facts { display: grid; gap: var(--s3); margin: 0; }
+.metric-facts dd { margin: 2px 0 0; white-space: pre-wrap; }
+.metric-form { gap: var(--s4); }
+.metric-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s4); }
+.metric-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.measured-new { padding: var(--s3); border: 1px solid var(--line); border-radius: 8px; gap: var(--s3); }

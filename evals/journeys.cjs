@@ -2709,6 +2709,56 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.context().close();
 });
 
+journey('U53', ['METRICS-PAGE', 'MEASURED-BY'], 'From Data, an admin finds a metric by name, adds “Deploy frequency” (deploys, higher is better), then measures a goal by it in goal edit, and the goal’s page shows it with its meaning', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/data'));
+  await p.locator('.data-tools').waitFor();
+  await h.click(p.getByRole('link', { name: 'Metrics', exact: true }));
+  await p.waitForURL(/\/data\/metrics/);
+  await p.getByRole('heading', { name: 'Metrics', exact: true }).waitFor();
+  await h.inView(p.getByRole('link', { name: 'Add a metric' }), 'entry', 'Add a metric');
+  // Every metric, with how many goals and which teams use it.
+  const rows = p.getByRole('list', { name: 'Metrics' }).getByRole('listitem');
+  const n = await rows.count();
+  const deploys = rows.filter({ hasText: 'Production deploys per day' });
+  const line = await deploys.innerText();
+  h.set('attention', n === 13 && /1 goal/.test(line) && /Used by The whole company/.test(line), `the list shows ${n} metrics; the deploys row reads “${line.replace(/\n/g, ' | ')}”`);
+  await h.checkpoint('list');
+  // Search by name.
+  await h.fill(p.getByLabel('Search metrics by name'), 'deploys');
+  await see(p, '1 of 13 metrics');
+  h.set('progress', await rows.count() === 1, 'searching “deploys” did not leave one metric');
+  // Add one: nothing typed says what's missing, then it saves with just a name, a unit and a direction.
+  await h.click(p.getByRole('link', { name: 'Add a metric' }));
+  await p.getByRole('heading', { name: 'Add a metric' }).waitFor();
+  await p.getByRole('button', { name: 'Add the metric' }).click();
+  const said = (await p.getByRole('alert').allInnerTexts()).join(' | ');
+  h.set('errors', /Give the metric a name/.test(said) && /Say its unit/.test(said) && /which way is better/.test(said), `an empty form says: ${said}`);
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Deploy frequency');
+  await h.fill(p.getByLabel('Unit', { exact: true }), 'deploys');
+  await h.click(p.getByRole('button', { name: 'Higher is better' }));
+  await h.checkpoint('form');
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await p.getByRole('heading', { name: 'Deploy frequency' }).waitFor();
+  // Measure a goal by it, in goal edit.
+  await p.goto(url('/goals/ns-deploy/edit'));
+  const pick = p.getByLabel(/^Measured by/);
+  await pick.waitFor();
+  await pick.selectOption({ label: 'Deploy frequency (deploys)' });
+  await h.click(p.getByRole('button', { name: 'The whole company' }));
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await p.waitForURL(/\/goals\/ns-deploy(\?|$)/);
+  const section = p.getByRole('region', { name: 'Measured by' });
+  await section.waitFor();
+  const shown = await section.innerText();
+  h.set('finish', /Deploy frequency/.test(shown) && /The whole company/.test(shown), `the goal page’s Measured by reads “${shown.replace(/\n/g, ' | ')}”`);
+  const s = await h.snapshot();
+  const m = (s.metrics || []).find((x) => x.name === 'Deploy frequency' && !x.removedAt);
+  const link = m && (s.metricLinks || []).find((l) => l.goalId === 'ns-deploy' && !l.removedAt);
+  h.set('logged', !!m && !!link && link.metricId === m.id && s.changes.some((c) => c.entity === 'metric' && c.entityId === m.id && c.actorId === 'grace'), `metric ${!!m}, link ${link ? link.metricId : 'none'}, logged ${!!m && s.changes.some((c) => c.entity === 'metric' && c.entityId === m.id)}`);
+  await p.context().close();
+});
+
 journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/workspace/features'));
