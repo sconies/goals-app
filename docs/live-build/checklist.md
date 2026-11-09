@@ -14,11 +14,12 @@ Tick each line on Monday evening, then do the "15 minutes before" block again on
 - [ ] Data → Spreadsheets → download: the workbook has a Metrics sheet, and Data has **no** Metrics page yet (main must not have the fallback merged).
 
 **The live build**
-- [ ] Open the fallback preview (link in `docs/live-build/metrics.md`): Data → Metrics lists the 13 metrics; add "Deploy frequency"; make a new goal measured by it; open a goal page and see its metric.
+- [ ] Sign in to Vercel in the presenting browser: every preview link, the fallback's and the live build's, is behind Vercel sign-in.
+- [ ] Open the fallback preview (link in `docs/live-build/metrics.md`, draft PR #55): Data → Metrics lists the 13 metrics; add "Deploy frequency"; make a new goal measured by it; open a goal page and see its metric.
 - [ ] Start a **new Claude Code session** at claude.ai/code: repository **sconies/goals-app**, environment **goals-app**, permission mode **Auto**. Check you can pick Auto (it must be set when you start the session; it can't be set later from another session).
-- [ ] Paste the brief from `docs/live-build/metrics.md` with the default room answers, and time it to the preview link. Stop it once it opens the pull request, or close that pull request unmerged afterwards.
+- [ ] Only once the brief and README fixes are on main: paste the brief from `docs/live-build/metrics.md` with the default room answers (answer 3: "yes, freely"), and time it to the preview link (the rehearsal took 21 minutes with the harder answer). Close its pull request unmerged afterwards.
 - [ ] Decide your cut-off: if no preview link by **20 minutes**, switch to the fallback.
-- [ ] Decide the room questions you'll actually ask (all five, or only 1 and 3 to save time).
+- [ ] Decide the room questions you'll actually ask (all five, or only 1 and 4 to save time), and practise the line for question 3 if the room asks for a reason.
 
 **The room**
 - [ ] Laptop at full width, browser zoom so the back row can read (try 125%), notifications off, a charger.
@@ -36,6 +37,7 @@ Tick each line on Monday evening, then do the "15 minutes before" block again on
 ## During the live build
 
 - [ ] Paste the brief by **minute 7** of Part 3 (after requirements and the room's answers).
+- [ ] Open the preview as soon as Vercel says Ready; CI can finish while you show it.
 - [ ] At **20 minutes** with no preview: "here's the same brief, run yesterday", open the fallback.
 - [ ] Don't merge on stage unless CI is green and you've looked at it; "I'll merge after review" is a fine ending.
 - [ ] If you do merge, reload the demo tabs once afterwards (a deploy replaces the code under open tabs).

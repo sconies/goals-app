@@ -68,6 +68,27 @@ The pickers use a plain search list for now (backlog 0a brings the shared find-a
 - **Demo:** 13 metrics in Platform Engineering (`src/data/platformOrg/metrics.ts`), 12 of them measuring a goal, set up before the year starts. Linking moves no number, status or date.
 - **Tests:** `src/domain/metrics.test.ts` (the rules), `src/modules/metrics/tools.test.ts` (the tools), `src/data/rpc.test.ts` ("the metric library (0033)", the database).
 
+## Traps found in the rehearsal (9 Nov)
+
+- **Every capitalised `.tsx` in the module is a screen.** Each one (a form, a link, a field) needs an entry under `screens` in `help.ts` and a row in `SCREENS` in `src/mcp/parity.ts`, or `src/help/guide.test.ts` and `src/mcp/parity.test.ts` fail. Name them for what they show (`MetricsLink`, not `DataLink`). Small parts can live inside another screen's file instead.
+- **Add and edit on the one route:** `/data/metrics?new` and `/data/metrics?m=<id>&edit`, so no more routes need Help articles.
+- **Which teams use a metric:** each link's slice (`metricLinks`, `teamId`, named by `sliceName`); a company-wide link counts as "The whole company".
+- **The new journey** takes the next free `U` number (`U53` after the rehearsal's branch; check `evals/journeys.cjs`) and is listed under `journeys` in `module.json`, so the module's evals pick it up.
+- **Labels in journeys:** on `/data/metrics` the search box is labelled "Search metrics by name", so `getByLabel('Name')` matches it too. Use `{ exact: true }` and wait for the form's heading first.
+- **Stay in the module.** A change to `src/core`, `src/app/state.tsx` or `src/domain/metrics.ts` is a rule change: it needs its own review, and it makes the evals run the full suite.
+
 ## Before pushing the live build
 
-`npm run typecheck`, `npm test`, `npm run spec` (and commit what it writes), `npm run evals:changed`; a What's new entry and the guide article for the new screen; `npm run build:mcp` only if `tools.ts` or anything it imports changed.
+In this order:
+
+1. `npm run typecheck`, `npm test`.
+2. `npm run spec`, and commit what it writes.
+3. `npm run build:mcp` **last**, after every change to `help.ts`, `tools.ts` or anything they import: the server's help comes from `help.ts`, so a stale `api/mcp.js` turns CI's smoke check red.
+4. Evals: a new journey in `evals/journeys.cjs` makes `npm run evals:changed` run the full suite (about 9 minutes). Run the smoke gate and only what the change touches instead:
+   ```
+   npm run evals:smoke
+   git diff --name-only origin/main...HEAD | node -e 'const f=require("fs").readFileSync(0,"utf8").split("\n").filter(Boolean);const t=require("./evals/touches.cjs").touches(f);const j=t.ids.filter(i=>/^U/.test(i)),c=t.ids.filter(i=>!/^U/.test(i));console.log(`ONLY=${j.join(",")} CHECKS=${c.join(",")}`)'
+   ONLY=<the journeys it prints, plus your new one> CHECKS=<the checks it prints> npm run evals
+   ```
+   `ONLY` takes journeys (`U…`), `CHECKS` takes checks (`F…`, `N…`, `P…`); `FINISH` with `ONLY=PLATFORM` runs nothing useful.
+5. A What's new entry and the guide article for the new screen are part of the same commit.
