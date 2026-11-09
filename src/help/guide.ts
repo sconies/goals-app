@@ -135,7 +135,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin.'] },
       { heading: 'How to use it', list: [
-        'A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
+        'A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
         'In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.',
         'Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.',
         'A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later.',
@@ -679,27 +679,26 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'workspace',
     title: 'Running the workspace',
-    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams, the Inbox and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.',
+    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.',
     group: 'you',
     sections: [
       { heading: 'Finding your way', list: [
         'On a computer, the sections are in a menu down the left; on a phone, Workspace opens as a list of them, and each section has Workspace at the top to go back.',
-        'Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/inbox and so on.',
-        'Beside Inbox, the menu says how many new markups and pieces of feedback are waiting, in plain words.',
+        'Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/teams and so on.',
         'Older links to Workspace (from a GitHub issue, say) still open the section they meant.',
       ] },
       { heading: 'Overview', list: [
-        'The workspace’s name (admins can rename it; a name has at most 80 characters, and the field counts them as you near the limit), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own and Reset the example).',
+        'The workspace’s name (admins can rename it; a name has at most 80 characters, and the field counts them as you near the limit), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own, and for admins Reset the example, which only touches this browser).',
         'Every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and tokens, how many optional features are on, whether recording is on and what was removed lately.',
         'Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset.',
       ] },
       { heading: 'The sections', list: [
         'People: the directory. See Workspace: People.',
         'Teams: find a team, with its lead and counts. See Workspace: Teams.',
-        'Inbox: the markups and feedback people send, worked like an inbox. See The inbox.',
         'Privacy: what the app records, for everyone to read; only admins switch it. Cycles, Access, Features and Recently removed: for admins. Each has its own article.',
       ] },
-      { heading: 'Who can', list: ['Everyone sees Overview, People, Teams and the Inbox. Someone who isn’t an admin and opens an admins’ section is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.', 'Anyone can read the inbox and change a markup’s or feedback’s status: Faro holds no real data. The internal app keeps it to the people who look after the app.'] },
+      { heading: 'Leaving', list: ['Anyone can leave a workspace: Leave this workspace, at the end of the overview. It asks who takes over your goals and open asks first, then you’re gone from its pickers, counts, reviews and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.', 'The only admin can’t leave until someone else is an admin.'] },
+      { heading: 'Who can', list: ['Everyone sees Overview, People, Teams and Privacy. Someone who isn’t an admin and opens an admins’ section is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.', 'Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox.'] },
       { heading: 'For the people building Faro', list: ['Sections are an extension point: a feature module adds its own with `sections` in its app.tsx and module.json, and it appears in the menu, at /workspace/<id>, for as long as the module is on.'] },
     ],
     routes: ['/workspace', '/workspace/overview'],
@@ -863,8 +862,8 @@ const CORE_ARTICLES: Article[] = [
         'Only the people building Faro read markups.',
       ] },
       { heading: 'Turning it off', list: [
-        'Everyone is recorded by default. Settings says whether it is on where you are.',
-        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it off there, for the whole workspace. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
+        'A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says whether it is on where you are.',
+        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
       ] },
     ],
     routes: ['/workspace/privacy'],
@@ -932,13 +931,14 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'inbox',
     title: 'The inbox',
-    summary: 'Every markup and piece of feedback people send, on Workspace, open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.',
+    summary: 'Every markup and piece of feedback people send, from every workspace and the demo, on its own page, Feedback, beside Help. Open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.',
     group: 'you',
     sections: [
       { heading: 'Who can read it', list: [
-        'The inbox is a section of Workspace (Workspace, Inbox), in the app and the demo. There’s no sign-in: anyone can read it and change a status, on any device. Faro holds no real data, so there is nothing to keep back.',
-        'It holds what’s sent from every workspace and the demo, and says where each came from. The company’s own app keeps its inbox to the people who look after the app.',
-        'Workspace’s menu says how many are new, beside Inbox.',
+        'The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.',
+        'It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.',
+        'It names people, never their email. The New tab says how many are new; Workspace’s overview says how many are about the open workspace.',
+        'Send feedback, at the top, opens the same sheet as Send feedback in the sidebar.',
       ] },
       { heading: 'Working through it', list: [
         'Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.',
@@ -968,8 +968,8 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Without a database', text: ['When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser.'] },
     ],
-    routes: ['/workspace/inbox'],
-    screens: [],
+    routes: ['/feedback', '/workspace/inbox'],
+    screens: ['Feedback'],
     reqs: ['MARKUP-INBOX', 'FEEDBACK-INBOX', 'MCP-FEEDBACK', 'CONNECT-CLAUDE', 'MCP-PICTURES', 'INBOX-TRIAGE'],
     keywords: ['inbox', 'markups', 'triage', 'github issue', 'undo', 'who changed it', 'fixed', 'won’t fix', 'in hand', 'feedback', 'mood', 'connect claude', 'token', 'review inbox', 'pictures'],
     related: ['feedback', 'workspace', 'ai-assistants'],

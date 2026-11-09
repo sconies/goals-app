@@ -49,6 +49,8 @@ interface SetupDraft {
   fileTables?: Tables;
   /** Team names typed on purpose although they look like another team's (“It’s a new team”). */
   newTeams?: string[];
+  /** Whether the workspace records how the app is used: off unless chosen here (backlog WS, Lane 9 Nov). */
+  recording?: boolean;
 }
 
 const blankPerson = (): PersonRow => ({ name: '', email: '', title: '', team: '', admin: false });
@@ -258,7 +260,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     setBusy(true);
     try {
       const meId = result.snapshot.people[0]?.id;
-      await setup.createWorkspace(d.name.trim(), result.snapshot, meId);
+      await setup.createWorkspace(d.name.trim(), result.snapshot, meId, !!d.recording);
       clear();
       nav('/ready', { replace: true });
     } catch (e) {
@@ -310,6 +312,14 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             ) : (
               <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review for everyone <span className="nowrap">on {DAYS[d.reviewDay]}s.</span> The first is on {firstText}, so nothing is due before it. <span className="nowrap"><button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span></span>
             )}
+            {/* Asked here, off unless chosen (backlog WS, Lane 9 Nov); an admin can change it later, under Privacy. */}
+            <label className="check record-check setup-recording">
+              <input type="checkbox" checked={!!d.recording} onChange={(e) => set({ recording: e.target.checked })} />
+              <span className="stack" style={{ gap: 0 }}>
+                <span>Record how the app is used here</span>
+                <span className="hint">Off unless you tick it. On, Faro records the pages people open, the buttons they press, errors and slow pages, never anything anyone types, for the people building it. An admin can change it later in Workspace, under Privacy.</span>
+              </span>
+            </label>
             {err(!nameIssue)}
           </section>
         )}
@@ -445,6 +455,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <dt>Goal year</dt><dd>{yearName(d.startDate, yearWeeks(d.startDate))}, starting in {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}; you join it in week {Math.max(0, currentWeek(cycleNow, setup.today))}</dd>
               <dt>Weekly review</dt><dd>Everyone, every goal, on {DAYS[d.reviewDay]}s. The first is on {firstText}; the first check-ins are due before it.</dd>
               <dt>You</dt><dd>{d.me.name} ({meEmail}), admin</dd>
+              <dt>Recording</dt><dd>{d.recording ? 'On: how the app is used here is recorded' : 'Off: nothing about how the app is used here is recorded'}</dd>
               {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past check-ins, from your spreadsheet</dd></>}
             </dl>
             <div className="row" style={{ gap: 'var(--s3)' }}>

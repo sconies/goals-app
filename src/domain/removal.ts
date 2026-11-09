@@ -137,6 +137,24 @@ export function markPersonLeft(x: ActionContext, id: string, to: { goalsTo?: str
   if (!x.actor.admin) no('Only admins can mark someone as left.');
   const p = livePerson(x, id);
   notSelfOrLastAdmin(x, p, 'mark');
+  return departs(x, p, to, `Marked ${p.name} as left`);
+}
+
+/**
+ * Anyone: leave this workspace yourself (backlog WS, Lane 9 Nov: members get "Leave this workspace"). The same as an
+ * admin marking you as left: whoever takes over your goals and open asks is chosen first, you leave the reviews you
+ * were in, and history keeps your name as "Name (left)". The only admin can't leave until someone else is one. An
+ * admin can restore you from Recently removed for 30 days.
+ */
+export function leaveWorkspace(x: ActionContext, to: { goalsTo?: string | null; asksTo?: string | null } = {}): Commit {
+  const p = livePerson(x, x.actor.id);
+  if (p.admin && !x.snapshot.people.some((v) => v.admin && v.id !== p.id)) no('You’re the only admin here: make someone else an admin before you leave.');
+  return departs(x, p, to, `${p.name} left the workspace`);
+}
+
+/** Someone leaving, however it's decided: hand over their goals and open asks, take them out of reviews and team leads. */
+function departs(x: ActionContext, p: Person, to: { goalsTo?: string | null; asksTo?: string | null }, summary: string): Commit {
+  const id = p.id;
   const l = leaving(x, id);
   const handTo = (ref: string | null | undefined, what: string) => {
     if (!ref) return null;
@@ -160,7 +178,7 @@ export function markPersonLeft(x: ActionContext, id: string, to: { goalsTo?: str
   const teams = l.leads.map((t) => ({ ...t, leadId: goalsTo?.id ?? '' }));
   const changes: Change[] = [
     log(x, {
-      entity: 'person', entityId: id, action: 'left', summary: `Marked ${p.name} as left`,
+      entity: 'person', entityId: id, action: 'left', summary,
       diffs: [
         { field: 'Status', from: '—', to: LEFT },
         ...(goals.length ? [{ field: 'Goals handed over', from: plural(goals.length, 'goal', 'goals'), to: goalsTo!.name }] : []),

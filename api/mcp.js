@@ -230,11 +230,12 @@ var init_plan = __esmMin((() => {
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 }));
 // src/domain/thresholds.ts
-/** What's wrong with a workspace's or a goal's name, or null: empty, or shorter than MIN_NAME. */
+/** What's wrong with a workspace's or a goal's name, or null: empty, shorter than MIN_NAME, or (a workspace) longer than MAX_WORKSPACE_NAME. */
 function nameProblem(name, thing) {
-	const t = name.trim();
+	const t = name.trim().replace(/\s+/g, " ");
 	if (!t) return `Give the ${thing} a name.`;
 	if (t.length < 3) return `Give the ${thing} a name of at least ${NUMBER_WORDS[3] ?? 3} characters.`;
+	if (thing === "workspace" && t.length > 80) return `Keep the name to 80 characters or fewer: it has ${t.length}.`;
 	return null;
 }
 var RULES, NUMBER_WORDS;
@@ -5188,7 +5189,6 @@ function renameWorkspace(x, ws, name) {
 	const clean = name.trim().replace(/\s+/g, " ");
 	const named = nameProblem(clean, "workspace");
 	if (named) no$1(named);
-	if (clean.length > 80) no$1("Keep the name to 80 characters or fewer.");
 	if (clean === ws.name) return null;
 	return {
 		workspace: { name: clean },
@@ -5665,6 +5665,11 @@ function markPersonLeft(x, id, to = {}) {
 	if (!x.actor.admin) no("Only admins can mark someone as left.");
 	const p = livePerson(x, id);
 	notSelfOrLastAdmin(x, p, "mark");
+	return departs(x, p, to, `Marked ${p.name} as left`);
+}
+/** Someone leaving, however it's decided: hand over their goals and open asks, take them out of reviews and team leads. */
+function departs(x, p, to, summary) {
+	const id = p.id;
 	const l = leaving(x, id);
 	const handTo = (ref, what) => {
 		if (!ref) return null;
@@ -5705,7 +5710,7 @@ function markPersonLeft(x, id, to = {}) {
 			entity: "person",
 			entityId: id,
 			action: "left",
-			summary: `Marked ${p.name} as left`,
+			summary,
 			diffs: [
 				{
 					field: "Status",
@@ -6022,8 +6027,25 @@ function deleteReview(x, id) {
 }
 /** Whether a cycle can be deleted: no check-in has been posted on any of its goals, and it isn't the only one. */
 function cycleDeletable(s, cycleId) {
-	const goals = new Set(s.goals.filter((g) => g.cycleId === cycleId).map((g) => g.id));
-	return !s.checkIns.some((c) => goals.has(c.goalId) && !c.removedAt) && s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
+	return cycleStanding(s, cycleId).deletable;
+}
+/**
+* Where a cycle stands, in words that are true (backlog WS: a new workspace with no goals said "Has check-ins"): how many
+* goals and check-ins it has, whether it's the only one, and so whether it can be deleted, and why not.
+*/
+function cycleStanding(s, cycleId) {
+	const ids = new Set(s.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
+	const checkIns = s.checkIns.filter((c) => ids.has(c.goalId) && !c.removedAt).length;
+	const only = !s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
+	const goals = `${ids.size} ${ids.size === 1 ? "goal" : "goals"}`;
+	const says = checkIns ? `${goals}, ${checkIns} ${checkIns === 1 ? "check-in" : "check-ins"}: it stays` : only ? `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet; it’s the only cycle, so it stays` : `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet: it can be deleted`;
+	return {
+		goals: ids.size,
+		checkIns,
+		only,
+		deletable: !checkIns && !only,
+		says
+	};
 }
 /** Admins: delete a cycle no one has checked in to yet (started by mistake, say). Its goals go with it, and come back with it. */
 function deleteCycle(x, id) {
@@ -9945,7 +9967,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
+					"A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
 					"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
 					"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.",
 					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later.",
@@ -11089,23 +11111,22 @@ var CORE_ARTICLES = [
 	{
 		id: "workspace",
 		title: "Running the workspace",
-		summary: "Workspace is in sections, each with its own page: Overview, People, Teams, the Inbox and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.",
+		summary: "Workspace is in sections, each with its own page: Overview, People, Teams and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.",
 		group: "you",
 		sections: [
 			{
 				heading: "Finding your way",
 				list: [
 					"On a computer, the sections are in a menu down the left; on a phone, Workspace opens as a list of them, and each section has Workspace at the top to go back.",
-					"Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/inbox and so on.",
-					"Beside Inbox, the menu says how many new markups and pieces of feedback are waiting, in plain words.",
+					"Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/teams and so on.",
 					"Older links to Workspace (from a GitHub issue, say) still open the section they meant."
 				]
 			},
 			{
 				heading: "Overview",
 				list: [
-					"The workspace’s name (admins can rename it), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own and Reset the example).",
-					"What’s in it, each line leading to its section: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, and for admins the open cycle, how many features are on and what was removed lately.",
+					"The workspace’s name (admins can rename it; a name has at most 80 characters, and the field counts them as you near the limit), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own, and for admins Reset the example, which only touches this browser).",
+					"Every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and tokens, how many optional features are on, whether recording is on and what was removed lately.",
 					"Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset."
 				]
 			},
@@ -11114,16 +11135,19 @@ var CORE_ARTICLES = [
 				list: [
 					"People: the directory. See Workspace: People.",
 					"Teams: find a team, with its lead and counts. See Workspace: Teams.",
-					"Inbox: the markups and feedback people send, worked like an inbox. See The inbox.",
 					"Privacy: what the app records, for everyone to read; only admins switch it. Cycles, Access, Features and Recently removed: for admins. Each has its own article."
 				]
 			},
 			{
+				heading: "Leaving",
+				list: ["Anyone can leave a workspace: Leave this workspace, at the end of the overview. It asks who takes over your goals and open asks first, then you’re gone from its pickers, counts, reviews and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.", "The only admin can’t leave until someone else is an admin."]
+			},
+			{
 				heading: "Who can",
 				list: [
-					"Everyone sees Overview, People, Teams and the Inbox. Someone who isn’t an admin and opens an admins’ section is told who the admins are.",
-					"Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.",
-					"Anyone can read the inbox and change a markup’s or feedback’s status: Faro holds no real data. The internal app keeps it to the people who look after the app."
+					"Everyone sees Overview, People, Teams and Privacy. Someone who isn’t an admin and opens an admins’ section is told who the admins are.",
+					"Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.",
+					"Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox."
 				]
 			},
 			{
@@ -11212,7 +11236,11 @@ var CORE_ARTICLES = [
 		group: "you",
 		sections: [{
 			heading: "How to use it",
-			list: ["Each team shows its lead, how many people are in it and how many goals it owns. With more than a few teams, find one by its name or its lead’s.", "Admins: Add a team is the main action. Rename changes its name and lead. Remove takes an empty team away at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so."]
+			list: [
+				"Each team shows its lead, how many people are in it (its lead counts as one of them, even when their own team is another) and how many goals it owns. With more than a few teams, find one by its name or its lead’s.",
+				"Open a team to see its people in the directory, its lead among them.",
+				"Admins: Add a team is the main action. Rename changes its name and lead. Remove takes an empty team away at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so."
+			]
 		}, {
 			heading: "Who can",
 			text: ["Everyone sees the teams. Only admins change them."]
@@ -11238,7 +11266,7 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Each cycle says whether it’s the one open now and whether it has check-ins.",
+				"Each cycle says whether it’s the one open now, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.",
 				"A cycle nobody has checked in to can be deleted, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays.",
 				"A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped."
 			]
@@ -11435,7 +11463,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Turning it off",
-				list: ["Everyone is recorded by default. Settings says whether it is on where you are.", "Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it off there, for the whole workspace. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
+				list: ["A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says whether it is on where you are.", "Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant."]
 			}
 		],
 		routes: ["/workspace/privacy"],
@@ -11574,15 +11602,16 @@ var CORE_ARTICLES = [
 	{
 		id: "inbox",
 		title: "The inbox",
-		summary: "Every markup and piece of feedback people send, on Workspace, open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.",
+		summary: "Every markup and piece of feedback people send, from every workspace and the demo, on its own page, Feedback, beside Help. Open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.",
 		group: "you",
 		sections: [
 			{
 				heading: "Who can read it",
 				list: [
-					"The inbox is a section of Workspace (Workspace, Inbox), in the app and the demo. There’s no sign-in: anyone can read it and change a status, on any device. Faro holds no real data, so there is nothing to keep back.",
-					"It holds what’s sent from every workspace and the demo, and says where each came from. The company’s own app keeps its inbox to the people who look after the app.",
-					"Workspace’s menu says how many are new, beside Inbox."
+					"The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.",
+					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
+					"It names people, never their email. The New tab says how many are new; Workspace’s overview says how many are about the open workspace.",
+					"Send feedback, at the top, opens the same sheet as Send feedback in the sidebar."
 				]
 			},
 			{
@@ -11625,8 +11654,8 @@ var CORE_ARTICLES = [
 				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser."]
 			}
 		],
-		routes: ["/workspace/inbox"],
-		screens: [],
+		routes: ["/feedback", "/workspace/inbox"],
+		screens: ["Feedback"],
 		reqs: [
 			"MARKUP-INBOX",
 			"FEEDBACK-INBOX",
@@ -11829,6 +11858,38 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "feedback-leave-recording",
+		date: "2026-11-10",
+		title: "Feedback beside Help, leaving a workspace, and recording you choose",
+		points: [
+			"Feedback, the inbox of markups and feedback from every workspace and the demo, has its own page beside Help. It was on Workspace; old links still open it. It stays open to everyone and names people, never their email.",
+			"Anyone can leave a workspace, handing over their goals first; the only admin can’t. Resetting the example is for admins; the demo’s Start over is for everyone and only touches this browser.",
+			"Setting up a workspace asks whether to record how the app is used there: off unless you tick it. Turning it on later asks first."
+		],
+		articles: [
+			"inbox",
+			"workspace",
+			"recording",
+			"set-up"
+		]
+	},
+	{
+		id: "workspace-fixes",
+		date: "2026-11-10",
+		title: "Workspace says what’s true",
+		points: [
+			"Switching workspace is a real page move: Back takes you to the workspace you came from, and while the other one opens the screen says so. Part-way through a check-in, it asks first and says your draft stays in its own workspace.",
+			"Cycles says each cycle’s goals and check-ins as they are: a new workspace’s only cycle no longer claims to have check-ins.",
+			"A team counts its lead among its people, and opening a team shows its people. The overview lists every section, Access and Privacy included.",
+			"A workspace’s name shows how much of its 80 characters it uses as you near the limit, instead of being cut short, and Delete never cuts off its own label."
+		],
+		articles: [
+			"workspace",
+			"workspace-teams",
+			"workspace-cycles"
+		]
+	},
 	{
 		id: "review-leftovers",
 		date: "2026-11-09",
@@ -38733,7 +38794,8 @@ var workspaceToRow = (w) => ({
 	id: w.id,
 	name: w.name,
 	kind: w.kind,
-	created_at: w.createdAt
+	created_at: w.createdAt,
+	...w.recording === false ? { recording: false } : {}
 });
 var workspaceFromRow = (r) => ({
 	id: r.id,
@@ -39796,7 +39858,7 @@ function supabaseDeps(origin, env = process.env) {
 			store: tokenMarkups(db, hash),
 			entries: WHATS_NEW.map((e) => e.id),
 			repo: MARKUP_REPO,
-			inboxLink: (id) => `${origin}/workspace/inbox?markup=${id}`
+			inboxLink: (id) => `${origin}/feedback?markup=${id}`
 		}),
 		feedback: (hash) => feedbackOps({
 			store: tokenFeedback(db, hash),

@@ -11,7 +11,7 @@
    adds its own (AppModule `sections`, src/core/app.tsx). Old addresses (/workspace?inbox=1&markup=…, #people) lead to
    the section they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { createContext, lazy, Suspense, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router';
 import { useSwitchWorkspace } from '../ui/WorkspaceSwitch';
 import { useApp } from '../app/state';
@@ -26,11 +26,9 @@ import { useInboxData, type InboxData } from '../markup/inboxData';
 import { Avatar, Sheet } from '../ui/bits';
 import { AiAssistants } from '../ui/AiAssistants';
 import { Icon } from '../ui/Icon';
-import { LeaveSheet, leaveLabel } from '../ui/RemoveSheets';
+import { LeaveSheet, leaveLabel, LeaveWorkspaceSheet } from '../ui/RemoveSheets';
 import { CycleList, RecentlyRemoved } from '../ui/RecentlyRemoved';
 import { useWidth } from '../ui/useWidth';
-
-const Inbox = lazy(() => import('../markup/Inbox'));
 
 /** Below this width, Workspace is a list of sections and one section at a time (a phone). */
 const NARROW = 720;
@@ -40,7 +38,6 @@ const CORE: WorkspaceSection[] = [
   { id: 'overview', label: 'Overview', summary: 'The workspace’s name, what’s in it, and switching to another.', element: <OverviewSection /> },
   { id: 'people', label: 'People', summary: 'Everyone in the workspace: find someone, or add a person.', element: <PeopleSection /> },
   { id: 'teams', label: 'Teams', summary: 'The teams, with their leads and how many people and goals each has.', element: <TeamsSection /> },
-  { id: 'inbox', label: 'Inbox', summary: 'Markups and feedback people send. Anyone can read and triage them.', element: <InboxSection /> },
   { id: 'cycles', label: 'Cycles', summary: 'The workspace’s cycles. One nobody has checked in to can be deleted.', admins: true, element: <CyclesSection /> },
   { id: 'access', label: 'Access', summary: 'Who the admins are, and the tokens AI assistants use.', admins: true, element: <AccessSection /> },
   { id: 'features', label: 'Features', summary: 'Parts of Faro this workspace uses, each switched on or off for everyone.', admins: true, element: <FeaturesSection /> },
@@ -50,7 +47,7 @@ const CORE: WorkspaceSection[] = [
 ];
 
 /** Old anchors on the one-page Workspace, and the section each now is. */
-const ANCHORS: Record<string, string> = { inbox: 'inbox', people: 'people', teams: 'teams', cycles: 'cycles', ai: 'access', tokens: 'access', access: 'access', features: 'features', recording: 'privacy', privacy: 'privacy', removed: 'removed' };
+const ANCHORS: Record<string, string> = { people: 'people', teams: 'teams', cycles: 'cycles', ai: 'access', tokens: 'access', access: 'access', features: 'features', recording: 'privacy', privacy: 'privacy', removed: 'removed' };
 
 /** The sections someone sees, in order: the core's and the modules' that are on; admins-only ones for admins. */
 export function useSections(): WorkspaceSection[] {
@@ -76,7 +73,7 @@ export function WorkspaceHome({ section }: { section?: string }) {
   if (!section) {
     const q = new URLSearchParams(search);
     const markup = q.get('markup');
-    if (q.get('inbox') || markup) return <Navigate to={`/workspace/inbox${markup ? `?markup=${encodeURIComponent(markup)}` : ''}`} replace />;
+    if (q.get('inbox') || markup || hash === '#inbox') return <Navigate to={`/feedback${markup ? `?markup=${encodeURIComponent(markup)}` : ''}`} replace />;
     const anchor = ANCHORS[hash.replace('#', '')];
     if (anchor) return <Navigate to={`/workspace/${anchor}`} replace />;
   }
@@ -113,18 +110,15 @@ export function WorkspaceHome({ section }: { section?: string }) {
 /** What a section's entry says beside its name, as plain text: how many people and teams, how many new in the inbox. */
 function useNotes(): Record<string, string> {
   const app = useApp();
-  const { inbox } = useWs();
   return {
     people: String(app.snapshot.people.length),
     teams: String(app.snapshot.teams.length),
-    ...(inbox.newCount !== null ? { inbox: inbox.newCount ? `${inbox.newCount} new` : 'Nothing new' } : {}),
   };
 }
 
 /** What each section's row on the overview says: one true line each, for every section this person sees (backlog WS). */
 function useSays(): Record<string, string> {
   const app = useApp();
-  const { inbox } = useWs();
   const { installed, on } = useModules();
   const admin = app.viewer.admin;
   const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
@@ -139,7 +133,6 @@ function useSays(): Record<string, string> {
     overview: 'What needs attention here',
     people: n(app.snapshot.people.length, 'person', 'people') + (admin && noEmail ? `, ${noEmail} without an email` : ''),
     teams: n(app.snapshot.teams.length, 'team', 'teams'),
-    inbox: inbox.newCount === null ? 'Opening…' : inbox.newCount ? `${inbox.newCount} new` : 'Nothing new',
     cycles: `${app.cycle.name} is open${cycles > 1 ? `, of ${cycles}` : ''}`,
     access: n(admins, 'admin', 'admins') + `, ${n(tokens, 'token', 'tokens')}`,
     features: `${featuresOn} of ${installed.length} optional ${installed.length === 1 ? 'feature' : 'features'} on`,
@@ -248,11 +241,13 @@ function OverviewSection() {
         <div className="row">
           <Link className="btn" to="/workspace/new">{app.mode === 'demo' ? 'Try setting up your own' : 'New workspace'}</Link>
           {app.mode === 'live' && <a className="btn" href="/demo">Try the demo</a>}
-          {app.mode === 'demo' && app.ws.kind === 'example' && <button className="btn" aria-expanded={confirming} onClick={() => setConfirming(true)}>Reset the example</button>}
+          {/* Resetting a shared workspace is for admins (Lane, 9 Nov); the demo's Start over, in Demo controls, stays for everyone. */}
+          {app.mode === 'demo' && app.ws.kind === 'example' && admin && <button className="btn" aria-expanded={confirming} onClick={() => setConfirming(true)}>Reset the example</button>}
         </div>
-        {app.mode === 'demo' && app.ws.kind === 'example' && confirming && (
+        {app.mode === 'demo' && app.ws.kind === 'example' && !admin && <p className="hint">To put the example back as it was, use Start over in Demo controls. It only touches this browser.</p>}
+        {app.mode === 'demo' && app.ws.kind === 'example' && admin && confirming && (
           <div className="reset-confirm" role="group" aria-label="Reset the example">
-            <span className="small">Undo every change in the example, and clear its drafts and what you’ve seen here?</span>
+            <span className="small">Undo every change in the example, and clear its drafts and what you’ve seen here? It only touches this browser: nobody else’s copy changes.</span>
             <span className="row" style={{ gap: 'var(--s2)' }}>
               <button className="btn" onClick={async () => { await app.resetExample(); setConfirming(false); }}>Yes, reset it</button>
               <button className="btn ghost" onClick={() => setConfirming(false)}>Cancel</button>
@@ -265,6 +260,7 @@ function OverviewSection() {
           <li key={id}><Link className="ws-count" to={`/workspace/${id}`}><span className="ws-count-label">{label}</span><span className="ws-count-says">{says}</span><Icon name="chevron-right" /></Link></li>
         ))}
       </ul>
+      <LeaveWorkspace />
       {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
     </>
   );
@@ -331,13 +327,6 @@ function PeopleSection() {
       {leaving && <LeaveSheet person={leaving} onClose={() => setLeaving(null)} />}
     </>
   );
-}
-
-/* ---------- Inbox ---------- */
-
-function InboxSection() {
-  const { inbox, narrow } = useWs();
-  return <Suspense fallback={<p className="hint" role="status">Opening the inbox…</p>}><Inbox data={inbox} narrow={narrow} /></Suspense>;
 }
 
 /* ---------- the admins' sections ---------- */
@@ -689,12 +678,16 @@ function Recording() {
   const on = app.ws.recording !== false;
   const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
   const [busy, setBusy] = useState(false);
+  // Turning recording on asks first (Lane, 9 Nov): it's off unless chosen, at set-up or here.
+  const [asking, setAsking] = useState(false);
   const flip = async (next: boolean) => {
     if (busy) return;
+    if (next && !asking) { setAsking(true); return; }
+    setAsking(false);
     setBusy(true);
     try {
       await app.setRecording(next);
-      app.toast(next ? `Recording is back on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}. Nothing more is sent.`);
+      app.toast(next ? `Recording is on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}. Nothing more is sent.`);
     } catch { /* the rule's message is shown */ }
     setBusy(false);
   };
@@ -709,7 +702,17 @@ function Recording() {
             <span className="hint">{on ? 'On for everyone here. Turn it off and nothing more is sent.' : 'Off: nothing is recorded or sent from this workspace.'}</span>
           </span>
         </label>
-      ) : (
+      ) : null}
+      {app.viewer.admin && asking ? (
+        <div className="reset-confirm" role="group" aria-label="Turn recording on">
+          <span className="small">Record how everyone in {app.ws.name} uses the app, from now on? Nothing anyone types is recorded.</span>
+          <span className="row" style={{ gap: 'var(--s2)' }}>
+            <button type="button" className="btn" onClick={() => void flip(true)}>Yes, turn it on</button>
+            <button type="button" className="btn ghost" onClick={() => setAsking(false)}>Cancel</button>
+          </span>
+        </div>
+      ) : null}
+      {app.viewer.admin ? null : (
         <p className="record-state">
           <span className="strong">{on ? `Recording is on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}: nothing is recorded or sent.`}</span>{' '}
           <span className="hint">Only admins change it{admins.length ? `: ${admins.join(', ')}` : ''}.</span>
@@ -755,6 +758,20 @@ function Features() {
         );
       })}
       <p className="hint"><Link to="/help/features">About features</Link></p>
+    </section>
+  );
+}
+
+/** Anyone: leave this workspace, with a confirm that first asks who takes over your goals (Lane, 9 Nov). The only admin is told why not. */
+function LeaveWorkspace() {
+  const app = useApp();
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="block leave-zone">
+      <h2 className="block-title">Leave this workspace</h2>
+      <p className="hint">Take yourself out of {app.ws.name}{app.mode === 'demo' ? ' (in this browser)' : ''}: someone takes over your goals and open asks, and your history stays. An admin can bring you back for 30 days.</p>
+      <div><button type="button" className="btn" onClick={() => setOpen(true)}>Leave this workspace…</button></div>
+      {open && <LeaveWorkspaceSheet onClose={() => setOpen(false)} />}
     </section>
   );
 }

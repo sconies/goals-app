@@ -97,3 +97,6 @@
 /* A long name or label in a button wraps rather than being cut off. */
 .danger-zone .btn, .sheet-foot .btn { white-space: normal; text-align: center; max-width: 100%; }
 .ws-opening { padding-top: var(--s6); }
+/* Feedback, beside Help in the sidebar's foot: as quiet as Help (backlog WS). */
+.side .inbox-nav { color: var(--muted); }
+.side .inbox-nav[aria-current="page"] { color: var(--fg); }

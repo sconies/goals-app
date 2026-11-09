@@ -82,6 +82,7 @@ export const ACCESS: Access[] = [
   { area: 'Views and watching', what: 'Pin a view for everyone', who: 'Admins', code: [`${A}pinView`] },
   { area: 'People, teams and the workspace', what: 'Add someone; change their name, job title, team or admin rights', who: 'Admins', code: [`${A}savePerson`, C] },
   { area: 'People, teams and the workspace', what: 'Mark someone as left (handing over their goals and asks); delete someone with no history', who: 'Admins; not themselves, and never the only admin', code: [`${R}markPersonLeft`, `${R}deletePerson`, `${R}leaving`] },
+  { area: 'People, teams and the workspace', what: 'Leave the workspace yourself (handing over your goals and asks)', who: 'Anyone; never the only admin', code: [`${R}leaveWorkspace`] },
   { area: 'People, teams and the workspace', what: 'Add, rename, lead or remove a team', who: 'Admins', code: [`${A}saveTeam`, `${A}removeTeam`] },
   { area: 'People, teams and the workspace', what: 'Start the next cycle; delete a cycle no one has checked in to', who: 'Admins', code: [`${A}startNextCycle`, `${R}deleteCycle`] },
   { area: 'People, teams and the workspace', what: 'Rename the workspace; turn recording on or off; switch features on or off; delete the workspace', who: 'Admins', code: [`${A}renameWorkspace`, `${A}setRecording`, `${A}setModule`, `${A}canDeleteWorkspace`] },

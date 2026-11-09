@@ -982,41 +982,41 @@ Send feedback's first choice, Mark up this screen (and Ctrl+Shift+M or Cmd+Shift
 
 Workspace has an Inbox, open to anyone with no sign-in, in the live app and the demo (backlog O, migration 0031: Faro never holds real data; the internal app keeps it restricted, spec R1 rule 6). It lists every markup, newest first, grouped by page and part with a count, each with a thumbnail, its line, its page, who sent it, when, and its status as a shape plus a word (New, In hand, Fixed, Won’t fix). A markup opens with its picture (the drawing can be hidden), the named parts, the steps as a timeline, errors and where it came from. Anyone marks it in hand, opens a pre-filled GitHub issue and pastes its address back, marks it fixed in a What’s new entry, or says why it won’t be fixed, through the one status rule; each change is recorded as the person using the app (who and when, shown on the markup) and offers Undo, which puts back the status it replaced through the same rule. The public key reads markups and changes only their triage columns. With any token, the MCP tools list_markups, get_markup and update_markup do the same through security-definer functions, with no new secret.
 
-- **Help:** “The inbox” (`inbox`)
+- **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U42, U47, U52
 
 ### CONNECT-CLAUDE
 
 Connect Claude sits at the top of the inbox (backlog -2, opened up by backlog O): any Faro token works, so an admin makes an ordinary token for themselves there (in the app, not the demo; the same action as Workspace’s AI assistants), anyone else is told who can, and the demo says tokens are made in the real app. It gives the exact set-up for a Claude cloud session (the host, and where the token goes) and for Claude Code, and says whether the server can send pictures (GET /api/mcp?check) and, if not, why. There is no email sign-in and no builder token: tokens are listed and revoked on Workspace and in Settings. A markup records the address it was sent from, so the inbox and the tools say when it came from a preview build or a laptop.
 
-- **Help:** “The inbox” (`inbox`)
+- **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U47
 
 ### MCP-PICTURES
 
 A markup's picture comes back inside get_markup as MCP image content (the screen with the drawing, or the screen alone, or none), not as a link. review_inbox returns everything new (or with a given status) in one step: markups grouped by screen part, newest first, each group's newest with its picture, within a size budget, and feedback grouped by page; the server also offers it as the review_inbox prompt. Pictures are in a public-read bucket that nobody can list (migration 0031), so the inbox shows them by their address and the server reads them itself with either key; when the bucket isn't open, get_markup, review_inbox, the picture address and GET /api/mcp?check say so plainly, and a check after each deploy fails.
 
-- **Help:** “The inbox” (`inbox`)
+- **Help:** “The inbox” (`inbox`), screens `Feedback`
 
 ### FEEDBACK-INBOX
 
 Feedback sent with a mood and a few words joins the inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Anyone opens it and triages it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again, each change recorded as the person using the app and undoable. Feedback always arrives New: the public key can only add feedback’s own columns, and reads every workspace’s feedback (okr_feedback_inbox) and changes its status (okr_feedback_triage) only through those functions (migration 0031). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser.
 
-- **Help:** “The inbox” (`inbox`)
+- **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U42, U52
 
 ### INBOX-TRIAGE
 
 The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
 
-- **Help:** “The inbox” (`inbox`)
+- **Help:** “The inbox” (`inbox`), screens `Feedback`
 - **Journeys and checks:** U52
 
 ### MCP-FEEDBACK
 
 The AI triages feedback as it does markups (migrations 0028 and 0031). With any token, list_feedback lists every workspace’s feedback, newest first, each with its status (New, In hand, Fixed, Won’t fix), filtered by status or workspace; get_feedback opens one; update_feedback changes its status with the inbox’s rules (fixed names a What’s new entry, won’t fix needs a reason), recorded as the token’s person via the assistant. They go through security-definer functions for tokens (okr_feedback_for_token, okr_feedback_triage_for_token), which refuse a revoked or unknown token and share one change with the inbox (okr_feedback_patch, callable by no key on its own), so no new secret is needed.
 
-- **Help:** “The inbox” (`inbox`)
+- **Help:** “The inbox” (`inbox`), screens `Feedback`
 
 ### FEEDBACK-RAISED
 

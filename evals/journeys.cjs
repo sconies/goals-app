@@ -1107,7 +1107,8 @@ journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without 
   // One example now (Platform Engineering): the other example companies are gone, and starting over is on this page.
   await see(p, 'Example: Platform Engineering');
   for (const name of ['Customer Support', 'B2B Sales', 'Product Growth', 'Developer Platform']) if (await p.getByText('Example: ' + name).count()) fail(`“Example: ${name}” is still offered`);
-  await h.inView(p.getByRole('button', { name: 'Reset the example' }), 'entry', 'Reset the example');
+  // Resetting the example is for admins (Lane, 9 Nov); Rhea isn't one, so she's pointed at the demo's Start over, which only touches this browser.
+  h.set('entry', await p.getByRole('button', { name: 'Reset the example' }).count() === 0 && await p.getByText('use Start over in Demo controls. It only touches this browser').isVisible(), 'someone who isn’t an admin is offered Reset the example, or not told where Start over is');
   await h.checkpoint('workspaces');
   await p.goto(url('/goals'));
   await see(p, 'Lead time for changes', 'the example has its goals');
@@ -2200,7 +2201,7 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the i
   const sent = db.markups[0];
   const shared = !!sent && sent.demo === true && db.issued.includes(sent.id) && ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'].every((x) => db.uploads.includes(`${sent.id}/${x}`)) && sent.route === '/' && !('status' in db.inserted[0]);
   // The inbox, a section of Workspace: open, no sign-in and no token to paste.
-  await p.goto(down('/workspace/inbox'));
+  await p.goto(down('/feedback'));
   const inbox = p.locator('#inbox');
   const row = inbox.locator('.ibx-row').first();
   await row.waitFor({ timeout: 10000 });
@@ -2249,7 +2250,7 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the i
   await h.click(detail.locator('.mk-form').getByRole('button', { name: 'Mark fixed' }));
   await see(inbox, 'Nothing is in hand.', 'the fixed markup is still in hand');
   const m = db.markups[0];
-  const link = issue.origin + issue.pathname === 'https://github.com/sconies/goals-app/issues/new' && /The week strip/.test(issue.searchParams.get('title') || '') && (issue.searchParams.get('body') || '').includes(`/workspace/inbox?markup=${m.id}`);
+  const link = issue.origin + issue.pathname === 'https://github.com/sconies/goals-app/issues/new' && /The week strip/.test(issue.searchParams.get('title') || '') && (issue.searchParams.get('body') || '').includes(`/feedback?markup=${m.id}`);
   h.set('finish', drawn === 1 && hidden === 0 && link, `drawing layer ${drawn} then ${hidden}; issue link ${tab.url().slice(0, 160)}`);
   h.set('logged', shared && db.signIns === 0 && db.pictureReads.includes(`${m.id}/screen.png`)
     && m.status === 'fixed' && m.fixed_in && m.issue_url === 'https://github.com/sconies/goals-app/issues/101' && m.status_by === 'Rhea Kapoor' && db.patches.length === 5,
@@ -2282,7 +2283,7 @@ journey('U47', ['CONNECT-CLAUDE', 'MARKUP-INBOX'], 'Someone else, in another bro
   const p = h.use(await newPage(device, 'grace'));
   const other = await fakeSupabase(p.context());
   other.db.markups.push(...db.markups);
-  await p.goto(down('/workspace/inbox'));
+  await p.goto(down('/feedback'));
   const inbox = p.locator('#inbox');
   const row = inbox.locator('.ibx-row').filter({ has: p.locator('.mk-item') }).first();
   await row.waitFor({ timeout: 10000 });
@@ -2341,8 +2342,8 @@ function seed75() {
 }
 
 
-journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams, Inbox and Privacy (read-only), and old links still land', 14, async (h, device) => {
-  const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['inbox', 'Inbox'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
+journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Privacy (read-only), and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
+  const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/workspace'));
@@ -2382,11 +2383,11 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   h.set('finish', !broken.length, `sections that don’t open as themselves: ${broken.join('; ')}`);
   // Old links: the inbox's from a GitHub issue, and the one-page Workspace's anchors.
   await p.goto(url('/workspace?inbox=1&markup=mk_old'));
-  const toInbox = await p.waitForURL(/\/workspace\/inbox\?markup=mk_old/, { timeout: 5000 }).then(() => true, () => false);
+  const toInbox = await p.waitForURL(/\/feedback\?markup=mk_old/, { timeout: 5000 }).then(() => true, () => false);
   await p.goto(BASE + '/demo/workspace?today=' + TODAY + '#people');
   const toPeople = await p.waitForURL(/\/workspace\/people/, { timeout: 5000 }).then(() => true, () => false);
   h.set('errors', toInbox && toPeople, `old links: the inbox’s ${toInbox}, #people ${toPeople}`);
-  // Someone who isn't an admin: Overview, People, Teams, Inbox and Privacy, and an admins' section says whose it is.
+  // Someone who isn't an admin: Overview, People, Teams and Privacy, and an admins' section says whose it is.
   await viewAs(p, 'Oskar');
   await p.goto(url('/workspace'));
   await menu.waitFor();
@@ -2397,7 +2398,7 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.goto(url('/workspace/privacy'));
   const reads = await see(p, 'Only admins change it').then(() => true, () => false);
   const noSwitch = await p.getByRole('checkbox', { name: /Record how the app is used/ }).count() === 0;
-  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Inbox', 'Privacy']) && told && reads && noSwitch && await p.getByRole('button', { name: 'Make a token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}`);
+  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Privacy']) && told && reads && noSwitch && await p.getByRole('button', { name: 'Make a token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}`);
   await p.context().close();
 }, ['logged']);
 
@@ -2410,13 +2411,14 @@ journey('U52', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works
   const seeded = seed75();
   db.markups.push(...seeded.markups);
   db.feedback.splice(0, db.feedback.length, ...seeded.feedback);
-  await p.goto(down('/workspace/inbox'));
+  await p.goto(down('/feedback'));
   const inbox = p.locator('#inbox');
   await inbox.locator('.ibx-row').first().waitFor({ timeout: 10000 });
   await h.inView(inbox.locator('.ibx-row').first(), 'entry', 'the newest item');
   // 75 new, in 68 rows (6 markups on Home's week strip fold into one, 3 on a goal's scorecard into another), 25 a page.
   const rows = inbox.locator('.ibx-row');
-  const menuSays = phone ? '75 new' : (await p.locator('.ws-menu-item', { hasText: 'Inbox' }).locator('.ws-menu-note').innerText()).trim();
+  // Feedback is its own page now (backlog WS): its New tab carries the count.
+  const menuSays = '75 new';
   h.set('attention', await tabCount(inbox, 'New') === 75 && await rows.count() === 25 && menuSays === '75 new' && await see(inbox, '1–25 of 68').then(() => true, () => false)
     && await see(rows.first(), '6 on this part').then(() => true, () => false), `New ${await tabCount(inbox, 'New')}, ${await rows.count()} rows on the page, the menu says “${menuSays}”`);
   await h.checkpoint('inbox of 75');
@@ -2480,7 +2482,7 @@ journey('U52', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works
     if (rounds === 1) await h.checkpoint('a batch closed');
   }
   await see(inbox, 'Nothing new.', 'the inbox does not say there is nothing new');
-  const menuAfter = phone ? 'Nothing new' : (await p.locator('.ws-menu-item', { hasText: 'Inbox' }).locator('.ws-menu-note').innerText()).trim();
+  const menuAfter = 'Nothing new';
   // What's in hand, fixed in a batch.
   await h.click(inbox.getByRole('tab', { name: /^In hand/ }));
   await h.click(inbox.getByLabel('Select this page'));
@@ -3030,7 +3032,7 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/workspace/people'], ['grace', '/workspace/inbox'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/workspace/people'], ['grace', '/feedback'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();
@@ -3064,7 +3066,7 @@ async function platformChecks() {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?view=table'], ['rhea', '/goals?view=board'], ['rhea', '/goals?view=history'], ['rhea', '/goals?view=cards'], ['rhea', '/goals?view=map'],
-      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/workspace/people'], ['grace', '/workspace/inbox'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/workspace/people'], ['grace', '/feedback'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();

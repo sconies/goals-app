@@ -21,7 +21,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
-    id: 'workspace-rework',
+    id: 'feedback-leave-recording',
+    date: '2026-11-10',
+    title: 'Feedback beside Help, leaving a workspace, and recording you choose',
+    points: [
+      'Feedback, the inbox of markups and feedback from every workspace and the demo, has its own page beside Help. It was on Workspace; old links still open it. It stays open to everyone and names people, never their email.',
+      'Anyone can leave a workspace, handing over their goals first; the only admin can’t. Resetting the example is for admins; the demo’s Start over is for everyone and only touches this browser.',
+      'Setting up a workspace asks whether to record how the app is used there: off unless you tick it. Turning it on later asks first.',
+    ],
+    articles: ['inbox', 'workspace', 'recording', 'set-up'],
+  },
+  {
+    id: 'workspace-fixes',
     date: '2026-11-10',
     title: 'Workspace says what’s true',
     points: [
