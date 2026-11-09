@@ -31,8 +31,8 @@
 /* ---------- The sidebar's head: the workspace's name, not a control (switching is in the person menu) ---------- */
 .ws-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 8px; min-width: 0; }
 .ws-head .ws-name { font-size: 0.9375rem; }
-/* On a phone the mark keeps the room the old switcher button had, so the top bar keeps its height (71px). */
-.mtop > .wsmark { margin: 8px; }
+/* On a phone Faro's F keeps the room the old switcher button had, so the top bar keeps its height (71px). */
+.mtop > .faro-mark { margin: 8px; }
 
 /* ---------- Goals as a section: Goals, then Mine, Watching, All and saved views, one step in ---------- */
 .nav-section { display: flex; flex-direction: column; gap: 2px; }
@@ -55,8 +55,8 @@
   .side .side-brand { justify-content: center; padding: 4px 0; }
   .side .side-brand .faro-logo { display: none; }
   .side .side-brand .faro-mark { display: block; }
-  .side .ws-head { justify-content: center; padding: 8px 0; }
-  .side .ws-head > :not(.wsmark) { display: none; }
+  /* The rail has the F above; the workspace's name needs the full sidebar. */
+  .side .ws-head { display: none; }
   /* The rail keeps Goals and Watching (it has an icon); the other items under Goals are on the Goals page itself. */
   .side .nav.sub:not(.has-icon) { display: none; }
   .side .nav.sub.has-icon { padding: 0; min-height: 38px; }
@@ -72,8 +72,7 @@
   .app.nav-icons .side .side-brand { justify-content: center; padding: 4px 0; }
   .app.nav-icons .side .side-brand .faro-logo { display: none; }
   .app.nav-icons .side .side-brand .faro-mark { display: block; }
-  .app.nav-icons .side .ws-head { justify-content: center; padding: 8px 0; }
-  .app.nav-icons .side .ws-head > :not(.wsmark) { display: none; }
+  .app.nav-icons .side .ws-head { display: none; }
   .app.nav-icons .side .nav.sub:not(.has-icon) { display: none; }
   .app.nav-icons .side .nav.sub.has-icon { padding: 0; min-height: 38px; }
   .app.nav-icons .side .nav.sub .sub-icon { display: inline-flex; }
@@ -130,7 +129,6 @@
 .you-menu { padding-bottom: var(--s3); margin-bottom: var(--s3); border-bottom: 1px solid var(--line-2); }
 .you-menu .you-workspaces { margin-top: var(--s2); }
 .you-menu .you-workspaces > .field-label { padding-inline: 12px; }
-.you-menu .menuitem > .wsmark { flex: 0 0 24px; width: 24px; height: 24px; border-radius: 6px; font-size: 0.75rem; }
 .sheet .more-goals > .field-label, .sheet .more-rest { padding-inline: 12px; }
 .sheet .more-rest { margin-top: var(--s2); }
 

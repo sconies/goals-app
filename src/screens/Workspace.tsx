@@ -231,7 +231,6 @@ function OverviewSection() {
           <div className="glist">
             {app.workspaces.map((w) => (
               <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => switchTo(w.id, '/workspace')}>
-                <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
                 <span className="gline-title">{w.name}</span>
                 <span className="gline-now">{w.id === app.ws.id ? 'Open now' : w.kind === 'example' ? 'Demo data' : 'Your data'}</span>
               </button>
@@ -423,7 +422,6 @@ function WorkspaceName({ several }: { several: boolean }) {
   if (several) return <div className="ws-title-row ws-list-head"><span className="label">Your workspaces · {app.workspaces.length}</span>{rename}</div>;
   return (
     <div className="ws-title-row">
-      <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{app.ws.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
       <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
         <h2 className="block-title ws-title">{app.ws.name}</h2>
         <span className="hint">{app.snapshot.people.length} people · {app.snapshot.teams.length} {app.snapshot.teams.length === 1 ? 'team' : 'teams'} · {app.cycle.name}</span>

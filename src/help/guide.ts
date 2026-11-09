@@ -801,7 +801,7 @@ const CORE_ARTICLES: Article[] = [
         'Detail pages have a Back link to where you came from.',
       ] },
       { heading: 'Good to know', text: ['How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion.'] },
-      { heading: 'Faro’s look', text: ['The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), on the welcome page and in the browser tab.', 'Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk.', 'On a phone’s home screen and in the browser tab, the F sits on a deep-teal tile so it’s easy to spot. See On a phone, a tablet or a big screen for adding it to your home screen.'] },
+      { heading: 'Faro’s look', text: ['The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), at the top left on a phone, on the welcome page and in the browser tab. The workspace you’re in is named beside it (under it in the sidebar); where you choose between workspaces, each is listed by its name.', 'Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk.', 'On a phone’s home screen and in the browser tab, the F sits on a deep-teal tile so it’s easy to spot. See On a phone, a tablet or a big screen for adding it to your home screen.'] },
     ],
     routes: ['/settings'],
     screens: ['Settings'],
