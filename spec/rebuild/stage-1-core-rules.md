@@ -9,7 +9,7 @@ The rules that decide where every goal stands: which week it is and what the pla
 ## Entry criteria
 
 - A scratch folder holding a copy of `spec/` and `llms.txt` (see [the drill](README.md#the-drill-a-fresh-session-rebuilds-a-stage-from-the-kit-alone)), and an empty `rebuild/` folder beside them.
-- A language that runs from a command in that folder. Node 22 with no packages is the simplest (nothing to install); anything else is fine if it runs there.
+- A language that runs from a command in that folder. Node 18 or later with no packages is the simplest (nothing to install); anything else is fine if it runs there.
 
 ## What to read, in order
 
@@ -25,13 +25,13 @@ Not in this stage: [the change engine](../core/rules/change-engine.md) (stage 2)
 
 ## What to build
 
-One program that reads `workspace.json` and, for every week from 0 to the week it was built for (45) and every goal there that week, writes what the rules give, as four CSV files.
+One program that reads `workspace.json` and, for every week from 0 to the week it was built for (the cycle’s week at `builtFor`: 45 in this workspace; work it out, don’t write it in) and every goal there that week, writes what the rules give, as four CSV files, and for every check-in in it, what a check-in must say, as a fifth.
 
 ### The contract
 
 - `rebuild/drill.json` holds `{ "stage": 1, "run": "<command>" }`.
 - The harness runs `<command> <workspace.json> <out folder>` in `rebuild/`: the command, then two paths, each quoted. The first is a copy of `spec/conformance/workspace.json`; the second is `rebuild/drill-out/`, emptied first.
-- The command writes these four files into the out folder and exits 0, within 10 minutes:
+- The command writes these five files into the out folder and exits 0, within 10 minutes:
 
 | File | Rows expected | Columns, in this order |
 |---|---|---|
@@ -39,9 +39,10 @@ One program that reads `workspace.json` and, for every week from 0 to the week i
 | `flags.csv` | 5696 | `week`, `goal`, `flags`, `handled`, `needs_attention` |
 | `projection.csv` | 4822 | `week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses` |
 | `scorecard.csv` | 21910 | `week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub` |
+| `checkin.csv` | 5249 | `checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing` |
 
 - A header row first, then one row per goal and week (per cell, goal and week for the scorecard), as [the conformance data](../conformance/README.md#the-files) says. `goal` is the goal’s key (G-1). CSV as usual: a field with a comma, a quote or a new line is quoted, quotes doubled. UTF-8.
-- How the harness matches: rows by their key columns (`week` and `goal`; and `cell` for the scorecard), so row order doesn’t matter; columns by name. Text must match exactly. Numbers match when they differ by no more than 0.0000015 (rounding in the sixth decimal place).
+- How the harness matches: rows by their key columns (`week` and `goal`; and `cell` for the scorecard; `checkin` alone for check-ins), so row order doesn’t matter; columns by name. Text must match exactly. Numbers match when they differ by no more than 0.0000015 (rounding in the sixth decimal place).
 
 ### A good order
 
@@ -49,12 +50,13 @@ One program that reads `workspace.json` and, for every week from 0 to the week i
 2. The calculation and the official status: the rest of `status.csv`.
 3. The projection: `projection.csv`.
 4. Flags, the trend, asks and decisions, and needs attention: `flags.csv`.
-5. The scorecard, rule then words: `scorecard.csv`. Its words (`value`, `label`, `sub`) are the last thing to match.
+5. The scorecard, rule then words: `scorecard.csv`. Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell.
+6. What a check-in must say: `checkin.csv` (`--files checkin`).
 
 When a file is close, the first differences for one goal usually name the rule that differs. Read that goal’s records in `workspace.json` and the rule’s worked examples side by side.
 
 ## Exit criteria
 
-1. `node spec/rebuild/drill.mjs rebuild` prints **PASS**: every row and every column of all four files match (38124 rows).
-2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says. The harness doesn’t score these yet (no conformance rows): show it with your own tests of those examples.
+1. `node spec/rebuild/drill.mjs rebuild` prints **PASS**: every row and every column of all five files match (43373 rows).
+2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says: the harness scores the check-in rule through `checkin.csv`, but how a typed number is read and questioned (and Numbers and names) has no conformance rows, so show it with your own tests of those examples.
 3. `rebuild/GAPS.md` lists everything you had to guess.

@@ -3,7 +3,8 @@
    workspace (spec/conformance/workspace.json) and matching every row. src/spec/conformance.test.ts recomputes them
    from workspace.json and fails on any difference. Pure: no files are read or written here. */
 import { attentionFor, needsAttention } from '../domain/attention';
-import { currentWeek, projectionFor, valueSeries, weekDate } from '../domain/plan';
+import { draftFrom, emptyDraft, evaluate } from '../domain/checkin';
+import { currentWeek, goalAsOf, projectionFor, valueSeries, weekDate } from '../domain/plan';
 import { goalScorecard } from '../domain/scorecard';
 import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus } from '../domain/status';
 import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team } from '../domain/types';
@@ -72,13 +73,14 @@ export function asOf(w: ConformanceWorkspace, moment: Date): Snapshot {
 
 /* ---------- the rows ---------- */
 
-export interface ConformanceTables { status: string[][]; flags: string[][]; projection: string[][]; scorecard: string[][] }
+export interface ConformanceTables { status: string[][]; flags: string[][]; projection: string[][]; scorecard: string[][]; checkin: string[][] }
 
 export const HEADERS: Record<keyof ConformanceTables, string[]> = {
   status: ['week', 'goal', 'kind', 'status', 'calculated', 'greener', 'latest_week', 'days_without_update'],
   flags: ['week', 'goal', 'flags', 'handled', 'needs_attention'],
   projection: ['week', 'goal', 'kind', 'to_week', 'value', 'low', 'high', 'slope', 'first_week', 'last_week', 'forecast_misses'],
   scorecard: ['week', 'goal', 'cell', 'value', 'tone', 'likelihood', 'label', 'sub'],
+  checkin: ['checkin', 'week', 'goal', 'calculated', 'reason', 'asks_target', 'needs_path', 'missing', 'call', 'greener', 'call_missing'],
 };
 
 /** A number as the files write it: up to 6 decimal places, no trailing zeros. */
@@ -90,7 +92,7 @@ const keyOf = (g: Goal) => g.key ?? g.id;
 export function conformanceTables(w: ConformanceWorkspace): ConformanceTables {
   const cycle = w.cycle;
   const last = currentWeek(cycle, new Date(w.builtFor));
-  const out: ConformanceTables = { status: [], flags: [], projection: [], scorecard: [] };
+  const out: ConformanceTables = { status: [], flags: [], projection: [], scorecard: [], checkin: [] };
   for (let week = 0; week <= last; week++) {
     const moment = weekMoment(cycle, week);
     const s = asOf(w, moment);
@@ -119,7 +121,30 @@ export function conformanceTables(w: ConformanceWorkspace): ConformanceTables {
       }
     }
   }
+  out.checkin = checkInRows(w);
   return out;
+}
+
+/**
+ * What a check-in must say (rules/check-in.md), for every check-in in the workspace: the check-in judged again as a
+ * draft, in its own week, against the plan of that week, with every check-in for an earlier week in the workspace.
+ * First the bare draft (its number, or its stage updates, and nothing else: the owner's call left to the calculation),
+ * then the same with the owner's call as posted. `missing` and `call_missing` are the codes still missing, in order.
+ */
+export function checkInRows(w: ConformanceWorkspace): string[][] {
+  const goals = new Map(w.goals.map((g) => [g.id, g]));
+  const rows: string[][] = [];
+  for (const c of w.checkIns) {
+    const goal = goals.get(c.goalId);
+    if (!goal) continue;
+    const g = goalAsOf(goal, c.week);
+    const posted = draftFrom(c);
+    const bare = { ...emptyDraft(g, null), value: posted.value, stages: posted.stages };
+    const e = evaluate(g, w.cycle, c.week, bare, w.checkIns);
+    const called = evaluate(g, w.cycle, c.week, { ...bare, status: c.status }, w.checkIns);
+    rows.push([c.id, String(c.week), keyOf(goal), e.calc, e.reason ?? '', yes(e.asksTarget), yes(e.needsPath), e.codes.join(' '), c.status, yes(called.greener), called.codes.join(' ')]);
+  }
+  return rows.sort((a, b) => Number(a[1]) - Number(b[1]) || a[2]!.localeCompare(b[2]!, 'en', { numeric: true }) || a[0]!.localeCompare(b[0]!));
 }
 
 /* ---------- CSV ---------- */

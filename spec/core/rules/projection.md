@@ -20,11 +20,14 @@ The projection fits a least-squares line through the recent numbers, not a slope
 - A slope the numbers barely support counts for little: *t* = *slope* / (*spread* / √*Sxx*) (infinite when the spread is 0), and the line leans by *lean* = *t*² / (1 + *t*²) (1 when *t* is infinite).
 - To week *T*: *value* = *ȳ* + *lean* · *slope* · (*T* − *x̄*).
 - *half* = *spread* · √(1/*n* + (*T* − *x̄*)² / *Sxx*); *low* = *value* − *half*, *high* = *value* + *half*. About two chances in three that the number lands inside if nothing changes. A clean trend has no spread, so its range is the line itself.
-- Every result (value, low, high, slope) is rounded to 9 decimal places. It also says *from* (first week used), *to* (*last*.week) and *week* (*T*).
+- Every result (value, low, high, slope) is rounded to 9 decimal places. The *slope* it gives is the one the line leans by, *lean* · *slope*, not the fitted slope (the conformance data's `slope` column is this one). It also says *from* (first week used), *to* (*last*.week) and *week* (*T*).
 
-**Held to what the number can be** (`projectionFor`, which every projection of a goal's own numbers goes through): a *share* (unit `%` and every plan number, start, target, any hand-set points or a range's limit, within 0–100) has value, low and high held to 0–100; a *count* (0 decimals, a plan of whole numbers never below zero, and a unit that is not %, a time, money, points or a score) is held at or above 0.
+**Held to what the number can be** (`projectionFor`, which every projection of a goal's own numbers goes through), judged on the goal as it is projected: a number to move with the plan as of the week judged (its start, its target and its hand-set points; earlier plans in `planHistory` don't count), a range with its limit alone (no start or target).
 
-**Where it is used.** A number to move projects to its due week (`endWeek`, else the cycle's end) from every earlier check-in that has a number (all of them, in week order then posting order, even two in one week) plus the number of the week judged. A range goal's scorecard projects to the cycle's end from one number per week (the latest posted in each week wins).
+- A *share* (`isShare`): the unit, trimmed, is `%`, and every one of those plan numbers is within 0–100. Value, low and high are held to 0–100.
+- A *count* (`isCount`): 0 decimals; every one of those plan numbers a whole number, zero or more; and a unit that, trimmed and in lower case, is not `%` and doesn't match `/^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/` (a time, money, points or a score: the whole unit is one of those words, or it holds a currency code or sign or a degree sign anywhere). Value, low and high are held at or above 0. The unit is otherwise free: `deploys`, `templates`, `TB` and `checks` are counts when the rest holds.
+
+**Where it is used.** A number to move projects to its due week (`endWeek` of the plan as of the week judged, the latest check-in's; else the cycle's end) from every earlier check-in that has a number (all of them, in week order then posting order, even two in one week) plus the number of the week judged. A range goal's scorecard projects to the cycle's end from one number per week (the latest posted in each week wins).
 
 ## Worked examples
 
@@ -39,6 +42,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A noisy CSAT: 84, 81, 86, 82, 87, 80, 85, 83, 84, 81, 86, 82 in weeks 34–45, to week 53. | `value 83.096, range 78.397–87.796, from week 38` |
 | Incidents, a count: 12, 8, 3, 2 in weeks 1, 3, 5, 6, to week 13. The bare line goes below zero; the goal’s projection stops at 0. | `line low -14.33; held: value 0, low 0` |
 | The latest check-in of each week counts: week 2 posted twice (5, then 7 a day later), and week 1 with 3. | `1: 3, 2: 7` |
+| The same noisy CSAT: the slope the line was fitted with, and the slope the projection gives (leaned). | `fitted -0.19, given -0.035` |
+| Whole-number goals from 0 to 10 in deploys, ms, USD, pts, TB and min; then deploys from 0 to 10.5 with 1 decimal; then % from 10 to 40. | `count, not, not, not, count, not; not; share` |
 | The 30→75 goal with 42 in week 3 and 45 in week 6: the likeliest value at week 13, and whether it misses the target. | `52, misses` |
 
 ## Where it lives

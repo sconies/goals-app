@@ -10,8 +10,8 @@
      <rebuild folder>/drill.json  { "stage": 1, "run": "<command>" }
      The harness runs <command> in the rebuild folder, with two arguments added: the path of a copy of workspace.json
      (in a folder of its own) and the path of a folder to write into (<rebuild folder>/drill-out, emptied first). The command writes status.csv,
-     flags.csv, projection.csv and scorecard.csv there, with the columns spec/conformance/README.md lists, and exits 0.
-   A folder with no drill.json but the four CSVs in it is scored as it is, without running anything.
+     flags.csv, projection.csv, scorecard.csv and checkin.csv there, with the columns spec/conformance/README.md lists, and exits 0.
+   A folder with no drill.json but the five CSVs in it is scored as it is, without running anything.
 
    Options:
      --files status,flags   score only these files (the others are listed as not scored)
@@ -26,9 +26,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const FILES = ['status', 'flags', 'projection', 'scorecard'];
+const FILES = ['status', 'flags', 'projection', 'scorecard', 'checkin'];
 /** The columns that name a row: a row in the rebuild's file is matched to the expected row with the same values in them. */
-const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'] };
+const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], checkin: ['checkin'] };
 /** Numbers are written with up to 6 decimal places, so two that differ by rounding in the last place still match. */
 const TOLERANCE = 1.5e-6;
 
@@ -187,7 +187,7 @@ function main(argv) {
   if (fs.existsSync(manifest)) {
     let m;
     try { m = JSON.parse(fs.readFileSync(manifest, 'utf8')); } catch (e) { console.error(`drill.json isn’t JSON: ${e.message}`); return 2; }
-    if (typeof m.run !== 'string' || !m.run.trim()) { console.error('drill.json needs "run": the command that writes the four CSV files, e.g. { "stage": 1, "run": "node main.mjs" }'); return 2; }
+    if (typeof m.run !== 'string' || !m.run.trim()) { console.error('drill.json needs "run": the command that writes the five CSV files, e.g. { "stage": 1, "run": "node main.mjs" }'); return 2; }
     if (m.stage != null && m.stage !== 1) { console.error(`drill.json says stage ${m.stage}; this harness scores stage 1 only (spec/rebuild/README.md says which stages have a drill).`); return 2; }
     outDir = path.join(target, 'drill-out');
     fs.rmSync(outDir, { recursive: true, force: true });
