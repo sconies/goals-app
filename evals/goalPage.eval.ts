@@ -35,7 +35,7 @@ describe('the summary bar', () => {
     expect(why.by).toMatch(/^Rhea, week \d+$/);
     expect(why.handledText).toMatch(/^(being handled: |no response yet$)/);
     const feeds = feedsLine(s.goals.filter((x) => x.parentId === 'ns-lead'), (x) => status(x.id));
-    expect(feeds?.text).toMatch(/^Fed by four goals: 2 off track/);
+    expect(feeds?.text).toMatch(/^Directly feeding it \(four goals\): 2 off track/);
   });
 
   it(R('GOAL-PAGE-BAR', 'a range says where it is against its limit; dated stages say how many are done and which are slipping or late'), () => {

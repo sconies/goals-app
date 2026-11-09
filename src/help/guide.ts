@@ -296,8 +296,11 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Scanning the whole set of goals, or a slice of it, in whatever shape suits the question you have.'] },
       { heading: 'How to use it', list: [
         'Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.',
-        'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. Each button has its name, on a phone too, and a line under the buttons says what the open layout shows. Your last layout is remembered and is in the link.',
-        'On a phone the tabs and the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full.',
+        'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.',
+        'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.',
+        'Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.',
+        'A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.',
+        'On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.',
         'When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.',
         'Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.',
         'In the Table, select goals to change their owner or level, watch them or export them.',
@@ -309,7 +312,7 @@ const CORE_ARTICLES: Article[] = [
     routes: ['/goals', '/goals?view=list', '/goals?view=table', '/goals?view=board', '/goals?view=cards'],
     screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'GoalCards', 'BulkEdit'],
     reqs: ['VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
-    keywords: ['list', 'table', 'board', 'cards', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story'],
+    keywords: ['list', 'table', 'board', 'cards', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story', 'phone', 'views'],
     related: ['goals-filters', 'history', 'goal-map', 'needs-attention'],
   },
   {
@@ -319,7 +322,8 @@ const CORE_ARTICLES: Article[] = [
     group: 'goals',
     sections: [
       { heading: 'How to use it', list: [
-        'Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition.',
+        'Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.',
+        'Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.',
         `Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(', ')}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
         'Decision or help needed is one press. Each active filter shows as words you can remove.',
         'Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest.',
@@ -383,7 +387,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Choose Map among the Goals layouts. North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.',
-        'Pan, zoom and drag goals about. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.',
+        'Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.',
         'The critical path, the inputs most likely to make a top goal miss, is drawn bold. Only what needs attention narrows the map to that.',
         'Fit all shows everything small; Readable shows the critical path at a size you can read.',
         'Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.',
@@ -405,6 +409,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Understanding one goal in a couple of seconds, then acting on it: checking in, answering what’s asked of you, commenting or watching. Each fact is said once, in one place.'] },
       { heading: 'The summary bar', list: [
         'First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.',
+        'Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).',
         'Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.',
         'Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.',
         'A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages behind (slipping or late) and Next stage: when it now lands, and the week it was due if it’s late.',
@@ -416,16 +421,19 @@ const CORE_ARTICLES: Article[] = [
         'One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures. While a goal doesn’t say how it’s measured, its owner and admins see a line asking for it, with a link to describe it.',
         'The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.',
         'Every section under the chart has a heading and one line saying what it answers, with a rule between sections.',
-        'Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.',
+        'Why it could miss without a change (at risk), or Why it will miss without intervention (off track): the status’s own meaning, so a goal at risk that is recovering isn’t said to be behind, and the status word isn’t said twice. Under it, the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.',
         'What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done.',
         'Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.',
-        'What feeds it: how the goals feeding it stand (“Fed by four goals: 2 off track, 1 at risk”), then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.',
-        'This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks.',
+        'What feeds it: how the goals directly feeding it stand (“Directly feeding it (four goals): 2 off track, 1 at risk”). Cards on Goals count everything under a goal instead, and say so (“Everything under it (16 goals)”), so the two never look contradictory. Then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.',
+        'This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list.',
         'About this goal: how it’s measured, its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change. It’s open the first time you visit, and folded after.',
       ] },
       { heading: 'Changing it', list: [
         'Change this goal (in About, or the “…” menu) offers three: improve the definition, change the plan or target, change the owner or level. Each asks why, and the reason goes in the activity for everyone watching.',
         'Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for whoever posted it or an admin; after a newer one it can only be corrected.',
+      ] },
+      { heading: 'A done goal', list: [
+        'Once the owner calls a goal done, it shows its final result, not a forecast: Result says Done, with the number it closed on and its week, where Will it hit the target was. Its chart has no projection, lists and exports give no forecast, and a quarter after the one it was done in says None due, done in week 38, rather than In progress.',
       ] },
       { heading: 'A stopped goal', list: [
         'A goal stopped mid-year keeps its page, marked Stopped (a ring with a bar across, and the word), with who stopped it, when and why. Its chart, check-ins and activity stay as they were; it has no main button, and Restart it is there for an admin or whoever stopped it.',
@@ -500,6 +508,7 @@ const CORE_ARTICLES: Article[] = [
         'Plan by week shows the numbers week by week; type over any week.',
         'After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s activity. A change made from one part of Change this goal always asks why.',
         'Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about.',
+        'A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.',
         'The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.',
         'A goal’s type can’t change once check-ins have started.',
       ] },

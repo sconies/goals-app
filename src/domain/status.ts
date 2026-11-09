@@ -215,6 +215,19 @@ export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today:
 }
 
 /**
+ * The check-in that closed a goal: its latest (as of `week`, when given), if the owner called it done. A done goal shows
+ * its final result: no forecast, no projection, and no quarter after it still running (backlog 9 Nov, item 2).
+ */
+export function doneCheckIn(goal: Goal, checkIns: CheckIn[], week?: number): CheckIn | null {
+  const own = checkInsFor(goal, checkIns).filter((c) => week == null || c.week <= week);
+  const latest = own.length ? own.reduce((a, b) => (b.postedAt > a.postedAt ? b : a)) : null;
+  return latest?.status === 'done' ? latest : null;
+}
+
+/** Whether a goal projects where it will end: not when its last check-in is too old, once it's done, or once it's stopped. */
+export const projects = (goal: Goal, status: DisplayStatus) => status !== 'stale' && status !== 'done' && !goal.stoppedAt;
+
+/**
  * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
  * added if later). The one rule for "no recent update": stale at RULES.staleDays, and the Goals filter "No update for
  * N weeks" counts the same days in weeks.

@@ -7,30 +7,42 @@ const bannerPx = () => { const b = document.querySelector('.first-reports'); if 
 module.exports = {
   id: 'F5',
   area: 'list-board',
-  async run({ open }) {
+  async run({ open, url }) {
     const fails = [];
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
     const r0 = (n) => Math.round(n);
 
-    // L&T 4, 31, 23: a 360px phone. The week line is one line under the title, the layouts and tools one 44px row,
-    // search and Filters one row with a short placeholder, and the first goal within 300px.
+    // L&T 4, 31, 23 and backlog G (Lane's markup, 9 Nov): a 360px phone, goals first. The week is one small line under
+    // the title, beside New goal, so the header is one 44px row; which goals and how to see them are one row of two menus, the Views button saying the open
+    // view and its count; search and Filters one row with a short placeholder; and the first goal within 240px.
     {
       const [c, p] = await open(360, 740, 'amara', '/goals', true);
       const m = await p.evaluate((src) => {
         const ban = (0, eval)('(' + src + ')')();
         const rect = (s) => document.querySelector(s)?.getBoundingClientRect();
-        const period = rect('.goals-period'), h1 = rect('.goals-head h1'), bar = rect('.goals-toolbar .view-bar'), row = rect('.filterbar-row');
-        return { period: period && [period.top, period.height, period.width], h1Bottom: h1?.bottom, bar: bar?.height, row: row?.height, first: rect('.outcome')?.top - ban,
-          placeholder: document.querySelector('.filter-search input')?.placeholder, side: document.documentElement.scrollWidth - innerWidth };
+        const bar = rect('.goals-phonebar'), row = rect('.filterbar-row');
+        const shown = (s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length).length;
+        const period = rect('.goals-period'), h1 = rect('.goals-head h1'), head = rect('.goals-head');
+        return { period: period && [period.top, period.height], h1Bottom: h1?.bottom, head: head?.height, bar: bar?.height, hidden: shown('.goals-toolbar') + shown('.layout-about'),
+          views: document.querySelector('.show-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(), layout: document.querySelector('.layout-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(),
+          row: row?.height, first: rect('.outcome')?.top - ban, placeholder: document.querySelector('.filter-search input')?.placeholder, side: document.documentElement.scrollWidth - innerWidth };
       }, bannerPx.toString());
-      chk(m.period && m.period[1] <= 22 && m.period[0] >= m.h1Bottom - 1, `L&T 4: 360px week line is ${m.period && r0(m.period[1])}px tall (one line under the title expected)`);
-      chk(m.bar <= 52, `L&T 4: 360px layout and tools bar is ${r0(m.bar)}px tall (one 44px row expected)`);
+      chk(m.period && m.period[1] > 0 && m.period[1] <= 18 && m.period[0] >= m.h1Bottom - 1 && m.head <= 48, `G: 360px week line ${m.period && r0(m.period[1])}px tall in a ${r0(m.head)}px header (one line under the title, beside New goal, expected)`);
+      chk(m.bar <= 48 && m.hidden === 0, `G: 360px views and layout take ${r0(m.bar)}px (one 44px row expected), ${m.hidden} of the wide toolbar's rows still shown`);
+      chk(/^Views: Trees ?, ?\d+ goals$/.test(m.views ?? '') && /^Layout: List$/.test(m.layout ?? ''), `G: 360px menus say “${m.views}” and “${m.layout}”`);
       chk(m.row <= 48, `L&T 4: 360px search and Filters take ${r0(m.row)}px (one row expected)`);
-      // Backlog N (8 Nov): the tabs wrap instead of being cut off and a line says what the layout is, so the first goal
-      // starts lower than L&T 4's 300px: about 427px now. Held there so it doesn't creep further.
-      chk(m.first <= 440, `L&T 4: 360×740 first goal starts at ${r0(m.first)}px (≤440 expected)`);
+      // Backlog G (9 Nov) brought the first goal up from about 427px (backlog N's wrapped tabs and layout line) to about 235px.
+      chk(m.first <= 240, `G: 360×740 first goal starts at ${r0(m.first)}px (≤240 expected)`);
       chk(m.placeholder === 'Search goals', `L&T 31: search placeholder is “${m.placeholder}”`);
       chk(m.side <= 1, `360px Goals scrolls sideways by ${m.side}px`);
+      // The first-check-in note is one line until Why? opens the rest.
+      const why = p.getByRole('button', { name: 'Why?' });
+      const h1 = await p.locator('.first-reports').evaluate((e) => e.getBoundingClientRect().height).catch(() => 0);
+      chk(h1 > 0 && h1 <= 44 && await why.isVisible(), `G: 360px first-check-in note is ${r0(h1)}px tall${await why.isVisible() ? '' : ', with no Why?'}`);
+      if (await why.isVisible()) {
+        await why.click();
+        chk(/nobody has reported/.test(await p.locator('.first-reports').innerText()), 'G: Why? does not open the rest of the first-check-in note');
+      }
       await c.close();
     }
 
@@ -39,15 +51,15 @@ module.exports = {
     {
       const [c, p] = await open(390, 844, 'amara', '/goals?show=teams', true);
       const m = await p.evaluate(() => {
-        const tabs = document.querySelector('.goals-tabs > .seg.tabs').getBoundingClientRect();
-        const sel = document.querySelector('.goals-tabs [aria-selected="true"]').getBoundingClientRect();
+        // On a phone the open view is what the Views button says (backlog G), not a tab to scroll to.
+        const name = document.querySelector('.show-menu > summary .show-name');
         const stale = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.trow-icon.tone-stale'));
         const now = stale?.querySelector('.trow-now > span:last-child');
         const row = document.querySelector('.trow'), title = row.querySelector('.trow-title').getBoundingClientRect(), value = row.querySelector('.trow-now').getBoundingClientRect();
-        return { inView: sel.left >= tabs.left - 1 && sel.right <= tabs.right + 1, glines: document.querySelectorAll('.page .gline').length, trows: document.querySelectorAll('.page .trow').length,
+        return { inView: name?.textContent === 'By team' && name.scrollWidth <= name.clientWidth + 1, glines: document.querySelectorAll('.page .gline').length, trows: document.querySelectorAll('.page .trow').length,
           staleColour: now && getComputedStyle(now).color, titleW: title.width, valueLeft: value.left, titleLeft: title.left, valueBelow: value.top >= title.bottom - 1, valueSize: parseFloat(getComputedStyle(row.querySelector('.trow-now')).fontSize) };
       });
-      chk(m.inView, 'L&T 2: the selected tab (By team) is not scrolled into view');
+      chk(m.inView, 'L&T 2: the Views button does not say By team in full');
       chk(m.glines === 0 && m.trows > 5, `L&T 21: By team draws ${m.glines} rows of another kind`);
       chk(m.staleColour === 'rgb(70, 87, 89)', `L&T 19: “no recent update” is ${m.staleColour}`);
       chk(m.titleW >= 300 && m.valueBelow && Math.abs(m.valueLeft - m.titleLeft) <= 1 && m.valueSize === 14, `L&T 22: phone row title ${r0(m.titleW)}px, value ${m.valueBelow ? 'below' : 'beside'} it at x ${r0(m.valueLeft)} vs ${r0(m.titleLeft)}, ${m.valueSize}px`);
@@ -273,6 +285,96 @@ module.exports = {
       chk(m.last.every((x) => x === '0px'), `B&C 4: the last story on a card keeps a ${m.last.join('/')} rule`);
       chk(m.whyTitle > 0 && m.whyTitle >= m.whyText - 2, 'B&C 3: a clamped reason has no tooltip with the whole of it');
       chk(m.nb === 0, `B&C 16: “week 43” breaks across lines ${m.nb} time(s)`);
+      await c.close();
+    }
+
+    // Outside review, 9 Nov (the demo searches this page live). OR 1: search keeps every character typed at full speed
+    // or pasted, spaces included, and the address follows. OR 3: tabs and layouts are steps Back returns to, and Back
+    // puts the box back as the address has it. OR 2: clearing keeps the tab, the layout and the sort.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals');
+      const box = p.locator('.filter-search input');
+      const q = () => new URL(p.url()).searchParams;
+      await box.click();
+      await box.pressSequentially('Kafka', { delay: 0 });
+      chk((await box.inputValue()) === 'Kafka', `OR 1: typing “Kafka” at full speed leaves “${await box.inputValue()}”`);
+      await box.fill('');
+      await box.pressSequentially('Amara Nwosu', { delay: 0 });
+      chk((await box.inputValue()) === 'Amara Nwosu', `OR 1: typing “Amara Nwosu” at full speed leaves “${await box.inputValue()}”`);
+      await p.waitForFunction(() => new URL(location.href).searchParams.get('q') === 'Amara Nwosu', null, { timeout: 3000 }).catch(() => {});
+      chk(q().get('q') === 'Amara Nwosu', `OR 1: the address says q=${q().get('q')} after typing “Amara Nwosu”`);
+      // A paste: one input event with the whole text, into a box that already has words in it.
+      await box.fill('lead');
+      await box.press('End');
+      await p.keyboard.insertText(' time for changes');
+      await p.keyboard.type('!', { delay: 0 });
+      chk((await box.inputValue()) === 'lead time for changes!', `OR 1: pasting into the box leaves “${await box.inputValue()}”`);
+      await box.fill('');
+      await p.waitForFunction(() => !new URL(location.href).searchParams.get('q'), null, { timeout: 3000 }).catch(() => {});
+
+      // Back: Needs attention, then Table, then List, then a search; Back walks the same steps in reverse.
+      await p.getByRole('tab', { name: /Needs attention/ }).click();
+      await p.locator('[aria-label="Table"]').first().click();
+      await p.locator('.gtable').first().waitFor({ timeout: 5000 }).catch(() => {});
+      await p.locator('[aria-label="List"]').first().click();
+      await box.click();
+      await box.pressSequentially('platform', { delay: 0 });
+      await p.waitForFunction(() => new URL(location.href).searchParams.get('q') === 'platform', null, { timeout: 3000 }).catch(() => {});
+      const steps = [];
+      for (let i = 0; i < 3; i++) {
+        await p.goBack();
+        await p.waitForTimeout(250);
+        steps.push(`${q().get('show') ?? 'trees'}/${q().get('view') ?? 'list'}/“${await box.inputValue()}”`);
+      }
+      chk(steps.join(' ') === 'attention/table/“” attention/list/“” trees/list/“”', `OR 3: Back after Needs attention → Table → List → a search goes ${steps.join(', ')}`);
+
+      // Clear, from No goals match: the tab, the layout and the sort stay.
+      await p.goto(url('/goals?show=attention&view=table&sort=title'));
+      await box.click();
+      await box.pressSequentially('zzzz no such goal', { delay: 0 });
+      await p.getByRole('button', { name: 'Clear search and filters' }).click({ timeout: 5000 }).catch(() => fails.push('OR 2: no Clear search and filters for a search matching nothing'));
+      await p.waitForTimeout(250);
+      chk(q().get('show') === 'attention' && q().get('view') === 'table' && q().get('sort') === 'title' && !q().get('q') && (await box.inputValue()) === '', `OR 2: Clear search and filters leaves ${q().toString()} and “${await box.inputValue()}” in the box`);
+      await c.close();
+    }
+
+    // OR 9 (second review, 9 Nov): search on Trees covers every goal, not only the top ones, and each match is shown
+    // under its tree, as on By level.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals');
+      await p.locator('.filter-search input').pressSequentially('canary', { delay: 0 });
+      await p.waitForFunction(() => /of \d+/.test(document.querySelector('.filter-count')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+      const trees = await p.evaluate(() => ({ count: document.querySelector('.filter-count')?.textContent ?? '', heads: [...document.querySelectorAll('.goals-page section.block h2')].map((h) => h.textContent), rows: document.querySelectorAll('.goals-page section.block .tree li').length }));
+      await p.getByRole('tab', { name: 'By level' }).click();
+      await p.waitForTimeout(300);
+      const byLevel = await p.evaluate(() => document.querySelector('.filter-count')?.textContent ?? '');
+      const n = (s) => (/(\d+) of (\d+)/.exec(s) || []).slice(1).map(Number);
+      const [found, of] = n(trees.count), [found2, of2] = n(byLevel);
+      chk(found >= 2 && found === found2 && of === of2 && trees.rows === found && trees.heads.length > 0, `OR 9: “canary” finds ${trees.count} on Trees (${trees.rows} rows under ${trees.heads.join(', ')}) and ${byLevel} on By level`);
+      await c.close();
+    }
+
+    // OR 4: a link with a tab or team the workspace doesn't have shows the trees and says what it dropped.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals?show=nonsense&team=no-such-team');
+      await p.locator('.link-note').waitFor({ timeout: 5000 }).catch(() => {});
+      const m = await p.evaluate(() => ({ note: document.querySelector('.link-note')?.textContent ?? '', trees: document.querySelectorAll('.outcome').length,
+        sel: document.querySelector('.goals-tabs [aria-selected="true"]')?.textContent, chips: [...document.querySelectorAll('.filter-chip')].map((x) => x.textContent) }));
+      const u = new URL(p.url()).searchParams;
+      chk(/no “nonsense” tab/.test(m.note) && /no-such-team/.test(m.note), `OR 4: a bad link says “${m.note}”`);
+      chk(m.trees > 0 && m.sel === 'Trees' && !m.chips.length && !u.get('show') && !u.get('team'), `OR 4: a bad link shows ${m.trees} trees, tab ${m.sel}, filters ${m.chips.join(', ') || 'none'}, address ${u.toString()}`);
+      await c.close();
+    }
+
+    // OR 7: every tab is whole beside the layouts, on a laptop and on a 1920px screen, in the list and the table.
+    for (const [w, route] of [[1440, '/goals'], [1920, '/goals'], [1920, '/goals?view=table']]) {
+      const [c, p] = await open(w, 1000, 'rhea', route);
+      const m = await p.evaluate(() => {
+        const row = document.querySelector('.goals-tabs > .seg.tabs'), box = row.getBoundingClientRect();
+        const cut = [...row.querySelectorAll('[role="tab"]')].filter((t) => { const r = t.getBoundingClientRect(); return r.left < box.left - 0.5 || r.right > box.right + 0.5; }).map((t) => t.textContent);
+        return { over: row.scrollWidth - row.clientWidth, cut };
+      });
+      chk(m.over <= 1 && !m.cut.length, `OR 7: at ${w}px ${route} the tabs scroll by ${m.over}px; cut off: ${m.cut.join(', ') || 'none'}`);
       await c.close();
     }
     return fails;

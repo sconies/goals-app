@@ -50,9 +50,9 @@ export function checkExpectations(s: Snapshot, e: Expectations | undefined) {
 /** The real app, or the demo: the example data, a role switcher and a reset, kept in each visitor's browser. */
 export type Mode = 'live' | 'demo';
 
-/** Where the app keeps its records. The browser store and the Supabase store implement the same contract. */
+/** Where the app keeps its records. The browser, Supabase and plain-Postgres stores implement it, and each passes the same contract test (src/ports/contracts/store.ts). */
 export interface Store {
-  readonly kind: 'browser' | 'supabase';
+  readonly kind: 'browser' | 'supabase' | 'postgres';
   /** Whether the example workspace is part of this store (the demo) or not (the real app). */
   readonly hasExample: boolean;
   workspaces(): Promise<Workspace[]>;

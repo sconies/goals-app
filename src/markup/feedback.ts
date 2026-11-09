@@ -2,12 +2,9 @@
    markups and triaged the same way, with the same states (New, In hand, Fixed, Won't fix) and the same rules
    (statusPatch in model.ts). Anyone reads and triages it (backlog O, migration 0031). Where it's kept is passed in, as
    for markups:
-   - openFeedback: the inbox, on the app's public key, through the database's functions for it (okr_feedback_inbox
-     reads every workspace's feedback, okr_feedback_triage changes one's status);
-   - tokenFeedback: the MCP server's feedback tools, with any token, through the database's functions for it
-     (okr_feedback_for_token, okr_feedback_triage_for_token), as the markup tools reach markups;
+   - openFeedback and tokenFeedback (src/adapters/supabase/feedback.ts): the inbox, and the MCP server's feedback
+     tools, on Supabase;
    - localFeedback: with no database, this workspace's feedback from the app, its statuses kept in this browser. */
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Feedback } from '../domain/types';
 import { MarkupError, nameOnly, statusPatch, type MarkupStatus, type Mood, type StatusChange } from './model';
 
@@ -29,7 +26,7 @@ export interface InboxFeedback {
   statusAt: string | null;
 }
 
-type Triage = Pick<InboxFeedback, 'status' | 'fixedIn' | 'wontFixReason' | 'statusBy' | 'statusAt'>;
+export type Triage = Pick<InboxFeedback, 'status' | 'fixedIn' | 'wontFixReason' | 'statusBy' | 'statusAt'>;
 
 /** A row of okr_feedback_inbox (or the triage columns of okr_feedback). */
 export interface FeedbackInboxRow {
@@ -38,12 +35,12 @@ export interface FeedbackInboxRow {
 }
 
 const iso = (v: string | null | undefined) => (v ? new Date(v).toISOString() : null);
-const triageFromRow = (r: Partial<FeedbackInboxRow>): Triage => ({ status: r.status ?? 'new', fixedIn: r.fixed_in ?? null, wontFixReason: r.wont_fix_reason ?? null, statusBy: r.status_by == null ? null : nameOnly(r.status_by), statusAt: iso(r.status_at) });
+export const triageFromRow = (r: Partial<FeedbackInboxRow>): Triage => ({ status: r.status ?? 'new', fixedIn: r.fixed_in ?? null, wontFixReason: r.wont_fix_reason ?? null, statusBy: r.status_by == null ? null : nameOnly(r.status_by), statusAt: iso(r.status_at) });
 export const feedbackFromInboxRow = (r: FeedbackInboxRow): InboxFeedback => ({
   id: r.id, workspaceId: r.workspace_id, workspaceName: r.workspace_name ?? '', personId: r.person_id, personName: nameOnly(r.person_name),
   path: r.path ?? '', mood: r.mood, text: r.text ?? '', at: iso(r.at) ?? r.at, ...triageFromRow(r),
 });
-const triageToRow = (t: Triage) => ({ status: t.status, fixed_in: t.fixedIn, wont_fix_reason: t.wontFixReason, status_by: t.statusBy, status_at: t.statusAt });
+export const triageToRow = (t: Triage) => ({ status: t.status, fixed_in: t.fixedIn, wont_fix_reason: t.wontFixReason, status_by: t.statusBy, status_at: t.statusAt });
 
 /** Which feedback to list: one workspace's, or one status. */
 export interface FeedbackQuery { workspaceId?: string; status?: MarkupStatus }
@@ -57,7 +54,7 @@ export interface FeedbackStore {
   update(id: string, t: Triage): Promise<Triage | null>;
 }
 
-const matches = (q: FeedbackQuery = {}) => (f: InboxFeedback) => (!q.workspaceId || f.workspaceId === q.workspaceId) && (!q.status || f.status === q.status);
+export const matches = (q: FeedbackQuery = {}) => (f: InboxFeedback) => (!q.workspaceId || f.workspaceId === q.workspaceId) && (!q.status || f.status === q.status);
 
 export function feedbackOps(o: { store: FeedbackStore; entries: string[]; now?: () => Date }) {
   return {
@@ -76,44 +73,6 @@ export function feedbackOps(o: { store: FeedbackStore; entries: string[]; now?: 
   };
 }
 export type FeedbackOps = ReturnType<typeof feedbackOps>;
-
-export function openFeedback(db: SupabaseClient): FeedbackStore {
-  const all = async (limit: number) => {
-    const { data, error } = await db.rpc('okr_feedback_inbox', { lim: limit });
-    if (error) throw new Error('Feedback: ' + error.message);
-    return ((data ?? []) as FeedbackInboxRow[]).map(feedbackFromInboxRow);
-  };
-  return {
-    // The inbox lists the newest of everything; a narrower list is picked from the newest 500.
-    list: async (limit, q) => (q?.workspaceId || q?.status ? (await all(500)).filter(matches(q)).slice(0, limit) : all(limit)),
-    get: async (id) => (await all(500)).find((f) => f.id === id) ?? null,
-    async update(id, t) {
-      const { data, error } = await db.rpc('okr_feedback_triage', { fid: id, patch: triageToRow(t) });
-      if (error) throw new Error('Saving the feedback: ' + error.message.replace(/^.*?: /, ''));
-      const row = ((data ?? []) as FeedbackInboxRow[])[0];
-      return row ? triageFromRow(row) : null;
-    },
-  };
-}
-
-/** The MCP server, with any token: through the database's functions for it (migration 0028), on whatever key it has. */
-export function tokenFeedback(db: SupabaseClient, hash: string): FeedbackStore {
-  const read = async (args: { ws?: string | null; st?: string | null; fid?: string | null; lim: number }) => {
-    const { data, error } = await db.rpc('okr_feedback_for_token', { hash, ws: args.ws ?? null, st: args.st ?? null, fid: args.fid ?? null, lim: args.lim });
-    if (error) throw new Error('Feedback: ' + error.message);
-    return ((data ?? []) as FeedbackInboxRow[]).map(feedbackFromInboxRow);
-  };
-  return {
-    list: (limit, q) => read({ ws: q?.workspaceId, st: q?.status, lim: limit }),
-    get: async (id) => (await read({ fid: id, lim: 1 }))[0] ?? null,
-    async update(id, t) {
-      const { data, error } = await db.rpc('okr_feedback_triage_for_token', { hash, fid: id, patch: triageToRow(t) });
-      if (error) throw new Error('Saving the feedback: ' + error.message.replace(/^.*?: /, ''));
-      const row = ((data ?? []) as FeedbackInboxRow[])[0];
-      return row ? triageFromRow(row) : null;
-    },
-  };
-}
 
 const KEPT = 'faro-feedback-triage';
 const readKept = (): Record<string, Triage> => { try { return JSON.parse(localStorage.getItem(KEPT) || '{}') as Record<string, Triage>; } catch { return {}; } };

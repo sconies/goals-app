@@ -236,7 +236,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
             key={(attention ? 'a' : 'all') + goals.length + '-' + collapsed.size}
             nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={0.3} maxZoom={1.6}
             onInit={(rf) => { flow.current = rf; frame(rf); requestAnimationFrame(() => setDrawn(true)); }}
-            nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
+            nodesConnectable={false} elementsSelectable deleteKeyCode={null} proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
             onNodeClick={(_, n) => { fromKeys.current = null; setSelected(n.id); }} onPaneClick={() => setSelected(null)}
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
           >

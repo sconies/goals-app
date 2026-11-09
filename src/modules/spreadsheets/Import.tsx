@@ -23,9 +23,10 @@ export function Import() {
   const [over, setOver] = useState(false);
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
-  const cs = useMemo(() => (tables ? app.previewChanges(tables, 'spreadsheet', reason) : null), [tables, reason, app]);
+  const cs = useMemo(() => (tables ? app.previewChanges(tables, 'spreadsheet', reason, confirmed) : null), [tables, reason, confirmed, app]);
   // A file read and its changes shown: the import flow's middle step (src/help/flows.ts).
   useMark(tables ? 'import.read' : null);
 
@@ -83,7 +84,7 @@ export function Import() {
         </>
       )}
 
-      {cs && <Preview cs={cs} name={`${name} · ${sheetsLine}`} reason={reason} setReason={setReason} busy={busy} onApply={() => void apply()} onAgain={() => { setRead(null); setReason(''); if (file.current) file.current.value = ''; setTimeout(() => file.current?.click(), 0); }} />}
+      {cs && <Preview cs={cs} name={`${name} · ${sheetsLine}`} reason={reason} setReason={setReason} onConfirm={() => setConfirmed(true)} busy={busy} onApply={() => void apply()} onAgain={() => { setRead(null); setReason(''); setConfirmed(false); if (file.current) file.current.value = ''; setTimeout(() => file.current?.click(), 0); }} />}
     </div>
   );
 }

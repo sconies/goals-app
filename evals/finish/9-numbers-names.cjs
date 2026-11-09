@@ -81,18 +81,22 @@ module.exports = {
       }
       await c.close();
     }
-    // Phones (demo review item 14): the layout buttons labelled with a line saying what the layout is; tabs and active
-    // filters wrap, none cut off; the What's new line under Home's greeting.
+    // Phones (demo review item 14, then backlog G): the layouts are one menu whose button names the open layout and whose
+    // items say what each layout is; the open view's name is never cut off; active filters wrap, none cut off.
     for (const w of [360, 390]) {
       const [c, p] = await open(w, 800, 'rhea', '/goals?view=board&status=off,risk&level=team&owner=rhea', true);
+      await p.locator('.layout-menu > summary').click();
       const m = await p.evaluate(() => {
         const off = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.left < -0.5 || r.right > innerWidth + 0.5 || e.scrollWidth > e.clientWidth + 1); };
-        const labels = [...document.querySelectorAll('.layout-switch button')].map((b) => { const l = b.querySelector('.ls-label'); const r = l?.getBoundingClientRect(); return r && r.width > 4 && getComputedStyle(l).display !== 'none' ? l.textContent : ''; });
-        return { labels, about: document.querySelector('.layout-about')?.textContent ?? '', tabs: [...document.querySelectorAll('.goals-tabs [role="tab"]')].filter(off).map((e) => e.textContent), chips: [...document.querySelectorAll('.filter-chips .filter-chip')].filter(off).map((e) => e.textContent), sideways: document.documentElement.scrollWidth - innerWidth };
+        const items = [...document.querySelectorAll('.layout-menu .view-menu-list .menuitem')].map((b) => b.innerText.replace(/\s+/g, ' ').trim());
+        const name = document.querySelector('.show-menu .show-name');
+        return { items, button: document.querySelector('.layout-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(), items_off: [...document.querySelectorAll('.layout-menu .menuitem')].filter(off).length,
+          view: name && name.scrollWidth > name.clientWidth + 1 ? name.textContent : '', chips: [...document.querySelectorAll('.filter-chips .filter-chip')].filter(off).map((e) => e.textContent), sideways: document.documentElement.scrollWidth - innerWidth };
       });
-      if (m.labels.length !== 6 || m.labels.some((l) => !l)) fail(`${w}px: layout buttons not all labelled (${m.labels.join(', ')})`);
-      if (!/^Board: a column for each status\.$/.test(m.about)) fail(`${w}px: no line saying what the Board layout is (“${m.about}”)`);
-      if (m.tabs.length) fail(`${w}px: tabs cut off: ${m.tabs.join(', ')}`);
+      if (m.items.length !== 6 || m.items_off) fail(`${w}px: the Layout menu has ${m.items.length} layouts, ${m.items_off} cut off`);
+      if (m.button !== 'Layout: Board') fail(`${w}px: the Layout button says “${m.button}”`);
+      if (!m.items.includes('Board A column for each status.')) fail(`${w}px: the Layout menu does not say what the Board layout is (${m.items.join(' | ')})`);
+      if (m.view) fail(`${w}px: the open view's name is cut off: ${m.view}`);
       if (m.chips.length) fail(`${w}px: filter chips cut off: ${m.chips.join(', ')}`);
       if (m.sideways > 1) fail(`${w}px: Goals scrolls sideways by ${m.sideways}px`);
       await c.close();

@@ -19,8 +19,8 @@ export interface PlaceProps {
   'goal.sections': { goal: Goal };
   /** Data's toolbar, after Columns and Saved layouts. `asShown` is the open table exactly as laid out. */
   'data.tools': { table: string; asShown: () => { rows: Cell[][]; muted?: string[]; scope: string } };
-  /** Goals' view bar, after the layouts: the goals shown now. */
-  'goals.tools': { goals: Goal[]; viewName: string };
+  /** Goals' view bar, after the layouts: the goals shown now. On a phone it's in the Views menu instead (`inMenu`). */
+  'goals.tools': { goals: Goal[]; viewName: string; inMenu?: boolean };
   /**
    * New goal and goal edit, with the goal's own fields: what measures the goal (backlog 0b). Given the goal as saved
    * (null while it's new) and the form's kind, unit and team as typed. `onChange` says what to save with it: a metric and

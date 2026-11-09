@@ -10,7 +10,7 @@ import { LEFT, STOPPED } from '../domain/vocabulary';
 import { Icon } from './Icon';
 
 /** What a change set will do, its problems, and Save. Used by Import and Data. */
-export function Preview({ cs, name, reason, setReason, busy, onApply, onAgain, againLabel = 'Choose another file', fixHint = 'Fix these in the file, then load it again.' }: { cs: ChangeSet; name: string; reason: string; setReason: (s: string) => void; busy: boolean; onApply: () => void; onAgain: () => void; againLabel?: string; fixHint?: string }) {
+export function Preview({ cs, name, reason, setReason, onConfirm, busy, onApply, onAgain, againLabel = 'Choose another file', fixHint = 'Fix these in the file, then load it again.' }: { cs: ChangeSet; name: string; reason: string; setReason: (s: string) => void; onConfirm: () => void; busy: boolean; onApply: () => void; onAgain: () => void; againLabel?: string; fixHint?: string }) {
   const app = useApp();
   // The reason field is only marked once someone tries to save without it.
   const [tried, setTried] = useState(false);
@@ -46,6 +46,14 @@ export function Preview({ cs, name, reason, setReason, busy, onApply, onAgain, a
           <span className="hint">Say why to save: check-ins have started on {cs.items.filter((x) => x.needsReason).length === 1 ? 'this goal' : 'these goals'}, so the change log keeps the reason with the old and new plan. A Reason column in the file is used first.</span>
           <textarea ref={why} className={'input' + (tried && cs.needsReason ? ' invalid' : '')} aria-invalid={tried && cs.needsReason ? true : undefined} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
+      )}
+
+      {cs.items.some((x) => x.question) && (
+        <section className="block" aria-label="Check these plan changes">
+          <h2 className="block-title tone-risk">{cs.needsConfirm ? 'Check these plan changes' : 'Plan changes you confirmed'}</h2>
+          <ul className="issue-list">{cs.items.filter((x) => x.question).map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row} · {x.goal}</span><span>{x.question!.text}</span></li>)}</ul>
+          {cs.needsConfirm && <button type="button" className="btn" onClick={onConfirm}>{cs.items.filter((x) => x.question).length === 1 ? cs.items.find((x) => x.question)!.question!.confirm : 'Yes, these are right'}</button>}
+        </section>
       )}
 
       {warnings.length > 0 && (
@@ -85,7 +93,7 @@ export function Preview({ cs, name, reason, setReason, busy, onApply, onAgain, a
         </section>
       )}
 
-      {!cs.commit && total > 0 && <p className={'hint preview-hint' + (tried && onlyReason ? ' tone-off' : '')} role="status">{errors.length ? 'Fix the rows above to save.' : cs.needsReason ? 'Say why the plans are changing to save.' : ''}</p>}
+      {!cs.commit && total > 0 && <p className={'hint preview-hint' + (tried && onlyReason ? ' tone-off' : '')} role="status">{errors.length ? 'Fix the rows above to save.' : cs.needsReason ? 'Say why the plans are changing to save.' : cs.needsConfirm ? 'Confirm the plan changes above to save.' : ''}</p>}
       <div className="foot-row import-foot">
         <button type="button" className="btn big-btn preview-again" onClick={onAgain}>{againLabel}</button>
         <button type="button" className="btn primary big-btn" disabled={(!cs.commit && !onlyReason) || busy} aria-disabled={onlyReason || undefined} onClick={save}>{busy ? 'Saving…' : total ? `Save ${total} ${total === 1 ? 'change' : 'changes'}` : 'Nothing to save'}</button>

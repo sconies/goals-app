@@ -3,7 +3,7 @@
 import { causeLabel } from './checkin';
 import { fmt, gapText, kindLabel, LEVEL_LABEL, nowText, targetText } from './format';
 import { planAt, planEnd, valueSeries, weekDate, type Point, type Projection } from './plan';
-import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus, LABEL, RANK } from './status';
+import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus, LABEL, projects, RANK } from './status';
 import { attentionFor, type GoalAttention } from './attention';
 import { STATUS_ORDER } from './vocabulary';
 import { forecastText } from './tree';
@@ -82,8 +82,9 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
     lastPostedAt: last?.postedAt ?? null,
     quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
     attention: attentionFor(goal, s, cycle, today),
-    forecast: st.status === 'stale' ? null : forecastText(goal, a, cycle.weeks, cycle)?.text ?? null,
-    projection: st.status === 'stale' || a.kind !== 'metric' ? null : a.projection,
+    // A goal gone quiet, done or stopped makes no forecast, here as on its page (status projects).
+    forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,
+    projection: !projects(goal, st.status) || a.kind !== 'metric' ? null : a.projection,
     feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
     why: behind && last ? [last.cause ? causeLabel(last.cause) : '', last.why].filter((x) => x && x !== NO_REASON).join(': ') : '',
     pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : '') : '',

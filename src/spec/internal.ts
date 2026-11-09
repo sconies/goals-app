@@ -132,7 +132,7 @@ export const INTERNAL: InternalRequirement[] = [
       'The app asks “Who are you?” and remembers the answer on the device (Help, “Saying who you are”; `src/screens/Start.tsx`).',
       'Every rule in the access table is checked in `src/domain/actions.ts`, `src/domain/removal.ts`, `src/domain/asks.ts` and the change engine (`src/domain/changeset.ts`), by the app and the MCP server alike, before anything is saved. The database doesn’t check them.',
       'The public key can still write to most tables (not tokens; it can only add markups and feedback). Tokens are made in the database by `okr_token_create` and found by hash (`okr_token_find`, migration 0024).',
-      'Every workspace in the shared database is listed to anyone who opens the app (`SupabaseStore.workspaces` in `src/data/supabaseStore.ts`).',
+      'Every workspace in the shared database is listed to anyone who opens the app (`SupabaseStore.workspaces` in `src/adapters/supabase/goalsStore.ts`).',
       'Faro’s inbox is open on purpose (backlog O, migration 0031): anyone, with no sign-in, reads every markup and piece of feedback and their pictures (a public-read bucket nobody can list), and changes a status through the one status rule, recorded as the person using the app and undoable; any token reaches it through MCP. There is no builder sign-in and no builder token in the app any more (the builders list and builder tokens from migrations 0024 and 0029 are left in the database, unused). The internal app keeps rule 6 as written.',
       'Markups today are reports about the app; sending one about a goal (3a) is not built yet.',
     ],
@@ -273,7 +273,7 @@ export const INTERNAL: InternalRequirement[] = [
       '7. **The master key only where needed.** The key that passes every access rule (in Supabase, the service role key) lives only on the server and is used only for what nothing else can do: in the internal app, making the short-lived addresses for markup pictures (Faro’s pictures are public-read on purpose, R1 rule 6). Every other read and write, the AI assistant’s included, goes through the signed-in person’s or token’s own rights ([R1](r1-sign-in-and-access.md)). It is never in a browser or a log, and it is rotated when anyone who held it leaves.',
     ].join('\n'),
     today: [
-      'The app loads every record of a workspace into the browser, 900 rows at a time with keyset paging (`SupabaseStore.load` in `src/data/supabaseStore.ts`), and runs the rules there for every screen.',
+      'The app loads every record of a workspace into the browser, 900 rows at a time with keyset paging (`SupabaseStore.load` in `src/adapters/supabase/goalsStore.ts`), and runs the rules there for every screen.',
       'There are no summary rows; lists, counts and Home are worked out in the browser from every goal and check-in.',
       'The demo workspace has 126 goals; nothing tests a workspace of 15,000 people yet (backlog 0a adds an eval with one for the pickers).',
       'Backups are Supabase’s own; no restore has been rehearsed. Migrations are safe to run twice and CI applies them on merge (`scripts/migrate.mjs`), but they aren’t rehearsed on a copy first. Faro never holds real data, so these are left to the internal app (backlog 0c).',

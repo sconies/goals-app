@@ -30,7 +30,7 @@ export const ATTRIBUTES: Record<string, Rule> = {
   'session.id': /^[0-9a-f]{32}$/,
   'user.id': ID,
   'app.workspace.id': ID,
-  'app.store': ['browser', 'supabase'],
+  'app.store': ['browser', 'supabase', 'postgres'],
   'app.viewport.width': 'number',
   'http.route': ROUTE,
   'url.path': PATH,

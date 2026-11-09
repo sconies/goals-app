@@ -1,4 +1,4 @@
-# Tuesday 10 November: presenting Faro
+# Wednesday 11 November: presenting Faro
 
 About 45 minutes: 10 for everyone, 5 for the technical half, about 25 for the live build (`docs/live-build/metrics.md`), 5 for questions. Present the app from **https://goals-app-puce-five.vercel.app/demo**. Before you start: open Demo controls → **Start over**, view as **Rhea Kapoor**, light theme, a laptop at full width. Run through `docs/live-build/checklist.md` the evening before and again 15 minutes before.
 

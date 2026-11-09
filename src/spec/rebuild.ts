@@ -76,6 +76,8 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '',
     `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${Object.values(rows).reduce((a, b) => a + b, 0)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.`,
     '',
+    '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others.',
+    '',
     '**What is an outline:** every other stage. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).',
     '',
     '## What Faro doesn’t build',
@@ -268,6 +270,60 @@ function moduleStage(s: Stage, m: ModuleWithRebuild, all: Stage[]): string {
   ].join('\n');
 }
 
+/* ---------- copy and adapt: the adapters ---------- */
+
+/** The outside parts, as src/ports/index.ts lists them: the interface, its contract, and the adapters Faro has. */
+const PARTS: [string, string, string, string][] = [
+  ['The goals store', '`Store` (`src/data/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`)', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
+  ['Markups', '`MarkupStore` (`src/markup/ops.ts`)', '`markupContract`', 'Supabase (`src/adapters/supabase/markups.ts`), this browser (`src/markup/backend.ts`)'],
+  ['Feedback', '`FeedbackStore` (`src/markup/feedback.ts`)', '`feedbackContract`', 'Supabase (`src/adapters/supabase/feedback.ts`), this browser (`localFeedback`)'],
+  ['Who is viewing', '`Identity` (`src/ports/index.ts`)', '`identityContract`', 'the “Who are you?” picker (`src/adapters/local.ts`); your sign-in replaces it (R1, R2)'],
+  ['The time', '`Clock`', '`clockContract`', 'the system clock, and a fixed one for the demo and the evals (`src/adapters/local.ts`)'],
+  ['Files', '`Files`', '`filesContract`', 'Supabase Storage (`src/adapters/supabase/files.ts`), memory (`src/adapters/local.ts`)'],
+  ['Numbers', '`NumberSource`', '`numberSourceContract`', 'the demo’s “CI analytics” (`src/adapters/demo/numbers.ts`); real connectors are yours'],
+  ['The AI tools’ endpoint', '`Deps` (`server/mcp.ts`)', 'none yet: `evals/markup.eval.ts` drives it', 'Supabase (`src/adapters/supabase/server.ts`)'],
+];
+
+const adapters = () => GENERATED + [
+  '# Swap the outside parts (copy and adapt)',
+  '',
+  'For a team that copies Faro’s code rather than rebuilding it from this kit: every part of the outside world Faro touches (its database, who is signed in, the time, files, where a metric’s numbers come from) sits behind one interface in `src/ports/`, with a contract test any replacement must pass. Moving Faro onto your platform is writing one adapter per part you swap, until its contract passes. Supabase is imported only by its own adapters, `src/adapters/supabase/`, and the layers lint (`npm run lint:layers`, rule 4) keeps it so.',
+  '',
+  '**Today:** each part’s contract runs on Faro’s own adapters in `npm test` (`src/adapters/stores.test.ts`, `src/adapters/parts.test.ts`). The goals store’s is proven twice over: the Supabase adapter (on a stand-in for Supabase’s client, `src/adapters/supabase/testClient.ts`, over real Postgres with every migration) and a second, plain-Postgres adapter pass the same contract.',
+  '',
+  '## Entry criteria',
+  '',
+  '- A copy of Faro’s repository, with `npm ci`, `npm run typecheck` and `npm test` passing on it unchanged.',
+  '- For each part, a decision: keep Faro’s adapter, or write your own.',
+  '',
+  '## The parts',
+  '',
+  table(['Part', 'Interface', 'Contract', 'Adapters today'], PARTS.map((p) => p.map(cell))),
+  '',
+  '## What to build',
+  '',
+  '- **An adapter per part you swap**, in its own folder under `src/adapters/` (yours, say `src/adapters/acme/`), that implements the interface and imports your platform’s client. Nothing outside that folder imports the client: add your package to the layers lint’s rule 4 as Supabase is.',
+  '- **Its contract test**: a test file that calls the part’s contract with a way to make your adapter, as `src/adapters/stores.test.ts` does for Faro’s. Use a real but disposable instance of your service where you can (Faro’s Postgres contracts run on PGlite, Postgres in WebAssembly, with every migration).',
+  '- **The wiring**: where the app picks an adapter. The browser picks its goals store in `src/main.tsx`, its markups and feedback in `src/markup/backend.ts`, who is viewing in `src/app/state.tsx`; the AI tools’ endpoint picks its `Deps` in `server/vercel.ts`.',
+  '- **The database, if you keep Postgres without Supabase:** run `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase’s roles and its storage and auth schemas), then every migration in `supabase/migrations` in order, then use `PostgresStore` with node-postgres or any driver with a `query(text, params)` method. The save rules stay in the database’s functions (`okr_commit` and the rest), so every adapter keeps them the same way.',
+  '- **Sign-in:** an `Identity` that answers with the signed-in person and refuses to choose anyone else. Who may change what is still the server’s to enforce ([R1](../requirements/internal/r1-sign-in-and-access.md)).',
+  '- **Numbers:** a `NumberSource` per system your metrics name as their source (a warehouse, a dashboard’s API). A metric’s `source` says which.',
+  '',
+  '## Exit criteria',
+  '',
+  '1. Each adapter you wrote passes its part’s contract.',
+  '2. `npm run lint:layers` passes: your platform’s client is imported only in your adapter’s folder.',
+  '3. `npm test` and the smoke evals (`npm run evals:smoke`) pass with your adapters wired in.',
+  '4. Stage 1’s drill still scores 100% (the rules don’t depend on any adapter).',
+  '',
+  '## Gaps in the kit',
+  '',
+  '- The AI tools’ endpoint has no contract of its own yet: its `Deps` is driven end to end by `evals/markup.eval.ts`, and only on Supabase.',
+  '- The plain-Postgres adapter covers the goals store; markups, feedback, files and telemetry still go to Supabase in Faro itself (telemetry sends to Supabase’s REST address, `src/telemetry/exporter.ts`).',
+  '- The contracts live in Faro’s code (`src/ports/contracts/`), not in this folder, so a rewrite from the spec alone can read what they check here but can’t run them.',
+  '',
+].join('\n');
+
 /** Every file under spec/rebuild/, by path from the repository root. `harness` is scripts/drill.mjs's text. */
 export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, number>, harness: string): Record<string, string> {
   const all = stages(mods);
@@ -276,6 +332,7 @@ export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, num
     'spec/rebuild/stage-1-core-rules.md': stage1(rows),
     'spec/rebuild/stage-2-core-data.md': stage2(),
     'spec/rebuild/stage-3-core-screens.md': stage3(),
+    'spec/rebuild/adapters.md': adapters(),
     'spec/rebuild/drill.mjs': '// Generated by npm run spec from scripts/drill.mjs. Edit that file, not this copy.\n' + harness,
   };
   for (const s of all) if (s.module) out[`spec/rebuild/${s.file}`] = moduleStage(s, mods.find((m) => m.id === s.module)!, all);

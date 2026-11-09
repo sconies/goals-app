@@ -1,10 +1,12 @@
-# Live build: the metric library's screens (Tuesday 10 November)
+# Live build: the metric library's screens (Wednesday 11 November)
 
 About 25 minutes in the talk. The point is to show **how a feature gets added with AI**: start from a manager's request, agree requirements with the room, refine them, then watch an AI build it on a tested foundation, inside the rules the project already has.
 
-The back end (backlog 0b) is on main (PR #52). The rehearsal's result is kept on the branch `demo/metrics-live-fallback` (never merged).
+The back end (backlog 0b) is on main (PR #52). Two rehearsals ran on Monday 9 Nov; neither is merged.
 
-**Rehearsal, Monday 9 Nov (23:16 UTC on the 8th):** the brief below, with the default answers and answer 3 as "yes, with a reason". A working preview at **21 minutes**, CI green at 41 (about 15 of those lost to a late look at a red run). Draft PR #55 (do not merge). **Fallback preview:** https://goals-app-git-demo-metric-925e78-lanehirschfield-5825s-projects.vercel.app/demo/data/metrics (behind Vercel sign-in: open it in a browser signed in to Vercel). What it taught, now in this brief and the module README: a reason for changing a metric is a rule change in the core, so it pulls the build out of the module and turns on the full eval suite; a new journey also turns on the full suite through `evals/touches.cjs`, so the brief names the eval command to run instead; changing `help.ts` changes `api/mcp.js`, so `build:mcp` runs last.
+**The fallback: run 2 (08:41 UTC, 9 Nov),** the brief below exactly as on stage, answer 3 "yes, freely": preview Ready at **13 minutes**, CI green at **16**, one push, no red runs, everything inside the metrics module. Draft PR #57. **Fallback preview:** https://goals-app-git-demo-metric-501c86-lanehirschfield-5825s-projects.vercel.app/demo/data/metrics (behind Vercel sign-in: open it in a browser signed in to Vercel). Its small stumbles are now in this brief and the README (install first, push before the evals, leave `evals/report.md`, the New goal stand-in, a journey template).
+
+**Run 1 (23:16 UTC, 8 Nov),** with answer 3 as "yes, with a reason": a preview at 21 minutes, CI green at 41 (draft PR #55, kept as a second fallback). What it taught, now in this brief and the module README: a reason for changing a metric is a rule change in the core, so it pulls the build out of the module and turns on the full eval suite; a new journey also turns on the full suite through `evals/touches.cjs`, so the brief names the eval command to run instead; changing `help.ts` changes `api/mcp.js`, so `build:mcp` runs last.
 
 ## Before you start (15 minutes before the talk)
 - Work through `docs/live-build/checklist.md`.
@@ -53,7 +55,7 @@ Paste the brief below into the new session, with the room's answers filled in. W
 > 4. The goal page shows its metric and what it means.
 > [ROOM: answers to questions 1–5]
 >
-> Register the screens through the metrics module's places, not by editing the core. Add What's new and Help. Read "Before pushing the live build" in the module README first and follow it. Run `npm run typecheck` and `npm test`; for evals, run only the ids `npm run evals:changed` lists, as the README says, never the full suite. Push and post the preview link as soon as Vercel has it, then open a pull request and watch CI; if it goes red, fix it at once. Be quick: this is being built live in front of an audience.
+> Register the screens through the metrics module's places, not by editing the core. Add What's new and Help. Start with `npm ci`. Read "Before pushing the live build" in the module README first and follow its stage order: typecheck, tests, spec and `build:mcp`, then push and post the preview link as soon as Vercel has it, open a pull request, and run the touched evals while CI runs (never the full suite); if anything goes red, fix it at once. Don't commit `evals/report.md`. Be quick: this is being built live in front of an audience.
 
 ## 5. Show it (3 minutes)
 

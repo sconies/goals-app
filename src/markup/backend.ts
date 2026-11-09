@@ -9,13 +9,11 @@
    Either way, the markups a person sent from this browser are remembered (ids only), so What's new can say "You raised
    this"; in the real app the database also says which of theirs were fixed. Feedback says it too: the app already has
    the feedback a person sent, and the database (or, with none, this browser's inbox) says which was fixed where. */
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { WHATS_NEW } from '../help/whatsNew';
 import type { Pictures } from './ink';
 import { MARKUP_REPO, markupFromRow, markupToRow, type Markup, type MarkupRow, type Raised } from './model';
 import { markupOps, type MarkupOps, type MarkupStore } from './ops';
-import { openMarkups } from './stores';
-import { feedbackOps, keptFixes, localFeedback, openFeedback, type FeedbackOps } from './feedback';
+import { feedbackOps, keptFixes, localFeedback, type FeedbackOps } from './feedback';
 
 const env = import.meta.env;
 const DB = env.VITE_SUPABASE_URL && env.VITE_SUPABASE_KEY && /^https?:\/\//.test(env.VITE_SUPABASE_URL) ? { url: env.VITE_SUPABASE_URL as string, key: env.VITE_SUPABASE_KEY as string } : null;
@@ -27,9 +25,11 @@ export function markupsShared(): boolean {
   return demo || new URLSearchParams(location.search).get('store') !== 'browser';
 }
 
-let anon: Promise<SupabaseClient> | null = null;
-/** The public key's client, for sending and for the inbox. It never signs in or reads a sign-in from the address. */
-const anonClient = () => (anon ??= import('@supabase/supabase-js').then(({ createClient }) => createClient(DB!.url, DB!.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })));
+type Shared = ReturnType<typeof import('../adapters/supabase/browser').supabaseMarkups>;
+let shared: Promise<Shared> | null = null;
+/** The database's side (src/adapters/supabase/browser.ts), on the public key. It never signs in or reads a sign-in from
+    the address. Loaded only when it is used. */
+const database = () => (shared ??= import('../adapters/supabase/browser').then(({ supabaseMarkups }) => supabaseMarkups(DB!.url, DB!.key)));
 
 /* ---------- sending ---------- */
 
@@ -39,9 +39,7 @@ export async function newMarkupId(): Promise<string> {
     const b = crypto.getRandomValues(new Uint8Array(8));
     return 'mk_' + [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
   }
-  const { data, error } = await (await anonClient()).rpc('okr_markup_new_id');
-  if (error || typeof data !== 'string') throw new Error('The markup couldn’t be sent: ' + (error?.message ?? 'no id came back') + '.');
-  return data;
+  return (await database()).newId();
 }
 
 /** Sends a markup: its pictures first, then the markup, so a markup never points at pictures that aren't there. */
@@ -49,14 +47,7 @@ export async function sendMarkup(m: Markup, pictures: Pictures): Promise<void> {
   if (!markupsShared()) {
     await local.put(m, pictures);
   } else {
-    const db = await anonClient();
-    for (const name of m.pictures) {
-      const file = pictures[name as keyof Pictures];
-      const { error } = await db.storage.from('markups').upload(`${m.id}/${name}`, file, { contentType: file.type, upsert: false });
-      if (error) throw new Error('The picture couldn’t be sent: ' + error.message + '.');
-    }
-    const { error } = await db.from('okr_markups').insert(markupToRow(m));
-    if (error) throw new Error('The markup couldn’t be sent: ' + error.message + '.');
+    await (await database()).send(m, pictures);
   }
   remember({ id: m.id, personId: m.personId, workspaceId: m.workspaceId });
 }
@@ -87,15 +78,7 @@ export async function raisedBy(workspaceId: string, personId: string, demo: bool
     }
     return [...mine, ...said];
   }
-  const db = await anonClient();
-  const known = async (fn: string, kind: Raised['kind']): Promise<Raised[]> => {
-    try {
-      const { data, error } = await db.rpc(fn, { ws: workspaceId, person: personId });
-      return error ? [] : ((data ?? []) as { id: string; fixed_in: string | null }[]).map((r) => ({ id: r.id, personId, fixedIn: r.fixed_in, kind }));
-    } catch { return []; }
-  };
-  const [markups, fixedFeedback] = await Promise.all([known('okr_markups_raised', 'markup'), known('okr_feedback_raised', 'feedback')]);
-  const all = [...markups, ...fixedFeedback];
+  const all = await (await database()).raised(workspaceId, personId);
   return [...all, ...[...mine, ...said].filter((x) => !all.some((k) => k.id === x.id))];
 }
 
@@ -125,14 +108,14 @@ export async function serverCheck(): Promise<{ ok: boolean; database: boolean; p
 
 /** The inbox's operations: on the shared database (anyone, no sign-in), or on this browser's markups. */
 export async function inboxOps(): Promise<MarkupOps> {
-  const store: MarkupStore = markupsShared() ? openMarkups(await anonClient()) : local.store;
+  const store: MarkupStore = markupsShared() ? (await database()).inbox() : local.store;
   return markupOps({ store, entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO, inboxLink: (id) => inboxAddress(id) });
 }
 
 /** Feedback in the inbox, triaged like markups: every workspace's, for anyone, or (with no database) this
     workspace's, as the app has it. */
 export async function inboxFeedback(here: Parameters<typeof localFeedback>[0]): Promise<FeedbackOps> {
-  const store = markupsShared() ? openFeedback(await anonClient()) : localFeedback(here);
+  const store = markupsShared() ? (await database()).feedback() : localFeedback(here);
   return feedbackOps({ store, entries: WHATS_NEW.map((e) => e.id) });
 }
 

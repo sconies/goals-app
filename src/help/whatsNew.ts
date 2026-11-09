@@ -21,6 +21,44 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-page-fixes',
+    date: '2026-11-09',
+    title: 'A goal page that never contradicts itself',
+    points: [
+      'A new target on the other side of the start flips which way is better, so it is no longer saved quietly: Faro says so (“This makes higher better”) and saves once you say yes. A number far outside the plan it replaces is asked about the same way, in the goal’s form, an import, Data and the AI assistant.',
+      'A goal called done shows its final result where the forecast was, with no projection, and its later quarters say None due rather than In progress.',
+      'The heading over the owner’s reason says what the status means: Why it could miss without a change, or Why it will miss without intervention, never “behind” for a goal that is recovering.',
+      'Feeder counts say what they count: “Directly feeding it” on a goal’s page, “Everything under it” on a card.',
+      'A repeated reason in the history says which way to look for the week it points to, and the header says when the goal was last updated.',
+    ],
+    articles: ['goal-page', 'edit-goal'],
+  },
+  {
+    id: 'goals-phone-goals-first',
+    date: '2026-11-09',
+    title: 'Goals on a phone: the goals first',
+    points: [
+      'On a phone, Goals now starts with the goals: the first one is about a third of the way down the screen instead of below it.',
+      'Views and Layout are two buttons on one line. Views says which goals are open and how many, and holds the tabs, your saved views and Export these goals. Layout says the open layout and what each one shows.',
+      'The note about first check-ins is one line on a phone, with Why? for the rest.',
+      'On a computer, Goals is just as it was.',
+    ],
+    articles: ['goals'],
+    fixes: ['mk_3066bf5c5a35402e'],
+  },
+  {
+    id: 'goals-search-and-back',
+    date: '2026-11-09',
+    title: 'Search that keeps up, and Back that goes back',
+    points: [
+      'Search on Goals keeps every letter, however fast you type or paste; the goals follow a moment after you stop.',
+      'Clearing a search keeps the tab, the layout and the sort you had.',
+      'Each tab and layout you choose is a step Back returns to, with its search as it was.',
+      'A link to a tab or team that isn’t there opens the trees, or the goals without that filter, and says what it left out. Every tab is shown whole on a wide screen, and Delete on the map no longer does anything.',
+    ],
+    articles: ['goals', 'goals-filters', 'goal-map'],
+  },
+  {
     id: 'home-screen-icon-and-splash',
     date: '2026-11-08',
     title: 'A clearer icon, a lighthouse, a new first page',

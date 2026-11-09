@@ -43,7 +43,7 @@ const RULES = [
   [/^src\/domain\/(removal|actions|asks|changes|people|goal|goalKey)\.ts/, ['U3', 'U8', 'U36', 'U37', 'U43', 'U44', 'U45', 'F9']],
   [/^src\/domain\/(numbers|thresholds)\.ts/, ['U1', 'U4', 'F2', 'F3', 'F9']],
   [/^src\/app\/(tours|drafts|goalSeen)\.ts/, ['U27', 'U29', 'U31', 'U1']],
-  [/^src\/data\/(supabaseStore|rows|rpc)\.ts|^supabase\/migrations\//, ['U24', 'U40', 'U42', 'U47']],
+  [/^src\/data\/(rows|rpc)\.ts|^src\/adapters\/|^supabase\/migrations\//, ['U24', 'U40', 'U42', 'U47']],
   // Unit tests and scenarios run anyway; an F/N module is that check.
   [/\.test\.tsx?$|^evals\/[^/]+\.eval\.ts$|^evals\/vitest\.config\.ts$/, []],
   [/^evals\/(finish|notes)\/(\d)-/, (m) => [`${m[1] === 'finish' ? 'F' : 'N'}${m[2]}`]],

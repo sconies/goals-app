@@ -73,10 +73,8 @@ async function insertNote(row: Record<string, unknown>): Promise<boolean> {
   const { VITE_SUPABASE_URL: url, VITE_SUPABASE_KEY: key } = import.meta.env;
   if (!url || !key) return false;
   try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const db = createClient(url, key, { auth: { persistSession: false, detectSessionInUrl: false } });
-    const { error } = await db.from('okr_research_notes').insert({ ...row, user_agent: navigator.userAgent.slice(0, 300) });
-    return !error;
+    const { addResearchNote } = await import('../adapters/supabase/research');
+    return await addResearchNote(url, key, { ...row, user_agent: navigator.userAgent.slice(0, 300) });
   } catch { return false; }
 }
 

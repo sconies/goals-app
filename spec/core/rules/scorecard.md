@@ -15,7 +15,7 @@ The cells at the top of a goal’s page: against plan, since last week, what’s
 
 **Tones.** `plan`: ahead `good`, behind `bad`, on plan or no number `flat`. `since`: better `good`, worse `bad`, otherwise `flat`. `target`: reached `good`, else `flat`. `hit`: Likely `good`, Possible `flat`, Unlikely and Very unlikely `bad`, Can’t say and Too early `flat`. `limit`: outside `bad`, near `flat`, inside `good`. `room`: over `bad`, within the margin (room ≤ margin) `flat`, else `good`. `done`: at least as many done as are due `good`, else `flat`. `late`: any behind `bad`, none `good`. `next`: expected after its due week `bad`, else `flat`; All done `good`. A margin of 0 counts as none for the likelihood floor. `likelihood` is set only on a `hit` cell that says a likelihood. Every cell that says "No value yet" is `flat`.
 
-A stopped goal has no `hit` cell. (The conformance data never shows one: a goal stopped by a week's moment isn't in that week.)
+A stopped goal has no `hit` cell. (The conformance data never shows one: a goal stopped by a week's moment isn't in that week.) Nor has a done goal (`doneCheckIn`: of its check-ins with `week` ≤ *w*, the one posted most recently, by `postedAt`, is called `done`): for a number to move or keep in range, a `result` cell takes its place, at the end of the row (see the words below); dated stages get no `result` cell, only lose `hit` (they have none). Neither projects anywhere (`projects`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
 
 ### The words
 
@@ -47,6 +47,14 @@ Every label, value and sub line, exactly. Text in quotes is literal (the ’ in 
 | `hit` | "Back within by the end?" when out, else "Will it stay within?" | As for a number to move, with the limit as the mark; the projection is one number per week (the latest posted wins) up to week *w*, to the cycle's end | As for a number to move, with *byWeekWords(the cycle's weeks)* |
 
 The likelihood floor for a range is max(2% of |*margin*| (or of |10% of the limit| when the margin is 0), half the last decimal place).
+
+**A done goal's result** (`result`, a number to move or keep in range, in place of `hit` and after the other cells). *done* = the check-in `doneCheckIn` found.
+
+| Cell | Label | Value | Sub | Tone |
+|---|---|---|---|---|
+| `result` | "Result" | "Done" | "*fmt(done.value)* in week *done.week*" ("76% in week 5"); with no number, "in week *done.week*" | `good` |
+
+The other cells stay as they are, judged as usual; `likelihood` is empty on `result`.
 
 **Since** (`since`, both kinds). The goal's check-ins up to week *w*, by week then posting; *latest* the last; *before* the last one ahead of it in that order with a number (another check-in in the same week counts).
 
@@ -91,11 +99,13 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A range, at most 12.0% with a 1-point margin, seen in week 4: 10.5, 11.0, 12.6 in weeks 1–3, then 12.4 in week 4. | `limit: Outside it [bad] (must stay at most 12.0%); since: 0.2 pts better [good] (was 12.6% in week 3); room: 0.4 pts over [bad] (warning within 1.0 pt); hit: Back within by the end? Very unlikely [bad] (likely 18.6% by cycle end)` |
 | The same range: 11.6 in week 1 (near), then 12.0 (at the limit), each seen in its week. | `Inside, near it, 0.4 pts of room [flat]; Inside, near it, None: at the limit [flat]` |
 | Stages A (due week 3) and B (due week 7), seen in week 6: no check-in; then A done in week 4, B expected week 9; then both done (week 4 and week 8), seen in week 9. | `done: 0 of 2 (1 due by week 6); late: 1 (late, up to 3 weeks); next: Week 6 (A, due week 3) \| done: 1 of 2 (1 due by week 6); late: 1 (slipping, up to 2 weeks); next: Week 9 (B, due week 7) \| done: 2 of 2 (2 due by week 9); late: None (on schedule); next: All done (last done in week 8)` |
+| The 30→75 goal with 36, 39, 42, 45 in weeks 1–4 and 76 in week 5, called done; seen in week 7, and its forecast. | `result: Done [good] (76% in week 5); no forecast` |
 | The same, but stale. | `hit: Can’t say` |
 
 ## Where it lives
 
 - [src/domain/scorecard.ts](../../../src/domain/scorecard.ts): `likelihood`, `likelihoodFloor`, `goalScorecard`, `amount`, `byWeekWords`
+- [src/domain/status.ts](../../../src/domain/status.ts): `doneCheckIn`, `projects`
 - [src/domain/summaryFacts.ts](../../../src/domain/summaryFacts.ts): `summaryFacts`
 - [src/domain/vocabulary.ts](../../../src/domain/vocabulary.ts): `shortWord`
 - [src/domain/year.ts](../../../src/domain/year.ts): `quarterResult`
