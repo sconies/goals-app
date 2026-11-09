@@ -11312,7 +11312,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Faro’s look",
 				text: [
-					"The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), on the welcome page and in the browser tab.",
+					"The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), at the top left on a phone, on the welcome page and in the browser tab. The workspace you’re in is named beside it (under it in the sidebar); where you choose between workspaces, each is listed by its name.",
 					"Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk.",
 					"On a phone’s home screen and in the browser tab, the F sits on a deep-teal tile so it’s easy to spot. See On a phone, a tablet or a big screen for adding it to your home screen."
 				]
@@ -11829,6 +11829,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "faro-mark",
+		date: "2026-11-09",
+		title: "Faro’s F at the top left",
+		points: ["The letter in a rounded square at the top left was the workspace’s initial. It’s now Faro’s F, the same mark as the home-screen icon.", "The workspace’s name is still beside it, and where you switch workspaces each one is listed by its name."],
+		articles: ["settings", "workspace"]
+	},
 	{
 		id: "review-leftovers",
 		date: "2026-11-09",
