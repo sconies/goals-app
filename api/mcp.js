@@ -6683,7 +6683,7 @@ function planChanges(input) {
 				before: null,
 				row
 			});
-			if (tm && !tm.leadId) teams.set(tm.id, {
+			if (tm && !tm.leadId && via !== "setup") teams.set(tm.id, {
 				...teams.get(tm.id),
 				leadId: p.id
 			});
@@ -9974,12 +9974,16 @@ var CORE_ARTICLES = [
 					"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
 					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
 					"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created.",
+					"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
+					"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
 					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
 					"Check each goal’s owner, where it starts and its target before you create the workspace.",
 					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
-					"The last screen gives you the one next thing to do, and a link to copy for your team. Faro sends no email: you send the link yourself.",
+					"The last screen gives you the one next thing to do, and a link to copy for your team. The link opens this workspace, whichever one their browser last had open. Faro sends no email: you send the link yourself.",
+					"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
+					"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
 					"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
 				]
 			},
@@ -10086,7 +10090,7 @@ var CORE_ARTICLES = [
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
 					"What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.",
 					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
-					"A number is kept exactly as you type it, never rounded quietly. One with more decimal places than the goal keeps (12.5 in a goal of whole numbers) is refused with what it would show as: type it to the goal’s places, or ask the owner to allow more.",
+					"A number is kept exactly as you type it, never rounded quietly. One with more decimal places than the goal keeps (12.5 in a goal of whole numbers) is refused with what it would show as: type it to the goal’s places, or choose Keep 1 decimal place for this goal, which changes the goal’s decimals in one step, logged on its history.",
 					"A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.",
 					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, like 29.4. Every number Faro shows has its thousands grouped: 1,250."
 				]
@@ -11255,7 +11259,7 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Each team shows its lead, how many people are in it (its lead counts as one of them, even when their own team is another) and how many goals it owns. With more than a few teams, find one by its name or its lead’s.",
+				"Each team shows its lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another) and how many goals it owns. With more than a few teams, find one by its name or its lead’s.",
 				"Open a team to see its people in the directory, its lead among them.",
 				"Admins: Add a team is the main action. Rename changes its name and lead. Remove takes an empty team away at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so."
 			]
@@ -11882,6 +11886,23 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "setup-tells-the-truth",
+		date: "2026-11-10",
+		title: "Set-up that tells the truth",
+		points: [
+			"The link to send your team from the last set-up screen now opens your new workspace, not whichever one their browser would open first.",
+			"Uploading a spreadsheet during set-up adds its people after the ones you’d typed, instead of replacing them, says what it added, and can be undone.",
+			"Goals from your spreadsheet with stages due before the week you join start from this week, as a template’s do, so nothing is late on day one. Check says which moved, and you can keep the weeks as typed.",
+			"A check-in number with more decimal places than its goal keeps offers “Keep 1 decimal place for this goal”, one step instead of a dead end.",
+			"Day one counts every new goal among the first check-ins, says nothing is due when there are no goals yet, and names no team lead set-up never asked about."
+		],
+		articles: [
+			"set-up",
+			"check-in",
+			"workspace-teams"
+		]
+	},
 	{
 		id: "workspace-one-place",
 		date: "2026-11-10",
