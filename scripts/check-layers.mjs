@@ -5,6 +5,8 @@
    2. The core never depends on a module: nothing outside src/modules imports a file in it. Modules join the app only
       through the registry the build makes (vite.modules.ts, `virtual:faro-modules…`).
    3. A module imports another module only if its module.json lists it under `needs`.
+   4. Supabase is imported only by its adapters, src/adapters/supabase/ (backlog 8c): everything else reaches the
+      database, files and the rest through the interfaces in src/ports, so a team can swap Supabase for their own.
 
    npm run lint:layers runs it; CI runs it, and so does npm test (src/core/layers.test.ts). */
 import fs from 'node:fs';
@@ -77,6 +79,8 @@ export function checkLayers(root) {
       if (theirs && !mine && !isTest(file)) problems.push(`${file}:${line}: imports ${spec} from the ${theirs} module; the core never depends on a module (it joins through the registry, vite.modules.ts)`);
       // 3. A module depends only on the modules it says it needs.
       if (theirs && mine && theirs !== mine && !(needs[mine] ?? []).includes(theirs)) problems.push(`${file}:${line}: the ${mine} module imports ${spec} from ${theirs}, which its module.json doesn't list under needs`);
+      // 4. Only Supabase's adapters import Supabase.
+      if (spec.startsWith('@supabase/') && !isTest(file) && !file.startsWith('src/adapters/supabase/')) problems.push(`${file}:${line}: imports ${spec}; only src/adapters/supabase/ may import Supabase (use the interfaces in src/ports)`);
     }
     if (inDomain && !isTest(file)) {
       codeOnly(raw).split('\n').forEach((l, i) => {
@@ -95,5 +99,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     console.error(`The layers lint found ${problems.length} problem(s) (docs/architecture.md):\n${problems.map((p) => `  ${p}`).join('\n')}`);
     process.exit(1);
   }
-  console.log('Layers: the rules layer imports only itself, and the core depends on no module.');
+  console.log('Layers: the rules layer imports only itself, the core depends on no module, and only Supabase’s adapters import Supabase.');
 }

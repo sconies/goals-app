@@ -1,4 +1,6 @@
 import { StrictMode } from 'react';
+import { fixedClock } from './adapters/local';
+import type { Clock } from './ports';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { BrowserStore, LIVE_KEY, pickExampleFromUrl, type Mode, type Store } from './data/store';
@@ -41,13 +43,12 @@ installBrowser(telemetry);
 const mode: Mode = location.pathname === '/demo' || location.pathname.startsWith('/demo/') ? 'demo' : 'live';
 
 /** `?today=yyyy-mm-dd` pins the clock, for the demo and the evals. Never for shared data: it would date real records wrongly. */
-function clock(): (() => Date) | undefined {
+function clock(): Clock | undefined {
   const q = new URLSearchParams(location.search);
   if (mode === 'live' && q.get('store') !== 'browser' && !import.meta.env.DEV) return undefined;
   const t = q.get('today');
   if (!t || Number.isNaN(Date.parse(t))) return undefined;
-  const fixed = new Date(t + 'T12:00:00Z');
-  return () => fixed;
+  return fixedClock(new Date(t + 'T12:00:00Z'));
 }
 
 
@@ -58,7 +59,7 @@ async function store(today?: () => Date): Promise<Store> {
   if (mode === 'demo') { pickExampleFromUrl(location.search); return inspectable(new BrowserStore(today)); }
   const { VITE_SUPABASE_URL: url, VITE_SUPABASE_KEY: key } = import.meta.env;
   if (url && key && new URLSearchParams(location.search).get('store') !== 'browser') {
-    const { SupabaseStore } = await import('./data/supabaseStore');
+    const { SupabaseStore } = await import('./adapters/supabase/goalsStore');
     return new SupabaseStore(url, key);
   }
   return inspectable(new BrowserStore(today, { key: LIVE_KEY, example: false }));

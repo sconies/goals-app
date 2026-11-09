@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { pickerIdentity } from '../adapters/local';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
 import { checkInChange, goalChange, type Lookup } from '../domain/changes';
@@ -256,6 +257,8 @@ export const useToasts = () => useContext(ToastCtx);
 export function AppProvider({ store, mode = 'demo', today = realNow, empty: renderEmpty, children }: { store: Store; mode?: Mode; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
   // The demo and the real app remember their own workspace and person, so one never opens the other's.
   const K = mode === 'demo' ? { ws: 'goals-app-workspace', viewer: 'goals-app-viewer:' } : { ws: 'goals-live-workspace', viewer: 'goals-live-me:' };
+  // Who is viewing (src/ports Identity): today the "Who are you?" picker, remembered in this browser; later, sign-in.
+  const identity = useMemo(() => pickerIdentity(K.viewer), [K.viewer]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [wsId, setWsId] = useState<string | null>(() => read(K.ws) || (store.hasExample ? EXAMPLE.id : null));
   const [empty, setEmpty] = useState(false);
@@ -305,7 +308,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       const snap = await store.load(id);
       if (!live) return;
       setLoaded({ ws: id, snap, at: Date.now() });
-      setViewerId(read(K.viewer + id));
+      setViewerId(identity.who(id));
     })().catch((e: unknown) => {
       if (!live) return;
       setError(e instanceof Error ? e.message : String(e));
@@ -332,7 +335,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       }],
     };
     await store.createWorkspace(w, logged);
-    if (actor) write(K.viewer + w.id, actor.id);
+    if (actor) identity.choose(w.id, actor.id);
     write(K.ws, w.id);
     setWorkspaces((l) => [...l, w]);
     setEmpty(false);
@@ -507,7 +510,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         const off = out.modulesOff;
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w)));
       },
-      setViewer: (id) => { write(K.viewer + wsId, id); setViewerId(id); },
+      setViewer: (id) => { identity.choose(wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
       personName: (id) => { const p = people.get(id); return !p ? id : sc.people.some((x) => x.id === id) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
       goalTell: (g) => goalTell(g, dupTitles(), lookup.teamName),

@@ -16,6 +16,8 @@ How to rebuild Faro from this folder and `llms.txt` alone, one stage at a time, 
 
 **What the kit fully supports today:** stage 1 only. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (38124 rows in four files), and a harness that runs a rebuild and scores it. One part of stage 1, what a check-in must say, has worked examples but no conformance rows yet, so the harness doesn’t score it.
 
+**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others.
+
 **What is an outline:** every other stage. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).
 
 ## What Faro doesn’t build

@@ -1,13 +1,13 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { upgradeAsks } from '../domain/asks';
-import { withKeys } from '../domain/goalKey';
-import type { Snapshot, Workspace } from '../domain/types';
+import { upgradeAsks } from '../../domain/asks';
+import { withKeys } from '../../domain/goalKey';
+import type { Snapshot, Workspace } from '../../domain/types';
 import {
   changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows, requestFromRow, requestToRow, type RequestRow,
   personFromRow, personToRow, teamFromRow, teamToRow, workspaceFromRow, workspaceToRow,
   type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, type ViewRow, viewFromRow, viewToRow, commitPayload,
-  type MetricRow, type GoalMetricRow, metricFromRow, metricLinkFromRow, metricToRow, metricLinkToRow } from './rows';
-import { EXAMPLE, StaleError, type Commit, type Store } from './store';
+  type MetricRow, type GoalMetricRow, metricFromRow, metricLinkFromRow, metricToRow, metricLinkToRow } from '../../data/rows';
+import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
 
 /** A database function that isn't there yet: its migration hasn't been applied. */
 const missing = (error: { code?: string; message: string }) => error.code === 'PGRST202' || /Could not find the function|function .* does not exist/i.test(error.message);
@@ -158,7 +158,7 @@ export class SupabaseStore implements Store {
     const { data, error } = await this.db.rpc('okr_token_create', { ws, token: { id: t.id, person_id: t.personId, name: t.name, created_by: t.createdBy }, change: change ? changeToRow(ws, change) : null });
     if (!error) return data as string;
     if (!missing(error)) throw new Error(`Saving the token: ${error.message.replace(/^.*?: /, '')}`);
-    const { hashToken, newToken } = await import('../mcp/token');
+    const { hashToken, newToken } = await import('../../mcp/token');
     const secret = newToken();
     await this.commit(ws, { ...c, tokens: [{ ...t, tokenHash: await hashToken(secret) }] });
     return secret;

@@ -1,8 +1,8 @@
-# Dry-run checklist for Tuesday 10 November
+# Dry-run checklist for Wednesday 11 November
 
-Tick each line on Monday evening, then do the "15 minutes before" block again on Tuesday. If a line fails, fix it or switch to its fallback before the talk, not during it.
+Tick each line on Tuesday evening, then do the "15 minutes before" block again on Wednesday. If a line fails, fix it or switch to its fallback before the talk, not during it.
 
-## Monday evening: one full dry run (about 45 minutes, with a timer)
+## Tuesday evening: one full dry run (about 45 minutes, with a timer)
 
 **The app**
 - [ ] `https://goals-app-puce-five.vercel.app/api/mcp?check` says database and pictures are true.
@@ -26,7 +26,7 @@ Tick each line on Monday evening, then do the "15 minutes before" block again on
 - [ ] Tabs, in order: `/demo`; the root page; `docs/live-build/metrics.md` on GitHub; claude.ai/code; the fallback preview; the drill review (`docs/reviews/2026-11-08-drill-1.md`).
 - [ ] A phone hotspot in case the venue's network blocks claude.ai or Vercel.
 
-## Tuesday, 15 minutes before
+## Wednesday, 15 minutes before
 
 - [ ] Health check link is true; `/demo` → **Start over** → Rhea Kapoor → light theme.
 - [ ] Root page loaded once in its tab (so the splash is quick in front of the room).

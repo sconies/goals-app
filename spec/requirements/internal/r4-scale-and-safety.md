@@ -24,7 +24,7 @@ Real goals are worth keeping safe. A backup that has never been restored, or a m
 
 ## What Faro does today
 
-- The app loads every record of a workspace into the browser, 900 rows at a time with keyset paging (`SupabaseStore.load` in `src/data/supabaseStore.ts`), and runs the rules there for every screen.
+- The app loads every record of a workspace into the browser, 900 rows at a time with keyset paging (`SupabaseStore.load` in `src/adapters/supabase/goalsStore.ts`), and runs the rules there for every screen.
 - There are no summary rows; lists, counts and Home are worked out in the browser from every goal and check-in.
 - The demo workspace has 126 goals; nothing tests a workspace of 15,000 people yet (backlog 0a adds an eval with one for the pickers).
 - Backups are Supabase’s own; no restore has been rehearsed. Migrations are safe to run twice and CI applies them on merge (`scripts/migrate.mjs`), but they aren’t rehearsed on a copy first. Faro never holds real data, so these are left to the internal app (backlog 0c).

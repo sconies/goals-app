@@ -6,8 +6,8 @@
    Pictures are in the public-read bucket "markups": each is opened by its address, which anyone can make from the
    markup's id; nobody can list the bucket. So neither needs the service role key to show or read one. */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { MarkupError, markupFromRow, type MarkupRow } from './model';
-import { PICTURES_UNREADABLE, type MarkupStore } from './ops';
+import { MarkupError, markupFromRow, type MarkupRow } from '../../markup/model';
+import { PICTURES_UNREADABLE, type MarkupStore } from '../../markup/ops';
 
 /** A picture's address in the public-read bucket. */
 const publicUrl = (db: SupabaseClient, id: string, name: string) => db.storage.from('markups').getPublicUrl(`${id}/${name}`).data.publicUrl;
