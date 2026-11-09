@@ -9,6 +9,7 @@ import { useLatestParams } from './GoalFilters';
 import { useApp } from '../app/state';
 import { summarise, type GoalSummary } from '../domain/summary';
 import type { Goal } from '../domain/types';
+import { MenuButton } from '../ui/MenuButton';
 
 export type Layout = 'list' | 'table' | 'board' | 'history' | 'cards' | 'map';
 export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['cards', 'Cards'], ['map', 'Map']];
@@ -56,6 +57,18 @@ export function LayoutSwitch({ layout, onChange }: { layout: Layout; onChange: (
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * On a phone, the layouts are one choice rather than a row of six buttons (backlog G, 9 Nov): the button says the open
+ * layout, and the menu says what each one is, which the line under the toolbar says on a wider screen.
+ */
+export function LayoutMenu({ layout, onChange }: { layout: Layout; onChange: (l: Layout) => void }) {
+  const name = LAYOUTS.find(([k]) => k === layout)?.[1] ?? 'List';
+  return (
+    <MenuButton className="layout-menu" label="Layout" summary="" display={<><span className="sr">Layout: </span><LayoutIcon k={layout} />{name}</>}
+      items={LAYOUTS.map(([k, label]) => ({ label, hint: LAYOUT_ABOUT[k].replace(/^./, (c) => c.toUpperCase()), icon: <LayoutIcon k={k} />, current: k === layout, onClick: () => onChange(k) }))} />
   );
 }
 

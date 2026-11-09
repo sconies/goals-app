@@ -100,7 +100,8 @@ module.exports = {
     for (const [w, h] of [[1440, 700], [390, 844]]) {
       await step(`toast in sheet ${w}`, async () => {
         const [c, p] = await open(w, h, 'amara', '/goals', w < 800);
-        // Export these goals (on the smallest phones, its icon).
+        // Export these goals (on a phone, in the Views menu: backlog G).
+        if (w < 800) await p.locator('.show-menu > summary').click();
         await p.getByRole('button', { name: 'Export these goals' }).click();
         const sheet = p.getByRole('dialog', { name: 'Export goals' });
         await sheet.waitFor();

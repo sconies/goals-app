@@ -1,0 +1,39 @@
+/* Goals on a phone: goals first (backlog G, Lane's markup, 9 Nov). Loaded last, and only below 600px, so the desktop
+   Goals page is exactly as it was. Which goals and how to see them become two choices on one line (Views and Layout);
+   the week is a small line beside New goal; what each layout is moves into the Layout menu and Help; the first-check-in note
+   is one line with Why?. */
+
+.goals-phonebar { display: none; }
+.first-reports-why, .first-reports-short { display: none; }
+
+/* Inside any menu that names its sections, a heading for each, and an item with a quieter line or a count. */
+.view-menu-list .menu-section { display: block; padding: 8px 12px 2px; font-size: 0.75rem; line-height: 1rem; color: var(--muted); font-weight: 600; }
+.view-menu-list .menu-text { display: flex; flex-direction: column; gap: 0; min-width: 0; flex: 1 1 auto; }
+.view-menu-list .menu-text .hint { font-size: 0.8125rem; line-height: 1.125rem; font-weight: 400; }
+.view-menu-list .menuitem .tabcount { margin-left: auto; }
+.view-menu-list .menuitem > svg { flex: none; }
+.view-menu-list .menu-extra { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+.view-menu-list .menu-extra:empty { display: none; }
+
+@container app (max-width: 600px) {
+  .goals-page .goals-toolbar, .goals-page .layout-about { display: none !important; }
+  /* The week line sits under the title, beside New goal, so the header stays one 44px row. */
+  .goals-page .page-head.goals-head { align-items: center; }
+  .goals-page .goals-head .actions { grid-row: 1 / span 2; align-self: center; }
+  .goals-page .goals-period { grid-column: 1; grid-row: 2; font-size: 0.75rem; line-height: 1rem; }
+  .goals-page .goals-head .title-xl { line-height: 1.625rem; }
+  .goals-page .goals-phonebar { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+  .goals-phonebar > .view-menu { min-width: 0; }
+  .goals-phonebar > .show-menu { flex: 1 1 auto; }
+  .goals-phonebar > .layout-menu { flex: none; }
+  .goals-phonebar > .view-menu > summary.btn { width: 100%; min-height: 44px; height: 44px; gap: 8px; justify-content: flex-start; }
+  .goals-phonebar > .show-menu > summary.btn { max-width: 100%; }
+  .goals-phonebar .show-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .goals-phonebar > .show-menu .view-menu-list { left: 0; right: auto; }
+  .goals-phonebar .view-menu-list { width: min(320px, calc(100vw - 32px)); max-height: min(70vh, 560px); overflow: auto; }
+  /* The first-check-in note: one line, with the rest behind Why?. */
+  .goals-page .first-reports { padding: var(--s2) var(--s3); }
+  .goals-page .first-reports-why, .goals-page .first-reports:not([data-why]) .first-reports-short { display: inline; }
+  .goals-page .first-reports:not([data-why]) .first-reports-full { display: none; }
+  .goals-page .first-reports:not([data-why]) .first-reports-more { display: none; }
+}

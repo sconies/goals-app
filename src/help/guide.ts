@@ -296,10 +296,11 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Scanning the whole set of goals, or a slice of it, in whatever shape suits the question you have.'] },
       { heading: 'How to use it', list: [
         'Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.',
-        'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. Each button has its name, on a phone too, and a line under the buttons says what the open layout shows. Your last layout is remembered and is in the link.',
-        'On a phone the tabs and the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.',
+        'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.',
+        'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.',
         'Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.',
         'A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.',
+        'On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.',
         'When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.',
         'Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.',
         'In the Table, select goals to change their owner or level, watch them or export them.',
@@ -311,7 +312,7 @@ const CORE_ARTICLES: Article[] = [
     routes: ['/goals', '/goals?view=list', '/goals?view=table', '/goals?view=board', '/goals?view=cards'],
     screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'GoalCards', 'BulkEdit'],
     reqs: ['VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
-    keywords: ['list', 'table', 'board', 'cards', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story'],
+    keywords: ['list', 'table', 'board', 'cards', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story', 'phone', 'views'],
     related: ['goals-filters', 'history', 'goal-map', 'needs-attention'],
   },
   {

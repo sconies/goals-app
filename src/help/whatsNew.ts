@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goals-phone-goals-first',
+    date: '2026-11-09',
+    title: 'Goals on a phone: the goals first',
+    points: [
+      'On a phone, Goals now starts with the goals: the first one is about a third of the way down the screen instead of below it.',
+      'Views and Layout are two buttons on one line. Views says which goals are open and how many, and holds the tabs, your saved views and Export these goals. Layout says the open layout and what each one shows.',
+      'The note about first check-ins is one line on a phone, with Why? for the rest.',
+      'On a computer, Goals is just as it was.',
+    ],
+    articles: ['goals'],
+    fixes: ['mk_3066bf5c5a35402e'],
+  },
+  {
     id: 'goals-search-and-back',
     date: '2026-11-09',
     title: 'Search that keeps up, and Back that goes back',
