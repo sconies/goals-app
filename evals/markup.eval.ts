@@ -216,7 +216,7 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     expect((await call('get_feedback', { id: 'fb_m1' })).content[0]!.text).toContain('From Mateo in Acme');
     expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: 'no-such-entry' })).isError).toBe(true);
     expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: WHATS_NEW[0]!.id })).content[0]!.text).toBe(`fb_m1 is Fixed, fixed in ${WHATS_NEW[0]!.id}.`);
-    expect((await db.query<{ status: string; fixed_in: string; status_by: string }>(`select status, fixed_in, status_by from okr_feedback where id = 'fb_m1'`)).rows[0]).toMatchObject({ status: 'fixed', fixed_in: WHATS_NEW[0]!.id, status_by: expect.stringMatching(/via AI assistant/) });
+    expect((await db.query<{ status: string; fixed_in: string; status_by: string }>(`select status, fixed_in, status_by from okr_feedback where id = 'fb_m1'`)).rows[0]).toMatchObject({ status: 'fixed', fixed_in: WHATS_NEW[0]!.id, status_by: expect.stringMatching(/via MCP/) });
   });
 
   it(R('a sender sees “You raised this” on the entry that fixed their feedback: the database gives a person their own feedback’s statuses only, and What’s new matches by person and id'), async () => {
