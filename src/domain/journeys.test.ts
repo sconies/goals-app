@@ -27,7 +27,7 @@ describe('attention', () => {
     expect(kinds('lead-mq')).toContain('off');
     expect(kinds('env-search')).toContain('stale');
     expect(kinds('ns-vuln')).toEqual(expect.arrayContaining(['risk', 'due']));
-    expect(kinds('ns-devsat')).toContain('trend');
+    expect(kinds('devsat-docs')).toContain('trend');
     expect(kinds('ns-ai')).toEqual([]);
   });
   it('puts the worst first and leaves out goals that are merely due', () => {

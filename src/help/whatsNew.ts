@@ -34,6 +34,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['set-up', 'check-in', 'workspace-teams'],
   },
   {
+    id: 'review-order-and-deadlines',
+    date: '2026-11-10',
+    title: 'A review keeps its place, and Home says when check-ins are due',
+    points: [
+      'A review’s walk keeps the order it started with: reviewing a goal or saving an action never moves one, Continue review picks up where you left off with the right count, and a walk opened from a goal’s own address follows the agenda.',
+      'Marking the goals with nothing flagged reviewed asks first, and its message has Undo. It no longer ends the review on its own: when they’re all that’s left, Finish review does that, and says so.',
+      'Home says when check-ins are due (“Check-ins are due by Thursday”) instead of naming a review you may not be in. A question raised in a review is due before that review’s next session.',
+      'Getting worse says only what the numbers show: a number posted as the plan is never further behind, and “heading short” means the whole range it heads for misses the target.',
+    ],
+    articles: ['reviews', 'home', 'needs-attention'],
+  },
+  {
     id: 'workspace-one-place',
     date: '2026-11-10',
     title: 'Workspace in one place',

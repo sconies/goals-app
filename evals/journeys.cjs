@@ -448,11 +448,16 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   }
   // The walk is the exceptions; goals on track with nothing flagged are acknowledged together (Senior UX review, 2 Nov).
   await see(p, 'Nothing flagged', 'healthy goals are not grouped after the exceptions');
-  const ack = p.getByRole('button', { name: /^Mark \d+ goals? with nothing flagged reviewed/ });
-  const healthyN = Number(((await ack.innerText().catch(() => '')).match(/\d+/) || ['0'])[0]);
-  h.set('finish', healthyN > 0 && items <= 10, `expected the healthy goals as one acknowledgement, saw ${healthyN} after walking ${items}`);
+  // Finishing is its own step, asked first, that marks them together (deep review T3).
+  const ack = p.getByRole('button', { name: 'Finish review' });
+  const healthyN = Number(((await p.locator('.healthy-group .block-title').innerText().catch(() => '')).match(/\d+/) || ['0'])[0]);
+  h.set('finish', healthyN > 0 && items <= 10 && await ack.isVisible(), `expected the healthy goals as one acknowledgement, saw ${healthyN} after walking ${items}`);
   await h.checkpoint('healthy group');
   await h.click(ack);
+  const finish = p.getByRole('dialog', { name: /^Finish Reliability weekly/ });
+  await finish.waitFor();
+  await h.checkpoint('finish question');
+  await h.click(finish.getByRole('button', { name: 'Mark them and finish' }));
   await see(p, 'What was said', 'the held review leads with its record');
   disagree.push(...await reviewedEverywhere(p, 'reliability', 'Reliability weekly'));
   h.set('progress', !disagree.length, `the reviewed count differs between views: ${disagree.join('; ')}`);

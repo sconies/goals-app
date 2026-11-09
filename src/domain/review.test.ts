@@ -124,3 +124,57 @@ describe('an outstanding session and the next one, named apart (review F07)', ()
     expect(nextWhen(sx, cycle, week, on)).toBeNull();
   });
 });
+
+/* Deep review T3 (10 Nov): the walk keeps the order it started with, and marking the goals with nothing flagged can be
+   taken back. Daniel runs the Developer Productivity fortnightly on the talk's day, Wednesday 11 November. */
+import { sessionPlan, walkOrder } from './review';
+import { markReviewed, reviewCall, type ActionContext } from './actions';
+import { unmarkReviewed } from './removal';
+import { currentCycle, scopeToCycle } from './cycle';
+import { applyCommit } from '../data/store';
+
+describe('a review session keeps its order while it runs (deep review T3)', () => {
+  const day = new Date('2026-11-11T12:00:00Z');
+  const full = buildPlatformOrg(day);
+  const c = currentCycle(full.cycles, day)!;
+  const wk = currentWeek(c, day);
+  let clock = Date.parse('2026-11-11T09:00:00Z');
+  let n = 0;
+  const x = (snap: Snapshot): ActionContext => ({ snapshot: snap, cycle: c, week: wk, actor: full.people.find((p) => p.id === 'daniel')!, now: new Date(clock += 60_000).toISOString(), newId: (p: string) => `${p}-t3-${++n}`, allGoals: snap.goals, full: snap });
+  const review = full.reviews.find((r) => r.id === 'devprod')!;
+  const live = (snap: Snapshot) => scopeToCycle(snap, c);
+  const sess = (snap: Snapshot) => reviewSession(review, live(snap), c, day, wk);
+
+  it('numbers the walk once: reviewing goals, and saving an action on one, never moves a goal or skips one', () => {
+    let snap = full;
+    const start = walkOrder(sessionPlan(sess(snap), live(snap), c, day));
+    expect(start.length).toBeGreaterThan(3);
+    // Review the first two, then save an action on the third (which makes it "being handled" under today's rule).
+    for (const id of start.slice(0, 2)) snap = applyCommit(snap, reviewCall(x(live(snap)), live(snap).goals.find((g) => g.id === id)!, review, 'acknowledge', '', { week: sess(snap).week }));
+    const third = live(snap).goals.find((g) => g.id === start[2])!;
+    snap = applyCommit(snap, reviewCall(x(live(snap)), third, review, 'action', 'Agree the runner budget with Amara', { week: sess(snap).week, assigneeId: 'daniel' }));
+    const after = walkOrder(sessionPlan(sess(snap), live(snap), c, day));
+    expect(after).toEqual(start);
+    // Continue picks up at the third goal: "Goal 3 of N".
+    expect(after.findIndex((id) => !sess(snap).covered.has(id)) + 1).toBe(3);
+  });
+
+  it('marks the goals with nothing flagged together, and Undo puts every one back on the agenda', () => {
+    let snap = full;
+    const s0 = sess(snap);
+    const healthy = sessionPlan(s0, live(snap), c, day).healthy.map((a) => a.goal);
+    expect(healthy.length).toBeGreaterThan(0);
+    const marked = markReviewed(x(live(snap)), healthy, review, s0.week);
+    expect(marked.decisions!.length).toBe(healthy.length);
+    expect(marked.changes.length).toBe(healthy.length);
+    snap = applyCommit(snap, marked);
+    expect(sess(snap).done).toBe(s0.done + healthy.length);
+    const undo = unmarkReviewed(x(live(snap)), marked.decisions!);
+    expect(undo.changes.every((ch) => ch.action === 'undone')).toBe(true);
+    snap = applyCommit(snap, undo);
+    expect(sess(snap).done).toBe(s0.done);
+    // Someone else can't take back Daniel's marks.
+    const other: ActionContext = { ...x(live(snap)), actor: full.people.find((p) => p.id === 'rhea' && !p.admin) ?? full.people.find((p) => !p.admin && p.id !== 'daniel')! };
+    expect(() => unmarkReviewed(other, marked.decisions!)).toThrow(/Only whoever marked them/);
+  });
+});

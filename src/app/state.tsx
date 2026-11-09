@@ -113,6 +113,8 @@ export interface AppState {
   askQuestion(goal: Goal, text: string): Promise<void>;
   /** What someone says about a goal in a review: seen, a note, a question for the owner, or an action. */
   reviewCall(goal: Goal, review: Review, week: number, kind: 'acknowledge' | 'note' | 'ask' | 'action', note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Promise<void>;
+  /** Mark several goals reviewed in a session at once (the ones with nothing flagged), with Undo. */
+  markReviewed(goals: Goal[], review: Review, week: number): Promise<void>;
   /** Correct a note, question or action someone said; the change log keeps the before and after. */
   editCall(d: Decision, note: string, extra?: { assigneeId?: string | null; dueWeek?: number | null }): Promise<void>;
   /** Watch a goal, a goal and everything feeding it, or a whole level. */
@@ -581,6 +583,11 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       askForUpdate: async (goal) => { await act(() => A.askForUpdate(ax(), goal)); },
       undoUpdateAsk: async (goal) => { await act(() => A.undoUpdateAsk(ax(), goal)); },
       reviewCall: async (goal, review, sessionWeek, kind, note, extra) => { await act(() => A.reviewCall(ax(), goal, review, kind, note, { week: sessionWeek, ...extra })); },
+      markReviewed: async (goals, review, sessionWeek) => {
+        const c = await act(() => A.markReviewed(ax(), goals, review, sessionWeek));
+        const n = goals.length;
+        toast(`${n} ${n === 1 ? 'goal' : 'goals'} marked reviewed in ${review.name}`, 'success', { label: 'Undo', run: () => { void act(() => R.unmarkReviewed(ax(), c.decisions ?? [])).then(() => toast('Undone: back on the agenda')).catch(() => undefined); } });
+      },
       editCall: async (d, note, extra) => { await act(() => A.editCall(ax(), d, note, extra)); },
       watch: async (kind, ref) => { await act(() => A.watch(ax(), kind, ref)); },
       unwatch: async (watchId) => { await removal(() => A.unwatch(ax(), watchId), (c) => c.changes[0]?.summary ?? 'Stopped watching'); },

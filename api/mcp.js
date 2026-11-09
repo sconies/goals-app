@@ -412,7 +412,7 @@ var init_vocabulary = __esmMin((() => {
 			label: "Getting worse",
 			short: "further behind each time",
 			meaning: "Further behind plan at each of the last two check-ins, or on track but heading short of its target.",
-			long: `A number further behind its plan (in the goal’s own units) at each of the last two of 3 check-ins; a number moving towards its limit two check-ins running; a stage expected later than it was at the check-in before; or on track today with the projection falling short of the target. The goal’s trend, its chart and its scorecard use the same rule.`,
+			long: `A number further behind its plan (in the goal’s own units) at each of the last two of 3 check-ins, and visibly so: behind now as shown, and further behind than at the first of them; a number moving towards its limit two check-ins running; a stage expected later than it was at the check-in before; or on track today with the whole projected range falling short of the target. The goal’s trend, its chart and its scorecard use the same rule.`,
 			rule: "trend#gapTrend",
 			retired: [
 				"Worsening trend",
@@ -2811,7 +2811,8 @@ var init_progress = __esmMin((() => {
 * Which way a series is heading. `gaps` are the last check-ins' distance from where they should be, oldest first,
 * unrounded, positive when better: ahead of plan, room inside a limit. Only the last TREND_SPAN count.
 *   Getting worse: lower at each of the last two steps, and, with `behindOnly`, short now. A number held flat while the
-*     plan moves on is further behind at each check-in, so it is getting worse, even before the gap shows a whole unit.
+*     plan moves on is further behind at each check-in, so it is getting worse, even before the gap shows a whole unit;
+*     goalTrend then also asks that it shows: behind now, and further behind than at the start (deep review T5).
 *   Getting better: higher at each of the last two steps.
 *   Anything else, or fewer than TREND_SPAN check-ins: no clear change.
 */
@@ -2837,6 +2838,18 @@ function planGaps(goal, cycle, valued) {
 			gap: Number(raw.toFixed(goal.decimals))
 		};
 	});
+}
+/**
+* A number goal's trend from its gaps to plan (planGaps): gapTrend on the unrounded gaps, a "worse" kept only if it
+* shows at the goal's decimals (deep review T5, 10 Nov): behind now as shown, and further behind than at the start of
+* the span. A number typed as the plan reads "on plan", so it is never getting worse, and no sentence prints "on plan →
+* on plan → on plan" or three equal gaps as worse. The flag, the story and the summary bar all ask here.
+*/
+function planGapTrend(gaps) {
+	const word = gapTrend(gaps.map((x) => x.raw), true);
+	const shown = gaps.slice(-3).map((x) => x.gap);
+	const visible = shown.length > 0 && shown[shown.length - 1] < 0 && shown[0] > shown[shown.length - 1];
+	return word === "worse" && !visible ? "flat" : word;
 }
 /** Stages at the latest check-in against the one before: worse when any is expected later, better when only sooner. */
 function stagesTrend(goal, own) {
@@ -2866,7 +2879,7 @@ function goalTrend(goal, cycle, checkIns) {
 	if (goal.kind === "metric") {
 		const valued = own.filter((c) => c.value != null);
 		const gaps = planGaps(goal, cycle, valued);
-		const word = gapTrend(gaps.map((x) => x.raw), true);
+		const word = planGapTrend(gaps);
 		if (word === "worse") {
 			const last = gaps.slice(-3);
 			const n = (v) => fixed(Math.abs(v), goal.decimals);
@@ -2881,7 +2894,10 @@ function goalTrend(goal, cycle, checkIns) {
 				value: c.value
 			}));
 			const at = assessMetric(goal, cycle.weeks, pts[pts.length - 1].week, pts[pts.length - 1].value, pts.slice(0, -1));
-			if (at.forecastMisses && at.projection && at.calc === "on") return {
+			const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
+			const best = at.projection ? Number((dir > 0 ? at.projection.high : at.projection.low).toFixed(goal.decimals)) : null;
+			const allShort = best != null && (best - Number(goal.plan.target.toFixed(goal.decimals))) * dir < 0;
+			if (at.forecastMisses && allShort && at.projection && at.calc === "on") return {
 				word: "worse",
 				detail: `${LABEL.on} today, but the recent trend heads for ${rangeText(at.projection, goal, isShare(goal))} by week ${at.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.`
 			};
@@ -3124,14 +3140,18 @@ function agendaOf(s) {
 		handled: discuss.filter((a) => !!a.handled)
 	};
 }
-function reviewSession(r, s, cycle, today, week) {
-	const w = sessionWeek(r, week, cycle);
+/** A review's goals in agenda order: new information, then what's being handled, then the healthy goals. */
+function agendaItems(r, s, cycle, today) {
 	const lastCheckIn = (g) => {
 		const own = checkInsFor(g, s.checkIns);
 		const last = own[own.length - 1];
 		return last ? daysSince(last.postedAt, today) : 999;
 	};
-	const items = goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
+	return goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
+}
+function reviewSession(r, s, cycle, today, week) {
+	const w = sessionWeek(r, week, cycle);
+	const items = agendaItems(r, s, cycle, today);
 	const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
 	const covered = new Set(said.filter((d) => d.kind === "acknowledge").map((d) => d.goalId));
 	const done = items.filter((a) => covered.has(a.goal.id)).length;
@@ -6246,7 +6266,7 @@ function recentlyRemoved(full, now, days = 30) {
 	for (const r of full.reviews ?? []) if (r.removedAt) add("review", r.id, r.name, r.removedBy, r.removedAt);
 	else if (r.endedAt) add("ended", r.id, r.name, r.endedBy, r.endedAt);
 	for (const k of commentsOf(full.changes).values()) if (k.removedAt) add("comment", k.id, `${goalTitle(k.goalId)}: “${excerpt(k.text)}”`, k.removedBy, k.removedAt);
-	for (const d of full.decisions) if (d.removedAt) add("note", d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
+	for (const d of full.decisions) if (d.removedAt && d.kind === "note") add("note", d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
 	for (const v of full.views ?? []) if (v.deletedAt) add("view", v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
 	for (const w of full.watches ?? []) if (w.removedAt) add("watch", w.id, `${nameIn(full, w.personId)} on ${w.kind === "level" ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
 	for (const c of full.cycles) if (c.removedAt) add("cycle", c.id, c.name, c.removedBy, c.removedAt);
@@ -8838,7 +8858,7 @@ function metricFacts(goal, cycle, all, own, week, stale) {
 	});
 	else {
 		const latest = span[span.length - 1];
-		const word = gapTrend(span.map((x) => x.raw), true);
+		const word = planGapTrend(span);
 		const direction = DIRECTION[word];
 		const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
 		const num = (v) => fixed(Math.abs(v), goal.decimals);
@@ -9806,8 +9826,8 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it. The streak counts weeks with every check-in in before the review; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
-					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in.",
+					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it. The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
+					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
@@ -10814,8 +10834,8 @@ var CORE_ARTICLES = [
 				heading: "Running it",
 				list: [
 					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.",
-					"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too).",
-					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.",
+					"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too). The order is fixed when the session starts: reviewing a goal or saving an action never moves one, Continue review picks up at the goal you left, and Previous goal goes back to ones already reviewed. Opening a goal’s walk from its own address keeps the same order.",
+					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.",
 					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
 					"Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session."
 				]
@@ -11901,6 +11921,22 @@ var WHATS_NEW = [
 			"set-up",
 			"check-in",
 			"workspace-teams"
+		]
+	},
+	{
+		id: "review-order-and-deadlines",
+		date: "2026-11-10",
+		title: "A review keeps its place, and Home says when check-ins are due",
+		points: [
+			"A review’s walk keeps the order it started with: reviewing a goal or saving an action never moves one, Continue review picks up where you left off with the right count, and a walk opened from a goal’s own address follows the agenda.",
+			"Marking the goals with nothing flagged reviewed asks first, and its message has Undo. It no longer ends the review on its own: when they’re all that’s left, Finish review does that, and says so.",
+			"Home says when check-ins are due (“Check-ins are due by Thursday”) instead of naming a review you may not be in. A question raised in a review is due before that review’s next session.",
+			"Getting worse says only what the numbers show: a number posted as the plan is never further behind, and “heading short” means the whole range it heads for misses the target."
+		],
+		articles: [
+			"reviews",
+			"home",
+			"needs-attention"
 		]
 	},
 	{

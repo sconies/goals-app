@@ -100,17 +100,45 @@ export interface ReviewSession {
 /** Agenda order: new information, then what's being handled, then the healthy goals. */
 const tier = (a: GoalAttention) => (a.handled ? 1 : isHealthy(a) ? 2 : 0);
 
-export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date, week: number): ReviewSession {
-  const w = sessionWeek(r, week, cycle);
+/** A review's goals in agenda order: new information, then what's being handled, then the healthy goals. */
+function agendaItems(r: Review, s: Snapshot, cycle: Cycle, today: Date): GoalAttention[] {
   const lastCheckIn = (g: Goal) => { const own = checkInsFor(g, s.checkIns); const last = own[own.length - 1]; return last ? daysSince(last.postedAt, today) : 999; };
-  const items = goalsIn(r.scope, s.goals)
+  return goalsIn(r.scope, s.goals)
     .map((g) => attentionFor(g, s, cycle, today))
     .sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
+}
+
+export function reviewSession(r: Review, s: Snapshot, cycle: Cycle, today: Date, week: number): ReviewSession {
+  const w = sessionWeek(r, week, cycle);
+  const items = agendaItems(r, s, cycle, today);
   const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
   // Only an explicit "reviewed" counts; a note, question or action can come before the assessment is finished.
   const covered = new Set(said.filter((d) => d.kind === 'acknowledge').map((d) => d.goalId));
   const done = items.filter((a) => covered.has(a.goal.id)).length;
   return { review: r, week: w, date: sessionDate(r, cycle, w), items, covered, done, total: items.length, said };
+}
+
+/**
+ * A session's agenda as it stood when the session started (deep review T3, 10 Nov): the order, and which goals are to
+ * discuss and which have nothing flagged, worked out with everything said in this session set aside. So reviewing a
+ * goal, or saving a note or an action on it, never reshuffles the walk or moves a goal between the groups while the
+ * session runs: "Goal k of N" stays true, Continue picks up where it was, and a walk opened from a goal's own address
+ * keeps the agenda's order. `discuss` and `healthy` are the live entries (today's status), in that fixed order.
+ */
+export function sessionPlan(ss: ReviewSession, s: Snapshot, cycle: Cycle, today: Date): { discuss: GoalAttention[]; healthy: GoalAttention[]; all: GoalAttention[] } {
+  const mine = (d: { reviewId?: string | null; week?: number | null }) => d.reviewId === ss.review.id && d.week === ss.week;
+  const before: Snapshot = { ...s, decisions: s.decisions.filter((d) => !mine(d)), ...(s.requests ? { requests: s.requests.filter((a) => !mine(a)) } : {}) };
+  const start = agendaItems(ss.review, before, cycle, today);
+  const live = new Map(ss.items.map((a) => [a.goal.id, a]));
+  const pick = (list: GoalAttention[]) => list.map((a) => live.get(a.goal.id)).filter((a): a is GoalAttention => !!a);
+  const discuss = pick(start.filter((a) => !isHealthy(a)));
+  const healthy = pick(start.filter(isHealthy));
+  return { discuss, healthy, all: [...discuss, ...healthy] };
+}
+
+/** The goals a session walks one at a time, in its fixed order: the ones to discuss, or every goal when there are none. */
+export function walkOrder(plan: ReturnType<typeof sessionPlan>, everything = false): string[] {
+  return (everything || !plan.discuss.length ? plan.all : plan.discuss).map((a) => a.goal.id);
 }
 
 /** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
