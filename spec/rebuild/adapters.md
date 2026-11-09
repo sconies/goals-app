@@ -6,16 +6,19 @@ For a team that copies Faro’s code rather than rebuilding it from this kit: ev
 
 **Today:** each part’s contract runs on Faro’s own adapters in `npm test` (`src/adapters/stores.test.ts`, `src/adapters/parts.test.ts`). The goals store’s is proven twice over: the Supabase adapter (on a stand-in for Supabase’s client, `src/adapters/supabase/testClient.ts`, over real Postgres with every migration) and a second, plain-Postgres adapter pass the same contract.
 
+**The goals store is the demo-scale port.** `Store` loads a whole workspace and saves rows its caller wrote. That is right for a demo of 126 goals and wrong for 15,000 people: [R4](../requirements/internal/r4-scale-and-safety.md) says nothing loads a whole workspace, and [R1](../requirements/internal/r1-sign-in-and-access.md) says the server enforces the rules. Writing a `Store` adapter gets Faro running on your database; it is not the shape of the internal app. Read R1, R4 and [the ports at company scale](ports-at-scale.md) before you write one.
+
 ## Entry criteria
 
 - A copy of Faro’s repository, with `npm ci`, `npm run typecheck` and `npm test` passing on it unchanged.
+- [R1](../requirements/internal/r1-sign-in-and-access.md), [R4](../requirements/internal/r4-scale-and-safety.md) and [the ports at company scale](ports-at-scale.md) read, so you know which adapters are for getting started and which ports replace them.
 - For each part, a decision: keep Faro’s adapter, or write your own.
 
 ## The parts
 
 | Part | Interface | Contract | Adapters today |
 |---|---|---|---|
-| The goals store | `Store` (`src/data/store.ts`) | `storeContract` (`src/ports/contracts/store.ts`) | browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`) |
+| The goals store (demo scale: see [the ports at company scale](ports-at-scale.md)) | `Store` (`src/data/store.ts`) | `storeContract` (`src/ports/contracts/store.ts`) | browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`) |
 | Markups | `MarkupStore` (`src/markup/ops.ts`) | `markupContract` | Supabase (`src/adapters/supabase/markups.ts`), this browser (`src/markup/backend.ts`) |
 | Feedback | `FeedbackStore` (`src/markup/feedback.ts`) | `feedbackContract` | Supabase (`src/adapters/supabase/feedback.ts`), this browser (`localFeedback`) |
 | Who is viewing | `Identity` (`src/ports/index.ts`) | `identityContract` | the “Who are you?” picker (`src/adapters/local.ts`); your sign-in replaces it (R1, R2) |
@@ -29,7 +32,7 @@ For a team that copies Faro’s code rather than rebuilding it from this kit: ev
 - **An adapter per part you swap**, in its own folder under `src/adapters/` (yours, say `src/adapters/acme/`), that implements the interface and imports your platform’s client. Nothing outside that folder imports the client: add your package to the layers lint’s rule 4 as Supabase is.
 - **Its contract test**: a test file that calls the part’s contract with a way to make your adapter, as `src/adapters/stores.test.ts` does for Faro’s. Use a real but disposable instance of your service where you can (Faro’s Postgres contracts run on PGlite, Postgres in WebAssembly, with every migration).
 - **The wiring**: where the app picks an adapter. The browser picks its goals store in `src/main.tsx`, its markups and feedback in `src/markup/backend.ts`, who is viewing in `src/app/state.tsx`; the AI tools’ endpoint picks its `Deps` in `server/vercel.ts`.
-- **The database, if you keep Postgres without Supabase:** run `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase’s roles and its storage and auth schemas), then every migration in `supabase/migrations` in order, then use `PostgresStore` with node-postgres or any driver with a `query(text, params)` method. The database’s functions (`okr_commit` and the rest) only check that rows belong to the workspace and that goal and review versions haven’t moved; every other rule, the actor, the time and the change-log entry come from the caller today (`src/domain/actions` run in the browser). A company-scale rebuild moves those actions to the server (R1, R4), so read them before you build on this port.
+- **The database, if you keep Postgres without Supabase:** run `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase’s roles and its storage and auth schemas), then every migration in `supabase/migrations` in order, then use `PostgresStore` with node-postgres or any driver with a `query(text, params)` method. The database’s functions (`okr_commit` and the rest) only check that rows belong to the workspace and that goal and review versions haven’t moved; every other rule, the actor, the time and the change-log entry come from the caller today (`src/domain/actions` run in the browser). A company-scale rebuild moves those actions to the server (R1, R4), so read them before you build on this port: [the ports at company scale](ports-at-scale.md) sketches the route.
 - **Sign-in:** an `Identity` that answers with the signed-in person and refuses to choose anyone else. Who may change what is still the server’s to enforce ([R1](../requirements/internal/r1-sign-in-and-access.md)).
 - **Numbers:** a `NumberSource` per system your metrics name as their source (a warehouse, a dashboard’s API). A metric’s `source` says which.
 

@@ -4,6 +4,7 @@
    scripts/drill.mjs to spec/rebuild/drill.mjs so a copy of spec/ carries it. Pure: the caller reads the files. */
 import type { ModuleFacts } from '../core/module';
 import { cell, table, UNCLEAR } from './md';
+import { ACCESS } from './internal';
 import { INTERNAL_PAGES, RULE_PAGES } from './overview';
 
 /** A module's rebuild stage, as its module.json writes it under `rebuild`. Every module has one (CI checks:
@@ -76,7 +77,7 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '',
     `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${Object.values(rows).reduce((a, b) => a + b, 0)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.`,
     '',
-    '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others.',
+    '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others. Its goals store is the demo-scale port: before building on it for the whole company, read [the ports at company scale](ports-at-scale.md), the query and command ports that replace it.',
     '',
     '**What is an outline:** every other stage. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).',
     '',
@@ -274,7 +275,7 @@ function moduleStage(s: Stage, m: ModuleWithRebuild, all: Stage[]): string {
 
 /** The outside parts, as src/ports/index.ts lists them: the interface, its contract, and the adapters Faro has. */
 const PARTS: [string, string, string, string][] = [
-  ['The goals store', '`Store` (`src/data/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`)', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
+  ['The goals store (demo scale: see [the ports at company scale](ports-at-scale.md))', '`Store` (`src/data/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`)', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
   ['Markups', '`MarkupStore` (`src/markup/ops.ts`)', '`markupContract`', 'Supabase (`src/adapters/supabase/markups.ts`), this browser (`src/markup/backend.ts`)'],
   ['Feedback', '`FeedbackStore` (`src/markup/feedback.ts`)', '`feedbackContract`', 'Supabase (`src/adapters/supabase/feedback.ts`), this browser (`localFeedback`)'],
   ['Who is viewing', '`Identity` (`src/ports/index.ts`)', '`identityContract`', 'the “Who are you?” picker (`src/adapters/local.ts`); your sign-in replaces it (R1, R2)'],
@@ -291,9 +292,12 @@ const adapters = () => GENERATED + [
   '',
   '**Today:** each part’s contract runs on Faro’s own adapters in `npm test` (`src/adapters/stores.test.ts`, `src/adapters/parts.test.ts`). The goals store’s is proven twice over: the Supabase adapter (on a stand-in for Supabase’s client, `src/adapters/supabase/testClient.ts`, over real Postgres with every migration) and a second, plain-Postgres adapter pass the same contract.',
   '',
+  '**The goals store is the demo-scale port.** `Store` loads a whole workspace and saves rows its caller wrote. That is right for a demo of 126 goals and wrong for 15,000 people: [R4](../requirements/internal/r4-scale-and-safety.md) says nothing loads a whole workspace, and [R1](../requirements/internal/r1-sign-in-and-access.md) says the server enforces the rules. Writing a `Store` adapter gets Faro running on your database; it is not the shape of the internal app. Read R1, R4 and [the ports at company scale](ports-at-scale.md) before you write one.',
+  '',
   '## Entry criteria',
   '',
   '- A copy of Faro’s repository, with `npm ci`, `npm run typecheck` and `npm test` passing on it unchanged.',
+  '- [R1](../requirements/internal/r1-sign-in-and-access.md), [R4](../requirements/internal/r4-scale-and-safety.md) and [the ports at company scale](ports-at-scale.md) read, so you know which adapters are for getting started and which ports replace them.',
   '- For each part, a decision: keep Faro’s adapter, or write your own.',
   '',
   '## The parts',
@@ -305,7 +309,7 @@ const adapters = () => GENERATED + [
   '- **An adapter per part you swap**, in its own folder under `src/adapters/` (yours, say `src/adapters/acme/`), that implements the interface and imports your platform’s client. Nothing outside that folder imports the client: add your package to the layers lint’s rule 4 as Supabase is.',
   '- **Its contract test**: a test file that calls the part’s contract with a way to make your adapter, as `src/adapters/stores.test.ts` does for Faro’s. Use a real but disposable instance of your service where you can (Faro’s Postgres contracts run on PGlite, Postgres in WebAssembly, with every migration).',
   '- **The wiring**: where the app picks an adapter. The browser picks its goals store in `src/main.tsx`, its markups and feedback in `src/markup/backend.ts`, who is viewing in `src/app/state.tsx`; the AI tools’ endpoint picks its `Deps` in `server/vercel.ts`.',
-  '- **The database, if you keep Postgres without Supabase:** run `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase’s roles and its storage and auth schemas), then every migration in `supabase/migrations` in order, then use `PostgresStore` with node-postgres or any driver with a `query(text, params)` method. The database’s functions (`okr_commit` and the rest) only check that rows belong to the workspace and that goal and review versions haven’t moved; every other rule, the actor, the time and the change-log entry come from the caller today (`src/domain/actions` run in the browser). A company-scale rebuild moves those actions to the server (R1, R4), so read them before you build on this port.',
+  '- **The database, if you keep Postgres without Supabase:** run `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase’s roles and its storage and auth schemas), then every migration in `supabase/migrations` in order, then use `PostgresStore` with node-postgres or any driver with a `query(text, params)` method. The database’s functions (`okr_commit` and the rest) only check that rows belong to the workspace and that goal and review versions haven’t moved; every other rule, the actor, the time and the change-log entry come from the caller today (`src/domain/actions` run in the browser). A company-scale rebuild moves those actions to the server (R1, R4), so read them before you build on this port: [the ports at company scale](ports-at-scale.md) sketches the route.',
   '- **Sign-in:** an `Identity` that answers with the signed-in person and refuses to choose anyone else. Who may change what is still the server’s to enforce ([R1](../requirements/internal/r1-sign-in-and-access.md)).',
   '- **Numbers:** a `NumberSource` per system your metrics name as their source (a warehouse, a dashboard’s API). A metric’s `source` says which.',
   '',
@@ -324,6 +328,127 @@ const adapters = () => GENERATED + [
   '',
 ].join('\n');
 
+/* ---------- copy and adapt at company scale: the ports that replace Store (backlog AS, part 1) ---------- */
+
+/** The actions the command port runs: every shared action R1's access table names, less the `can…` checks they call. */
+export function commandNames(): string[] {
+  const helper = (fn: string) => /^can[A-Z]/.test(fn) || fn === 'reviewHeld' || fn === 'leaving';
+  return [...new Set(ACCESS.flatMap((a) => a.code).map((r) => r.split('#')[1]!).filter((fn) => !helper(fn)))];
+}
+
+/** How each test of storeContract (src/ports/contracts/store.ts) carries across: [its title, on the query and command ports]. */
+export const CONTRACT_MAP: [string, string][] = [
+  ['keeps a new workspace whole, and lists it', 'The `createWorkspace` command, then the query port: `workspaces()` lists it to its members and to nobody else (R1, rule 3); paging through `goals()` 50 at a time gives every goal once and none twice; `people()` and `teams()` likewise.'],
+  ['saves a change-log entry and gives it back', 'The `addNote` command, sent with no actor, time or id; `activity()` gives the entry back with the signed-in person as its actor and the server’s time. A caller that sends its own actor, time or change-log entry is refused.'],
+  ['saves a goal one version on, and refuses a save based on the version before it as stale', 'The same, through any command that changes a goal, with the versions the person saw (`Expectations`). Extended to every record two people can edit at once: people, teams, asks, decisions and views, which `Store` saves last-write-wins today.'],
+  ['issues an AI assistant token once, never keeps its secret, and revokes it', 'The `createToken` command returns the secret once and is refused for someone who isn’t an admin; no query ever returns the secret or its hash; `revokeToken` stops the token at once (R1, rule 5).'],
+  ['deletes a workspace and everything in it', 'The `deleteWorkspace` command, admins only (`canDeleteWorkspace`); afterwards no query returns anything of it.'],
+  ['resets the example only when it has one', 'Not carried across: the example, `hasExample` and `resetExample` are the demo’s plumbing. They stay with the demo’s own store.'],
+];
+
+const portsAtScale = () => GENERATED + [
+  '# The ports at company scale',
+  '',
+  'For a team that copies Faro’s code and runs it for the whole company. [Swap the outside parts](adapters.md) gets Faro running on your platform at Faro’s size. This page is about the one part whose shape has to change on the way to 15,000 people: the goals store. Read [R1, sign-in and access](../requirements/internal/r1-sign-in-and-access.md) and [R4, scale and safety](../requirements/internal/r4-scale-and-safety.md) first; this page is the route to them.',
+  '',
+  '**Today:** a sketch. Faro has neither port below in its code, and neither has a contract test. What Faro does have, and what makes the move mechanical, is that every rule and every action is a pure function: given what it reads, it returns what to save.',
+  '',
+  '## `Store` is the demo-scale port',
+  '',
+  '`Store` (`src/data/store.ts`) has two working methods:',
+  '',
+  '- **`load(workspaceId)`** gives a whole `Snapshot`: every person, team, goal, check-in, ask, review and the whole change log. The rules take that `Snapshot` as their input; the app loads it again when the window regains focus and every two minutes, and the AI tools’ server loads it on every request.',
+  '- **`commit(workspaceId, commit)`** saves the rows and change-log entries its caller already wrote. The caller runs the action, stamps the time from its own clock, writes the change-log entry with its own idea of who acted, and makes the ids. The database checks that every row belongs to the workspace and that a goal’s or review’s version hasn’t moved, and nothing else. People, teams, asks, decisions and views are saved last-write-wins.',
+  '',
+  'That is right for the demo, which holds 126 made-up goals and trusts “Who are you?”. It is wrong for the internal app, for two reasons the requirements already state: **R4** (“Nothing loads a whole workspace”: 30,000 goals and 1.5 million check-ins a year), and **R1** (“The server enforces it … No key a browser holds can write”: an audit trail the caller writes isn’t one). So `Store` and its contract are for getting Faro running on your database. They are not the interface the internal app is built on.',
+  '',
+  '## What stays the same',
+  '',
+  '- **The rules**, in `src/domain`: weeks and plans, status, the projection, what a check-in must say, flags and needs attention, the scorecard, the change engine. Pure functions with no database, screen or network code (the layers lint keeps them so). Stage 1’s drill proves them, whichever port feeds them: it must still score 100%.',
+  '- **The actions**, in `src/domain/actions.ts` and `src/domain/removal.ts`, and the change engine (`planChanges` in `src/domain/changeset.ts`). Each takes an `ActionContext` (what it reads, who acts, now, a way to make ids), checks who may do it, and returns a `Commit` or refuses with words a person can act on (`NotAllowed`). They move to the server unchanged.',
+  '- **A save is one `Commit`**, kept all at once or not at all, with the versions it was based on.',
+  '- **The other parts** keep their interfaces and contracts: `Clock`, `Files`, `NumberSource`, markups and feedback. `Identity` stops being a choice the browser makes: the server knows who is signed in ([R2](../requirements/internal/r2-single-sign-on.md)).',
+  '',
+  '## The query port: what screens and the AI tools read',
+  '',
+  'Reads are answered by the server, from summary rows ([R4](../requirements/internal/r4-scale-and-safety.md), rule 2), a page at a time. The port takes no actor: the server answers for the signed-in person, and only within workspaces they belong to.',
+  '',
+  '```ts',
+  'interface GoalsQuery {',
+  '  workspaces(): Promise<Workspace[]>;                                   // only the signed-in person’s',
+  '  goals(ws: string, q: GoalQuery, page: PageAt): Promise<Page<GoalSummary>>;',
+  '  counts(ws: string, q: GoalQuery): Promise<Record<StatusCode, number>>; // the same filter, counted from summaries',
+  '  goal(ws: string, goalId: string): Promise<GoalPage>;                  // one goal with its check-ins, asks, decisions and history',
+  '  search(ws: string, text: string, kinds: (\'goal\' | \'person\' | \'team\')[], page: PageAt): Promise<Page<Hit>>;',
+  '  people(ws: string, q: PeopleQuery, page: PageAt): Promise<Page<Person>>;',
+  '  teams(ws: string, page: PageAt): Promise<Page<TeamSummary>>;',
+  '  activity(ws: string, q: ActivityQuery, page: PageAt): Promise<Page<Change>>;',
+  '  asksFor(ws: string, personId: string, page: PageAt): Promise<Page<Ask>>;',
+  '  review(ws: string, reviewId: string, page: PageAt): Promise<ReviewAgenda>;',
+  '}',
+  'type PageAt = { after: string | null; size: 50 };            // keyset: the next page starts after the last row’s key',
+  'type Page<T> = { rows: T[]; next: string | null; total: number };',
+  '```',
+  '',
+  '- **`GoalSummary`** is one live goal’s summary row: the goal’s own fields, and what the stage 1 rules say about it now: its status and what the numbers say, its flags, whether it needs attention and how it is being handled, the projection and the scorecard, its latest week and days without an update. The columns are those of [the conformance files](../conformance/README.md), so the conformance data proves the summaries.',
+  '- **`GoalQuery`** is the Goals screen’s own filter and sort (`src/domain/query.ts`): search text, status, level, team, owner, kind, needs attention, and the rest. Today the browser applies it to the whole `Snapshot`; on the query port the server applies it to summary rows.',
+  '- **Search** is the server search behind find-and-pick (backlog 0a). It accepts a goal’s key (“G-48”) wherever it accepts a title.',
+  '- **Only `goal()` reads a goal’s check-ins.** Lists, counts, Home and the AI tools read summaries.',
+  '',
+  '## The command port: what people and the AI tools change',
+  '',
+  'A write names an action and gives its input. The caller never sends rows, a change-log entry, an actor, a time or an id.',
+  '',
+  '```ts',
+  'interface GoalsCommands {',
+  '  run<A extends ActionName>(ws: string, action: A, input: ActionInput[A], seen?: Expectations): Promise<ActionResult[A]>;',
+  '}',
+  '```',
+  '',
+  'On the server, for each command:',
+  '',
+  '1. **Who:** the signed-in person, or the person an AI token belongs to (marked via MCP). Never a value from the caller.',
+  '2. **What it reads:** only the records the action needs (the goal, its check-ins, its asks, the people named), not the workspace.',
+  '3. **The context:** `now` from the server’s `Clock`, as a real instant ([R3](../requirements/internal/r3-time-zones.md)); ids made by the server.',
+  '4. **The rule:** the same function from `src/domain`, unchanged. A refusal goes back with its words, the same words the app shows.',
+  '5. **The save:** the `Commit` it returns, rows and change-log entries together in one transaction, refused as stale when a record has moved on from the version the person saw.',
+  '6. **The summaries** of every goal the save touched are worked out again in the same transaction (R4, rule 2).',
+  '7. **The answer:** what the action gives back (a new id, a token’s secret once, a change set’s preview) and the refreshed summaries, so the screen updates without loading anything else.',
+  '',
+  'The browser may still run an action first to explain early (“Only admins can …” before a button is pressed), as Faro does; the server’s answer is the one that counts.',
+  '',
+  `**The actions**, read from R1’s access table so the list can’t drift: ${commandNames().map((n) => `\`${n}\``).join(', ')}. \`planChanges\` is the change engine: check-ins, goal and plan edits, bulk edits and spreadsheets, with a preview (nothing saved) and an apply. Add \`createWorkspace\` and \`deleteWorkspace\`, which \`Store\` has as methods of its own.`,
+  '',
+  '## How each contract test carries across',
+  '',
+  '`storeContract` (`src/ports/contracts/store.ts`) has six tests. Each becomes a test of the two ports:',
+  '',
+  table(['`storeContract` test', 'On the query and command ports'], CONTRACT_MAP.map(([a, b]) => [cell(a), cell(b)])),
+  '',
+  'And four that `Store` has no equivalent of:',
+  '',
+  '1. **The summaries are the rules.** For the demo workspace, `goals()` in every week gives the status, flags, projection and scorecard in [the conformance files](../conformance/README.md) (R4, check 1).',
+  '2. **The server refuses what the rules refuse.** For every line of [R1’s access table](../requirements/internal/r1-sign-in-and-access.md#who-may-change-what), someone outside its “who” is refused by the command port, called directly with their own sign-in, with the words the app shows (R1, check 1).',
+  '3. **Keyset paging** never skips or repeats a row while rows are added or changed between pages (R4).',
+  '4. **No read is larger than a page**, and only `goal()` reads a goal’s check-ins (R4, check 3).',
+  '',
+  '## A route from Faro’s code',
+  '',
+  'In steps, each of which leaves a working app and stage 1’s drill at 100%:',
+  '',
+  '1. **Commands first.** Put the command port on a server and move the app’s and the AI tools’ saves onto it, with `Store` still underneath: the server loads, runs the action, commits. Trust is fixed (the server decides who acted, when, and whether it is allowed), scale not yet.',
+  '2. **Summaries.** Keep a summary row per live goal, written in the same save; move Home and Goals onto `goals()` and `counts()`, then the other screens one at a time.',
+  '3. **Narrow reads.** Replace the server’s whole-workspace load with what each action reads, then retire `Store.load` and the two-minute reload.',
+  '',
+  '## Gaps in the kit',
+  '',
+  '- Neither port exists in Faro’s code: the interfaces above are a sketch, and there are no contract tests for them.',
+  '- Most rule functions take a whole `Snapshot`; which records each action and rule actually reads isn’t listed anywhere, so step 3 starts by finding out.',
+  '- The screens read the app’s loaded state directly; which query each screen needs isn’t listed.',
+  '- Goal keys are worked out in the rules and again by a database trigger (`supabase/migrations/0021_goal_keys.sql`); at company scale the server’s is the one that counts.',
+  '',
+].join('\n');
+
 /** Every file under spec/rebuild/, by path from the repository root. `harness` is scripts/drill.mjs's text. */
 export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, number>, harness: string): Record<string, string> {
   const all = stages(mods);
@@ -333,6 +458,7 @@ export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, num
     'spec/rebuild/stage-2-core-data.md': stage2(),
     'spec/rebuild/stage-3-core-screens.md': stage3(),
     'spec/rebuild/adapters.md': adapters(),
+    'spec/rebuild/ports-at-scale.md': portsAtScale(),
     'spec/rebuild/drill.mjs': '// Generated by npm run spec from scripts/drill.mjs. Edit that file, not this copy.\n' + harness,
   };
   for (const s of all) if (s.module) out[`spec/rebuild/${s.file}`] = moduleStage(s, mods.find((m) => m.id === s.module)!, all);

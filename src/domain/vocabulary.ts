@@ -125,7 +125,7 @@ export const FLAG: Record<FlagKind, Term<FlagKind>> = {
   trend: term('trend', {
     label: 'Getting worse', short: 'further behind each time',
     meaning: 'Further behind plan at each of the last two check-ins, or on track but heading short of its target.',
-    long: `A number further behind its plan (in the goal’s own units) at each of the last two of ${TREND_SPAN} check-ins; a number moving towards its limit two check-ins running; a stage expected later than it was at the check-in before; or on track today with the projection falling short of the target. The goal’s trend, its chart and its scorecard use the same rule.`,
+    long: `A number further behind its plan (in the goal’s own units) at each of the last two of ${TREND_SPAN} check-ins, and visibly so: behind now as shown, and further behind than at the first of them; a number moving towards its limit two check-ins running; a stage expected later than it was at the check-in before; or on track today with the whole projected range falling short of the target. The goal’s trend, its chart and its scorecard use the same rule.`,
     rule: 'trend#gapTrend',
     retired: ['Worsening trend', 'Falling further behind', 'Losing ground on the plan', 'and slipping', 'Moving towards the limit'],
   }),

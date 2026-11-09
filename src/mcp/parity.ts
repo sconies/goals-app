@@ -17,6 +17,7 @@ export const ACTIONS: Record<string, Entry> = {
   askForUpdate: ['ask_for_update'],
   undoUpdateAsk: ['undo_update_ask'],
   reviewCall: ['review_call'],
+  markReviewed: ['review_call'],
   editCall: ['edit_call'],
   watch: ['watch'],
   unwatch: ['unwatch'],

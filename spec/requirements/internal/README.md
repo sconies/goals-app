@@ -2,7 +2,7 @@
 
 # Requirements for the internal app
 
-Faro is a model for the company’s internal goals app, plus a demo; it never holds real data. The internal team copies its code and plugs in their own platform. Some things that app must do, Faro doesn’t build, because that platform provides the machinery: sign-in, single sign-on, time zones done properly, and the scale and safety of real data. Each is written here instead, so the rebuild has the rule even though Faro has no code for it.
+Faro is a model for the company’s internal goals app, plus a demo; it never holds real data. The internal team copies its code and plugs in their own platform. Some things that app must do, Faro doesn’t build: because that platform provides the machinery (sign-in, single sign-on, time zones done properly, the scale and safety of real data), or because they only matter in a company the size of the real one (its organisation, delegates, a planning round). Each is written here instead, so the rebuild has the rule even though Faro has no code for it.
 
 Each page says why, the rule, what Faro does today (and where it falls short), worked examples (those marked **Faro today** are run against Faro’s code), acceptance checks, and the nearest stage of [the rebuild kit](../../rebuild/README.md).
 
@@ -12,6 +12,9 @@ Each page says why, the rule, what Faro does today (and where it falls short), w
 | [R2. Company single sign-on](r2-single-sign-on.md) | People sign in through the company’s identity provider, are matched to their person record by a stable id, and lose access the day they leave the company. | [Stage 2: the core data and the change engine](../../rebuild/stage-2-core-data.md) |
 | [R3. Time zones](r3-time-zones.md) | Store real moments, count weeks and days in the workspace’s home zone, show every time in the viewer’s own zone, and give reviews a time and a zone. | [Stage 1: the core rules](../../rebuild/stage-1-core-rules.md) |
 | [R4. Scale and safety](r4-scale-and-safety.md) | 15,000 people: the rules’ results kept as summary rows on the server, every growing list paged, page-load budgets checked in CI, backups that are restored for real, migrations rehearsed, and the master key used only where nothing else will do. | [Stage 2: the core data and the change engine](../../rebuild/stage-2-core-data.md) |
+| [R6a. The organisation](r6a-organisation.md) | Teams form a tree fed from the company directory, people have managers, goal levels are set per workspace, and every list, count, Home and review can be scoped to a part of the company. | [Stage 2: the core data and the change engine](../../rebuild/stage-2-core-data.md) |
+| [R6b. Delegates](r6b-delegates.md) | An owner, their manager or an admin names a delegate who checks in and answers asks for the owner’s goals while they are away; it is recorded as the delegate acting for the owner, and the owner stays the owner. | [Stage 2: the core data and the change engine](../../rebuild/stage-2-core-data.md) |
+| [R6c. The planning round](r6c-planning-round.md) | Next cycle’s goals are drafted, proposed and agreed in a planning round before the cycle starts; a goal counts nowhere until it is agreed, and the cycle starts with the agreed set. | [Stage 2: the core data and the change engine](../../rebuild/stage-2-core-data.md) |
 
 And a short note, not a requirement: [Observability, as an idea](observability.md), what Faro records about how it is used today and what the internal app might take from it.
 

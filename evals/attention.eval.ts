@@ -150,9 +150,10 @@ describe('the AI assistant sees the same split', () => {
     };
   }
   it(R('ATTENTION-HANDLED', 'get_my_work lists the owner’s handled goal apart, with what’s in hand'), async () => {
-    // Jenkins was only marked reviewed: it needs attention. With an action agreed, it is in hand.
+    // Jenkins was only marked reviewed: it needs attention (Lane, 10 Nov). cfr-tests heads for 88–90% against 90%, which
+    // isn't heading short (deep review T5). With an action agreed, Jenkins is in hand.
     let w = await (await as('chen'))('get_my_work');
-    expect(w.data!.needsAttention.map((g: { id: string }) => g.id).sort()).toEqual(['cfr-tests', 'dep-jenkins']);
+    expect(w.data!.needsAttention.map((g: { id: string }) => g.id)).toEqual(['dep-jenkins']);
     expect(w.data!.beingHandled).toEqual([]);
     w = await (await as('chen', { ...s0, requests: [...(s0.requests ?? []), action('dep-jenkins', { recipientId: 'chen', dueWeek: 47 })] }))('get_my_work');
     expect(w.data!.beingHandled).toEqual([expect.objectContaining({ id: 'dep-jenkins', inHand: 'Action: Chen, due week 47' })]);
