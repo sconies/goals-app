@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-09 11:42 UTC.
+Run 2026-11-09 11:53 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -26,22 +26,22 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 16 | Home by responsibility: every ask waiting on you in one place, and one navigation | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 2 · 2 (budget 4) |
 | 17 | Demo data sets, presenting without the bar, and deleting a workspace | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 12) |
 | 18 | Set a goal for the year and its plan numbers by hand | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 12) |
-| 19 | See the same goals as a table, board, history grid or cards, and export them | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
+| 19 | See the same goals as a table, board, history grid or cards, and export them | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 15 · 10 (budget 16) |
 | 20 | Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 15) |
 | 21 | Type the week’s numbers in one table, and change several goals at once | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 10 (budget 14) |
 | 22 | An admin gives a teammate a token for an AI assistant, then revokes it | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 10) |
 | 23 | See the year in quarters: where we are, each quarter met or missed, and the year’s history | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | – | 1 · 1 (budget 6) |
 | 24 | Two people change the same goal at once: the second is told, not overwritten | **10** | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 8) |
 | 25 | Publish a goal, then post its first check-in straight away | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 11 · 11 (budget 12) |
-| 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 8) |
+| 26 | Find what will sink the north star on the goal map, and read its story | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 6 (budget 8) |
 | 27 | Take a walkthrough: the coach points the way and moves on as you do each step | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 6 · 6 (budget 10) |
 | 28 | A research session: first glances, a note pinned to the screen, a task result and a report | **10** | ✓ | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | 16 · 16 (budget 16) |
 | 29 | Every walkthrough starts as the right person and points at something real | **10** | ✓ | – | ✓ | – | – | ✓ | ✓ | ✓ | – | ✓ | 6 · 6 (budget 14) |
-| 30 | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 6 · 6 (budget 16) |
+| 30 | Numbers you can trust, a map you can use from the keyboard, and a review set-up that survives a refresh | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 6 (budget 16) |
 | 31 | After the week is done: check in again, a walkthrough that still works, and Activity that keeps Watching’s scope | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 18 · 18 (budget 19) |
-| 32 | Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 13 · 12 (budget 18) |
+| 32 | Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 14 · 12 (budget 18) |
 | 33 | A leader acts on what needs them: what threatens the north star, respond to a request, chase a quiet goal, compare in a table | **10** | – | ✓ | – | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 6 (budget 16) |
-| 34 | What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 14) |
+| 34 | What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 4 (budget 14) |
 | 35 | An admin corrects people, goals and a past check-in in the data tables; anyone filters the activity and saves it | **10** | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 19 · 18 (budget 26) |
 | 36 | An owner keeps last week’s account but withdraws the request; the leader’s Home and review agree on what needs them | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 12) |
 | 37 | Several goals wait on one decision: an owner links theirs, the leader answers once, and every goal shows the answer | **10** | – | – | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 12) |
@@ -53,7 +53,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 43 | An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 10) |
 | 44 | An owner stops a goal with history, then deletes a goal set up by mistake and undoes it | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 11) |
 | 45 | Undo an import: every row back as it was, and a row changed since skipped and listed | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 5 (budget 8) |
-| 46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 16) |
+| 46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 9 (budget 16) |
 | 47 | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so | **10** | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 6 (budget 12) |
 | 48 | An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back | **10** | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 2 · 2 (budget 10) |
 | 49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all | **10** | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 20 · 20 (budget 30) |
@@ -122,7 +122,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **REVIEW-RUN** What was said in a review is kept as its summary; owners see questions and actions on their goal page. | Reviews | 0 | U3, U36 |
 | ✅ | **ADMIN** Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed. | People | 0 | U5, U10, U14 |
 | ✅ | **RETRO** From the last two weeks of a cycle, each owner wraps up their goals: how it landed (suggested from where it ended), one thing learned, carry on or stop. An admin then starts the next cycle; carried goals start from where they ended, stopped goals stay in the old cycle, and both are logged. | Cycles | 0 | U10 |
-| ✅ | **VIEWS** The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. | Views | 0 | U19 |
+| ✅ | **VIEWS** The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen. | Views | 0 | U19 |
 | ✅ | **SPREADSHEETS-ON-DATA** Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template (every sheet’s headers and README, no rows), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets). | Data | 2 | U20, U48 |
 | ✅ | **EXPORT** Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens. | Data | 0 | U19 |
 | ✅ | **BULK-IMPORT** A workbook, a zip of CSVs or one CSV can add or change people, goals, plan numbers and check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any, and admins add and change people. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet. | Data | 0 | U20 |

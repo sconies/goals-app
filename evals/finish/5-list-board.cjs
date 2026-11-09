@@ -12,25 +12,37 @@ module.exports = {
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
     const r0 = (n) => Math.round(n);
 
-    // L&T 4, 31, 23: a 360px phone. The week line is one line under the title, the layouts and tools one 44px row,
-    // search and Filters one row with a short placeholder, and the first goal within 300px.
+    // L&T 4, 31, 23 and backlog G (Lane's markup, 9 Nov): a 360px phone, goals first. The week is one small line under
+    // the title, beside New goal, so the header is one 44px row; which goals and how to see them are one row of two menus, the Views button saying the open
+    // view and its count; search and Filters one row with a short placeholder; and the first goal within 240px.
     {
       const [c, p] = await open(360, 740, 'amara', '/goals', true);
       const m = await p.evaluate((src) => {
         const ban = (0, eval)('(' + src + ')')();
         const rect = (s) => document.querySelector(s)?.getBoundingClientRect();
-        const period = rect('.goals-period'), h1 = rect('.goals-head h1'), bar = rect('.goals-toolbar .view-bar'), row = rect('.filterbar-row');
-        return { period: period && [period.top, period.height, period.width], h1Bottom: h1?.bottom, bar: bar?.height, row: row?.height, first: rect('.outcome')?.top - ban,
-          placeholder: document.querySelector('.filter-search input')?.placeholder, side: document.documentElement.scrollWidth - innerWidth };
+        const bar = rect('.goals-phonebar'), row = rect('.filterbar-row');
+        const shown = (s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length).length;
+        const period = rect('.goals-period'), h1 = rect('.goals-head h1'), head = rect('.goals-head');
+        return { period: period && [period.top, period.height], h1Bottom: h1?.bottom, head: head?.height, bar: bar?.height, hidden: shown('.goals-toolbar') + shown('.layout-about'),
+          views: document.querySelector('.show-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(), layout: document.querySelector('.layout-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(),
+          row: row?.height, first: rect('.outcome')?.top - ban, placeholder: document.querySelector('.filter-search input')?.placeholder, side: document.documentElement.scrollWidth - innerWidth };
       }, bannerPx.toString());
-      chk(m.period && m.period[1] <= 22 && m.period[0] >= m.h1Bottom - 1, `L&T 4: 360px week line is ${m.period && r0(m.period[1])}px tall (one line under the title expected)`);
-      chk(m.bar <= 52, `L&T 4: 360px layout and tools bar is ${r0(m.bar)}px tall (one 44px row expected)`);
+      chk(m.period && m.period[1] > 0 && m.period[1] <= 18 && m.period[0] >= m.h1Bottom - 1 && m.head <= 48, `G: 360px week line ${m.period && r0(m.period[1])}px tall in a ${r0(m.head)}px header (one line under the title, beside New goal, expected)`);
+      chk(m.bar <= 48 && m.hidden === 0, `G: 360px views and layout take ${r0(m.bar)}px (one 44px row expected), ${m.hidden} of the wide toolbar's rows still shown`);
+      chk(/^Views: Trees ?, ?\d+ goals$/.test(m.views ?? '') && /^Layout: List$/.test(m.layout ?? ''), `G: 360px menus say “${m.views}” and “${m.layout}”`);
       chk(m.row <= 48, `L&T 4: 360px search and Filters take ${r0(m.row)}px (one row expected)`);
-      // Backlog N (8 Nov): the tabs wrap instead of being cut off and a line says what the layout is, so the first goal
-      // starts lower than L&T 4's 300px: about 427px now. Held there so it doesn't creep further.
-      chk(m.first <= 440, `L&T 4: 360×740 first goal starts at ${r0(m.first)}px (≤440 expected)`);
+      // Backlog G (9 Nov) brought the first goal up from about 427px (backlog N's wrapped tabs and layout line) to about 235px.
+      chk(m.first <= 240, `G: 360×740 first goal starts at ${r0(m.first)}px (≤240 expected)`);
       chk(m.placeholder === 'Search goals', `L&T 31: search placeholder is “${m.placeholder}”`);
       chk(m.side <= 1, `360px Goals scrolls sideways by ${m.side}px`);
+      // The first-check-in note is one line until Why? opens the rest.
+      const why = p.getByRole('button', { name: 'Why?' });
+      const h1 = await p.locator('.first-reports').evaluate((e) => e.getBoundingClientRect().height).catch(() => 0);
+      chk(h1 > 0 && h1 <= 44 && await why.isVisible(), `G: 360px first-check-in note is ${r0(h1)}px tall${await why.isVisible() ? '' : ', with no Why?'}`);
+      if (await why.isVisible()) {
+        await why.click();
+        chk(/nobody has reported/.test(await p.locator('.first-reports').innerText()), 'G: Why? does not open the rest of the first-check-in note');
+      }
       await c.close();
     }
 
@@ -39,15 +51,15 @@ module.exports = {
     {
       const [c, p] = await open(390, 844, 'amara', '/goals?show=teams', true);
       const m = await p.evaluate(() => {
-        const tabs = document.querySelector('.goals-tabs > .seg.tabs').getBoundingClientRect();
-        const sel = document.querySelector('.goals-tabs [aria-selected="true"]').getBoundingClientRect();
+        // On a phone the open view is what the Views button says (backlog G), not a tab to scroll to.
+        const name = document.querySelector('.show-menu > summary .show-name');
         const stale = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.trow-icon.tone-stale'));
         const now = stale?.querySelector('.trow-now > span:last-child');
         const row = document.querySelector('.trow'), title = row.querySelector('.trow-title').getBoundingClientRect(), value = row.querySelector('.trow-now').getBoundingClientRect();
-        return { inView: sel.left >= tabs.left - 1 && sel.right <= tabs.right + 1, glines: document.querySelectorAll('.page .gline').length, trows: document.querySelectorAll('.page .trow').length,
+        return { inView: name?.textContent === 'By team' && name.scrollWidth <= name.clientWidth + 1, glines: document.querySelectorAll('.page .gline').length, trows: document.querySelectorAll('.page .trow').length,
           staleColour: now && getComputedStyle(now).color, titleW: title.width, valueLeft: value.left, titleLeft: title.left, valueBelow: value.top >= title.bottom - 1, valueSize: parseFloat(getComputedStyle(row.querySelector('.trow-now')).fontSize) };
       });
-      chk(m.inView, 'L&T 2: the selected tab (By team) is not scrolled into view');
+      chk(m.inView, 'L&T 2: the Views button does not say By team in full');
       chk(m.glines === 0 && m.trows > 5, `L&T 21: By team draws ${m.glines} rows of another kind`);
       chk(m.staleColour === 'rgb(70, 87, 89)', `L&T 19: “no recent update” is ${m.staleColour}`);
       chk(m.titleW >= 300 && m.valueBelow && Math.abs(m.valueLeft - m.titleLeft) <= 1 && m.valueSize === 14, `L&T 22: phone row title ${r0(m.titleW)}px, value ${m.valueBelow ? 'below' : 'beside'} it at x ${r0(m.valueLeft)} vs ${r0(m.titleLeft)}, ${m.valueSize}px`);

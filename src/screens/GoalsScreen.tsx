@@ -17,7 +17,7 @@ import { WatchingBody } from './Watching';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { LAYOUT_ABOUT, LAYOUTS, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
+import { LAYOUT_ABOUT, LAYOUTS, LayoutMenu, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
 import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
@@ -120,6 +120,7 @@ export function GoalsScreen() {
   // groups beside what changed this week. Sorted, it's a plain list in that order, like any other scope.
   const watchingList = show === 'watching' && !alt && !query.sort;
   const openView = (v: { params: string }) => { const now = latest(), p = new URLSearchParams(v.params); for (const k of ['today', 'store']) { const x = now.get(k); if (x) p.set(k, x); } setParams(p); };
+  const pickTab = (k: Show) => { if (show === k && !activeView) return; const p = latest(); if (k === 'outcomes') p.delete('show'); else p.set('show', k); setParams(p); };
   const viewName = tabs.find(([k]) => k === show)?.[1] ?? 'Goals';
   // The selected tab is always in view, even when it's past the edge of a row that scrolls sideways.
   const tabRow = useRef<HTMLDivElement>(null);
@@ -140,14 +141,29 @@ export function GoalsScreen() {
           {/* The week line breaks only between its parts, never inside one. */}
           <span className="hint goals-period">{periodLabel(app.cycle, app.week).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
         </span>
-        <span className="actions">{views.length > 0 && <MenuButton className="views-menu views-menu-phone" label="Views" items={viewItems} />}{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
+        <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
       </div>
+      {/* On a phone, the goals come first (backlog G, Lane's markup, 9 Nov): which goals and how to see them are two
+          choices on one line, instead of two rows of tabs, a row of layouts and a row for the download. The Views menu
+          says the open view and its count, and holds the views, the saved views and Export these goals. */}
+      {app.snapshot.goals.length > 0 && (
+        <div className="goals-phonebar" data-part="Views and layout">
+          <MenuButton className="views-menu show-menu" label="Views" summary=""
+            display={<><span className="sr">Views: </span><span className="show-name">{activeView?.name ?? viewName}</span><span className="sr">, </span><span className="tabcount">{!refined && !activeView ? tabs.find(([k]) => k === show)?.[2] ?? shown.length : shown.length}</span><span className="sr"> goals</span></>}
+            items={[
+              ...tabs.map(([k, l, n]) => ({ section: 'Show', label: l, count: n, current: show === k && !activeView, onClick: () => pickTab(k) })),
+              ...views.map((v) => ({ section: 'Saved views', label: v.name + (v.pinned ? ' (pinned)' : ''), current: activeView?.id === v.id, onClick: () => openView(v) })),
+            ]}
+            extra={<Place name="goals.tools" goals={shown} viewName={viewName} inMenu />} />
+          <LayoutMenu layout={layout} onChange={setLayout} />
+        </div>
+      )}
       {/* One toolbar: which goals on the left, how to see them on the right. It wraps on a narrow screen. */}
       <div className="goals-toolbar">
         <div className="goals-tabs">
           <div className="seg tabs one-row" role="tablist" aria-label="Show" ref={tabRow}>
             {tabs.map(([k, l, n]) => (
-              <button key={k} role="tab" aria-selected={show === k && !activeView} onClick={() => { if (show === k && !activeView) return; const p = latest(); if (k === 'outcomes') p.delete('show'); else p.set('show', k); setParams(p); }}>
+              <button key={k} role="tab" aria-selected={show === k && !activeView} onClick={() => pickTab(k)}>
                 {l}{n != null && <span className="tabcount">{n}</span>}
               </button>
             ))}
