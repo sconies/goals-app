@@ -1659,7 +1659,7 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   // The map's toggle is the Goals screen's Needs attention filter (the one rule), so the link carries attention=1.
   h.set('logged', /attention=1/.test(p.url()), 'the attention filter is not in the link');
   await see(p, /\d+ of 126 goals/, 'the attention filter does not show in the count');
-  await h.click(p.getByRole('button', { name: /Export/ }));
+  await h.click(await exportButton(h, p));
   const scope = p.getByRole('dialog', { name: 'Export goals' }).getByLabel(/What’s shown now/);
   h.set('attention', await scope.isChecked().catch(() => false), 'a filtered export does not start from what is shown');
   await p.keyboard.press('Escape');

@@ -27,7 +27,7 @@ export const WHATS_NEW: NewsEntry[] = [
     points: [
       'On a phone, Goals now starts with the goals: the first one is about a third of the way down the screen instead of below it.',
       'Views and Layout are two buttons on one line. Views says which goals are open and how many, and holds the tabs, your saved views and Export these goals. Layout says the open layout and what each one shows.',
-      'The note about first check-ins is one line on a phone, with Why? for the rest. The week is in the top bar.',
+      'The note about first check-ins is one line on a phone, with Why? for the rest.',
       'On a computer, Goals is just as it was.',
     ],
     articles: ['goals'],

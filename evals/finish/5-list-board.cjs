@@ -12,8 +12,8 @@ module.exports = {
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
     const r0 = (n) => Math.round(n);
 
-    // L&T 4, 31, 23 and backlog G (Lane's markup, 9 Nov): a 360px phone, goals first. The week is in the top bar, not
-    // again under the title; which goals and how to see them are one row of two menus, the Views button saying the open
+    // L&T 4, 31, 23 and backlog G (Lane's markup, 9 Nov): a 360px phone, goals first. The week is one small line under
+    // the title, beside New goal, so the header is one 44px row; which goals and how to see them are one row of two menus, the Views button saying the open
     // view and its count; search and Filters one row with a short placeholder; and the first goal within 240px.
     {
       const [c, p] = await open(360, 740, 'amara', '/goals', true);
@@ -22,11 +22,12 @@ module.exports = {
         const rect = (s) => document.querySelector(s)?.getBoundingClientRect();
         const bar = rect('.goals-phonebar'), row = rect('.filterbar-row');
         const shown = (s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length).length;
-        return { top: document.querySelector('.mtop')?.innerText ?? '', period: shown('.goals-period'), bar: bar?.height, hidden: shown('.goals-toolbar') + shown('.layout-about'),
+        const period = rect('.goals-period'), h1 = rect('.goals-head h1'), head = rect('.goals-head');
+        return { period: period && [period.top, period.height], h1Bottom: h1?.bottom, head: head?.height, bar: bar?.height, hidden: shown('.goals-toolbar') + shown('.layout-about'),
           views: document.querySelector('.show-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(), layout: document.querySelector('.layout-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(),
           row: row?.height, first: rect('.outcome')?.top - ban, placeholder: document.querySelector('.filter-search input')?.placeholder, side: document.documentElement.scrollWidth - innerWidth };
       }, bannerPx.toString());
-      chk(/week \d+/.test(m.top) && m.period === 0, `G: 360px week line ${m.period ? 'repeated under the title' : 'missing from the top bar'} (“${m.top.replace(/\s+/g, ' ')}”)`);
+      chk(m.period && m.period[1] > 0 && m.period[1] <= 18 && m.period[0] >= m.h1Bottom - 1 && m.head <= 48, `G: 360px week line ${m.period && r0(m.period[1])}px tall in a ${r0(m.head)}px header (one line under the title, beside New goal, expected)`);
       chk(m.bar <= 48 && m.hidden === 0, `G: 360px views and layout take ${r0(m.bar)}px (one 44px row expected), ${m.hidden} of the wide toolbar's rows still shown`);
       chk(/^Views: Trees ?, ?\d+ goals$/.test(m.views ?? '') && /^Layout: List$/.test(m.layout ?? ''), `G: 360px menus say “${m.views}” and “${m.layout}”`);
       chk(m.row <= 48, `L&T 4: 360px search and Filters take ${r0(m.row)}px (one row expected)`);
