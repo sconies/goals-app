@@ -85,10 +85,10 @@ export async function raisedBy(workspaceId: string, personId: string, demo: bool
 /* ---------- the inbox ---------- */
 
 /** The inbox's address on this page's Workspace (the demo's or the app's), for a GitHub issue's link back. Older
-    issues link to /workspace?inbox=1&markup=…, which leads here too. */
+    issues link to /workspace?inbox=1&markup=… and later /workspace/inbox?markup=…, which lead here too. */
 export function inboxAddress(id?: string): string {
   const base = location.pathname.startsWith('/demo') ? '/demo' : '';
-  return `${location.origin}${base}/workspace/inbox${id ? `?markup=${id}` : ''}`;
+  return `${location.origin}${base}/feedback${id ? `?markup=${id}` : ''}`;
 }
 
 /* ---------- Connect Claude ---------- */

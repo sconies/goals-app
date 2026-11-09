@@ -56,8 +56,9 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U45 | Undo an import: every row back as it was, and a row changed since skipped and listed | A goal owner | `IMPORT-UNDO` `BULK-EDIT` | 8 | `evals/journeys.cjs` |
 | U47 | Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so |  | `CONNECT-CLAUDE` `MARKUP-INBOX` | 12 | `evals/journeys.cjs` |
 | U49 | Set up a small workspace on a Sunday, as the outside reviewer did: each field says what it needs, a team typo is caught, nothing is late, the weekly review exists, and Start over removes it all | Someone trying Faro after the demo | `ONBOARDING` `WORKSPACES` `REVIEWS` `CALENDAR-WEEKS` `DEMO-MODE` | 30 | `evals/journeys.cjs` |
-| U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams, Inbox and Privacy (read-only), and old links still land | An admin, then a team member | `WORKSPACE-SECTIONS` | 14 | `evals/journeys.cjs` |
+| U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Privacy (read-only), and old links still land, the inbox’s at Feedback | An admin, then a team member | `WORKSPACE-SECTIONS` | 14 | `evals/journeys.cjs` |
 | U52 | Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time | Anyone | `INBOX-TRIAGE` `MARKUP-INBOX` `FEEDBACK-INBOX` | 30 | `evals/journeys.cjs` |
+| U53 | Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role and permissions are said, the overview leads with what needs attention, Feedback is beside Help, and a member leaves |  | `WORKSPACE-ONE-PLACE` `FEEDBACK-PAGE` `LEAVE-WORKSPACE` | 45 | `evals/journeys.cjs` |
 
 ## Platform checks
 

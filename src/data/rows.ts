@@ -41,7 +41,8 @@ export interface ChangeRow extends W {
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
 const iso = (v: string) => new Date(v).toISOString();
 
-export const workspaceToRow = (w: Workspace): WorkspaceRow => ({ id: w.id, name: w.name, kind: w.kind, created_at: w.createdAt });
+// A workspace set up with recording off says so from the start (backlog WS: recording is asked at set-up).
+export const workspaceToRow = (w: Workspace): WorkspaceRow => ({ id: w.id, name: w.name, kind: w.kind, created_at: w.createdAt, ...(w.recording === false ? { recording: false } : {}) });
 // Recording is on unless it has been turned off (null, or no column before migration 0022, is on).
 export const workspaceFromRow = (r: WorkspaceRow): Workspace => ({ id: r.id, name: r.name, kind: r.kind, createdAt: iso(r.created_at), ...(r.recording === false ? { recording: false } : {}), ...(r.modules_off?.length ? { modulesOff: r.modules_off } : {}) });
 export const teamToRow = (ws: string, t: Team, withLead = true): TeamRow => ({ workspace_id: ws, id: t.id, name: t.name, lead_id: withLead && t.leadId ? t.leadId : null, objective: t.objective });

@@ -156,8 +156,12 @@ module.exports = {
     // There is one example now, so give the person a second workspace of their own to tell the marks apart.
     await r.evaluate(() => localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_other', name: 'Support desk', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }])));
     await r.reload(); await r.waitForTimeout(500);
-    const marks = await r.evaluate(() => [...document.querySelectorAll('.ws-line .wsmark')].map((m) => m.innerText.trim()).join(''));
-    if (new Set(marks).size < 2) fails.push(`[W21] every workspace mark is "${marks[0]}"`);
+    // Workspaces are told apart by name, not a letter (Lane, 9 Nov): no initial squares, and every line names its workspace.
+    // They're listed in the workspace switcher, at the top (backlog WS).
+    await r.locator('.ws-switch-top:visible, .ws-switch:visible').first().click(); await r.getByRole('dialog', { name: 'Workspaces' }).waitFor();
+    const lines = await r.evaluate(() => ({ names: [...document.querySelectorAll('.ws-pick .ws-pick-name')].map((m) => m.innerText.trim()), letters: document.querySelectorAll('.ws-pick .wsmark').length }));
+    await r.keyboard.press('Escape');
+    if (lines.letters || lines.names.length < 2 || new Set(lines.names).size < lines.names.length) fails.push(`[W21] workspace lines: ${JSON.stringify(lines)}`);
     // People is its own section (backlog W): its heading is the page's, and Add a person is its one main action.
     await r.goto(url('/workspace/people')); await r.locator('.person-opt').first().waitFor(); await r.waitForTimeout(300);
     const ws = await r.evaluate(() => {

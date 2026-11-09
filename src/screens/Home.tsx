@@ -288,7 +288,6 @@ function WatchedGoals() {
 function AdminCard() {
   const app = useApp();
   if (!app.viewer.admin) return null;
-  const own = app.workspaces.filter((w) => w.kind === 'own');
   if (wrapUpOpen(app.cycle, app.week)) {
     const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
     return (
@@ -298,14 +297,7 @@ function AdminCard() {
       </section>
     );
   }
-  if (app.mode === 'demo' && app.ws.kind === 'example' && !own.length) {
-    return (
-      <section className="block note-card">
-        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>Try it with your own team</strong><span className="hint">Set up a workspace from a template or a pasted list. About 3 minutes; the example stays here.</span></span>
-        <Link className="btn" to="/workspace/new">Set one up</Link>
-      </section>
-    );
-  }
+  // Setting up your own workspace is offered from the workspace switcher and Workspace, not here (Lane, 9 Nov).
   if (app.snapshot.people.length < 3) {
     return (
       <section className="block note-card">

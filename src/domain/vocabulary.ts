@@ -83,7 +83,7 @@ export const STATUS: Record<DisplayStatus, Term<DisplayStatus>> = {
   done: term('done', {
     label: 'Done', short: 'finished',
     meaning: 'Finished: the owner has called it done.',
-    long: 'The owner called it done in a check-in (or, for dated stages, every stage is done). Done means finished wherever it is said: a goal, a stage or an action.',
+    long: 'The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action.',
     rule: 'status#goalStatus',
   }),
 };

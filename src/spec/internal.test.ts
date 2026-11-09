@@ -35,7 +35,7 @@ describe('the requirements for the internal app', () => {
   it('lists every shared action that says who may do something in R1’s access table', () => {
     const listed = new Set(ACCESS.flatMap((a) => a.code).map((r) => r.split('#')[1]));
     // Read-only helpers that decide nothing on their own: they count or list for an action that is listed.
-    const helpers = new Set(['personHistory', 'recentlyRemoved', 'commentsOf', 'teamMembers', 'cycleDeletable']);
+    const helpers = new Set(['personHistory', 'recentlyRemoved', 'commentsOf', 'teamMembers', 'teamPeople', 'cycleDeletable', 'cycleStanding']);
     const unlisted = ['src/domain/actions.ts', 'src/domain/removal.ts'].flatMap((f) => exported(f).filter((e) => saysWho(e.body) && !listed.has(e.name) && !helpers.has(e.name)).map((e) => `${f}#${e.name}`));
     expect(unlisted).toEqual([]);
   });

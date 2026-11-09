@@ -22,7 +22,7 @@ A check-in is one week's report on one goal, by its owner (or an admin): the num
 
 What is still missing, as codes, in this order:
 
-1. `value` (none typed), `value-not-number`, `value-precision` (more decimal places than the goal keeps), or `value-impossible` (refused above). Not asked of dated stages.
+1. `value` (none typed), `value-not-number`, `value-precision` (more decimal places than the goal keeps), or `value-impossible` (refused above): at most one of them, checked in that order. Not asked of dated stages. A number that is refused for its precision or as impossible is still the number the draft is judged with, so the codes below are asked of it too; one that can't be read (`value`, `value-not-number`) is judged as no number.
 2. `greener-why`: a greener call needs its own reason of at least 10 characters.
 3. `reason-behind` / `reason-ahead`: a cause (one of the listed causes, or "Something else") and a why of at least 10 characters.
 4. `path`: what changes (at least 8 characters) and, when the recovery state is `plan` (the default), a week to be back on plan by that is after this week and no later than the cycle's last week. The other recovery states (`investigating`, `help`, `target`) need no week.
@@ -41,7 +41,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Typed: "29,4", "1,250", "1,250.5", "62%", "29.4 days", " -3 ". | `29.4, 1250, 1250.5, 62, 29.4, -3` |
 | Typed: "0x1F", "1e308", "abc", "1.2.3", "99999999999999". | `null, null, null, null, null` |
 | -5 days (last week 30); 120% (last week 60, not a share); 294 days (last week 29.4). | `refused; questioned; questioned: Last week was 29.4. Is 294 right?` |
-| The 30→75 goal in week 4 (plan 43.846): nothing typed; "abc"; "140"; "44". | `value; value-not-number; value-impossible; nothing missing` |
+| The 30→75 goal in week 4 (plan 43.846): nothing typed; "abc"; "140"; "44". Every code still missing, in order: a refused number is still judged, so 140 (well ahead) also asks for its reason. | `value; value-not-number; value-impossible, reason-ahead; nothing missing` |
 | 40 in week 4 (off track) with nothing else; then with a cause, a why, a path and back by week 7; then back by week 4. | `reason-behind, path; can post; path` |
 | 58 in week 4 (well ahead): nothing else; with a reason and a proposed target of 70; with 95. | `reason-ahead; target; can post` |
 | 40 in week 4, called on track, with a reason for being behind but none for the greener call. | `greener-why` |

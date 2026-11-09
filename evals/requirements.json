@@ -474,7 +474,22 @@
     {
       "id": "WORKSPACE-SECTIONS",
       "area": "Workspace",
-      "text": "Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (the name, switching, counts that lead to each section, and deleting the workspace at the end, for admins), People, Teams, Inbox, Cycles, Access (admins and AI tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, People, Teams and Inbox; anyone else opening an admins’ section is told who the admins are. Old addresses (/workspace?inbox=1&markup=…, #people) lead to the section they meant. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections)."
+      "text": "Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (what needs attention, then every section with one true line each, leaving, and deleting the workspace at the end, for admins), People, Teams, Cycles, Access (admins and AI tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, People, Teams and Privacy; anyone else opening an admins’ section is told who the admins are. Old addresses (/workspace?inbox=1&markup=…, /workspace/inbox, #people) lead to the page they meant; the inbox's go to Feedback. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections)."
+    },
+    {
+      "id": "WORKSPACE-ONE-PLACE",
+      "area": "Workspace",
+      "text": "Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace, lists every workspace, says whether you're an admin here, and offers setting up a workspace of your own (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says \"Opening <name>…\"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: \"Admin\" beside your name where you are one, and Workspace says your permissions in one line (what is for admins, and who they are). The overview lists what needs attention here first (domain/workspaceAttention), then every section. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead and opens its people; a workspace name's 80-character limit is said while typing, never cut; no button clips its label."
+    },
+    {
+      "id": "FEEDBACK-PAGE",
+      "area": "Workspace",
+      "text": "The inbox of markups and feedback is its own page, Feedback (/feedback), beside Help in the sidebar and in More on a phone, labelled \"From every workspace and the demo\". It is open to everyone, with every status change recorded and undoable, and names people, never their email. /workspace/inbox and older inbox links lead there. The MCP inbox tools are unchanged."
+    },
+    {
+      "id": "LEAVE-WORKSPACE",
+      "area": "Workspace",
+      "text": "Anyone can leave a workspace from its overview, with a confirm that first asks who takes over their goals and open asks; the only admin can't leave. Resetting or deleting a shared workspace is for admins; the demo's Start over stays for everyone and says it only touches this browser. Set-up asks whether to record how the app is used (off unless ticked), its \"Who are you?\" step starts as the person you are, and steps skipped on the \"Set goals up later\" path say so."
     },
     {
       "id": "TABLE-LAYOUTS",
@@ -534,7 +549,7 @@
     {
       "id": "TELEMETRY-SWITCH",
       "area": "Observability",
-      "text": "Recording is on for everyone by default. An admin (and only an admin, in the app or through the MCP set_recording tool) can turn it off for a workspace; the switch is saved with the workspace and logged. While it is off nothing is sent for that workspace, from the browser or the MCP server, and the database refuses rows for it."
+      "text": "A workspace records only if chosen when it was set up (off unless ticked; the demo's example records). An admin (and only an admin, in the app or through the MCP set_recording tool) can turn it on (after confirming) or off for a workspace; the switch is saved with the workspace and logged. While it is off nothing is sent for that workspace, from the browser or the MCP server, and the database refuses rows for it."
     },
     {
       "id": "CONSISTENT-WORDS",

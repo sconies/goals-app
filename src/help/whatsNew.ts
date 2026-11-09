@@ -22,7 +22,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'goals-page-decisions',
-    date: '2026-11-09',
+    date: '2026-11-10',
     title: 'Goals: nothing behind is hidden, and one line for its health',
     points: [
       'Filter Goals to Needs attention and the goals being handled are listed below the others, never left out: filter to your team and you see every goal of theirs that is behind. The same in every layout, on the map and for the AI assistant. The tab’s count still counts the goals that need attention, and says so.',
@@ -33,6 +33,52 @@ export const WHATS_NEW: NewsEntry[] = [
       'Being handled now says what it means wherever it appears: someone looked at these after their latest check-in, and they come back under Needs attention if anything new happens. New goal on Goals is a quiet link; the sidebar’s New goal is unchanged.',
     ],
     articles: ['needs-attention', 'goals', 'goals-filters', 'history'],
+  },
+  {
+    id: 'workspace-one-place',
+    date: '2026-11-10',
+    title: 'Workspace in one place',
+    points: [
+      'The workspace’s name at the top of the sidebar (on a phone, under the page’s name) is now the workspace switcher: every workspace, whether you’re an admin in this one, and setting up one of your own, which has moved there from Home.',
+      'Your name at the foot of the sidebar says Admin where you are one, and Workspace says your permissions: what’s for admins, and who they are. Switch person is only about people now.',
+      'Workspace’s overview starts with what needs attention here (the year ending, people with no email, no review set up, new feedback from this workspace), then lists every section.',
+      'Cycles shows each goal year’s dates, which one is running and its week, and leads to the wrap-up.',
+      'Set-up starts “Who are you?” as the person you are, and says when the outcome and goals steps are skipped. Features says it counts the optional parts of Faro; Access says AI tokens work only in the real app.',
+    ],
+    articles: ['workspace', 'workspace-cycles', 'set-up', 'features', 'workspace-access'],
+  },
+  {
+    id: 'feedback-leave-recording',
+    date: '2026-11-10',
+    title: 'Feedback beside Help, leaving a workspace, and recording you choose',
+    points: [
+      'Feedback, the inbox of markups and feedback from every workspace and the demo, has its own page beside Help. It was on Workspace; old links still open it. It stays open to everyone and names people, never their email.',
+      'Anyone can leave a workspace, handing over their goals first; the only admin can’t. Resetting the example is for admins; the demo’s Start over is for everyone and only touches this browser.',
+      'Setting up a workspace asks whether to record how the app is used there: off unless you tick it. Turning it on later asks first.',
+    ],
+    articles: ['inbox', 'workspace', 'recording', 'set-up'],
+  },
+  {
+    id: 'workspace-fixes',
+    date: '2026-11-10',
+    title: 'Workspace says what’s true',
+    points: [
+      'Switching workspace is a real page move: Back takes you to the workspace you came from, and while the other one opens the screen says so. Part-way through a check-in, it asks first and says your draft stays in its own workspace.',
+      'Cycles says each cycle’s goals and check-ins as they are: a new workspace’s only cycle no longer claims to have check-ins.',
+      'A team counts its lead among its people, and opening a team shows its people. The overview lists every section, Access and Privacy included.',
+      'A workspace’s name shows how much of its 80 characters it uses as you near the limit, instead of being cut short, and Delete never cuts off its own label.',
+    ],
+    articles: ['workspace', 'workspace-teams', 'workspace-cycles'],
+  },
+  {
+    id: 'faro-mark',
+    date: '2026-11-09',
+    title: 'Faro’s F at the top left',
+    points: [
+      'The letter in a rounded square at the top left was the workspace’s initial. It’s now Faro’s F, the same mark as the home-screen icon.',
+      'The workspace’s name is still beside it, and where you switch workspaces each one is listed by its name.',
+    ],
+    articles: ['settings', 'workspace'],
   },
   {
     id: 'review-leftovers',

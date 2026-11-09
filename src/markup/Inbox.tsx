@@ -1,4 +1,4 @@
-/* The inbox, a section of Workspace (/workspace/inbox; backlog W, Lane, 8 Nov: "more like an inbox where you can click
+/* The inbox, on its own page, Feedback (/feedback; backlog WS, 9 Nov: it was a section of Workspace; backlog W, Lane, 8 Nov: "more like an inbox where you can click
    through things, not a giant long page. Imagine 75 pieces of feedback."). Markups and feedback people sent, worked
    like an inbox:
    - tabs New · In hand · Closed, each with its count, and "Nothing new" when New is empty;
@@ -52,7 +52,7 @@ const isTab = (t: string | null): t is InboxTab => t === 'new' || t === 'in-hand
 const DONE: Record<MarkupStatus, string> = { new: 'Marked new again', 'in-hand': 'Marked in hand', fixed: 'Marked fixed', 'wont-fix': 'Marked won’t fix' };
 const short = (s: string, n = 60) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
 
-export default function Inbox({ data, narrow }: { data: InboxData; narrow: boolean }) {
+export default function Inbox({ data, narrow, inPage = false }: { data: InboxData; narrow: boolean; /** On the Feedback page, whose heading names it: no heading of its own. */ inPage?: boolean }) {
   const app = useApp();
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab');
@@ -165,16 +165,16 @@ export default function Inbox({ data, narrow }: { data: InboxData; narrow: boole
   const loading = data.markups === null;
 
   return (
-    <section className={'inbox-block ibx' + (narrow ? ' ibx-narrow' : '')} id="inbox" aria-labelledby={narrow ? undefined : 'inbox-title'} aria-label={narrow ? 'Inbox' : undefined}>
+    <section className={'inbox-block ibx' + (narrow ? ' ibx-narrow' : '')} id="inbox" aria-labelledby={narrow || inPage ? undefined : 'inbox-title'} aria-label={narrow || inPage ? 'Inbox' : undefined}>
       {!detailOnly && (
         <div className="ws-section-head">
-          {!narrow && (
+          {!narrow && !inPage && (
             <div className="row between ws-section-title">
               <h2 className="block-title" id="inbox-title">Inbox</h2>
               <button type="button" className="btn ghost sm" aria-expanded={connect} onClick={() => setConnect((x) => !x)}>Connect Claude</button>
             </div>
           )}
-          <p className="hint">{narrow ? 'Markups and feedback people send.' : 'Markups (a picture of a screen with a drawing, and a line saying what should change) and feedback (a mood and a few words).'} {data.shared ? 'From every workspace and the demo. Anyone can read them and change a status: Faro holds no real data.' : 'No database is set up, so these are the markups sent from this browser and this workspace’s feedback.'} <Link to="/help/inbox">About the inbox</Link>{narrow && <> · <button type="button" className="linkish" aria-expanded={connect} onClick={() => setConnect((x) => !x)}>Connect Claude</button></>}</p>
+          <p className="hint">{narrow ? 'Markups and feedback people send.' : 'Markups (a picture of a screen with a drawing, and a line saying what should change) and feedback (a mood and a few words).'} {inPage ? '' : data.shared ? 'From every workspace and the demo. Anyone can read them and change a status: Faro holds no real data. ' : 'No database is set up, so these are the markups sent from this browser and this workspace’s feedback. '}<Link to="/help/inbox">About the inbox</Link>{(narrow || inPage) && <> · <button type="button" className="linkish" aria-expanded={connect} onClick={() => setConnect((x) => !x)}>Connect Claude</button></>}</p>
           {connect && <ConnectClaude local={!data.shared} />}
         </div>
       )}

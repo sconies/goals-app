@@ -309,7 +309,10 @@ export class BrowserStore implements Store {
 
   async createWorkspace(ws: Workspace, data: Snapshot) {
     const own = (this.get<Workspace[]>(this.key + ':workspaces') ?? []).filter((w) => w.id !== ws.id);
-    this.put(this.key + ':workspaces', [...own, ws]);
+    const { recording, ...kept } = ws;
+    this.put(this.key + ':workspaces', [...own, kept]);
+    // Recording as chosen at set-up (backlog WS): off unless chosen.
+    this.setRecording(ws.id, recording !== false);
     this.writeOwn(ws.id, data);
   }
 

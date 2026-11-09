@@ -23,8 +23,9 @@ module.exports = {
       check(ring && eb && eb.x > ring.r && Math.abs(eb.y - ring.y) <= 4, '[Home] 2: the ring is not inline left of the eyebrow');
       const hero = await box(p, '.home-hero'), btn = await box(p, '.home-hero .btn.primary');
       check(hero && btn && Math.abs(btn.w - hero.w) <= 1 && btn.h >= 44, `[Home] 7: phone hero button is ${btn && Math.round(btn.w)}×${btn && Math.round(btn.h)} in a ${hero && Math.round(hero.w)}px hero`);
-      const needs = await box(p, '.needs-you'), changes = await box(p, '.split-b'), note = await box(p, '.note-card');
-      check(needs && changes && note && needs.y < changes.y && changes.y < note.y, '[Home] 18: stacked order is not hero, needs your response, important changes, then the Try it card');
+      // The Try it card left Home for the workspace switcher (backlog WS, Lane 9 Nov).
+      const needs = await box(p, '.needs-you'), changes = await box(p, '.split-b');
+      check(needs && changes && needs.y < changes.y && !(await p.getByText('Try it with your own team').count()), '[Home] 18: stacked order is not hero, needs your response, important changes; or Home still offers the Try it card');
       check(await css(p, '.trow-title .level', 'margin-left') === '0px', '[Home] 8: the level tag still has a left margin');
       check(Math.round((await box(p, '.trow-title .level')).h) === 20, '[Home] 8: the level tag is not 20px tall');
       check(await noSideways(p), '[Home] sideways scroll at 390');
