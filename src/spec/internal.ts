@@ -8,9 +8,11 @@
    fails when an action that says who may do something (src/domain/actions.ts, src/domain/removal.ts) isn't in it, or a
    function it names has gone. A worked example with `run` is run against Faro's code, by the same test and by the
    generator, which refuses to write one that isn't true. Pure apart from those imports: the caller writes the files. */
-import { createToken, NotAllowed, renameWorkspace, savePerson, canDeleteWorkspace, type ActionContext } from '../domain/actions';
+import { createToken, NotAllowed, renameWorkspace, saveRetro, savePerson, canDeleteWorkspace, startNextCycle, type ActionContext } from '../domain/actions';
 import { canAnswer, canMarkDone, canWithdraw } from '../domain/asks';
+import { LEVEL_LABEL } from '../domain/format';
 import { currentWeek, daysSince } from '../domain/plan';
+import { LEVELS } from '../domain/query';
 import { sessionDate } from '../domain/review';
 import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
@@ -306,6 +308,140 @@ export const INTERNAL: InternalRequirement[] = [
       'Pages of 50 rows, with keyset paging, as Faro already pages its loads.',
     ],
   },
+  {
+    id: 'R6a', file: 'r6a-organisation', title: 'R6a. The organisation',
+    summary: 'Teams form a tree fed from the company directory, people have managers, goal levels are set per workspace, and every list, count, Home and review can be scoped to a part of the company.',
+    why: [
+      'Faro’s workspace is flat: a team is a name, a lead and an objective, a person has one team, and goal levels are a fixed three, one of them a job title (SVP). At 15,000 people and 1,500 teams, “By team” is 1,500 groups in a row, “my division” can’t be asked, and a leader’s Home can’t be narrowed to the part of the company they run. A three-level tree fits few companies.',
+      'It is the first thing a leader looks for in week one (the deep review of 10 Nov, “What a leader would expect in week one”), and every later screen that counts goals needs it.',
+    ],
+    rule: [
+      '1. **Teams form a tree.** Each team has at most one parent team; a team with none is a root, and there may be several. A team is never its own ancestor. The tree comes from the company directory, refreshed at least daily: admins don’t retype it. An admin may add a team the directory doesn’t know (a project team), under a team it does.',
+      '2. **People have a manager and a home team**, both from the directory. A person’s chain is their manager, their manager’s manager, and so on to the top. Someone may also be in project teams; their home team is the one they are counted in.',
+      '3. **A team includes the teams under it.** A team’s people are its own and those of every team under it; its goals are the goals whose team is it or any team under it. A team’s lead is the manager the directory names for it, unless an admin names someone else.',
+      '4. **Levels are set per workspace**: an ordered list of two to six names, most important first (Company, Division, Department, Team, say), each optionally tied to a depth of the team tree. A goal has one of them. Faro’s three (North star, SVP, Team) are one such list and the default. Renaming a level changes no goal; a level can be removed only once no goal has it. A level says how important a goal is for reporting; it stays separate from which goal it feeds.',
+      '5. **Scope.** Every list and count (Home, Goals, Activity, Needs attention, the review agendas, the AI tools) takes an optional scope: a team and everything under it, or a person’s reports (direct, or their whole chain). A leader’s Home starts scoped to the team they lead. Counts in a scope come from the summary rows ([R4](r4-scale-and-safety.md)), never from loading the scope’s goals.',
+      '6. **Moves are history.** When a team moves in the tree or a person changes manager or team, the change is logged. A goal keeps its team unless someone changes it; past check-ins and statuses stay as they were. Counts for a scope are worked out from the tree as it stands now.',
+      '7. **Scope narrows what you see first, never what you may see.** Reading stays open to every member of the workspace ([R1](r1-sign-in-and-access.md), rule 3).',
+    ].join('\n'),
+    today: [
+      'A `Team` is a name, a lead and an objective, with no parent; a `Person` has one team and an `admin` flag, with no manager (`src/domain/types.ts`).',
+      'Goal levels are a fixed three, `\'north-star\' | \'svp\' | \'team\'` (`Level` in `src/domain/types.ts`, `LEVELS` in `src/domain/query.ts`), used across the rules, screens and spreadsheets.',
+      'One workspace is the whole company. Goals’ “By team” groups goals by team in a flat list. “In the tree of” scopes by the goal tree (what a goal feeds), not by the organisation.',
+      'Teams and who is in them are typed in by admins, in Workspace or the People sheet; nothing reads a directory.',
+    ],
+    examples: [
+      { given: 'Faro today: the levels a goal may have.', then: 'North star, SVP, Team', run: () => LEVELS.map((l) => LEVEL_LABEL[l]).join(', ') },
+      { given: 'Required: Platform and Developer Experience sit under Engineering, which sits under the company. Amara leads Engineering; Rhea leads Platform. Each opens Home.', then: 'Amara’s counts cover Engineering, Platform and Developer Experience; Rhea’s cover Platform. Either can widen or narrow the scope.' },
+      { given: 'Required: Oskar’s manager is Maya, and Maya’s is Priya. Priya scopes Goals to her whole chain.', then: 'Oskar’s goals are in it, as are Maya’s and those of everyone else under Priya.' },
+      { given: 'Required: a workspace’s levels are Company, Division, Team. An admin renames Division to Group.', then: 'Every goal at Division is now at Group; no goal is changed or logged as changed, and the rename is logged once.' },
+      { given: 'Required: on 1 October the directory moves Platform from Engineering to Infrastructure.', then: 'From then on Engineering’s counts leave Platform’s goals out and Infrastructure’s include them. Platform’s goals and their history are unchanged, and Activity shows the move.' },
+      { given: 'Required: the directory says A’s parent is B and B’s parent is A.', then: 'The refresh is refused, the tree stays as it was, and admins are told which teams loop.' },
+    ],
+    checks: [
+      'The team tree, managers and home teams match the directory within a day of a change, with no admin typing.',
+      'No team is its own ancestor; a refresh that would make a loop changes nothing and says why.',
+      'A team’s count of goals by status equals the sum over it and the teams under it, each goal counted once.',
+      'A workspace’s levels can be renamed, reordered, added and (when unused) removed by an admin; Faro’s three are the default.',
+      'Home, Goals, Activity, Needs attention, review agendas and the AI tools all accept a scope, and give the same counts for the same scope.',
+      'A scope’s counts come from summary rows: opening a division of 3,000 goals reads no check-ins.',
+      'Scoping never hides a goal from a member who asks for it outside the scope.',
+    ],
+    stage: { file: 'stage-2-core-data.md', title: 'Stage 2: the core data and the change engine', why: 'the tree, managers and levels are records, and scope is a filter on the summary rows. The screens that offer a scope are stage 3.' },
+    decided: [
+      'The tree comes from the directory; Faro’s own team editing stays only for teams the directory doesn’t know.',
+      'Levels are a list each workspace names, not job titles; Faro’s three become the default list.',
+      'Scope is a starting view, not access: reading stays open (R1).',
+    ],
+  },
+  {
+    id: 'R6b', file: 'r6b-delegates', title: 'R6b. Delegates',
+    summary: 'An owner, their manager or an admin names a delegate who checks in and answers asks for the owner’s goals while they are away; it is recorded as the delegate acting for the owner, and the owner stays the owner.',
+    why: [
+      'In Faro only a goal’s owner or an admin may check in on it. When the owner is on leave the goal goes quiet: after 14 days it shows No recent update, asks for an update wait, and the leader’s count fills with goals nobody is reporting on. An admin can check in instead, but the change log then says the admin did it, with nothing to say for whom or why.',
+      'A delegate keeps the weekly loop going without moving the goal: the owner is still accountable, and the record says who reported.',
+    ],
+    rule: [
+      '1. **Naming a delegate.** A goal’s owner names one or more people in the workspace as delegates, for all their goals or some, from a date and, optionally, until a date. The owner’s manager ([R6a](r6a-organisation.md)) or an admin may name one for them when they are away without warning.',
+      '2. **A delegate reports; they don’t own.** For those goals a delegate may post and correct check-ins (with the owner’s call on the status made by the delegate), answer asks sent to the owner, and agree actions. They may not change the goal, its target or plan, its owner or what it feeds; stop, delete or wrap it up; or name further delegates.',
+      '3. **Recorded as acting for the owner.** A check-in or answer from a delegate keeps the delegate as its author and the owner it was for; the change log says “Oskar Lind, for Maya Patel”. The owner is told, and may correct a check-in when back.',
+      '4. **The same rules.** What a check-in must say is unchanged: behind plan still needs a cause and a way back.',
+      '5. **The owner stays the owner.** The goal stays in the owner’s Mine, Home and counts, and in reviews under the owner’s name. The delegate sees “Checking in for Maya Patel · 3 goals” in their own check-in queue.',
+      '6. **It ends** at its end date, when whoever named it ends it, or when either person leaves ([R2](r2-single-sign-on.md)). What the delegate posted stays.',
+      '7. **The server enforces it**, as one more line of [R1’s access table](r1-sign-in-and-access.md#who-may-change-what).',
+    ].join('\n'),
+    today: [
+      'Only a goal’s owner or an admin may post or correct a check-in, or change the goal (the change engine, `planChanges` in `src/domain/changeset.ts`; R1’s access table). There is no delegate and no co-owner.',
+      'An admin who checks in for someone is logged as the admin, with nothing saying for whom.',
+      'A goal whose owner is away shows No recent update after 14 days; an ask for an update waits for the owner.',
+      'Goals change hands only for good: when someone leaves, an admin hands each goal over (`markPersonLeft` in `src/domain/removal.ts`).',
+    ],
+    examples: [
+      { given: 'Faro today: Oskar, not an admin, wraps up Maya’s goal while she is away.', then: 'refused: “Only the goal’s owner or an admin can wrap it up.”', run: () => says(() => saveRetro(ctx(OSKAR), GOAL_OF_MAYA, { result: 'hit', learned: '', next: 'stop' })) },
+      { given: 'Required: Maya names Oskar her delegate for her three goals, 12 to 23 October. On 15 October Oskar posts week 6’s check-in on one of them.', then: 'It is saved, with Oskar as author for Maya; the change log says “Oskar Lind, for Maya Patel”; Maya is told; the goal stays in Maya’s Mine.' },
+      { given: 'Required: Oskar, as Maya’s delegate, changes her goal’s target.', then: 'Refused: a delegate checks in and answers; only Maya or an admin changes the goal.' },
+      { given: 'Required: on 24 October Oskar posts on Maya’s goal.', then: 'Refused: his time as her delegate ended on 23 October.' },
+      { given: 'Required: during Maya’s leave Daniel asks her a question on her goal, and Oskar answers it.', then: 'It is answered, by Oskar for Maya; Maya can add to the answer when back.' },
+      { given: 'Required: Maya is off sick without warning. Priya, her manager, names Oskar her delegate.', then: 'Allowed; Maya is told, and can end it when back.' },
+    ],
+    checks: [
+      'A delegate can post and correct check-ins and answer asks on the goals and dates named, and nothing more; the server refuses the rest with words saying why.',
+      'Every change a delegate makes names them and the owner they acted for, in the change log, on the goal page and through the AI tools.',
+      'A delegate’s check-in meets the same check-in rules as the owner’s.',
+      'The goal stays the owner’s on every screen and count.',
+      'A delegation stops working at its end date, when ended, or when either person leaves, within a minute.',
+      'Only the owner, the owner’s manager or an admin can name or end a delegate.',
+    ],
+    stage: { file: 'stage-2-core-data.md', title: 'Stage 2: the core data and the change engine', why: 'who may change a goal is enforced where records change, and the delegation is a record. The check-in queue’s “Checking in for” is stage 3.' },
+    decided: [
+      'A delegate reports and doesn’t own: no changes to the goal, its target, plan or owner.',
+      'No co-owners: one owner per goal keeps accountability with one person; delegates cover absence.',
+      'A manager may name a delegate for a report, which needs R6a’s manager chain.',
+    ],
+  },
+  {
+    id: 'R6c', file: 'r6c-planning-round', title: 'R6c. The planning round',
+    summary: 'Next cycle’s goals are drafted, proposed and agreed in a planning round before the cycle starts; a goal counts nowhere until it is agreed, and the cycle starts with the agreed set.',
+    why: [
+      'In Faro a goal is live the moment it is saved, and the next cycle starts by carrying every goal marked “carry on” straight into it. A company sets next quarter’s goals together: teams draft, the owners of the goals they feed see and agree them, and the quarter starts on one agreed set. Without that, goals change under people in the first weeks, and early statuses mean little.',
+      'It is the one part of the yearly rhythm Faro doesn’t model, and a leader will ask for it before the first quarter ends.',
+    ],
+    rule: [
+      '1. **An admin opens a round** for the next cycle, with three dates: drafting opens, agree by, and the cycle starts. It may open any time before the current cycle ends.',
+      '2. **A goal in a round is Draft, Proposed, Agreed or Sent back.** Its owner drafts it and proposes it. The owner of the goal it feeds agrees it or sends it back with a reason; a goal that feeds nothing is agreed by the lead of the team above its team ([R6a](r6a-organisation.md)), or an admin at the top. Changing an agreed goal’s target, plan or what it feeds puts it back to Proposed.',
+      '3. **Carried goals start as drafts.** A goal wrapped up as “carry on” comes into the round as a draft, its plan proposed from where it ends; the owner changes it or proposes it as it is.',
+      '4. **Nothing in a round counts.** Drafts and proposals have no status or flags, and are left out of Home, Goals, reviews, Needs attention and the AI tools’ answers about the current cycle. A planning screen shows them by scope, with what is missing: a goal with nothing proposed under it, a team with nothing proposed at all.',
+      '5. **The cycle starts with what is agreed.** On the start date the agreed goals go live at week 0. Goals still Draft or Proposed stay out and are listed for their owners and admins; an admin may move the agree-by date, or agree what is left.',
+      '6. **Every step is logged**: drafted, proposed, agreed, sent back (with its reason), and who did it. Reading stays open ([R1](r1-sign-in-and-access.md), rule 3): every member can see the round.',
+    ].join('\n'),
+    today: [
+      'An admin starts the next cycle in the last two weeks of the current one (`startNextCycle` in `src/domain/actions.ts`); every goal wrapped up as “carry on” is copied into it, live at once (`nextCycle` in `src/domain/cycle.ts`).',
+      'A goal is live the moment it is saved: there is no draft, propose or agree step, and no one but its owner (or an admin) is asked.',
+      'Set-up asks for an outcome and goals for the first cycle only.',
+    ],
+    examples: [
+      { given: 'Faro today: Maya, not an admin, starts the next cycle.', then: 'refused: “Only admins can start the next cycle.”', run: () => says(() => startNextCycle(ctx(MAYA))) },
+      { given: 'Faro today: Priya, an admin, starts the next cycle in week 3 of 13.', then: 'refused: “The next cycle can start in the last two weeks of this one (from week 12).”', run: () => says(() => startNextCycle(ctx(PRIYA))) },
+      { given: 'Required: a round opens 23 November, agree by 11 December, Q1 starts 4 January. Maya drafts “p95 build time under 8 minutes”, feeding Priya’s goal, and proposes it; Priya agrees it on 2 December.', then: 'It is Agreed. It appears on the planning screen and nowhere in Q4’s counts.' },
+      { given: 'Required: Priya sends Maya’s proposal back: “too easy, we were at 9 in October”.', then: 'It is Sent back, with the reason, and is at the top of Maya’s planning list.' },
+      { given: 'Required: after it is agreed, Maya changes the target from 8 to 10 minutes.', then: 'It goes back to Proposed and Priya is asked again.' },
+      { given: 'Required: on 4 January two of Oskar’s goals are still Proposed.', then: 'Q1 starts with every agreed goal at week 0. Oskar’s two are listed for him and the admins, and count nowhere until agreed.' },
+    ],
+    checks: [
+      'A goal in a round has no status or flags and is in no count, list or AI answer about the current cycle.',
+      'Only the owner of the goal it feeds (or the lead of the team above, or an admin at the top) can agree or send back a proposal, and sending back needs a reason.',
+      'Changing an agreed goal’s target, plan or parent puts it back to Proposed.',
+      'Goals wrapped up as “carry on” arrive in the round as drafts.',
+      'On the start date exactly the agreed goals go live at week 0; the rest are listed.',
+      'Every step of the round is in the change log, with who and when.',
+    ],
+    stage: { file: 'stage-2-core-data.md', title: 'Stage 2: the core data and the change engine', why: 'a goal’s round state is a record, and “counts nowhere until agreed” is a rule on which goals the stage 1 rules see. The planning screen is stage 3.' },
+    decided: [
+      'Agreement follows the goal tree (the owner of the goal it feeds), not a central queue for admins.',
+      'Drafts are readable by every member, as everything else is, but never counted.',
+      'Faro’s “carry on” wrap-up becomes the round’s starting drafts.',
+    ],
+  },
 ];
 
 /** The note on observability: an idea, not a requirement (backlog 8r; release 5 was dropped on 8 Nov). */
@@ -405,7 +541,7 @@ function index(): string {
   return GENERATED + [
     '# Requirements for the internal app',
     '',
-    'Faro is a model for the company’s internal goals app, plus a demo; it never holds real data. The internal team copies its code and plugs in their own platform. Some things that app must do, Faro doesn’t build, because that platform provides the machinery: sign-in, single sign-on, time zones done properly, and the scale and safety of real data. Each is written here instead, so the rebuild has the rule even though Faro has no code for it.',
+    'Faro is a model for the company’s internal goals app, plus a demo; it never holds real data. The internal team copies its code and plugs in their own platform. Some things that app must do, Faro doesn’t build: because that platform provides the machinery (sign-in, single sign-on, time zones done properly, the scale and safety of real data), or because they only matter in a company the size of the real one (its organisation, delegates, a planning round). Each is written here instead, so the rebuild has the rule even though Faro has no code for it.',
     '',
     'Each page says why, the rule, what Faro does today (and where it falls short), worked examples (those marked **Faro today** are run against Faro’s code), acceptance checks, and the nearest stage of [the rebuild kit](../../rebuild/README.md).',
     '',

@@ -12,7 +12,8 @@ What the internal team needs to take Faro onto the company's platform, and how f
 | The rules, with worked examples | `spec/core/rules/`, `spec/modules/*/rules.md` | Complete |
 | Expected results for every demo goal in every week | `spec/conformance/` | Status, flags, projection, scorecard; the check-in rule has examples but no rows yet (8g) |
 | The rebuild kit, stage by stage | `spec/rebuild/` | Stage 1 (the rules) has a drill: 100% from the kit alone, 8 Nov. Stages 2 to 5 are outlines, checked by hand |
-| What the platform must add | `spec/requirements/internal/` | R1 sign-in and access, R2 single sign-on, R3 time zones, R4 scale and safety, each with acceptance checks |
+| What the platform must add | `spec/requirements/internal/` | R1 sign-in and access, R2 single sign-on, R3 time zones, R4 scale and safety, R6a the organisation, R6b delegates, R6c the planning round, each with acceptance checks |
+| The ports at company scale | `spec/rebuild/ports-at-scale.md` | A sketch: the query and command ports that replace the demo-scale goals store, and how its contract tests carry across. Neither port is built |
 | How it's built | `docs/architecture.md` | A modular monolith: a core plus modules, one app, one database |
 | The code | this repository (public) | React and Vite app, one Node endpoint for the AI tools (`api/mcp.js`), Postgres |
 
@@ -23,37 +24,48 @@ Each line says what you do and what Faro gives you for it.
 ### 1. Run it
 
 - [ ] **Host the web app** (static files from `npm run build`) and **one Node endpoint** (`api/mcp.js`, the AI tools). Nothing depends on Vercel.
-- [ ] **Settings:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` (the browser's), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (the endpoint's; used only to sign markup pictures). They are Supabase's adapters' settings: your adapters bring their own (step 2).
+- [ ] **Settings:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` (the browser's), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (the endpoint's; used only to sign markup pictures). They are Supabase's adapters' settings: your adapters bring their own (step 3).
 
-### 2. Swap the outside parts
+### 2. Read R1 and R4 before you touch the goals store
+
+The goals store's interface (`Store`) loads a whole workspace and saves rows its caller wrote. That is the demo-scale port: R4 says nothing loads a whole workspace, and R1 says the server enforces the rules and decides who acted. Read them first, so step 3 doesn't start by building the interface they replace.
+
+- [ ] **R1, sign-in and access** (`spec/requirements/internal/r1-sign-in-and-access.md`): who may change what, enforced on the server.
+- [ ] **R4, scale and safety** (`spec/requirements/internal/r4-scale-and-safety.md`): summary rows on the server, paging, nothing loads a whole workspace.
+- [ ] **The ports at company scale** (`spec/rebuild/ports-at-scale.md`): the query port (summary rows, paged lists, search) and the command port (an action's name and input, run by `src/domain/actions` on the server, which sets who, when and the ids and writes the change log), what stays the same, and a route there in three steps.
+
+### 3. Swap the outside parts
 
 Every outside part sits behind one interface in `src/ports/`, with a contract test any replacement must pass (backlog 8c). Supabase is imported only by its adapters, `src/adapters/supabase/`, and the layers lint keeps it so. The goals store is proven twice: the Supabase adapter and a plain-Postgres one pass the same contract. Step by step: `spec/rebuild/adapters.md`.
 
-- [ ] **The goals store:** `Store` (`src/data/store.ts`). Adapters: browser (the demo), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`). Write one for the company's database or data service until `storeContract` passes.
-- [ ] **The database itself**, if you keep Postgres: `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase's roles and its storage and auth schemas), then the 33 migrations in `supabase/migrations`. 44 functions hold real logic (`okr_write` and `okr_commit` for saves, tokens, the inbox, telemetry); every adapter calls them, so the save rules stay in one place. Supabase's roles (`anon`, `authenticated`) and row rules become your service's checks.
+- [ ] **The goals store:** `Store` (`src/data/store.ts`). Adapters: browser (the demo), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`). Write one for the company's database to get Faro running there until `storeContract` passes; for the whole company, build towards the query and command ports instead (step 2).
+- [ ] **The database itself**, if you keep Postgres: `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase's roles and its storage and auth schemas), then the 33 migrations in `supabase/migrations`. 44 functions hold real logic (`okr_write` and `okr_commit` for saves, tokens, the inbox, telemetry); every adapter calls them. They check only that rows belong to the workspace and that goal and review versions haven’t moved: the rules, the actor, the time and the change-log entry come from the caller (the browser today), which R1 and R4 say must move to your server: the command port is how (step 2). Supabase's roles (`anon`, `authenticated`) and row rules become your service's checks.
 - [ ] **Markups and feedback:** `MarkupStore` (`src/markup/ops.ts`) and `FeedbackStore` (`src/markup/feedback.ts`); Supabase's are in `src/adapters/supabase/`. Contracts: `markupContract`, `feedbackContract`.
 - [ ] **Files** for markup pictures: `Files` (`src/ports/index.ts`); Supabase Storage's is `src/adapters/supabase/files.ts`. Contract: `filesContract`.
-- [ ] **Who is viewing:** `Identity`. Today the "Who are you?" picker (`src/adapters/local.ts`); your sign-in replaces it (step 3).
+- [ ] **Who is viewing:** `Identity`. Today the "Who are you?" picker (`src/adapters/local.ts`); your sign-in replaces it (step 4).
 - [ ] **The clock:** `Clock`. The system's, or a fixed one for demos and tests.
 - [ ] **The AI tools' endpoint:** everything it needs is its `Deps` (`server/mcp.ts`); Supabase's are in `src/adapters/supabase/server.ts`, picked in `server/vercel.ts`. No contract of its own yet.
 - [ ] **Research and telemetry:** `src/app/research.ts` (through `src/adapters/supabase/research.ts`), `src/telemetry/` (sends to Supabase's REST address, no client library). Keep, swap for the company's analytics, or drop (`spec/requirements/internal/observability.md`).
 - [ ] **A number source** for metrics that fill themselves in: `NumberSource`, with one demo source (`src/adapters/demo/numbers.ts`, "CI analytics", the build-time metric). Real connectors are yours: one per system a metric names as its source, each passing `numberSourceContract`. Nothing on screen reads one yet.
 
-### 3. Build what the platform must add
+### 4. Build what the platform must add
 
 - [ ] **Sign-in and access (R1, R2):** Faro has none on purpose ("Who are you?" is a picker). Plug in single sign-on; enforce R1's who-may-change-what table on the server, kept true by its test; leavers lose access the day they leave.
 - [ ] **Time zones (R3):** real moments stored, shown in the viewer's zone, one home zone per workspace.
 - [ ] **Scale and safety (R4):** 15,000 people: summaries worked out on the server, paging, page-load budgets, backups and restore, rehearsed migrations.
+- [ ] **The organisation (R6a):** teams in a tree from the directory, managers, levels set per workspace, and every list and count scoped to a part of the company.
+- [ ] **Delegates (R6b):** someone who checks in and answers asks for an owner who is away, recorded as acting for them.
+- [ ] **The planning round (R6c):** next cycle's goals drafted, proposed and agreed before they go live.
 - [ ] **Notifications and digests:** not yet written as a requirement (backlog R5).
 
-### 4. Prove it
+### 5. Prove it
 
 - [ ] **The rules:** run the drill harness on your build (`spec/rebuild/drill.mjs`) until it scores 100% against the conformance data.
 - [ ] **The journeys:** `spec/core/journeys.md` lists what people do end to end; Faro's own checks are in `evals/` if you keep the code.
 - [ ] **Each stage's exit criteria** in `spec/rebuild/`.
 - [ ] **Each requirement's acceptance checks** in `spec/requirements/internal/`.
 
-### 5. Decide, as an organisation
+### 6. Decide, as an organisation
 
 - [ ] Who owns it.
 - [ ] Copy and adapt, or rewrite from the spec.
