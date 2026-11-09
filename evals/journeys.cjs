@@ -300,7 +300,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await h.fill(p.getByLabel('This week’s value'), valueAt(sm.goals.find((g) => g.id === 'ns-lead'), NOW, 0.5));
   h.set('attention', await p.locator('.verdict[data-tone=off]').isVisible(), 'behind plan is not flagged in the verdict');
   await h.click(p.getByRole('button', { name: 'Continue' }));
-  await see(p, 'Is what you said last week still true?', 'last week’s reason and path are offered back');
+  // Its week-45 check-in is already in (4 Nov), so this one corrects it: the note offered back is this week's (review F10).
+  await see(p, 'Is what you said in this week’s earlier check-in still true?', 'last week’s reason and path are offered back');
   await h.progressShown('carry');
   await h.checkpoint('carry');
   // What "Still true" will carry, the open request included, is shown before posting (product review, 3 Nov).

@@ -232,8 +232,8 @@ module.exports = {
         if (await go.count()) {
           await go.click();
           await p.locator('.reviewbar').waitFor();
-          const bar = (await p.locator('.reviewbar .hint').innerText()).trim();
-          fail(/^Outstanding from Wed 4 Nov \(1 day past\) · Goal 1 of/.test(bar), `Review F07: the walk's bar doesn't date the session: "${bar}"`);
+          const bar = (await p.locator('.reviewbar .reviewbar-when').innerText()).trim();
+          fail(bar === 'Outstanding from Wed 4 Nov (1 day past)', `Review F07: the walk's bar doesn't date the session: "${bar}"`);
         }
       }
       await c.close();
@@ -251,7 +251,7 @@ module.exports = {
       await p.getByRole('button', { name: /^(Start|Continue) review/ }).click();
       await p.locator('.reviewbar').waitFor();
       const bar = (await p.locator('.reviewbar .hint').innerText()).trim();
-      const m = /^(?:[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}(?: \(\d+ days? past\))? · |Outstanding from [^·]+ · )?Goal \d+ of (\d+)( to discuss)? · (\d+) of (\d+) reviewed$/.exec(bar);
+      const m = /^Goal \d+ of (\d+)( to discuss)? · (\d+) of (\d+) reviewed$/.exec(bar);
       fail(!!m && m[4] === rt && m[3] === rd, `Walk: the bar says “${bar}”, the review ${rd} of ${rt} reviewed`);
       if (m) fail(m[1] === rt ? !m[2] : !!m[2], `Walk: “${bar}” doesn’t say the walk is the goals to discuss`);
       await c.close();
