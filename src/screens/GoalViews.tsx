@@ -5,6 +5,7 @@
    GoalHistory and GoalCards, with the bulk actions in BulkEdit and a goal's story in ui/GoalStory. */
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
+import { useLatestParams } from './GoalFilters';
 import { useApp } from '../app/state';
 import { summarise, type GoalSummary } from '../domain/summary';
 import type { Goal } from '../domain/types';
@@ -26,15 +27,22 @@ const isLayout = (v: string | null): v is Layout => !!v && LAYOUTS.some(([k]) =>
 /** The layout from the address, else this person's last choice, else the list. */
 export function useLayout(): [Layout, (l: Layout) => void] {
   const [params, setParams] = useSearchParams();
+  const latest = useLatestParams();
   let saved: string | null = null;
   try { saved = localStorage.getItem(KEY); } catch { /* storage blocked */ }
   const fromUrl = params.get('view');
   const layout: Layout = isLayout(fromUrl) ? fromUrl : isLayout(saved) ? saved : 'list';
+  // Each layout is a step Back can return to (outside review, 9 Nov): a new history entry, never a replaced one. The
+  // list is the address without a layout, unless the layout came from this person's last choice: then the address
+  // says view=list, so the step is a real change of address and Back after it shows the layout it left.
   const set = (l: Layout) => {
+    if (l === layout) return;
     try { localStorage.setItem(KEY, l); } catch { /* storage blocked */ }
-    const next = new URLSearchParams(params);
-    if (l === 'list') next.delete('view'); else next.set('view', l);
-    setParams(next, { replace: true });
+    const next = latest(), was = next.get('view');
+    if (l !== 'list') next.set('view', l);
+    else if (isLayout(was) && was !== 'list') next.delete('view');
+    else next.set('view', 'list');
+    setParams(next);
   };
   return [layout, set];
 }
