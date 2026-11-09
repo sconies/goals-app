@@ -125,7 +125,7 @@ export interface AppState {
   /** Admins: start the next cycle with the goals that carry on. Returns the new cycle's name. */
   startNextCycle(): Promise<string>;
   /** Works out what a set of rows would change (from a spreadsheet, the bulk grid or a table action), without saving. */
-  previewChanges(tables: Tables, via: Via, reason?: string): ChangeSet;
+  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean): ChangeSet;
   /** Saves a change set worked out by previewChanges: all of it, or none. */
   applyChanges(cs: ChangeSet): Promise<void>;
   /** Admins: a personal token for an AI assistant to act as this person. Returns the token, shown once. */
@@ -577,7 +577,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         // The demo's data lives in this browser only, so its feedback is also sent where the people building the app read it.
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
-      previewChanges: (tables, via, reason) => planChanges({ tables, snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, via, reason, full: snapshot }),
+      previewChanges: (tables, via, reason, confirm) => planChanges({ tables, snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, via, reason, confirm, full: snapshot }),
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');
         await commit(cs.commit);

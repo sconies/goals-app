@@ -4,10 +4,11 @@
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
+import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
 import { currentWeek, firstWeekFrom, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { goalScorecard, likelihood } from '../domain/scorecard';
-import { assessMetric, assessMilestone, assessRange, goalStatus, RANK, worst } from '../domain/status';
+import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { MIN_NAME, RULES, TREND_SPAN } from '../domain/thresholds';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
 import { AVATAR_HUES } from '../domain/people';
@@ -304,7 +305,7 @@ It can be posted when nothing is missing.
     summary: 'How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart.',
     code: [
       { file: 'src/domain/numbers.ts', names: ['typedDecimals', 'precisionProblem', 'notNumberText', 'groupDigits', 'fixed', 'farOutside', 'setupProblem'] },
-      { file: 'src/domain/goal.ts', names: ['validateGoal', 'planHint'] },
+      { file: 'src/domain/goal.ts', names: ['validateGoal', 'planHint', 'planQuestion'] },
       { file: 'src/domain/people.ts', names: ['sameNameNote', 'personTell', 'nameWithTell', 'avatarHues', 'duplicateTitles', 'goalTell', 'sameTitleNote'] },
       { file: 'src/domain/thresholds.ts', names: ['MIN_NAME', 'nameProblem'] },
     ],
@@ -321,6 +322,12 @@ One rule for every way in: the check-in, New goal, goal edit, the workspace set-
 
 **Questioned, never refused.** In a check-in, see [the check-in](check-in.md). Setting up (\`setupProblem\`, \`planHint\`): over 100% (asked as before); below zero for a percentage, time or money; a target ${FAR_RATIO} times the start or more, or a ${FAR_RATIO}th of it or less (both non-zero, the same sign); a billion or more. The import notes it on the row; a goal already set up that way isn't asked again.
 
+**Plan changes confirmed, never silent** (\`planQuestion\`). The same check as a check-in's, applied when an existing number goal's plan changes, in the app's goal edit, the spreadsheet import, the data tables and the AI tools (one rule, in the change engine and the edit form). Two things are asked, in this order, and the change saves only once someone says yes:
+- **Which way is better flips:** the new target is on the other side of the start (a 14 → 3 min goal given a target of 999). It says so: “This makes higher better: the target (999 min) is now above the start (14 min). It was 14 min to 3 min, lower is better.” The yes is “Yes, make higher better”.
+- **Far outside the old plan:** a new start, target or hand-set week's number more than ${FAR_OUTSIDE} times the old plan's width beyond either end (\`farOutside\`): “The target of 400% is far outside the plan it replaces (30% to 75%). Status, progress and the forecast will all be judged against it.”
+
+The app asks beside the target, with a tick box carrying the yes; Import and Data list the questions above What will change with one yes button; the AI tools refuse with the question until called again with \`confirm: true\`. A plan already stored isn't asked about again, and a new goal is asked about its numbers by \`planHint\` instead.
+
 **Names.** A workspace's, a goal's or an outcome's name has at least ${MIN_NAME} characters (\`nameProblem\`). Two goals may have the same title (compared without case or outer spaces): making one warns (\`sameTitleNote\`), and wherever both could be on screen each shows its key, or else its team, beside the title (\`duplicateTitles\`, \`goalTell\`). An import row with no key whose title another goal has is that goal again unless it names another team; then it's a new goal, noted. Two people may have the same name: the email is who someone is. Adding or renaming one says so (\`sameNameNote\`); beside the name goes their team, else their job title, else their email, whichever tells them apart (\`personTell\`). Each avatar's colour comes from the person's ID, and people with the same initials each get a colour none of the others has while there are colours to go round (\`avatarHues\`, ${AVATAR_HUES} colours).`,
     examples: [
       { given: 'Typed "12.5", "12.50", "1,250", "29,4", "3.25 days".', then: '1, 1, 0, 1, 2', run: () => ['12.5', '12.50', '1,250', '29,4', '3.25 days'].map((x) => String(typedDecimals(x))).join(', ') },
@@ -328,6 +335,9 @@ One rule for every way in: the check-in, New goal, goal edit, the workspace set-
       { given: '1250000, -12000 and 1250.5 shown.', then: '1,250,000, -12,000, 1,250.5', run: () => ['1250000', '-12000', '1250.5'].map(groupDigits).join(', ') },
       { given: 'A start of 10 signups and a target of 5,000.', then: 'The target is over 100 times the start (10 to 5,000). Is that right?', run: () => setupProblem('signups', 10, 5000) ?? 'fine' },
       { given: '400 typed for the 30→75 goal, then 110.', then: 'questioned; fine', run: () => [farOutside(400, 30, 75), farOutside(110, 30, 75)].map((x) => (x ? 'questioned' : 'fine')).join('; ') },
+      { given: 'A queue wait goal, 14 → 3 min (lower is better), given a target of 999.', then: 'direction: This makes higher better: the target (999 min) is now above the start (14 min). It was 14 min to 3 min, lower is better. [Yes, make higher better]', run: () => { const was = metric(14, 3, 'straight', { unit: 'min' }); const q = planQuestion(was, { ...was, plan: { ...was.plan, target: 999 } }); return q ? `${q.code}: ${q.text} [${q.confirm}]` : 'fine'; } },
+      { given: 'The 30→75 goal given a target of 400, then of 90.', then: 'far: The target of 400% is far outside the plan it replaces (30% to 75%). Status, progress and the forecast will all be judged against it. / fine', run: () => [400, 90].map((t) => { const q = planQuestion(g3075, { ...g3075, plan: { ...g3075.plan, target: t } }); return q ? `${q.code}: ${q.text}` : 'fine'; }).join(' / ') },
+      { given: 'In the demo workspace, Tariq turns the AI-assisted reviews north star (ns-ai) round (its target the same distance on the other side of its start), with a reason; then again, confirmed.', then: 'asks first, nothing to save; ready to save', run: () => { const g = goalIn('ns-ai') as MetricGoal; const t = String(2 * g.plan.start - g.plan.target); const tables = { goals: [rec({ ID: 'ns-ai', Target: t })] }; return [change('tariq', tables, { reason: 'Measuring the other way round now' }), change('tariq', tables, { reason: 'Measuring the other way round now', confirm: true })].map((cs) => (cs.commit ? 'ready to save' : cs.needsConfirm ? 'asks first, nothing to save' : issues(cs))).join('; '); } },
     ],
   },
 
@@ -397,7 +407,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
     id: 'scorecard',
     title: 'The scorecard',
     summary: 'The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target.',
-    code: [{ file: 'src/domain/scorecard.ts', names: ['likelihood', 'likelihoodFloor', 'goalScorecard', 'amount', 'byWeekWords'] }, { file: 'src/domain/summaryFacts.ts', names: ['summaryFacts'] }, { file: 'src/domain/vocabulary.ts', names: ['shortWord'] }, { file: 'src/domain/year.ts', names: ['quarterResult'] }],
+    code: [{ file: 'src/domain/scorecard.ts', names: ['likelihood', 'likelihoodFloor', 'goalScorecard', 'amount', 'byWeekWords'] }, { file: 'src/domain/status.ts', names: ['doneCheckIn', 'projects'] }, { file: 'src/domain/summaryFacts.ts', names: ['summaryFacts'] }, { file: 'src/domain/vocabulary.ts', names: ['shortWord'] }, { file: 'src/domain/year.ts', names: ['quarterResult'] }],
     tests: ['src/domain/scorecard.test.ts', 'src/domain/year.test.ts', 'evals/goalPage.eval.ts'],
     reqs: ['GOAL-PAGE-SCORECARD', 'PROJECTION-RANGE', 'HONEST-NUMBERS'],
     body: `
@@ -420,7 +430,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 
 **Dated stages:** \`done\` (stages done of all, with how many are due by this week), \`late\` (stages behind their dates, slipping or late, and by up to how many weeks) and \`next\` (the week the next stage now lands, or All done).
 
-A stopped goal has no \`hit\` cell.
+A stopped goal has no \`hit\` cell. Nor has a done goal (\`doneCheckIn\`: its latest check-in, as of the week shown, is called done): a \`result\` cell takes its place, Result: Done, with the number it closed on and its week as the sub ("95% in week 37"), tone \`good\`. Neither projects anywhere (\`projects\`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
 
 **Short or over** (\`shortWord(better)\` in \`src/domain/vocabulary.ts\`, the one place the word is chosen): an amount on the wrong side of a plan or target is "short" when higher is better and "over" when lower is better: "1 pt short" of a 46% plan, "1 min over" a 6 min plan. The scorecard's \`target\` cell, the chart's mark at the due week ("5 over") and a quarter's result ("Q3: 7 min against a plan of 6 min, 1 min over") all use it.
 
@@ -431,6 +441,7 @@ A stopped goal has no \`hit\` cell.
       { given: 'The 30→75 goal with 36, 39, 42, 45 in weeks 1–4, seen in week 4.', then: 'plan: 1 pt ahead of plan [good] (plan 44%); since: 3 pts better [good] (was 42% in week 3); target: 30 pts to go [flat] (target 75%); hit: Very unlikely [bad] (likely 72% by cycle end)', run: () => goalScorecard(g3075, CYCLE, [36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), 4, false).cells.map((c) => `${c.key}: ${c.value} [${c.tone}] (${c.sub})`).join('; ') },
       { given: 'Short or over: higher is better, then lower is better.', then: 'short, over', run: () => [shortWord(1), shortWord(-1)].join(', ') },
       { given: 'A 60→30 goal (lower is better) with 50, 48, 46, 45 in weeks 1–4, seen in week 4: To target.', then: '15 pts over [flat] (target 30%)', run: () => { const c = goalScorecard(metric(60, 30), CYCLE, [50, 48, 46, 45].map((v, i) => ci('m', i + 1, v)), 4, false).cells.find((x) => x.key === 'target')!; return `${c.value} [${c.tone}] (${c.sub})`; } },
+      { given: 'The 30→75 goal with 36, 39, 42, 45 in weeks 1–4 and 76 in week 5, called done; seen in week 7, and its forecast.', then: 'result: Done [good] (76% in week 5); no forecast', run: () => { const cis = [...[36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), ci('m', 5, 76, { status: 'done' })]; const c = goalScorecard(g3075, CYCLE, cis, 7, false).cells.find((x) => x.key === 'result' || x.key === 'hit')!; return `${c.key}: ${c.value} [${c.tone}] (${c.sub}); ${projects(g3075, goalStatus(g3075, CYCLE, cis, at('2026-10-30T10:00:00Z')).status) ? 'forecast' : 'no forecast'}`; } },
       { given: 'The same, but stale.', then: 'hit: Can’t say', run: () => { const c = goalScorecard(g3075, CYCLE, [36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), 4, true).cells.find((x) => x.key === 'hit')!; return `hit: ${c.value}`; } },
     ],
     unclear: ['The scorecard’s words (labels, values and sub lines, including how units are said: “%” differences as pts, a unit made singular at 1, numbers padded to the goal’s decimals) are not all written out here. The conformance data gives every cell for every goal and week; a rebuild that matches each cell’s key, tone and likelihood has the rule, and the words follow `src/domain/scorecard.ts` and `src/domain/format.ts`.'],

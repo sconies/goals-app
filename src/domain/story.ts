@@ -5,7 +5,7 @@
 import { causeLabel } from './checkin';
 import { fmt, fmtDiff, LEVEL_LABEL, NO_VALUE } from './format';
 import { planAt, planEnd, weekDates } from './plan';
-import { assessPosted, checkInsFor, goalStatus } from './status';
+import { assessPosted, checkInsFor, goalStatus, projects } from './status';
 import { flagsFor } from './attention';
 import { FLAG, LABEL, MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING, WARNING, type FlagKind, type ResultKind, type WarningKind } from './vocabulary';
 import { answeredSince, askText, openFor } from './asks';
@@ -159,7 +159,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   const lastEnded = [...quarters].reverse().find((x) => x.kind === 'met' || x.kind === 'missed');
   const fc = forecastText(g, a, cycle.weeks, cycle);
   // A goal gone quiet has no trustworthy forecast: its numbers are out of date.
-  const outlook = fc && status !== 'stale' ? fc.text : null;
+  const outlook = fc && projects(g, status) ? fc.text : null;
 
   // Why, what the owner will do, by when, what they need.
   let why: string | null = null, doing: string | null = null, byWhen: string | null = null, needs: string | null = null;

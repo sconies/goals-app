@@ -17683,7 +17683,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 37,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75%
 37,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 37,G-22,target,Target reached,good,,To target,target 95%
-37,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+37,G-22,result,Done,good,,Result,95% in week 37
 37,G-23,plan,1 min behind plan,bad,,Vs plan,plan 12 min in week 36
 37,G-23,since,1 min better,good,,Vs last week,was 14 min in week 35
 37,G-23,target,5 min over,flat,,To target,target 8 min
@@ -18160,7 +18160,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 38,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75% in week 37
 38,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 38,G-22,target,Target reached,good,,To target,target 95%
-38,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+38,G-22,result,Done,good,,Result,95% in week 37
 38,G-23,plan,1 min behind plan,bad,,Vs plan,plan 12 min
 38,G-23,since,No change,flat,,Vs last week,was 13 min in week 37
 38,G-23,target,5 min over,flat,,To target,target 8 min
@@ -18637,7 +18637,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 39,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75% in week 37
 39,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 39,G-22,target,Target reached,good,,To target,target 95%
-39,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+39,G-22,result,Done,good,,Result,95% in week 37
 39,G-23,plan,1 min behind plan,bad,,Vs plan,plan 12 min
 39,G-23,since,No change,flat,,Vs last week,was 13 min in week 38
 39,G-23,target,5 min over,flat,,To target,target 8 min
@@ -19114,7 +19114,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 40,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75% in week 37
 40,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 40,G-22,target,Target reached,good,,To target,target 95%
-40,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+40,G-22,result,Done,good,,Result,95% in week 37
 40,G-23,plan,1 min behind plan,bad,,Vs plan,plan 11 min
 40,G-23,since,1 min better,good,,Vs last week,was 13 min in week 39
 40,G-23,target,4 min over,flat,,To target,target 8 min
@@ -19591,7 +19591,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 41,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75% in week 37
 41,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 41,G-22,target,Target reached,good,,To target,target 95%
-41,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+41,G-22,result,Done,good,,Result,95% in week 37
 41,G-23,plan,1 min behind plan,bad,,Vs plan,plan 11 min
 41,G-23,since,No change,flat,,Vs last week,was 12 min in week 40
 41,G-23,target,4 min over,flat,,To target,target 8 min
@@ -20068,7 +20068,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 42,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75% in week 37
 42,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 42,G-22,target,Target reached,good,,To target,target 95%
-42,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+42,G-22,result,Done,good,,Result,95% in week 37
 42,G-23,plan,On plan,flat,,Vs plan,plan 11 min
 42,G-23,since,1 min better,good,,Vs last week,was 12 min in week 41
 42,G-23,target,3 min over,flat,,To target,target 8 min
@@ -20545,7 +20545,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 43,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75% in week 37
 43,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 43,G-22,target,Target reached,good,,To target,target 95%
-43,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+43,G-22,result,Done,good,,Result,95% in week 37
 43,G-23,plan,On plan,flat,,Vs plan,plan 11 min
 43,G-23,since,No change,flat,,Vs last week,was 11 min in week 42
 43,G-23,target,3 min over,flat,,To target,target 8 min
@@ -21022,7 +21022,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 44,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75% in week 37
 44,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 44,G-22,target,Target reached,good,,To target,target 95%
-44,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+44,G-22,result,Done,good,,Result,95% in week 37
 44,G-23,plan,On plan,flat,,Vs plan,plan 11 min in week 43
 44,G-23,since,No change,flat,,Vs last week,was 11 min in week 42
 44,G-23,target,3 min over,flat,,To target,target 8 min
@@ -21507,7 +21507,7 @@ week,goal,cell,value,tone,likelihood,label,sub
 45,G-22,plan,20 pts ahead of plan,good,,Vs plan,plan 75% in week 37
 45,G-22,since,8 pts better,good,,Vs last week,was 87% in week 36
 45,G-22,target,Target reached,good,,To target,target 95%
-45,G-22,hit,Likely,good,likely,Will it hit 95%?,likely 100% by year end
+45,G-22,result,Done,good,,Result,95% in week 37
 45,G-23,plan,On plan,flat,,Vs plan,plan 10 min in week 44
 45,G-23,since,1 min better,good,,Vs last week,was 11 min in week 43
 45,G-23,target,2 min over,flat,,To target,target 8 min

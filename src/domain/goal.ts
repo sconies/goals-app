@@ -1,7 +1,7 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
 import { nameProblem } from './thresholds';
-import { notNumberText, precisionProblem, setupProblem } from './numbers';
+import { farOutside, fixed, notNumberText, precisionProblem, setupProblem } from './numbers';
 import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
 import type { Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape } from './types';
 
@@ -113,6 +113,37 @@ export function validateGoal(d: GoalDraft, cycle: Cycle, existing?: Goal | null)
 export function planHint(d: Pick<GoalDraft, 'kind' | 'unit' | 'start' | 'target' | 'limit'>): string | null {
   if (d.kind === 'metric') return overHundredHint(d.unit, d.start, d.target) ?? setupProblem(d.unit, parseNumber(d.start), parseNumber(d.target));
   if (d.kind === 'range') return setupProblem(d.unit, parseNumber(d.limit), null);
+  return null;
+}
+
+/**
+ * A question a number goal's changed plan must answer before it's saved (backlog N, the same plausibility rule as a
+ * check-in's, applied to target and plan edits in the app, the import and the AI tools). Confirmed, never silent, never
+ * refused:
+ * - `direction`: the new target is on the other side of the start, so which way is better flips;
+ * - `far`: a new start, target or hand-set week is far outside the plan it replaces (`farOutside`).
+ * Null when the plan is unchanged, or for a new goal (its numbers are asked about by `planHint`).
+ */
+export interface PlanQuestion { code: 'direction' | 'far'; text: string; confirm: string }
+
+export function planQuestion(before: Goal | null, after: Goal): PlanQuestion | null {
+  if (before?.kind !== 'metric' || after.kind !== 'metric' || !planChanged(before, after)) return null;
+  const was = before.plan, now = after.plan;
+  const d = after.decimals, u = after.unit.trim() === '%' ? '%' : after.unit.trim() ? ' ' + after.unit.trim() : '';
+  const n = (x: number) => fixed(x, d) + u;
+  const wasUp = was.target > was.start, nowUp = now.target > now.start;
+  if (wasUp !== nowUp) {
+    const better = nowUp ? 'higher' : 'lower';
+    return { code: 'direction', text: `This makes ${better} better: the target (${n(now.target)}) is now ${nowUp ? 'above' : 'below'} the start (${n(now.start)}). It was ${n(was.start)} to ${n(was.target)}, ${wasUp ? 'higher' : 'lower'} is better.`, confirm: `Yes, make ${better} better` };
+  }
+  const old = new Map((was.points ?? []).map((p) => [p.week, p.value]));
+  const moved: [string, number][] = [
+    ...(now.target !== was.target ? [['target', now.target] as [string, number]] : []),
+    ...(now.start !== was.start ? [['start', now.start] as [string, number]] : []),
+    ...(now.points ?? []).filter((p) => old.get(p.week) !== p.value).map((p) => [`week ${p.week}`, p.value] as [string, number]),
+  ];
+  const far = moved.find(([, v]) => farOutside(v, was.start, was.target));
+  if (far) return { code: 'far', text: `The ${far[0]} of ${n(far[1])} is far outside the plan it replaces (${n(was.start)} to ${n(was.target)}). Status, progress and the forecast will all be judged against it.`, confirm: `Yes, ${far[0]} ${n(far[1])} is right` };
   return null;
 }
 

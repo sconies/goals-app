@@ -142,7 +142,7 @@ module.exports = {
         chk(bar.band && /\d+ hours? (behind plan|ahead of plan)|On plan/.test(bar.marks.plan) && /likely \d+/.test(bar.marks.likely) && /(\d+ over|on course)/.test(bar.marks.target) && !/short/.test(bar.marks.target), `${at1}: chart marks ${JSON.stringify(bar.marks)}`);
         // The reason is not in the bar: it opens Why, the section right under the chart. The feeds head What feeds it.
         chk(!/Lead time is well above plan/.test(bar.barText) && /why-block/.test(bar.whyNext || '') && /^Lead time is well above plan/.test(bar.whyFirst), `${at1}: the reason is in the bar or does not open Why (next ${bar.whyNext}, “${bar.whyFirst.slice(0, 40)}”)`);
-        chk(/^Fed by four goals: .*2 off track/.test(bar.feeds) && !/Fed by/.test(bar.barText), `${at1}: What feeds it opens with “${bar.feeds}”`);
+        chk(/^Directly feeding it \(four goals\): .*2 off track/.test(bar.feeds) && !/Directly feeding it/.test(bar.barText), `${at1}: What feeds it opens with “${bar.feeds}”`);
         // Every section below the chart: a heading, one line on what it answers, and a rule above it.
         const bare = bar.sections.filter((x) => !x.title || x.purpose.length < 10 || !x.rule);
         chk(bar.sections.length >= 6 && !bare.length, `${at1}: sections without a heading, a purpose line or a rule: ${JSON.stringify(bare)} (of ${bar.sections.length})`);

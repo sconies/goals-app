@@ -17,7 +17,7 @@ import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, YES_WORDS,
   type Words,
 } from './columns';
-import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planHint, replanned, validateGoal, type GoalDraft } from './goal';
+import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planHint, planQuestion, replanned, validateGoal, type GoalDraft } from './goal';
 import { notNumberText, precisionProblem, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
@@ -50,6 +50,8 @@ export interface Item {
   backfilled?: boolean;
   /** A plan change after check-ins started: it needs a reason. */
   needsReason?: boolean;
+  /** A plan change that must be confirmed before it's saved (goal planQuestion): what it asks, and the yes. */
+  question?: { text: string; confirm: string };
 }
 export interface ChangeSet {
   items: Item[];
@@ -57,6 +59,8 @@ export interface ChangeSet {
   issues: Issue[];
   /** Some plan changes need a reason and none was given. */
   needsReason: boolean;
+  /** Some plan changes ask a question (a direction flip, a number far outside the old plan) and weren't confirmed. */
+  needsConfirm: boolean;
   /** Ready to save: null while there are errors or a reason is missing. */
   commit: Commit | null;
   counts: { newGoals: number; goals: number; plans: number; checkIns: number; backfilled: number; replaced: number; people: number; newPeople: number; teams: number; stopped: number; deleted: number; left: number };
@@ -78,6 +82,8 @@ export interface ChangeInput {
   via: Via;
   /** One reason for every plan change that needs one (a row's own Reason column wins). */
   reason?: string;
+  /** Yes to every plan question (goal planQuestion) the change asks, once the person has seen them. */
+  confirm?: boolean;
   /** "update" (the default): change the workspace. "create": set one up from nothing, every row new. */
   mode?: 'update' | 'create';
   /** The whole workspace, for what a row's Action reaches past this cycle (domain/removal). */
@@ -565,6 +571,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const lookup = lookupNow();
   const goalOut = new Map<string, Goal>();
   let needsReason = false;
+  let needsConfirm = false;
   for (const [id, t] of touched) {
     const after = work.get(id)!;
     const ch = goalChange(t.before, after, lookup, actor.id, now, newId('chg'));
@@ -575,9 +582,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const reason = t.reason || input.reason?.trim() || '';
     if (needs && !reason) needsReason = true;
     if (needs && reason) ch.diffs.push({ field: 'Why', from: '—', to: reason });
+    // A direction flip or a number far outside the old plan is confirmed, never saved silently (goal planQuestion).
+    const q = planQuestion(t.before, after);
+    if (q && !input.confirm) needsConfirm = true;
     goalOut.set(id, after);
     changes.push(ch);
-    items.push({ sheet: t.sheet, row: t.row, goalId: id, goal: after.title, kind: !t.before ? 'new goal' : needs || (t.plan && planChanged(t.before, after)) ? 'plan' : 'goal', summary: ch.summary, diffs: ch.diffs, needsReason: needs });
+    items.push({ sheet: t.sheet, row: t.row, goalId: id, goal: after.title, kind: !t.before ? 'new goal' : needs || (t.plan && planChanged(t.before, after)) ? 'plan' : 'goal', summary: ch.summary, diffs: ch.diffs, needsReason: needs, ...(q ? { question: { text: q.text, confirm: q.confirm } } : {}) });
   }
 
   /* ---------- check-ins ---------- */
@@ -792,8 +802,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     deleted: items.filter((x) => x.kind === 'delete goal').length,
     left: items.filter((x) => x.kind === 'person left').length,
   };
-  const ok = !issues.some((x) => x.severity === 'error') && !needsReason && items.length > 0;
-  const result: ChangeSet = { items, unchanged, issues, needsReason, commit: null, counts };
+  const ok = !issues.some((x) => x.severity === 'error') && !needsReason && !needsConfirm && items.length > 0;
+  const result: ChangeSet = { items, unchanged, issues, needsReason, needsConfirm, commit: null, counts };
   // New goals before the goals that feed into them, so each link points at a goal that's already saved.
   const ordered: Goal[] = [];
   const pending = [...goalOut.values()];
