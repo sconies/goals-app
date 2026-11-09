@@ -13,6 +13,7 @@ import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from '
 import { Watching } from './screens/Watching';
 import { RetroGoal, WrapUp } from './screens/Retro';
 import { WorkspaceHome } from './screens/Workspace';
+import { Feedback } from './screens/Feedback';
 import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Empty } from './ui/bits';
@@ -68,7 +69,9 @@ export function Routed() {
         <Route path="/workspace/overview" element={<WorkspaceHome section="overview" />} />
         <Route path="/workspace/people" element={<WorkspaceHome section="people" />} />
         <Route path="/workspace/teams" element={<WorkspaceHome section="teams" />} />
-        <Route path="/workspace/inbox" element={<WorkspaceHome section="inbox" />} />
+        {/* The inbox moved out of Workspace to Feedback (backlog WS): its old address, with the markup it named, leads there. */}
+        <Route path="/workspace/inbox" element={<Moved to="/feedback" />} />
+        <Route path="/feedback" element={<Feedback onSend={() => window.dispatchEvent(new Event('faro:send-feedback'))} />} />
         <Route path="/workspace/cycles" element={<WorkspaceHome section="cycles" />} />
         <Route path="/workspace/access" element={<WorkspaceHome section="access" />} />
         <Route path="/workspace/features" element={<WorkspaceHome section="features" />} />

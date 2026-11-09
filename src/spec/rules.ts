@@ -10,7 +10,10 @@ import { currentWeek, firstWeekFrom, isCount, isShare, NOT_A_COUNT, planAt, plan
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { fmt } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
-import { MIN_NAME, RULES, TREND_SPAN } from '../domain/thresholds';
+import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
+import { cycleStanding, leaveWorkspace } from '../domain/removal';
+import { teamPeople } from '../domain/actions';
+import { ENDING_WEEKS, workspaceNeeds } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
 import { AVATAR_HUES } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
@@ -544,6 +547,42 @@ For a range, better means further from the limit on its safe side.
       { given: 'Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins.', then: 'the first problem says: Week 4 needs a Cause and a Why', run: () => { const s = demo!; const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'mttr-pir') }; const m = change('mateo', { checkIns: [rec({ 'Goal ID': 'mttr-pir', Week: '4', Value: '21' })] }, { snapshot: fresh }).issues[0]?.message ?? ''; return `the first problem says: ${/Week 4 needs a Cause and a Why/.exec(m)?.[0] ?? m}`; } },
     ],
     unclear: ['The engine is large (`src/domain/changeset.ts`): this section says what it does; its every message and column rule is in the code and its tests (listed below). A rebuild of the core status rules does not need it; a rebuild of import and bulk edit does.'],
+  },
+  /* ---------- the workspace (backlog WS) ---------- */
+  {
+    id: 'workspace',
+    title: 'The workspace: cycles, teams, names, leaving and what needs attention',
+    summary: 'What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention.',
+    code: [
+      { file: 'src/domain/removal.ts', names: ['cycleStanding', 'cycleDeletable', 'leaveWorkspace'] },
+      { file: 'src/domain/actions.ts', names: ['teamPeople'] },
+      { file: 'src/domain/thresholds.ts', names: ['nameProblem', 'nameLength', 'MAX_WORKSPACE_NAME'] },
+      { file: 'src/domain/workspaceAttention.ts', names: ['workspaceNeeds', 'cycleWhen', 'ENDING_WEEKS'] },
+    ],
+    tests: ['src/domain/workspace.test.ts'],
+    reqs: ['WORKSPACE-ONE-PLACE'],
+    body: `
+**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over.
+
+**A team's people** are everyone in it, and its lead even when the lead's own team is another; the lead counts once.
+
+**A workspace's name** is ${MIN_NAME} to ${MAX_WORKSPACE_NAME} characters, after trimming and joining spaces. Nothing cuts it short: the field counts the characters once a name is within 20 of the limit, and a longer name is refused with how long it is.
+
+**Leaving.** Anyone may leave a workspace themselves. It is the same as an admin marking them as left (whoever takes over their goals and open asks is chosen first; they leave the reviews they were in), logged as "Name left the workspace". The only admin may not leave.
+
+**What needs attention** on the overview, most pressing first: the year ending (the wrap-up open, or opening within ${ENDING_WEEKS} weeks); no goals in the cycle; then, for admins only, fewer than 3 people, people with no email, people in no team, teams with no lead, and no review set up; then new markups and feedback sent from this workspace. Admins are told what only they can fix; everyone is told what anyone can.`,
+    examples: [
+      { given: 'A new workspace: one cycle, no goals, no check-ins.', then: 'No goals and no check-ins yet; it’s the only cycle, so it stays', run: () => cycleStanding({ ...workspace([]), goals: [] }, CYCLE.id).says },
+      { given: 'The same workspace with a second cycle nobody has checked in to.', then: 'No goals and no check-ins yet: it can be deleted', run: () => cycleStanding({ ...workspace([]), goals: [], cycles: [CYCLE, { ...CYCLE, id: 'c2', name: 'Next' }] }, 'c2').says },
+      { given: 'One goal with two check-ins, in the only cycle.', then: '1 goal, 2 check-ins: it stays', run: () => cycleStanding(workspace([ci('m', 1, 32), ci('m', 2, 34)]), CYCLE.id).says },
+      { given: 'A team led by Lee, who is in it, with Pat in it too.', then: '2 people', run: () => `${teamPeople({ snapshot: workspace([]) }, 't').length} people` },
+      { given: 'A workspace name of 83 characters.', then: `Keep the name to ${MAX_WORKSPACE_NAME} characters or fewer: it has 83.`, run: () => nameProblem('x'.repeat(83), 'workspace') ?? 'fine' },
+      { given: 'A workspace name of 62 characters, as it is typed.', then: `62 of ${MAX_WORKSPACE_NAME} characters`, run: () => nameLength('x'.repeat(62)) ?? 'nothing said' },
+      { given: 'Lee, the only admin, leaves.', then: 'refused: You’re the only admin here: make someone else an admin before you leave.', run: () => { try { leaveWorkspace({ snapshot: workspace([]), cycle: CYCLE, week: 2, actor: workspace([]).people[1]!, now: '2026-10-08T12:00:00Z', newId: (p) => p + '_1' }); return 'left'; } catch (e) { return `refused: ${(e as Error).message}`; } } },
+      { given: 'What needs attention for an admin in week 2: two people with no email, one goal, no review, 4 new markups from here.', then: 'few-people, no-email, no-review, feedback', run: () => workspaceNeeds(workspace([]), CYCLE, 2, true, 4).map((x) => x.id).join(', ') },
+      { given: 'The same, for Pat, who isn’t an admin.', then: 'feedback', run: () => workspaceNeeds(workspace([]), CYCLE, 2, false, 4).map((x) => x.id).join(', ') },
+    ],
+    unclear: ['How many weeks before the wrap-up "ends soon" starts (four) is a choice, not a law; the rebuild may tune it.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
   },
 ];
 

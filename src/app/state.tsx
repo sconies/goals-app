@@ -22,7 +22,7 @@ import * as R from '../domain/removal';
 import * as M from '../domain/metrics';
 import { forgetDemoBrowser, forgetWorkspaceBrowser } from './demoBrowser';
 import { avatarHues, duplicateTitles, goalTell, nameWithTell } from '../domain/people';
-import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, UNDO_MS } from '../domain/vocabulary';
+import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, RESTORE_DAYS, UNDO_MS } from '../domain/vocabulary';
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
     which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too). */
@@ -52,8 +52,12 @@ export interface AppState {
   viewerChosen: boolean;
   ws: Workspace;
   workspaces: Workspace[];
+  /** The workspace being opened while it loads (switching), else null: the screen says so rather than mixing the two (backlog WS). */
+  opening: Workspace | null;
+  /** Opens another workspace. Screens switch through ui/WorkspaceSwitch's useSwitchWorkspace, which also makes a history entry. */
   switchWorkspace(id: string): void;
-  createWorkspace(name: string, data: Snapshot, meId?: string): Promise<string>;
+  /** Set up a workspace; `recording` is whether it records how the app is used, as chosen at set-up (off unless chosen). */
+  createWorkspace(name: string, data: Snapshot, meId?: string, recording?: boolean): Promise<string>;
   resetExample(): Promise<void>;
   /** Admins: delete the open workspace (not an example) and everything in it, then open another. */
   deleteWorkspace(): Promise<void>;
@@ -150,6 +154,8 @@ export interface AppState {
   /* Removing, archiving and undoing (domain/removal): each shows a message with Undo for 10 seconds and is logged. */
   /** Admins: mark someone as left, handing their goals and open asks to the people given. */
   markPersonLeft(id: string, to: { goalsTo?: string | null; asksTo?: string | null }): Promise<void>;
+  /** Anyone: leave the open workspace yourself, handing over your goals and open asks; never the only admin. Opens another workspace after, if there is one. */
+  leaveWorkspace(to: { goalsTo?: string | null; asksTo?: string | null }): Promise<void>;
   /** Admins: delete someone with no history. */
   deletePerson(id: string): Promise<void>;
   /** Owner or admin: stop a goal with check-ins, with a reason. */
@@ -197,7 +203,7 @@ export interface SetupState {
   mode: Mode;
   today: Date;
   hasWorkspaces: boolean;
-  createWorkspace(name: string, data: Snapshot, meId?: string): Promise<string>;
+  createWorkspace(name: string, data: Snapshot, meId?: string, recording?: boolean): Promise<string>;
   toasts: Toast[];
   toast(text: string, kind?: Toast['kind']): void;
 }
@@ -321,9 +327,9 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   // No workspace yet (setting one up): nothing to switch recording off, so it records, without a workspace.
   useEffect(() => { if (empty) telemetry.setContext({ workspaceId: null, userId: null, store: store.kind, recording: true }); }, [empty, store]);
 
-  const createWorkspace = useCallback((name: string, data: Snapshot, meId?: string) => telemetry.action('createWorkspace', async () => {
+  const createWorkspace = useCallback((name: string, data: Snapshot, meId?: string, recording = false) => telemetry.action('createWorkspace', async () => {
     const at = new Date().toISOString();
-    const w: Workspace = { id: newId('ws'), name, kind: 'own', createdAt: at };
+    const w: Workspace = { id: newId('ws'), name, kind: 'own', createdAt: at, ...(recording ? {} : { recording: false }) };
     const actor = (meId && data.people.find((p) => p.id === meId)) || data.people.find((p) => p.admin) || data.people[0];
     const logged: Snapshot = {
       ...data,
@@ -410,6 +416,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     return () => { document.removeEventListener('visibilitychange', refresh); window.removeEventListener('focus', refresh); clearInterval(timer); };
   }, [reload]);
 
+  const wanted = wsId;
   const value = useMemo<AppState | null>(() => {
     if (!loaded) return null;
     const snapshot = loaded.snap;
@@ -469,7 +476,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
     return traced({
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
+      ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
@@ -604,6 +611,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         if (out) toast(out.changes[0]!.summary, 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), out, before)).then(() => toast('Undone')).catch(() => undefined); } });
       },
       markPersonLeft: async (id, to) => { await removal(() => R.markPersonLeft(ax(), id, to), () => `${people.get(id)?.name ?? 'They'} ${people.get(id) ? 'is' : 'are'} marked as left`); },
+      leaveWorkspace: async (to) => {
+        await act(() => R.leaveWorkspace(ax(), to));
+        toast(`You’ve left ${ws.name}. An admin can bring you back from Recently removed for ${RESTORE_DAYS} days.`);
+        const other = workspaces.find((w) => w.id !== ws.id);
+        if (other) { write(K.ws, other.id); setWsId(other.id); }
+      },
       deletePerson: async (id) => { await removal(() => R.deletePerson(ax(), id), () => `Deleted ${people.get(id)?.name ?? 'them'}`); },
       stopGoal: async (goal, reason) => { await removal(() => R.stopGoal(ax(), goal.id, reason), () => `Stopped ${goal.title}`); },
       deleteGoal: async (goal) => { await removal(() => R.deleteGoal(ax(), goal.id), () => `Deleted ${goal.title}`); },
@@ -622,7 +635,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },
       startNextCycle: async () => { const out = await act(() => A.startNextCycle(ax())); return out.name; },
     });
-  }, [loaded, viewerId, store, today, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
+  }, [loaded, wanted, viewerId, store, today, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 

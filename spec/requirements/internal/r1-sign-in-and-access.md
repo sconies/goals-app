@@ -76,6 +76,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 |---|---|---|
 | Add someone; change their name, job title, team or admin rights | Admins | [`savePerson`](../../../src/domain/actions.ts), [`planChanges`](../../../src/domain/changeset.ts) |
 | Mark someone as left (handing over their goals and asks); delete someone with no history | Admins; not themselves, and never the only admin | [`markPersonLeft`](../../../src/domain/removal.ts), [`deletePerson`](../../../src/domain/removal.ts), [`leaving`](../../../src/domain/removal.ts) |
+| Leave the workspace yourself (handing over your goals and asks) | Anyone; never the only admin | [`leaveWorkspace`](../../../src/domain/removal.ts) |
 | Add, rename, lead or remove a team | Admins | [`saveTeam`](../../../src/domain/actions.ts), [`removeTeam`](../../../src/domain/actions.ts) |
 | Start the next cycle; delete a cycle no one has checked in to | Admins | [`startNextCycle`](../../../src/domain/actions.ts), [`deleteCycle`](../../../src/domain/removal.ts) |
 | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`renameWorkspace`](../../../src/domain/actions.ts), [`setRecording`](../../../src/domain/actions.ts), [`setModule`](../../../src/domain/actions.ts), [`canDeleteWorkspace`](../../../src/domain/actions.ts) |

@@ -10,46 +10,46 @@
    People who aren't admins see Overview, People, Teams, Inbox and Privacy. Sections are the settings extension point: a module
    adds its own (AppModule `sections`, src/core/app.tsx). Old addresses (/workspace?inbox=1&markup=…, #people) lead to
    the section they meant. */
-import { nameProblem } from '../domain/thresholds';
-import { createContext, lazy, Suspense, useContext, useState, type ReactNode } from 'react';
-import { Link, Navigate, useLocation } from 'react-router';
+import { nameLength, nameProblem } from '../domain/thresholds';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
 import { placeSections } from '../core/module';
 import { initials } from '../domain/importer';
 import { normalEmail, personProblems, sameNameNote } from '../domain/people';
 import type { Person, Team } from '../domain/types';
-import { teamMembers } from '../domain/actions';
+import { teamMembers, teamPeople } from '../domain/actions';
 import { newId } from '../data/store';
 import { useInboxData, type InboxData } from '../markup/inboxData';
-import { Avatar, Sheet } from '../ui/bits';
+import { Avatar, Sheet, WarnMark } from '../ui/bits';
+import { cycleWhen, workspaceNeeds } from '../domain/workspaceAttention';
+import { cycleStanding } from '../domain/removal';
 import { AiAssistants } from '../ui/AiAssistants';
 import { Icon } from '../ui/Icon';
-import { LeaveSheet, leaveLabel } from '../ui/RemoveSheets';
-import { CycleList, RecentlyRemoved } from '../ui/RecentlyRemoved';
+import { LeaveSheet, leaveLabel, LeaveWorkspaceSheet } from '../ui/RemoveSheets';
+import { RecentlyRemoved } from '../ui/RecentlyRemoved';
+import { wrapUpOpen } from '../domain/cycle';
 import { useWidth } from '../ui/useWidth';
-
-const Inbox = lazy(() => import('../markup/Inbox'));
 
 /** Below this width, Workspace is a list of sections and one section at a time (a phone). */
 const NARROW = 720;
 
 /** The core's sections, in menu order. A module's sections follow the one they name in `after`, or come last. */
 const CORE: WorkspaceSection[] = [
-  { id: 'overview', label: 'Overview', summary: 'The workspace’s name, what’s in it, and switching to another.', element: <OverviewSection /> },
+  { id: 'overview', label: 'Overview', summary: 'What to look at here, then every section.', element: <OverviewSection /> },
   { id: 'people', label: 'People', summary: 'Everyone in the workspace: find someone, or add a person.', element: <PeopleSection /> },
   { id: 'teams', label: 'Teams', summary: 'The teams, with their leads and how many people and goals each has.', element: <TeamsSection /> },
-  { id: 'inbox', label: 'Inbox', summary: 'Markups and feedback people send. Anyone can read and triage them.', element: <InboxSection /> },
-  { id: 'cycles', label: 'Cycles', summary: 'The workspace’s cycles. One nobody has checked in to can be deleted.', admins: true, element: <CyclesSection /> },
-  { id: 'access', label: 'Access', summary: 'Who the admins are, and the tokens AI assistants use.', admins: true, element: <AccessSection /> },
-  { id: 'features', label: 'Features', summary: 'Parts of Faro this workspace uses, each switched on or off for everyone.', admins: true, element: <FeaturesSection /> },
+  { id: 'cycles', label: 'Cycles', summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', admins: true, element: <CyclesSection /> },
+  { id: 'access', label: 'Access', summary: 'Who the admins are, and the tokens that let an AI assistant act as someone here.', admins: true, element: <AccessSection /> },
+  { id: 'features', label: 'Features', summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
   // Everyone can read what is recorded about them; only admins switch it (re-review, 8 Nov, backlog T).
   { id: 'privacy', label: 'Privacy', summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
   { id: 'removed', label: 'Recently removed', summary: 'Anything removed in the last 30 days, with Restore.', admins: true, element: <RemovedSection /> },
 ];
 
 /** Old anchors on the one-page Workspace, and the section each now is. */
-const ANCHORS: Record<string, string> = { inbox: 'inbox', people: 'people', teams: 'teams', cycles: 'cycles', ai: 'access', tokens: 'access', access: 'access', features: 'features', recording: 'privacy', privacy: 'privacy', removed: 'removed' };
+const ANCHORS: Record<string, string> = { people: 'people', teams: 'teams', cycles: 'cycles', ai: 'access', tokens: 'access', access: 'access', features: 'features', recording: 'privacy', privacy: 'privacy', removed: 'removed' };
 
 /** The sections someone sees, in order: the core's and the modules' that are on; admins-only ones for admins. */
 export function useSections(): WorkspaceSection[] {
@@ -75,7 +75,7 @@ export function WorkspaceHome({ section }: { section?: string }) {
   if (!section) {
     const q = new URLSearchParams(search);
     const markup = q.get('markup');
-    if (q.get('inbox') || markup) return <Navigate to={`/workspace/inbox${markup ? `?markup=${encodeURIComponent(markup)}` : ''}`} replace />;
+    if (q.get('inbox') || markup || hash === '#inbox') return <Navigate to={`/feedback${markup ? `?markup=${encodeURIComponent(markup)}` : ''}`} replace />;
     const anchor = ANCHORS[hash.replace('#', '')];
     if (anchor) return <Navigate to={`/workspace/${anchor}`} replace />;
   }
@@ -91,11 +91,13 @@ export function WorkspaceHome({ section }: { section?: string }) {
           <div className="page-head wsp-head">
             <Link className="backlink" to="/workspace"><Icon name="chevron-left" /><span className="ellipsis">Workspace</span></Link>
             <h1 className="title-xl">{here?.label ?? 'Workspace'}</h1>
+            {id === 'overview' && <Permissions all={all} />}
           </div>
         ) : (
           <div className="page-head wsp-head">
             <h1 className="title-xl">Workspace</h1>
             <span className="hint">{app.mode === 'demo' ? 'The example, and any you set up here to try it. All of it stays in this browser.' : 'Each workspace has its own people, teams, goals, cycle and change log.'}</span>
+            <Permissions all={all} />
           </div>
         )}
         {narrow && !section ? <SectionList /> : narrow ? <div className="ws-body">{body}</div> : (
@@ -109,14 +111,53 @@ export function WorkspaceHome({ section }: { section?: string }) {
   );
 }
 
+/** Your permissions here, in one line, so sections don't silently appear and vanish (backlog WS): what's for admins, and who they are. */
+function Permissions({ all }: { all: WorkspaceSection[] }) {
+  const app = useApp();
+  const adminOnly = all.filter((s) => s.admins).map((s) => s.label);
+  const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
+  const list = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+  return (
+    <p className="hint ws-perms" data-role={app.viewer.admin ? 'admin' : 'member'}>
+      {app.viewer.admin
+        ? <>Your permissions: you’re an <strong>admin</strong> here, so you see every section and can change people, teams and settings.</>
+        : <>Your permissions: you’re a member here. {list(adminOnly)}, and changing people, teams or settings, are for admins{admins.length ? `: ${list(admins)}` : ''}.</>}
+    </p>
+  );
+}
+
 /** What a section's entry says beside its name, as plain text: how many people and teams, how many new in the inbox. */
 function useNotes(): Record<string, string> {
   const app = useApp();
-  const { inbox } = useWs();
   return {
     people: String(app.snapshot.people.length),
     teams: String(app.snapshot.teams.length),
-    ...(inbox.newCount !== null ? { inbox: inbox.newCount ? `${inbox.newCount} new` : 'Nothing new' } : {}),
+  };
+}
+
+/** What each section's row on the overview says: one true line each, for every section this person sees (backlog WS). */
+function useSays(): Record<string, string> {
+  const app = useApp();
+  const { installed, on } = useModules();
+  const admin = app.viewer.admin;
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  const noEmail = app.snapshot.people.filter((p) => !p.email).length;
+  const removed = admin ? app.recentlyRemoved().length : 0;
+  const cycles = app.full.cycles.filter((c) => !c.removedAt).length;
+  const admins = app.snapshot.people.filter((p) => p.admin).length;
+  // Counted from the list the Features section shows, so the two always agree.
+  const featuresOn = installed.filter((m) => on.has(m.id)).length;
+  const tokens = (app.snapshot.tokens ?? []).filter((t) => !t.revokedAt).length;
+  return {
+    overview: 'What to look at here',
+    people: n(app.snapshot.people.length, 'person', 'people') + (admin && noEmail ? `, ${noEmail} without an email` : ''),
+    teams: n(app.snapshot.teams.length, 'team', 'teams'),
+    cycles: `${app.cycle.name} is open${cycles > 1 ? `, of ${cycles}` : ''}`,
+    // Tokens exist only in the real app: the demo's data stays in the browser, where an assistant can't reach it.
+    access: n(admins, 'admin', 'admins') + (app.mode === 'demo' ? '; AI tokens are for the real app' : `, ${n(tokens, 'AI token', 'AI tokens')}`),
+    features: `${featuresOn} of ${installed.length} optional ${installed.length === 1 ? 'feature' : 'features'} on`,
+    privacy: app.ws.recording !== false ? 'Recording how the app is used' : 'Recording is off',
+    removed: removed ? `${removed} in the last 30 days` : 'Nothing',
   };
 }
 
@@ -192,48 +233,32 @@ function AdminsOnly({ label }: { label: string }) {
 
 function OverviewSection() {
   const app = useApp();
-  const { inbox } = useWs();
-  const { installed, on } = useModules();
+  const { sections, inbox } = useWs();
+  const says = useSays();
   const [confirming, setConfirming] = useState(false);
   const admin = app.viewer.admin;
-  // Most people are in one workspace: then there's nothing to switch between, only this one's name.
-  const several = app.workspaces.length > 1;
-  const noEmail = app.snapshot.people.filter((p) => !p.email).length;
-  const removed = admin ? app.recentlyRemoved().length : 0;
-  const cycles = app.full.cycles.filter((c) => !c.removedAt).length;
-  const counts: [string, string, string][] = [
-    ['people', 'People', `${app.snapshot.people.length} ${app.snapshot.people.length === 1 ? 'person' : 'people'}${admin && noEmail ? `, ${noEmail} without an email` : ''}`],
-    ['teams', 'Teams', `${app.snapshot.teams.length} ${app.snapshot.teams.length === 1 ? 'team' : 'teams'}`],
-    ['inbox', 'Inbox', inbox.newCount === null ? 'Opening…' : inbox.newCount ? `${inbox.newCount} new` : 'Nothing new'],
-    ...(admin ? [
-      ['cycles', 'Cycles', `${app.cycle.name} is open${cycles > 1 ? `, of ${cycles}` : ''}`],
-      ['features', 'Features', `${on.size} of ${installed.length} on`],
-      ['removed', 'Recently removed', removed ? `${removed} in the last 30 days` : 'Nothing'],
-    ] as [string, string, string][] : []),
-  ];
+  // New markups and feedback sent from this workspace: the inbox reads every workspace's (Feedback, beside Help).
+  const fromHere = inbox.markups === null ? null
+    : inbox.markups.filter((m) => m.workspaceId === app.ws.id && m.status === 'new').length + inbox.feedback.filter((f) => f.workspaceId === app.ws.id && f.status === 'new').length;
+  // What needs attention here first (domain/workspaceAttention), then every section this person sees, each with one true line.
+  const needs = workspaceNeeds(app.snapshot, app.cycle, app.week, admin, fromHere);
+  const counts: [string, string, string][] = sections.filter((s) => s.id !== 'overview').map((s) => [s.id, s.label, says[s.id] ?? s.summary]);
   return (
     <>
       <SectionHead id="overview" />
       <section className="block ws-name-block">
-        <WorkspaceName several={several} />
-        {several && (
-          <div className="glist">
-            {app.workspaces.map((w) => (
-              <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => app.switchWorkspace(w.id)}>
-                <span className="gline-title">{w.name}</span>
-                <span className="gline-now">{w.id === app.ws.id ? 'Open now' : w.kind === 'example' ? 'Demo data' : 'Your data'}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <WorkspaceName several={false} />
         <div className="row">
-          <Link className="btn" to="/workspace/new">{app.mode === 'demo' ? 'Try setting up your own' : 'New workspace'}</Link>
+          {/* Setting up your own moved here and to the switcher, from Home (Lane, 9 Nov). */}
+          <Link className="btn" to="/workspace/new">{app.mode === 'demo' ? 'Try it with your own team' : 'Set up a workspace'}</Link>
           {app.mode === 'live' && <a className="btn" href="/demo">Try the demo</a>}
-          {app.mode === 'demo' && app.ws.kind === 'example' && <button className="btn" aria-expanded={confirming} onClick={() => setConfirming(true)}>Reset the example</button>}
+          {/* Resetting a shared workspace is for admins (Lane, 9 Nov); the demo's Start over, in Demo controls, stays for everyone. */}
+          {app.mode === 'demo' && app.ws.kind === 'example' && admin && <button className="btn" aria-expanded={confirming} onClick={() => setConfirming(true)}>Reset the example</button>}
         </div>
-        {app.mode === 'demo' && app.ws.kind === 'example' && confirming && (
+        {app.mode === 'demo' && app.ws.kind === 'example' && !admin && <p className="hint">To put the example back as it was, use Start over in Demo controls. It only touches this browser.</p>}
+        {app.mode === 'demo' && app.ws.kind === 'example' && admin && confirming && (
           <div className="reset-confirm" role="group" aria-label="Reset the example">
-            <span className="small">Undo every change in the example, and clear its drafts and what you’ve seen here?</span>
+            <span className="small">Undo every change in the example, and clear its drafts and what you’ve seen here? It only touches this browser: nobody else’s copy changes.</span>
             <span className="row" style={{ gap: 'var(--s2)' }}>
               <button className="btn" onClick={async () => { await app.resetExample(); setConfirming(false); }}>Yes, reset it</button>
               <button className="btn ghost" onClick={() => setConfirming(false)}>Cancel</button>
@@ -241,11 +266,25 @@ function OverviewSection() {
           </div>
         )}
       </section>
-      <ul className="ws-counts" aria-label="In this workspace">
-        {counts.map(([id, label, says]) => (
-          <li key={id}><Link className="ws-count" to={`/workspace/${id}`}><span className="ws-count-label">{label}</span><span className="ws-count-says">{says}</span><Icon name="chevron-right" /></Link></li>
-        ))}
-      </ul>
+      <section className="stack ws-needs-block" style={{ gap: 'var(--s2)' }} aria-labelledby="ws-needs-title">
+        <h3 className="label" id="ws-needs-title">To look at here{needs.length ? ` · ${needs.length}` : ''}</h3>
+        {!needs.length ? <p className="hint ws-calm">Nothing to look at in {app.ws.name}{admin ? '' : ' that you can deal with'}.</p> : (
+          <ul className="ws-needs" aria-label="To look at here">
+            {needs.map((x) => (
+              <li key={x.id}><Link className="ws-need" to={x.to} data-need={x.id}><WarnMark /><span>{x.says}{x.admins && <span className="ws-need-who"> For admins.</span>}</span><Icon name="chevron-right" /></Link></li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="stack" style={{ gap: 'var(--s2)' }} aria-labelledby="ws-sections-title">
+        <h3 className="label" id="ws-sections-title">Every section</h3>
+        <ul className="ws-counts" aria-label="Every section">
+          {counts.map(([id, label, says]) => (
+            <li key={id}><Link className="ws-count" to={`/workspace/${id}`}><span className="ws-count-label">{label}</span><span className="ws-count-says">{says}</span><Icon name="chevron-right" /></Link></li>
+          ))}
+        </ul>
+      </section>
+      <LeaveWorkspace />
       {admin && app.ws.kind === 'own' && <DeleteWorkspace />}
     </>
   );
@@ -261,14 +300,18 @@ function PeopleSection() {
   const admin = app.viewer.admin;
   // A directory that works for a whole company: find by name, role or team, filter by team, and show a page at a time.
   const [q, setQ] = useState('');
-  const [teamId, setTeamId] = useState('');
+  // ?team=<id> opens on one team's people: a row in Teams leads here (backlog WS).
+  const [params, setParams] = useSearchParams();
+  const teamId = params.get('team') ?? '';
+  const setTeamId = (id: string) => setParams((p) => { const n = new URLSearchParams(p); if (id) n.set('team', id); else n.delete('team'); return n; }, { replace: true });
   const [limit, setLimit] = useState(60);
   const needle = q.trim().toLowerCase();
-  const match = (x: Person) => (!teamId || (teamId === '-' ? !x.teamId || !app.team(x.teamId) : x.teamId === teamId))
+  const leadOf = teamId && teamId !== '-' ? app.team(teamId)?.leadId : null;
+  const match = (x: Person) => (!teamId || (teamId === '-' ? !x.teamId || !app.team(x.teamId) : x.teamId === teamId || x.id === leadOf))
     && (!needle || [x.name, x.role ?? '', app.team(x.teamId ?? '')?.name ?? ''].some((v) => v.toLowerCase().includes(needle)));
   const found = app.snapshot.people.filter(match);
   const shown = new Set(found.slice(0, limit).map((x) => x.id));
-  const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id && shown.has(x.id))] as const), ['No team', found.filter((x) => (!x.teamId || !app.team(x.teamId)) && shown.has(x.id))] as const].filter(([, l]) => l.length);
+  const groups = teamId && teamId !== '-' ? [[app.team(teamId)?.name ?? 'Team', found.filter((x) => shown.has(x.id))] as const] : [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id && shown.has(x.id))] as const), ['No team', found.filter((x) => (!x.teamId || !app.team(x.teamId)) && shown.has(x.id))] as const].filter(([, l]) => l.length);
   const admins = app.snapshot.people.filter((p) => p.admin);
   return (
     <>
@@ -310,20 +353,38 @@ function PeopleSection() {
   );
 }
 
-/* ---------- Inbox ---------- */
-
-function InboxSection() {
-  const { inbox, narrow } = useWs();
-  return <Suspense fallback={<p className="hint" role="status">Opening the inbox…</p>}><Inbox data={inbox} narrow={narrow} /></Suspense>;
-}
-
 /* ---------- the admins' sections ---------- */
 
+/** The workspace's cycles (goal years), newest first: their dates, which is running and how far in, their goals and
+    check-ins, and what can be done with each: the running one's wrap-up, and deleting one nobody has checked in to. */
 function CyclesSection() {
+  const app = useApp();
+  const cycles = app.full.cycles.filter((c) => !c.removedAt).sort((a, b) => b.startDate.localeCompare(a.startDate));
   return (
     <>
-      <SectionHead id="cycles">A cycle nobody has checked in to yet can be deleted, with its goals. One with check-ins stays. A new cycle starts from the <Link to="/retro">wrap-up</Link> at the end of this one.</SectionHead>
-      <CycleList bare />
+      <SectionHead id="cycles">A cycle is a goal year. One nobody has checked in to yet can be deleted with its goals; one with check-ins stays. The next one starts from the wrap-up at the end of the running one.</SectionHead>
+      <section className="block cycles-block" aria-label="Cycles">
+        <ul className="removed-list" aria-label="Cycles">
+          {cycles.map((c) => {
+            const st = cycleStanding(app.full, c.id);
+            const current = c.id === app.cycle.id;
+            const when = cycleWhen(c, current, app.week, app.today);
+            return (
+              <li key={c.id} className="removed-row">
+                <span className="removed-text cycle-when">
+                  <span className="removed-name">{c.name}</span>
+                  <span className="small">{when.now} · {when.dates}</span>
+                  <span className="hint">{st.says}</span>
+                </span>
+                <span className="team-actions">
+                  {current && <Link className="btn sm" to="/retro">{wrapUpOpen(c, app.week) ? 'Wrap it up' : 'See the wrap-up'}</Link>}
+                  {st.deletable && <button type="button" className="btn sm" onClick={() => void app.deleteCycle(c.id).catch(() => undefined)} aria-label={`Delete the cycle ${c.name}`}>Delete</button>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
     </>
   );
 }
@@ -396,8 +457,10 @@ function WorkspaceName({ several }: { several: boolean }) {
       <form className="stack ws-rename" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="field">
           <label className="field"><span className="field-label">Workspace name</span>
-            <input className={'input' + (tried && nameProblem(name, 'workspace') ? ' invalid' : '')} aria-invalid={tried && nameProblem(name, 'workspace') ? true : undefined} autoFocus maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+            <input className={'input' + (tried && nameProblem(name, 'workspace') ? ' invalid' : '')} aria-invalid={tried && nameProblem(name, 'workspace') ? true : undefined} aria-describedby={nameLength(name) ? 'ws-name-length' : undefined} autoFocus value={name} onChange={(e) => setName(e.target.value)} />
           </label>
+          {/* The limit is said while typing, never applied by cutting the name short (backlog WS). */}
+          {nameLength(name) && <span id="ws-name-length" className={'hint' + (nameProblem(name, 'workspace')?.startsWith('Keep') ? ' tone-off' : '')} role="status">{nameLength(name)}</span>}
           {tried && nameProblem(name, 'workspace') && <span className="hint tone-off" role="alert">{nameProblem(name, 'workspace')}</span>}
         </div>
         <span className="ws-rename-buttons"><button type="submit" className="btn">{busy ? 'Saving…' : 'Save the name'}</button><button type="button" className="btn ghost" onClick={() => { setName(null); setTried(false); }}>Cancel</button></span>
@@ -440,13 +503,16 @@ function TeamsSection() {
         <ul className="optlist team-list" aria-label="Teams">
           {found.map((t) => {
             const m = teamMembers(ctx, t.id);
+            // The lead counts as one of the team's people, wherever their own team is (backlog WS).
+            const people = teamPeople(ctx, t.id).length;
             const lead = app.person(t.leadId);
             return (
               <li key={t.id} className="opt static team-opt">
-                <span className="person-text">
+                {/* The row opens the team's people in the directory. */}
+                <Link className="person-text team-open" to={`/workspace/people?team=${encodeURIComponent(t.id)}`} aria-label={`${t.name}: see its ${people} ${people === 1 ? 'person' : 'people'}`}>
                   <span className="person-name">{t.name}</span>
-                  <span className="hint">{[lead ? `Led by ${lead.name}` : 'No lead', `${m.people.length} ${m.people.length === 1 ? 'person' : 'people'}`, `${m.current.length} ${m.current.length === 1 ? 'goal' : 'goals'}`].join(' · ')}</span>
-                </span>
+                  <span className="hint">{[lead ? `Led by ${lead.name}` : 'No lead', `${people} ${people === 1 ? 'person' : 'people'}`, `${m.current.length} ${m.current.length === 1 ? 'goal' : 'goals'}`].join(' · ')}</span>
+                </Link>
                 {admin && (
                   <span className="team-actions">
                     <button type="button" className="btn sm" onClick={() => setEditing(t)} aria-label={`Rename ${t.name}`}>Rename</button>
@@ -660,12 +726,16 @@ function Recording() {
   const on = app.ws.recording !== false;
   const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
   const [busy, setBusy] = useState(false);
+  // Turning recording on asks first (Lane, 9 Nov): it's off unless chosen, at set-up or here.
+  const [asking, setAsking] = useState(false);
   const flip = async (next: boolean) => {
     if (busy) return;
+    if (next && !asking) { setAsking(true); return; }
+    setAsking(false);
     setBusy(true);
     try {
       await app.setRecording(next);
-      app.toast(next ? `Recording is back on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}. Nothing more is sent.`);
+      app.toast(next ? `Recording is on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}. Nothing more is sent.`);
     } catch { /* the rule's message is shown */ }
     setBusy(false);
   };
@@ -680,7 +750,17 @@ function Recording() {
             <span className="hint">{on ? 'On for everyone here. Turn it off and nothing more is sent.' : 'Off: nothing is recorded or sent from this workspace.'}</span>
           </span>
         </label>
-      ) : (
+      ) : null}
+      {app.viewer.admin && asking ? (
+        <div className="reset-confirm" role="group" aria-label="Turn recording on">
+          <span className="small">Record how everyone in {app.ws.name} uses the app, from now on? Nothing anyone types is recorded.</span>
+          <span className="row" style={{ gap: 'var(--s2)' }}>
+            <button type="button" className="btn" onClick={() => void flip(true)}>Yes, turn it on</button>
+            <button type="button" className="btn ghost" onClick={() => setAsking(false)}>Cancel</button>
+          </span>
+        </div>
+      ) : null}
+      {app.viewer.admin ? null : (
         <p className="record-state">
           <span className="strong">{on ? `Recording is on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}: nothing is recorded or sent.`}</span>{' '}
           <span className="hint">Only admins change it{admins.length ? `: ${admins.join(', ')}` : ''}.</span>
@@ -730,6 +810,20 @@ function Features() {
   );
 }
 
+/** Anyone: leave this workspace, with a confirm that first asks who takes over your goals (Lane, 9 Nov). The only admin is told why not. */
+function LeaveWorkspace() {
+  const app = useApp();
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="block leave-zone">
+      <h2 className="block-title">Leave this workspace</h2>
+      <p className="hint">Take yourself out of {app.ws.name}{app.mode === 'demo' ? ' (in this browser)' : ''}: someone takes over your goals and open asks, and your history stays. An admin can bring you back for 30 days.</p>
+      <div><button type="button" className="btn" onClick={() => setOpen(true)}>Leave this workspace…</button></div>
+      {open && <LeaveWorkspaceSheet onClose={() => setOpen(false)} />}
+    </section>
+  );
+}
+
 /** For admins: delete this workspace and everything in it. Typing its name confirms, because it can't be undone. */
 function DeleteWorkspace() {
   const app = useApp();
@@ -746,7 +840,7 @@ function DeleteWorkspace() {
     <section className="block danger-zone">
       <h2 className="block-title">Delete this workspace</h2>
       <p className="hint">Removes {app.ws.name}: its people, goals, check-ins, reviews and history{app.mode === 'demo' ? ' (in this browser)' : ', for everyone'}. This can’t be undone.</p>
-      {!open ? <div><button className="btn danger" onClick={() => setOpen(true)}>Delete {app.ws.name}…</button></div> : (
+      {!open ? <div><button className="btn danger" onClick={() => setOpen(true)}>Delete this workspace…</button></div> : (
         <form className="stack" style={{ gap: 'var(--s3)', maxWidth: 420 }} onSubmit={(e) => { e.preventDefault(); void go(); }}>
           <label className="field"><span className="field-label">Type <strong>{app.ws.name}</strong> to confirm</span>
             <input className="input" autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} aria-label={`Type ${app.ws.name} to confirm`} />

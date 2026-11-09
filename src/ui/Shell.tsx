@@ -2,7 +2,6 @@ import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ReactNode }
 import { Link, matchPath, useLocation } from 'react-router';
 import { useModules } from '../core/app';
 import { useApp, useToasts } from '../app/state';
-import { shortPeriod } from '../domain/year';
 import { weekProgress } from '../domain/progress';
 import { reviewSession } from '../domain/review';
 import type { SavedView } from '../domain/types';
@@ -20,6 +19,7 @@ import { PageHelp } from '../screens/Help';
 import { useUnreadNews } from '../help/seen';
 import { isGoalTop, ShellTopContext } from './shellTop';
 import { MOODS } from '../markup/model';
+import { WorkspaceSwitcher, WorkspaceSwitchProvider } from './WorkspaceSwitch';
 
 /** Marking up a screen loads only when someone starts one (src/markup). */
 const MarkupFlow = lazy(() => import('../markup/Markup'));
@@ -72,26 +72,14 @@ function isActive(id: NavId, path: string, tabs?: NavId[]) {
 /** Views shown under Goals in the sidebar before "more" takes over. */
 const SIDE_VIEWS = 6;
 
-/** The top of the person menu: your settings, and the workspaces you can switch between (only when there's more than one). */
+/** The top of the person menu: your settings. It's only about people: workspaces are switched from the sidebar's header (backlog WS). */
 function YouMenu({ onClose }: { onClose: () => void }) {
-  const app = useApp();
   return (
     <section className="stack you-menu" style={{ gap: 4 }} aria-label="You">
       <Link className="menuitem" to="/settings" onClick={onClose}>
         <Icon name="settings" size={18} />
         <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, sidebar, your AI assistants</span></span>
       </Link>
-      {app.workspaces.length > 1 && (
-        <div className="stack you-workspaces" style={{ gap: 4 }} role="group" aria-label="Workspaces">
-          <span className="field-label">Workspaces</span>
-          {app.workspaces.map((w) => (
-            <button key={w.id} type="button" className="menuitem" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => { app.switchWorkspace(w.id); onClose(); }}>
-              <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}><span className="strong">{w.name}</span><span className="tiny muted">{w.kind === 'example' ? 'Example data you can play with and reset' : app.mode === 'demo' ? 'Your own, in this browser' : 'Your workspace'}</span></span>
-              {w.id === app.ws.id && <span className="tiny strong" style={{ color: 'var(--accent-text)' }}>Open</span>}
-            </button>
-          ))}
-        </div>
-      )}
     </section>
   );
 }
@@ -110,7 +98,7 @@ function FeedbackSheet({ onClose, onMarkup, path }: { onClose: () => void; onMar
     if (!mood) { setTried(true); document.querySelector<HTMLElement>('.feedback-moods button')?.focus(); return; }
     if (busy) return;
     setBusy(true);
-    try { await app.sendFeedback(mood, text, path); app.toast(app.mode === 'demo' ? 'Thanks. It goes to the people building this app.' : 'Thanks. It’s in the inbox, on Workspace.'); onClose(); } catch { setBusy(false); }
+    try { await app.sendFeedback(mood, text, path); app.toast(app.mode === 'demo' ? 'Thanks. It goes to the people building this app.' : 'Thanks. It’s in Feedback, beside Help.'); onClose(); } catch { setBusy(false); }
   };
   return (
     <Sheet open onClose={onClose} title="How is the app working for you?">
@@ -162,6 +150,10 @@ function GoalsSection({ owns, at, navAt }: { owns: boolean; at: GoalsAt; navAt: 
 }
 
 export function Shell({ children }: { children: ReactNode }) {
+  return <WorkspaceSwitchProvider><ShellBody>{children}</ShellBody></WorkspaceSwitchProvider>;
+}
+
+function ShellBody({ children }: { children: ReactNode }) {
   const app = useApp();
   const toasts = useToasts();
   const { pathname, search } = useLocation();
@@ -172,8 +164,11 @@ export function Shell({ children }: { children: ReactNode }) {
   // Ctrl+Shift+M (Cmd+Shift+M on a Mac), from anywhere: mark up this screen. Any open sheet closes first, so it isn't in the picture.
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (!isMarkupKey(e)) return; e.preventDefault(); setSheet(null); setMarking(true); };
+    // The Feedback page's Send feedback opens the same sheet as the sidebar's.
+    const send = () => setSheet('feedback');
     window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
+    window.addEventListener('faro:send-feedback', send);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('faro:send-feedback', send); };
   }, []);
   // In the demo, choosing who you are is part of the demo panel, roles first; opened from a person, it says so.
   const openPeople = () => setSheet(app.mode === 'demo' ? 'people' : 'profile');
@@ -206,7 +201,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const moreGoals = [...(ownsGoals ? [{ key: 'mine', to: '/goals?show=mine', label: 'Mine', hint: 'The goals you own' }] : []), ...(!tabs.includes('watching') ? [{ key: 'watching', to: '/watching', label: 'Watching', hint: 'The goals you follow' }] : []), ...views.slice(0, SIDE_VIEWS).map((v) => ({ key: v.id, to: '/goals?' + v.params, label: v.name, hint: v.pinned ? 'Pinned for everyone' : 'Your saved view' }))];
   const work = useRef<HTMLElement>(null);
   const at = goalsAt(pathname, search, views);
-  const title = moduleRoute?.title ? moduleRoute.title : at === 'watching' ? 'Watching' : at === 'mine' ? 'Mine' : pathname === '/settings' ? 'Settings' : pathname === '/whats-new' ? 'What’s new' : pathname.startsWith('/help') ? 'Help' : [...side, ...tabs].filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : pathname.startsWith('/research') ? 'Research' : pathname.startsWith('/quick-check-in') ? 'Check-in' : 'Goals');
+  const title = moduleRoute?.title ? moduleRoute.title : at === 'watching' ? 'Watching' : at === 'mine' ? 'Mine' : pathname === '/settings' ? 'Settings' : pathname === '/feedback' ? 'Feedback' : pathname === '/whats-new' ? 'What’s new' : pathname.startsWith('/help') ? 'Help' : [...side, ...tabs].filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : pathname.startsWith('/research') ? 'Research' : pathname.startsWith('/quick-check-in') ? 'Check-in' : 'Goals');
   // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
   useEffect(() => {
     const vv = window.visualViewport;
@@ -234,7 +229,6 @@ export function Shell({ children }: { children: ReactNode }) {
   const sideAt = /[?&]review=/.test(search) ? null : at;
   const focusMode = !!moduleRoute?.focus || /^\/check-in(\/|$)|^\/quick-check-in$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   const icons = look.sidebar === 'icons';
-  const wsName = app.ws.name.replace(/^Example:\s*/, '');
   // On a goal's own page, on a phone, its summary bar takes the header's place; the header's controls go with it.
   const goalTop = isGoalTop(pathname, search);
   const topControls = (
@@ -242,7 +236,7 @@ export function Shell({ children }: { children: ReactNode }) {
       {app.mode === 'demo' && !present && <DemoEntry compact onOpen={() => setSheet('demo')} />}
       <button className="profilebtn" onClick={openPeople}>
         <Avatar p={app.viewer} />
-        <span className="sr">{app.mode === 'demo' ? 'Switch person' : 'Not you?'} ({app.viewer.name})</span>
+        <span className="sr">{app.mode === 'demo' ? 'Switch person' : 'Not you?'} ({app.viewer.name}{app.viewer.admin ? ', admin here' : ''})</span>
       </button>
     </>
   );
@@ -254,7 +248,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <FaroMark size={30} />
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
           <strong className="ellipsis">{title}</strong>
-          <span className="tiny muted ellipsis">{app.ws.kind === 'example' ? 'Example data' : app.ws.name}, {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
+          <WorkspaceSwitcher variant="top" />
         </span>
         {!goalTop && topControls}
       </div>
@@ -265,14 +259,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <FaroLogo size={22} />
             <FaroMark size={28} label={null} />
           </div>
-          {/* The workspace's name, without a letter: Faro's mark is just above it (Lane, 9 Nov). Switching (for the few in more than one) is in the person menu at the foot. */}
-          <div className="ws-head" title={app.ws.name}>
-            <span className="stack ws-head-text" style={{ gap: 0, minWidth: 0, flex: 1 }}>
-              {/* "Example: Platform Engineering" was cut to "Example: Platf…": the name, with "Example" as the quieter line. */}
-              <b className="ws-name">{wsName}</b>
-              <span className="tiny muted ws-meta">{shortPeriod(app.cycle, app.week)}</span>
-            </span>
-          </div>
+          {/* The workspace switcher (backlog WS): the open workspace's name, and every workspace, in one place. */}
+          <WorkspaceSwitcher variant="side" />
           {side.map((id) => id === 'goals'
             ? <GoalsSection key={id} owns={ownsGoals} at={sideAt} navAt={navAt} />
             : (
@@ -290,13 +278,16 @@ export function Shell({ children }: { children: ReactNode }) {
           <Link to="/help" className="nav help-nav" title={unread ? 'Help, and something new in What’s new' : 'Help'} aria-current={/^\/(help|whats-new)(\/|$)/.test(pathname) ? 'page' : undefined}>
             <Icon name="help" size={18} /><span>Help</span>{unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}
           </Link>
+          {/* Feedback from every workspace and the demo, beside Help: it belongs to no one workspace (backlog WS). */}
+          <Link to="/feedback" className="nav inbox-nav" title="Feedback from every workspace and the demo" aria-current={pathname === '/feedback' ? 'page' : undefined}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 9.5 4 3.5h8l1.5 6v3h-11z" /><path d="M2.5 9.5h3.2l.8 1.5h3l.8-1.5h3.2" /></svg><span>Feedback</span></Link>
           <button className="nav feedback-nav" title="Send feedback" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span>Send feedback</span></button>
           {/* Named by its own words (kept for screen readers on the rail, where they're hidden); the tooltip says the same. */}
-          <button className="me" onClick={openPeople} title={`${app.mode === 'demo' ? 'Switch person' : 'Not you?'} (${app.viewer.name})`}>
+          <button className="me" onClick={openPeople} title={`${app.mode === 'demo' ? 'Switch person' : 'Not you?'} (${app.viewer.name}${app.viewer.admin ? ', admin here' : ''})`}>
             <Avatar p={app.viewer} />
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
               <b className="ellipsis">{app.viewer.name}</b>
-              <span className="tiny muted ellipsis">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span>
+              {/* Your role here, so admin-only sections don't appear and vanish unexplained (backlog WS). */}
+              <span className="tiny muted ellipsis">{app.viewer.admin ? <><span className="role-word">Admin</span> · </> : null}{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span>
             </span>
           </button>
           <button type="button" className="nav collapse-nav" title={icons ? 'Show the full sidebar' : 'Collapse the sidebar to icons'} aria-pressed={icons} onClick={() => setAppearance({ sidebar: icons ? 'full' : 'icons' })}>
@@ -306,7 +297,9 @@ export function Shell({ children }: { children: ReactNode }) {
         <main className="work" ref={work} id="main">
           {app.mode === 'live' && app.storeKind === 'browser' && <div className="local-banner" role="note">This is a copy kept in this browser only. Nobody else sees changes made here.</div>}
           {app.saveNote && <div className="local-banner save-note" role="alert">{app.saveNote}</div>}
-          <ShellTopContext.Provider value={goalTop ? topControls : null}>{children}</ShellTopContext.Provider>
+          {app.opening
+            ? <div className="page narrow ws-opening" aria-busy="true"><p className="muted" role="status">Opening {app.opening.name}…</p></div>
+            : <ShellTopContext.Provider value={goalTop ? topControls : null}>{children}</ShellTopContext.Provider>}
           <PageHelp />
         </main>
       </div>
@@ -317,7 +310,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <span>{NAV[id].label}</span>
           </Link>
         ))}
-        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, navAt)) || /^\/(settings|help|whats-new)(\/|$)/.test(pathname) ? 'page' : undefined}>
+        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, navAt)) || /^\/(settings|help|whats-new|feedback)(\/|$)/.test(pathname) ? 'page' : undefined}>
           <span className="tabicon"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>{unread && <i className="help-dot" aria-hidden="true" />}</span>
           <span>More</span>
         </button>
@@ -339,9 +332,10 @@ export function Shell({ children }: { children: ReactNode }) {
           {moduleNav.map((n) => <Link key={n.id} to={n.to} className="menuitem" onClick={() => setSheet(null)}>{n.icon}<span className="strong">{n.label}</span></Link>)}
           <Link className="menuitem" to="/settings" onClick={() => setSheet(null)}><Icon name="settings" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, your AI assistants</span></span></Link>
           <Link className="menuitem more-help" to="/help" onClick={() => setSheet(null)}><Icon name="help" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Help{unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}</span><span className="tiny muted">What everything does, and what’s new</span></span></Link>
+          <Link className="menuitem more-inbox" to="/feedback" onClick={() => setSheet(null)}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 9.5 4 3.5h8l1.5 6v3h-11z" /><path d="M2.5 9.5h3.2l.8 1.5h3l.8-1.5h3.2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Feedback</span><span className="tiny muted">From every workspace and the demo</span></span></Link>
           {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.5 2" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Demo controls</span><span className="tiny muted">See it as someone else, walkthroughs, research, reset</span></span></button>}
           <button className="menuitem" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span className="strong">Send feedback</span></button>
-          <button className="menuitem" onClick={openPeople}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}{app.workspaces.length > 1 ? ', and switch workspace' : ''}</span></span></button>
+          <button className="menuitem" onClick={openPeople}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}{app.viewer.admin ? ', admin here' : ''}</span></span></button>
         </div>
       </Sheet>
       <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)}><YouMenu onClose={() => setSheet(null)} /></ProfileSheet>

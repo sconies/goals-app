@@ -53,7 +53,7 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
     // their public address (migration 0031), with either key.
     markups: (hash) => markupOps({
       store: tokenMarkups(db, hash), entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO,
-      inboxLink: (id) => `${origin}/workspace/inbox?markup=${id}`,
+      inboxLink: (id) => `${origin}/feedback?markup=${id}`,
     }),
     // Feedback's triage, for any token, the same way (migrations 0028 and 0031).
     feedback: (hash) => feedbackOps({ store: tokenFeedback(db, hash), entries: WHATS_NEW.map((e) => e.id) }),

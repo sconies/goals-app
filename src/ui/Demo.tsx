@@ -9,6 +9,7 @@ import { EXAMPLE, isExample } from '../data/examples';
 import type { Person } from '../domain/types';
 import { Avatar, Sheet } from './bits';
 import { PROTOTYPE_LINE } from '../help/about';
+import { useSwitchWorkspace } from './WorkspaceSwitch';
 
 /** What someone does, by role: the thing to pick in a demo, with the name second. */
 export function personaOf(p: Person, app: ReturnType<typeof useApp>): { role: string; does: string } {
@@ -51,6 +52,7 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
   const app = useApp();
   const modules = useModules();
   const nav = useNavigate();
+  const switchTo = useSwitchWorkspace();
   const [resetting, setResetting] = useState(false);
   const cast = demoCast(app);
   const others = app.snapshot.people.filter((p) => !cast.includes(p));
@@ -61,12 +63,14 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
   const startTour = (id: string) => {
     const t = TOURS.find((x) => x.id === id)!;
     // The walkthroughs follow the example's people and goals: from a workspace you made, they open the example first.
-    if (own) {
-      try { localStorage.setItem('goals-app-viewer:' + EXAMPLE.id, t.personId); } catch { /* storage blocked */ }
-      app.switchWorkspace(EXAMPLE.id);
-    } else if (app.person(t.personId)) app.setViewer(t.personId);
     writeTour({ id, step: 0 });
     onClose();
+    if (own) {
+      try { localStorage.setItem('goals-app-viewer:' + EXAMPLE.id, t.personId); } catch { /* storage blocked */ }
+      switchTo(EXAMPLE.id, t.start);
+      return;
+    }
+    if (app.person(t.personId)) app.setViewer(t.personId);
     nav(t.start);
   };
   const row = (p: Person) => {
@@ -134,8 +138,8 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
           <section className="stack" style={{ gap: 4 }} aria-label="Example data">
             <span className="field-label">Example data</span>
             {resetting
-              ? <span className="stack demo-confirm" style={{ gap: 'var(--s2)' }}><span className="small">Undo every change in this example, and clear its drafts and what you’ve seen here?</span><span className="row" style={{ gap: 'var(--s2)' }}><button type="button" className="btn sm" onClick={async () => { await app.resetExample(); setResetting(false); onClose(); nav('/'); }}>Yes, start over</button><button type="button" className="btn ghost sm" onClick={() => setResetting(false)}>Cancel</button></span></span>
-              : <button type="button" className="menuitem" onClick={() => setResetting(true)}><span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Start over</span><span className="tiny muted">Undo every change in {app.ws.name.replace(/^Example: /, '')}, drafts included</span></span></button>}
+              ? <span className="stack demo-confirm" style={{ gap: 'var(--s2)' }}><span className="small">Undo every change in this example, and clear its drafts and what you’ve seen here? It only touches this browser: nobody else’s copy changes.</span><span className="row" style={{ gap: 'var(--s2)' }}><button type="button" className="btn sm" onClick={async () => { await app.resetExample(); setResetting(false); onClose(); nav('/'); }}>Yes, start over</button><button type="button" className="btn ghost sm" onClick={() => setResetting(false)}>Cancel</button></span></span>
+              : <button type="button" className="menuitem" onClick={() => setResetting(true)}><span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Start over</span><span className="tiny muted">Undo every change in {app.ws.name.replace(/^Example: /, '')}, drafts included. Only in this browser</span></span></button>}
           </section>
         )}
         {/* A workspace made in the demo starts over by going: it and everything this browser kept about it (UX report, 8 Nov). */}

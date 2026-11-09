@@ -135,10 +135,11 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin.'] },
       { heading: 'How to use it', list: [
-        'A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
+        'A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
         'In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.',
         'Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.',
-        'A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later.',
+        'Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.',
+        'A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.',
         'Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created.',
         'Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.',
         'Check each goal’s owner, where it starts and its target before you create the workspace.',
@@ -679,32 +680,42 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'workspace',
     title: 'Running the workspace',
-    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams, the Inbox and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.',
+    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.',
     group: 'you',
     sections: [
+      { heading: 'Switching, and setting one up', list: [
+        'The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open, says whether you’re an admin in this one, leads to Workspace, and offers setting up a workspace of your own (in the demo, Try it with your own team).',
+        'Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, a Workspace section), otherwise on Home. While it opens, the page says so.',
+        'Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.',
+        'Switch person (your name at the foot of the sidebar) is only about people.',
+      ] },
+      { heading: 'Your role', list: [
+        'Where you’re an admin, your name at the foot of the sidebar says Admin.',
+        'Workspace says your permissions in one line under its heading: an admin sees every section; anyone else is told which sections and changes are for admins, and who the admins are.',
+      ] },
       { heading: 'Finding your way', list: [
         'On a computer, the sections are in a menu down the left; on a phone, Workspace opens as a list of them, and each section has Workspace at the top to go back.',
-        'Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/inbox and so on.',
-        'Beside Inbox, the menu says how many new markups and pieces of feedback are waiting, in plain words.',
+        'Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/teams and so on.',
         'Older links to Workspace (from a GitHub issue, say) still open the section they meant.',
       ] },
       { heading: 'Overview', list: [
-        'The workspace’s name (admins can rename it), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own and Reset the example).',
-        'What’s in it, each line leading to its section: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, and for admins the open cycle, how many features are on and what was removed lately.',
+        'The workspace’s name (admins can rename it; a name has at most 80 characters, and the field counts them as you near the limit), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own, and for admins Reset the example, which only touches this browser).',
+        'First, what needs attention here, each line leading to where it’s dealt with: the year ending (the wrap-up open, or opening within four weeks), no goals yet, new markups and feedback sent from this workspace, and for admins too few people, people with no email or no team, teams with no lead, and no review set up. When nothing does, it says so.',
+        'Then every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and tokens, how many optional features are on, whether recording is on and what was removed lately.',
         'Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset.',
       ] },
       { heading: 'The sections', list: [
         'People: the directory. See Workspace: People.',
         'Teams: find a team, with its lead and counts. See Workspace: Teams.',
-        'Inbox: the markups and feedback people send, worked like an inbox. See The inbox.',
         'Privacy: what the app records, for everyone to read; only admins switch it. Cycles, Access, Features and Recently removed: for admins. Each has its own article.',
       ] },
-      { heading: 'Who can', list: ['Everyone sees Overview, People, Teams and the Inbox. Someone who isn’t an admin and opens an admins’ section is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin.', 'Anyone can read the inbox and change a markup’s or feedback’s status: Faro holds no real data. The internal app keeps it to the people who look after the app.'] },
+      { heading: 'Leaving', list: ['Anyone can leave a workspace: Leave this workspace, at the end of the overview. It asks who takes over your goals and open asks first, then you’re gone from its pickers, counts, reviews and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.', 'The only admin can’t leave until someone else is an admin.'] },
+      { heading: 'Who can', list: ['Everyone sees Overview, People, Teams and Privacy. Someone who isn’t an admin and opens an admins’ section is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.', 'Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox.'] },
       { heading: 'For the people building Faro', list: ['Sections are an extension point: a feature module adds its own with `sections` in its app.tsx and module.json, and it appears in the menu, at /workspace/<id>, for as long as the module is on.'] },
     ],
     routes: ['/workspace', '/workspace/overview'],
     screens: ['Workspace'],
-    reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'WORKSPACES', 'WORKSPACE-SECTIONS'],
+    reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'WORKSPACES', 'WORKSPACE-SECTIONS', 'WORKSPACE-ONE-PLACE', 'LEAVE-WORKSPACE'],
     keywords: ['admin', 'workspace', 'sections', 'overview', 'rename', 'delete workspace', 'switch workspace', 'new workspace', 'reset the example', 'menu', 'settings'],
     related: ['workspace-people', 'workspace-teams', 'inbox', 'workspace-access', 'set-up', 'settings'],
   },
@@ -736,7 +747,8 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Each team shows its lead, how many people are in it and how many goals it owns. With more than a few teams, find one by its name or its lead’s.',
+        'Each team shows its lead, how many people are in it (its lead counts as one of them, even when their own team is another) and how many goals it owns. With more than a few teams, find one by its name or its lead’s.',
+        'Open a team to see its people in the directory, its lead among them.',
         'Admins: Add a team is the main action. Rename changes its name and lead. Remove takes an empty team away at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so.',
       ] },
       { heading: 'Who can', text: ['Everyone sees the teams. Only admins change them.'] },
@@ -750,11 +762,12 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'workspace-cycles',
     title: 'Workspace: Cycles',
-    summary: 'For admins: the workspace’s cycles, newest first, and deleting one nobody has checked in to yet.',
+    summary: 'For admins: the workspace’s goal years, newest first, with their dates, which one is running, the wrap-up, and deleting one nobody has checked in to yet.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Each cycle says whether it’s the one open now and whether it has check-ins.',
+        'Each cycle shows its dates, whether it’s running (and which week it’s in), not started or over, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.',
+        'The running cycle leads to its wrap-up: See the wrap-up, or Wrap it up once it’s open.',
         'A cycle nobody has checked in to can be deleted, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays.',
         'A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped.',
       ] },
@@ -774,6 +787,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Admins lists everyone who is one. Make someone an admin, or stop them being one, from their entry in People. There is always at least one.',
+        'In the demo, tokens don’t work: its data stays in your browser, where an assistant can’t reach it. Access says so, and the overview’s line for Access counts only the admins.',
         'AI assistants: Make a token for someone (it’s shown once), and revoke any token. The assistant then acts as that person, with their rights, and every change says it came through the assistant. See AI assistants.',
       ] },
       { heading: 'Who can', text: ['Admins. Everyone finds their own tokens in Settings.'] },
@@ -816,7 +830,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'On Workspace, Features lists the parts of Faro this workspace can use, each with what it does. Untick one to switch it off for everyone here; tick it to switch it back on.',
+        'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; the overview counts how many are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Untick one to switch it off for everyone here; tick it to switch it back on.',
         'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its tools for AI assistants. Anything that needs it goes off with it, and Features says so.',
         'Nothing a feature saved is deleted. Switch it back on and everything is as it was.',
         'Each switch is logged in Activity, with who did it.',
@@ -862,8 +876,8 @@ const CORE_ARTICLES: Article[] = [
         'Only the people building Faro read markups.',
       ] },
       { heading: 'Turning it off', list: [
-        'Everyone is recorded by default. Settings says whether it is on where you are.',
-        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it off there, for the whole workspace. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
+        'A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says whether it is on where you are.',
+        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
       ] },
     ],
     routes: ['/workspace/privacy'],
@@ -931,13 +945,14 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'inbox',
     title: 'The inbox',
-    summary: 'Every markup and piece of feedback people send, on Workspace, open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.',
+    summary: 'Every markup and piece of feedback people send, from every workspace and the demo, on its own page, Feedback, beside Help. Open to anyone with no sign-in: work through it like an inbox, from New to In hand to Closed.',
     group: 'you',
     sections: [
       { heading: 'Who can read it', list: [
-        'The inbox is a section of Workspace (Workspace, Inbox), in the app and the demo. There’s no sign-in: anyone can read it and change a status, on any device. Faro holds no real data, so there is nothing to keep back.',
-        'It holds what’s sent from every workspace and the demo, and says where each came from. The company’s own app keeps its inbox to the people who look after the app.',
-        'Workspace’s menu says how many are new, beside Inbox.',
+        'The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.',
+        'It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.',
+        'It names people, never their email. The New tab says how many are new; Workspace’s overview says how many are about the open workspace.',
+        'Send feedback, at the top, opens the same sheet as Send feedback in the sidebar.',
       ] },
       { heading: 'Working through it', list: [
         'Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.',
@@ -967,9 +982,9 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Without a database', text: ['When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser.'] },
     ],
-    routes: ['/workspace/inbox'],
-    screens: [],
-    reqs: ['MARKUP-INBOX', 'FEEDBACK-INBOX', 'MCP-FEEDBACK', 'CONNECT-CLAUDE', 'MCP-PICTURES', 'INBOX-TRIAGE'],
+    routes: ['/feedback', '/workspace/inbox'],
+    screens: ['Feedback'],
+    reqs: ['MARKUP-INBOX', 'FEEDBACK-INBOX', 'MCP-FEEDBACK', 'CONNECT-CLAUDE', 'MCP-PICTURES', 'INBOX-TRIAGE', 'FEEDBACK-PAGE'],
     keywords: ['inbox', 'markups', 'triage', 'github issue', 'undo', 'who changed it', 'fixed', 'won’t fix', 'in hand', 'feedback', 'mood', 'connect claude', 'token', 'review inbox', 'pictures'],
     related: ['feedback', 'workspace', 'ai-assistants'],
   },
