@@ -160,7 +160,7 @@ function isShare(goal) {
 function isCount(goal) {
 	if (!goal || goal.kind === "milestone" || goal.decimals !== 0) return false;
 	const unit = goal.unit.trim().toLowerCase();
-	if (unit === "%" || /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/.test(unit)) return false;
+	if (unit === "%" || NOT_A_COUNT.test(unit)) return false;
 	return planValues(goal).every((v) => v >= 0 && Number.isInteger(v));
 }
 function planValues(goal) {
@@ -224,10 +224,11 @@ function goalAsOf(g, week) {
 		plan
 	};
 }
-var DAY$2, planEnd;
+var DAY$2, planEnd, NOT_A_COUNT;
 var init_plan = __esmMin((() => {
 	DAY$2 = 864e5;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
+	NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
 }));
 // src/domain/thresholds.ts
 /** What's wrong with a workspace's or a goal's name, or null: empty, or shorter than MIN_NAME. */
@@ -358,7 +359,7 @@ var init_vocabulary = __esmMin((() => {
 			label: "Done",
 			short: "finished",
 			meaning: "Finished: the owner has called it done.",
-			long: "The owner called it done in a check-in (or, for dated stages, every stage is done). Done means finished wherever it is said: a goal, a stage or an action.",
+			long: "The owner called it done in a check-in. Done means finished wherever it is said: a goal, a stage or an action.",
 			rule: "status#goalStatus"
 		})
 	};

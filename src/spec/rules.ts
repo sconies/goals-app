@@ -6,8 +6,9 @@
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
-import { currentWeek, firstWeekFrom, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
-import { goalScorecard, likelihood } from '../domain/scorecard';
+import { currentWeek, firstWeekFrom, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
+import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
+import { fmt } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { MIN_NAME, RULES, TREND_SPAN } from '../domain/thresholds';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
@@ -156,7 +157,20 @@ The calculation gives one of \`on\`, \`risk\`, \`off\`, \`done\`, \`planned\` (w
 2. Week 0 of the cycle (not the plan's \`fromWeek\`): \`planned\`. No number: \`none\`.
 3. If nothing is planned yet (|*planned*| < 10⁻⁹, as on a stepped plan before its first step): \`on\`, unless the number went the wrong way from *start* (then \`risk\`, and *behind*).
 4. *ratio* = (*actual* − *start*) / *planned*, rounded to 9 decimal places, so 95% is 95% and not 94.9999…%. It reads the same whichever way is better.
-5. **On plan as written.** A number is typed to the goal's decimals. If *actual* equals the plan rounded to those decimals, and no number that can be written at those decimals lands in the on-track band (a ratio of at least ${RULES.onTrack} and under ${RULES.wellAhead}), the goal is \`on\` with ratio 1. This is a new goal's first week when the plan has moved less than one decimal step.
+5. **On plan as written.** A number is typed to the goal's decimals *d*. If *actual* equals the plan rounded to those decimals, and no number that can be written at those decimals lands in the on-track band (a ratio of at least ${RULES.onTrack} and under ${RULES.wellAhead}), the goal is \`on\` with ratio 1. This is a new goal's first week when the plan has moved less than one decimal step. Exactly:
+
+   \`\`\`
+   step = 10^-d
+   a = start + planned × ${RULES.onTrack};  b = start + planned × ${RULES.wellAhead}
+   writable = |b − a| ≥ step                       (a band a step wide always holds a number)
+   if not writable:
+     for k from floor(min(a, b) / step) − 1 to ceil(max(a, b) / step) + 1:
+       v = k × step rounded to d places
+       if ${RULES.onTrack} ≤ ratio(v) < ${RULES.wellAhead}: writable = true
+   if |actual − (plan rounded to d places)| < 10⁻⁹ and not writable: on, ratio 1
+   \`\`\`
+
+   *ratio(v)* is step 4's ratio for *v*. Otherwise go on to step 6.
 6. Otherwise: ratio ≥ ${RULES.onTrack} is \`on\`; ≥ ${RULES.atRisk} is \`risk\`; below that \`off\`. It is *well ahead* at ratio ≥ ${RULES.wellAhead} (still \`on\`) and *behind* below ${RULES.onTrack}.
 7. It also carries the projection to the due week (see [the projection](projection.md)) from the earlier numbers plus this one, and *forecastMisses*: the projection's likeliest value falls short of the target in the better direction.
 
@@ -175,10 +189,11 @@ The calculation gives one of \`on\`, \`risk\`, \`off\`, \`done\`, \`planned\` (w
 
 **From what has been posted** (\`assessPosted\`, used everywhere a goal's status is shown) in week *w*:
 
-- Take the goal's check-ins up to week *w*, ordered by week, then by when they were posted. The latest is the one that counts, judged **in its own week**, not this week: a goal checked in last week is judged against last week's plan.
+- Take the goal's check-ins up to week *w* (those with \`week\` ≤ *w*, from the ones posted by today), ordered by week, then by when they were posted. The latest is the one that counts, judged **in its own week**, not this week: a goal checked in last week is judged against last week's plan.
 - A number goal is judged with the plan as of that check-in's week, its number, and the numbers before it (for the projection).
 - A range goal is judged with its number and the one before it.
-- Dated stages are judged in week *w* (this week), with the latest check-in's stage updates: a stage that is overdue is late whether or not anyone has checked in. With no check-in at all and nothing late, it is \`none\`, not \`on\` (no evidence is not good news).
+- A number goal (to move or keep in range) with no check-in up to week *w* is judged in week *w* with no number: \`planned\` in week 0, else \`none\`.
+- Dated stages are judged in week *w* (this week), with the latest check-in's stage updates (a stage the updates don't mention has no update: not done, expected in its due week): a stage that is overdue is late whether or not anyone has checked in. With no check-in at all and nothing late, it is \`none\`, not \`on\` (no evidence is not good news).
 
 ### The official status
 
@@ -234,14 +249,17 @@ The projection fits a least-squares line through the recent numbers, not a slope
 **The line.** With *n* points, *x̄* and *ȳ* the mean week and value, *Sxx* = Σ(*x* − *x̄*)², *slope* = Σ(*x* − *x̄*)(*y* − *ȳ*) / *Sxx*:
 
 - *spread* = √(Σ(*y* − line)² / (*n* − 2)) when *n* > 2, else 0.
-- A slope the numbers barely support counts for little: *t* = *slope* / (*spread* / √*Sxx*) (infinite when the spread is 0), and the line leans by *lean* = *t*² / (1 + *t*²) (1 when *t* is infinite).
+- A slope the numbers barely support counts for little: *t* = *slope* / *se*, with *se* = *spread* / √*Sxx* (*t* is infinite when *se* ≤ 10⁻¹², so float noise on a clean trend counts as no spread), and the line leans by *lean* = *t*² / (1 + *t*²) (1 when *t* is infinite).
 - To week *T*: *value* = *ȳ* + *lean* · *slope* · (*T* − *x̄*).
 - *half* = *spread* · √(1/*n* + (*T* − *x̄*)² / *Sxx*); *low* = *value* − *half*, *high* = *value* + *half*. About two chances in three that the number lands inside if nothing changes. A clean trend has no spread, so its range is the line itself.
-- Every result (value, low, high, slope) is rounded to 9 decimal places. It also says *from* (first week used), *to* (*last*.week) and *week* (*T*).
+- Every result (value, low, high, slope) is rounded to 9 decimal places. The *slope* it gives is the one the line leans by, *lean* · *slope*, not the fitted slope (the conformance data's \`slope\` column is this one). It also says *from* (first week used), *to* (*last*.week) and *week* (*T*).
 
-**Held to what the number can be** (\`projectionFor\`, which every projection of a goal's own numbers goes through): a *share* (unit \`%\` and every plan number, start, target, any hand-set points or a range's limit, within 0–100) has value, low and high held to 0–100; a *count* (0 decimals, a plan of whole numbers never below zero, and a unit that is not %, a time, money, points or a score) is held at or above 0.
+**Held to what the number can be** (\`projectionFor\`, which every projection of a goal's own numbers goes through), judged on the goal as it is projected: a number to move with the plan as of the week judged (its start, its target and its hand-set points; earlier plans in \`planHistory\` don't count), a range with its limit alone (no start or target).
 
-**Where it is used.** A number to move projects to its due week (\`endWeek\`, else the cycle's end) from every earlier check-in that has a number (all of them, in week order then posting order, even two in one week) plus the number of the week judged. A range goal's scorecard projects to the cycle's end from one number per week (the latest posted in each week wins).`,
+- A *share* (\`isShare\`): the unit, trimmed, is \`%\`, and every one of those plan numbers is within 0–100. Value, low and high are held to 0–100.
+- A *count* (\`isCount\`): 0 decimals; every one of those plan numbers a whole number, zero or more; and a unit that, trimmed and in lower case, is not \`%\` and doesn't match \`/${NOT_A_COUNT.source}/\` (a time, money, points or a score: the whole unit is one of those words, or it holds a currency code or sign or a degree sign anywhere). Value, low and high are held at or above 0. The unit is otherwise free: \`deploys\`, \`templates\`, \`TB\` and \`checks\` are counts when the rest holds.
+
+**Where it is used.** A number to move projects to its due week (\`endWeek\` of the plan as of the week judged, the latest check-in's; else the cycle's end) from every earlier check-in that has a number (all of them, in week order then posting order, even two in one week) plus the number of the week judged. A range goal's scorecard projects to the cycle's end from one number per week: of the check-ins with a number, the latest posted in each week wins (a later check-in with no number doesn't hide an earlier one with a number).`,
     examples: [
       { given: 'Numbers in weeks 1 and 2 only, projected to week 13.', then: 'none', run: () => (projection([{ week: 1, value: 10 }, { week: 2, value: 12 }], 13) ? 'a projection' : 'none') },
       { given: '10 in week 1 and 16 in week 4, to week 13.', then: 'value 34, range 34–34, slope 2', run: () => { const p = projection([{ week: 1, value: 10 }, { week: 4, value: 16 }], 13)!; return `value ${n(p.value)}, range ${n(p.low)}–${n(p.high)}, slope ${n(p.slope)}`; } },
@@ -250,6 +268,8 @@ The projection fits a least-squares line through the recent numbers, not a slope
       { given: 'A noisy CSAT: 84, 81, 86, 82, 87, 80, 85, 83, 84, 81, 86, 82 in weeks 34–45, to week 53.', then: 'value 83.096, range 78.397–87.796, from week 38', run: () => { const p = projection([84, 81, 86, 82, 87, 80, 85, 83, 84, 81, 86, 82].map((value, i) => ({ week: 34 + i, value })), 53)!; return `value ${n(p.value)}, range ${n(p.low)}–${n(p.high)}, from week ${p.from}`; } },
       { given: 'Incidents, a count: 12, 8, 3, 2 in weeks 1, 3, 5, 6, to week 13. The bare line goes below zero; the goal’s projection stops at 0.', then: 'line low -14.33; held: value 0, low 0', run: () => { const pts = [{ week: 1, value: 12 }, { week: 3, value: 8 }, { week: 5, value: 3 }, { week: 6, value: 2 }]; const p = projectionFor({ ...metric(12, 0), unit: 'incidents' }, pts, 13)!; return `line low ${n(projection(pts, 13)!.low, 2)}; held: value ${n(p.value)}, low ${n(p.low)}`; } },
       { given: 'The latest check-in of each week counts: week 2 posted twice (5, then 7 a day later), and week 1 with 3.', then: '1: 3, 2: 7', run: () => valueSeries([ci('m', 2, 5, { postedAt: '2026-09-21T10:00:00Z' }), ci('m', 2, 7, { postedAt: '2026-09-22T10:00:00Z' }), ci('m', 1, 3)]).map((p) => `${p.week}: ${p.value}`).join(', ') },
+      { given: 'The same noisy CSAT: the slope the line was fitted with, and the slope the projection gives (leaned).', then: 'fitted -0.19, given -0.035', run: () => { const pts = [84, 81, 86, 82, 87, 80, 85, 83, 84, 81, 86, 82].map((value, i) => ({ week: 34 + i, value })).slice(4); const xm = pts.reduce((t, p) => t + p.week, 0) / pts.length, ym = pts.reduce((t, p) => t + p.value, 0) / pts.length; const fitted = pts.reduce((t, p) => t + (p.week - xm) * (p.value - ym), 0) / pts.reduce((t, p) => t + (p.week - xm) ** 2, 0); return `fitted ${n(fitted)}, given ${n(projection(pts, 53)!.slope)}`; } },
+      { given: 'Whole-number goals from 0 to 10 in deploys, ms, USD, pts, TB and min; then deploys from 0 to 10.5 with 1 decimal; then % from 10 to 40.', then: 'count, not, not, not, count, not; not; share', run: () => [['deploys', 'ms', 'USD', 'pts', 'TB', 'min'].map((unit) => isCount({ ...metric(0, 10), unit }) ? 'count' : 'not').join(', '), isCount({ ...metric(0, 10.5), unit: 'deploys', decimals: 1 }) ? 'count' : 'not', isShare(metric(10, 40)) ? 'share' : 'not'].join('; ') },
       { given: 'The 30→75 goal with 42 in week 3 and 45 in week 6: the likeliest value at week 13, and whether it misses the target.', then: '52, misses', run: () => { const a = assessMetric(g3075, 13, 6, 45, [{ week: 3, value: 42 }]); return `${n(a.forecast)}, ${a.forecastMisses ? 'misses' : 'reaches'}`; } },
     ],
   },
@@ -278,7 +298,7 @@ A check-in is one week's report on one goal, by its owner (or an admin): the num
 
 What is still missing, as codes, in this order:
 
-1. \`value\` (none typed), \`value-not-number\`, \`value-precision\` (more decimal places than the goal keeps), or \`value-impossible\` (refused above). Not asked of dated stages.
+1. \`value\` (none typed), \`value-not-number\`, \`value-precision\` (more decimal places than the goal keeps), or \`value-impossible\` (refused above): at most one of them, checked in that order. Not asked of dated stages. A number that is refused for its precision or as impossible is still the number the draft is judged with, so the codes below are asked of it too; one that can't be read (\`value\`, \`value-not-number\`) is judged as no number.
 2. \`greener-why\`: a greener call needs its own reason of at least ${MIN_REASON} characters.
 3. \`reason-behind\` / \`reason-ahead\`: a cause (one of the listed causes, or "Something else") and a why of at least ${MIN_REASON} characters.
 4. \`path\`: what changes (at least ${MIN_PATH} characters) and, when the recovery state is \`plan\` (the default), a week to be back on plan by that is after this week and no later than the cycle's last week. The other recovery states (\`investigating\`, \`help\`, \`target\`) need no week.
@@ -291,7 +311,7 @@ It can be posted when nothing is missing.
       { given: 'Typed: "29,4", "1,250", "1,250.5", "62%", "29.4 days", " -3 ".', then: '29.4, 1250, 1250.5, 62, 29.4, -3', run: () => ['29,4', '1,250', '1,250.5', '62%', '29.4 days', ' -3 '].map((s) => String(parseNumber(s))).join(', ') },
       { given: 'Typed: "0x1F", "1e308", "abc", "1.2.3", "99999999999999".', then: 'null, null, null, null, null', run: () => ['0x1F', '1e308', 'abc', '1.2.3', '99999999999999'].map((s) => String(parseNumber(s))).join(', ') },
       { given: '-5 days (last week 30); 120% (last week 60, not a share); 294 days (last week 29.4).', then: 'refused; questioned; questioned: Last week was 29.4. Is 294 right?', run: () => { const a = valueProblem('-5', 30, 'days'), b = valueProblem('120', 60, '%'), c = valueProblem('294', 29.4, 'days'); const w = (p: typeof a) => (p ? (p.block ? 'refused' : 'questioned') : 'fine'); return `${w(a)}; ${w(b)}; ${w(c)}: ${c?.text}`; } },
-      { given: 'The 30→75 goal in week 4 (plan 43.846): nothing typed; "abc"; "140"; "44".', then: 'value; value-not-number; value-impossible; nothing missing', run: () => [{}, { value: 'abc' }, { value: '140' }, { value: '44' }].map((d) => evaluate(g3075, CYCLE, 4, D(d), []).codes[0] ?? 'nothing missing').join('; ') },
+      { given: 'The 30→75 goal in week 4 (plan 43.846): nothing typed; "abc"; "140"; "44". Every code still missing, in order: a refused number is still judged, so 140 (well ahead) also asks for its reason.', then: 'value; value-not-number; value-impossible, reason-ahead; nothing missing', run: () => [{}, { value: 'abc' }, { value: '140' }, { value: '44' }].map((d) => evaluate(g3075, CYCLE, 4, D(d), []).codes.join(', ') || 'nothing missing').join('; ') },
       { given: '40 in week 4 (off track) with nothing else; then with a cause, a why, a path and back by week 7; then back by week 4.', then: 'reason-behind, path; can post; path', run: () => { const why = { cause: 'slower' as const, why: 'Rollout paused for a week', ptgWhat: 'Restart the rollout' }; return [D({ value: '40' }), D({ value: '40', ...why, ptgBy: 7 }), D({ value: '40', ...why, ptgBy: 4 })].map((d) => { const e = evaluate(g3075, CYCLE, 4, d, []); return e.canPost ? 'can post' : e.codes.join(', '); }).join('; '); } },
       { given: '58 in week 4 (well ahead): nothing else; with a reason and a proposed target of 70; with 95.', then: 'reason-ahead; target; can post', run: () => { const why = { value: '58', cause: 'early' as const, why: 'The bot shipped two weeks early' }; return [D({ value: '58' }), D({ ...why, proposeTarget: '70' }), D({ ...why, proposeTarget: '95' })].map((d) => { const e = evaluate(g3075, CYCLE, 4, d, []); return e.canPost ? 'can post' : e.codes.join(', '); }).join('; '); } },
       { given: '40 in week 4, called on track, with a reason for being behind but none for the greener call.', then: 'greener-why', run: () => evaluate(g3075, CYCLE, 4, D({ value: '40', status: 'on', cause: 'slower', why: 'Rollout paused for a week' }), []).codes.join(', ') },
@@ -352,13 +372,13 @@ The app asks beside the target, with a tick box carrying the yes; Import and Dat
     body: `
 ### The trend
 
-One rule says whether a goal is **getting worse**, **getting better** or neither (\`flat\`). It looks at the last ${TREND_SPAN} check-ins.
+One rule says whether a goal is **getting worse**, **getting better** or neither (\`flat\`). It looks at the last ${TREND_SPAN} check-ins: of every check-in on the goal in the workspace (posted by today), whatever week it is for; not cut to week ≤ this week as the calculation is.
 
 \`gapTrend(gaps)\`: *gaps* are each check-in's distance from where it should be, oldest first, positive when better. Take the last ${TREND_SPAN}; with fewer, \`flat\`. The two steps between them both down (each by more than 10⁻⁹): \`worse\` (for a number to move, only if the latest gap is also below −10⁻⁹: short of plan). Both up by more than 10⁻⁹: \`better\`. Otherwise \`flat\`.
 
-- **A number to move:** each of the goal's check-ins with a number (in week order, then posting order) gives (*value* − plan for its own week, by the plan as of that week) × the better direction (+1 if the target is above the start, else −1). Unrounded, so a number held flat while the plan moves on is further behind each time. If that isn't \`worse\` but there are at least ${TREND_SPAN} numbers, and the latest, judged in its own week against the goal's **current** plan (here, unlike everywhere else, not the plan as of that week; with the earlier numbers for its projection), is \`on\` while its projection's likeliest value misses the target: \`worse\` ("on track today, but heading short").
+- **A number to move:** each of the goal's check-ins with a number (in week order, then posting order) gives (*value* − plan for its own week, by the plan as of that week) × the better direction (+1 if the target is above the start, else −1). Unrounded, so a number held flat while the plan moves on is further behind each time. If that isn't \`worse\` (whether it was \`flat\` or \`better\`) but there are at least ${TREND_SPAN} numbers, and the latest, judged in its own week against the goal's **current** plan (here, unlike everywhere else, not the plan as of that week; with the earlier numbers for its projection), is \`on\` while its projection's likeliest value misses the target: \`worse\` ("on track today, but heading short").
 - **A number to keep in range:** the last ${TREND_SPAN} numbers' room to the limit: (*value* − *limit*) × (−1 for at most, +1 for at least).
-- **Dated stages** (not through \`gapTrend\`): the last two check-ins with stage updates (fewer: \`flat\`), each judged in its own week. \`worse\` if any stage not done is now expected later than at the one before (this wins); else \`better\` if a stage is newly done in a week strictly earlier than it was expected at the one before, or any not done is expected strictly sooner; else \`flat\`.
+- **Dated stages** (not through \`gapTrend\`): the last two check-ins with stage updates (fewer: \`flat\`), each judged as in [the status](status.md) in its own week, so a stage's *expected* week at the earlier check-in is what the status rule gave then (its forecast or due week, never before its due week, and never before that check-in's week once overdue; a done stage's expected week is its done week). Stages are compared in the goal's stage order. \`worse\` if any stage not done is now expected later than at the one before (this wins); else \`better\` if a stage is newly done in a week strictly earlier than it was expected at the one before, or any not done is expected strictly sooner; else \`flat\`.
 
 ### The flags
 
@@ -369,7 +389,7 @@ One rule says whether a goal is **getting worse**, **getting better** or neither
 | ${FLAG.off.label} (\`off\`) | the status is \`off\` |
 | ${FLAG.stale.label} (\`stale\`) | the status is \`stale\` |
 | ${FLAG['missed-path'].label} (\`missed-path\`) | behind, and the path to green names a week that is before this week |
-| ${FLAG.decision.label} (\`decision\`) | not done, and an ask of kind \`decision\` that includes this goal is open |
+| ${FLAG.decision.label} (\`decision\`) | not done, and an ask of kind \`decision\` whose \`goalIds\` include this goal has \`status\` \`open\` in the workspace as it stands today (in the conformance data, as of the week’s moment, so an ask answered later counts as open) |
 | ${FLAG['no-path'].label} (\`no-path\`) | behind, and the latest check-in's \`pathToGreen\` is null |
 | ${FLAG.risk.label} (\`risk\`) | the status is \`risk\` |
 | ${FLAG.trend.label} (\`trend\`) | not done, and the trend is \`worse\` |
@@ -384,9 +404,9 @@ A goal whose official status is \`off\` or \`risk\` (and has a check-in) is **be
 
 - someone other than the owner (this condition is for these two only) marked it reviewed (a decision of kind \`acknowledge\`, its \`at\`) or added a review note (\`note\`) on it;
 - an action (an ask of kind \`action\` that includes the goal, open now) was created (\`createdAt\`), and it isn't overdue (an open ask is overdue once its due week is before this week); or
-- a decision ask that includes the goal was answered (\`answeredAt\`; the latest such answer);
+- a decision ask that includes the goal was answered: its \`status\` is \`answered\` (not \`done\`, which is for actions), timed by \`answeredAt\`; the latest such answer;
 
-and no flag is raised now (apart from \`due\`) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest look (the workspace is not re-cut to that moment). The strongest look names it: an action, then an answer, then a note, then a review; the latest of the strongest kind.
+and no flag is raised now (apart from \`due\`, left out of *now* only) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest look (the earliest of every qualifying look, of any kind) (the workspace is not re-cut to that moment). Decisions and asks that were removed are not in the workspace at all, so never count. The strongest look names it: an action, then an answer, then a note, then a review; the latest of the strongest kind.
 
 A goal **needs attention** when it has a flag other than \`due\` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and the AI assistant all use this one rule.`,
     examples: [
@@ -415,22 +435,71 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 
 **How likely** (\`likelihood(mark, projection, better, floor)\`), worked in the better direction (+1 when higher is better): *half* = max(half the projected range's width, *floor*, 10⁻⁹); *d* = (*mark* − likeliest value) × *better* / *half*. *d* ≤ −0.5: **Likely**; ≤ 1: **Possible**; ≤ 2: **Unlikely**; above: **Very unlikely**. Words, never a percentage. The floor for a target is max(2% of the planned change, half the goal's last decimal place); for a limit, the same with the margin (or 10% of the limit when there is no margin) in place of the planned change.
 
-**A number to move** (judged as in [the status](status.md), from what has been posted):
+**Where the numbers come from.** A number to move and a range are judged by \`assessPosted\` in week *w* (the latest check-in up to week *w*, by week then posting, in its own week); dated stages by the status rule in week *w*. *better* is +1 when higher is better and −1 when lower is: for a number to move, +1 when the **current** plan's target ≥ its start (so the direction, the target, the due week and the likelihood floor come from the goal's current plan, while *plan*, *actual* and the projection come from \`assessPosted\`, with the plan as of the latest check-in's week); for a range, +1 for \`atLeast\`, −1 for \`atMost\`.
 
-| Cell | Value |
-|---|---|
-| \`plan\`, Vs plan | the latest number against the plan for its own week, rounded to the goal's decimals and said in the better direction: "9 hours behind plan", "3 pts ahead of plan", "On plan". No number: "No value yet". Sub: "plan 43.85%", plus "in week 4" when the latest check-in is older than this week |
-| \`since\`, Vs last week (Last change when stale) | the change from the check-in before with a number: "4 pts better" or "worse", "No change", or "First check-in". Sub: "was 40% in week 3" |
-| \`target\`, To target | what's left, "12 pts to go", or Target reached. When lower is better the amount is over the target and says so: "5 min over". Sub: "target 75%", plus "by week 40" when due before the cycle's end |
-| \`hit\`, Will it hit 75%? | the likelihood of reaching the target by its due week; "Can’t say" when stale; "Too early to say" with no projection. Sub: "likely 52% by cycle end" |
+**Tones.** \`plan\`: ahead \`good\`, behind \`bad\`, on plan or no number \`flat\`. \`since\`: better \`good\`, worse \`bad\`, otherwise \`flat\`. \`target\`: reached \`good\`, else \`flat\`. \`hit\`: Likely \`good\`, Possible \`flat\`, Unlikely and Very unlikely \`bad\`, Can’t say and Too early \`flat\`. \`limit\`: outside \`bad\`, near \`flat\`, inside \`good\`. \`room\`: over \`bad\`, within the margin (room ≤ margin) \`flat\`, else \`good\`. \`done\`: at least as many done as are due \`good\`, else \`flat\`. \`late\`: any behind \`bad\`, none \`good\`. \`next\`: expected after its due week \`bad\`, else \`flat\`; All done \`good\`. A margin of 0 counts as none for the likelihood floor. \`likelihood\` is set only on a \`hit\` cell that says a likelihood. Every cell that says "No value yet" is \`flat\`.
 
-**Tones.** \`plan\`: ahead \`good\`, behind \`bad\`, on plan or no number \`flat\`. \`since\`: better \`good\`, worse \`bad\`, otherwise \`flat\` (the check-in before is the latest earlier one, by week then posting, that has a number). \`target\`: reached \`good\`, else \`flat\`. \`hit\`: Likely \`good\`, Possible \`flat\`, Unlikely and Very unlikely \`bad\`, Can’t say and Too early \`flat\`. \`limit\`: outside \`bad\`, near \`flat\`, inside \`good\`. \`room\`: over \`bad\`, within the margin (room ≤ margin) \`flat\`, else \`good\`. \`done\`: at least as many done as are due \`good\`, else \`flat\`. \`late\`: any behind \`bad\`, none \`good\`. \`next\`: expected after its due week \`bad\`, else \`flat\`; All done \`good\`. The likelihood floor uses the goal's current plan; a margin of 0 counts as none.
+A stopped goal has no \`hit\` cell. (The conformance data never shows one: a goal stopped by a week's moment isn't in that week.) Nor has a done goal (\`doneCheckIn\`: of its check-ins with \`week\` ≤ *w*, the one posted most recently, by \`postedAt\`, is called \`done\`): for a number to move or keep in range, a \`result\` cell takes its place, at the end of the row (see the words below); dated stages get no \`result\` cell, only lose \`hit\` (they have none). Neither projects anywhere (\`projects\`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
 
-**A number to keep in range:** \`limit\` (Inside it, Inside, near it, Outside it), \`since\`, \`room\` (how far inside or over the limit) and \`hit\` (Will it stay within?, or Back within by the end? when outside; the likelihood of ending on the safe side of the limit at the cycle's end).
+### The words
 
-**Dated stages:** \`done\` (stages done of all, with how many are due by this week), \`late\` (stages behind their dates, slipping or late, and by up to how many weeks) and \`next\` (the week the next stage now lands, or All done).
+Every label, value and sub line, exactly. Text in quotes is literal (the ’ in “Can’t say” is U+2019). *w* is the week judged.
 
-A stopped goal has no \`hit\` cell. Nor has a done goal (\`doneCheckIn\`: its latest check-in, as of the week shown, is called done): a \`result\` cell takes its place, Result: Done, with the number it closed on and its week as the sub ("95% in week 37"), tone \`good\`. Neither projects anywhere (\`projects\`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
+**How a number is written.**
+
+- *n(v)*: *v* to the goal's decimals (\`toFixed\`), thousands grouped with commas (\`fixed\`): 1,250.5; -0.40. No special case for a sign: a small negative number keeps its minus even when it rounds to zero, so -0.3 at 0 decimals is "-0" (a projection of a time just below zero says "likely -0 min by year end").
+- **A value** \`fmt(v)\`: *n(v)*, then the unit: \`%\` attached ("44%"); no unit, nothing; any other unit after a space ("28 hours", "0.41 USD"). The unit is made singular (its last letter dropped) only when *n(v)* is exactly "1" and the unit is a lower-case word of three or more letters ending in a single s (\`/^[a-z][a-z-]+[^s]s$/\`): "1 hour", "1 template"; but "1.0 hours", "1 ms", "1 pts".
+- **An amount** (a difference, always positive) \`amount(v)\`: *n*(|*v*|), then: for \`%\`, " pt" when that number is 1 and " pts" otherwise ("1 pt", "0.4 pts", "1.0 pt"); no unit, nothing; any other unit after a space, made singular (last letter dropped) when the number is 1 ("1", "1.0" and "1.00" all count) and the unit ends in a letter then "s", any case (\`/[a-z]s$/i\`): "1 hour", "1.0 day", "1 pt" for \`pts\`, and "1 m" for \`ms\` (a known slip, backlog 0u, kept until it is fixed with a conformance row).
+- **The mark** in a label: *n(target)*, with "%" attached for \`%\` and no other unit: "Will it hit 24?", "Will it hit 80%?".
+- **By when** \`byWeekWords(due)\`: due ≥ the cycle's weeks: "by year end" when the cycle has 48 weeks or more, else "by cycle end"; otherwise "by week *due*".
+
+**A number to move**, in this order. *a* = \`assessPosted\` in week *w*: *actual* (the latest check-in's number, or none), *plan* (the plan for the latest check-in's week, as of that week; with no check-in, for week *w*), *a.week* (the latest check-in's week, or *w*), the projection. *target* and *due* (the plan's end week) are the current plan's.
+
+| Cell | Label | Value | Sub |
+|---|---|---|---|
+| \`plan\` | "Vs plan" | No number: "No value yet". Else *diff* = (*actual* − *plan*) × *better*, rounded to the decimals: 0 "On plan"; above 0 "*amount(diff)* ahead of plan"; below "*amount(diff)* behind plan" | "plan *fmt(plan)*", then " in week *a.week*" when *a.week* < *w* (not when there is no number) |
+| \`since\` | "Vs last week", or "Last change" when stale | See *Since* below | See *Since* below |
+| \`target\` | "To target" | No number: "No value yet". Else *left* = (*target* − *actual*) × *better*, rounded: ≤ 0 "Target reached"; else "*amount(left)* to go" when higher is better, "*amount(left)* over" when lower is | "target *fmt(target)*", then " by week *due*" when *due* ≠ the cycle's weeks |
+| \`hit\` | "Will it hit *mark*?" | Stale: "Can’t say". No projection: "Too early to say". Else the likelihood's word: "Likely", "Possible", "Unlikely", "Very unlikely" | Stale: "no recent update to go on". No projection: "needs three weeks of numbers". Else "likely *fmt(value)* *byWeekWords(due)*" |
+
+**A number to keep in range**, in this order: \`limit\`, \`since\`, \`room\`, \`hit\`. *a* = \`assessPosted\` in week *w* (*actual*, *out*, *near* as in [the status](status.md)); *lim* = "at most *fmt(limit)*" or "at least *fmt(limit)*"; *room* = (*limit* − *actual*) × −*better*, rounded to the decimals (positive inside the limit).
+
+| Cell | Label | Value | Sub |
+|---|---|---|---|
+| \`limit\` | "Vs the limit" | No number: "No value yet". Out: "Outside it"; near: "Inside, near it"; else "Inside it" | "must stay *lim*" |
+| \`room\` | "Room to the limit" | No number: "No value yet". *room* > 0: "*amount(room)* of room"; 0: "None: at the limit"; below 0: "*amount(room)* over" (\`atMost\`) or "*amount(room)* under" (\`atLeast\`) | "warning within *amount(margin)*" (also with no number) |
+| \`hit\` | "Back within by the end?" when out, else "Will it stay within?" | As for a number to move, with the limit as the mark; the projection is one number per week (the latest posted wins) up to week *w*, to the cycle's end | As for a number to move, with *byWeekWords(the cycle's weeks)* |
+
+The likelihood floor for a range is max(2% of |*margin*| (or of |10% of the limit| when the margin is 0), half the last decimal place).
+
+**A done goal's result** (\`result\`, a number to move or keep in range, in place of \`hit\` and after the other cells). *done* = the check-in \`doneCheckIn\` found.
+
+| Cell | Label | Value | Sub | Tone |
+|---|---|---|---|---|
+| \`result\` | "Result" | "Done" | "*fmt(done.value)* in week *done.week*" ("76% in week 5"); with no number, "in week *done.week*" | \`good\` |
+
+The other cells stay as they are, judged as usual; \`likelihood\` is empty on \`result\`.
+
+**Since** (\`since\`, both kinds). The goal's check-ins up to week *w*, by week then posting; *latest* the last; *before* the last one ahead of it in that order with a number (another check-in in the same week counts).
+
+| When | Value | Sub | Tone |
+|---|---|---|---|
+| No check-in at all | "No check-in yet" | "nothing to compare" | \`flat\` |
+| *latest* has no number | "No number this time" | "no number to compare" | \`flat\` |
+| No *before* | "First check-in" | "nothing to compare yet" | \`flat\` |
+| *delta* = *latest* − *before*, rounded to the decimals, is 0 | "No change" | "was *fmt(before)* in week *before.week*" | \`flat\` |
+| *delta* × *better* > 0 | "*amount(delta)* better" | the same | \`good\` |
+| otherwise | "*amount(delta)* worse" | the same | \`bad\` |
+
+For a range, better means further from the limit on its safe side.
+
+**Dated stages**, in this order. Stages are judged in week *w* with the latest check-in's stage updates (up to week *w*). *late* = the stages not done with weeks late > 0; *most* = the most weeks late among them.
+
+| Cell | Label | Value | Sub |
+|---|---|---|---|
+| \`done\` | "Stages done" | "*done* of *all*" | "*due* due by week *w*" (*due*: stages with due week ≤ *w*) |
+| \`late\` | "Stages behind" | the count of *late*, or "None" | None: "on schedule". Else the kinds, then ", up to *most* week" (1) or "weeks": all Late "late, up to 4 weeks"; all Slipping "slipping, up to 1 week"; both "*k* late, *j* slipping, up to 5 weeks" |
+| \`next\` | "Next stage" | The not-done stage with the earliest **due** week (ties: the earlier in the goal's stage order): "Week *expected*". None left: "All done" | Its name, then ", due week *due*" when expected after its due week. All done: "last done in week *m*", *m* the latest done week (0 if none) |
 
 **Short or over** (\`shortWord(better)\` in \`src/domain/vocabulary.ts\`, the one place the word is chosen): an amount on the wrong side of a plan or target is "short" when higher is better and "over" when lower is better: "1 pt short" of a 46% plan, "1 min over" a 6 min plan. The scorecard's \`target\` cell, the chart's mark at the due week ("5 over") and a quarter's result ("Q3: 7 min against a plan of 6 min, 1 min over") all use it.
 
@@ -441,10 +510,16 @@ A stopped goal has no \`hit\` cell. Nor has a done goal (\`doneCheckIn\`: its la
       { given: 'The 30→75 goal with 36, 39, 42, 45 in weeks 1–4, seen in week 4.', then: 'plan: 1 pt ahead of plan [good] (plan 44%); since: 3 pts better [good] (was 42% in week 3); target: 30 pts to go [flat] (target 75%); hit: Very unlikely [bad] (likely 72% by cycle end)', run: () => goalScorecard(g3075, CYCLE, [36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), 4, false).cells.map((c) => `${c.key}: ${c.value} [${c.tone}] (${c.sub})`).join('; ') },
       { given: 'Short or over: higher is better, then lower is better.', then: 'short, over', run: () => [shortWord(1), shortWord(-1)].join(', ') },
       { given: 'A 60→30 goal (lower is better) with 50, 48, 46, 45 in weeks 1–4, seen in week 4: To target.', then: '15 pts over [flat] (target 30%)', run: () => { const c = goalScorecard(metric(60, 30), CYCLE, [50, 48, 46, 45].map((v, i) => ci('m', i + 1, v)), 4, false).cells.find((x) => x.key === 'target')!; return `${c.value} [${c.tone}] (${c.sub})`; } },
+      { given: 'Values and amounts: 1 and 1.0 in hours (1 and 0 decimals), 1 in ms, 1 in pts, 1250.5 in USD (1 decimal), 0.4 and 1 in %; -0.3 in min (0 decimals).', then: 'fmt: 1 hour, 1.0 hours, 1 ms, 1 pts, 1,250.5 USD, 0.4%, -0 min; amount: 1 hour, 1.0 hour, 1 m, 1 pt, 1,250.5 USD, 0.4 pts, 1 pt', run: () => { const u = (unit: string, decimals = 0) => ({ unit, decimals }); return `fmt: ${[fmt(1, u('hours')), fmt(1, u('hours', 1)), fmt(1, u('ms')), fmt(1, u('pts')), fmt(1250.5, u('USD', 1)), fmt(0.4, u('%', 1)), fmt(-0.3, u('min'))].join(', ')}; amount: ${[amount(1, u('hours')), amount(-1, u('hours', 1)), amount(1, u('ms')), amount(1, u('pts')), amount(1250.5, u('USD', 1)), amount(0.4, u('%', 1)), amount(1, u('%'))].join(', ')}`; } },
+      { given: 'By when, in a 53-week year and a 13-week cycle: due week 53; due week 13; due week 40.', then: 'by year end, by cycle end, by week 40', run: () => [byWeekWords({ ...CYCLE, weeks: 53 }, 53), byWeekWords(CYCLE, 13), byWeekWords({ ...CYCLE, weeks: 53 }, 40)].join(', ') },
+      { given: 'The 30→75 goal with no check-in, seen in week 2.', then: 'plan: No value yet (plan 37%); since: No check-in yet (nothing to compare); target: No value yet (target 75%); hit: Too early to say (needs three weeks of numbers)', run: () => goalScorecard(g3075, CYCLE, [], 2, false).cells.map((c) => `${c.key}: ${c.value} (${c.sub})`).join('; ') },
+      { given: 'The 30→75 goal: 36 in week 1, then week 2 with no number, seen in week 3 (the plan is week 2’s: the latest check-in’s week, though it has no number). Then 36 and 36 in weeks 1 and 2.', then: 'plan: No value yet (plan 37%); since: No number this time (no number to compare); then since: No change (was 36% in week 1), plan: 1 pt behind plan (plan 37% in week 2)', run: () => { const a = goalScorecard(g3075, CYCLE, [ci('m', 1, 36), ci('m', 2, null)], 3, false).cells, b = goalScorecard(g3075, CYCLE, [ci('m', 1, 36), ci('m', 2, 36)], 3, false).cells; const c = (x: typeof a, k: string) => x.find((y) => y.key === k)!; return `plan: ${c(a, 'plan').value} (${c(a, 'plan').sub}); since: ${c(a, 'since').value} (${c(a, 'since').sub}); then since: ${c(b, 'since').value} (${c(b, 'since').sub}), plan: ${c(b, 'plan').value} (${c(b, 'plan').sub})`; } },
+      { given: 'A range, at most 12.0% with a 1-point margin, seen in week 4: 10.5, 11.0, 12.6 in weeks 1–3, then 12.4 in week 4.', then: 'limit: Outside it [bad] (must stay at most 12.0%); since: 0.2 pts better [good] (was 12.6% in week 3); room: 0.4 pts over [bad] (warning within 1.0 pt); hit: Back within by the end? Very unlikely [bad] (likely 18.6% by cycle end)', run: () => goalScorecard(RANGE, CYCLE, [10.5, 11, 12.6, 12.4].map((v, i) => ci('r', i + 1, v)), 4, false).cells.map((c) => `${c.key}: ${c.key === 'hit' ? c.label + ' ' : ''}${c.value} [${c.tone}] (${c.sub})`).join('; ') },
+      { given: 'The same range: 11.6 in week 1 (near), then 12.0 (at the limit), each seen in its week.', then: 'Inside, near it, 0.4 pts of room [flat]; Inside, near it, None: at the limit [flat]', run: () => [[11.6], [11.6, 12]].map((vs) => { const cs = goalScorecard(RANGE, CYCLE, vs.map((v, i) => ci('r', i + 1, v)), vs.length, false).cells; const r = cs.find((c) => c.key === 'room')!; return `${cs[0]!.value}, ${r.value} [${r.tone}]`; }).join('; ') },
+      { given: 'Stages A (due week 3) and B (due week 7), seen in week 6: no check-in; then A done in week 4, B expected week 9; then both done (week 4 and week 8), seen in week 9.', then: 'done: 0 of 2 (1 due by week 6); late: 1 (late, up to 3 weeks); next: Week 6 (A, due week 3) | done: 1 of 2 (1 due by week 6); late: 1 (slipping, up to 2 weeks); next: Week 9 (B, due week 7) | done: 2 of 2 (2 due by week 9); late: None (on schedule); next: All done (last done in week 8)', run: () => { const show = (cs: ReturnType<typeof goalScorecard>['cells']) => cs.map((c) => `${c.key}: ${c.value} (${c.sub})`).join('; '); return [show(goalScorecard(MILESTONE, CYCLE, [], 6, false).cells), show(goalScorecard(MILESTONE, CYCLE, [ci('ms', 6, null, { stages: [{ stageId: 'a', doneWeek: 4, forecastWeek: null }, { stageId: 'b', doneWeek: null, forecastWeek: 9 }] })], 6, false).cells), show(goalScorecard(MILESTONE, CYCLE, [ci('ms', 9, null, { stages: [{ stageId: 'a', doneWeek: 4, forecastWeek: null }, { stageId: 'b', doneWeek: 8, forecastWeek: null }] })], 9, false).cells)].join(' | '); } },
       { given: 'The 30→75 goal with 36, 39, 42, 45 in weeks 1–4 and 76 in week 5, called done; seen in week 7, and its forecast.', then: 'result: Done [good] (76% in week 5); no forecast', run: () => { const cis = [...[36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), ci('m', 5, 76, { status: 'done' })]; const c = goalScorecard(g3075, CYCLE, cis, 7, false).cells.find((x) => x.key === 'result' || x.key === 'hit')!; return `${c.key}: ${c.value} [${c.tone}] (${c.sub}); ${projects(g3075, goalStatus(g3075, CYCLE, cis, at('2026-10-30T10:00:00Z')).status) ? 'forecast' : 'no forecast'}`; } },
       { given: 'The same, but stale.', then: 'hit: Can’t say', run: () => { const c = goalScorecard(g3075, CYCLE, [36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), 4, true).cells.find((x) => x.key === 'hit')!; return `hit: ${c.value}`; } },
     ],
-    unclear: ['The scorecard’s words (labels, values and sub lines, including how units are said: “%” differences as pts, a unit made singular at 1, numbers padded to the goal’s decimals) are not all written out here. The conformance data gives every cell for every goal and week; a rebuild that matches each cell’s key, tone and likelihood has the rule, and the words follow `src/domain/scorecard.ts` and `src/domain/format.ts`.'],
   },
 
   /* ---------- the change engine ---------- */

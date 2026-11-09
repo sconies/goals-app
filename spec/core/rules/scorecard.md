@@ -11,22 +11,71 @@ The cells at the top of a goal’s page: against plan, since last week, what’s
 
 **How likely** (`likelihood(mark, projection, better, floor)`), worked in the better direction (+1 when higher is better): *half* = max(half the projected range's width, *floor*, 10⁻⁹); *d* = (*mark* − likeliest value) × *better* / *half*. *d* ≤ −0.5: **Likely**; ≤ 1: **Possible**; ≤ 2: **Unlikely**; above: **Very unlikely**. Words, never a percentage. The floor for a target is max(2% of the planned change, half the goal's last decimal place); for a limit, the same with the margin (or 10% of the limit when there is no margin) in place of the planned change.
 
-**A number to move** (judged as in [the status](status.md), from what has been posted):
+**Where the numbers come from.** A number to move and a range are judged by `assessPosted` in week *w* (the latest check-in up to week *w*, by week then posting, in its own week); dated stages by the status rule in week *w*. *better* is +1 when higher is better and −1 when lower is: for a number to move, +1 when the **current** plan's target ≥ its start (so the direction, the target, the due week and the likelihood floor come from the goal's current plan, while *plan*, *actual* and the projection come from `assessPosted`, with the plan as of the latest check-in's week); for a range, +1 for `atLeast`, −1 for `atMost`.
 
-| Cell | Value |
-|---|---|
-| `plan`, Vs plan | the latest number against the plan for its own week, rounded to the goal's decimals and said in the better direction: "9 hours behind plan", "3 pts ahead of plan", "On plan". No number: "No value yet". Sub: "plan 43.85%", plus "in week 4" when the latest check-in is older than this week |
-| `since`, Vs last week (Last change when stale) | the change from the check-in before with a number: "4 pts better" or "worse", "No change", or "First check-in". Sub: "was 40% in week 3" |
-| `target`, To target | what's left, "12 pts to go", or Target reached. When lower is better the amount is over the target and says so: "5 min over". Sub: "target 75%", plus "by week 40" when due before the cycle's end |
-| `hit`, Will it hit 75%? | the likelihood of reaching the target by its due week; "Can’t say" when stale; "Too early to say" with no projection. Sub: "likely 52% by cycle end" |
+**Tones.** `plan`: ahead `good`, behind `bad`, on plan or no number `flat`. `since`: better `good`, worse `bad`, otherwise `flat`. `target`: reached `good`, else `flat`. `hit`: Likely `good`, Possible `flat`, Unlikely and Very unlikely `bad`, Can’t say and Too early `flat`. `limit`: outside `bad`, near `flat`, inside `good`. `room`: over `bad`, within the margin (room ≤ margin) `flat`, else `good`. `done`: at least as many done as are due `good`, else `flat`. `late`: any behind `bad`, none `good`. `next`: expected after its due week `bad`, else `flat`; All done `good`. A margin of 0 counts as none for the likelihood floor. `likelihood` is set only on a `hit` cell that says a likelihood. Every cell that says "No value yet" is `flat`.
 
-**Tones.** `plan`: ahead `good`, behind `bad`, on plan or no number `flat`. `since`: better `good`, worse `bad`, otherwise `flat` (the check-in before is the latest earlier one, by week then posting, that has a number). `target`: reached `good`, else `flat`. `hit`: Likely `good`, Possible `flat`, Unlikely and Very unlikely `bad`, Can’t say and Too early `flat`. `limit`: outside `bad`, near `flat`, inside `good`. `room`: over `bad`, within the margin (room ≤ margin) `flat`, else `good`. `done`: at least as many done as are due `good`, else `flat`. `late`: any behind `bad`, none `good`. `next`: expected after its due week `bad`, else `flat`; All done `good`. The likelihood floor uses the goal's current plan; a margin of 0 counts as none.
+A stopped goal has no `hit` cell. (The conformance data never shows one: a goal stopped by a week's moment isn't in that week.) Nor has a done goal (`doneCheckIn`: of its check-ins with `week` ≤ *w*, the one posted most recently, by `postedAt`, is called `done`): for a number to move or keep in range, a `result` cell takes its place, at the end of the row (see the words below); dated stages get no `result` cell, only lose `hit` (they have none). Neither projects anywhere (`projects`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
 
-**A number to keep in range:** `limit` (Inside it, Inside, near it, Outside it), `since`, `room` (how far inside or over the limit) and `hit` (Will it stay within?, or Back within by the end? when outside; the likelihood of ending on the safe side of the limit at the cycle's end).
+### The words
 
-**Dated stages:** `done` (stages done of all, with how many are due by this week), `late` (stages behind their dates, slipping or late, and by up to how many weeks) and `next` (the week the next stage now lands, or All done).
+Every label, value and sub line, exactly. Text in quotes is literal (the ’ in “Can’t say” is U+2019). *w* is the week judged.
 
-A stopped goal has no `hit` cell. Nor has a done goal (`doneCheckIn`: its latest check-in, as of the week shown, is called done): a `result` cell takes its place, Result: Done, with the number it closed on and its week as the sub ("95% in week 37"), tone `good`. Neither projects anywhere (`projects`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
+**How a number is written.**
+
+- *n(v)*: *v* to the goal's decimals (`toFixed`), thousands grouped with commas (`fixed`): 1,250.5; -0.40. No special case for a sign: a small negative number keeps its minus even when it rounds to zero, so -0.3 at 0 decimals is "-0" (a projection of a time just below zero says "likely -0 min by year end").
+- **A value** `fmt(v)`: *n(v)*, then the unit: `%` attached ("44%"); no unit, nothing; any other unit after a space ("28 hours", "0.41 USD"). The unit is made singular (its last letter dropped) only when *n(v)* is exactly "1" and the unit is a lower-case word of three or more letters ending in a single s (`/^[a-z][a-z-]+[^s]s$/`): "1 hour", "1 template"; but "1.0 hours", "1 ms", "1 pts".
+- **An amount** (a difference, always positive) `amount(v)`: *n*(|*v*|), then: for `%`, " pt" when that number is 1 and " pts" otherwise ("1 pt", "0.4 pts", "1.0 pt"); no unit, nothing; any other unit after a space, made singular (last letter dropped) when the number is 1 ("1", "1.0" and "1.00" all count) and the unit ends in a letter then "s", any case (`/[a-z]s$/i`): "1 hour", "1.0 day", "1 pt" for `pts`, and "1 m" for `ms` (a known slip, backlog 0u, kept until it is fixed with a conformance row).
+- **The mark** in a label: *n(target)*, with "%" attached for `%` and no other unit: "Will it hit 24?", "Will it hit 80%?".
+- **By when** `byWeekWords(due)`: due ≥ the cycle's weeks: "by year end" when the cycle has 48 weeks or more, else "by cycle end"; otherwise "by week *due*".
+
+**A number to move**, in this order. *a* = `assessPosted` in week *w*: *actual* (the latest check-in's number, or none), *plan* (the plan for the latest check-in's week, as of that week; with no check-in, for week *w*), *a.week* (the latest check-in's week, or *w*), the projection. *target* and *due* (the plan's end week) are the current plan's.
+
+| Cell | Label | Value | Sub |
+|---|---|---|---|
+| `plan` | "Vs plan" | No number: "No value yet". Else *diff* = (*actual* − *plan*) × *better*, rounded to the decimals: 0 "On plan"; above 0 "*amount(diff)* ahead of plan"; below "*amount(diff)* behind plan" | "plan *fmt(plan)*", then " in week *a.week*" when *a.week* < *w* (not when there is no number) |
+| `since` | "Vs last week", or "Last change" when stale | See *Since* below | See *Since* below |
+| `target` | "To target" | No number: "No value yet". Else *left* = (*target* − *actual*) × *better*, rounded: ≤ 0 "Target reached"; else "*amount(left)* to go" when higher is better, "*amount(left)* over" when lower is | "target *fmt(target)*", then " by week *due*" when *due* ≠ the cycle's weeks |
+| `hit` | "Will it hit *mark*?" | Stale: "Can’t say". No projection: "Too early to say". Else the likelihood's word: "Likely", "Possible", "Unlikely", "Very unlikely" | Stale: "no recent update to go on". No projection: "needs three weeks of numbers". Else "likely *fmt(value)* *byWeekWords(due)*" |
+
+**A number to keep in range**, in this order: `limit`, `since`, `room`, `hit`. *a* = `assessPosted` in week *w* (*actual*, *out*, *near* as in [the status](status.md)); *lim* = "at most *fmt(limit)*" or "at least *fmt(limit)*"; *room* = (*limit* − *actual*) × −*better*, rounded to the decimals (positive inside the limit).
+
+| Cell | Label | Value | Sub |
+|---|---|---|---|
+| `limit` | "Vs the limit" | No number: "No value yet". Out: "Outside it"; near: "Inside, near it"; else "Inside it" | "must stay *lim*" |
+| `room` | "Room to the limit" | No number: "No value yet". *room* > 0: "*amount(room)* of room"; 0: "None: at the limit"; below 0: "*amount(room)* over" (`atMost`) or "*amount(room)* under" (`atLeast`) | "warning within *amount(margin)*" (also with no number) |
+| `hit` | "Back within by the end?" when out, else "Will it stay within?" | As for a number to move, with the limit as the mark; the projection is one number per week (the latest posted wins) up to week *w*, to the cycle's end | As for a number to move, with *byWeekWords(the cycle's weeks)* |
+
+The likelihood floor for a range is max(2% of |*margin*| (or of |10% of the limit| when the margin is 0), half the last decimal place).
+
+**A done goal's result** (`result`, a number to move or keep in range, in place of `hit` and after the other cells). *done* = the check-in `doneCheckIn` found.
+
+| Cell | Label | Value | Sub | Tone |
+|---|---|---|---|---|
+| `result` | "Result" | "Done" | "*fmt(done.value)* in week *done.week*" ("76% in week 5"); with no number, "in week *done.week*" | `good` |
+
+The other cells stay as they are, judged as usual; `likelihood` is empty on `result`.
+
+**Since** (`since`, both kinds). The goal's check-ins up to week *w*, by week then posting; *latest* the last; *before* the last one ahead of it in that order with a number (another check-in in the same week counts).
+
+| When | Value | Sub | Tone |
+|---|---|---|---|
+| No check-in at all | "No check-in yet" | "nothing to compare" | `flat` |
+| *latest* has no number | "No number this time" | "no number to compare" | `flat` |
+| No *before* | "First check-in" | "nothing to compare yet" | `flat` |
+| *delta* = *latest* − *before*, rounded to the decimals, is 0 | "No change" | "was *fmt(before)* in week *before.week*" | `flat` |
+| *delta* × *better* > 0 | "*amount(delta)* better" | the same | `good` |
+| otherwise | "*amount(delta)* worse" | the same | `bad` |
+
+For a range, better means further from the limit on its safe side.
+
+**Dated stages**, in this order. Stages are judged in week *w* with the latest check-in's stage updates (up to week *w*). *late* = the stages not done with weeks late > 0; *most* = the most weeks late among them.
+
+| Cell | Label | Value | Sub |
+|---|---|---|---|
+| `done` | "Stages done" | "*done* of *all*" | "*due* due by week *w*" (*due*: stages with due week ≤ *w*) |
+| `late` | "Stages behind" | the count of *late*, or "None" | None: "on schedule". Else the kinds, then ", up to *most* week" (1) or "weeks": all Late "late, up to 4 weeks"; all Slipping "slipping, up to 1 week"; both "*k* late, *j* slipping, up to 5 weeks" |
+| `next` | "Next stage" | The not-done stage with the earliest **due** week (ties: the earlier in the goal's stage order): "Week *expected*". None left: "All done" | Its name, then ", due week *due*" when expected after its due week. All done: "last done in week *m*", *m* the latest done week (0 if none) |
 
 **Short or over** (`shortWord(better)` in `src/domain/vocabulary.ts`, the one place the word is chosen): an amount on the wrong side of a plan or target is "short" when higher is better and "over" when lower is better: "1 pt short" of a 46% plan, "1 min over" a 6 min plan. The scorecard's `target` cell, the chart's mark at the due week ("5 over") and a quarter's result ("Q3: 7 min against a plan of 6 min, 1 min over") all use it.
 
@@ -43,12 +92,15 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The 30→75 goal with 36, 39, 42, 45 in weeks 1–4, seen in week 4. | `plan: 1 pt ahead of plan [good] (plan 44%); since: 3 pts better [good] (was 42% in week 3); target: 30 pts to go [flat] (target 75%); hit: Very unlikely [bad] (likely 72% by cycle end)` |
 | Short or over: higher is better, then lower is better. | `short, over` |
 | A 60→30 goal (lower is better) with 50, 48, 46, 45 in weeks 1–4, seen in week 4: To target. | `15 pts over [flat] (target 30%)` |
+| Values and amounts: 1 and 1.0 in hours (1 and 0 decimals), 1 in ms, 1 in pts, 1250.5 in USD (1 decimal), 0.4 and 1 in %; -0.3 in min (0 decimals). | `fmt: 1 hour, 1.0 hours, 1 ms, 1 pts, 1,250.5 USD, 0.4%, -0 min; amount: 1 hour, 1.0 hour, 1 m, 1 pt, 1,250.5 USD, 0.4 pts, 1 pt` |
+| By when, in a 53-week year and a 13-week cycle: due week 53; due week 13; due week 40. | `by year end, by cycle end, by week 40` |
+| The 30→75 goal with no check-in, seen in week 2. | `plan: No value yet (plan 37%); since: No check-in yet (nothing to compare); target: No value yet (target 75%); hit: Too early to say (needs three weeks of numbers)` |
+| The 30→75 goal: 36 in week 1, then week 2 with no number, seen in week 3 (the plan is week 2’s: the latest check-in’s week, though it has no number). Then 36 and 36 in weeks 1 and 2. | `plan: No value yet (plan 37%); since: No number this time (no number to compare); then since: No change (was 36% in week 1), plan: 1 pt behind plan (plan 37% in week 2)` |
+| A range, at most 12.0% with a 1-point margin, seen in week 4: 10.5, 11.0, 12.6 in weeks 1–3, then 12.4 in week 4. | `limit: Outside it [bad] (must stay at most 12.0%); since: 0.2 pts better [good] (was 12.6% in week 3); room: 0.4 pts over [bad] (warning within 1.0 pt); hit: Back within by the end? Very unlikely [bad] (likely 18.6% by cycle end)` |
+| The same range: 11.6 in week 1 (near), then 12.0 (at the limit), each seen in its week. | `Inside, near it, 0.4 pts of room [flat]; Inside, near it, None: at the limit [flat]` |
+| Stages A (due week 3) and B (due week 7), seen in week 6: no check-in; then A done in week 4, B expected week 9; then both done (week 4 and week 8), seen in week 9. | `done: 0 of 2 (1 due by week 6); late: 1 (late, up to 3 weeks); next: Week 6 (A, due week 3) \| done: 1 of 2 (1 due by week 6); late: 1 (slipping, up to 2 weeks); next: Week 9 (B, due week 7) \| done: 2 of 2 (2 due by week 9); late: None (on schedule); next: All done (last done in week 8)` |
 | The 30→75 goal with 36, 39, 42, 45 in weeks 1–4 and 76 in week 5, called done; seen in week 7, and its forecast. | `result: Done [good] (76% in week 5); no forecast` |
 | The same, but stale. | `hit: Can’t say` |
-
-## Not self-explanatory
-
-- **Not self-explanatory:** The scorecard’s words (labels, values and sub lines, including how units are said: “%” differences as pts, a unit made singular at 1, numbers padded to the goal’s decimals) are not all written out here. The conformance data gives every cell for every goal and week; a rebuild that matches each cell’s key, tone and likelihood has the rule, and the words follow `src/domain/scorecard.ts` and `src/domain/format.ts`.
 
 ## Where it lives
 

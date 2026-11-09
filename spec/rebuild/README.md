@@ -14,7 +14,7 @@ How to rebuild Faro from this folder and `llms.txt` alone, one stage at a time, 
 | [4. Module: Metric library](stage-4-module-metrics.md) | The metric library: a metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) defined once per workspace, and a goal’s link to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. | Outline: entry and exit criteria, checked by hand; no drill yet |
 | [5. Module: Spreadsheets](stage-5-module-spreadsheets.md) | Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Tools for it on Data and Goals. | Outline: entry and exit criteria, checked by hand; no drill yet |
 
-**What the kit fully supports today:** stage 1 only. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (38124 rows in four files), and a harness that runs a rebuild and scores it. One part of stage 1, what a check-in must say, has worked examples but no conformance rows yet, so the harness doesn’t score it.
+**What the kit fully supports today:** stage 1 only. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (43373 rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.
 
 **Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others.
 
@@ -36,7 +36,7 @@ The drill is the test of the kit, not of the rebuild: whatever the session had t
 
 ### What the session gets
 
-A scratch folder holding a copy of `spec/` and `llms.txt`, and nothing else from Faro. Node 22 or later is enough to run the harness. The spec links to files in Faro’s repository (`src/…`, `docs/…`, `evals/…`): they are not in the kit. Don’t look for them; when a link is the only place something is said, write it down as a gap.
+A scratch folder holding a copy of `spec/` and `llms.txt`, and nothing else from Faro. Node 18 or later is enough to run the harness (it uses no packages). The spec links to files in Faro’s repository (`src/…`, `docs/…`, `evals/…`): they are not in the kit. Don’t look for them; when a link is the only place something is said, write it down as a gap.
 
 ### Where to write
 
@@ -57,11 +57,11 @@ From the scratch folder:
 
 ```
 node spec/rebuild/drill.mjs rebuild
-node spec/rebuild/drill.mjs rebuild --files status          one file while you work (status, flags, projection, scorecard)
+node spec/rebuild/drill.mjs rebuild --files status          one file while you work (status, flags, projection, scorecard, checkin)
 node spec/rebuild/drill.mjs rebuild --diffs 30              more of the first differences
 ```
 
-From Faro’s own repository the same harness is `npm run drill -- <rebuild folder>`. It runs `drill.json`’s command, scores the four files it writes, file by file and column by column, prints the first differences (with the week, the goal and the column), and exits 0 only at 100%.
+From Faro’s own repository the same harness is `npm run drill -- <rebuild folder>`. It runs `drill.json`’s command, scores the five files it writes, file by file and column by column, prints the first differences (with the week, the goal and the column), and exits 0 only at 100%.
 
 ### The rules of the drill
 

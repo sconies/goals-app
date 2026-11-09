@@ -9,13 +9,13 @@ Why a goal is flagged, which way it is heading, and whether it needs attention o
 
 ### The trend
 
-One rule says whether a goal is **getting worse**, **getting better** or neither (`flat`). It looks at the last 3 check-ins.
+One rule says whether a goal is **getting worse**, **getting better** or neither (`flat`). It looks at the last 3 check-ins: of every check-in on the goal in the workspace (posted by today), whatever week it is for; not cut to week ≤ this week as the calculation is.
 
 `gapTrend(gaps)`: *gaps* are each check-in's distance from where it should be, oldest first, positive when better. Take the last 3; with fewer, `flat`. The two steps between them both down (each by more than 10⁻⁹): `worse` (for a number to move, only if the latest gap is also below −10⁻⁹: short of plan). Both up by more than 10⁻⁹: `better`. Otherwise `flat`.
 
-- **A number to move:** each of the goal's check-ins with a number (in week order, then posting order) gives (*value* − plan for its own week, by the plan as of that week) × the better direction (+1 if the target is above the start, else −1). Unrounded, so a number held flat while the plan moves on is further behind each time. If that isn't `worse` but there are at least 3 numbers, and the latest, judged in its own week against the goal's **current** plan (here, unlike everywhere else, not the plan as of that week; with the earlier numbers for its projection), is `on` while its projection's likeliest value misses the target: `worse` ("on track today, but heading short").
+- **A number to move:** each of the goal's check-ins with a number (in week order, then posting order) gives (*value* − plan for its own week, by the plan as of that week) × the better direction (+1 if the target is above the start, else −1). Unrounded, so a number held flat while the plan moves on is further behind each time. If that isn't `worse` (whether it was `flat` or `better`) but there are at least 3 numbers, and the latest, judged in its own week against the goal's **current** plan (here, unlike everywhere else, not the plan as of that week; with the earlier numbers for its projection), is `on` while its projection's likeliest value misses the target: `worse` ("on track today, but heading short").
 - **A number to keep in range:** the last 3 numbers' room to the limit: (*value* − *limit*) × (−1 for at most, +1 for at least).
-- **Dated stages** (not through `gapTrend`): the last two check-ins with stage updates (fewer: `flat`), each judged in its own week. `worse` if any stage not done is now expected later than at the one before (this wins); else `better` if a stage is newly done in a week strictly earlier than it was expected at the one before, or any not done is expected strictly sooner; else `flat`.
+- **Dated stages** (not through `gapTrend`): the last two check-ins with stage updates (fewer: `flat`), each judged as in [the status](status.md) in its own week, so a stage's *expected* week at the earlier check-in is what the status rule gave then (its forecast or due week, never before its due week, and never before that check-in's week once overdue; a done stage's expected week is its done week). Stages are compared in the goal's stage order. `worse` if any stage not done is now expected later than at the one before (this wins); else `better` if a stage is newly done in a week strictly earlier than it was expected at the one before, or any not done is expected strictly sooner; else `flat`.
 
 ### The flags
 
@@ -26,7 +26,7 @@ One rule says whether a goal is **getting worse**, **getting better** or neither
 | Off track (`off`) | the status is `off` |
 | No recent update (`stale`) | the status is `stale` |
 | Missed its own date (`missed-path`) | behind, and the path to green names a week that is before this week |
-| Decision or help needed (`decision`) | not done, and an ask of kind `decision` that includes this goal is open |
+| Decision or help needed (`decision`) | not done, and an ask of kind `decision` whose `goalIds` include this goal has `status` `open` in the workspace as it stands today (in the conformance data, as of the week’s moment, so an ask answered later counts as open) |
 | No path to green (`no-path`) | behind, and the latest check-in's `pathToGreen` is null |
 | At risk (`risk`) | the status is `risk` |
 | Getting worse (`trend`) | not done, and the trend is `worse` |
@@ -41,9 +41,9 @@ A goal whose official status is `off` or `risk` (and has a check-in) is **being 
 
 - someone other than the owner (this condition is for these two only) marked it reviewed (a decision of kind `acknowledge`, its `at`) or added a review note (`note`) on it;
 - an action (an ask of kind `action` that includes the goal, open now) was created (`createdAt`), and it isn't overdue (an open ask is overdue once its due week is before this week); or
-- a decision ask that includes the goal was answered (`answeredAt`; the latest such answer);
+- a decision ask that includes the goal was answered: its `status` is `answered` (not `done`, which is for actions), timed by `answeredAt`; the latest such answer;
 
-and no flag is raised now (apart from `due`) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest look (the workspace is not re-cut to that moment). The strongest look names it: an action, then an answer, then a note, then a review; the latest of the strongest kind.
+and no flag is raised now (apart from `due`, left out of *now* only) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest look (the earliest of every qualifying look, of any kind) (the workspace is not re-cut to that moment). Decisions and asks that were removed are not in the workspace at all, so never count. The strongest look names it: an action, then an answer, then a note, then a review; the latest of the strongest kind.
 
 A goal **needs attention** when it has a flag other than `due` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and the AI assistant all use this one rule.
 
