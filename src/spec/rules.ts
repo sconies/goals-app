@@ -19,7 +19,8 @@ import { AVATAR_HUES } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor } from '../domain/attention';
 import { ATTENTION_FLAGS, FLAG, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
-import type { Ask, MetricGoal, Snapshot } from '../domain/types';
+import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
+import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -585,6 +586,43 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, for Pat, who isn’t an admin.', then: 'feedback', run: () => workspaceNeeds(workspace([]), CYCLE, 2, false, 4).map((x) => x.id).join(', ') },
     ],
     unclear: ['How many weeks before the wrap-up "ends soon" starts (four) is a choice, not a law; the rebuild may tune it.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
+  },
+
+  /* ---------- the goal map ---------- */
+  {
+    id: 'map',
+    title: 'The goal map',
+    summary: 'The critical path, what the map shows when folded, what a parent says about the goals under it, which trees are in trouble, and finding a goal by name or key.',
+    code: [{ file: 'src/domain/map.ts', names: ['criticalPath', 'shownOnMap', 'rollup', 'rollupText', 'troubled', 'findOnMap', 'layout', 'pack', 'layoutIndented'] }],
+    tests: ['src/domain/map.test.ts'],
+    reqs: ['GOAL-MAP'],
+    body: `
+**The critical path.** From each top goal (a goal with nothing above it), step down to the input most likely to make it miss: each input scores its threat (off track 4; at risk or no recent update 2; anything else 0) times one half plus its share of its siblings' estimated effect (equal shares when none is set). The path takes the highest score (a tie goes to the worse status) and stops where nothing below scores above 0. A path is only drawn when it reaches a goal in trouble.
+
+**What the map shows, folded.** Every top goal, always. Under a goal: everything feeding it once it is *opened*; nothing once it is *shut*; otherwise only its next step on the critical path. So the map opens on the top goals with the critical path drawn beneath the ones in trouble, and a goal's fold button counts the inputs still hidden. When the Goals screen is searched or filtered, every match is unfolded.
+
+**What's under a goal** (the roll-up, shared with the List's tree cards): everything feeding it, at any depth. Its status is the group's status of those goals (\`worst\`, in [A goal's status](status.md)); its words count the goals behind, worst first ("2 off track, 1 at risk"), or else say "None behind" with the group's status, or "All *n* done". A goal with no check-in yet is not counted.
+
+**A tree in trouble:** the group's status of its top goal and everything under it ranks 2 or worse (off track, at risk or no recent update). Troubled trees only keeps those trees.
+
+**Finding a goal.** Best first: the goal whose key has the number typed ("G-48", "g48", "g-48"), then titles starting with the words, then titles holding every word, then keys starting with what was typed. Finding a goal opens every goal above it.
+
+**Fit all.** The trees keep their order and wrap into rows; of every place the rows could break, the map takes the one that lets it be drawn largest in the window. Fit all then shows every goal, as large as fits and never above 100%. Readable shows the top goals and the critical path at no less than 75%.`,
+    examples: (() => {
+      const g = (id: string, parentId: string | null, title: string, key: string) => ({ ...g3075, id, parentId, title, key });
+      const tree = [g('t', null, 'Lead time for changes', 'G-1'), g('a', 't', 'Merge to deploy', 'G-2'), g('b', 't', 'Review time', 'G-3'), g('c', 'a', 'Merge queue live', 'G-4'), g('d', null, 'Cloud cost', 'G-5'), g('e', 'd', 'Idle machines off', 'G-6')];
+      const st = (s: Record<string, DisplayStatus>) => (x: Goal) => s[x.id] ?? 'on';
+      const bad = st({ a: 'off', b: 'risk', c: 'on', d: 'on', e: 'done' });
+      return [
+        { given: 'Lead time (on track) fed by Merge to deploy (off track, fed by Merge queue live, on track) and Review time (at risk); Cloud cost (on track) fed by Idle machines off (done). The critical path.', then: 't, a', run: () => [...criticalPath(tree, bad)].join(', ') },
+        { given: 'The same goals, folded: what the map shows; then with Lead time opened; then with Lead time shut.', then: 't, a, d; t, a, c, b, d; t, d', run: () => { const c = criticalPath(tree, bad); const show = (open: string[], shut: string[]) => [...shownOnMap(tree, c, { open: new Set(open), shut: new Set(shut), trail: true })].join(', '); return [show([], []), show(['t', 'a'], []), show([], ['t'])].join('; '); } },
+        { given: 'What’s under Lead time, and under Cloud cost.', then: 'off: 1 off track, 1 at risk; done: All 1 done', run: () => ['t', 'd'].map((id) => { const r = rollup(tree.find((x) => x.id === id)!, tree, bad)!; return `${r.worst}: ${rollupText(r)}`; }).join('; ') },
+        { given: 'Under a goal: one on track and one done; then one on track and one with no recent update.', then: 'None behind: on track; 1 no recent update', run: () => ([['on', 'done'], ['on', 'stale']] as const).map(([x, y]) => rollupText(rollup(tree[0]!, tree.slice(0, 3), st({ a: x, b: y }))!)).join('; ') },
+        { given: 'Which trees are in trouble.', then: 't', run: () => tree.filter((x) => !x.parentId && troubled(x, tree, bad)).map((x) => x.id).join(', ') },
+        { given: 'Finding “g4”, “G-2”, “merge” and “queue merge” (titles that start the same way go A to Z).', then: 'c; a; c, a; c', run: () => ['g4', 'G-2', 'merge', 'queue merge'].map((q) => findOnMap(tree, q).map((x) => x.id).join(', ')).join('; ') },
+      ];
+    })(),
+    unclear: ['How the trees wrap into rows is a choice about drawing, not a rule: any layout in which Fit all shows every goal, the trees in order, at least as large as this one, conforms.'],
   },
 ];
 

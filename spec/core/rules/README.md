@@ -15,6 +15,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [The scorecard](scorecard.md) | The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target. |
 | [The change engine](change-engine.md) | The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and the AI assistant. |
 | [The workspace: cycles, teams, names, leaving and what needs attention](workspace.md) | What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention. |
+| [The goal map](map.md) | The critical path, what the map shows when folded, what a parent says about the goals under it, which trees are in trouble, and finding a goal by name or key. |
 
 ## The numbers the rules turn on
 

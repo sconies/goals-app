@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'map-at-scale',
+    date: '2026-11-10',
+    title: 'The map works at the size of a division',
+    points: [
+      'The map opens on every top goal, with only the critical path drawn beneath the ones in trouble. Fit all now fits: the trees wrap into rows, so all of them are in view at once.',
+      'Find a goal on the map by its name or its key (G-48): its tree opens, the goal is outlined and the map moves to it.',
+      'Each goal shows its number, its target and how far it is from plan. A goal others feed also shows the worst status of everything under it, counted the way the List’s tree cards count.',
+      'Troubled trees only hides the trees where nothing is off track, at risk or without a recent update. The map fits itself again whenever what it shows changes.',
+      'No more “Drawing the map” wait: the goals are there as soon as the map opens.',
+    ],
+    articles: ['goal-map'],
+  },
+  {
     id: 'review-order-and-deadlines',
     date: '2026-11-10',
     title: 'A review keeps its place, and Home says when check-ins are due',
