@@ -10,7 +10,7 @@
 import { fixed } from './numbers';
 import { fmt, NO_VALUE } from './format';
 import { planEnd, projectionFor, valueSeries } from './plan';
-import { assessMilestone, assessPosted, checkInsFor } from './status';
+import { assessMilestone, assessPosted, checkInsFor, doneCheckIn, projects } from './status';
 import { summaryFacts } from './summaryFacts';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 import { GAP, gapPhrase, LABEL, lower, shortWord, STAGE, stagesBehind, STATUS } from './vocabulary';
@@ -50,7 +50,7 @@ export const likelihoodFloor = (span: number, decimals: number) => Math.max(Math
 
 export type CellTone = 'good' | 'bad' | 'flat';
 export interface ScoreCell {
-  key: 'plan' | 'since' | 'target' | 'hit' | 'limit' | 'room' | 'done' | 'late' | 'next';
+  key: 'plan' | 'since' | 'target' | 'hit' | 'result' | 'limit' | 'room' | 'done' | 'late' | 'next';
   /** "Vs plan", "Will it hit 24?" */
   label: string;
   /** "9 hours behind plan", "Unlikely". */
@@ -223,9 +223,12 @@ export function goalScorecard(goal: Goal, cycle: Cycle, checkIns: CheckIn[], wee
   const card = goal.kind === 'metric' ? metricCard(goal, cycle, checkIns, week, stale)
     : goal.kind === 'range' ? rangeCard(goal, cycle, checkIns, week, stale)
     : milestoneCard(goal, checkIns, week);
-  if (!goal.stoppedAt) return card;
-  return { ...card, cells: card.cells.filter((c) => c.key !== 'hit'), marks: card.marks && { ...card.marks, end: null } };
+  const done = doneCheckIn(goal, checkIns, week);
+  if (!goal.stoppedAt && !done) return card;
+  const cells = card.cells.filter((c) => c.key !== 'hit');
+  // A done goal shows its final result where the forecast was: the number it closed on, and when.
+  if (done && goal.kind !== 'milestone') cells.push({ key: 'result', label: 'Result', value: STATUS.done.label, sub: `${done.value != null ? fmt(done.value, goal) + ' ' : ''}in week ${done.week}`, tone: 'good' });
+  return { ...card, cells, marks: card.marks && { ...card.marks, end: null } };
 }
 
-/** Whether a goal's page projects where it will end: not when its last check-in is too old, nor once it's stopped. */
-export const projects = (goal: Goal, stale: boolean) => !stale && !goal.stoppedAt;
+export { projects };

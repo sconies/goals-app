@@ -6,7 +6,7 @@ import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { LEVEL_LABEL } from '../domain/format';
-import { buildGoal, draftOf, planHint, planChanged, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
+import { buildGoal, draftOf, planHint, planChanged, planQuestion, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
 import type { Goal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
@@ -59,6 +59,11 @@ function EditSheet({ goal }: { goal: Goal }) {
   const edited = !!built && goalChange(goal, built, app.lookup, app.viewer.id, '', '') != null;
   // A change made from one part of "Change this goal" says why, whatever it changes.
   const needReason = replanning || (!!part && edited);
+  // A target that flips which way is better, or a number far outside the plan, is confirmed before it's saved (domain/goal
+  // planQuestion). The yes answers that question only: change the numbers again and it's asked again.
+  const question = built ? planQuestion(goal, built) : null;
+  const [yesTo, setYesTo] = useState('');
+  const confirmed = !question || yesTo === question.text;
   // When the target is due, and the plan from the shape (before any numbers typed by hand), for the plan table.
   const yearEnd = yearEndWeek(cycle);
   const endOptions = dueOptions(cycle, week, yearEnd);
@@ -78,7 +83,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
   const save = async () => {
     setTried(true);
-    if (!built || saving || (needReason && !reasonOk)) return;
+    if (!built || saving || (needReason && !reasonOk) || !confirmed) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
@@ -142,6 +147,13 @@ function EditSheet({ goal }: { goal: Goal }) {
                 <label className="field"><span className="field-label">Start{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
                 <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}{planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
               </div>
+              {question && (
+                <div className={'field plan-question' + (tried && !confirmed ? ' invalid' : '')} role={tried && !confirmed ? 'alert' : 'status'}>
+                  <span className="hint tone-risk">{question.text}</span>
+                  <label className="check"><input type="checkbox" checked={yesTo === question.text} onChange={(e) => setYesTo(e.target.checked ? question.text : '')} /><span>{question.confirm}</span></label>
+                  {tried && !confirmed && <FieldError>Confirm this to save, or change the numbers.</FieldError>}
+                </div>
+              )}
               {reasonField}
               <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
                 <div className="seg full" role="group" aria-labelledby="shape-l">
@@ -228,7 +240,7 @@ function EditSheet({ goal }: { goal: Goal }) {
         </section>}
 
         <div className="focus-foot">
-          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (needReason && !reasonOk)))}>{label}</button>
+          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (needReason && !reasonOk) || !confirmed))}>{label}</button>
         </div>
       </form>
     </div>

@@ -192,6 +192,7 @@ export function DataTables() {
 
   const [cs, setCs] = useState<ChangeSet | null>(null);
   const [reason, setReason] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const records = (): Tables => {
     const out: Tables = {};
@@ -207,7 +208,7 @@ export function DataTables() {
     }
     return out;
   };
-  const review = (why = reason) => setCs(app.previewChanges(records(), 'table', why));
+  const review = (why = reason, yes = confirmed) => setCs(app.previewChanges(records(), 'table', why, yes));
   const apply = async () => {
     if (!cs?.commit) return;
     setBusy(true);
@@ -368,7 +369,7 @@ export function DataTables() {
       )}
       {cs && (
         <Sheet open onClose={() => setCs(null)} title="Review your changes" wide>
-          <Preview cs={cs} name={`${total} ${total === 1 ? 'change' : 'changes'} in Data`} reason={reason} setReason={(v) => { setReason(v); review(v); }} busy={busy} onApply={() => void apply()} onAgain={() => setCs(null)} againLabel="Keep editing" fixHint="Fix those cells, then review again." />
+          <Preview cs={cs} name={`${total} ${total === 1 ? 'change' : 'changes'} in Data`} reason={reason} setReason={(v) => { setReason(v); review(v); }} onConfirm={() => { setConfirmed(true); review(reason, true); }} busy={busy} onApply={() => void apply()} onAgain={() => { setCs(null); setConfirmed(false); }} againLabel="Keep editing" fixHint="Fix those cells, then review again." />
         </Sheet>
       )}
     </div>

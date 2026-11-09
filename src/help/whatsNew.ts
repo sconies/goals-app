@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-page-fixes',
+    date: '2026-11-09',
+    title: 'A goal page that never contradicts itself',
+    points: [
+      'A new target on the other side of the start flips which way is better, so it is no longer saved quietly: Faro says so (“This makes higher better”) and saves once you say yes. A number far outside the plan it replaces is asked about the same way, in the goal’s form, an import, Data and the AI assistant.',
+      'A goal called done shows its final result where the forecast was, with no projection, and its later quarters say None due rather than In progress.',
+      'The heading over the owner’s reason says what the status means: Why it could miss without a change, or Why it will miss without intervention, never “behind” for a goal that is recovering.',
+      'Feeder counts say what they count: “Directly feeding it” on a goal’s page, “Everything under it” on a card.',
+      'A repeated reason in the history says which way to look for the week it points to, and the header says when the goal was last updated.',
+    ],
+    articles: ['goal-page', 'edit-goal'],
+  },
+  {
     id: 'goals-phone-goals-first',
     date: '2026-11-09',
     title: 'Goals on a phone: the goals first',

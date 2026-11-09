@@ -96,9 +96,10 @@ describe('the scorecard on made-up goals', () => {
     expect(card.cells.some((c) => c.likelihood)).toBe(false);
     expect(card.marks?.end).toBeNull();
     expect(card.marks?.now?.text).toBe('1.4 days ahead of plan');
-    expect(projects(stopped, false)).toBe(false);
-    expect(projects(down, false)).toBe(true);
-    expect(projects(down, true)).toBe(false);
+    expect(projects(stopped, 'on')).toBe(false);
+    expect(projects(down, 'on')).toBe(true);
+    expect(projects(down, 'stale')).toBe(false);
+    expect(projects(down, 'done')).toBe(false);
   });
 
   it('a range: vs the limit, vs last week, room to the limit, and will it stay within', () => {

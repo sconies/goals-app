@@ -107,7 +107,7 @@ function GoalPrintView() {
         <Facts facts={sh.facts} />
 
         <section className="ps-block ps-chart" aria-label="Chart">
-          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={projects(goal, stale) ? a.forecast : null} projection={projects(goal, stale) ? a.projection : null} ptgBy={projects(goal, stale) ? ptgBy : null} height={140} />}
+          {goal.kind === 'metric' && a.kind === 'metric' && <MetricChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} forecast={projects(goal, s.status) ? a.forecast : null} projection={projects(goal, s.status) ? a.projection : null} ptgBy={projects(goal, s.status) ? ptgBy : null} height={140} />}
           {goal.kind === 'range' && <RangeChart goal={goal} weeks={app.cycle.weeks} week={app.week} series={series} height={150} />}
           {a.kind === 'milestone' && <StageList a={a} />}
         </section>

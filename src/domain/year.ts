@@ -6,7 +6,7 @@
 import { fmt, fmtDiff } from './format';
 import { goalAsOf } from './goal';
 import { planAt, planEnd } from './plan';
-import { checkInsFor } from './status';
+import { checkInsFor, doneCheckIn } from './status';
 import { shortWord } from './vocabulary';
 import type { CheckIn, Cycle, Goal } from './types';
 
@@ -63,14 +63,21 @@ export interface QuarterResult {
   kind: 'met' | 'missed' | 'open' | 'none';
   /** "Q3: 63% against a plan of 64%, 1 pt short." */
   text: string;
+  /** A quarter after the goal was called done: the week it was done in. */
+  doneWeek?: number;
 }
 
-/** How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. */
+/**
+ * How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. Once the
+ * owner calls it done, the quarter it closed in is judged on its final number, and any quarter after it has nothing due.
+ */
 export function quarterResult(g: Goal, c: Cycle, checkIns: CheckIn[], q: Quarter, week: number): QuarterResult {
   const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
   const last = own[own.length - 1];
-  const ended = week > q.to;
+  const done = doneCheckIn(g, checkIns, week);
   const r = (kind: QuarterResult['kind'], text: string): QuarterResult => ({ quarter: q, kind, text: `${q.label}: ${text}` });
+  if (done && done.week < q.from) return { ...r('none', `done in week ${done.week}`), doneWeek: done.week };
+  const ended = week > q.to || (!!done && done.week <= q.to);
   if (g.kind === 'metric') {
     // A closed quarter is judged against the plan that applied at its end, not one set later.
     const p = ended ? goalAsOf(g, q.to) : g;
