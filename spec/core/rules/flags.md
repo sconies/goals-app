@@ -43,7 +43,7 @@ A goal whose official status is `off` or `risk` (and has a check-in) is **being 
 - an action (an ask of kind `action` that includes the goal, open now) was created (`createdAt`), and it isn't overdue (an open ask is overdue once its due week is before this week); or
 - a decision ask that includes the goal was answered: its `status` is `answered` (not `done`, which is for actions), timed by `answeredAt`; the latest such answer;
 
-and no flag is raised now (apart from `due`, left out of *now* only) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest look (the workspace is not re-cut to that moment). Decisions and asks that were removed are not in the workspace at all, so never count. The strongest look names it: an action, then an answer, then a note, then a review; the latest of the strongest kind.
+and no flag is raised now (apart from `due`, left out of *now* only) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest look (the earliest of every qualifying look, of any kind) (the workspace is not re-cut to that moment). Decisions and asks that were removed are not in the workspace at all, so never count. The strongest look names it: an action, then an answer, then a note, then a review; the latest of the strongest kind.
 
 A goal **needs attention** when it has a flag other than `due` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and the AI assistant all use this one rule.
 

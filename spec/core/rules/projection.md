@@ -17,7 +17,7 @@ The projection fits a least-squares line through the recent numbers, not a slope
 **The line.** With *n* points, *x̄* and *ȳ* the mean week and value, *Sxx* = Σ(*x* − *x̄*)², *slope* = Σ(*x* − *x̄*)(*y* − *ȳ*) / *Sxx*:
 
 - *spread* = √(Σ(*y* − line)² / (*n* − 2)) when *n* > 2, else 0.
-- A slope the numbers barely support counts for little: *t* = *slope* / (*spread* / √*Sxx*) (infinite when the spread is 0), and the line leans by *lean* = *t*² / (1 + *t*²) (1 when *t* is infinite).
+- A slope the numbers barely support counts for little: *t* = *slope* / *se*, with *se* = *spread* / √*Sxx* (*t* is infinite when *se* ≤ 10⁻¹², so float noise on a clean trend counts as no spread), and the line leans by *lean* = *t*² / (1 + *t*²) (1 when *t* is infinite).
 - To week *T*: *value* = *ȳ* + *lean* · *slope* · (*T* − *x̄*).
 - *half* = *spread* · √(1/*n* + (*T* − *x̄*)² / *Sxx*); *low* = *value* − *half*, *high* = *value* + *half*. About two chances in three that the number lands inside if nothing changes. A clean trend has no spread, so its range is the line itself.
 - Every result (value, low, high, slope) is rounded to 9 decimal places. The *slope* it gives is the one the line leans by, *lean* · *slope*, not the fitted slope (the conformance data's `slope` column is this one). It also says *from* (first week used), *to* (*last*.week) and *week* (*T*).
@@ -27,7 +27,7 @@ The projection fits a least-squares line through the recent numbers, not a slope
 - A *share* (`isShare`): the unit, trimmed, is `%`, and every one of those plan numbers is within 0–100. Value, low and high are held to 0–100.
 - A *count* (`isCount`): 0 decimals; every one of those plan numbers a whole number, zero or more; and a unit that, trimmed and in lower case, is not `%` and doesn't match `/^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/` (a time, money, points or a score: the whole unit is one of those words, or it holds a currency code or sign or a degree sign anywhere). Value, low and high are held at or above 0. The unit is otherwise free: `deploys`, `templates`, `TB` and `checks` are counts when the rest holds.
 
-**Where it is used.** A number to move projects to its due week (`endWeek` of the plan as of the week judged, the latest check-in's; else the cycle's end) from every earlier check-in that has a number (all of them, in week order then posting order, even two in one week) plus the number of the week judged. A range goal's scorecard projects to the cycle's end from one number per week (the latest posted in each week wins).
+**Where it is used.** A number to move projects to its due week (`endWeek` of the plan as of the week judged, the latest check-in's; else the cycle's end) from every earlier check-in that has a number (all of them, in week order then posting order, even two in one week) plus the number of the week judged. A range goal's scorecard projects to the cycle's end from one number per week: of the check-ins with a number, the latest posted in each week wins (a later check-in with no number doesn't hide an earlier one with a number).
 
 ## Worked examples
 
