@@ -9,7 +9,12 @@ Desktop at 1363 × 936; Platform Engineering demo as Rhea, Amara, Oskar and Grac
 - F06 (part) search on review participants: fixed in T. Goal and owner pickers: backlog 0a.
 - F12 (part) Goals tabs clipped: N (#51) wraps tabs and chips; recheck at 1363 px.
 
-## Still open: backlog item R (review leftovers)
+## Built in R, part 1 (branch review-leftovers, 9 Nov)
+- F16, F03, F07, F10, F09, F13 (labelled workspace-wide, as the Goals page was being changed by other builds), F08, F14. Details in the What's new entry `review-leftovers`.
+
+## Still open: F05 and F15 (backlog item R)
+
+The list as triaged on 8 Nov:
 - **F16 stale code after a deploy** ("Something went wrong" on Map, a failed dynamic import, fixed by reload). Matters on Tuesday: merging the live build deploys while tabs are open. On a failed chunk load, reload once automatically, keeping the address and drafts.
 - **F03 currency forecasts lose decimals** ("about $1" for 0.64 → 0.62 USD) in the tree narrative and the workbook's Forecast field: format every forecast with the goal's unit and decimals.
 - **F07 Next review link opens the previous occurrence**: show "Outstanding from 5 Nov" and "Next 12 Nov" separately, with the date in the review bar.
