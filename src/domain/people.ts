@@ -137,3 +137,15 @@ export function closeTeam(name: string, others: string[]): string | null {
   const near = [...new Set(others.map((o) => o.trim()))].filter((o) => o && o !== a && count(o) >= count(a) && (squash(o) === squash(a) || far(squash(o), squash(a)) <= (Math.min(o.length, a.length) < 8 ? 1 : 2)));
   return near.sort((x, y) => count(y) - count(x) || far(squash(x), squash(a)) - far(squash(y), squash(a)))[0] ?? null;
 }
+
+/**
+ * The people a search finds, best first (the person search, deep review P2): a name or a team that starts with what was
+ * typed, then one that contains it. Nothing is listed until something is typed, so a picker never shows everyone.
+ */
+export function findPeople(people: Person[], q: string, teamName: (id: string) => string, limit = 8): Person[] {
+  const t = q.trim().toLowerCase();
+  if (!t) return [];
+  const text = (p: Person) => `${p.name} ${p.teamId ? teamName(p.teamId) : ''}`.toLowerCase();
+  const starts = (p: Person) => p.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(t)) || p.name.toLowerCase().startsWith(t);
+  return people.filter((p) => !p.leftAt && text(p).includes(t)).sort((a, b) => Number(starts(b)) - Number(starts(a)) || a.name.localeCompare(b.name)).slice(0, limit);
+}

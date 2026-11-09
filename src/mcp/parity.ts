@@ -18,6 +18,8 @@ export const ACTIONS: Record<string, Entry> = {
   undoUpdateAsk: ['undo_update_ask'],
   reviewCall: ['review_call'],
   markReviewed: ['review_call'],
+  acceptRisk: ['review_call'],
+  addAction: ['add_action'],
   editCall: ['edit_call'],
   watch: ['watch'],
   unwatch: ['unwatch'],

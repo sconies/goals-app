@@ -3,6 +3,8 @@
    rule by src/spec/spec.test.ts (and by the generator, which refuses to write an example that isn't true), so an
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
+import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
+import { findPeople } from '../domain/people';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
@@ -12,13 +14,13 @@ import { fmt } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
-import { teamPeople } from '../domain/actions';
+import { acceptRisk, teamPeople } from '../domain/actions';
 import { ENDING_WEEKS, workspaceNeeds } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
 import { AVATAR_HUES } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor } from '../domain/attention';
-import { ATTENTION_FLAGS, FLAG, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
+import { ATTENTION_FLAGS, DECIDED, FLAG, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, MetricGoal, Snapshot } from '../domain/types';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
@@ -549,6 +551,42 @@ For a range, better means further from the limit on its safe side.
       { given: 'Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins.', then: 'the first problem says: Week 4 needs a Cause and a Why', run: () => { const s = demo!; const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'mttr-pir') }; const m = change('mateo', { checkIns: [rec({ 'Goal ID': 'mttr-pir', Week: '4', Value: '21' })] }, { snapshot: fresh }).issues[0]?.message ?? ''; return `the first problem says: ${/Week 4 needs a Cause and a Why/.exec(m)?.[0] ?? m}`; } },
     ],
     unclear: ['The engine is large (`src/domain/changeset.ts`): this section says what it does; its every message and column rule is in the code and its tests (listed below). A rebuild of the core status rules does not need it; a rebuild of import and bulk edit does.'],
+  },
+  /* ---------- deciding in a review (deep review P2, 10 Nov) ---------- */
+  {
+    id: 'review-decide',
+    title: 'Deciding in a review',
+    summary: 'A goal behind leaves a review with a next step (an owner and a week) or an accepted risk with a reason; the next session opens with what the last one agreed.',
+    code: [
+      { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
+      { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
+      { file: 'src/domain/review.ts', names: ['sessionToDo'] },
+      { file: 'src/domain/people.ts', names: ['findPeople'] },
+    ],
+    tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts'],
+    reqs: ['REVIEW-DECIDE', 'REVIEW-RUN'],
+    body: `
+**Who must decide.** A goal whose status is \`off\` or \`risk\` (\`needsDecision\`) is not marked reviewed in a walk until something is decided about it. Every other goal is marked reviewed as before.
+
+**What counts as a decision** (\`decisionFor\`), the latest in the session first:
+- a **next step** said in this session: an action with a person who does it and a week it is due by (open or done). An action without a week, a note or a question is not a decision;
+- the review **accepting the risk**: a note said in the session whose words are "${DECIDED['accept-risk'].label}: " and then the reason, at least ${MIN_ACCEPT_REASON} characters (\`acceptRisk\`; \`acceptedReason\` reads it back). It is a look, not a plan: the goal still needs attention;
+- or, wherever it was agreed (the goal's page, say), an open action on the goal with a person and a week, agreed since the goal's latest check-in and not yet overdue. This is the record [needs attention](flags.md) reads for "being handled".
+
+**The people search** (\`findPeople\`): nothing is listed until something is typed; then the people whose name or team contains it, those whose name starts with it first, at most 8, never someone marked as left.
+
+**Last time** (\`lastTime\`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week.
+
+**Finishing** marks every goal not yet reviewed, in one save with Undo (\`markReviewed\`; Undo is \`unmarkReviewed\`), and so holds the session. Before it does, it says what was decided (\`sessionDecisions\`): the next steps by who owns them, the risks accepted, and the questions still open.
+
+**To do** (\`sessionToDo\`): a person's session counts as something to do (the Reviews count, Home's main action) when it is this week's, not held, and either its day has come or a goal in it has been checked in on. So a workspace set up this morning doesn't say a review is to do.`,
+    examples: [
+      { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
+      { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
+      { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
+      { given: 'Searching the demo workspace’s people for "", then for "kap".', then: 'nobody / Rhea Kapoor', run: () => { const team = (id: string) => demo!.teams.find((t) => t.id === id)?.name ?? ''; return `${findPeople(demo!.people, '', team).map((p) => p.name).join(', ') || 'nobody'} / ${findPeople(demo!.people, 'kap', team).map((p) => p.name).join(', ')}`; } },
+    ],
+    unclear: ['Accepting the risk is stored as a note whose words start with a fixed phrase, so no new kind of record was needed before the talk. A rebuild should give it a kind of its own (a decision with a reason), and keep the phrase only for what people read.'],
   },
   /* ---------- the workspace (backlog WS) ---------- */
   {

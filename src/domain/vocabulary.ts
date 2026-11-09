@@ -319,6 +319,14 @@ export const SESSION: Record<SessionWord, Term<SessionWord>> = {
   held: term('held', { label: 'Held', short: 'every goal reviewed', meaning: 'Every goal in the session has been marked reviewed.', long: 'Every goal in it has been marked reviewed; it was held on the day the last one was.', rule: 'review#sessionState' }),
 };
 
+/* ---------- what a review decides about a goal behind (deep review P2, 10 Nov) ---------- */
+
+export type DecidedWord = 'next-step' | 'accept-risk';
+export const DECIDED: Record<DecidedWord, Term<DecidedWord>> = {
+  'next-step': term('next-step', { label: 'Next step', short: 'who does what, by when', meaning: 'What happens next for a goal behind: an action with an owner and a week it is due by.', long: 'An action agreed for a goal that is off track or at risk, with the person who does it and the week it is due by. Open until it is marked done; overdue once its week has passed.', rule: 'decide#decisionFor' }),
+  'accept-risk': term('accept-risk', { label: 'We accept the risk', short: 'no action, with a reason', meaning: 'The review decided to take no action on a goal behind, and said why.', long: 'A review looked at a goal that is off track or at risk and decided to take no action for now, with a reason everyone can read. It is kept on the goal and in the review’s record; the goal still needs attention.', rule: 'decide#decisionFor' }),
+};
+
 /* ---------- the trend ---------- */
 
 export type TrendWord = 'worse' | 'better' | 'flat';

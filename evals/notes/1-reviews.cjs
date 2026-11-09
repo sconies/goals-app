@@ -37,7 +37,7 @@ module.exports = {
   id: 'N1',
   area: 'reviews',
   title: 'Review notes, reviews',
-  reqs: ['REVIEW-LIST-STATE', 'REVIEW-AGENDA'],
+  reqs: ['REVIEW-LIST-STATE', 'REVIEW-AGENDA', 'REVIEW-DECIDE'],
   async run({ open, url }) {
     const fails = [];
     const fail = (ok, msg) => { if (!ok) fails.push(msg); };
@@ -134,11 +134,19 @@ module.exports = {
       await p.getByPlaceholder('What the review said').fill('The vendor’s fix slipped to their next release.');
       await p.getByRole('button', { name: 'Save note' }).click();
       await p.locator('.said').getByText('The vendor’s fix slipped').waitFor();
-      await p.locator('.decide .quiet-links').getByRole('button', { name: 'Add an action' }).click();
+      // The merge queue is off track: the walk asks what happens next before it moves on (deep review P2).
+      fail(await p.getByRole('heading', { name: 'What happens next, who, by when?' }).isVisible() && !(await p.locator('.decide').getByRole('button', { name: /^Reviewed & / }).count()), 'Decide: an off-track goal can be marked reviewed without a decision');
+      await p.locator('.decide').getByRole('button', { name: 'Add the next step' }).click();
       await p.getByPlaceholder('What needs doing').fill('Agree the batching workaround with Web');
-      await p.getByRole('dialog').getByLabel('Who').selectOption({ label: 'Diego Ramírez' });
-      await p.getByRole('dialog').getByLabel(/^By/).selectOption({ index: 2 });
-      await p.getByRole('button', { name: 'Save action' }).click();
+      // Who is found by searching, never picked from a list of everyone.
+      const dlg = p.getByRole('dialog');
+      fail(!(await dlg.locator('.person-pick .optlist').count()), 'Decide: the person search lists people before anything is typed');
+      await dlg.getByRole('searchbox', { name: /^Who/ }).fill('Diego');
+      await dlg.getByRole('radio', { name: /Diego Ramírez/ }).click();
+      await p.getByRole('button', { name: 'Save the next step' }).click();
+      fail(await dlg.getByRole('alert').filter({ hasText: 'Choose the week' }).isVisible().catch(() => false), 'Decide: a next step for a goal behind saved with no date');
+      await dlg.getByLabel(/^By/).selectOption({ index: 2 });
+      await p.getByRole('button', { name: 'Save the next step' }).click();
       await p.locator('.said').getByText('Agree the batching workaround').waitFor();
       await p.locator('.decide .quiet-links').getByRole('button', { name: /^Ask / }).click();
       await p.getByPlaceholder(/What would it take/).fill('Can the web monorepo move before week 49?');
@@ -158,8 +166,12 @@ module.exports = {
       await p.getByRole('button', { name: 'Finish review' }).click();
       const ask = p.getByRole('dialog', { name: 'Finish Merge queue check?' });
       await ask.waitFor({ timeout: 3000 }).catch(() => fail(false, 'Finish review: no question first'));
-      fail(/1 goal with nothing flagged is marked reviewed/.test(await ask.innerText().catch(() => '')), 'Finish review: the question does not say what is recorded');
-      await ask.getByRole('button', { name: 'Mark them and finish' }).click();
+      // It says what was decided and who owns it, then what is recorded (deep review P2).
+      const said = await ask.innerText().catch(() => '');
+      fail(/Decided/.test(said) && /Diego Ramírez/.test(said) && /Agree the batching workaround with Web, by [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}/.test(said), `Finish review: the summary doesn't say what was decided and who owns it: ${said.replace(/\s+/g, ' ')}`);
+      fail(/1 question for an owner stays open/.test(said) && /1 goal is marked reviewed/.test(said), `Finish review: the question does not say what is recorded: ${said.replace(/\s+/g, ' ')}`);
+      await ask.getByRole('button', { name: 'Finish the review' }).click();
+      await p.locator('.toast').filter({ hasText: 'Finished Merge queue check' }).getByRole('button', { name: 'Undo' }).waitFor({ timeout: 4000 }).catch(() => fail(false, 'Finish review: no Undo after finishing'));
       await p.locator('.review-home .session-record').waitFor({ timeout: 5000 }).catch(() => fail(false, `Finishing: ${p.url()} does not lead with what was said`));
       fail(/\/reviews\/small(\?|$)/.test(p.url()), `Finishing: landed on ${p.url()}, not the review`);
       const s = await p.evaluate(() => {
@@ -201,8 +213,19 @@ module.exports = {
       await p.locator('.healthy-group summary').click();
       await p.getByRole('button', { name: 'Walk them one at a time instead' }).click();
       await p.getByRole('button', { name: /^Start review · 2 goals/ }).click();
+      // The off-track goal: the review accepts the risk, with a reason.
+      await p.locator('.decide').getByRole('button', { name: 'We accept the risk' }).click();
+      await p.getByRole('dialog').locator('textarea').fill('The vendor fix lands next release; nothing we can do sooner.');
+      await p.getByRole('button', { name: 'Save the decision' }).click();
+      await p.locator('.said').getByText('The vendor fix lands next release').waitFor();
       await p.locator('.decide').getByRole('button', { name: 'Reviewed & next' }).click();
       await p.locator('.decide').getByRole('button', { name: 'Reviewed & finish' }).click();
+      // The last goal finishes on the review's page, with the summary first.
+      await p.waitForURL(/\/reviews\/small\?finish=/, { timeout: 5000 }).catch(() => fail(false, `Reviewed & finish: landed on ${p.url()}`));
+      const fin = p.getByRole('dialog', { name: 'Finish Merge queue check?' });
+      await fin.waitFor({ timeout: 3000 }).catch(() => fail(false, 'Reviewed & finish: no Finish summary'));
+      fail(/We accept the risk: Merge queue live for every monorepo/.test(await fin.innerText().catch(() => '')), 'Reviewed & finish: the summary does not show the risk accepted');
+      await fin.getByRole('button', { name: 'Finish the review' }).click();
       await p.waitForURL(/\/reviews\/small(\?|$)/, { timeout: 5000 }).catch(() => fail(false, `Reviewed & finish: landed on ${p.url()}`));
       await p.locator('.review-home .session-record').waitFor({ timeout: 5000 }).catch(() => fail(false, 'Reviewed & finish: the review does not lead with what was said'));
       const m = await agendaReport(p);
@@ -268,6 +291,15 @@ module.exports = {
     // The bar is read once it says what's expected, or after 4 seconds: straight after a move it can still be redrawing.
     const barSays = async (p, re) => { for (let i = 0; i < 40; i++) { if (re.test(await barText(p).catch(() => ''))) return true; await p.waitForTimeout(100); } return false; };
     const goalOf = (p) => new URL(p.url()).pathname.split('/').pop();
+    // A goal behind is decided before it's marked reviewed (deep review P2): here, by accepting the risk.
+    const decide = async (p) => {
+      const accept = p.locator('.decide').getByRole('button', { name: 'We accept the risk' });
+      if (!(await accept.isVisible().catch(() => false))) return;
+      await accept.click();
+      await p.getByRole('dialog').locator('textarea').fill('Waiting on the Q4 runner budget, decided above this review.');
+      await p.getByRole('button', { name: 'Save the decision' }).click();
+      await p.locator('.decide').getByRole('button', { name: /^Reviewed & / }).waitFor();
+    };
     const walked = [];
     let total = 0;
     {
@@ -283,6 +315,7 @@ module.exports = {
       for (let i = 0; i < 2; i++) {
         walked.push(goalOf(p));
         const here = p.url();
+        await decide(p);
         await p.locator('.decide').getByRole('button', { name: /^Reviewed & / }).click();
         await p.waitForURL((u) => u.href !== here);
         await p.locator('.reviewbar').waitFor();
@@ -325,15 +358,54 @@ module.exports = {
       await p.locator('.reviewbar').waitFor();
       const before = await barText(p);
       fail(new RegExp(` of ${total}( |$)`).test(before), `T3 deep link: the bar says "${before}", expected the walk's ${total}`);
-      await p.locator('.decide .quiet-links').getByRole('button', { name: 'Add an action' }).click();
+      await p.locator('.decide').getByRole('button', { name: 'Add the next step' }).click();
       await p.getByPlaceholder('What needs doing').fill('Agree the runner budget with Amara');
-      await p.getByRole('button', { name: 'Save action' }).click();
+      await p.getByRole('dialog').getByLabel(/^By/).selectOption({ index: 1 });
+      await p.getByRole('button', { name: 'Save the next step' }).click();
       await p.locator('.said').getByText('Agree the runner budget').waitFor();
       fail(await barText(p) === before, `T3 deep link: saving an action moved the goal from "${before}" to "${await barText(p)}"`);
       const here = p.url();
       await p.locator('.decide').getByRole('button', { name: /^Reviewed & / }).click();
       await p.waitForURL((u) => u.href !== here);
       fail(goalOf(p) === walked[1], `T3 deep link: Reviewed & next went to ${goalOf(p)}, not the next goal on the agenda (${walked[1]})`);
+      await c.close();
+    }
+
+    // ---------- Deep review P2 (10 Nov): last time, and next steps on the goal page ----------
+    {
+      const [c, p] = await open(1280, 900, 'daniel', '/reviews');
+      await p.goto(talk('/reviews/devprod'));
+      await p.locator('.review-home').waitFor();
+      // The session opens with what the last one agreed, straight after the review's heading.
+      const blocks = await p.evaluate(() => [...document.querySelector('.review-home').children].filter((e) => e.getClientRects().length).map((e) => e.getAttribute('data-part') || e.className));
+      fail(blocks.indexOf('Last time') === blocks.indexOf('hero') + 1, `P2: the review doesn't open with last time (${blocks.join(' / ')})`);
+      const last = p.locator('[data-part="Last time"]');
+      const row = last.locator('li', { hasText: 'Name a review rota' });
+      fail(/Tariq agreed: Name a review rota/.test(await row.innerText().catch(() => '')) && /by [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}/.test(await row.innerText().catch(() => '')) && /Open/.test(await row.innerText().catch(() => '')), `P2: last time says "${(await row.innerText().catch(() => 'nothing')).replace(/\s+/g, ' ')}"`);
+      await row.getByRole('button', { name: 'Done?' }).click();
+      await p.waitForTimeout(500);
+      fail(/Done/.test(await last.locator('li', { hasText: 'Name a review rota' }).innerText().catch(() => '')), 'P2: marking last time\'s action done from the review did not say Done');
+      await c.close();
+    }
+    {
+      const [c, p] = await open(390, 844, 'daniel', '/reviews', true);
+      await p.goto(talk('/goals/lead-review-rota'));
+      const rowSel = p.locator('.action-row', { hasText: 'Name a review rota' });
+      await rowSel.waitFor();
+      fail(/Tariq, by week \d+ \([A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}\)/.test(await rowSel.innerText()), `P2: the goal page's action row has no owner and date: ${(await rowSel.innerText()).replace(/\s+/g, ' ')}`);
+      // Changed on the goal page: the owner is found by searching.
+      await rowSel.getByRole('button', { name: 'Change' }).click();
+      const d = p.getByRole('dialog');
+      await d.getByRole('searchbox', { name: /^Who/ }).fill('Rhea');
+      await d.getByRole('radio', { name: /Rhea Kapoor/ }).click();
+      await d.getByRole('button', { name: 'Save the change' }).click();
+      await p.waitForTimeout(500);
+      fail(/Rhea, by week/.test(await p.locator('.action-row', { hasText: 'Name a review rota' }).innerText()), 'P2: changing the owner on the goal page did not take');
+      // Anyone can add a next step; it asks who and by when.
+      await p.getByRole('button', { name: 'Add a next step' }).first().click();
+      await p.getByRole('dialog').locator('textarea').fill('Audit CODEOWNERS for the payments repositories');
+      await p.getByRole('dialog').getByRole('button', { name: 'Add the next step' }).click();
+      fail(await p.getByRole('dialog').getByRole('alert').filter({ hasText: 'Choose the week' }).isVisible().catch(() => false), 'P2: a next step was added with no date');
       await c.close();
     }
 
