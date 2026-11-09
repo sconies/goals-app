@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, REASON_CODES, VALUE_CODES, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, REASON_CODES, saidWhen, VALUE_CODES, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
@@ -401,8 +401,8 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
       )}
 
       {step === 'carry' && previous && (
-        <section className="qsection" aria-label="What you said last week">
-          <h2 className="qtitle">Is what you said last week still true?</h2>
+        <section className="qsection" aria-label={`What you said ${saidWhen(previous.week, week)}`}>
+          <h2 className="qtitle">Is what you said {saidWhen(previous.week, week)} still true?</h2>
           <blockquote className="quote">
             {priorWhy && <p><strong>{causeLabel(previous.cause)}.</strong> {previous.why}</p>}
             {priorWay && <p><strong>{previous.pathToGreen!.byWeek != null ? `Back on plan by ${weekLabel(previous.pathToGreen!.byWeek, cycle.weeks)}.` : `${RECOVERY[previous.pathToGreen!.state ?? 'plan'].label}.`}</strong> {previous.pathToGreen!.what}</p>}

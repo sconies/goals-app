@@ -86,7 +86,6 @@ function YouMenu({ onClose }: { onClose: () => void }) {
           <span className="field-label">Workspaces</span>
           {app.workspaces.map((w) => (
             <button key={w.id} type="button" className="menuitem" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => { app.switchWorkspace(w.id); onClose(); }}>
-              <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
               <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}><span className="strong">{w.name}</span><span className="tiny muted">{w.kind === 'example' ? 'Example data you can play with and reset' : app.mode === 'demo' ? 'Your own, in this browser' : 'Your workspace'}</span></span>
               {w.id === app.ws.id && <span className="tiny strong" style={{ color: 'var(--accent-text)' }}>Open</span>}
             </button>
@@ -251,7 +250,8 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className={'app' + (focusMode ? ' focus-mode' : '') + (icons ? ' nav-icons' : '') + (goalTop ? ' goal-top' : '')}>
       <a className="skip" href="#main">Skip to content</a>
       <div className="mtop" data-part="Header">
-        <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{wsName.slice(0, 1).toUpperCase()}</span>
+        {/* Faro's F, not the workspace's initial (Lane, 9 Nov): the workspace is named beside it. */}
+        <FaroMark size={30} />
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
           <strong className="ellipsis">{title}</strong>
           <span className="tiny muted ellipsis">{app.ws.kind === 'example' ? 'Example data' : app.ws.name}, {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
@@ -265,9 +265,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <FaroLogo size={22} />
             <FaroMark size={28} label={null} />
           </div>
-          {/* The workspace's name. Switching (for the few in more than one) is in the person menu at the foot. */}
+          {/* The workspace's name, without a letter: Faro's mark is just above it (Lane, 9 Nov). Switching (for the few in more than one) is in the person menu at the foot. */}
           <div className="ws-head" title={app.ws.name}>
-            <span className={'wsmark' + (app.ws.kind === 'example' ? ' example' : '')} aria-hidden="true">{wsName.slice(0, 1).toUpperCase()}</span>
             <span className="stack ws-head-text" style={{ gap: 0, minWidth: 0, flex: 1 }}>
               {/* "Example: Platform Engineering" was cut to "Example: Platf…": the name, with "Example" as the quieter line. */}
               <b className="ws-name">{wsName}</b>

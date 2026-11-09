@@ -6,7 +6,7 @@ import { firstReports } from '../domain/progress';
 /**
  * While goals are still waiting for their first check-in: how many are in, and who hasn't reported yet. With `among`
  * (Home: your goals and the ones you watch), only while one of those is still waiting, as only then does it qualify what
- * the page lists. Goals says it whenever any goal is waiting.
+ * the page lists. Goals says it whenever any goal is waiting. The counts are always the workspace's, and say so.
  */
 export function FirstReports({ among }: { among?: readonly string[] }) {
   const app = useApp();
@@ -18,7 +18,8 @@ export function FirstReports({ among }: { among?: readonly string[] }) {
   return (
     // On a Goals phone screen it's one line until Why? is pressed (backlog G): the rest is below the goals' first screen.
     <p className="first-reports small" role="status" data-why={why || undefined}>
-      <strong className="first-reports-full">{f.reported} of {f.total} goals have had their first check-in.</strong>
+      {/* The whole workspace's goals, whatever the page is narrowed to, so it says so (review F13). */}
+      <strong className="first-reports-full">Across the whole workspace, {f.reported} of {f.total} goals have had their first check-in.</strong>
       <strong className="first-reports-short">First check-ins: {f.reported} of {f.total} goals.</strong>
       <span className="first-reports-more"> Until they have, “nothing needs attention” only means nobody has reported.
       {' '}Waiting on {names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(names.length === 2 ? ' and ' : ', ')}; this week’s are due {date}.</span>

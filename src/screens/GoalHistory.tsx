@@ -156,6 +156,14 @@ const watchEdges = (el: HTMLElement | null) => {
   return () => ro.disconnect();
 };
 
+/** The week a goal was done, when it still is: the first of the done calls it ends on (review F09). */
+function doneSince(calls: Map<number, { status: string }>): number | null {
+  const weeks = [...calls.keys()].sort((a, b) => a - b);
+  let since: number | null = null;
+  for (const w of weeks) since = calls.get(w)!.status === 'done' ? since ?? w : null;
+  return since;
+}
+
 function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
   const app = useApp();
   const sums = useSummaries(groups);
@@ -171,6 +179,9 @@ function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
   const selGoal = sel.goal && groups.some((g) => g.rows.some((r) => r.goal.id === sel.goal)) ? sel.goal : firstGoal;
   const cellText = (s: GoalSummary, w: number, c: ReturnType<typeof weeklyCalls>) => {
     const ci = c.get(w);
+    // A goal done needs no more check-ins: the weeks after say so, not "No check-in" (review F09).
+    const done = doneSince(c);
+    if (!ci && done != null && w > done) return w <= app.week ? `${LABEL.done} since week ${done}` : LABEL.done;
     if (!ci) return w <= app.week ? 'No check-in' : 'Not yet';
     const v = s.goal.kind === 'milestone' ? `${(ci.stages ?? []).filter((u) => u.doneWeek != null).length} of ${s.goal.stages.length} stages` : ci.value == null ? '' : fmt(ci.value, s.goal);
     return `${LABEL[ci.status]}${v ? ', ' + v : ''}${ci.backfilled ? ' (loaded later)' : ''}`;
@@ -218,6 +229,7 @@ function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
                   {g.rows.map(({ goal, depth }) => {
                     const s = sums.get(goal.id)!;
                     const calls = weeklyCalls(s.checkIns);
+                    const done = doneSince(calls);
                     return (
                       <tr key={goal.id} className={goal.id === selGoal ? 'sel-row' : undefined}>
                         <th scope="row" className={'hg-goal' + (depth ? ' child' : '')} style={depth ? ({ '--depth': depth } as React.CSSProperties) : undefined}><Link to={'/goals/' + goal.id} title={goal.title}>{goal.title}</Link> <TitleTell goal={goal} /></th>
@@ -227,8 +239,8 @@ function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
                           const on = goal.id === selGoal && wk === selWeek;
                           return (
                             <td key={wk} data-cell={`${goal.id}:${wk}`} tabIndex={on ? 0 : -1} aria-selected={on} onClick={() => setSel({ goal: goal.id, week: wk })} onFocus={() => !on && setSel({ goal: goal.id, week: wk })} onKeyDown={(e) => move(e, rowIds, goal.id, wk)}
-                              className={'hcell' + (wk === app.week ? ' now' : '') + (wk > app.week ? ' future' : '') + (ci ? ' tone-' + ci.status : '') + (ci?.backfilled ? ' backfilled' : '') + (on ? ' sel' : '') + (wk === selWeek ? ' sel-col' : '')} title={`Week ${wk}: ${text}`}>
-                              {ci ? <StatusShape k={ci.status} /> : wk <= app.week ? <span className="hcell-empty" aria-hidden="true" /> : null}
+                              className={'hcell' + (wk === app.week ? ' now' : '') + (wk > app.week ? ' future' : '') + (ci ? ' tone-' + ci.status : '') + (!ci && done != null && wk > done ? ' after-done' : '') + (ci?.backfilled ? ' backfilled' : '') + (on ? ' sel' : '') + (wk === selWeek ? ' sel-col' : '')} title={`Week ${wk}: ${text}`}>
+                              {ci ? <StatusShape k={ci.status} /> : wk <= app.week && !(done != null && wk > done) ? <span className="hcell-empty" aria-hidden="true" /> : null}
                               <span className="sr">{goal.title}, week {wk}: {text}</span>
                             </td>
                           );

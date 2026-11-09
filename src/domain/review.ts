@@ -199,6 +199,35 @@ export function saidIn(s: Pick<Snapshot, 'decisions' | 'requests'> & Partial<Sna
 /** The week of the session after this one. */
 export const nextSessionWeek = (r: Review, sessionWk: number) => sessionWeek(r, sessionWk + 1);
 
+/** The week of a review's next session on or after today: this week's, or the one after once its date has gone. Home's
+    "Next review" and the review page's "Next" both use it, so they name the same day (review F07, 9 Nov). */
+export function upcomingSessionWeek(r: Review, cycle: Cycle, week: number, today: Date): number {
+  const day = today.toISOString().slice(0, 10);
+  const w = sessionWeek(r, week, cycle);
+  return sessionDate(r, cycle, w) < day ? sessionWeek(r, w + 1, cycle) : w;
+}
+
+/**
+ * The words for which session a review is on, in the order people need them (review F07): a session past its date and
+ * not held is "Outstanding from Thu 5 Nov (4 days past)", so the next one can't be mistaken for it; otherwise its date.
+ */
+export function sessionWhen(s: ReviewSession, today: Date): string {
+  const past = daysPast(s, today);
+  return past ? `Outstanding from ${dayText(s.date)} (${pastText(past)})` : dayText(s.date);
+}
+
+/** The date of the next session when it is a different one from the session shown (that one is held, or outstanding). */
+export function nextSessionDate(s: ReviewSession, cycle: Cycle, week: number, today: Date): string | null {
+  const next = Math.max(upcomingSessionWeek(s.review, cycle, week, today), sessionState(s).kind === 'held' ? nextSessionWeek(s.review, s.week) : 0);
+  return next !== s.week && next <= cycle.weeks ? sessionDate(s.review, cycle, next) : null;
+}
+
+/** "Next Thu 12 Nov", for the line under a review's name. */
+export function nextWhen(s: ReviewSession, cycle: Cycle, week: number, today: Date): string | null {
+  const d = nextSessionDate(s, cycle, week, today);
+  return d ? `Next ${dayText(d)}` : null;
+}
+
 /** How a call reads in the change log, after the person's name. */
 export const DECISION_LOG: Record<Decision['kind'], string> = {
   'approve-target': 'Approved the target change',

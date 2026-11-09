@@ -74,6 +74,10 @@ module.exports = {
     if (!near(d.shape, 8)) fails.push(`[D16] the Status column has no 8px shape (${d.shape})`);
     if (!/tabular/.test(d.tnum) || /tabular/.test(d.plain) || d.numPad !== '12px') fails.push(`[D9, D15] figures ${d.tnum} (padding ${d.numPad}), words ${d.plain}`);
     if (d.offCentre > 2) fails.push(`[D11] cell text sits ${d.offCentre.toFixed(1)}px off centre`);
+    // Review F14: a compact default layout. No column wider than 260px but the goal's name; the goals table, as rhea
+    // edits it, fits in about 2100px (it was 2721px at 1363px wide, Team alone 416px).
+    const lay = await r.evaluate(() => ({ table: document.querySelector('.dtable').getBoundingClientRect().width, wide: [...document.querySelectorAll('.dtable thead th')].filter((t) => !t.classList.contains('dname') && t.getBoundingClientRect().width > 260).map((t) => `${t.innerText.trim()} ${Math.round(t.getBoundingClientRect().width)}px`) }));
+    if (lay.wide.length || lay.table > 2100) fails.push(`[F14] Data's default columns aren't compact: the table is ${Math.round(lay.table)}px; wide: ${lay.wide.join(', ') || 'none'}`);
     // Sorting doesn't widen a column; the icon is in a 12px slot.
     const before = await r.evaluate(() => [...document.querySelectorAll('.dtable thead th')].find((t) => t.innerText.trim() === 'Owner').getBoundingClientRect().width);
     await r.locator('.dtable thead').getByRole('button', { name: /^Owner/ }).click(); await r.waitForTimeout(250);
@@ -152,8 +156,9 @@ module.exports = {
     // There is one example now, so give the person a second workspace of their own to tell the marks apart.
     await r.evaluate(() => localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_other', name: 'Support desk', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }])));
     await r.reload(); await r.waitForTimeout(500);
-    const marks = await r.evaluate(() => [...document.querySelectorAll('.ws-line .wsmark')].map((m) => m.innerText.trim()).join(''));
-    if (new Set(marks).size < 2) fails.push(`[W21] every workspace mark is "${marks[0]}"`);
+    // Workspaces are told apart by name, not a letter (Lane, 9 Nov): no initial squares, and every line names its workspace.
+    const lines = await r.evaluate(() => ({ names: [...document.querySelectorAll('.ws-line .gline-title')].map((m) => m.innerText.trim()), letters: document.querySelectorAll('.ws-line .wsmark').length }));
+    if (lines.letters || lines.names.length < 2 || new Set(lines.names).size < lines.names.length) fails.push(`[W21] workspace lines: ${JSON.stringify(lines)}`);
     // People is its own section (backlog W): its heading is the page's, and Add a person is its one main action.
     await r.goto(url('/workspace/people')); await r.locator('.person-opt').first().waitFor(); await r.waitForTimeout(300);
     const ws = await r.evaluate(() => {

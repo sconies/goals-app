@@ -195,3 +195,7 @@ export function toCheckIn(goal: Goal, cycle: Cycle, week: number, draft: Draft, 
     dataFlagged: draft.dataFlagged,
   };
 }
+
+/** When the note offered back was written (review F10): a correction in the same week asks about this week's earlier
+    check-in, not "last week"; an older one names its week. */
+export const saidWhen = (said: number, week: number) => (said >= week ? 'in this week’s earlier check-in' : said === week - 1 ? 'last week' : `in week ${said}`);

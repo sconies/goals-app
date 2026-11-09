@@ -8,7 +8,10 @@
    [TELEMETRY-SWITCH] once an admin turns recording off on Workspace, nothing is sent, after a reload too, and Settings
    says it's off.
    [TELEMETRY-SIGNALS] when the telemetry tables answer 404 the app carries on with no error of its own in the console
-   (the browser's own "Failed to load resource" network line is not the app's) and sends at most a request or two. */
+   (the browser's own "Failed to load resource" network line is not the app's) and sends at most a request or two.
+   [STALE-RELOAD] (review F16) when a part of the build has gone since the tab loaded (the Map's file answers 404, as
+   after a deploy), the page reloads itself once at the same address and the Map draws; when it is still gone after
+   that reload, the page shows "Something went wrong" instead of reloading again. */
 const SIZES = [[390, 844, true], [1280, 800, false]];
 const SECRET = 'Quokka-marmalade-5521';
 const TODAY = '2026-11-05';
@@ -18,7 +21,7 @@ module.exports = {
   id: 'N8',
   area: 'telemetry',
   title: 'Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send',
-  reqs: ['TELEMETRY-SIGNALS', 'TELEMETRY-PRIVACY', 'TELEMETRY-FLOWS', 'TELEMETRY-SWITCH'],
+  reqs: ['TELEMETRY-SIGNALS', 'TELEMETRY-PRIVACY', 'TELEMETRY-FLOWS', 'TELEMETRY-SWITCH', 'STALE-RELOAD'],
   async run({ browser, down }) {
     const fails = [];
     const fail = (ok, msg) => { if (!ok) fails.push(msg); };
@@ -154,6 +157,34 @@ module.exports = {
         } catch (e) { fail(false, `[TELEMETRY-SIGNALS] ${w} (404): ${String(e.message || e).split('\n')[0]}`); }
         await c.close();
       }
+    }
+
+    // ---------- Stale code after a deploy (review F16): reload once, then the Map; never a reload loop ----------
+    for (const gone of [1, Infinity]) {
+      const c = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+      let refused = 0;
+      await c.route(/\/assets\/GoalMap-[^/]+\.js(\?.*)?$/, (route) => {
+        if (refused < gone) { refused++; return route.fulfill({ status: 404, contentType: 'text/plain', body: 'gone' }); }
+        return route.continue();
+      });
+      const p = await c.newPage();
+      p.setDefaultTimeout(8000);
+      let loads = 0;
+      p.on('load', () => { loads++; });
+      try {
+        await p.goto(url('/goals?view=map'));
+        if (gone === 1) {
+          await p.locator('.react-flow, .goal-map, [data-map]').first().waitFor({ timeout: 10000 });
+          fail(loads === 2, `[STALE-RELOAD] the Map's file gone once: expected one reload then the Map, saw ${loads} page loads`);
+          fail(/view=map/.test(p.url()), `[STALE-RELOAD] the reload left the address: ${p.url()}`);
+          fail(!(await p.getByText('Something went wrong').count()), '[STALE-RELOAD] "Something went wrong" after the reload that fixed it');
+        } else {
+          await p.getByText('Something went wrong on this page').waitFor({ timeout: 10000 });
+          await p.waitForTimeout(1500);
+          fail(loads === 2, `[STALE-RELOAD] the Map's file still gone: expected one reload then the error page, saw ${loads} page loads`);
+        }
+      } catch (e) { fail(false, `[STALE-RELOAD] gone ${gone === 1 ? 'once' : 'for good'}: ${String(e.message || e).split('\n')[0]} (${loads} loads, ${refused} refused)`); }
+      await c.close();
     }
     return fails;
   },

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentWeek } from './plan';
-import { dayText, daysPast, isHealthy, pastText, lastHeld, nextSessionWeek, openActions, reviewSession, sessionState, sessionStateText, sessionWeek } from './review';
+import { dayText, daysPast, isHealthy, pastText, lastHeld, nextSessionDate, nextSessionWeek, nextWhen, openActions, reviewSession, sessionDate, sessionState, sessionStateText, sessionWeek, sessionWhen, upcomingSessionWeek } from './review';
 import { storyOf } from './story';
 import type { Ask, Decision, Snapshot } from './types';
 
@@ -99,5 +99,28 @@ describe('where a review session stands (Lane, 5 Nov)', () => {
     expect(nextSessionWeek(review, base.week)).toBe(base.week + 1);
     const monthly = s.reviews.find((r) => r.id === 'security')!;
     expect(nextSessionWeek(monthly, sessionWeek(monthly, week))).toBe(sessionWeek(monthly, week) + 4);
+  });
+});
+
+describe('an outstanding session and the next one, named apart (review F07)', () => {
+  const review = s.reviews.find((r) => r.id === 'weekly')!;
+  const w = sessionWeek(review, week, cycle);
+  const date = sessionDate(review, cycle, w);
+  const after = new Date(Date.parse(date + 'T12:00:00Z') + 4 * 86_400_000);
+  const quiet = { ...s, decisions: s.decisions.filter((d) => d.reviewId !== review.id) };
+  it('a session past its date and not held is "Outstanding from …", and the next is named beside it', () => {
+    const sx = reviewSession(review, quiet, cycle, after, week);
+    expect(sx.week).toBe(w);
+    expect(sessionWhen(sx, after)).toBe(`Outstanding from ${dayText(date)} (4 days past)`);
+    const next = sessionDate(review, cycle, upcomingSessionWeek(review, cycle, week, after));
+    expect(next > date).toBe(true);
+    expect(nextSessionDate(sx, cycle, week, after)).toBe(next);
+    expect(nextWhen(sx, cycle, week, after)).toBe(`Next ${dayText(next)}`);
+  });
+  it('on the day itself, the session is just its date, with no separate next', () => {
+    const on = new Date(date + 'T09:00:00Z');
+    const sx = reviewSession(review, quiet, cycle, on, week);
+    expect(sessionWhen(sx, on)).toBe(dayText(date));
+    expect(nextWhen(sx, cycle, week, on)).toBeNull();
   });
 });

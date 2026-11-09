@@ -8,6 +8,7 @@ import type { Mark } from '../help/flows';
 import { Empty } from '../ui/bits';
 import { inputStart } from './browser';
 import { mark, telemetry } from './index';
+import { isStaleCodeError, recoverFromStaleCode } from './staleCode';
 
 /** Inside the loaded app: says who and where to telemetry, and records each page change. */
 export function TelemetryRoutes() {
@@ -40,14 +41,28 @@ export function useMark(name: Mark | null) {
   useEffect(() => { if (name) mark(name); }, [name]);
 }
 
-/** A crash on a page: recorded, and a calm way on instead of a blank screen. Moving to another address (`at`) clears it. */
-export class ErrorBoundary extends Component<{ children: ReactNode; at?: string }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
-  componentDidUpdate(prev: { at?: string }) { if (prev.at !== this.props.at && this.state.failed) this.setState({ failed: false }); }
-  componentDidCatch(error: unknown) { try { telemetry.exception(error, 'react'); } catch { /* never in the way */ } }
+/** A crash on a page: recorded, and a calm way on instead of a blank screen. Moving to another address (`at`) clears it.
+    A part of an older build that has gone since a deploy (review F16) reloads the page once instead (staleCode.ts). */
+export class ErrorBoundary extends Component<{ children: ReactNode; at?: string }, { failed: boolean; reloading: boolean }> {
+  state = { failed: false, reloading: false };
+  // Stale code shows "Loading the new version" straight away; if it can't reload (it just did), the error page.
+  static getDerivedStateFromError(error: unknown) { return { failed: true, reloading: isStaleCodeError(error) }; }
+  componentDidUpdate(prev: { at?: string }) { if (prev.at !== this.props.at && this.state.failed && !this.state.reloading) this.setState({ failed: false }); }
+  componentDidCatch(error: unknown) {
+    try { telemetry.exception(error, 'react'); } catch { /* never in the way */ }
+    if (this.state.reloading && !recoverFromStaleCode(error)) this.setState({ reloading: false });
+  }
   render() {
     if (!this.state.failed) return this.props.children;
+    if (this.state.reloading) {
+      return (
+        <div className="page narrow" role="status" data-stale-reload>
+          <Empty title="Loading the new version of Faro">
+            <p className="muted">Faro was updated while this page was open. It reloads here, on the same page; anything you were typing is kept.</p>
+          </Empty>
+        </div>
+      );
+    }
     return (
       <div className="page narrow">
         <Empty title="Something went wrong on this page">
