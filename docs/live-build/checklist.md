@@ -15,9 +15,9 @@ Tick each line on Tuesday evening, then do the "15 minutes before" block again o
 
 **The live build**
 - [ ] Sign in to Vercel in the presenting browser: every preview link, the fallback's and the live build's, is behind Vercel sign-in.
-- [ ] Open the fallback preview (link in `docs/live-build/metrics.md`, draft PR #55): Data → Metrics lists the 13 metrics; add "Deploy frequency"; make a new goal measured by it; open a goal page and see its metric.
+- [ ] Open the fallback preview (link in `docs/live-build/metrics.md`, draft PR #57; #55 is a second fallback): Data → Metrics lists the 13 metrics; add "Deploy frequency"; make a new goal measured by it; open a goal page and see its metric.
 - [ ] Start a **new Claude Code session** at claude.ai/code: repository **sconies/goals-app**, environment **goals-app**, permission mode **Auto**. Check you can pick Auto (it must be set when you start the session; it can't be set later from another session).
-- [ ] Only once the brief and README fixes are on main: paste the brief from `docs/live-build/metrics.md` with the default room answers (answer 3: "yes, freely"), and time it to the preview link (the rehearsal took 21 minutes with the harder answer). Close its pull request unmerged afterwards.
+- [ ] Only once the brief and README fixes are on main: paste the brief from `docs/live-build/metrics.md` with the default room answers (answer 3: "yes, freely"), and time it to the preview link (run 2 took 13 minutes to the preview, 16 to green CI). Close its pull request unmerged afterwards.
 - [ ] Decide your cut-off: if no preview link by **20 minutes**, switch to the fallback.
 - [ ] Decide the room questions you'll actually ask (all five, or only 1 and 4 to save time), and practise the line for question 3 if the room asks for a reason.
 
