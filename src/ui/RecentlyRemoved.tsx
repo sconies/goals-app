@@ -2,7 +2,7 @@
    nobody has checked in to yet can be deleted. The rules are domain/removal's. */
 import { useState } from 'react';
 import { useApp } from '../app/state';
-import { cycleDeletable, REMOVED_LABEL, type Removed } from '../domain/removal';
+import { cycleStanding, REMOVED_LABEL, type Removed } from '../domain/removal';
 import { RESTORE_DAYS } from '../domain/vocabulary';
 import { whenText } from './ChangeItem';
 
@@ -52,17 +52,18 @@ export function CycleList({ bare = false }: { bare?: boolean } = {}) {
   return (
     <section className="block cycles-block" aria-labelledby={bare ? undefined : 'ws-cycles'} aria-label={bare ? 'Cycles' : undefined}>
       {!bare && <h2 className="block-title" id="ws-cycles">Cycles<span className="hint count-after">· {cycles.length}</span></h2>}
-      <p className="hint">A cycle nobody has checked in to yet can be deleted, with its goals. One with check-ins stays.</p>
+      {/* On Workspace the section's heading says what a cycle is and when one can go; said once (backlog WS). */}
+      {!bare && <p className="hint">A cycle nobody has checked in to yet can be deleted, with its goals. One with check-ins stays.</p>}
       <ul className="removed-list" aria-label="Cycles">
         {cycles.map((c) => {
-          const can = cycleDeletable(app.full, c.id);
+          const st = cycleStanding(app.full, c.id);
           return (
             <li key={c.id} className="removed-row">
               <span className="removed-text">
-                <span className="removed-name">{c.name}</span>
-                <span className="hint">{c.id === app.cycle.id ? 'Open now · ' : ''}{can ? 'No check-ins yet' : 'Has check-ins'}</span>
+                <span className="removed-name">{c.name}{c.id === app.cycle.id ? <span className="hint"> · open now</span> : null}</span>
+                <span className="hint">{st.says}</span>
               </span>
-              {can && <button type="button" className="btn sm" onClick={() => void app.deleteCycle(c.id).catch(() => undefined)} aria-label={`Delete the cycle ${c.name}`}>Delete</button>}
+              {st.deletable && <button type="button" className="btn sm" onClick={() => void app.deleteCycle(c.id).catch(() => undefined)} aria-label={`Delete the cycle ${c.name}`}>Delete</button>}
             </li>
           );
         })}

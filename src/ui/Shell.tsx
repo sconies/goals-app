@@ -20,6 +20,7 @@ import { PageHelp } from '../screens/Help';
 import { useUnreadNews } from '../help/seen';
 import { isGoalTop, ShellTopContext } from './shellTop';
 import { MOODS } from '../markup/model';
+import { useSwitchWorkspace, WorkspaceSwitchProvider } from './WorkspaceSwitch';
 
 /** Marking up a screen loads only when someone starts one (src/markup). */
 const MarkupFlow = lazy(() => import('../markup/Markup'));
@@ -75,6 +76,7 @@ const SIDE_VIEWS = 6;
 /** The top of the person menu: your settings, and the workspaces you can switch between (only when there's more than one). */
 function YouMenu({ onClose }: { onClose: () => void }) {
   const app = useApp();
+  const switchTo = useSwitchWorkspace();
   return (
     <section className="stack you-menu" style={{ gap: 4 }} aria-label="You">
       <Link className="menuitem" to="/settings" onClick={onClose}>
@@ -85,7 +87,7 @@ function YouMenu({ onClose }: { onClose: () => void }) {
         <div className="stack you-workspaces" style={{ gap: 4 }} role="group" aria-label="Workspaces">
           <span className="field-label">Workspaces</span>
           {app.workspaces.map((w) => (
-            <button key={w.id} type="button" className="menuitem" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => { app.switchWorkspace(w.id); onClose(); }}>
+            <button key={w.id} type="button" className="menuitem" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => { onClose(); switchTo(w.id); }}>
               <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
               <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}><span className="strong">{w.name}</span><span className="tiny muted">{w.kind === 'example' ? 'Example data you can play with and reset' : app.mode === 'demo' ? 'Your own, in this browser' : 'Your workspace'}</span></span>
               {w.id === app.ws.id && <span className="tiny strong" style={{ color: 'var(--accent-text)' }}>Open</span>}
@@ -163,6 +165,10 @@ function GoalsSection({ owns, at, navAt }: { owns: boolean; at: GoalsAt; navAt: 
 }
 
 export function Shell({ children }: { children: ReactNode }) {
+  return <WorkspaceSwitchProvider><ShellBody>{children}</ShellBody></WorkspaceSwitchProvider>;
+}
+
+function ShellBody({ children }: { children: ReactNode }) {
   const app = useApp();
   const toasts = useToasts();
   const { pathname, search } = useLocation();
@@ -307,7 +313,9 @@ export function Shell({ children }: { children: ReactNode }) {
         <main className="work" ref={work} id="main">
           {app.mode === 'live' && app.storeKind === 'browser' && <div className="local-banner" role="note">This is a copy kept in this browser only. Nobody else sees changes made here.</div>}
           {app.saveNote && <div className="local-banner save-note" role="alert">{app.saveNote}</div>}
-          <ShellTopContext.Provider value={goalTop ? topControls : null}>{children}</ShellTopContext.Provider>
+          {app.opening
+            ? <div className="page narrow ws-opening" aria-busy="true"><p className="muted" role="status">Opening {app.opening.name}…</p></div>
+            : <ShellTopContext.Provider value={goalTop ? topControls : null}>{children}</ShellTopContext.Provider>}
           <PageHelp />
         </main>
       </div>

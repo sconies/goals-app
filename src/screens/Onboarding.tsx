@@ -16,7 +16,7 @@ import { stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates
 import { currentWeek } from '../domain/plan';
 import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
-import { nameProblem } from '../domain/thresholds';
+import { nameLength, nameProblem } from '../domain/thresholds';
 import { parseNumber } from '../domain/checkin';
 import { notNumberText } from '../domain/numbers';
 import { fmt } from '../domain/format';
@@ -289,8 +289,10 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <h1 className="qtitle big">What’s this workspace for?</h1>
             <div className="field">
               <label className="field"><span className="field-label">Name</span>
-                <input className={'input big-input' + (tried && nameIssue ? ' invalid' : '')} aria-invalid={(tried && !!nameIssue) || undefined} autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
+                <input className={'input big-input' + (tried && nameIssue ? ' invalid' : '')} aria-invalid={(tried && !!nameIssue) || undefined} aria-describedby="setup-name-length" autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
               </label>
+              {/* The limit is said while typing, never applied by cutting the name short (backlog WS). */}
+              <span id="setup-name-length" className={'hint' + (nameIssue?.startsWith('Keep') ? ' tone-off' : '')} role="status">{nameLength(d.name) ?? ''}</span>
               {fieldErr(nameIssue)}
             </div>
             {cycleOpen ? (

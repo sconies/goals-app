@@ -21,6 +21,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'workspace-rework',
+    date: '2026-11-10',
+    title: 'Workspace says what’s true',
+    points: [
+      'Switching workspace is a real page move: Back takes you to the workspace you came from, and while the other one opens the screen says so. Part-way through a check-in, it asks first and says your draft stays in its own workspace.',
+      'Cycles says each cycle’s goals and check-ins as they are: a new workspace’s only cycle no longer claims to have check-ins.',
+      'A team counts its lead among its people, and opening a team shows its people. The overview lists every section, Access and Privacy included.',
+      'A workspace’s name shows how much of its 80 characters it uses as you near the limit, instead of being cut short, and Delete never cuts off its own label.',
+    ],
+    articles: ['workspace', 'workspace-teams', 'workspace-cycles'],
+  },
+  {
     id: 'review-leftovers',
     date: '2026-11-09',
     title: 'Smaller things from the full review',

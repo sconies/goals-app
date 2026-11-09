@@ -689,8 +689,8 @@ const CORE_ARTICLES: Article[] = [
         'Older links to Workspace (from a GitHub issue, say) still open the section they meant.',
       ] },
       { heading: 'Overview', list: [
-        'The workspace’s name (admins can rename it), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own and Reset the example).',
-        'What’s in it, each line leading to its section: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, and for admins the open cycle, how many features are on and what was removed lately.',
+        'The workspace’s name (admins can rename it; a name has at most 80 characters, and the field counts them as you near the limit), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own and Reset the example).',
+        'Every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and tokens, how many optional features are on, whether recording is on and what was removed lately.',
         'Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset.',
       ] },
       { heading: 'The sections', list: [
@@ -736,7 +736,8 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Each team shows its lead, how many people are in it and how many goals it owns. With more than a few teams, find one by its name or its lead’s.',
+        'Each team shows its lead, how many people are in it (its lead counts as one of them, even when their own team is another) and how many goals it owns. With more than a few teams, find one by its name or its lead’s.',
+        'Open a team to see its people in the directory, its lead among them.',
         'Admins: Add a team is the main action. Rename changes its name and lead. Remove takes an empty team away at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so.',
       ] },
       { heading: 'Who can', text: ['Everyone sees the teams. Only admins change them.'] },
@@ -754,7 +755,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Each cycle says whether it’s the one open now and whether it has check-ins.',
+        'Each cycle says whether it’s the one open now, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.',
         'A cycle nobody has checked in to can be deleted, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays.',
         'A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped.',
       ] },

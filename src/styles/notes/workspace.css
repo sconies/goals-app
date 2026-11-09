@@ -88,3 +88,12 @@
 @media (pointer: coarse) { .ibx-pager .btn.icon-only { width: 44px; } }
 .ibx-narrow .ibx-filters > .btn { flex: 0 0 auto; }
 .ibx-narrow .ibx-filters > .ibx-search { flex: 1 1 160px; }
+
+/* ---------- Workspace rework (backlog WS, 9 Nov) ---------- */
+/* A team's row opens its people: the whole text is the link, quiet until hovered. */
+.team-open { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 44px; justify-content: center; color: inherit; text-decoration: none; border-radius: 6px; }
+.team-open:hover .person-name { text-decoration: underline; }
+.team-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A long name or label in a button wraps rather than being cut off. */
+.danger-zone .btn, .sheet-foot .btn { white-space: normal; text-align: center; max-width: 100%; }
+.ws-opening { padding-top: var(--s6); }

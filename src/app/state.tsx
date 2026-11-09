@@ -52,6 +52,9 @@ export interface AppState {
   viewerChosen: boolean;
   ws: Workspace;
   workspaces: Workspace[];
+  /** The workspace being opened while it loads (switching), else null: the screen says so rather than mixing the two (backlog WS). */
+  opening: Workspace | null;
+  /** Opens another workspace. Screens switch through ui/WorkspaceSwitch's useSwitchWorkspace, which also makes a history entry. */
   switchWorkspace(id: string): void;
   createWorkspace(name: string, data: Snapshot, meId?: string): Promise<string>;
   resetExample(): Promise<void>;
@@ -410,6 +413,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     return () => { document.removeEventListener('visibilitychange', refresh); window.removeEventListener('focus', refresh); clearInterval(timer); };
   }, [reload]);
 
+  const wanted = wsId;
   const value = useMemo<AppState | null>(() => {
     if (!loaded) return null;
     const snapshot = loaded.snap;
@@ -469,7 +473,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
     return traced({
       mode, viewerChosen: mode === 'demo' || chosen,
-      ws, workspaces, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
+      ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
@@ -622,7 +626,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },
       startNextCycle: async () => { const out = await act(() => A.startNextCycle(ax())); return out.name; },
     });
-  }, [loaded, viewerId, store, today, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
+  }, [loaded, wanted, viewerId, store, today, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 

@@ -331,8 +331,23 @@ export function deleteReview(x: ActionContext, id: string): Commit {
 
 /** Whether a cycle can be deleted: no check-in has been posted on any of its goals, and it isn't the only one. */
 export function cycleDeletable(s: Snapshot, cycleId: string) {
-  const goals = new Set(s.goals.filter((g) => g.cycleId === cycleId).map((g) => g.id));
-  return !s.checkIns.some((c) => goals.has(c.goalId) && !c.removedAt) && s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
+  return cycleStanding(s, cycleId).deletable;
+}
+
+/**
+ * Where a cycle stands, in words that are true (backlog WS: a new workspace with no goals said "Has check-ins"): how many
+ * goals and check-ins it has, whether it's the only one, and so whether it can be deleted, and why not.
+ */
+export function cycleStanding(s: Snapshot, cycleId: string): { goals: number; checkIns: number; only: boolean; deletable: boolean; says: string } {
+  const ids = new Set(s.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
+  const checkIns = s.checkIns.filter((c) => ids.has(c.goalId) && !c.removedAt).length;
+  const only = !s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
+  const goals = `${ids.size} ${ids.size === 1 ? 'goal' : 'goals'}`;
+  const says = checkIns
+    ? `${goals}, ${checkIns} ${checkIns === 1 ? 'check-in' : 'check-ins'}: it stays`
+    : only ? `${ids.size ? goals + ', no' : 'No goals and no'} check-ins yet; it’s the only cycle, so it stays`
+    : `${ids.size ? goals + ', no' : 'No goals and no'} check-ins yet: it can be deleted`;
+  return { goals: ids.size, checkIns, only, deletable: !checkIns && !only, says };
 }
 
 /** Admins: delete a cycle no one has checked in to yet (started by mistake, say). Its goals go with it, and come back with it. */

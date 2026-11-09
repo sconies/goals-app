@@ -10,16 +10,17 @@
    People who aren't admins see Overview, People, Teams, Inbox and Privacy. Sections are the settings extension point: a module
    adds its own (AppModule `sections`, src/core/app.tsx). Old addresses (/workspace?inbox=1&markup=…, #people) lead to
    the section they meant. */
-import { nameProblem } from '../domain/thresholds';
+import { nameLength, nameProblem } from '../domain/thresholds';
 import { createContext, lazy, Suspense, useContext, useState, type ReactNode } from 'react';
-import { Link, Navigate, useLocation } from 'react-router';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router';
+import { useSwitchWorkspace } from '../ui/WorkspaceSwitch';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
 import { placeSections } from '../core/module';
 import { initials } from '../domain/importer';
 import { normalEmail, personProblems, sameNameNote } from '../domain/people';
 import type { Person, Team } from '../domain/types';
-import { teamMembers } from '../domain/actions';
+import { teamMembers, teamPeople } from '../domain/actions';
 import { newId } from '../data/store';
 import { useInboxData, type InboxData } from '../markup/inboxData';
 import { Avatar, Sheet } from '../ui/bits';
@@ -120,6 +121,33 @@ function useNotes(): Record<string, string> {
   };
 }
 
+/** What each section's row on the overview says: one true line each, for every section this person sees (backlog WS). */
+function useSays(): Record<string, string> {
+  const app = useApp();
+  const { inbox } = useWs();
+  const { installed, on } = useModules();
+  const admin = app.viewer.admin;
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  const noEmail = app.snapshot.people.filter((p) => !p.email).length;
+  const removed = admin ? app.recentlyRemoved().length : 0;
+  const cycles = app.full.cycles.filter((c) => !c.removedAt).length;
+  const admins = app.snapshot.people.filter((p) => p.admin).length;
+  // Counted from the list the Features section shows, so the two always agree.
+  const featuresOn = installed.filter((m) => on.has(m.id)).length;
+  const tokens = (app.snapshot.tokens ?? []).filter((t) => !t.revokedAt).length;
+  return {
+    overview: 'What needs attention here',
+    people: n(app.snapshot.people.length, 'person', 'people') + (admin && noEmail ? `, ${noEmail} without an email` : ''),
+    teams: n(app.snapshot.teams.length, 'team', 'teams'),
+    inbox: inbox.newCount === null ? 'Opening…' : inbox.newCount ? `${inbox.newCount} new` : 'Nothing new',
+    cycles: `${app.cycle.name} is open${cycles > 1 ? `, of ${cycles}` : ''}`,
+    access: n(admins, 'admin', 'admins') + `, ${n(tokens, 'token', 'tokens')}`,
+    features: `${featuresOn} of ${installed.length} optional ${installed.length === 1 ? 'feature' : 'features'} on`,
+    privacy: app.ws.recording !== false ? 'Recording how the app is used' : 'Recording is off',
+    removed: removed ? `${removed} in the last 30 days` : 'Nothing',
+  };
+}
+
 const sectionPath = (id: string) => (id === 'overview' ? '/workspace' : `/workspace/${id}`);
 
 /** The side menu on a computer. */
@@ -192,25 +220,15 @@ function AdminsOnly({ label }: { label: string }) {
 
 function OverviewSection() {
   const app = useApp();
-  const { inbox } = useWs();
-  const { installed, on } = useModules();
+  const { sections } = useWs();
+  const says = useSays();
+  const switchTo = useSwitchWorkspace();
   const [confirming, setConfirming] = useState(false);
   const admin = app.viewer.admin;
   // Most people are in one workspace: then there's nothing to switch between, only this one's name.
   const several = app.workspaces.length > 1;
-  const noEmail = app.snapshot.people.filter((p) => !p.email).length;
-  const removed = admin ? app.recentlyRemoved().length : 0;
-  const cycles = app.full.cycles.filter((c) => !c.removedAt).length;
-  const counts: [string, string, string][] = [
-    ['people', 'People', `${app.snapshot.people.length} ${app.snapshot.people.length === 1 ? 'person' : 'people'}${admin && noEmail ? `, ${noEmail} without an email` : ''}`],
-    ['teams', 'Teams', `${app.snapshot.teams.length} ${app.snapshot.teams.length === 1 ? 'team' : 'teams'}`],
-    ['inbox', 'Inbox', inbox.newCount === null ? 'Opening…' : inbox.newCount ? `${inbox.newCount} new` : 'Nothing new'],
-    ...(admin ? [
-      ['cycles', 'Cycles', `${app.cycle.name} is open${cycles > 1 ? `, of ${cycles}` : ''}`],
-      ['features', 'Features', `${on.size} of ${installed.length} on`],
-      ['removed', 'Recently removed', removed ? `${removed} in the last 30 days` : 'Nothing'],
-    ] as [string, string, string][] : []),
-  ];
+  // Every section this person sees, each with one true line (backlog WS: Access and Privacy were missing).
+  const counts: [string, string, string][] = sections.filter((s) => s.id !== 'overview').map((s) => [s.id, s.label, says[s.id] ?? s.summary]);
   return (
     <>
       <SectionHead id="overview" />
@@ -219,7 +237,7 @@ function OverviewSection() {
         {several && (
           <div className="glist">
             {app.workspaces.map((w) => (
-              <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => app.switchWorkspace(w.id)}>
+              <button key={w.id} className="gline ws-line" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => switchTo(w.id, '/workspace')}>
                 <span className={'wsmark' + (w.kind === 'example' ? ' example' : '')} aria-hidden="true">{w.name.replace(/^example:\s*/i, '').slice(0, 1).toUpperCase()}</span>
                 <span className="gline-title">{w.name}</span>
                 <span className="gline-now">{w.id === app.ws.id ? 'Open now' : w.kind === 'example' ? 'Demo data' : 'Your data'}</span>
@@ -262,14 +280,18 @@ function PeopleSection() {
   const admin = app.viewer.admin;
   // A directory that works for a whole company: find by name, role or team, filter by team, and show a page at a time.
   const [q, setQ] = useState('');
-  const [teamId, setTeamId] = useState('');
+  // ?team=<id> opens on one team's people: a row in Teams leads here (backlog WS).
+  const [params, setParams] = useSearchParams();
+  const teamId = params.get('team') ?? '';
+  const setTeamId = (id: string) => setParams((p) => { const n = new URLSearchParams(p); if (id) n.set('team', id); else n.delete('team'); return n; }, { replace: true });
   const [limit, setLimit] = useState(60);
   const needle = q.trim().toLowerCase();
-  const match = (x: Person) => (!teamId || (teamId === '-' ? !x.teamId || !app.team(x.teamId) : x.teamId === teamId))
+  const leadOf = teamId && teamId !== '-' ? app.team(teamId)?.leadId : null;
+  const match = (x: Person) => (!teamId || (teamId === '-' ? !x.teamId || !app.team(x.teamId) : x.teamId === teamId || x.id === leadOf))
     && (!needle || [x.name, x.role ?? '', app.team(x.teamId ?? '')?.name ?? ''].some((v) => v.toLowerCase().includes(needle)));
   const found = app.snapshot.people.filter(match);
   const shown = new Set(found.slice(0, limit).map((x) => x.id));
-  const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id && shown.has(x.id))] as const), ['No team', found.filter((x) => (!x.teamId || !app.team(x.teamId)) && shown.has(x.id))] as const].filter(([, l]) => l.length);
+  const groups = teamId && teamId !== '-' ? [[app.team(teamId)?.name ?? 'Team', found.filter((x) => shown.has(x.id))] as const] : [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id && shown.has(x.id))] as const), ['No team', found.filter((x) => (!x.teamId || !app.team(x.teamId)) && shown.has(x.id))] as const].filter(([, l]) => l.length);
   const admins = app.snapshot.people.filter((p) => p.admin);
   return (
     <>
@@ -323,7 +345,7 @@ function InboxSection() {
 function CyclesSection() {
   return (
     <>
-      <SectionHead id="cycles">A cycle nobody has checked in to yet can be deleted, with its goals. One with check-ins stays. A new cycle starts from the <Link to="/retro">wrap-up</Link> at the end of this one.</SectionHead>
+      <SectionHead id="cycles">A cycle is a goal year. One nobody has checked in to yet can be deleted with its goals; one with check-ins stays. The next one starts from the <Link to="/retro">wrap-up</Link> at the end of this one.</SectionHead>
       <CycleList bare />
     </>
   );
@@ -397,8 +419,10 @@ function WorkspaceName({ several }: { several: boolean }) {
       <form className="stack ws-rename" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="field">
           <label className="field"><span className="field-label">Workspace name</span>
-            <input className={'input' + (tried && nameProblem(name, 'workspace') ? ' invalid' : '')} aria-invalid={tried && nameProblem(name, 'workspace') ? true : undefined} autoFocus maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+            <input className={'input' + (tried && nameProblem(name, 'workspace') ? ' invalid' : '')} aria-invalid={tried && nameProblem(name, 'workspace') ? true : undefined} aria-describedby="ws-name-length" autoFocus value={name} onChange={(e) => setName(e.target.value)} />
           </label>
+          {/* The limit is said while typing, never applied by cutting the name short (backlog WS). */}
+          <span id="ws-name-length" className={'hint' + (nameProblem(name, 'workspace')?.startsWith('Keep') ? ' tone-off' : '')} role="status">{nameLength(name) ?? ''}</span>
           {tried && nameProblem(name, 'workspace') && <span className="hint tone-off" role="alert">{nameProblem(name, 'workspace')}</span>}
         </div>
         <span className="ws-rename-buttons"><button type="submit" className="btn">{busy ? 'Saving…' : 'Save the name'}</button><button type="button" className="btn ghost" onClick={() => { setName(null); setTried(false); }}>Cancel</button></span>
@@ -442,13 +466,16 @@ function TeamsSection() {
         <ul className="optlist team-list" aria-label="Teams">
           {found.map((t) => {
             const m = teamMembers(ctx, t.id);
+            // The lead counts as one of the team's people, wherever their own team is (backlog WS).
+            const people = teamPeople(ctx, t.id).length;
             const lead = app.person(t.leadId);
             return (
               <li key={t.id} className="opt static team-opt">
-                <span className="person-text">
+                {/* The row opens the team's people in the directory. */}
+                <Link className="person-text team-open" to={`/workspace/people?team=${encodeURIComponent(t.id)}`} aria-label={`${t.name}: see its ${people} ${people === 1 ? 'person' : 'people'}`}>
                   <span className="person-name">{t.name}</span>
-                  <span className="hint">{[lead ? `Led by ${lead.name}` : 'No lead', `${m.people.length} ${m.people.length === 1 ? 'person' : 'people'}`, `${m.current.length} ${m.current.length === 1 ? 'goal' : 'goals'}`].join(' · ')}</span>
-                </span>
+                  <span className="hint">{[lead ? `Led by ${lead.name}` : 'No lead', `${people} ${people === 1 ? 'person' : 'people'}`, `${m.current.length} ${m.current.length === 1 ? 'goal' : 'goals'}`].join(' · ')}</span>
+                </Link>
                 {admin && (
                   <span className="team-actions">
                     <button type="button" className="btn sm" onClick={() => setEditing(t)} aria-label={`Rename ${t.name}`}>Rename</button>
@@ -748,7 +775,7 @@ function DeleteWorkspace() {
     <section className="block danger-zone">
       <h2 className="block-title">Delete this workspace</h2>
       <p className="hint">Removes {app.ws.name}: its people, goals, check-ins, reviews and history{app.mode === 'demo' ? ' (in this browser)' : ', for everyone'}. This can’t be undone.</p>
-      {!open ? <div><button className="btn danger" onClick={() => setOpen(true)}>Delete {app.ws.name}…</button></div> : (
+      {!open ? <div><button className="btn danger" onClick={() => setOpen(true)}>Delete this workspace…</button></div> : (
         <form className="stack" style={{ gap: 'var(--s3)', maxWidth: 420 }} onSubmit={(e) => { e.preventDefault(); void go(); }}>
           <label className="field"><span className="field-label">Type <strong>{app.ws.name}</strong> to confirm</span>
             <input className="input" autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} aria-label={`Type ${app.ws.name} to confirm`} />

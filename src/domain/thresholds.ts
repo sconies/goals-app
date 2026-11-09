@@ -24,10 +24,19 @@ export const MIN_STOP_REASON = 10;
 /** The shortest name a workspace or a goal can have, in characters (setup review, 8 Nov): one rule for both. */
 export const MIN_NAME = 3;
 const NUMBER_WORDS = ['no', 'one', 'two', 'three', 'four', 'five'];
-/** What's wrong with a workspace's or a goal's name, or null: empty, or shorter than MIN_NAME. */
+/** The longest name a workspace can have, in characters: said under the field while typing, never cut silently (backlog WS). */
+export const MAX_WORKSPACE_NAME = 80;
+/** What's wrong with a workspace's or a goal's name, or null: empty, shorter than MIN_NAME, or (a workspace) longer than MAX_WORKSPACE_NAME. */
 export function nameProblem(name: string, thing: 'workspace' | 'goal' | 'outcome'): string | null {
-  const t = name.trim();
+  const t = name.trim().replace(/\s+/g, ' ');
   if (!t) return `Give the ${thing} a name.`;
   if (t.length < MIN_NAME) return `Give the ${thing} a name of at least ${NUMBER_WORDS[MIN_NAME] ?? MIN_NAME} characters.`;
+  if (thing === 'workspace' && t.length > MAX_WORKSPACE_NAME) return `Keep the name to ${MAX_WORKSPACE_NAME} characters or fewer: it has ${t.length}.`;
   return null;
+}
+
+/** What a workspace name's field says while it's typed: how many characters of the limit it uses, once it's near (null before). */
+export function nameLength(name: string): string | null {
+  const n = name.trim().replace(/\s+/g, ' ').length;
+  return n >= MAX_WORKSPACE_NAME - 20 ? `${n} of ${MAX_WORKSPACE_NAME} characters` : null;
 }

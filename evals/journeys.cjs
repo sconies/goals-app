@@ -1129,7 +1129,7 @@ journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without 
     localStorage.setItem('goals-app-workspace', 'ws_temp');
   });
   await p.goto(url('/workspace/overview'));
-  await h.click(p.getByRole('button', { name: /Delete Temp team/ }));
+  await h.click(p.getByRole('button', { name: 'Delete this workspace…' }));
   h.set('errors', await p.getByRole('button', { name: 'Delete it for good' }).isDisabled(), 'deleting does not ask for the name first');
   await h.fill(p.getByLabel('Type Temp team to confirm'), 'Temp team');
   await h.checkpoint('delete');

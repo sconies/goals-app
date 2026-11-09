@@ -9,6 +9,7 @@ import { EXAMPLE, isExample } from '../data/examples';
 import type { Person } from '../domain/types';
 import { Avatar, Sheet } from './bits';
 import { PROTOTYPE_LINE } from '../help/about';
+import { useSwitchWorkspace } from './WorkspaceSwitch';
 
 /** What someone does, by role: the thing to pick in a demo, with the name second. */
 export function personaOf(p: Person, app: ReturnType<typeof useApp>): { role: string; does: string } {
@@ -51,6 +52,7 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
   const app = useApp();
   const modules = useModules();
   const nav = useNavigate();
+  const switchTo = useSwitchWorkspace();
   const [resetting, setResetting] = useState(false);
   const cast = demoCast(app);
   const others = app.snapshot.people.filter((p) => !cast.includes(p));
@@ -61,12 +63,14 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
   const startTour = (id: string) => {
     const t = TOURS.find((x) => x.id === id)!;
     // The walkthroughs follow the example's people and goals: from a workspace you made, they open the example first.
-    if (own) {
-      try { localStorage.setItem('goals-app-viewer:' + EXAMPLE.id, t.personId); } catch { /* storage blocked */ }
-      app.switchWorkspace(EXAMPLE.id);
-    } else if (app.person(t.personId)) app.setViewer(t.personId);
     writeTour({ id, step: 0 });
     onClose();
+    if (own) {
+      try { localStorage.setItem('goals-app-viewer:' + EXAMPLE.id, t.personId); } catch { /* storage blocked */ }
+      switchTo(EXAMPLE.id, t.start);
+      return;
+    }
+    if (app.person(t.personId)) app.setViewer(t.personId);
     nav(t.start);
   };
   const row = (p: Person) => {

@@ -374,7 +374,6 @@ export function renameWorkspace(x: ActionContext, ws: { id: string; name: string
   const clean = name.trim().replace(/\s+/g, ' ');
   const named = nameProblem(clean, 'workspace');
   if (named) no(named);
-  if (clean.length > 80) no('Keep the name to 80 characters or fewer.');
   if (clean === ws.name) return null;
   return { workspace: { name: clean }, changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: ws.id, action: 'edited', summary: `Renamed the workspace to “${clean}”`, diffs: [{ field: 'Workspace name', from: ws.name, to: clean }] }] };
 }
@@ -448,6 +447,12 @@ export function teamMembers(x: Pick<ActionContext, 'snapshot' | 'allGoals'>, tea
     current: x.snapshot.goals.filter((g) => g.teamId === teamId && !g.removedAt && !g.stoppedAt),
     named,
   };
+}
+
+/** A team's people as the directory counts them: everyone in it, and its lead wherever their own team is (backlog WS). */
+export function teamPeople(x: Pick<ActionContext, 'snapshot'>, teamId: string) {
+  const lead = x.snapshot.teams.find((t) => t.id === teamId)?.leadId;
+  return x.snapshot.people.filter((p) => p.teamId === teamId || p.id === lead);
 }
 
 /** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
