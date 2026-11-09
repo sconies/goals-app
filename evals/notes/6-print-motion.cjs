@@ -284,7 +284,9 @@ module.exports = {
     {
       const [c, p] = await at(390, 844, 'amara', '/goals?show=levels');
       await p.locator('.tree > li').first().waitFor();
-      const mid = await slidesOf(p, () => p.getByRole('tab', { name: 'By team' }).click(), 'main .tree > li');
+      // On a phone, the views are in the Views menu (backlog G).
+      await p.locator('.show-menu > summary').click();
+      const mid = await slidesOf(p, () => p.getByRole('group', { name: 'Views' }).getByRole('button', { name: /^By team/ }).click(), 'main .tree > li');
       fail(!!mid, '[Motion] 390: By team lists the goals in the same order as By level, so nothing has to move');
       if (mid) {
         fail(mid.length > 0, '[Motion] 390: switching the list from By level to By team moved no rows');

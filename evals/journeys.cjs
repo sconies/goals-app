@@ -57,6 +57,25 @@ let browser;
 
 function fail(msg) { throw new Error(msg); }
 /** Waits until some visible element shows the text (a hidden duplicate, like a phone-only label on a desktop, doesn't count). */
+/* Goals on a phone (backlog G, 9 Nov): which goals and how to see them are two menus on one line (Views, Layout) instead
+   of the tabs and the layout buttons, and Export these goals is in Views. These pick the same things on any screen. */
+const phoneBar = async (p) => {
+  // Wait for the Goals controls to be drawn first: straight after goto, neither is there yet.
+  await p.locator('.goals-phonebar, .goals-toolbar').filter({ visible: true }).first().waitFor({ timeout: 10000 }).catch(() => {});
+  return p.locator('.goals-phonebar').isVisible();
+};
+async function chooseLayout(h, p, name) {
+  if (await phoneBar(p)) await h.click(p.locator('.layout-menu > summary'));
+  await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: new RegExp('^' + name) }));
+}
+/** The open layout or view's name: the pressed layout button, the selected tab, or what the phone's menu button says. */
+async function openLayout(p) { return (await phoneBar(p)) ? (await p.locator('.layout-menu > summary').innerText()).replace(/^Layout:\s*/, '').trim() : ((await p.getByRole('group', { name: 'Layout' }).locator('[aria-pressed="true"]').getAttribute('aria-label')) ?? ''); }
+async function openShow(p) { return (await phoneBar(p)) ? (await p.locator('.show-menu > summary .show-name').innerText()).trim() : ((await p.getByRole('tab', { selected: true }).first().innerText().catch(() => '')) ?? '').trim(); }
+/** Export these goals: beside the layouts, or in the Views menu on a phone. */
+async function exportButton(h, p) {
+  if (await phoneBar(p)) await h.click(p.locator('.show-menu > summary'));
+  return p.getByRole('button', { name: 'Export these goals' });
+}
 async function see(p, text, msg, timeout = 5000) {
   // p is a page, or a locator to look inside.
   const all = p.getByText(text, { exact: false });
@@ -845,7 +864,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   await p.waitForURL(/\/goals\?(.*&)?show=watching/);
   await see(p, 'No recent update');
   await see(p, /\d+ goals · .*need/, 'the summary line counts what needs attention');
-  h.set('parity', await p.getByRole('tab', { name: /^Watching/, selected: true }).isVisible() && await p.locator('.goals-toolbar .view-bar').isVisible(), 'Watching is not a Goals tab with the Goals toolbar');
+  h.set('parity', /^Watching/.test(await openShow(p)) && await p.locator('.goals-toolbar .view-bar, .goals-phonebar').filter({ visible: true }).count() > 0, 'Watching is not a Goals tab with the Goals toolbar');
   // A goal with no recent update needs attention (the one rule): it's in that group, saying its status.
   const quiet = p.locator('section', { has: p.getByRole('heading', { name: /Needs attention/ }) }).locator('.trow[data-tone="stale"]').first();
   await h.inView(p.getByRole('heading', { name: /Needs attention/ }), 'entry', 'Needs attention');
@@ -1153,40 +1172,40 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await p.context().close();
 }, ['errors']);
 
-journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board, history grid or cards, and export them', 14, async (h, device) => {
+// 16 steps: on a phone each layout is two taps, the Layout menu then the layout (backlog G's trade-off, 9 Nov; it was 14).
+journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board, history grid or cards, and export them', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals'));
-  const layout = p.getByRole('group', { name: 'Layout' });
-  await h.inView(layout, 'entry', 'the layout switch');
+  await h.inView(p.locator('.layout-switch, .layout-menu > summary').filter({ visible: true }), 'entry', 'the layout switch');
   // Table: sorting by status puts the off-track goal first.
-  await h.click(layout.getByRole('button', { name: 'Table' }));
+  await chooseLayout(h, p, 'Table');
   await p.locator('.gtable').first().waitFor();
   await h.checkpoint('table');
   await h.click(p.locator('.gtable').first().getByRole('button', { name: 'Status' }));
   const first = await p.locator('.gtable').first().locator('tbody tr').first().getAttribute('data-tone');
   h.set('attention', first === 'off', `sorting by status put “${first}” first`);
   // Board: a column per status.
-  await h.click(layout.getByRole('button', { name: 'Board' }));
+  await chooseLayout(h, p, 'Board');
   await p.locator('.board').waitFor();
   for (const col of ['Off track', 'At risk', 'No recent update', 'On track']) await see(p, col);
   await h.checkpoint('board');
   // History: a square per goal per week, the owner's call.
-  await h.click(layout.getByRole('button', { name: 'History' }));
+  await chooseLayout(h, p, 'History');
   // History opens on quarter results; the owners' weekly calls are one press away.
   await p.locator('.qtable').first().waitFor();
   await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Weekly status' }));
   await p.locator('.hgrid').first().waitFor();
   h.set('progress', (await p.locator('.hcell.tone-on, .hcell.tone-risk, .hcell.tone-off').count()) > 20, 'the history grid has too few check-ins');
   await h.checkpoint('history');
-  await h.click(layout.getByRole('button', { name: 'Cards' }));
+  await chooseLayout(h, p, 'Cards');
   await p.locator('.gcard').first().waitFor();
   await h.checkpoint('cards');
   // The choice is remembered, and the tabs still choose which goals and how they're grouped.
   await p.goto(url('/goals?show=teams'));
   await p.locator('.gcard').first().waitFor();
-  h.set('parity', (await layout.getByRole('button', { name: 'Cards' }).getAttribute('aria-pressed')) === 'true', 'the layout was not remembered');
+  h.set('parity', (await openLayout(p)) === 'Cards', 'the layout was not remembered');
   // Export: a workbook, and JSON another tool can read.
-  await h.click(p.getByRole('button', { name: 'Export' }));
+  await h.click(await exportButton(h, p));
   await h.checkpoint('export');
   const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: /Excel workbook/ }))]);
   const [json] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Save .json' }))]);
@@ -1431,7 +1450,7 @@ journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust,
   await h.checkpoint('one table');
   // The map from the keyboard: Enter on a goal opens its story, which takes focus; Escape gives focus back.
   await p.goto(url('/goals'));
-  await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Map' }));
+  await chooseLayout(h, p, 'Map');
   const node = p.locator('.react-flow__node[data-id="ns-lead"]');
   await node.waitFor();
   await node.focus();
@@ -1542,7 +1561,7 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await h.checkpoint('filters');
   await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
   await see(p, '21 of 126 goals', 'the slipped-date filter does not narrow the goals');
-  await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Table' }));
+  await chooseLayout(h, p, 'Table');
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
   h.set('progress', rows === 21 && (await p.getByRole('button', { name: /Remove filter: Needs attention because: date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
@@ -1555,8 +1574,8 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await h.fill(save.getByLabel('Name'), 'Slipped dates');
   await h.click(save.getByRole('button', { name: 'Save view' }));
   const tab = p.getByRole('tab', { name: /Slipped dates/ });
-  await tab.waitFor();
-  h.set('finish', (await tab.getAttribute('aria-selected')) === 'true', 'the saved view is not shown as the current one');
+  await p.waitForFunction(() => [...document.querySelectorAll('.goals-tabs .view-tab, .show-menu .show-name')].some((e) => e.getClientRects().length && /Slipped dates/.test(e.textContent)), null, { timeout: 5000 }).catch(() => {});
+  h.set('finish', (await openShow(p)) === 'Slipped dates', 'the saved view is not shown as the current one');
   const s = await h.snapshot();
   h.set('logged', (s.views ?? []).some((v) => v.name === 'Slipped dates' && v.params.includes('needs=slipped') && v.params.includes('view=table') && !v.deletedAt), 'the view was not saved with its filters and layout');
   // Back later: plain Goals, then the view, from the Views menu, brings it all back (saved views wait in one menu
@@ -1576,7 +1595,8 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   if (device === 'phone') await p.locator('.filter-view-menu > summary').click();
   else await p.getByText('Manage view', { exact: true }).click();
   await p.getByRole('button', { name: 'Delete' }).click();
-  await tab.waitFor({ state: 'detached' });
+  if (device === 'phone') await p.waitForFunction(() => !/Slipped dates/.test(document.querySelector('.show-menu .show-name')?.textContent ?? ''), null, { timeout: 5000 });
+  else await tab.waitFor({ state: 'detached' });
   await p.context().close();
 });
 
@@ -2635,8 +2655,8 @@ async function writeWorkbook(sheets, file) {
 journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'IMPORT-UNDO'], 'An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/goals'));
-  // Export these goals, from the Goals screen (on the smallest phones, its icon).
-  const direct = p.getByRole('button', { name: 'Export these goals' });
+  // Export these goals, from the Goals screen (on a phone, in the Views menu).
+  const direct = await exportButton(h, p);
   await h.inView(direct, 'entry', 'Export these goals on the Goals screen');
   await h.click(direct);
   const sheet = p.getByRole('dialog', { name: 'Export goals' });
@@ -2724,7 +2744,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.locator('.data-tools').waitFor();
   const dataGone = !(await p.locator('.data-export').count());
   await p.goto(url('/goals'));
-  await p.locator('.goals-toolbar').waitFor();
+  await p.locator('.goals-toolbar, .goals-phonebar').filter({ visible: true }).first().waitFor();
   const goalsGone = !(await p.getByRole('button', { name: 'Export these goals' }).count());
   await p.goto(url('/data/import'));
   await see(p, 'Page not found', 'Import still opens with spreadsheets off');
@@ -2764,7 +2784,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals'));
-  await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Map' }));
+  await chooseLayout(h, p, 'Map');
   const canvas = p.getByRole('region', { name: /Goal map/ });
   await canvas.waitFor();
   await p.locator('.react-flow__node').first().waitFor();
@@ -3136,9 +3156,9 @@ async function platformChecks() {
       await r.locator('.outcome, .gtable tbody tr, .board-card').first().waitFor();
       // Measured without the first-reports banner (two goals still waiting for a first check-in, all year in the example).
       const top = await r.evaluate(() => { const b = document.querySelector('.first-reports'); const n = b?.nextElementSibling; return document.querySelector('.outcome, .gtable tbody tr, .board-card').getBoundingClientRect().top - (b && n ? n.getBoundingClientRect().top - b.getBoundingClientRect().top : 0); });
-      // A phone's first goal may start in the top 60% (backlog N, 8 Nov: the tabs wrap rather than being cut off, and a
-      // line says what the layout is); it was 50%. Still well inside the first screen, above the tab bar.
-      const limit = vp.height * (device === 'phone' ? 0.6 : 0.4);
+      // The top 40% on a phone too (backlog G, 9 Nov: views and layout are two menus on one line; the first goal is about
+      // 230–300px down on a 390×844 phone). Backlog N had let it slip to 60%.
+      const limit = vp.height * 0.4;
       if (top > limit) fold.push(`${device} ${v}: the first goal starts at ${Math.round(top)}px (limit ${Math.round(limit)})`);
     }
     await c7.close();
