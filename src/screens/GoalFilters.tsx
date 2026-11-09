@@ -1,8 +1,8 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
 import { isTableView } from '../domain/tableLayout';
-import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import {
@@ -17,24 +17,32 @@ import { MenuButton, type MenuItem } from '../ui/MenuButton';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
 const VIEW_KEYS = ['show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
-export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k]) => VIEW_KEYS.includes(k)).sort(([a], [b]) => VIEW_KEYS.indexOf(a) - VIEW_KEYS.indexOf(b))).toString();
+// view=list is the list said out loud (GoalViews' useLayout), the same view as no layout at all.
+export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k, v]) => VIEW_KEYS.includes(k) && !(k === 'view' && v === 'list')).sort(([a], [b]) => VIEW_KEYS.indexOf(a) - VIEW_KEYS.indexOf(b))).toString();
+
+/**
+ * The address as it is now, to build a change on. The router hands a screen its search params once it has drawn them,
+ * a moment after each change, so a change built on those can undo the one before it: a tab pressed just after the
+ * search box was emptied brought the old words back (outside review, 9 Nov). The browser's address is already the
+ * latest. Under a router that isn't the browser's (a test's), the router's params are all there is.
+ */
+export function useLatestParams(): () => URLSearchParams {
+  const [params] = useSearchParams();
+  const { pathname } = useLocation();
+  return () => (typeof window !== 'undefined' && window.location.pathname.endsWith(pathname) ? new URLSearchParams(window.location.search) : new URLSearchParams(params));
+}
 
 /** The query in the URL, and a way to change it that keeps everything else (grouping, layout, the demo's date). */
-/** The URL a change has asked for but the screen hasn't shown yet: the next change builds on it, not on the old one. */
-let pending: string | null = null;
-
 export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery) => GoalQuery)) => void] {
   const [params, setParams] = useSearchParams();
+  const latest = useLatestParams();
   const q = useMemo(() => parseQuery(params), [params]);
-  // Once a URL has rendered it's the truth again.
-  useEffect(() => { pending = null; }, [params]);
-  // Two quick changes (tick a filter, then pick a sort) must not undo each other: build on the latest asked-for URL.
+  // Two quick changes (tick a filter, then pick a sort) must not undo each other: each builds on the latest address.
   const set = (change: GoalQuery | ((q: GoalQuery) => GoalQuery)) => {
-    const base = new URLSearchParams(pending ?? params.toString());
+    const base = latest();
     const next = typeof change === 'function' ? change(parseQuery(base)) : change;
     const out = new URLSearchParams([...[...base].filter(([k]) => !QUERY_KEYS.includes(k)), ...queryEntries(next)]);
-    pending = out.toString();
-    setParams(out, { replace: true });
+    if (out.toString() !== base.toString()) setParams(out, { replace: true });
   };
   return [q, set];
 }
@@ -74,9 +82,7 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
   return (
     <div className="filterbar">
       <div className="filterbar-row">
-        <label className="filter-search"><span className="sr">Search goals</span>
-          <input className="input" type="search" placeholder="Search goals" title="Search goals by name, owner, team or reason" value={q.q} onChange={(e) => setQ((cur) => ({ ...cur, q: e.target.value }))} />
-        </label>
+        <SearchBox value={q.q} onSearch={(text) => setQ((cur) => ({ ...cur, q: text }))} />
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{chips.some((c) => c.key !== 'q') ? ` · ${chips.filter((c) => c.key !== 'q').length}` : ''}</button>
         {/* The most common question in a weekly scan, one press away. */}
         <button type="button" className="btn quick-filter" aria-pressed={q.needs.includes('decision')} onClick={() => setQ((cur) => (cur.needs.includes('decision') ? { ...cur, needs: cur.needs.filter((n) => n !== 'decision'), attention: cur.needs.length > 1 } : { ...cur, needs: [...cur.needs, 'decision'], attention: true }))}>{NEED_OPTIONS.find(([k]) => k === 'decision')![1]}</button>
@@ -111,6 +117,59 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
       {open && <FilterSheet onClose={() => setOpen(false)} />}
       {saving && <SaveViewSheet params={current} onClose={() => setSaving(false)} />}
     </div>
+  );
+}
+
+/**
+ * The search box (outside review, 9 Nov). What's typed is the box's own, so it never loses or moves a character
+ * however fast someone types or pastes; the address follows a moment later. The address writes back through the router
+ * after the keystroke, and its value is trimmed, so a box read straight from it dropped letters and spaces. A change to
+ * the address that isn't one of the box's own writes (Back, a removed filter, Clear) puts its words in the box.
+ */
+export const SEARCH_SETTLE_MS = 150;
+function SearchBox({ value, onSearch }: { value: string; onSearch: (text: string) => void }) {
+  const [text, setText] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The words the box has written that the address hasn't shown yet, oldest first. */
+  const sent = useRef<string[]>([]);
+  const latest = useRef(value);
+  latest.current = value;
+  const write = useRef(onSearch);
+  write.current = onSearch;
+  // Back and Forward always set the box from the address, even when the words are the ones it last saw: a search
+  // written and then gone back over at once can reach the screen as one change, with no new words in between.
+  const [params] = useSearchParams();
+  const nav = useNavigationType();
+  const seen = useRef(value);
+  useEffect(() => {
+    const own = sent.current.indexOf(value);
+    if (own >= 0) { sent.current = sent.current.slice(own + 1); seen.current = value; return; }
+    if (value === seen.current && nav !== 'POP') return;
+    // From somewhere else: it wins over anything still waiting to be written.
+    seen.current = value;
+    sent.current = [];
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    setText((t) => (t.trim() === value ? t : value));
+  }, [value, params, nav]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const flush = (t: string) => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    const words = t.trim().slice(0, 200);
+    if (words === latest.current) return;
+    sent.current.push(words);
+    write.current(words);
+  };
+  return (
+    <label className="filter-search"><span className="sr">Search goals</span>
+      <input className="input" type="search" placeholder="Search goals" title="Search goals by name, owner, team or reason" maxLength={200} value={text}
+        onChange={(e) => {
+          const t = e.target.value;
+          setText(t);
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = setTimeout(() => flush(t), SEARCH_SETTLE_MS);
+        }}
+        onKeyDown={(e) => { if (e.key === 'Enter') flush(e.currentTarget.value); }} />
+    </label>
   );
 }
 

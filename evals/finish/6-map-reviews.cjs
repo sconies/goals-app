@@ -12,6 +12,23 @@ module.exports = {
     const fails = [];
     const fail = (ok, msg) => { if (!ok) fails.push(msg); };
 
+    // ---------- Outside review, 9 Nov, item 8: Delete or Backspace on a goal on the map never removes it ----------
+    {
+      const [c, p] = await open(1440, 900, 'amara', MAP);
+      await p.locator('.react-flow__node').first().waitFor({ timeout: 10000 }).catch(() => {});
+      const ids = () => p.evaluate(() => [...document.querySelectorAll('.react-flow__node')].map((x) => x.dataset.id));
+      const before = await ids();
+      const node = p.locator('.react-flow__node').nth(1);
+      await node.click();
+      await p.keyboard.press('Escape');
+      await node.focus();
+      for (const k of ['Delete', 'Backspace']) await p.keyboard.press(k);
+      await p.waitForTimeout(300);
+      const after = await ids();
+      fail(before.length > 0 && after.length === before.length, `Map: Delete/Backspace on a goal took the map from ${before.length} goals to ${after.length}`);
+      await c.close();
+    }
+
     // ---------- Demo review, 8 Nov, item 15: from the moment Map is chosen, it says it's drawing or shows the goals ----------
     {
       const [c, p] = await open(1280, 800, 'amara', '/goals');

@@ -21,6 +21,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goals-search-and-back',
+    date: '2026-11-09',
+    title: 'Search that keeps up, and Back that goes back',
+    points: [
+      'Search on Goals keeps every letter, however fast you type or paste; the goals follow a moment after you stop.',
+      'Clearing a search keeps the tab, the layout and the sort you had.',
+      'Each tab and layout you choose is a step Back returns to, with its search as it was.',
+      'A link to a tab or team that isn’t there opens the trees, or the goals without that filter, and says what it left out. Every tab is shown whole on a wide screen, and Delete on the map no longer does anything.',
+    ],
+    articles: ['goals', 'goals-filters', 'goal-map'],
+  },
+  {
     id: 'home-screen-icon-and-splash',
     date: '2026-11-08',
     title: 'A clearer icon, a lighthouse, a new first page',
