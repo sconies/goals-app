@@ -139,9 +139,24 @@ export function handledFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, s
  */
 export const needsAttention = (a: GoalAttention) => !a.handled && a.flags.some((f) => f.kind !== 'due');
 
+/**
+ * Which group of the Needs attention list a goal is in (Lane, 9 Nov, backlog GP): `needs` (needs attention: listed
+ * first, and what every count counts), `handled` (being handled: listed below them, never left out), or null (not
+ * listed). A goal being handled is always flagged (it is behind), so the list is every goal flagged for something
+ * beyond a due check-in. Nothing is hidden: a manager filtering her team sees her goals that are behind even when
+ * someone has already looked at them.
+ */
+export function attentionGroup(a: GoalAttention): 'needs' | 'handled' | null {
+  if (needsAttention(a)) return 'needs';
+  return a.handled ? 'handled' : null;
+}
+
+/** On the Needs attention list: it needs attention, or it is being handled (listed below those that do). */
+export const onAttentionList = (a: GoalAttention) => attentionGroup(a) !== null;
+
 /** A list of goals' attention split into what needs attention (new information) and what is being handled. */
 export function splitAttention(list: GoalAttention[]): { needs: GoalAttention[]; handled: GoalAttention[] } {
-  return { needs: list.filter(needsAttention), handled: list.filter((a) => !!a.handled) };
+  return { needs: list.filter((a) => attentionGroup(a) === 'needs'), handled: list.filter((a) => attentionGroup(a) === 'handled') };
 }
 
 /**

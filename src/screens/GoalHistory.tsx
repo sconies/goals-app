@@ -96,6 +96,7 @@ const quarterDone = (q: { from: number; to: number }, week: number) => (week - q
 
 function QuarterResults({ groups }: { groups: ViewGroup[] }) {
   const app = useApp();
+  const sums = useSummaries(groups);
   const qs = quarters(app.cycle);
   const nowQ = quarterOf(app.cycle, app.week).n;
   return (
@@ -111,6 +112,7 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
                   <tr>
                     <th scope="col">Goal</th>
                     {qs.map((q) => <th key={q.n} scope="col" className={q.n === nowQ ? 'now' : undefined}>{q.label} <span className="hint">{q.months}{q.n === nowQ ? ' · now' : ''}</span></th>)}
+                    <th scope="col" className="h-value">Now <span className="hint">· week {app.week}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -126,6 +128,7 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
                             {r.kind !== 'none' && <span className="hint qcell-text">{quarterWords(r.text, true)}</span>}
                           </td>
                         ))}
+                        <NowCell s={sums.get(goal.id)} quarter />
                       </tr>
                     );
                   })}
@@ -136,6 +139,20 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
         );
       })}
     </>
+  );
+}
+
+/**
+ * Each goal's latest number (or stages done) at the end of its row (backlog GP, 9 Nov): the marks say how it went, this
+ * says where it is now, as the list and the table say it.
+ */
+function NowCell({ s, quarter }: { s: GoalSummary | undefined; quarter?: boolean }) {
+  if (!s) return <td className="h-value" />;
+  return (
+    <td className={'h-value' + (quarter ? ' qcell' : '')} title={`Now: ${s.now}`}>
+      {quarter && <span className="qcell-label">Now</span>}
+      <span className="h-value-num">{s.now}</span>
+    </td>
   );
 }
 
@@ -212,6 +229,7 @@ function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
                         </th>
                       );
                     })}
+                    <th scope="col" className="h-value">Now</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -233,6 +251,7 @@ function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
                             </td>
                           );
                         })}
+                        <NowCell s={s} />
                       </tr>
                     );
                   })}

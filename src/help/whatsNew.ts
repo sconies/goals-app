@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goals-page-decisions',
+    date: '2026-11-09',
+    title: 'Goals: nothing behind is hidden, and one line for its health',
+    points: [
+      'Filter Goals to Needs attention and the goals being handled are listed below the others, never left out: filter to your team and you see every goal of theirs that is behind. The same in every layout, on the map and for the AI assistant. The tab’s count still counts the goals that need attention, and says so.',
+      'A line above the goals says their health, as Home does: how many off track, at risk, on track and so on.',
+      'Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere.',
+      'The Board shows up to eight on-track goals before Show all, and each card says which goal it feeds into. History ends each row with the goal’s number now.',
+      'Cards has gone: List shows everything it did. A link or saved view that opened Cards opens List and says so once.',
+    ],
+    articles: ['needs-attention', 'goals', 'goals-filters', 'history'],
+  },
+  {
     id: 'goal-page-fixes',
     date: '2026-11-09',
     title: 'A goal page that never contradicts itself',

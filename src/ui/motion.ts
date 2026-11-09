@@ -73,7 +73,7 @@ export function flipDeltas(before: Map<string, Pos>, after: Map<string, Pos>): {
 }
 
 /** The rows that move: goals in lists, the table, the board and cards, the attention lists and a review's agenda. */
-export const FLIP_ITEMS = '.tree > li, .gtable > tbody > tr, .alist > *, .glist > *, .board-col > .board-card, .gcards > .gcard';
+export const FLIP_ITEMS = '.tree > li, .gtable > tbody > tr, .alist > *, .glist > *, .board-col > .board-card';
 
 /** A row's identity: its own data-flip, else the goal it links to; a row with neither follows the row before it. */
 function keyOf(el: Element, prev: string): string {

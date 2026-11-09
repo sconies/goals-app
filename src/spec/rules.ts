@@ -13,7 +13,7 @@ import { MIN_NAME, RULES, TREND_SPAN } from '../domain/thresholds';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
 import { AVATAR_HUES } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
-import { flagsFor, needsAttention, attentionFor } from '../domain/attention';
+import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domain/attention';
 import { ATTENTION_FLAGS, FLAG, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, MetricGoal, Snapshot } from '../domain/types';
 import type { ActionContext } from '../domain/actions';
@@ -346,7 +346,7 @@ The app asks beside the target, with a tick box carrying the yes; Import and Dat
     id: 'flags',
     title: 'Flags, the trend and needs attention',
     summary: 'Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled.',
-    code: [{ file: 'src/domain/trend.ts', names: ['gapTrend', 'planGaps', 'stagesTrend', 'goalTrend'] }, { file: 'src/domain/attention.ts', names: ['flagsFor', 'attentionFor', 'handledFor', 'needsAttention', 'attentionList'] }, { file: 'src/domain/asks.ts', names: ['openFor', 'answeredSince', 'isOverdue'] }],
+    code: [{ file: 'src/domain/trend.ts', names: ['gapTrend', 'planGaps', 'stagesTrend', 'goalTrend'] }, { file: 'src/domain/attention.ts', names: ['flagsFor', 'attentionFor', 'handledFor', 'needsAttention', 'attentionGroup', 'attentionList'] }, { file: 'src/domain/asks.ts', names: ['openFor', 'answeredSince', 'isOverdue'] }],
     tests: ['src/domain/attention.test.ts', 'src/domain/story.test.ts', 'evals/attention.eval.ts', 'evals/vocabulary.eval.ts'],
     reqs: ['ATTENTION', 'ATTENTION-HANDLED', 'ONE-ATTENTION-RULE', 'ONE-TREND', 'PATH-TO-GREEN', 'GREENER', 'STALE'],
     body: `
@@ -388,7 +388,11 @@ A goal whose official status is \`off\` or \`risk\` (and has a check-in) is **be
 
 and no flag is raised now (apart from \`due\`) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest look (the workspace is not re-cut to that moment). The strongest look names it: an action, then an answer, then a note, then a review; the latest of the strongest kind.
 
-A goal **needs attention** when it has a flag other than \`due\` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and the AI assistant all use this one rule.`,
+A goal **needs attention** when it has a flag other than \`due\` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and the AI assistant all use this one rule.
+
+### The Needs attention list
+
+\`attentionGroup(a)\`: \`needs\` when the goal needs attention; else \`handled\` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than \`due\`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the map's "Only what needs attention", Home, Watching, and the AI assistant's \`find_goals\` with \`needs_attention\`), the \`needs\` group comes first and the \`handled\` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the \`needs\` group only, and says so where both are listed.`,
     examples: [
       { given: 'Gaps oldest first: −1, −2, −3; 1, 2, 3; −1, −2, −1; −3, −2, −1; only −1, −2; with "short of plan" required: 3, 2, 1.', then: 'worse, better, flat, better, flat, flat', run: () => [gapTrend([-1, -2, -3]), gapTrend([1, 2, 3]), gapTrend([-1, -2, -1]), gapTrend([-3, -2, -1]), gapTrend([-1, -2]), gapTrend([3, 2, 1], true)].join(', ') },
       { given: 'The 30→75 goal held at 33 in weeks 1, 2 and 3 while the plan moves on.', then: 'worse', run: () => goalTrend(g3075, CYCLE, [1, 2, 3].map((w) => ci('m', w, 33))).word },
@@ -398,6 +402,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
       { given: 'Off track in week 4 with a path back by week 5; checked in again for week 6 (posted 19 October), still off track, carrying the same path. On Thursday 22 October (week 6).', then: 'off, missed-path', run: () => { const p = { status: 'off' as const, calculated: 'off' as const, cause: 'slower' as const, why: 'Rollout paused', pathToGreen: { what: 'Restart the rollout', byWeek: 5, needs: '' } }; return flagCodes(workspace([ci('m', 4, 40, p), ci('m', 6, 41, p)]), '2026-10-22T12:00:00Z'); } },
       { given: 'Off track in week 4 (posted Monday 5 October) and nothing since: on Thursday 22 October (17 days later), the status itself has gone stale, so it is no longer flagged off track.', then: 'stale, due', run: () => flagCodes(workspace([ci('m', 4, 40, { status: 'off', calculated: 'off', cause: 'slower', why: 'Rollout paused', pathToGreen: { what: 'Restart the rollout', byWeek: 7, needs: '' } })]), '2026-10-22T12:00:00Z') },
       { given: 'At risk with no path to green, and an open decision ask on the goal (week 4, Thursday 8 October).', then: 'decision, no-path, risk', run: () => flagCodes(workspace([ci('m', 4, 40, { status: 'risk', calculated: 'risk' })], [{ id: 'a1', kind: 'decision', goalIds: ['m'], askedBy: 'p', recipientId: 'l', ask: 'Approve the budget', status: 'open', dueWeek: null, reviewId: null, week: 4, checkInId: null, createdAt: '2026-10-05T10:00:00Z', updatedAt: '2026-10-05T10:00:00Z', answer: null, answeredBy: null, answeredAt: null }]), '2026-10-08T12:00:00Z') },
+      { given: 'The same goal, reviewed the same way: which group of the Needs attention list on Thursday 8 October, and on Monday 5 October before anyone looked?', then: 'handled; needs', run: () => { const s = workspace([ci('m', 4, 40, { status: 'off', calculated: 'off', cause: 'slower', why: 'Rollout paused', pathToGreen: { what: 'Restart the rollout', byWeek: 7, needs: '' } })], [], [{ id: 'd1', goalId: 'm', checkInId: null, reviewId: null, week: 4, kind: 'acknowledge', byId: 'l', at: '2026-10-06T09:00:00Z', note: '' }]); return ['2026-10-08T12:00:00Z', '2026-10-05T18:00:00Z'].map((t) => attentionGroup(attentionFor(g3075, s, CYCLE, at(t))) ?? 'none').join('; '); } },
       { given: 'Off track in week 4 (posted Monday 5 October), and the lead marked it reviewed on Tuesday 6 October. On Thursday 8 October: being handled, needs attention?', then: 'handled by reviewed; needs attention: no', run: () => { const s = workspace([ci('m', 4, 40, { status: 'off', calculated: 'off', cause: 'slower', why: 'Rollout paused', pathToGreen: { what: 'Restart the rollout', byWeek: 7, needs: '' } })], [], [{ id: 'd1', goalId: 'm', checkInId: null, reviewId: null, week: 4, kind: 'acknowledge', byId: 'l', at: '2026-10-06T09:00:00Z', note: '' }]); const a = attentionFor(g3075, s, CYCLE, at('2026-10-08T12:00:00Z')); return `handled by ${a.handled?.kind ?? 'nothing'}; needs attention: ${needsAttention(a) ? 'yes' : 'no'}`; } },
     ],
   },

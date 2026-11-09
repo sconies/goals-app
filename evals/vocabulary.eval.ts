@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildPlatformOrg as seed } from '../src/data/platformOrg';
-import { attentionFor, attentionList, needsAttention, splitAttention } from '../src/domain/attention';
+import { attentionFor, attentionGroup, attentionList, needsAttention, splitAttention } from '../src/domain/attention';
 import { workbook, toJson } from '../src/domain/export';
 import { glossaryMarkdown, GLOSSARY_END, GLOSSARY_START } from '../src/domain/glossaryDoc';
 import { groupWatched } from '../src/domain/home';
@@ -242,17 +242,23 @@ function context(s: Snapshot, today: Date): McpContext {
 
 describe('one Needs attention', () => {
   for (const today of DAYS) {
-    it(A(`Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals (${today.toISOString().slice(0, 10)})`), async () => {
+    it(A(`Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals, and list those being handled below them (${today.toISOString().slice(0, 10)})`), async () => {
       const s = seed(today);
       const cycle = s.cycles[0]!;
       const week = currentWeek(cycle, today);
       const sorted = (ids: string[]) => [...ids].sort();
       // The rule itself, over every goal.
-      const rule = sorted(s.goals.map((g) => attentionFor(g, s, cycle, today)).filter(needsAttention).map((a) => a.goal.id));
-      // Home: your goals that need attention (here, as if you owned them all).
-      const home = sorted(splitAttention(attentionList(s, cycle, today, { goals: s.goals })).needs.map((a) => a.goal.id));
+      const all = s.goals.map((g) => attentionFor(g, s, cycle, today));
+      const rule = sorted(all.filter(needsAttention).map((a) => a.goal.id));
+      // The list: those that need attention, and below them those being handled (Lane, 9 Nov): nothing hidden.
+      const inHand = sorted(all.filter((a) => attentionGroup(a) === 'handled').map((a) => a.goal.id));
+      const listed = sorted([...rule, ...inHand]);
+      // Home: your goals that need attention (here, as if you owned them all), and those being handled below them.
+      const homeSplit = splitAttention(attentionList(s, cycle, today, { goals: s.goals }));
+      const home = sorted(homeSplit.needs.map((a) => a.goal.id));
       // Watching: the Needs attention group, watching every goal.
-      const watching = sorted(groupWatched(s.goals.map((g) => attentionFor(g, s, cycle, today))).needs.map((a) => a.goal.id));
+      const watchSplit = groupWatched(s.goals.map((g) => attentionFor(g, s, cycle, today)));
+      const watching = sorted(watchSplit.needs.map((a) => a.goal.id));
       // The Goals filter, and the map's toggle, which is that filter (attention=1).
       const sums = summariseAll(s.goals, s, cycle, today, week);
       const filter = sorted(applyQuery(sums, { ...EMPTY_QUERY, attention: true }, { goals: s.goals, cycle, week }).map((x) => x.goal.id));
@@ -265,11 +271,18 @@ describe('one Needs attention', () => {
       const aiIds = sorted(((ai.data as { goals: { id: string }[] }).goals).map((g) => g.id));
       expect(rule.length, 'something needs attention on this day').toBeGreaterThan(0);
       expect(home).toEqual(rule);
+      expect(sorted(homeSplit.handled.map((a) => a.goal.id))).toEqual(inHand);
       expect(watching).toEqual(rule);
-      expect(filter).toEqual(rule);
-      expect(mapLink).toEqual(rule);
+      expect(sorted(watchSplit.handled.map((a) => a.goal.id))).toEqual(inHand);
+      // The filter, the map and the AI list both groups; the AI marks which goals need attention and lists them first.
+      expect(filter).toEqual(listed);
+      expect(mapLink).toEqual(listed);
       expect(reviewed).toEqual(inReviews);
-      expect(aiIds).toEqual(rule);
+      expect(aiIds).toEqual(listed);
+      const aiGoals = (ai.data as { goals: { id: string; needsAttention: boolean; beingHandled: string | null }[] }).goals;
+      expect(sorted(aiGoals.filter((g) => g.needsAttention).map((g) => g.id))).toEqual(rule);
+      expect(aiGoals.findIndex((g) => !g.needsAttention)).toBe(aiGoals.filter((g) => g.needsAttention).length === aiGoals.length ? -1 : rule.length);
+      expect(aiGoals.filter((g) => !g.needsAttention).every((g) => !!g.beingHandled)).toBe(true);
     });
   }
 

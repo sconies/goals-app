@@ -47,6 +47,10 @@ and no flag is raised now (apart from `due`) that wasn't also raised when the sa
 
 A goal **needs attention** when it has a flag other than `due` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and the AI assistant all use this one rule.
 
+### The Needs attention list
+
+`attentionGroup(a)`: `needs` when the goal needs attention; else `handled` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than `due`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the map's "Only what needs attention", Home, Watching, and the AI assistant's `find_goals` with `needs_attention`), the `needs` group comes first and the `handled` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the `needs` group only, and says so where both are listed.
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
@@ -61,19 +65,20 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Off track in week 4 with a path back by week 5; checked in again for week 6 (posted 19 October), still off track, carrying the same path. On Thursday 22 October (week 6). | `off, missed-path` |
 | Off track in week 4 (posted Monday 5 October) and nothing since: on Thursday 22 October (17 days later), the status itself has gone stale, so it is no longer flagged off track. | `stale, due` |
 | At risk with no path to green, and an open decision ask on the goal (week 4, Thursday 8 October). | `decision, no-path, risk` |
+| The same goal, reviewed the same way: which group of the Needs attention list on Thursday 8 October, and on Monday 5 October before anyone looked? | `handled; needs` |
 | Off track in week 4 (posted Monday 5 October), and the lead marked it reviewed on Tuesday 6 October. On Thursday 8 October: being handled, needs attention? | `handled by reviewed; needs attention: no` |
 
 ## Where it lives
 
 - [src/domain/trend.ts](../../../src/domain/trend.ts): `gapTrend`, `planGaps`, `stagesTrend`, `goalTrend`
-- [src/domain/attention.ts](../../../src/domain/attention.ts): `flagsFor`, `attentionFor`, `handledFor`, `needsAttention`, `attentionList`
+- [src/domain/attention.ts](../../../src/domain/attention.ts): `flagsFor`, `attentionFor`, `handledFor`, `needsAttention`, `attentionGroup`, `attentionList`
 - [src/domain/asks.ts](../../../src/domain/asks.ts): `openFor`, `answeredSince`, `isOverdue`
 
 ## Requirements
 
 - `ATTENTION`: Off track, stale, a worsening trend, a missed or missing path to green, and pending proposals are flagged where the user starts, with the reason in one line.
-- `ATTENTION-HANDLED`: Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI).
-- `ONE-ATTENTION-RULE`: Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's "Only what needs attention", the Goals filter (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on; an old link's needs=no-recovery still opens No path to green.
+- `ATTENTION-HANDLED`: Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI). It is never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, and a count of goals that need attention counts the first group and says so.
+- `ONE-ATTENTION-RULE`: Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's "Only what needs attention", the Goals filter (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green.
 - `ONE-TREND`: One trend rule (domain/trend.ts): a goal is getting worse when it is further behind plan in its own units at each of the last two check-ins (closer to its limit, or a stage expected later), or on track but heading short of its target. The Getting worse flag, the goal's story, the summary bar's trend and the words under the chart use it, and say Getting worse or Getting better.
 - `PATH-TO-GREEN`: At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it. A request for a decision or help is a record: open until the person asked answers it or the owner withdraws it, shown once to the person asked however many goals wait on it, answered once for all of them, and the answer shown on each goal and in the next review.
 - `GREENER`: A call greener than the calculation needs a reason and is flagged on the goal.
@@ -130,6 +135,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - one trend rule › the flag, the story, the summary bar and the chart say Getting worse of the same goals (${today.toISOString().slice(0, 10)})
 - one trend rule › the chart’s words come from the same rule: further behind at each check-in is getting worse, closer each time getting better
-- one Needs attention › Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals (${today.toISOString().slice(0, 10)})
+- one Needs attention › Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals, and list those being handled below them (${today.toISOString().slice(0, 10)})
 - one Needs attention › the map’s “Only what needs attention” is the Goals filter itself, not a status filter of its own
 - one Needs attention › a link or saved view from before still opens the goals it meant: needs=no-recovery is No path to green

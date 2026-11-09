@@ -1,5 +1,5 @@
 /* F5: fit and finish, list-board (per-area reports, 4 Nov). run({ open, url, browser }) returns a list of failures.
-   Goals List and Table (L&T) and Board and Cards (B&C); the numbers are the reports' finding numbers. */
+   Goals List and Table (L&T) and Board and Cards (B&C; Cards went on 9 Nov, GP); the numbers are the reports' finding numbers. */
 /* The first-reports banner (two goals still waiting for a first check-in) sits above the goals all year in the example; the
    distances below are measured without it, so they still mean what they did. */
 const bannerPx = () => { const b = document.querySelector('.first-reports'); if (!b) return 0; const n = b.nextElementSibling; return n ? n.getBoundingClientRect().top - b.getBoundingClientRect().top : b.getBoundingClientRect().height; };
@@ -264,27 +264,52 @@ module.exports = {
       await c.close();
     }
 
-    // B&C 3, 4, 7, 13, 14, 16: cards. One height per row, a 20px status row, the figure stacked, no rule under the
-    // last part, the reason clamped with its whole text as a tooltip, and "week 43" never split.
+    // GP (Lane, 9 Nov). Cards has gone: five layouts, and a link naming it opens the list saying so once. Every layout
+    // has the one health line, counting the goals shown. The Board shows 8 healthy cards before Show all, each naming
+    // its parent. Filtered to Needs attention, the goals being handled are listed below the others, not hidden, and
+    // the tab's count counts the first group and says so. Sorted, Trees is one list across every tree.
     {
       const [c, p] = await open(1280, 800, 'amara', '/goals?view=cards');
+      await p.locator('.tree').first().waitFor();
+      const m = await p.evaluate(() => ({
+        layouts: document.querySelectorAll('.layout-switch button').length,
+        note: document.querySelector('.link-note')?.textContent ?? '',
+        view: new URL(location.href).searchParams.get('view'),
+        health: [...document.querySelectorAll('.health-line .health-count')].map((x) => x.textContent),
+      }));
+      chk(m.layouts === 5, `GP 2: ${m.layouts} layouts`);
+      chk(/Cards has gone/.test(m.note) && m.view !== 'cards', `GP 2: view=cards gives “${m.note}”, view=${m.view}`);
+      chk(m.health.length >= 2 && m.health.some((t) => /off track/.test(t)) && m.health.some((t) => /on track/.test(t)), `GP 3: health line “${m.health.join(' · ')}”`);
+      await p.reload(); await p.locator('.tree').first().waitFor();
+      chk(!(await p.locator('.link-note').count()), 'GP 2: the Cards note is said more than once');
+      await c.close();
+    }
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals?view=board');
+      await p.locator('.board').waitFor();
       const m = await p.evaluate(() => {
-        const cards = [...document.querySelectorAll('.gcard')].map((g) => g.getBoundingClientRect());
-        const rows = new Map(); for (const r of cards) { const k = Math.round(r.top); rows.set(k, [...(rows.get(k) ?? []), Math.round(r.height)]); }
-        const ragged = [...rows.values()].some((hs) => new Set(hs).size > 1);
-        const heads = [...document.querySelectorAll('.gcard > .row:first-child')].map((r) => Math.round(r.getBoundingClientRect().height));
-        const fig = getComputedStyle(document.querySelector('.gcard-figure')).flexDirection;
-        const last = [...document.querySelectorAll('.gcard .story:last-child')].map((s) => getComputedStyle(s).borderBottomWidth);
-        const why = [...document.querySelectorAll('.gcard .story.brief dt')].find((d) => d.textContent === 'Why')?.nextElementSibling;
-        const nb = [...document.querySelectorAll('.page .nb')].filter((n) => n.getClientRects().length > 1).length;
-        return { ragged, heads: [...new Set(heads)], fig, last: [...new Set(last)], whyTitle: why?.getAttribute('title')?.length ?? 0, whyText: why?.textContent.length ?? 0, nb };
+        const on = [...document.querySelectorAll('.board-col')].find((l) => /^On track/.test(l.getAttribute('aria-label')));
+        const n = Number(on.getAttribute('aria-label').match(/\d+/)[0]);
+        const health = [...document.querySelectorAll('.health-line .health-count')].reduce((t, x) => t + Number(x.textContent.match(/\d+/)[0]), 0);
+        return { n, cards: on.querySelectorAll('.board-card').length, parents: document.querySelectorAll('.board-card .board-parent').length, health, all: document.querySelectorAll('.board-card').length };
       });
-      chk(!m.ragged, 'B&C 7: cards in one row have different heights');
-      chk(m.heads.length === 1 && m.heads[0] === 20, `B&C 13: card status rows are ${m.heads.join('/')}px`);
-      chk(m.fig === 'column', `B&C 14: the figure block is ${m.fig}`);
-      chk(m.last.every((x) => x === '0px'), `B&C 4: the last story on a card keeps a ${m.last.join('/')} rule`);
-      chk(m.whyTitle > 0 && m.whyTitle >= m.whyText - 2, 'B&C 3: a clamped reason has no tooltip with the whole of it');
-      chk(m.nb === 0, `B&C 16: “week 43” breaks across lines ${m.nb} time(s)`);
+      chk(m.cards === Math.min(8, m.n), `GP 5: On track shows ${m.cards} of ${m.n} before Show all`);
+      chk(m.parents > 0, 'GP 5: no board card names its parent');
+      await c.close();
+    }
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals?show=teams&attention=1');
+      await p.locator('.goals-page section.block').first().waitFor();
+      const m = await p.evaluate(() => ({
+        groups: [...document.querySelectorAll('.goals-page section.block > h2.block-title')].map((h) => h.textContent),
+        badge: document.querySelector('[role="tab"] .tabcount[title]')?.getAttribute('title') ?? '',
+      }));
+      chk(m.groups.length === 2 && /^Needs attention/.test(m.groups[0]) && /^Being handled/.test(m.groups[1]), `GP 1: filtered to Needs attention, the groups are ${JSON.stringify(m.groups)}`);
+      chk(/need attention; \d+ being handled are listed below them and not counted/.test(m.badge), `GP 1: the tab's count says “${m.badge}”`);
+      await p.goto(p.url().replace(/\?.*$/, '?sort=worst'));
+      await p.locator('.goals-page section.block').first().waitFor();
+      const trees = await p.locator('.goals-page section.block > h2.block-title').allInnerTexts();
+      chk(trees.length === 1 && /^Every tree/.test(trees[0]), `GP 4: Trees sorted worst first is ${trees.length} groups (${trees.slice(0, 2).join(', ')})`);
       await c.close();
     }
 

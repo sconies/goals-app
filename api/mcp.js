@@ -456,7 +456,7 @@ var init_vocabulary = __esmMin((() => {
 			label: "Needs attention",
 			short: "new, and nobody has picked it up",
 			meaning: "Flagged for something new that nobody has picked up yet.",
-			long: `A goal needs attention when it is ${ATTENTION_FLAGS.map((k) => FLAG[k].label.toLowerCase()).join(", ").replace(/, ([^,]+)$/, " or $1")}, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant.`,
+			long: `A goal needs attention when it is ${ATTENTION_FLAGS.map((k) => FLAG[k].label.toLowerCase()).join(", ").replace(/, ([^,]+)$/, " or $1")}, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant. Wherever they are listed, the goals being handled are listed below them, so nothing is hidden; a count of goals that need attention leaves those out.`,
 			rule: "attention#needsAttention"
 		}),
 		handled: term("handled", {
@@ -3026,11 +3026,22 @@ function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.ch
 	if (now.some((k) => !then.has(k))) return null;
 	return looks.sort((a, b) => HANDLED_ORDER.indexOf(a.kind) - HANDLED_ORDER.indexOf(b.kind) || b.at.localeCompare(a.at))[0];
 }
+/**
+* Which group of the Needs attention list a goal is in (Lane, 9 Nov, backlog GP): `needs` (needs attention: listed
+* first, and what every count counts), `handled` (being handled: listed below them, never left out), or null (not
+* listed). A goal being handled is always flagged (it is behind), so the list is every goal flagged for something
+* beyond a due check-in. Nothing is hidden: a manager filtering her team sees her goals that are behind even when
+* someone has already looked at them.
+*/
+function attentionGroup(a) {
+	if (needsAttention(a)) return "needs";
+	return a.handled ? "handled" : null;
+}
 /** A list of goals' attention split into what needs attention (new information) and what is being handled. */
 function splitAttention(list) {
 	return {
-		needs: list.filter(needsAttention),
-		handled: list.filter((a) => !!a.handled)
+		needs: list.filter((a) => attentionGroup(a) === "needs"),
+		handled: list.filter((a) => attentionGroup(a) === "handled")
 	};
 }
 /**
@@ -3040,7 +3051,7 @@ function splitAttention(list) {
 function attentionList(s, cycle, today, opts = {}) {
 	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort(attentionOrder);
 }
-var WEIGHT, HANDLED_ORDER, LOOKS, needsAttention, attentionOrder;
+var WEIGHT, HANDLED_ORDER, LOOKS, needsAttention, onAttentionList, attentionOrder;
 var init_attention = __esmMin((() => {
 	init_status();
 	init_asks();
@@ -3061,6 +3072,7 @@ var init_attention = __esmMin((() => {
 		acknowledge: "reviewed"
 	};
 	needsAttention = (a) => !a.handled && a.flags.some((f) => f.kind !== "due");
+	onAttentionList = (a) => attentionGroup(a) !== null;
 	attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
 }));
 // src/domain/review.ts
@@ -7853,7 +7865,7 @@ function matches(s, q, ctx, tree) {
 	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
 	if (q.kind.length && !q.kind.includes(g.kind)) return false;
 	if (q.attention || q.needs.length) {
-		if (!needsAttention(s.attention)) return false;
+		if (!onAttentionList(s.attention)) return false;
 		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
 	}
 	if (q.due != null) {
@@ -10283,12 +10295,15 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.",
-					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.",
+					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.",
 					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.",
+					"Above the goals, one line says their health, as Home does: how many are off track, at risk, on track and so on, each with its shape and word. It counts the goals shown, so a tab or a filter changes it. On a phone the Views button counts them instead, so the goals come first.",
+					"The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into.",
+					"Cards has gone: List shows everything it did. A link or saved view that opens Cards opens List, and says so once.",
 					"Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.",
 					"A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.",
 					"On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.",
-					"When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.",
+					"When two goals have the same title, each shows its key beside it, here and on the Board, History, the map and the check-in.",
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
 					"In the sidebar, Goals has Mine, Watching, All and your saved views under it.",
@@ -10304,15 +10319,13 @@ var CORE_ARTICLES = [
 			"/goals",
 			"/goals?view=list",
 			"/goals?view=table",
-			"/goals?view=board",
-			"/goals?view=cards"
+			"/goals?view=board"
 		],
 		screens: [
 			"GoalsScreen",
 			"GoalViews",
 			"GoalTable",
 			"GoalBoard",
-			"GoalCards",
 			"BulkEdit"
 		],
 		reqs: [
@@ -10330,6 +10343,7 @@ var CORE_ARTICLES = [
 			"table",
 			"board",
 			"cards",
+			"health",
 			"trees",
 			"layout",
 			"by team",
@@ -10358,9 +10372,9 @@ var CORE_ARTICLES = [
 			list: [
 				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.",
 				"Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.",
-				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
+				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Decision or help needed is one press. Each active filter shows as words you can remove.",
-				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest.",
+				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.",
 				"Everything is in the link: Copy link shares exactly what you see. Save view keeps it as a tab of your own; rename or delete it from Views."
 			]
 		}, {
@@ -10416,7 +10430,8 @@ var CORE_ARTICLES = [
 				list: [
 					"Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.",
 					`A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
-					"On Goals, the Needs attention tab says what its count is made of: how many are off track, at risk or without a recent update, and how many are on track or done but flagged for something else (getting worse, a missed date, an ask waiting). The Board groups the same goals by status.",
+					"Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.",
+					"On Goals, the Needs attention tab’s count counts the goals that need attention, not those being handled, and says so if you point at it. The line above the goals says what the count is made of: how many are off track, at risk or without a recent update, how many are on track or done but flagged for something else (getting worse, a missed date, an ask waiting), and how many are being handled below them. The Board groups the same goals by status.",
 					"Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”."
 				]
 			}
@@ -10462,6 +10477,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Choose History among the Goals layouts. It opens on quarter results: each goal’s number at the end of each quarter against the owner’s plan, met or missed, with this quarter in progress.",
+				"In both, the last column, Now, is each goal’s latest number (or stages done), as the list and the table say it.",
 				"Weekly status is the other choice: each square is the owner’s call that week, one quarter at a time or the whole year.",
 				"Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.",
 				"A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan."
@@ -11816,6 +11832,24 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "goals-page-decisions",
+		date: "2026-11-09",
+		title: "Goals: nothing behind is hidden, and one line for its health",
+		points: [
+			"Filter Goals to Needs attention and the goals being handled are listed below the others, never left out: filter to your team and you see every goal of theirs that is behind. The same in every layout, on the map and for the AI assistant. The tab’s count still counts the goals that need attention, and says so.",
+			"A line above the goals says their health, as Home does: how many off track, at risk, on track and so on.",
+			"Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere.",
+			"The Board shows up to eight on-track goals before Show all, and each card says which goal it feeds into. History ends each row with the goal’s number now.",
+			"Cards has gone: List shows everything it did. A link or saved view that opened Cards opens List and says so once."
+		],
+		articles: [
+			"needs-attention",
+			"goals",
+			"goals-filters",
+			"history"
+		]
+	},
 	{
 		id: "goal-page-fixes",
 		date: "2026-11-09",
@@ -16167,7 +16201,7 @@ var CORE_TOOLS = [
 	{
 		name: "find_goals",
 		title: "Find goals",
-		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals that need attention (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
+		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -16175,10 +16209,10 @@ var CORE_TOOLS = [
 				text: str("Words in the goal’s name, or its key (G-12)."),
 				owner: str("Part of the owner’s name."),
 				status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
-				needs_attention: bool(`Only goals that need attention: ${ATTENTION.needs.long}`),
+				needs_attention: bool(`Only the goals on the ${ATTENTION.needs.label} list: those that need attention first, then those ${ATTENTION.handled.label.toLowerCase()} (beingHandled says how), as the Goals screen lists them. ${ATTENTION.needs.long}`),
 				level: str("Only goals at this level.", { enum: LEVELS }),
 				mine: bool("Only goals you own."),
-				query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: only goals that need attention), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+				query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone.")
 			}
 		},
@@ -16196,12 +16230,13 @@ var CORE_TOOLS = [
 				query = parseQuery(new URLSearchParams(v.params));
 			}
 			const status = a.status ? statusIn(a.status) : null;
-			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!status || s.status === status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id) && (!a.needs_attention || needsAttention(s.attention)));
+			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!status || s.status === status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id) && (!a.needs_attention || attentionGroup(s.attention) !== null));
 			if (query) list = applyQuery(list, query, {
 				goals: ctx.snapshot.goals,
 				cycle: ctx.cycle,
 				week: ctx.week
 			});
+			if (a.needs_attention || query?.attention || query?.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
 			const data = list.map((s) => ({
 				key: s.goal.key ?? null,
 				id: s.goal.id,
@@ -16213,6 +16248,7 @@ var CORE_TOOLS = [
 				status: s.status,
 				statusLabel: LABEL[s.status],
 				needsAttention: needsAttention(s.attention),
+				beingHandled: s.attention.handled?.text ?? null,
 				because: s.attention.flags.filter((f) => f.kind !== "due").map((f) => withCode({
 					label: f.label,
 					code: f.kind
@@ -16231,7 +16267,7 @@ var CORE_TOOLS = [
 					weeks: ctx.cycle.weeks,
 					goals: data
 				},
-				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(", ")}` : ""}`).join("\n") : "No goals match."
+				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(", ")}` : g.beingHandled ? ` · ${ATTENTION.handled.label.toLowerCase()}: ${g.beingHandled}` : ""}`).join("\n") : "No goals match."
 			};
 		}
 	},

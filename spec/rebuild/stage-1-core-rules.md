@@ -36,7 +36,7 @@ One program that reads `workspace.json` and, for every week from 0 to the week i
 | File | Rows expected | Columns, in this order |
 |---|---|---|
 | `status.csv` | 5696 | `week`, `goal`, `kind`, `status`, `calculated`, `greener`, `latest_week`, `days_without_update` |
-| `flags.csv` | 5696 | `week`, `goal`, `flags`, `handled`, `needs_attention` |
+| `flags.csv` | 5696 | `week`, `goal`, `flags`, `handled`, `needs_attention`, `attention_group` |
 | `projection.csv` | 4822 | `week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses` |
 | `scorecard.csv` | 21910 | `week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub` |
 

@@ -30,14 +30,14 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | File | Rows | One row per | Columns |
 |---|---|---|---|
 | [status.csv](status.csv) | 5696 | goal and week | `week`, `goal`, `kind`, `status`, `calculated`, `greener`, `latest_week`, `days_without_update` |
-| [flags.csv](flags.csv) | 5696 | goal and week | `week`, `goal`, `flags`, `handled`, `needs_attention` |
+| [flags.csv](flags.csv) | 5696 | goal and week | `week`, `goal`, `flags`, `handled`, `needs_attention`, `attention_group` |
 | [projection.csv](projection.csv) | 4822 | number goal (metric or range) and week | `week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses` |
 | [scorecard.csv](scorecard.csv) | 21910 | scorecard cell, goal and week | `week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub` |
 
 What each column is, and the rule that gives it:
 
 - **status.csv** ([the status](../core/rules/status.md)): `status` is the official status, `goalStatus(goal, cycle, checkIns, moment).status`; `calculated` is what the numbers say (`.calc`, from `assessPosted` in the current week); `greener` whether the latest call is greener than its calculation; `latest_week` the week of the latest check-in (by when it was posted), empty with none; `days_without_update` from `daysWithoutUpdate`. Codes as in [the vocabulary](../core/vocabulary.md).
-- **flags.csv** ([flags](../core/rules/flags.md)): `flags` the flag codes worst first, separated by spaces (empty with none); `handled` how it is being handled (`action`, `answered`, `noted`, `reviewed`) or empty; `needs_attention` `yes` or `no`.
+- **flags.csv** ([flags](../core/rules/flags.md)): `flags` the flag codes worst first, separated by spaces (empty with none); `handled` how it is being handled (`action`, `answered`, `noted`, `reviewed`) or empty; `needs_attention` `yes` or `no`; `attention_group` the goal’s group on the Needs attention list (`needs`, `handled`) or empty when it isn’t on it.
 - **projection.csv** ([the projection](../core/rules/projection.md)): for a number to move, the projection `assessPosted` makes (to its due week, from the check-ins up to this week), and `forecast_misses`; for a number to keep in range, one number per week (the latest posted in each week), projected to the cycle’s end, made whether or not the goal is stale (the scorecard itself says Can’t say when stale); no `forecast_misses`. Every column but the first three is empty when there is no projection. `value`, `low`, `high` and `slope` are rounded to 6 decimal places; `first_week` and `last_week` are the weeks of numbers the line used, `to_week` the week projected to.
 - **scorecard.csv** ([the scorecard](../core/rules/scorecard.md)): `goalScorecard(goal, cycle, checkIns, week, stale)` with `stale` when the status is `stale`; one row per cell, in order. `cell`, `tone` and `likelihood` are the rule; `value`, `label` and `sub` its words.
 

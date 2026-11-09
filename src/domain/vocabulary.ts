@@ -153,7 +153,7 @@ export const ATTENTION = {
   needs: term('needs', {
     label: 'Needs attention', short: 'new, and nobody has picked it up',
     meaning: 'Flagged for something new that nobody has picked up yet.',
-    long: `A goal needs attention when it is ${ATTENTION_FLAGS.map((k) => FLAG[k].label.toLowerCase()).join(', ').replace(/, ([^,]+)$/, ' or $1')}, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant.`,
+    long: `A goal needs attention when it is ${ATTENTION_FLAGS.map((k) => FLAG[k].label.toLowerCase()).join(', ').replace(/, ([^,]+)$/, ' or $1')}, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant. Wherever they are listed, the goals being handled are listed below them, so nothing is hidden; a count of goals that need attention leaves those out.`,
     rule: 'attention#needsAttention',
   }),
   handled: term('handled', {

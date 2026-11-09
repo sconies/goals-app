@@ -175,7 +175,7 @@ function stage1(rows: Record<string, number>): string {
     '',
     table(['File', 'Rows expected', 'Columns, in this order'], [
       ['`status.csv`', String(rows.status), '`week`, `goal`, `kind`, `status`, `calculated`, `greener`, `latest_week`, `days_without_update`'],
-      ['`flags.csv`', String(rows.flags), '`week`, `goal`, `flags`, `handled`, `needs_attention`'],
+      ['`flags.csv`', String(rows.flags), '`week`, `goal`, `flags`, `handled`, `needs_attention`, `attention_group`'],
       ['`projection.csv`', String(rows.projection), '`week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses`'],
       ['`scorecard.csv`', String(rows.scorecard), '`week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub`'],
     ]),

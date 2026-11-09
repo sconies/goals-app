@@ -1173,7 +1173,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
 }, ['errors']);
 
 // 16 steps: on a phone each layout is two taps, the Layout menu then the layout (backlog G's trade-off, 9 Nov; it was 14).
-journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board, history grid or cards, and export them', 16, async (h, device) => {
+journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board or history grid, and export them', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals'));
   await h.inView(p.locator('.layout-switch, .layout-menu > summary').filter({ visible: true }), 'entry', 'the layout switch');
@@ -1188,6 +1188,8 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   await chooseLayout(h, p, 'Board');
   await p.locator('.board').waitFor();
   for (const col of ['Off track', 'At risk', 'No recent update', 'On track']) await see(p, col);
+  // Each card names the goal it feeds into (backlog GP); the page's health line counts the same goals the lanes do.
+  h.set('parity', (await p.locator('.board-card .board-parent').count()) > 0 && (await phoneBar(p) || await p.locator('.health-line').isVisible()), 'board cards don’t name their parent, or there’s no health line');
   await h.checkpoint('board');
   // History: a square per goal per week, the owner's call.
   await chooseLayout(h, p, 'History');
@@ -1196,14 +1198,13 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Weekly status' }));
   await p.locator('.hgrid').first().waitFor();
   h.set('progress', (await p.locator('.hcell.tone-on, .hcell.tone-risk, .hcell.tone-off').count()) > 20, 'the history grid has too few check-ins');
+  // Each goal's number now, at the end of its row (backlog GP).
+  h.set('progress', (await p.locator('.hgrid td.h-value').first().innerText()).trim().length > 0, 'the history grid doesn’t say each goal’s number now');
   await h.checkpoint('history');
-  await chooseLayout(h, p, 'Cards');
-  await p.locator('.gcard').first().waitFor();
-  await h.checkpoint('cards');
   // The choice is remembered, and the tabs still choose which goals and how they're grouped.
   await p.goto(url('/goals?show=teams'));
-  await p.locator('.gcard').first().waitFor();
-  h.set('parity', (await openLayout(p)) === 'Cards', 'the layout was not remembered');
+  await p.locator('.qtable, .hgrid').first().waitFor();
+  h.set('parity', (await openLayout(p)) === 'History', 'the layout was not remembered');
   // Export: a workbook, and JSON another tool can read.
   await h.click(await exportButton(h, p));
   await h.checkpoint('export');
@@ -3062,7 +3063,7 @@ async function platformChecks() {
   for (const [device, vp] of want('P6') ? Object.entries(DEVICES) : []) {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?view=table'], ['rhea', '/goals?view=board'], ['rhea', '/goals?view=history'], ['rhea', '/goals?view=cards'], ['rhea', '/goals?view=map'],
+    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?view=table'], ['rhea', '/goals?view=board'], ['rhea', '/goals?view=history'], ['rhea', '/goals?view=map'],
       ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/workspace/people'], ['grace', '/workspace/inbox'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
@@ -3103,7 +3104,7 @@ async function platformChecks() {
   for (const [w, hgt] of want('P7') ? [[1920, 1080], [2560, 1300]] : []) {
     const c5 = await browser.newContext({ viewport: { width: w, height: hgt } });
     const r = await c5.newPage();
-    for (const [who, route, kind] of [['amara', '/', 'split'], ['amara', '/goals?view=table', 'fill'], ['amara', '/goals?view=board', 'fill'], ['amara', '/goals?view=cards', 'fill'], ['amara', '/goals?view=map', 'map'], ['tariq', '/goals/lead-review', 'split'], ['rhea', '/watching', 'split'], ['amara', '/activity', 'plain']]) {
+    for (const [who, route, kind] of [['amara', '/', 'split'], ['amara', '/goals?view=table', 'fill'], ['amara', '/goals?view=board', 'fill'], ['amara', '/goals?view=history', 'fill'], ['amara', '/goals?view=map', 'map'], ['tariq', '/goals/lead-review', 'split'], ['rhea', '/watching', 'split'], ['amara', '/activity', 'plain']]) {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();

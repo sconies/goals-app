@@ -233,18 +233,18 @@
 .board-count { margin-left: 0; font-size: 0.8125rem; font-weight: 600; color: var(--muted); }
 /* Cards: radius 8 everywhere; 12px padding on the Board, 16px on Cards; one title style (8). */
 .board-card { padding: var(--s3); border-radius: 8px; }
-.board-title, .gcard-title { font-size: 0.9375rem; line-height: 1.25rem; font-weight: 600; }
+.board-title { font-size: 0.9375rem; line-height: 1.25rem; font-weight: 600; }
 /* The level on a 20px row of its own, right-aligned, as on Cards (6); a result tag starts at the card's edge (5). */
 .board-level { display: flex; justify-content: flex-end; min-height: 20px; align-items: center; }
-.board-level .level, .gcard .level { font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; }
-.board-card .result-tag, .gcard .result-tag { margin-left: 0; }
+.board-level .level { font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; }
+.board-card .result-tag { margin-left: 0; }
 /* Show all: a full-size target below desktop, a hover you can see, and Show fewer once open (10). */
 .board-more { min-height: 44px; }
 @media (min-width: 1280px) and (pointer: fine) { .board-more { min-height: 36px; } }
 .board-more:hover { background: var(--line); }
 /* Card hover: a darker border and a hairline lift (11). */
 @media (hover: hover) {
-  .board-card:hover, .gcard:hover { border-color: var(--faint); box-shadow: 0 1px 2px rgba(16, 24, 40, .08); }
+  .board-card:hover { border-color: var(--faint); box-shadow: 0 1px 2px rgba(16, 24, 40, .08); }
 }
 /* Dark: the lane recedes and the cards sit on it (17). */
 @media (prefers-color-scheme: dark) {
@@ -255,15 +255,10 @@
 :root[data-theme="dark"] .board-card { background: #1C2E30; border-color: var(--line); }
 /* The reason: three lines on the Board, two on Cards; the whole of it is the tooltip (3). */
 .board-card .story.brief dd { -webkit-line-clamp: 3; }
-.gcard .story.brief dd { -webkit-line-clamp: 2; }
 /* The last part of a card has no rule or padding under it (4). */
-.board-card .story:last-child, .gcard .story:last-child { border-bottom: 0; padding-bottom: 0; }
+.board-card .story:last-child { border-bottom: 0; padding-bottom: 0; }
 
 /* ---------- Cards (B&C 7, 8, 13, 14) ---------- */
 /* Each row of cards is one height (7). */
-.gcards { align-items: stretch; }
-.gcard { padding: var(--s4); border-radius: 8px; }
 /* The status row is 20px with or without a level, so titles line up (13). */
-.gcard > .row:first-child { min-height: 20px; align-items: center; }
 /* The number, then its target line under it, on every card (14). */
-.gcard-figure { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
