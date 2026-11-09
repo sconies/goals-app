@@ -10284,7 +10284,9 @@ var CORE_ARTICLES = [
 				list: [
 					"Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.",
 					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. Each button has its name, on a phone too, and a line under the buttons says what the open layout shows. Your last layout is remembered and is in the link.",
-					"On a phone the tabs and the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full.",
+					"On a phone the tabs and the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.",
+					"Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.",
+					"A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.",
 					"When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.",
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
@@ -10351,7 +10353,8 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition.",
+				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.",
+				"Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.",
 				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Decision or help needed is one press. Each active filter shows as words you can remove.",
 				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest.",
@@ -10493,7 +10496,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Choose Map among the Goals layouts. North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.",
-				"Pan, zoom and drag goals about. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.",
+				"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.",
 				"The critical path, the inputs most likely to make a top goal miss, is drawn bold. Only what needs attention narrows the map to that.",
 				"Fit all shows everything small; Readable shows the critical path at a size you can read.",
 				"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.",
@@ -11822,6 +11825,22 @@ var WHATS_NEW = [
 			"A repeated reason in the history says which way to look for the week it points to, and the header says when the goal was last updated."
 		],
 		articles: ["goal-page", "edit-goal"]
+	},
+	{
+		id: "goals-search-and-back",
+		date: "2026-11-09",
+		title: "Search that keeps up, and Back that goes back",
+		points: [
+			"Search on Goals keeps every letter, however fast you type or paste; the goals follow a moment after you stop.",
+			"Clearing a search keeps the tab, the layout and the sort you had.",
+			"Each tab and layout you choose is a step Back returns to, with its search as it was.",
+			"A link to a tab or team that isn’t there opens the trees, or the goals without that filter, and says what it left out. Every tab is shown whole on a wide screen, and Delete on the map no longer does anything."
+		],
+		articles: [
+			"goals",
+			"goals-filters",
+			"goal-map"
+		]
 	},
 	{
 		id: "home-screen-icon-and-splash",
