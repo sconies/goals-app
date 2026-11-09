@@ -10221,8 +10221,9 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.",
-					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. Each button has its name, on a phone too, and a line under the buttons says what the open layout shows. Your last layout is remembered and is in the link.",
-					"On a phone the tabs and the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full.",
+					"Layouts: List (rows, grouped as the tab says), Table (a row per goal, sortable, with the headings kept in view), Board (a column for each status), History (quarter results, and each goal’s status week by week), Cards (a card per goal, with its gap) and Map (how the goals feed each other). Each button has its name, and a line under the buttons says what the open layout shows. Your last layout is remembered and is in the link.",
+					"On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.",
+					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full.",
 					"When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.",
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
@@ -10272,7 +10273,9 @@ var CORE_ARTICLES = [
 			"mine",
 			"portfolio",
 			"outcomes",
-			"story"
+			"story",
+			"phone",
+			"views"
 		],
 		related: [
 			"goals-filters",
@@ -11742,6 +11745,19 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "goals-phone-goals-first",
+		date: "2026-11-09",
+		title: "Goals on a phone: the goals first",
+		points: [
+			"On a phone, Goals now starts with the goals: the first one is about a third of the way down the screen instead of below it.",
+			"Views and Layout are two buttons on one line. Views says which goals are open and how many, and holds the tabs, your saved views and Export these goals. Layout says the open layout and what each one shows.",
+			"The note about first check-ins is one line on a phone, with Why? for the rest.",
+			"On a computer, Goals is just as it was."
+		],
+		articles: ["goals"],
+		fixes: ["mk_3066bf5c5a35402e"]
+	},
 	{
 		id: "home-screen-icon-and-splash",
 		date: "2026-11-08",
