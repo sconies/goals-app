@@ -16,6 +16,7 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 | What to build next, in order | `docs/backlog.md` |
 | What Faro is, generated from the code | `llms.txt` and `spec/` (`npm run spec`; items 8a and 8b) |
 | The rebuild kit and its drill | `spec/rebuild/README.md`; the harness is `npm run drill -- <folder>` (item 8k) |
+| Handing Faro to the internal team: the checklist | `docs/handoff.md` (hand-written; keep it in step with 8g, 0c, 8c, 11) |
 
 ## State on Sunday 8 November, night
 
