@@ -60,7 +60,7 @@ module.exports = {
       fail(rows.length === 6, `List: ${rows.length} reviews listed at ${w}`);
       for (const r of rows) {
         fail(r.shape && STATE.test(r.state || ''), `List ${w}: ${r.name} state is "${r.state}" (shape ${r.shape})`);
-        fail(/^(Mon|Tue|Wed|Thu|Fri) \d{1,2} [A-Z][a-z]{2}$/.test(r.facts.Session || r.facts.Next || ''), `List ${w}: ${r.name} has no session date (${JSON.stringify(r.facts)})`);
+        fail(/^(Mon|Tue|Wed|Thu|Fri) \d{1,2} [A-Z][a-z]{2}$/.test(r.facts.Session || r.facts['Outstanding from'] || r.facts.Next || ''), `List ${w}: ${r.name} has no session date (${JSON.stringify(r.facts)})`);
         fail(/^\d+$/.test(r.facts['Open actions'] || ''), `List ${w}: ${r.name} has no open-actions count`);
         fail(r.cut === 0, `List ${w}: ${r.name} has ${r.cut} clipped parts`);
       }
@@ -170,7 +170,7 @@ module.exports = {
           reviewsLink: [...page.querySelectorAll('a')].some((a) => /\/reviews(\?|$)/.test(a.getAttribute('href')) && a.getClientRects().length),
         };
       });
-      fail(s.h1 === 'Merge queue check' && /^Held Thu 5 Nov · next /.test(s.line || ''), `Held review: "${s.h1}", line "${s.line}"`);
+      fail(s.h1 === 'Merge queue check' && /^Held Thu 5 Nov · Next [A-Z][a-z]{2} \d{1,2} Nov$/.test(s.line || ''), `Held review: "${s.h1}", line "${s.line}"`);
       // What was said comes straight after the review's heading.
       fail(s.record === 'What was said' && s.blocks.indexOf('block session-record') === s.blocks.indexOf('hero') + 1, `Held review: the record is "${s.record}", page order ${s.blocks.join(' / ')}`);
       fail(/The vendor’s fix slipped/.test(s.t) && /Can the web monorepo move/.test(s.t) && /Agree the batching workaround/.test(s.t), 'Held review: what was said is missing');
@@ -212,11 +212,30 @@ module.exports = {
     {
       const [c, p] = await open(1280, 800, 'amara', '/reviews');
       await p.locator('.rv-line').first().waitFor();
-      const rows = await p.evaluate(() => [...document.querySelectorAll('.rv-line')].map((r) => ({ state: r.querySelector('.session-state')?.innerText.trim(), session: [...r.querySelectorAll('.rv-fact')].find((f) => f.querySelector('.rv-fact-k')?.textContent === 'Session')?.innerText ?? '', mark: !!r.querySelector('.rv-past svg') })));
-      // Today is Thursday 5 November: Reliability weekly was Wednesday 4 November and is still in progress.
-      const late = rows.filter((r) => /^(Not started|In progress)/.test(r.state || '') && /Wed 4 Nov/.test(r.session));
-      fail(late.length > 0 && late.every((r) => /1 day past/.test(r.session) && r.mark), `Reviews: a session a day past its date isn’t flagged (${JSON.stringify(late)})`);
-      fail(!rows.some((r) => /Thu 5 Nov/.test(r.session) && /past/.test(r.session)), 'Reviews: today’s session is called past');
+      const rows = await p.evaluate(() => [...document.querySelectorAll('.rv-line')].map((r) => {
+        const fact = (k) => [...r.querySelectorAll('.rv-fact')].find((f) => f.querySelector('.rv-fact-k')?.textContent === k)?.innerText ?? '';
+        return { href: r.getAttribute('href'), name: r.querySelector('.rv-name')?.textContent, state: r.querySelector('.session-state')?.innerText.trim(), session: fact('Session'), outstanding: fact('Outstanding from'), next: fact('Next'), mark: !!r.querySelector('.rv-past svg') };
+      }));
+      // Today is Thursday 5 November: Reliability weekly was Wednesday 4 November and is still in progress. Review F07:
+      // it is "Outstanding from Wed 4 Nov", with the next session (Wed 11 Nov) named apart from it.
+      const late = rows.filter((r) => /^(Not started|In progress)/.test(r.state || '') && /Wed 4 Nov/.test(r.outstanding));
+      fail(late.length > 0 && late.every((r) => /1 day past/.test(r.outstanding) && r.mark && /Wed 11 Nov/.test(r.next)), `Reviews: a session a day past its date isn’t flagged as outstanding with the next one beside it (${JSON.stringify(late)})`);
+      fail(!rows.some((r) => /Thu 5 Nov/.test(r.session + r.outstanding) && /past/.test(r.session + r.outstanding)), 'Reviews: today’s session is called past');
+      // Its page and the walk's bar say the same: the outstanding session's date, then the next.
+      const href = late[0]?.href;
+      if (href) {
+        await p.locator(`.rv-line[href="${href}"]`).first().click();
+        await p.locator('.hero .review-line').waitFor();
+        const line = (await p.locator('.hero .review-line').innerText()).trim();
+        fail(/^Outstanding from Wed 4 Nov \(1 day past\) · .* · Next Wed 11 Nov$/.test(line), `Review F07: the outstanding review's line is "${line}"`);
+        const go = p.getByRole('button', { name: /^(Start|Continue) review/ });
+        if (await go.count()) {
+          await go.click();
+          await p.locator('.reviewbar').waitFor();
+          const bar = (await p.locator('.reviewbar .reviewbar-when').innerText()).trim();
+          fail(bar === 'Outstanding from Wed 4 Nov (1 day past)', `Review F07: the walk's bar doesn't date the session: "${bar}"`);
+        }
+      }
       await c.close();
     }
 

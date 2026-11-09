@@ -21,9 +21,12 @@ export function sayAmount(v: number, g: Numeric): string {
     const scale = m[2]?.toLowerCase() === 'k' ? 1e3 : m[2]?.toLowerCase() === 'm' ? 1e6 : 1;
     const x = Math.abs(v * scale), sign = v < 0 ? '−' : '';
     const trim = (n: number, d: number) => String(Number(n.toFixed(d)));
-    if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, x >= 1e7 ? 1 : 2)}m`;
-    if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, x >= 1e4 ? 0 : 1)}k`;
-    return `${sign}${sym}${Math.round(x)}`;
+    // Never fewer decimals than the goal keeps in its own unit (review F03: 0.62 USD read "about $1").
+    const own = (display: number, d: number) => (display === scale ? Math.max(d, g.decimals) : d);
+    if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, own(1e6, x >= 1e7 ? 1 : 2))}m`;
+    if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, own(1e3, x >= 1e4 ? 0 : 1))}k`;
+    // Small amounts in the goal's own unit keep its decimals as written: "$0.60", not "$0.6".
+    return `${sign}${sym}${scale === 1 && g.decimals > 0 ? x.toFixed(g.decimals) : String(Math.round(x))}`;
   }
   const n = Number(v.toFixed(g.decimals)).toLocaleString('en-GB', { maximumFractionDigits: g.decimals });
   if (!g.unit) return n;

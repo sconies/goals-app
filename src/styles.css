@@ -791,6 +791,7 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.8125
 .story dd { margin: 0; }
 .story.compact dl { gap: 2px var(--s2); }
 .story-warn { display: flex; gap: 6px; align-items: flex-start; color: var(--risk-fg); font-weight: 550; } .story-warn svg { flex: none; width: 13px; height: 13px; margin-top: 4px; }
+.story-history { display: block; }
 .story-row td { padding-top: 0 !important; border-bottom: 1px solid var(--line-2); }
 .gtable tr[data-tone]:has(+ .story-row) td { border-bottom: 0; }
 .gtable tr[data-tone="off"] td { background: var(--off-wash); }

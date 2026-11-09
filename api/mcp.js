@@ -3209,6 +3209,13 @@ function saidIn(s) {
 		ask: a
 	}))];
 }
+/** The week of a review's next session on or after today: this week's, or the one after once its date has gone. Home's
+"Next review" and the review page's "Next" both use it, so they name the same day (review F07, 9 Nov). */
+function upcomingSessionWeek(r, cycle, week, today) {
+	const day = today.toISOString().slice(0, 10);
+	const w = sessionWeek(r, week, cycle);
+	return sessionDate(r, cycle, w) < day ? sessionWeek(r, w + 1, cycle) : w;
+}
 /**
 * The answer to a question or action said in a review: the ask's own answer (or the note it was marked done with),
 * once it has one. A comment never answers it. Null while it's open.
@@ -5443,9 +5450,10 @@ function sayAmount(v, g) {
 		const scale = m[2]?.toLowerCase() === "k" ? 1e3 : m[2]?.toLowerCase() === "m" ? 1e6 : 1;
 		const x = Math.abs(v * scale), sign = v < 0 ? "−" : "";
 		const trim = (n, d) => String(Number(n.toFixed(d)));
-		if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, x >= 1e7 ? 1 : 2)}m`;
-		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, x >= 1e4 ? 0 : 1)}k`;
-		return `${sign}${sym}${Math.round(x)}`;
+		const own = (display, d) => display === scale ? Math.max(d, g.decimals) : d;
+		if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, own(1e6, x >= 1e7 ? 1 : 2))}m`;
+		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, own(1e3, x >= 1e4 ? 0 : 1))}k`;
+		return `${sign}${sym}${scale === 1 && g.decimals > 0 ? x.toFixed(g.decimals) : String(Math.round(x))}`;
 	}
 	const n = Number(v.toFixed(g.decimals)).toLocaleString("en-GB", { maximumFractionDigits: g.decimals });
 	if (!g.unit) return n;
@@ -9564,10 +9572,8 @@ function groupWatched(all) {
 }
 /** The next session of a review the person takes part in, today's included. */
 function nextReview(personId, s, cycle, week, today) {
-	const day = today.toISOString().slice(0, 10);
 	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
-		let w = sessionWeek(r, week, cycle);
-		if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1, cycle);
+		const w = upcomingSessionWeek(r, cycle, week, today);
 		const date = sessionDate(r, cycle, w);
 		return {
 			id: r.id,
@@ -10052,7 +10058,7 @@ var CORE_ARTICLES = [
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
 					`Causes when behind: ${causes(CAUSES_BEHIND)}. When ahead: ${causes(CAUSES_AHEAD)}. Something else lets you say it in your own words.`,
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
-					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
+					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. Correcting a check-in in the same week asks about this week’s earlier check-in instead. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
 					"What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.",
 					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
@@ -10464,6 +10470,8 @@ var CORE_ARTICLES = [
 				"Choose History among the Goals layouts. It opens on quarter results: each goal’s number at the end of each quarter against the owner’s plan, met or missed, with this quarter in progress.",
 				"Weekly status is the other choice: each square is the owner’s call that week, one quarter at a time or the whole year.",
 				"Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.",
+				"Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.",
+				"On a goal on track or done now, a quarter it didn’t meet is shown quietly, as history, rather than as a warning.",
 				"A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan."
 			]
 		}],
@@ -10777,7 +10785,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Running it",
 				list: [
-					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date says how many days past it is.",
+					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.",
 					"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too).",
 					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.",
 					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
@@ -10917,7 +10925,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.",
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
-					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too.",
+					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
 					"Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the blank template; and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
 					"IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email."
@@ -11667,7 +11675,11 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Your work is safe",
-				list: ["Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.", "Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."]
+				list: [
+					"Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.",
+					"When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.",
+					"Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
+				]
 			},
 			{
 				heading: "On your home screen",
@@ -11693,7 +11705,8 @@ var CORE_ARTICLES = [
 			"DRAFTS",
 			"PERSIST",
 			"MOTION",
-			"NAV-GOALS"
+			"NAV-GOALS",
+			"STALE-RELOAD"
 		],
 		keywords: [
 			"phone",
@@ -11816,6 +11829,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "review-leftovers",
+		date: "2026-11-09",
+		title: "Smaller things from the full review",
+		points: [
+			"When Faro is updated while you have it open, a page that can’t load the part it needs reloads itself once, at the same address, instead of showing an error. Anything you were typing is kept.",
+			"Small amounts of money keep their decimals in forecasts: “about $0.63”, not “about $1”.",
+			"A review session past its date says “Outstanding from” its date, with the next session beside it, on Reviews, on the review’s page and in the bar you walk it with.",
+			"Weekly history says “Done since week 37” after a goal is done; a quarter it didn’t meet reads as quiet history once it’s on track; the first-check-in note says it counts the whole workspace.",
+			"Correcting a check-in in the same week asks about this week’s earlier check-in, not last week’s. Data’s columns start compact, so more fit on the screen."
+		],
+		articles: [
+			"any-device",
+			"reviews",
+			"history",
+			"check-in",
+			"data"
+		]
+	},
 	{
 		id: "goal-page-fixes",
 		date: "2026-11-09",

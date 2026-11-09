@@ -3,7 +3,7 @@
 import { attentionFor, needsAttention, type GoalAttention } from './attention';
 import { daysSince } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
-import { daysPast, reviewSession, sessionDate, sessionWeek, watchedGoals } from './review';
+import { daysPast, reviewSession, sessionDate, upcomingSessionWeek, watchedGoals } from './review';
 import { goalStatus } from './status';
 import { STATUS_ORDER } from './summary';
 import type { Cycle, DisplayStatus, Goal, Snapshot } from './types';
@@ -37,10 +37,8 @@ export interface NextReview { id: string; name: string; week: number; date: stri
 
 /** The next session of a review the person takes part in, today's included. */
 export function nextReview(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): NextReview | null {
-  const day = today.toISOString().slice(0, 10);
   const next = s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
-    let w = sessionWeek(r, week, cycle);
-    if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1, cycle);
+    const w = upcomingSessionWeek(r, cycle, week, today);
     const date = sessionDate(r, cycle, w);
     return { id: r.id, name: r.name, week: w, date, weekday: WEEKDAY[r.weekday] ?? '', days: 0 - daysSince(date, today) + 0 };
   }).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
