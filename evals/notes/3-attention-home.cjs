@@ -194,6 +194,9 @@ module.exports = {
       const t = await p.locator('main').innerText();
       check(!/[A-Z][a-z]+day’s review|before the review|in the review as you wrote/.test(t), `T4 ${who}: Home calls the deadline a review: "${(t.match(/[^\n]*(day’s review|before the review|in the review as you wrote)[^\n]*/) || [''])[0]}"`);
       check(/Check-ins (are|were) due/.test(await p.locator('.home-hero').innerText()), `T4 ${who}: the main action doesn't say when check-ins are due`);
+      // The "Not held yet" tile's warning mark is a small sign beside its words, not a picture filling the tile.
+      const mark = await box(p, '.dash-missed .dash-label svg');
+      if (who === 'rhea') check(!!mark && mark.w <= 16 && mark.h <= 16, `Home: the "Not held yet" warning mark is ${mark ? `${Math.round(mark.w)}×${Math.round(mark.h)}px` : 'missing'}`);
       await c.close();
     }
     // T5: Rhea posts on-plan numbers, as the script's step 2 does. No "Getting worse" says three equal steps, and none
