@@ -7,32 +7,49 @@ import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
 import { readTour, type TourState } from '../app/tours';
-import { LEVEL_LABEL } from '../domain/format';
-import { criticalPath, edges as mapEdges, layout, layoutIndented, NODE_H, NODE_W } from '../domain/map';
-import { RANK } from '../domain/status';
+import { fmt, gapBeside, LEVEL_LABEL, nowText } from '../domain/format';
+import { FEEDER_SCOPE } from '../domain/goalPage';
+import { above, bounds, criticalPath, edges as mapEdges, findOnMap, layout, layoutIndented, NODE_H, NODE_W, pack, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
+import { assessPosted, RANK } from '../domain/status';
 import { ATTENTION, LABEL, type ResultKind } from '../domain/vocabulary';
-import { RESULT_TEXT } from '../domain/story';
+import { goalResult, RESULT_TEXT } from '../domain/story';
 import { summarise } from '../domain/summary';
 import type { DisplayStatus, Goal } from '../domain/types';
-import { Chip, StatusWord, TitleTell } from '../ui/bits';
+import { Chip, StatusShape, StatusWord, TitleTell } from '../ui/bits';
 import { StoryLines } from '../ui/GoalStory';
 import { Icon } from '../ui/Icon';
 
-type GoalNodeData = { goal: Goal; status: DisplayStatus; owner: string; result: ResultKind | null; children: number; collapsed: boolean; critical: boolean; root: boolean; context: boolean; onToggle: (id: string) => void };
+type GoalNodeData = {
+  goal: Goal; status: DisplayStatus; owner: string; result: ResultKind | null; children: number; hidden: number; critical: boolean; root: boolean; context: boolean; found: boolean;
+  /** Its number, the target and the gap, in a line; null for a goal with no number. */
+  nums: { now: string; target: string | null; gap: { short: string; tone: string } | null } | null;
+  /** What's under it, by the one roll-up rule: the worst status there and the words for it. */
+  under: { worst: DisplayStatus; text: string; total: number } | null;
+  onToggle: (id: string) => void;
+};
 
 function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
-  const { goal, status, owner, result, children, collapsed, critical, root, context, onToggle } = data;
+  const { goal, status, owner, result, children, hidden, critical, root, context, found, nums, under, onToggle } = data;
   // The walkthrough's card goes left of a critical goal (else below), 16px off, and never covers the north star it threatens.
   const coach = critical ? (root ? { 'data-coach-avoid': '' } : { 'data-coach-place': 'left below', 'data-coach-gap': '16' }) : {};
   return (
-    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '')} data-tone={status} {...coach}>
+    <div className={'map-node' + (critical ? ' critical' : '') + (selected ? ' selected' : '') + (context ? ' context' : '') + (found ? ' found' : '')} data-tone={status} {...coach}>
       <Handle type="target" position={Position.Bottom} isConnectable={false} />
       <StatusWord k={status} className="map-status">{result && <span className={'result-tag result-' + result}>{RESULT_TEXT[result]}</span>}</StatusWord>
-      <span className="map-title">{goal.title}</span><TitleTell goal={goal} />
-      <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${owner}${goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}`}</span>
+      <span className="map-title" title={goal.title}>{goal.title}<TitleTell goal={goal} /></span>
+      {nums && (
+        <span className="map-nums">
+          <span className="strong">{nums.now}</span>
+          {nums.target && <span className="muted"> · target {nums.target}</span>}
+          {nums.gap && <span className={'tone-' + nums.gap.tone}> · {nums.gap.short}</span>}
+        </span>
+      )}
+      {/* A parent shows the worst status of everything under it, as a shape and its words (the List's roll-up). */}
+      {under && <span className={'map-under tone-' + under.worst} title={`${FEEDER_SCOPE.tree} (${under.total})`}><StatusShape k={under.worst} /><span>Under it: {under.text}</span></span>}
+      <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${goal.key ? goal.key + ' · ' : ''}${owner}${goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}`}</span>
       {children > 0 && (
-        <button type="button" className="map-toggle nodrag" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Show' : 'Hide'} the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>
-          {collapsed ? <><Icon name="plus" size={12} />{children}</> : <Icon name="minus" size={12} />}
+        <button type="button" className="map-toggle nodrag" aria-expanded={hidden === 0} aria-label={hidden ? `Show the ${hidden} ${hidden === 1 ? 'goal' : 'goals'} feeding ${goal.title}` : `Hide the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>
+          {hidden ? <><Icon name="plus" size={12} />{hidden}</> : <Icon name="minus" size={12} />}
         </button>
       )}
       <Handle type="source" id="top" position={Position.Top} isConnectable={false} />
@@ -62,12 +79,18 @@ type Frame = 'readable' | 'all';
 
 const posKey = (ws: string) => `goals-map:${ws}`;
 const readPos = (ws: string): Record<string, { x: number; y: number }> => { try { return JSON.parse(localStorage.getItem(posKey(ws)) || '{}'); } catch { return {}; } };
+const troubleKey = (ws: string) => `goals-map-troubled:${ws}`;
+const readTrouble = (ws: string) => { try { return localStorage.getItem(troubleKey(ws)) === '1'; } catch { return false; } };
 
 /**
  * The map draws `goals`. When the Goals screen is filtered, `matches` are the goals that match; the rest are the goals
  * they feed into, drawn greyed as context. "Only what needs attention" is the Goals screen's Needs attention filter
  * itself (attention=1, the one rule in domain/attention.ts), so the count, the link and "what's shown now" in Export
  * always agree with what's drawn (round 3 review), and with Home, Watching and reviews.
+ *
+ * At scale (backlog MAP, 9 Nov): it opens folded to the top goals with the critical path still drawn beneath them,
+ * the trees wrapped into rows so Fit all really fits, a find box that opens a goal's tree and moves to it, numbers and
+ * a roll-up on every node, and a switch for the trees in trouble only.
  */
 export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goal[]; matches?: Set<string>; attention: boolean; onAttention: (on: boolean) => void }) {
   const app = useApp();
@@ -75,22 +98,60 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
   const [selected, setSelected] = useState<string | null>(null);
   // Opened from the keyboard: the panel takes focus, and closing it gives focus back to the goal on the map.
   const fromKeys = useRef<HTMLElement | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set<string>());
   const [moved, setMoved] = useState(() => readPos(app.ws.id));
   const canvas = useRef<HTMLDivElement>(null);
   const statusOf = useCallback((g: Goal) => app.statusOf(g).status, [app]);
-  const critical = useMemo(() => criticalPath(goals, statusOf), [goals, statusOf]);
-  const toggle = useCallback((id: string) => setCollapsed((c) => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n; }), []);
+  // Only the trees in trouble: their top goal or anything under it off track, at risk or gone quiet.
+  const [onlyTroubled, setOnlyTroubled] = useState(() => readTrouble(app.ws.id));
+  useEffect(() => { try { localStorage.setItem(troubleKey(app.ws.id), onlyTroubled ? '1' : '0'); } catch { /* storage blocked */ } }, [onlyTroubled, app.ws.id]);
+  const scope = useMemo(() => {
+    if (!onlyTroubled) return goals;
+    const ids = new Set(goals.map((g) => g.id));
+    const keep = new Set(goals.filter((g) => !g.parentId || !ids.has(g.parentId)).filter((r) => troubled(r, goals, statusOf)).map((r) => r.id));
+    const rootOf = (g: Goal) => { const up = above(g, goals).filter((id) => ids.has(id)); return up.length ? up[up.length - 1]! : g.id; };
+    return goals.filter((g) => keep.has(rootOf(g)));
+  }, [goals, onlyTroubled, statusOf]);
+  const critical = useMemo(() => criticalPath(scope, statusOf), [scope, statusOf]);
+  const parents = useMemo(() => new Set(scope.filter((g) => g.parentId).map((g) => g.parentId!)), [scope]);
+  // Folding: opened goals show all their inputs, shut ones none; the rest only their next step on the critical path.
+  // Filtered (a search or a filter on the Goals screen), every match is unfolded, so none is left hidden in a fold.
+  const [open, setOpen] = useState<Set<string>>(() => (matches ? new Set(parents) : new Set()));
+  const [shut, setShut] = useState<Set<string>>(() => new Set());
+  const matchKey = matches ? [...matches].sort().join(',') : '';
+  useEffect(() => { setOpen(matches ? new Set(goals.filter((g) => g.parentId).map((g) => g.parentId!)) : new Set()); setShut(new Set()); }, [matchKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => shownOnMap(scope, critical, { open, shut, trail: true }), [scope, critical, open, shut]);
+  const kidsOf = useMemo(() => { const m = new Map<string, Goal[]>(); for (const g of scope) if (g.parentId) m.set(g.parentId, [...(m.get(g.parentId) ?? []), g]); return m; }, [scope]);
+  const toggle = useCallback((id: string) => {
+    const hidden = (kidsOf.get(id) ?? []).some((c) => !shown.has(c.id));
+    setOpen((o) => { const n = new Set(o); if (hidden) n.add(id); else n.delete(id); return n; });
+    setShut((o) => { const n = new Set(o); if (hidden) n.delete(id); else n.add(id); return n; });
+  }, [kidsOf, shown]);
   // Worst first under each goal, so the critical path sits next to what it threatens.
   const order = useCallback((a: Goal, b: Goal) => RANK[statusOf(b)] - RANK[statusOf(a)] || a.title.localeCompare(b.title), [statusOf]);
-  // On a desktop, a goal with many inputs stacks them in columns of three, so the map is a block rather than one long row.
-  const placed = useMemo(() => (phone ? layoutIndented(goals, { collapsed, order }) : layout(goals, { collapsed, order, stack: 3 })), [goals, collapsed, order, phone]);
-  const nodes: Node<GoalNodeData>[] = useMemo(() => placed.map((n) => ({
-    id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected,
-    domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
-    ariaLabel: `${n.goal.title}: ${LABEL[statusOf(n.goal)]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
-    data: { goal: n.goal, status: statusOf(n.goal), owner: app.person(n.goal.ownerId)?.name ?? '', result: (() => { const r = summarise(n.goal, app.snapshot, app.cycle, app.today, app.week).story.result; return r ? r.kind : null; })(), children: n.children, collapsed: n.collapsed, critical: critical.has(n.id), root: n.depth === 0, context: !!matches && !matches.has(n.id), onToggle: toggle },
-  })), [placed, moved, selected, statusOf, critical, app, toggle, matches]);
+  // The canvas's size: the trees are wrapped into rows to suit it.
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  // On a desktop, a goal with many inputs stacks them in columns of three, and the trees wrap into rows of about the
+  // canvas's shape, so Fit all shows every goal at a size that can still be read where it can (MAP, 9 Nov).
+  const placed = useMemo(() => (phone ? layoutIndented(scope, { only: shown, order }) : pack(layout(scope, { only: shown, order, stack: 3 }), box?.w ?? 1200, box?.h ?? 700)), [scope, shown, order, phone, box]);
+  const [found, setFound] = useState<string | null>(null);
+  const nodes: Node<GoalNodeData>[] = useMemo(() => placed.map((n) => {
+    const g = n.goal, a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week), st = statusOf(g);
+    const gap = st === 'stale' ? null : gapBeside(g, a);
+    const r = rollup(g, scope, statusOf);
+    const kids = kidsOf.get(g.id) ?? [];
+    return {
+      id: n.id, type: 'goal', position: moved[n.id] ?? { x: n.x, y: n.y }, selected: n.id === selected,
+      domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
+      ariaLabel: `${g.key ? g.key + ' ' : ''}${g.title}: ${LABEL[st]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
+      data: {
+        goal: g, status: st, owner: app.person(g.ownerId)?.name ?? '', result: goalResult(g, app.cycle, app.snapshot.checkIns, app.week)?.kind ?? null,
+        children: kids.length, hidden: kids.filter((c) => !shown.has(c.id)).length, critical: critical.has(n.id), root: n.depth === 0, context: !!matches && !matches.has(n.id), found: found === n.id,
+        nums: { now: nowText(g, a), target: g.kind === 'metric' ? fmt(g.plan.target, g) : null, gap: gap ? { short: gap.short, tone: gap.tone } : null },
+        under: r ? { worst: r.worst, text: rollupText(r), total: r.total } : null,
+        onToggle: toggle,
+      },
+    };
+  }), [placed, moved, selected, statusOf, critical, app, toggle, matches, scope, kidsOf, shown, found]);
   const busOf = useMemo(() => new Map(placed.filter((n) => n.bus != null).map((n) => [n.id, n.bus!])), [placed]);
   // The critical path is drawn last, so no grey line paints over it.
   const links: Edge[] = useMemo(() => mapEdges(placed, critical).sort((a, b) => Number(a.critical) - Number(b.critical)).map((e) => ({
@@ -112,9 +173,8 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
     const roots = placed.filter((n) => n.depth === 0);
     const root = roots.filter((n) => critical.has(n.id)).sort((a, b) => RANK[statusOf(b.goal)] - RANK[statusOf(a.goal)])[0] ?? roots[0];
     if (!root) return [];
-    const inTree = (n: (typeof placed)[number]) => { let g: Goal | undefined = n.goal; const seen = new Set<string>(); while (g && !seen.has(g.id)) { if (g.id === root.id) return true; seen.add(g.id); g = goals.find((x) => x.id === g!.parentId); } return false; };
-    return placed.filter((n) => n.id === root.id || (critical.has(n.id) && inTree(n))).map((n) => ({ id: n.id }));
-  }, [placed, critical, statusOf, goals]);
+    return placed.filter((n) => n.id === root.id || (critical.has(n.id) && n.tree === root.id)).map((n) => ({ id: n.id }));
+  }, [placed, critical, statusOf]);
   // The map fills the window below its controls: on a desktop down to 24px above the window's bottom, so the page doesn't
   // scroll; on a phone, what's left once the controls sit under the top bar, above the tab bar (fit and finish, 4 Nov).
   const bar = useRef<HTMLDivElement>(null);
@@ -127,6 +187,8 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
       const tabs = document.querySelector('.tabbar')?.getBoundingClientRect().height ?? 0;
       const next = { top: Math.round(r.top + window.scrollY), phone: Math.round(window.innerHeight - head - tabs - (r.top - b.top) - 16), tabs: Math.round(tabs) };
       setRoom((o) => (o && o.top === next.top && o.phone === next.phone && o.tabs === next.tabs ? o : next));
+      const size = { w: Math.round(r.width), h: Math.round(r.height) };
+      if (size.w > 0 && size.h > 0) setBox((o) => (o && Math.abs(o.w - size.w) < 8 && Math.abs(o.h - size.h) < 8 ? o : size));
     };
     measure();
     window.addEventListener('resize', measure);
@@ -134,37 +196,69 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
   });
   const height = phone ? `${Math.max(360, room?.phone ?? 520)}px` : `max(320px, calc(100dvh - ${(room?.top ?? 250) + 24 + (room?.tabs ?? 0)}px))`;
   const flow = useRef<Pick<ReactFlowInstance<Node<GoalNodeData>, Edge>, 'setViewport' | 'getViewport'> | null>(null);
-  const [view, setView] = useState<Frame>('readable');
+  // A desktop opens on the whole map, which now fits; a phone on the critical path at a size that can be read.
+  const [view, setView] = useState<Frame>(phone ? 'readable' : 'all');
   /**
-   * Frame the map ourselves, from the layout: no waiting for nodes to measure. Readable: the north stars and the critical
-   * path; everything: every goal. Never smaller than 75% (titles stay at least 10.5px) nor larger than 100%; what doesn't
-   * fit is a pan away, and the readable frame then keeps the critical path in view.
+   * Frame the map ourselves, from the layout: no waiting for nodes to measure. Fit all: every goal, as large as fits
+   * (never more than 100%), however small that is: it's an overview, and a goal is a zoom or a search away. Readable:
+   * the north stars and the critical path, never smaller than 75% (titles stay at least 10.5px); what doesn't fit is a
+   * pan away, and the readable frame then keeps the critical path in view.
    */
-  // Until the map has laid itself out and framed the goals, say so, instead of a blank canvas (demo review, 8 Nov).
-  const [drawn, setDrawn] = useState(false);
   const frame = (rf: Pick<ReactFlowInstance, 'setViewport'>, mode: Frame = view) => {
-    const box = canvas.current?.getBoundingClientRect();
+    const cv = canvas.current?.getBoundingClientRect();
     const pos = (n: (typeof placed)[number]) => moved[n.id] ?? { x: n.x, y: n.y };
-    const bounds = (ns: typeof placed) => {
-      const ps = ns.map(pos);
-      return { minX: Math.min(...ps.map((p) => p.x)), maxX: Math.max(...ps.map((p) => p.x)) + NODE_W, minY: Math.min(...ps.map((p) => p.y)), maxY: Math.max(...ps.map((p) => p.y)) + NODE_H };
-    };
+    const box = (ns: typeof placed) => bounds(ns.map(pos));
     const onPath = placed.filter((n) => focus.some((f) => f.id === n.id));
     const pick = mode === 'all' ? placed : placed.filter((n) => n.depth === 0 || onPath.includes(n));
-    if (!box || !pick.length) return;
-    const pad = phone ? 12 : 32;
-    const fit = (k: ReturnType<typeof bounds>) => Math.max(0.75, Math.min(1, (box.width - 2 * pad) / (k.maxX - k.minX), phone ? 1 : (box.height - 2 * pad) / (k.maxY - k.minY)));
-    const fitsX = (k: ReturnType<typeof bounds>, z: number) => (k.maxX - k.minX) * z <= box.width - 2 * pad + 1;
-    let b = bounds(pick), zoom = fit(b);
+    if (!cv || !pick.length) return;
+    const pad = phone ? 12 : 32, top = FIND_ROOM;
+    const scale = (k: ReturnType<typeof box>) => Math.min(1, (cv.width - 2 * pad) / (k.maxX - k.minX), mode === 'readable' && phone ? 1 : (cv.height - pad - top) / (k.maxY - k.minY));
+    const fit = (k: ReturnType<typeof box>) => (mode === 'all' ? Math.max(MIN_ZOOM, scale(k)) : Math.max(0.75, scale(k)));
+    const fitsX = (k: ReturnType<typeof box>, z: number) => (k.maxX - k.minX) * z <= cv.width - 2 * pad + 1;
+    let b = box(pick), zoom = fit(b);
     // The north stars don't all fit at a readable size: nearly (within 15% of the width), start at the critical path's
     // side and leave the last few pixels a pan away; otherwise the readable frame is the critical path alone, centred.
-    if (mode === 'readable' && !phone && onPath.length && (b.maxX - b.minX) * zoom > (box.width - 2 * pad) * 1.15) { b = bounds(onPath); zoom = fit(b); }
-    // Still too wide (everything, or a phone): start at the left; the rest is a pan to the right.
-    const f = onPath.length ? bounds(onPath) : b;
-    const x = fitsX(b, zoom) ? box.width / 2 - ((b.minX + b.maxX) / 2) * zoom : Math.max(pad - f.minX * zoom, Math.min(box.width - pad - f.maxX * zoom, pad - b.minX * zoom));
-    void rf.setViewport({ zoom, x, y: (phone ? 16 : pad) - b.minY * zoom });
+    if (mode === 'readable' && !phone && onPath.length && (b.maxX - b.minX) * zoom > (cv.width - 2 * pad) * 1.15) { b = box(onPath); zoom = fit(b); }
+    // Still too wide (a phone): start at the left; the rest is a pan to the right.
+    const f = onPath.length ? box(onPath) : b;
+    const x = fitsX(b, zoom) ? cv.width / 2 - ((b.minX + b.maxX) / 2) * zoom : Math.max(pad - f.minX * zoom, Math.min(cv.width - pad - f.maxX * zoom, pad - b.minX * zoom));
+    const fitsY = (b.maxY - b.minY) * zoom <= cv.height - pad - top;
+    const y = mode === 'all' && fitsY ? top + (cv.height - pad - top) / 2 - ((b.minY + b.maxY) / 2) * zoom : top - b.minY * zoom;
+    void rf.setViewport({ zoom, x, y });
   };
-  const allIds = goals.filter((g) => goals.some((c) => c.parentId === g.id)).map((g) => g.id);
+  // The map refits whenever what it shows changes: a filter, a search, the trees in trouble or the window's size
+  // (review F05), but not when a branch is folded or unfolded, so the goal you were looking at stays where it was.
+  const scopeKey = scope.map((g) => g.id).join(',') + (box ? `@${box.w}x${box.h}` : '');
+  const framed = useRef('');
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const rf = flow.current;
+    if (!ready || !rf || !box || framed.current === scopeKey) return;
+    framed.current = scopeKey;
+    frame(rf);
+  });
+
+  // Find a goal: it opens the goals above it, so it's drawn, outlines it and moves the map to it.
+  const findGoal = (g: Goal) => {
+    if (!scope.some((x) => x.id === g.id)) setOnlyTroubled(false);
+    const up = above(g, goals);
+    setOpen((o) => new Set([...o, ...up]));
+    setShut((o) => { const n = new Set(o); up.forEach((id) => n.delete(id)); return n; });
+    setFound(g.id);
+    pendingPan.current = g.id;
+  };
+  const pendingPan = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingPan.current, rf = flow.current, cv = canvas.current?.getBoundingClientRect();
+    const n = placed.find((x) => x.id === id);
+    if (!id || !rf || !cv || !n) return;
+    pendingPan.current = null;
+    const p = moved[n.id] ?? { x: n.x, y: n.y };
+    const zoom = Math.max(rf.getViewport().zoom, phone ? 1 : 0.9);
+    void rf.setViewport({ zoom, x: cv.width / 2 - (p.x + NODE_W / 2) * zoom, y: FIND_ROOM + (cv.height - FIND_ROOM) / 2 - (p.y + NODE_H / 2) * zoom }, { duration: 300 });
+    // The goal itself takes focus, so Enter opens its story.
+    setTimeout(() => document.querySelector<HTMLElement>(`.goalmap .react-flow__node[data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true }), 320);
+  }, [placed, moved, phone]);
 
   // The walkthrough: on its critical-path step, bring the map into view on a short screen; on its last, the panel is
   // where the story is, so on a phone the sheet leaves room above it for the coach.
@@ -200,7 +294,9 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
     return () => clearTimeout(t);
   }, [phone, selected]);
 
-  const fold = () => setCollapsed(collapsed.size ? new Set() : new Set(allIds));
+  // Unfold every branch, or go back to the top goals and their critical paths.
+  const hiddenAny = scope.some((g) => g.parentId && parents.has(g.parentId) && !shown.has(g.id));
+  const fold = () => { if (hiddenAny) { setOpen(new Set(parents)); setShut(new Set()); } else { setOpen(new Set()); setShut(new Set()); } };
   return (
     <div className="goalmap">
       <div className="map-bar" ref={bar} data-coach-avoid="">
@@ -211,8 +307,9 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           <KeyMore />
         </div>
         <div className="map-tools">
-          <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> Only what {ATTENTION.needs.label.toLowerCase()}</label>
-          <button type="button" className="btn sm map-fold" onClick={fold}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
+          <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> <span className="map-long">Only what {ATTENTION.needs.label.toLowerCase()}</span><span className="map-short">{ATTENTION.needs.label}</span></label>
+          <label className="check small map-troubled" title="Trees whose top goal or anything under it is off track, at risk or has no recent update"><input type="checkbox" checked={onlyTroubled} onChange={(e) => setOnlyTroubled(e.target.checked)} /> <span className="map-long">Troubled trees only</span><span className="map-short">Troubled trees</span></label>
+          <button type="button" className="btn sm map-fold" onClick={fold}>{hiddenAny ? 'Unfold all' : 'Fold to the top'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
           {/* Two framings, one at a time: every goal, or the north stars and the critical path at a readable size. */}
           <div className="seg map-frame" role="group" aria-label="Frame the map">
@@ -222,6 +319,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           </div>
         </div>
       </div>
+      {onlyTroubled && !scope.length && <p className="calm"><Icon name="check-circle" size={15} /> No tree is in trouble: nothing in it is off track, at risk or without a recent update.</p>}
       <div className="map-body">
         <div className="map-canvas" ref={canvas} style={{ height }} role="region" aria-label="Goal map. Drag to move around, scroll or pinch to zoom, Tab to move between goals, Enter to open one."
           onKeyDown={(e) => {
@@ -231,13 +329,13 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
             fromKeys.current = node;
             setSelected(node.dataset.id ?? null);
           }}>
-          {!drawn && <div className="map-loading" role="status">Drawing the map of {goals.length} goals…</div>}
+          {/* Find a goal sits on the map, top left, as on a street map; the framing leaves room under it. */}
+          <MapFind goals={goals} onFind={findGoal} />
           <ReactFlow
-            key={(attention ? 'a' : 'all') + goals.length + '-' + collapsed.size}
-            nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={0.3} maxZoom={1.6}
-            onInit={(rf) => { flow.current = rf; frame(rf); requestAnimationFrame(() => setDrawn(true)); }}
+            nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={MIN_ZOOM} maxZoom={1.6}
+            onInit={(rf) => { flow.current = rf; setReady(true); }}
             nodesConnectable={false} elementsSelectable deleteKeyCode={null} proOptions={{ hideAttribution: true }} panActivationKeyCode={null}
-            onNodeClick={(_, n) => { fromKeys.current = null; setSelected(n.id); }} onPaneClick={() => setSelected(null)}
+            onNodeClick={(_, n) => { fromKeys.current = null; setSelected(n.id); setFound(null); }} onPaneClick={() => { setSelected(null); setFound(null); }}
             onNodeDragStop={(_, n) => setMoved((m) => ({ ...m, [n.id]: n.position }))}
           >
             <Background gap={24} size={1} />
@@ -252,6 +350,46 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           back?.focus();
         }} />}
       </div>
+    </div>
+  );
+}
+
+/** The smallest the map goes: Fit all reaches it only with every goal unfolded on a small window. */
+const MIN_ZOOM = 0.1;
+/** Room at the top of the map for the find box over it. */
+const FIND_ROOM = 60;
+
+/**
+ * Find a goal on the map by its key ("G-48") or its title: a search box with a short list of matches under it. Choosing
+ * one (a click, or the arrows and Enter) opens its tree and moves the map to it.
+ */
+function MapFind({ goals, onFind }: { goals: Goal[]; onFind: (g: Goal) => void }) {
+  const [text, setText] = useState('');
+  const [at, setAt] = useState(0);
+  const [openList, setOpenList] = useState(false);
+  const hits = useMemo(() => findOnMap(goals, text, 8), [goals, text]);
+  const choose = (g: Goal | undefined) => { if (!g) return; onFind(g); setOpenList(false); setText(g.key ? `${g.key} ${g.title}` : g.title); };
+  const listId = 'map-find-list';
+  return (
+    <div className="map-find" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as globalThis.Node)) setOpenList(false); }}>
+      <input type="search" role="combobox" aria-label="Find a goal on the map, by name or key" placeholder="Find a goal or key (G-12)" value={text}
+        aria-expanded={openList && hits.length > 0} aria-controls={listId} aria-autocomplete="list" aria-activedescendant={openList && hits[at] ? `map-find-${hits[at]!.id}` : undefined}
+        onChange={(e) => { setText(e.target.value); setAt(0); setOpenList(true); }} onFocus={() => setOpenList(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setOpenList(true); setAt((i) => Math.min(hits.length - 1, i + 1)); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setAt((i) => Math.max(0, i - 1)); }
+          else if (e.key === 'Enter') { e.preventDefault(); choose(hits[at]); }
+          else if (e.key === 'Escape') setOpenList(false);
+        }} />
+      {openList && text.trim() !== '' && (
+        <ul className="map-find-list" id={listId} role="listbox" aria-label="Goals found">
+          {hits.length ? hits.map((g, i) => (
+            <li key={g.id} id={`map-find-${g.id}`} role="option" aria-selected={i === at} tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(g)}>
+              {g.key && <span className="map-find-key">{g.key}</span>}<span className="map-find-title">{g.title}</span>
+            </li>
+          )) : <li className="map-find-none" role="option" aria-selected={false} aria-disabled>No goal by that name or key</li>}
+        </ul>
+      )}
     </div>
   );
 }
