@@ -258,7 +258,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
       if (!p.teamId && create) return err('People', row, name, `${name} has no team.`);
       people.set(p.id, p);
       peopleTouched.set(p.id, { before: null, row });
-      if (tm && !tm.leadId) teams.set(tm.id, { ...teams.get(tm.id)!, leadId: p.id });
+      // A new team's first person leads it, except at set-up, which never asks who leads a team: Workspace said "Led by"
+      // someone nobody chose (deep review U7). There a team has no lead until an admin picks one under Teams.
+      if (tm && !tm.leadId && via !== 'setup') teams.set(tm.id, { ...teams.get(tm.id)!, leadId: p.id });
       objective(r, row, p);
       return;
     }

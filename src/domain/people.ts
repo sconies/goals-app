@@ -137,3 +137,23 @@ export function closeTeam(name: string, others: string[]): string | null {
   const near = [...new Set(others.map((o) => o.trim()))].filter((o) => o && o !== a && count(o) >= count(a) && (squash(o) === squash(a) || far(squash(o), squash(a)) <= (Math.min(o.length, a.length) < 8 ? 1 : 2)));
   return near.sort((x, y) => count(y) - count(x) || far(squash(x), squash(a)) - far(squash(y), squash(a)))[0] ?? null;
 }
+
+/**
+ * People already typed, then the uploaded ones who aren't among them: the same email, or the same name where either has
+ * no email (two people can share a name; the email tells them apart, backlog N). Nothing typed is replaced or reordered,
+ * and a typed row's empty fields take the upload's: set-up's upload once replaced everyone typed without a word (deep
+ * review U5).
+ */
+export function mergePeople<P extends { name: string; email: string }>(typed: P[], incoming: P[]): P[] {
+  const same = (a: P, b: P) => (a.email.trim() && b.email.trim() ? normalEmail(a.email) === normalEmail(b.email) : !!a.name.trim() && a.name.trim().toLowerCase() === b.name.trim().toLowerCase());
+  const out = [...typed];
+  for (const p of incoming) {
+    const at = out.findIndex((x) => same(x, p));
+    if (at < 0) { out.push(p); continue; }
+    // Already typed: what the file knows fills only what was left empty (an email, a team), never what was typed.
+    const x: P = { ...out[at]! };
+    for (const k of Object.keys(p) as (keyof P)[]) if (typeof x[k] === 'string' && !(x[k] as string).trim() && typeof p[k] === 'string') x[k] = p[k];
+    out[at] = x;
+  }
+  return out;
+}

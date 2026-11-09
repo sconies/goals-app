@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'setup-tells-the-truth',
+    date: '2026-11-10',
+    title: 'Set-up that tells the truth',
+    points: [
+      'The link to send your team from the last set-up screen now opens your new workspace, not whichever one their browser would open first.',
+      'Uploading a spreadsheet during set-up adds its people after the ones you’d typed, instead of replacing them, says what it added, and can be undone.',
+      'Goals from your spreadsheet with stages due before the week you join start from this week, as a template’s do, so nothing is late on day one. Check says which moved, and you can keep the weeks as typed.',
+      'A check-in number with more decimal places than its goal keeps offers “Keep 1 decimal place for this goal”, one step instead of a dead end.',
+      'Day one counts every new goal among the first check-ins, says nothing is due when there are no goals yet, and names no team lead set-up never asked about.',
+    ],
+    articles: ['set-up', 'check-in', 'workspace-teams'],
+  },
+  {
     id: 'workspace-one-place',
     date: '2026-11-10',
     title: 'Workspace in one place',
