@@ -326,6 +326,22 @@ module.exports = {
       await c.close();
     }
 
+    // OR 9 (second review, 9 Nov): search on Trees covers every goal, not only the top ones, and each match is shown
+    // under its tree, as on By level.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals');
+      await p.locator('.filter-search input').pressSequentially('canary', { delay: 0 });
+      await p.waitForFunction(() => /of \d+/.test(document.querySelector('.filter-count')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+      const trees = await p.evaluate(() => ({ count: document.querySelector('.filter-count')?.textContent ?? '', heads: [...document.querySelectorAll('.goals-page section.block h2')].map((h) => h.textContent), rows: document.querySelectorAll('.goals-page section.block .tree li').length }));
+      await p.getByRole('tab', { name: 'By level' }).click();
+      await p.waitForTimeout(300);
+      const byLevel = await p.evaluate(() => document.querySelector('.filter-count')?.textContent ?? '');
+      const n = (s) => (/(\d+) of (\d+)/.exec(s) || []).slice(1).map(Number);
+      const [found, of] = n(trees.count), [found2, of2] = n(byLevel);
+      chk(found >= 2 && found === found2 && of === of2 && trees.rows === found && trees.heads.length > 0, `OR 9: “canary” finds ${trees.count} on Trees (${trees.rows} rows under ${trees.heads.join(', ')}) and ${byLevel} on By level`);
+      await c.close();
+    }
+
     // OR 4: a link with a tab or team the workspace doesn't have shows the trees and says what it dropped.
     {
       const [c, p] = await open(1440, 900, 'amara', '/goals?show=nonsense&team=no-such-team');
