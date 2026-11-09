@@ -37,7 +37,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/quick-check-in` (`QuickCheckIn`): If you own several number goals, type this week’s numbers for all of them on one screen. Help: “Typing all your numbers in one table” (`check-in-table`).
 
 - **Named parts:** “Type all your numbers in one table”
-- **Main action:** Post every number typed in the table at once.
+- **Main action:** Post every row of the table that is ready, at once, and land on the check-in’s confirmation.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `bulk_change`, `post_check_in`
 

@@ -338,7 +338,8 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const stillTrue = () => {
     const last = fromLast();
     const dropped = priorAsk && !keepAsk;
-    const carried: Partial<Draft> = dropped ? { ...last, needs: '', ptgState: last.ptgState === 'help' ? (last.ptgBy ? 'plan' : 'investigating') : last.ptgState } : last;
+    // "Still true" is the explicit choice, so it counts as saying so for words carried in earlier (deep review U9).
+    const carried: Partial<Draft> = { ...(dropped ? { ...last, needs: '', ptgState: last.ptgState === 'help' ? (last.ptgBy ? 'plan' : 'investigating') : last.ptgState } : last), stillTrue: true };
     const d = { ...draft, ...carried };
     set(carried);
     const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns);
