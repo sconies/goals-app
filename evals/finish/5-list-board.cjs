@@ -7,7 +7,7 @@ const bannerPx = () => { const b = document.querySelector('.first-reports'); if 
 module.exports = {
   id: 'F5',
   area: 'list-board',
-  async run({ open }) {
+  async run({ open, url }) {
     const fails = [];
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
     const r0 = (n) => Math.round(n);
@@ -285,6 +285,96 @@ module.exports = {
       chk(m.last.every((x) => x === '0px'), `B&C 4: the last story on a card keeps a ${m.last.join('/')} rule`);
       chk(m.whyTitle > 0 && m.whyTitle >= m.whyText - 2, 'B&C 3: a clamped reason has no tooltip with the whole of it');
       chk(m.nb === 0, `B&C 16: “week 43” breaks across lines ${m.nb} time(s)`);
+      await c.close();
+    }
+
+    // Outside review, 9 Nov (the demo searches this page live). OR 1: search keeps every character typed at full speed
+    // or pasted, spaces included, and the address follows. OR 3: tabs and layouts are steps Back returns to, and Back
+    // puts the box back as the address has it. OR 2: clearing keeps the tab, the layout and the sort.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals');
+      const box = p.locator('.filter-search input');
+      const q = () => new URL(p.url()).searchParams;
+      await box.click();
+      await box.pressSequentially('Kafka', { delay: 0 });
+      chk((await box.inputValue()) === 'Kafka', `OR 1: typing “Kafka” at full speed leaves “${await box.inputValue()}”`);
+      await box.fill('');
+      await box.pressSequentially('Amara Nwosu', { delay: 0 });
+      chk((await box.inputValue()) === 'Amara Nwosu', `OR 1: typing “Amara Nwosu” at full speed leaves “${await box.inputValue()}”`);
+      await p.waitForFunction(() => new URL(location.href).searchParams.get('q') === 'Amara Nwosu', null, { timeout: 3000 }).catch(() => {});
+      chk(q().get('q') === 'Amara Nwosu', `OR 1: the address says q=${q().get('q')} after typing “Amara Nwosu”`);
+      // A paste: one input event with the whole text, into a box that already has words in it.
+      await box.fill('lead');
+      await box.press('End');
+      await p.keyboard.insertText(' time for changes');
+      await p.keyboard.type('!', { delay: 0 });
+      chk((await box.inputValue()) === 'lead time for changes!', `OR 1: pasting into the box leaves “${await box.inputValue()}”`);
+      await box.fill('');
+      await p.waitForFunction(() => !new URL(location.href).searchParams.get('q'), null, { timeout: 3000 }).catch(() => {});
+
+      // Back: Needs attention, then Table, then List, then a search; Back walks the same steps in reverse.
+      await p.getByRole('tab', { name: /Needs attention/ }).click();
+      await p.locator('[aria-label="Table"]').first().click();
+      await p.locator('.gtable').first().waitFor({ timeout: 5000 }).catch(() => {});
+      await p.locator('[aria-label="List"]').first().click();
+      await box.click();
+      await box.pressSequentially('platform', { delay: 0 });
+      await p.waitForFunction(() => new URL(location.href).searchParams.get('q') === 'platform', null, { timeout: 3000 }).catch(() => {});
+      const steps = [];
+      for (let i = 0; i < 3; i++) {
+        await p.goBack();
+        await p.waitForTimeout(250);
+        steps.push(`${q().get('show') ?? 'trees'}/${q().get('view') ?? 'list'}/“${await box.inputValue()}”`);
+      }
+      chk(steps.join(' ') === 'attention/table/“” attention/list/“” trees/list/“”', `OR 3: Back after Needs attention → Table → List → a search goes ${steps.join(', ')}`);
+
+      // Clear, from No goals match: the tab, the layout and the sort stay.
+      await p.goto(url('/goals?show=attention&view=table&sort=title'));
+      await box.click();
+      await box.pressSequentially('zzzz no such goal', { delay: 0 });
+      await p.getByRole('button', { name: 'Clear search and filters' }).click({ timeout: 5000 }).catch(() => fails.push('OR 2: no Clear search and filters for a search matching nothing'));
+      await p.waitForTimeout(250);
+      chk(q().get('show') === 'attention' && q().get('view') === 'table' && q().get('sort') === 'title' && !q().get('q') && (await box.inputValue()) === '', `OR 2: Clear search and filters leaves ${q().toString()} and “${await box.inputValue()}” in the box`);
+      await c.close();
+    }
+
+    // OR 9 (second review, 9 Nov): search on Trees covers every goal, not only the top ones, and each match is shown
+    // under its tree, as on By level.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals');
+      await p.locator('.filter-search input').pressSequentially('canary', { delay: 0 });
+      await p.waitForFunction(() => /of \d+/.test(document.querySelector('.filter-count')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+      const trees = await p.evaluate(() => ({ count: document.querySelector('.filter-count')?.textContent ?? '', heads: [...document.querySelectorAll('.goals-page section.block h2')].map((h) => h.textContent), rows: document.querySelectorAll('.goals-page section.block .tree li').length }));
+      await p.getByRole('tab', { name: 'By level' }).click();
+      await p.waitForTimeout(300);
+      const byLevel = await p.evaluate(() => document.querySelector('.filter-count')?.textContent ?? '');
+      const n = (s) => (/(\d+) of (\d+)/.exec(s) || []).slice(1).map(Number);
+      const [found, of] = n(trees.count), [found2, of2] = n(byLevel);
+      chk(found >= 2 && found === found2 && of === of2 && trees.rows === found && trees.heads.length > 0, `OR 9: “canary” finds ${trees.count} on Trees (${trees.rows} rows under ${trees.heads.join(', ')}) and ${byLevel} on By level`);
+      await c.close();
+    }
+
+    // OR 4: a link with a tab or team the workspace doesn't have shows the trees and says what it dropped.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals?show=nonsense&team=no-such-team');
+      await p.locator('.link-note').waitFor({ timeout: 5000 }).catch(() => {});
+      const m = await p.evaluate(() => ({ note: document.querySelector('.link-note')?.textContent ?? '', trees: document.querySelectorAll('.outcome').length,
+        sel: document.querySelector('.goals-tabs [aria-selected="true"]')?.textContent, chips: [...document.querySelectorAll('.filter-chip')].map((x) => x.textContent) }));
+      const u = new URL(p.url()).searchParams;
+      chk(/no “nonsense” tab/.test(m.note) && /no-such-team/.test(m.note), `OR 4: a bad link says “${m.note}”`);
+      chk(m.trees > 0 && m.sel === 'Trees' && !m.chips.length && !u.get('show') && !u.get('team'), `OR 4: a bad link shows ${m.trees} trees, tab ${m.sel}, filters ${m.chips.join(', ') || 'none'}, address ${u.toString()}`);
+      await c.close();
+    }
+
+    // OR 7: every tab is whole beside the layouts, on a laptop and on a 1920px screen, in the list and the table.
+    for (const [w, route] of [[1440, '/goals'], [1920, '/goals'], [1920, '/goals?view=table']]) {
+      const [c, p] = await open(w, 1000, 'rhea', route);
+      const m = await p.evaluate(() => {
+        const row = document.querySelector('.goals-tabs > .seg.tabs'), box = row.getBoundingClientRect();
+        const cut = [...row.querySelectorAll('[role="tab"]')].filter((t) => { const r = t.getBoundingClientRect(); return r.left < box.left - 0.5 || r.right > box.right + 0.5; }).map((t) => t.textContent);
+        return { over: row.scrollWidth - row.clientWidth, cut };
+      });
+      chk(m.over <= 1 && !m.cut.length, `OR 7: at ${w}px ${route} the tabs scroll by ${m.over}px; cut off: ${m.cut.join(', ') || 'none'}`);
       await c.close();
     }
     return fails;

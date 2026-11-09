@@ -296,9 +296,11 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Scanning the whole set of goals, or a slice of it, in whatever shape suits the question you have.'] },
       { heading: 'How to use it', list: [
         'Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.',
-        'Layouts: List (rows, grouped as the tab says), Table (a row per goal, sortable, with the headings kept in view), Board (a column for each status), History (quarter results, and each goal’s status week by week), Cards (a card per goal, with its gap) and Map (how the goals feed each other). Each button has its name, and a line under the buttons says what the open layout shows. Your last layout is remembered and is in the link.',
+        'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.',
+        'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.',
+        'Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.',
+        'A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.',
         'On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.',
-        'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full.',
         'When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.',
         'Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.',
         'In the Table, select goals to change their owner or level, watch them or export them.',
@@ -320,7 +322,8 @@ const CORE_ARTICLES: Article[] = [
     group: 'goals',
     sections: [
       { heading: 'How to use it', list: [
-        'Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition.',
+        'Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.',
+        'Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.',
         `Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(', ')}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
         'Decision or help needed is one press. Each active filter shows as words you can remove.',
         'Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest.',
@@ -384,7 +387,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Choose Map among the Goals layouts. North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.',
-        'Pan, zoom and drag goals about. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.',
+        'Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.',
         'The critical path, the inputs most likely to make a top goal miss, is drawn bold. Only what needs attention narrows the map to that.',
         'Fit all shows everything small; Readable shows the critical path at a size you can read.',
         'Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.',
