@@ -157,7 +157,10 @@ module.exports = {
     await r.evaluate(() => localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_other', name: 'Support desk', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }])));
     await r.reload(); await r.waitForTimeout(500);
     // Workspaces are told apart by name, not a letter (Lane, 9 Nov): no initial squares, and every line names its workspace.
-    const lines = await r.evaluate(() => ({ names: [...document.querySelectorAll('.ws-line .gline-title')].map((m) => m.innerText.trim()), letters: document.querySelectorAll('.ws-line .wsmark').length }));
+    // They're listed in the workspace switcher, at the top (backlog WS).
+    await r.locator('.ws-switch-top:visible, .ws-switch:visible').first().click(); await r.getByRole('dialog', { name: 'Workspaces' }).waitFor();
+    const lines = await r.evaluate(() => ({ names: [...document.querySelectorAll('.ws-pick .ws-pick-name')].map((m) => m.innerText.trim()), letters: document.querySelectorAll('.ws-pick .wsmark').length }));
+    await r.keyboard.press('Escape');
     if (lines.letters || lines.names.length < 2 || new Set(lines.names).size < lines.names.length) fails.push(`[W21] workspace lines: ${JSON.stringify(lines)}`);
     // People is its own section (backlog W): its heading is the page's, and Add a person is its one main action.
     await r.goto(url('/workspace/people')); await r.locator('.person-opt').first().waitFor(); await r.waitForTimeout(300);

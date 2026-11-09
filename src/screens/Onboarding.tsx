@@ -294,10 +294,10 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <h1 className="qtitle big">What’s this workspace for?</h1>
             <div className="field">
               <label className="field"><span className="field-label">Name</span>
-                <input className={'input big-input' + (tried && nameIssue ? ' invalid' : '')} aria-invalid={(tried && !!nameIssue) || undefined} aria-describedby="setup-name-length" autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
+                <input className={'input big-input' + (tried && nameIssue ? ' invalid' : '')} aria-invalid={(tried && !!nameIssue) || undefined} aria-describedby={nameLength(d.name) ? 'setup-name-length' : undefined} autoFocus value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Platform Engineering" />
               </label>
               {/* The limit is said while typing, never applied by cutting the name short (backlog WS). */}
-              <span id="setup-name-length" className={'hint' + (nameIssue?.startsWith('Keep') ? ' tone-off' : '')} role="status">{nameLength(d.name) ?? ''}</span>
+              {nameLength(d.name) && <span id="setup-name-length" className={'hint' + (nameIssue?.startsWith('Keep') ? ' tone-off' : '')} role="status">{nameLength(d.name)}</span>}
               {fieldErr(nameIssue)}
             </div>
             {cycleOpen ? (

@@ -232,9 +232,13 @@ module.exports = {
       const [c3, q3] = await open(1280, 800, 'rhea', '/');
       await q3.evaluate(() => localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_mine', name: 'Support desk', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }])));
       await q3.reload(); await q3.waitForTimeout(500);
+      // The person menu is only about people now; the workspace switcher at the top lists both (backlog WS).
       await q3.locator('.side .me').click();
-      const ws = q3.getByRole('dialog', { name: 'Switch person' }).getByRole('group', { name: 'Workspaces' }).getByRole('button');
-      fail(await ws.count() === 2, `[NAV-GOALS] the demo's person menu lists ${await ws.count()} workspaces (want the example and the person's own, 2)`);
+      const inPerson = await q3.getByRole('dialog', { name: 'Switch person' }).getByRole('group', { name: 'Workspaces' }).count();
+      await q3.keyboard.press('Escape');
+      await q3.locator('.side .ws-switch').click();
+      const ws = q3.getByRole('dialog', { name: 'Workspaces' }).getByRole('group', { name: 'Your workspaces' }).getByRole('button');
+      fail(!inPerson && await ws.count() === 2, `[NAV-GOALS] the switcher lists ${await ws.count()} workspaces (want the example and the person's own, 2); the person menu lists workspaces: ${inPerson}`);
       await c3.close();
     });
 

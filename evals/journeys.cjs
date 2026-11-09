@@ -654,7 +654,8 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await see(p, 'The first is on Thursday 12 Nov', 'step 1 doesn’t say when the first review is');
   await h.fill(p.getByLabel('Name', { exact: true }), 'Voss Test Workspace');
   await h.click(p.getByRole('button', { name: 'Next' }));
-  // Every empty field says what it needs, not only the first.
+  // Every empty field says what it needs, not only the first. (Set up from inside the app, the step starts as you: cleared here.)
+  for (const f of ['Your name', 'Your team', 'Your email']) await p.getByLabel(f).fill('');
   await p.getByRole('button', { name: 'Next' }).click();
   const each = (await p.getByRole('alert').allInnerTexts()).join(' | ');
   h.set('errors', short && /Add your name/.test(each) && /Add your email/.test(each) && /Add your team/.test(each), `step 2 says: ${each}; a two-letter name ${short ? 'is' : 'is not'} explained`);
@@ -2507,7 +2508,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   h.set('attention', await g.getByLabel('Your name').inputValue() === 'Grace Achterberg', '“Who are you?” does not start as the person you are');
   await g.context().close();
   await p.context().close();
-}, ['budget']);
+}, ['budget', 'progress']);
 
 journey('U52', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time', 30, async (h, device) => {
   if (!DOWN) fail('U52 needs the build with a database address (DOWN)');
