@@ -227,6 +227,16 @@ module.exports = {
     if (wk.untitled || wk.ellipsis) fails.push(`goal names: ${wk.untitled} without a title, ${wk.ellipsis} cut with an ellipsis`);
     if (wk.indent !== 28) fails.push(`weekly child goals indented ${wk.indent}px`);
     if (!/1px 0px 0px/.test(wk.edge)) fails.push('sticky goal column has no edge');
+    // Review F09: a goal done in week 37 says "Done since week 37" in the weeks after, not "No check-in".
+    const doneRow = await p.evaluate(() => {
+      const a = document.querySelector('.hgrid tbody .hg-goal a[href$="/goals/ci-dedupe"]');
+      const tr = a?.closest('tr');
+      if (!tr) return null;
+      const cells = [...tr.querySelectorAll('td.hcell')].filter((td) => !td.classList.contains('future') && !td.querySelector('svg'));
+      return { texts: [...new Set(cells.map((td) => td.querySelector('.sr')?.textContent.replace(/^.*: /, '')))], empty: cells.filter((td) => td.querySelector('.hcell-empty')).length };
+    });
+    if (!doneRow) fails.push('F09: the goal done in week 37 (ci-dedupe) isn’t in the weekly history');
+    else if (!doneRow.texts.length || doneRow.empty || doneRow.texts.some((t) => t !== 'Done since week 37')) fails.push(`F09: weeks after the goal was done read ${JSON.stringify(doneRow.texts)} (${doneRow.empty} marked no check-in)`);
     // Another goal and week: the inspector keeps its height.
     const h0 = await p.locator('.week-inspector').evaluate((e) => e.getBoundingClientRect().height);
     await p.locator('.hgrid').first().locator('tbody tr').nth(2).locator('td.hcell').nth(1).click();
