@@ -1,6 +1,6 @@
 # Tuesday 10 November: presenting Faro
 
-About 50 minutes: 10 for everyone, 10 for the technical half, about 25 for the live build (`docs/live-build/metrics.md`), 5 for questions. Present the app from **https://goals-app-puce-five.vercel.app/demo**. Before you start: open Demo controls → **Start over**, view as **Rhea Kapoor**, light theme, a laptop at full width. Run through `docs/live-build/checklist.md` the evening before and again 15 minutes before.
+About 45 minutes: 10 for everyone, 5 for the technical half, about 25 for the live build (`docs/live-build/metrics.md`), 5 for questions. Present the app from **https://goals-app-puce-five.vercel.app/demo**. Before you start: open Demo controls → **Start over**, view as **Rhea Kapoor**, light theme, a laptop at full width. Run through `docs/live-build/checklist.md` the evening before and again 15 minutes before.
 
 ## The one-line pitch
 
@@ -21,15 +21,12 @@ Open the root page, **https://goals-app-puce-five.vercel.app**, in a tab you loa
 7. **Workspace.** The side menu of sections (People, Teams, Inbox, Cycles, Access, Features, Privacy, Recently removed). Open **Inbox**: anyone can mark up a screen with Send feedback, and it lands here with the picture, ready to triage (New, In hand, Closed). *Point out:* **Features** turns modules on and off; that's the architecture showing through.
 8. **Data.** Every table as a spreadsheet, in and out: the same format the import uses. *Point out:* the downloaded workbook already has a Metrics sheet, but Data has no Metrics page. "Hold that thought: we'll build it in a moment."
 
-## Part 2, the technical half (10 minutes)
+## Part 2, the technical half (5 minutes)
 
-1. **How it's built:** a modular monolith. A small core (people, teams, goals, check-ins, the status rules, the change engine) with features as modules that plug in; CI proves the core works with each module removed. `docs/architecture.md`.
-2. **Rules live once:** the app, the spreadsheet import and the AI tools (MCP) all use the same rules and the same change engine.
-3. **Tested like a product:** 51 user journeys, 136 requirements and about 560 unit tests, run on every change; the full suite runs after every merge and opens an issue if anything breaks.
-4. **The rebuild kit.** `spec/` is generated from the code and can't drift; `llms.txt` points an AI at it. Expected results for every demo goal in every week (about 300,000 values) prove a rebuild is right.
-5. **The drill, the headline:** a fresh AI session given only the kit, on the lighter model, rebuilt the core rules from scratch and matched **100% of 302,370 values** in about five minutes. Be honest: the rules came from the kit; the scorecard's exact words came from the scorer's differences, and that gap list (35 points, `docs/reviews/2026-11-08-drill-1.md`) is the first thing we fix after today.
-6. **What Faro deliberately doesn't build, but specifies** (`spec/requirements/internal/`): R1 sign-in and access (a who-may-change-what table kept true by a test), R2 single sign-on, R3 time zones, R4 scale and safety (15,000 people, page-load budgets, backups).
-7. **The metric library, half built on purpose.** Its back end shipped yesterday as a module: 13 demo metrics (12 measuring goals), the rules and tests, the AI tools, the Metrics sheet, its spec section and rebuild stage. Its screens are not built. That's the live build, next.
+1. **How it's built, in one breath:** a modular monolith, a small core with features as modules that plug in; the app, the spreadsheet import and the AI tools (MCP) share one set of rules. 51 user journeys, 136 requirements and about 560 unit tests run on every change. `docs/architecture.md`.
+2. **The drill, the headline:** `spec/` and `llms.txt` are generated from the code and can't drift. A fresh AI session given only that kit, on the lighter model, rebuilt the core rules and matched **100% of 302,370 values** in about five minutes. Be honest: the scorecard's exact words came from the scorer's differences; that gap list (`docs/reviews/2026-11-08-drill-1.md`) is the first thing we fix.
+3. **Specified, not built:** sign-in, single sign-on, time zones, scale (`spec/requirements/internal/`): the internal platform does those.
+4. **The metric library, half built on purpose:** the back end shipped yesterday as a module (13 demo metrics, rules, tests, AI tools); the screens are what we build now.
 
 ## Part 3, the live build (about 25 minutes)
 

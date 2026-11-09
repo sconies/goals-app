@@ -2,13 +2,13 @@
 
 Tick each line on Monday evening, then do the "15 minutes before" block again on Tuesday. If a line fails, fix it or switch to its fallback before the talk, not during it.
 
-## Monday evening: one full dry run (about 50 minutes, with a timer)
+## Monday evening: one full dry run (about 45 minutes, with a timer)
 
 **The app**
 - [ ] `https://goals-app-puce-five.vercel.app/api/mcp?check` says database and pictures are true.
 - [ ] `/demo` → Demo controls → **Start over** works; view as **Rhea Kapoor**; light theme.
 - [ ] The root page shows the splash then the welcome page (load it once first: the first load is slow).
-- [ ] Walk Part 1 of `docs/demo-script.md` once, out loud, timed (target 10 minutes). Note any screen that looks odd.
+- [ ] Walk Parts 1 and 2 of `docs/demo-script.md` once, out loud, timed (targets 10 and 5 minutes). Note any screen that looks odd.
 - [ ] As Amara Nwosu: Home shows 126 goals and the review ring; this week's review walkthrough opens.
 - [ ] Workspace → Inbox opens and shows items; Workspace → Features lists the modules.
 - [ ] Data → Spreadsheets → download: the workbook has a Metrics sheet, and Data has **no** Metrics page yet (main must not have the fallback merged).
