@@ -35,3 +35,13 @@ Workspace shows five sections to members (Overview, People, Teams, Inbox, Privac
 ## Not tested
 
 Phone widths. G (the phone Goals page) is in build; a phone pass follows it.
+
+## Third pass: the goal page (10:22–10:34)
+
+**Fixed now (hotfix, branch `goal-page-fix`):** target and plan edits had no sanity check (a target of 999 on a lower-is-better goal starting at 14 saved and flipped the goal to "Higher is better"); a Done goal still showed a live forecast and its Q4 row "In progress"; "Why it's behind" headed a recovering goal; direct and whole-tree feeder counts disagreed unlabelled; "same reason as week X, above" pointed the wrong way; no last-updated date in the header.
+
+**Backlogged as GD:** dated, owned action rows on every goal, editable from the page; one place for the open ask; a Changes filter without review look-ins, missing weeks shown, searchable history; real Cancel and a "who sees this" line; what Watch does; structural Back; a first screen that leads with the decision when a goal is in trouble.
+
+**Strengths to keep:** the page adapts to goal type (stages, ranges, no check-in yet, healthy goals' "latest word"); the ask-respond panel; the print page; drafts restored after a reload; reason-for-change now asked inline.
+
+**Note:** the reviewer used the demo's Start over once to undo the 999 test. The demo keeps its data in the browser, so that touched only the reviewer's browser.
