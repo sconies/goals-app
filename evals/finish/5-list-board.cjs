@@ -312,6 +312,28 @@ module.exports = {
       chk(trees.length === 1 && /^Every tree/.test(trees[0]), `GP 4: Trees sorted worst first is ${trees.length} groups (${trees.slice(0, 2).join(', ')})`);
       await c.close();
     }
+    // Outside review, 10 Nov. U13: on the Needs attention tab the tab, the count line and the health line give one set
+    // of numbers. U15: the count line is one line with Why?, and on a phone it doesn't push the goals down.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals?show=attention');
+      await p.locator('.attention-counts').waitFor();
+      const m = await p.evaluate(() => ({
+        tab: Number(document.querySelector('[role="tab"][aria-selected="true"] .tabcount')?.textContent),
+        line: Number(document.querySelector('.attention-counts .strong')?.textContent.match(/^\d+/)?.[0]),
+        health: [...document.querySelectorAll('.health-line .health-count')].reduce((t, x) => t + Number(x.textContent.match(/\d+/)[0]), 0),
+        h: document.querySelector('.attention-counts').getBoundingClientRect().height,
+      }));
+      chk(m.tab === m.line && m.line === m.health, `U13: tab ${m.tab}, count line ${m.line}, health line ${m.health}`);
+      chk(m.h <= 24, `U15: the count line is ${r0(m.h)}px tall (one line expected)`);
+      await c.close();
+    }
+    {
+      const [c, p] = await open(390, 844, 'amara', '/goals?show=attention', true);
+      await p.locator('.attention-counts').waitFor();
+      const h = await p.locator('.attention-counts').evaluate((e) => e.getBoundingClientRect().height);
+      chk(h <= 44, `U15: at 390px the count line is ${r0(h)}px tall (two lines at most)`);
+      await c.close();
+    }
 
     // Outside review, 9 Nov (the demo searches this page live). OR 1: search keeps every character typed at full speed
     // or pasted, spaces included, and the address follows. OR 3: tabs and layouts are steps Back returns to, and Back
