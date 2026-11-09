@@ -32245,7 +32245,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
+					"A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three characters or more, as for a goal) and the month its goal year starts, who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
 					"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
 					"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.",
 					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later.",
@@ -33597,7 +33597,11 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Faro’s look",
-				text: ["The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), on the welcome page and in the browser tab.", "Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk."]
+				text: [
+					"The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), on the welcome page and in the browser tab.",
+					"Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk.",
+					"On a phone’s home screen and in the browser tab, the F sits on a deep-teal tile so it’s easy to spot. See On a phone, a tablet or a big screen for adding it to your home screen."
+				]
 			}
 		],
 		routes: ["/settings"],
@@ -33945,21 +33949,33 @@ var CORE_ARTICLES = [
 		title: "On a phone, a tablet or a big screen",
 		summary: "The app works at every size, from a small phone to an ultra-wide monitor, and keeps your work safe as you go.",
 		group: "you",
-		sections: [{
-			heading: "How it fits",
-			list: [
-				"On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Data, Settings, Help and Send feedback.",
-				"On a tablet the sidebar is a rail of icons, each named on hover. On a desktop you can choose the rail in Settings.",
-				"Focused tasks such as a check-in stay narrow; tables, boards and the map use the whole width.",
-				"Text follows your browser’s text size, and every control is big enough to tap."
-			]
-		}, {
-			heading: "Your work is safe",
-			list: ["Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.", "Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."]
-		}],
+		sections: [
+			{
+				heading: "How it fits",
+				list: [
+					"On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Data, Settings, Help and Send feedback.",
+					"On a tablet the sidebar is a rail of icons, each named on hover. On a desktop you can choose the rail in Settings.",
+					"Focused tasks such as a check-in stay narrow; tables, boards and the map use the whole width.",
+					"Text follows your browser’s text size, and every control is big enough to tap."
+				]
+			},
+			{
+				heading: "Your work is safe",
+				list: ["Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.", "Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."]
+			},
+			{
+				heading: "On your home screen",
+				list: [
+					"Put Faro on your phone’s home screen like an app: in Chrome on Android, open the menu and choose Add to home screen (or Install app); in Safari on an iPhone, tap Share, then Add to Home Screen. It opens full screen, without the browser around it.",
+					"Its icon is a deep-teal tile with the F in white and a bright amber beam and teal bar, so it stands out on light and dark wallpapers.",
+					"Each time you open Faro, the amber beam sweeps across the screen like a lighthouse’s light, flashing as it points at you, then settles into the F; the teal bar and “aro” are drawn in. It takes about two and a half seconds, the app loads behind it, and a tap or any key skips it. It doesn’t play again as you move around, and with reduced motion on your device the logo simply fades in."
+				]
+			}
+		],
 		routes: [],
 		screens: [],
 		reqs: [
+			"LAUNCH",
 			"PHONE",
 			"A11Y",
 			"NO-ERRORS",
@@ -33985,7 +34001,14 @@ var CORE_ARTICLES = [
 			"offline",
 			"accessibility",
 			"keyboard",
-			"text size"
+			"text size",
+			"home screen",
+			"install",
+			"icon",
+			"app icon",
+			"splash",
+			"lighthouse",
+			"add to home screen"
 		],
 		related: ["settings", "help"]
 	},
@@ -34087,6 +34110,22 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "home-screen-icon-and-splash",
+		date: "2026-11-08",
+		title: "A clearer icon, a lighthouse, a new first page",
+		points: [
+			"Faro’s icon is now a deep-teal tile with the F in white and a bright amber beam and teal bar, so it stands out on your phone’s home screen and in the browser tab, on light and dark backgrounds.",
+			"Faro can be added to your home screen like an app, and opens full screen. Help says how, for Android and iPhone.",
+			"The first page of a new Faro says what it’s for: run the company on outcomes, and manage by exception. Its main button now opens the demo; setting up your own workspace is just below.",
+			"Each time you open Faro, the amber beam sweeps across the screen like a lighthouse’s light, flashing as it points at you, and settles into place in the F; then the teal bar and “aro” are drawn in. It takes about two and a half seconds, the app loads behind it, and a tap or any key skips it. With reduced motion, the logo just fades in."
+		],
+		articles: [
+			"any-device",
+			"settings",
+			"set-up"
+		]
+	},
 	{
 		id: "tuesday-fixes",
 		date: "2026-11-08",

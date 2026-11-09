@@ -598,14 +598,15 @@ svg.chart { display: block; overflow: visible; }
 .welcome-points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s3); font-size: var(--t-lg); line-height: 1.625rem; color: var(--fg-2); }
 .welcome-points li { padding-left: var(--s5); position: relative; }
 .welcome-points li::before { content: ''; position: absolute; left: 0; top: 10px; width: 8px; height: 8px; border-radius: 999px; background: var(--accent); }
-.welcome .btn.primary { align-self: flex-start; }
+.welcome .btn { align-self: flex-start; }
+.welcome-foot { margin: var(--s4) 0 0; }
 .goalcard { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .goalcard > .linkish { align-self: flex-start; color: var(--muted); }
 .trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
 .rolebar-demo { display: inline-flex; align-items: center; gap: var(--s3); margin-left: var(--s3); font-size: var(--t-sm); white-space: nowrap; }
 .demo-tag { padding: 0 var(--s2); border-radius: 999px; background: var(--risk-bg); color: var(--risk-fg); font-size: var(--t-xs); font-weight: 700; line-height: 1.25rem; }
 @container app (max-width: 760px) {
-  .welcome .btn.primary { align-self: stretch; }
+  .welcome .btn { align-self: stretch; }
   .rolebar-demo { display: none; }
 }
 

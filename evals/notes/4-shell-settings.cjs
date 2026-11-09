@@ -20,7 +20,7 @@ module.exports = {
   id: 'N4',
   area: 'shell-settings',
   title: 'Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours',
-  reqs: ['SETTINGS', 'NAV-GOALS', 'WORKSPACE-ADMIN', 'BRAND'],
+  reqs: ['SETTINGS', 'NAV-GOALS', 'WORKSPACE-ADMIN', 'BRAND', 'LAUNCH'],
   async run({ open, url, browser }) {
     const fails = [];
     const fail = (ok, msg) => { if (!ok) fails.push(msg); };
@@ -337,11 +337,11 @@ module.exports = {
       const c = await browser.newContext({ viewport: { width: 390, height: 844 } });
       const p = await c.newPage();
       await p.goto(live('/'));
-      await p.getByRole('heading', { name: 'Weekly goals that stay on track' }).waitFor({ timeout: 5000 });
+      await p.getByRole('heading', { name: 'Run the company on outcomes, and manage by exception' }).waitFor({ timeout: 5000 });
       const logo = p.locator('.welcome').getByRole('img', { name: 'Faro', exact: true });
       fail(await logo.count() === 1 && await logo.isVisible(), '[BRAND] the welcome page has no logo named “Faro”');
       const order = await p.evaluate(() => { const l = document.querySelector('.welcome .faro-logo'), h = document.querySelector('.welcome h1'); return !!l && !!h && !!(l.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING); });
-      fail(order, '[BRAND] the logo is not above “Weekly goals that stay on track”');
+      fail(order, '[BRAND] the logo is not above “Run the company on outcomes, and manage by exception”');
       fail(/Faro$/.test(await p.title()), `[BRAND] the welcome page's title is “${await p.title()}”`);
       // The favicon: linked from the page, and an SVG that is really served, from the demo too.
       for (const at of [live('/'), url('/')]) {
@@ -349,10 +349,59 @@ module.exports = {
         const href = await p.evaluate(() => { const l = document.querySelector('link[rel="icon"]'); return l && l.getAttribute('type') === 'image/svg+xml' ? l.href : null; });
         const r = href ? await p.request.get(href) : null;
         const body = r ? await r.text() : '';
-        fail(!!r && r.ok() && /image\/svg\+xml/.test(r.headers()['content-type'] || '') && /<svg[\s\S]*#F7AE2E/i.test(body), `[BRAND] ${at}: favicon ${href || 'not linked'} → ${r ? r.status() + ' ' + r.headers()['content-type'] : 'none'}`);
+        fail(!!r && r.ok() && /image\/svg\+xml/.test(r.headers()['content-type'] || '') && /<svg[\s\S]*#(F7AE2E|FFC24A)/i.test(body), `[BRAND] ${at}: favicon ${href || 'not linked'} → ${r ? r.status() + ' ' + r.headers()['content-type'] : 'none'}`);
       }
       fail(!!(await p.locator('meta[name="theme-color"]').count()), '[BRAND] no theme-color');
+      // The home-screen icon (backlog I): a manifest named Faro, with 192 and 512 icons, any and maskable, and an apple-touch icon, all served.
+      const icons = await p.evaluate(() => ({ manifest: document.querySelector('link[rel="manifest"]')?.href, apple: document.querySelector('link[rel="apple-touch-icon"]')?.href }));
+      const mr = icons.manifest ? await p.request.get(icons.manifest) : null;
+      const man = mr && mr.ok() ? await mr.json().catch(() => null) : null;
+      fail(!!man && man.name === 'Faro' && !!man.background_color && !!man.theme_color, `[LAUNCH] no web app manifest named Faro (${icons.manifest || 'not linked'})`);
+      const want = ['192x192 any', '192x192 maskable', '512x512 any', '512x512 maskable'];
+      const have = (man?.icons || []).map((i) => `${i.sizes} ${i.purpose}`);
+      fail(want.every((w) => have.includes(w)), `[LAUNCH] the manifest's icons are ${have.join(', ') || 'none'}`);
+      for (const src of [...(man?.icons || []).map((i) => new URL(i.src, icons.manifest).href), icons.apple].filter(Boolean)) {
+        const r = await p.request.get(src);
+        fail(r.ok() && /image\/png/.test(r.headers()['content-type'] || ''), `[LAUNCH] icon ${src} → ${r.status()} ${r.headers()['content-type']}`);
+      }
+      fail(!!icons.apple, '[LAUNCH] no apple-touch-icon');
       await c.close();
+      // The splash: once per launch (a browser session), over the app, gone by itself, ended by a tap, and still under reduced motion.
+      // Automated browsers never see it unless they ask (window.__faroSplash), so no other check waits for it.
+      {
+        const plain = await browser.newContext({ viewport: { width: 390, height: 844 } });
+        const p0 = await plain.newPage(); await p0.goto(live('/')); await p0.waitForTimeout(300);
+        fail(await p0.locator('.faro-splash').count() === 0, '[LAUNCH] the splash shows in an automated browser that did not ask for it');
+        await plain.close();
+        const sc = await browser.newContext({ viewport: { width: 390, height: 844 } });
+        await sc.addInitScript(() => { window.__faroSplash = true; });
+        const s = await sc.newPage();
+        await s.goto(live('/'));
+        fail(await s.locator('.faro-splash').waitFor({ state: 'attached', timeout: 3000 }).then(() => true, () => false), '[LAUNCH] no splash on the first load of a session');
+        const t0 = Date.now();
+        await s.locator('.faro-splash').waitFor({ state: 'detached', timeout: 4000 }).catch(() => {});
+        const took = Date.now() - t0;
+        fail(took < 3200, `[LAUNCH] the splash took ${took}ms to go (want about 2.5s)`);
+        fail(await s.getByRole('heading', { name: 'Run the company on outcomes, and manage by exception' }).isVisible(), '[LAUNCH] the app is not there when the splash ends');
+        await s.reload(); await s.waitForTimeout(400);
+        fail(await s.locator('.faro-splash').count() === 0, '[LAUNCH] the splash shows again in the same session (on a reload or navigation)');
+        await sc.close();
+        const tc = await browser.newContext({ viewport: { width: 390, height: 844 } });
+        await tc.addInitScript(() => { window.__faroSplash = true; });
+        const tp = await tc.newPage(); await tp.goto(live('/'));
+        await tp.locator('.faro-splash').waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
+        const t1 = Date.now(); await tp.mouse.click(195, 420);
+        await tp.locator('.faro-splash').waitFor({ state: 'detached', timeout: 2000 }).catch(() => {});
+        fail(await tp.locator('.faro-splash').count() === 0 && Date.now() - t1 < 600, `[LAUNCH] a tap did not skip the splash (${Date.now() - t1}ms)`);
+        await tc.close();
+        const rc = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+        await rc.addInitScript(() => { window.__faroSplash = true; });
+        const rp = await rc.newPage(); await rp.goto(live('/'));
+        await rp.locator('.faro-splash').waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
+        const still = await rp.evaluate(() => { const e = document.querySelector('.faro-splash'); return !!e && e.classList.contains('is-still') && !document.querySelector('.faro-splash .sp-light').getAnimations().length; });
+        fail(still, '[LAUNCH] under reduced motion the splash still turns or draws');
+        await rc.close();
+      }
       // In the app: the title ends “Faro”; the sidebar has the logo, and the mark alone on the rail; key colours are readable.
       for (const theme of ['light', 'dark']) {
         const [c2, q] = await open(1280, 800, 'rhea', '/');

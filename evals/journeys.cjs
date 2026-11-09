@@ -548,7 +548,7 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   const p = h.use(await newPage(device));
   await p.goto(live('/'));
   // The empty real app explains itself and offers the demo, with one thing to do.
-  await see(p, 'Weekly goals that stay on track');
+  await see(p, 'Run the company on outcomes, and manage by exception');
   h.set('attention', await p.getByRole('link', { name: /try the demo/i }).isVisible(), 'the empty app does not offer the demo');
   await h.inView(p.getByRole('button', { name: 'Set up your workspace' }), 'entry', 'Set up your workspace');
   await h.checkpoint('welcome');
