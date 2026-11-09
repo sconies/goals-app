@@ -8114,7 +8114,7 @@ function summarise(goal, s, cycle, today, week) {
 		quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
 		attention: attentionFor(goal, s, cycle, today),
 		forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,
-		projection: st.status === "stale" || a.kind !== "metric" ? null : a.projection,
+		projection: !projects(goal, st.status) || a.kind !== "metric" ? null : a.projection,
 		feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
 		why: behind && last ? [last.cause ? causeLabel(last.cause) : "", last.why].filter((x) => x && x !== "On plan.").join(": ") : "",
 		pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : "") : "",
@@ -10544,7 +10544,7 @@ var CORE_ARTICLES = [
 					"One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures. While a goal doesn’t say how it’s measured, its owner and admins see a line asking for it, with a link to describe it.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.",
 					"Every section under the chart has a heading and one line saying what it answers, with a rule between sections.",
-					"Why it’s at risk, or Why it’s off track (the status’s own words, so a goal at risk that is recovering isn’t said to be behind): the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
+					"Why it could miss without a change (at risk), or Why it will miss without intervention (off track): the status’s own meaning, so a goal at risk that is recovering isn’t said to be behind, and the status word isn’t said twice. Under it, the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
 					"What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done.",
 					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
 					"What feeds it: how the goals directly feeding it stand (“Directly feeding it (four goals): 2 off track, 1 at risk”). Cards on Goals count everything under a goal instead, and say so (“Everything under it (16 goals)”), so the two never look contradictory. Then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
@@ -11817,7 +11817,7 @@ var WHATS_NEW = [
 		points: [
 			"A new target on the other side of the start flips which way is better, so it is no longer saved quietly: Faro says so (“This makes higher better”) and saves once you say yes. A number far outside the plan it replaces is asked about the same way, in the goal’s form, an import, Data and the AI assistant.",
 			"A goal called done shows its final result where the forecast was, with no projection, and its later quarters say None due rather than In progress.",
-			"The heading over the owner’s reason uses the status’s own words: Why it’s at risk, or Why it’s off track.",
+			"The heading over the owner’s reason says what the status means: Why it could miss without a change, or Why it will miss without intervention, never “behind” for a goal that is recovering.",
 			"Feeder counts say what they count: “Directly feeding it” on a goal’s page, “Everything under it” on a card.",
 			"A repeated reason in the history says which way to look for the week it points to, and the header says when the goal was last updated."
 		],
