@@ -463,13 +463,13 @@ var init_vocabulary = __esmMin((() => {
 		}),
 		handled: term("handled", {
 			label: "Being handled",
-			short: "looked at since its latest check-in",
-			meaning: "Someone looked at it after its latest check-in. It comes back to Needs attention if anything new happens.",
-			long: "Off track or at risk, and since its latest check-in someone other than the owner marked it reviewed or noted it, an action was agreed (and isn’t overdue), or its request was answered. A new check-in or a new flag makes it need attention again.",
+			short: "an action agreed since its latest check-in",
+			meaning: "An action with an owner and a date was agreed after its latest check-in. It comes back to Needs attention if anything new happens.",
+			long: "Off track or at risk, and since its latest check-in an action was agreed with an owner and a due week (and isn’t overdue), or, when it is at risk, its request was answered. An off-track goal is handled only with an action. Marking it reviewed or noting it is not enough: that goal still needs attention, and says who looked at it. A new check-in or a new flag makes it need attention again.",
 			rule: "attention#handledFor"
 		})
 	};
-	HANDLED_LINE = "Someone looked at these after their latest check-in. They come back under Needs attention if anything new happens.";
+	HANDLED_LINE = "These have an action with an owner and a date, or an answer to their request, agreed after their latest check-in. They come back under Needs attention if anything new happens.";
 	WARNING = {
 		slipped: term("slipped", {
 			label: "Date slipped",
@@ -2963,19 +2963,15 @@ function attentionFor(goal, s, cycle, today) {
 		status,
 		flags,
 		weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0),
-		handled: handledFor(goal, s, cycle, today, status, flags)
+		handled: handledFor(goal, s, cycle, today, status, flags),
+		lookedAt: lookedAtFor(goal, s, cycle, today, status)
 	};
 }
-/**
-* Whether a goal that is off track or at risk is being handled, and by what. It is when, since its latest check-in,
-* someone other than the owner marked it reviewed or added a note, an action was agreed (and isn't overdue), or a
-* request it's waiting on was answered; and no flag has appeared since that look (a missed recovery date, say). A new
-* check-in always makes it news again, so it needs attention until someone looks at that.
-*/
-function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today), flags) {
-	if (status.status !== "off" && status.status !== "risk") return null;
+/** Every look at a behind goal since its latest check-in, on or before today's date, in no particular order. */
+function looksAt(goal, s, cycle, today, status) {
+	if (status.status !== "off" && status.status !== "risk") return [];
 	const latest = status.latest;
-	if (!latest) return null;
+	if (!latest) return [];
 	const since = latest.postedAt;
 	const week = currentWeek(cycle, today);
 	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
@@ -2986,10 +2982,9 @@ function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.ch
 		if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
 		if (d.byId === goal.ownerId) continue;
 		const review = d.reviewId ? s.reviews.find((r) => r.id === d.reviewId)?.name : null;
-		const where = review ? `in ${review}` : `by ${first(d.byId)}`;
 		looks.push({
 			kind,
-			text: `${kind === "noted" ? "Noted" : "Reviewed"} ${where}, week ${d.week}`,
+			text: `Looked at by ${first(d.byId)}${review ? ` in ${review}` : ""}, week ${d.week}`,
 			said: kind === "reviewed" ? "" : d.note,
 			byId: d.byId,
 			at: d.at,
@@ -2998,10 +2993,10 @@ function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.ch
 		});
 	}
 	for (const a of openAsksFor(goal.id, s, ["action"])) {
-		if (a.createdAt <= since || a.createdAt.slice(0, 10) > day || isOverdue(a, week)) continue;
+		if (a.dueWeek == null || a.createdAt <= since || a.createdAt.slice(0, 10) > day || isOverdue(a, week)) continue;
 		looks.push({
 			kind: "action",
-			text: `Action: ${first(a.recipientId ?? goal.ownerId)}${a.dueWeek != null ? `, due week ${a.dueWeek}` : ""}`,
+			text: `Action: ${first(a.recipientId ?? goal.ownerId)}, due week ${a.dueWeek}`,
 			said: a.ask,
 			byId: a.askedBy,
 			at: a.createdAt,
@@ -3022,12 +3017,27 @@ function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.ch
 			reviewId: null
 		});
 	}
+	return looks;
+}
+/**
+* Whether a goal that is off track or at risk is being handled, and by what (Lane, 10 Nov). It is when, since its
+* latest check-in, an action was agreed with an owner and a due week (and isn't overdue), or, for a goal at risk, a
+* request it's waiting on was answered; and no flag has appeared since then (a missed recovery date, say). An off-track
+* goal is in hand only with an action. Marking it reviewed or noting it is a look (lookedAtFor), not a plan: the goal
+* still needs attention. A new check-in always makes it news again.
+*/
+function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today), flags) {
+	const looks = looksAt(goal, s, cycle, today, status).filter((l) => l.kind === "action" || l.kind === "answered" && status.status === "risk");
 	if (!looks.length) return null;
 	const firstLook = looks.reduce((a, b) => a.at < b.at ? a : b);
 	const now = (flags ?? flagsFor(goal, s, cycle, today).flags).filter((f) => f.kind !== "due").map((f) => f.kind);
 	const then = new Set(flagsFor(goal, s, cycle, new Date(firstLook.at)).flags.map((f) => f.kind));
 	if (now.some((k) => !then.has(k))) return null;
 	return looks.sort((a, b) => HANDLED_ORDER.indexOf(a.kind) - HANDLED_ORDER.indexOf(b.kind) || b.at.localeCompare(a.at))[0];
+}
+/** The latest time someone other than the owner marked a behind goal reviewed or noted it since its latest check-in: "Looked at by Amara in …". */
+function lookedAtFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today)) {
+	return looksAt(goal, s, cycle, today, status).filter((l) => l.kind === "noted" || l.kind === "reviewed").sort((a, b) => b.at.localeCompare(a.at))[0] ?? null;
 }
 /**
 * Which group of the Needs attention list a goal is in (Lane, 9 Nov, backlog GP): `needs` (needs attention: listed
@@ -10466,7 +10476,8 @@ var CORE_ARTICLES = [
 					"Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.",
 					`A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
 					"Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.",
-					"On Goals, the Needs attention tab’s count counts the goals that need attention, not those being handled, and says so if you point at it. The line above the goals says what the count is made of: how many are off track, at risk or without a recent update, how many are on track or done but flagged for something else (getting worse, a missed date, an ask waiting), and how many are being handled below them. The Board groups the same goals by status.",
+					"Being handled takes a plan: an action with an owner and a due week agreed after the latest check-in, or, for a goal at risk, an answer to its request. An off-track goal stays counted until it has an action. A goal someone only marked reviewed or noted still needs attention; pointing at its reason says who looked at it (“Looked at by Amara in Platform leadership weekly, week 45”).",
+					"On Goals, the Needs attention tab’s count counts the goals that need attention, not those being handled, and says so if you point at it. One line above the goals says the same for the goals shown (a team filter counts that team); Why? says what the count is made of: how many are off track, at risk or without a recent update, and how many are on track but flagged for something else (getting worse, a missed date, an ask waiting). The health line there counts the same goals. On the Board, a goal being handled says so on its card.",
 					"Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”."
 				]
 			}
@@ -11904,6 +11915,25 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "goals-page-decisions",
+		date: "2026-11-10",
+		title: "Goals: nothing behind is hidden, and one line for its health",
+		points: [
+			"Filter Goals to Needs attention and the goals being handled are listed below the others, never left out: filter to your team and you see every goal of theirs that is behind. The same in every layout, on the map and for the AI assistant. The tab’s count still counts the goals that need attention, and says so.",
+			"A line above the goals says their health, as Home does: how many off track, at risk, on track and so on.",
+			"The Board shows up to eight on-track goals before Show all, and each card says which goal it feeds into. History ends each row with the goal’s number now.",
+			"Sorted, the Trees tab is one list across every tree. Cards has gone: List shows everything it did, and a link or saved view that opened Cards opens List and says so once.",
+			"Being handled now takes a plan: an action with an owner and a date agreed since the latest check-in, or an answer to an at-risk goal’s request. A goal someone only marked reviewed still needs attention, and says who looked. The words say what they mean wherever they appear.",
+			"New goal on Goals is a quiet link; the sidebar’s New goal is unchanged."
+		],
+		articles: [
+			"needs-attention",
+			"goals",
+			"goals-filters",
+			"history"
+		]
+	},
+	{
 		id: "workspace-one-place",
 		date: "2026-11-10",
 		title: "Workspace in one place",
@@ -11960,25 +11990,6 @@ var WHATS_NEW = [
 		title: "Faro’s F at the top left",
 		points: ["The letter in a rounded square at the top left was the workspace’s initial. It’s now Faro’s F, the same mark as the home-screen icon.", "The workspace’s name is still beside it, and where you switch workspaces each one is listed by its name."],
 		articles: ["settings", "workspace"]
-	},
-	{
-		id: "goals-page-decisions",
-		date: "2026-11-10",
-		title: "Goals: nothing behind is hidden, and one line for its health",
-		points: [
-			"Filter Goals to Needs attention and the goals being handled are listed below the others, never left out: filter to your team and you see every goal of theirs that is behind. The same in every layout, on the map and for the AI assistant. The tab’s count still counts the goals that need attention, and says so.",
-			"A line above the goals says their health, as Home does: how many off track, at risk, on track and so on.",
-			"Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere.",
-			"The Board shows up to eight on-track goals before Show all, and each card says which goal it feeds into. History ends each row with the goal’s number now.",
-			"Cards has gone: List shows everything it did. A link or saved view that opened Cards opens List and says so once.",
-			"Being handled now says what it means wherever it appears: someone looked at these after their latest check-in, and they come back under Needs attention if anything new happens. New goal on Goals is a quiet link; the sidebar’s New goal is unchanged."
-		],
-		articles: [
-			"needs-attention",
-			"goals",
-			"goals-filters",
-			"history"
-		]
 	},
 	{
 		id: "review-leftovers",
@@ -16398,6 +16409,7 @@ var CORE_TOOLS = [
 				statusLabel: LABEL[s.status],
 				needsAttention: needsAttention(s.attention),
 				beingHandled: s.attention.handled?.text ?? null,
+				lookedAt: s.attention.lookedAt?.text ?? null,
 				because: s.attention.flags.filter((f) => f.kind !== "due").map((f) => withCode({
 					label: f.label,
 					code: f.kind

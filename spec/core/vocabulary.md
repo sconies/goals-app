@@ -42,7 +42,7 @@ Group `attention`.
 | Code | Word | Meaning | Rule | Where |
 |---|---|---|---|---|
 | `needs` | Needs attention | A goal needs attention when it is off track, missed its own date, no recent update, decision or help needed, no path to green, at risk, getting worse or greener than calculated, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant. Wherever they are listed, the goals being handled are listed below them, so nothing is hidden; a count of goals that need attention leaves those out. | `attention#needsAttention` | screens, exports, help, ai |
-| `handled` | Being handled | Off track or at risk, and since its latest check-in someone other than the owner marked it reviewed or noted it, an action was agreed (and isn’t overdue), or its request was answered. A new check-in or a new flag makes it need attention again. | `attention#handledFor` | screens, exports, help, ai |
+| `handled` | Being handled | Off track or at risk, and since its latest check-in an action was agreed with an owner and a due week (and isn’t overdue), or, when it is at risk, its request was answered. An off-track goal is handled only with an action. Marking it reviewed or noting it is not enough: that goal still needs attention, and says who looked at it. A new check-in or a new flag makes it need attention again. | `attention#handledFor` | screens, exports, help, ai |
 
 ## Other warnings on a goal’s story
 

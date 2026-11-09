@@ -1,4 +1,5 @@
-/* Spec scenarios for Lane's notes (5 Nov), attention and Home: "needs attention" means new since someone looked, and Home
+/* Spec scenarios for Lane's notes (5 Nov), attention and Home: "needs attention" means new since something was agreed
+   (Lane, 10 Nov: an action with an owner and a date, or an answer; a review mark alone is a look, not a plan), and Home
    opens with the week at a glance. The same rules reach the AI assistant through the MCP server. */
 import { describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
@@ -39,17 +40,25 @@ describe('needs attention means new since someone looked', () => {
     const s = recheck({ ...s0, requests: [...(s0.requests ?? []), action('lead-mq')] }, 'lead-mq');
     expect(handled(s, 'lead-mq')).toBeNull();
   });
-  it(R('ATTENTION-HANDLED', 'a new warning since the look makes it need attention again: the recovery date passes'), () => {
+  it(R('ATTENTION-HANDLED', 'a review mark alone is a look, not a plan: the red goal still needs attention, and says who looked'), () => {
+    const s: Snapshot = { ...s0, decisions: [...s0.decisions, look('lead-mq')] };
+    const a = attentionFor(goal(s, 'lead-mq'), s, cycle, today);
+    expect(a.handled).toBeNull();
+    expect(a.lookedAt!.text).toBe(`Looked at by Daniel in Developer Productivity fortnightly, week ${week}`);
+    expect(splitAttention(attentionList(s, cycle, today)).needs.map((x) => x.goal.id)).toContain('lead-mq');
+  });
+  it(R('ATTENTION-HANDLED', 'a new warning since the action makes it need attention again: the recovery date passes'), () => {
     const last = s0.checkIns.filter((c) => c.goalId === 'lead-mq').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).at(-1)!;
-    const s: Snapshot = { ...s0, checkIns: s0.checkIns.map((c) => (c.id === last.id ? { ...c, pathToGreen: { ...c.pathToGreen!, byWeek: week } } : c)), decisions: [...s0.decisions, look('lead-mq')] };
-    expect(handled(s, 'lead-mq')!.text).toBe(`Reviewed in Developer Productivity fortnightly, week ${week}`);
+    const s: Snapshot = { ...s0, checkIns: s0.checkIns.map((c) => (c.id === last.id ? { ...c, pathToGreen: { ...c.pathToGreen!, byWeek: week } } : c)), requests: [...(s0.requests ?? []), action('lead-mq', { dueWeek: 47 })] };
+    expect(handled(s, 'lead-mq')!.text).toBe('Action: Diego, due week 47');
     expect(handled(s, 'lead-mq', new Date('2026-11-12T12:00:00Z'))).toBeNull();
   });
-  it(R('ATTENTION-HANDLED', 'an answered request puts it in hand; an open question to the owner does not'), () => {
+  it(R('ATTENTION-HANDLED', 'an answered request doesn’t put an off-track goal in hand (it needs an action); an open question to the owner doesn’t either'), () => {
     // One ask: a decision or help is answered by whoever was asked (Daniel); a question to the owner is an ask too, and being open it puts nothing in hand.
     const req = (s0.requests ?? []).find((r) => r.kind === 'decision' && r.status === 'open' && r.goalIds.includes('lead-mq'))!;
     const answered: Snapshot = { ...s0, requests: (s0.requests ?? []).map((r) => (r.id === req.id ? { ...r, status: 'answered', answer: 'Approved for a month.', answeredBy: 'daniel', answeredAt: '2026-11-05T09:00:00.000Z' } : r)) };
-    expect(handled(answered, 'lead-mq')!.text).toBe(`Request answered by Daniel, week ${week}`);
+    expect(attentionFor(goal(answered, 'lead-mq'), answered, cycle, today).status.status).toBe('off');
+    expect(handled(answered, 'lead-mq')).toBeNull();
     const asked: Snapshot = { ...s0, requests: [...(s0.requests ?? []), action('lead-mq', { id: 'ask_eval_q', kind: 'question', askedBy: 'daniel', recipientId: 'diego', ask: 'When does the vendor ship?', dueWeek: null })] };
     expect(handled(asked, 'lead-mq')).toBeNull();
     // …and answering that question (a comment on the goal, not the owner's check-in) puts nothing in hand either.
@@ -104,7 +113,9 @@ describe('Home at a glance', () => {
     expect(d.scope).toBe('mine');
     expect(d.counts).toEqual([{ status: 'off', n: 1 }, { status: 'on', n: 3 }]); // Pavel owns four goals
     expect(d.streak).toBeGreaterThan(0);
-    expect(d.watching!.handled.map((a) => a.goal.id)).toEqual(['cfr-contract', 'cfr-halt']);
+    // Both were only marked reviewed since their check-ins, so they still need attention (Lane, 10 Nov).
+    expect(d.watching!.handled.map((a) => a.goal.id)).toEqual([]);
+    expect(d.watching!.needs.map((a) => a.goal.id)).toEqual(expect.arrayContaining(['cfr-contract', 'cfr-halt']));
     expect(d.next).toMatchObject({ id: 'devprod', weekday: 'Tuesday', week: week + 1, days: 5 });
   });
   it(R('HOME-DASHBOARD', 'a leader with no goals of their own sees every goal by status and no streak; someone watching nothing has no watch summary'), () => {
@@ -139,10 +150,13 @@ describe('the AI assistant sees the same split', () => {
     };
   }
   it(R('ATTENTION-HANDLED', 'get_my_work lists the owner’s handled goal apart, with what’s in hand'), async () => {
-    const w = await (await as('chen'))('get_my_work');
-    expect(w.data!.needsAttention.map((g: { id: string }) => g.id)).toEqual(['cfr-tests']);
-    expect(w.data!.beingHandled).toEqual([expect.objectContaining({ id: 'dep-jenkins', inHand: `Reviewed in Developer Productivity fortnightly, week ${week - 1}` })]);
-    expect(w.text).toMatch(/Being handled .*Jenkins jobs still running \(At risk \(risk\)\): Reviewed in Developer Productivity fortnightly/);
+    // Jenkins was only marked reviewed: it needs attention. With an action agreed, it is in hand.
+    let w = await (await as('chen'))('get_my_work');
+    expect(w.data!.needsAttention.map((g: { id: string }) => g.id).sort()).toEqual(['cfr-tests', 'dep-jenkins']);
+    expect(w.data!.beingHandled).toEqual([]);
+    w = await (await as('chen', { ...s0, requests: [...(s0.requests ?? []), action('dep-jenkins', { recipientId: 'chen', dueWeek: 47 })] }))('get_my_work');
+    expect(w.data!.beingHandled).toEqual([expect.objectContaining({ id: 'dep-jenkins', inHand: 'Action: Chen, due week 47' })]);
+    expect(w.text).toMatch(/Being handled .*Jenkins jobs still running \(At risk \(risk\)\): Action: Chen, due week 47/);
   });
   it(R('ATTENTION-HANDLED', 'an action agreed through the assistant moves the red goal to being handled in the overview; a new check-in moves it back'), async () => {
     const daniel = await as('daniel'); // Daniel runs the Developer Productivity fortnightly, which has the merge queue on its map

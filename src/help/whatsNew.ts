@@ -27,10 +27,10 @@ export const WHATS_NEW: NewsEntry[] = [
     points: [
       'Filter Goals to Needs attention and the goals being handled are listed below the others, never left out: filter to your team and you see every goal of theirs that is behind. The same in every layout, on the map and for the AI assistant. The tab’s count still counts the goals that need attention, and says so.',
       'A line above the goals says their health, as Home does: how many off track, at risk, on track and so on.',
-      'Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere.',
       'The Board shows up to eight on-track goals before Show all, and each card says which goal it feeds into. History ends each row with the goal’s number now.',
-      'Cards has gone: List shows everything it did. A link or saved view that opened Cards opens List and says so once.',
-      'Being handled now says what it means wherever it appears: someone looked at these after their latest check-in, and they come back under Needs attention if anything new happens. New goal on Goals is a quiet link; the sidebar’s New goal is unchanged.',
+      'Sorted, the Trees tab is one list across every tree. Cards has gone: List shows everything it did, and a link or saved view that opened Cards opens List and says so once.',
+      'Being handled now takes a plan: an action with an owner and a date agreed since the latest check-in, or an answer to an at-risk goal’s request. A goal someone only marked reviewed still needs attention, and says who looked. The words say what they mean wherever they appear.',
+      'New goal on Goals is a quiet link; the sidebar’s New goal is unchanged.',
     ],
     articles: ['needs-attention', 'goals', 'goals-filters', 'history'],
   },

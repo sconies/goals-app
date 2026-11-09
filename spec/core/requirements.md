@@ -453,11 +453,11 @@ Off track, stale, a worsening trend, a missed or missing path to green, and pend
 
 ### ATTENTION-HANDLED
 
-Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI). It is never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, and a count of goals that need attention counts the first group and says so.
+Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card.
 
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
-- **Tests:** `evals/attention.eval.ts` (9)
+- **Tests:** `evals/attention.eval.ts` (10)
 - **Journeys and checks:** N3
 
 ### ONE-ATTENTION-RULE

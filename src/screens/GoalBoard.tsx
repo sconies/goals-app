@@ -8,6 +8,8 @@ import { SHORT_MEANING } from '../domain/story';
 import { LEVELS } from '../domain/query';
 import type { DisplayStatus } from '../domain/types';
 import { LevelTag, StatusShape, TitleTell } from '../ui/bits';
+import { Icon } from '../ui/Icon';
+import { ATTENTION } from '../domain/vocabulary';
 import { hasStory, Keep, ResultTag, StoryLines } from '../ui/GoalStory';
 import { useSummaries, type ViewGroup } from './GoalViews';
 
@@ -49,6 +51,8 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
               {/* Which goal it feeds, so a card makes sense away from its tree (backlog GP, 9 Nov). */}
               {s.feedsInto && <span className="hint ellipsis board-parent" title={`Feeds into ${s.feedsInto}`}>Feeds into {s.feedsInto}</span>}
               <ResultTag s={s} />
+              {/* Being handled sits in its status's lane, so the card says so: a shape and the word, and what's in hand (outside review, 10 Nov, U14). */}
+              {s.attention.handled && <span className="board-handled small" title={s.attention.handled.text}><Icon name="check-circle" size={13} />{ATTENTION.handled.label}<span className="muted"> · {s.attention.handled.text}</span></span>}
               {/* The same evidence on every card: the number and its gap, then the owner's account when there is one. */}
               <span className="small muted">{s.now}{s.gap !== s.now && <> · <Keep text={s.gap} /></>}</span>
               {hasStory(s) && <StoryLines s={s} compact brief />}

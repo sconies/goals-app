@@ -125,6 +125,14 @@ export function GoalsScreen() {
   // On the map, a filtered goal keeps the goals it feeds into, so it isn't cut off from its tree.
   const mapGoals = narrowed ? (() => { const keep = withAncestors(app.snapshot.goals, new Set(shown.map((g) => g.id))); return app.snapshot.goals.filter((g) => keep.has(g.id)); })() : shown;
   const alt = layout !== 'list';
+  // The Needs attention list as shown (filters applied): the line above it and the health line count what's on screen,
+  // and only the first group, as the tab does (outside review, 10 Nov, U13 and U15): one set of numbers.
+  const listed = useMemo(() => {
+    const of = (key: string) => groups.filter((g) => g.key === key).flatMap((g) => g.rows.map((r) => app.attentionOf(r.goal)));
+    return { needs: of('attention'), handled: of('handled') };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, app.snapshot]);
+  const healthGoals = show === 'attention' || attentionOn ? listed.needs.map((a) => a.goal) : shown;
   const tabs: [Show, string, number | null][] = [
     ['outcomes', 'Trees', null],
     ['attention', ATTENTION.needs.label, att.length],
@@ -215,12 +223,12 @@ export function GoalsScreen() {
       {app.snapshot.goals.length > 0 && (
         <div className="goals-about">
           <p className="hint layout-about" aria-live="polite"><span className="strong">{LAYOUTS.find(([k]) => k === layout)?.[1]}</span>: {LAYOUT_ABOUT[layout]}</p>
-          {shown.length > 0 && <HealthLine goals={shown} />}
+          {shown.length > 0 && <HealthLine goals={healthGoals} />}
         </div>
       )}
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
       {linkNote && <p className="hint link-note" role="status">{linkNote}</p>}
-      {show === 'attention' && !activeView && att.length + handled.length > 0 && <p className="hint attention-counts">{attentionCounts(att, handled)}</p>}
+      {show === 'attention' && !activeView && listed.needs.length + listed.handled.length > 0 && <AttentionCounts att={listed.needs} handled={listed.handled} />}
       <FirstReports />
       {refined && shown.length === 0 && <EmptyResult title="No goals match" action={<button type="button" className="btn" onClick={() => setQuery((cur) => ({ ...EMPTY_QUERY, sort: cur.sort, dir: cur.dir }))}>Clear search and filters</button>}>Remove a filter above, or clear them all.</EmptyResult>}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
@@ -349,16 +357,17 @@ function useBadLinks(asked: string | null, show: Show, mineCount: number): strin
 
 /** What the Needs attention tab's count counts, on the count itself (Lane, 9 Nov): the first group, not the second. */
 export function attentionBadge(needs: number, handled: number): string {
-  return `${needs} ${needs === 1 ? 'needs' : 'need'} attention${handled ? `; ${handled} ${ATTENTION.handled.label.toLowerCase()} are listed below them and not counted (someone looked at them after their latest check-in)` : ''}.`;
+  return `${needs} ${needs === 1 ? 'needs' : 'need'} attention${handled ? `; ${handled} ${ATTENTION.handled.label.toLowerCase()} are listed below them and not counted` : ''}.`;
 }
 
 /**
- * What the Needs attention count counts, in words (demo review, 8 Nov, item 5): the Board groups the same goals by
- * status, so a goal flagged while on track (getting worse, a missed date, an ask waiting) is said too. The goals being
- * handled are listed below, in every layout, but not in the count (Lane, 9 Nov, backlog GP: the tab said 40 and the
- * rows 64), so the line says how many and why, and that Home's strip counts every goal by its status instead.
+ * What the Needs attention count counts, in one line with Why? for the rest (outside review, 10 Nov, U15: a 57-word
+ * paragraph pushed the first goal far down a phone). It counts the goals shown, so a team filter counts that team. The
+ * Board groups the same goals by status, so Why? says how many are on track but flagged for something else; and that
+ * the goals being handled are listed below, not counted, and Home counts goals by status instead.
  */
-function attentionCounts(att: GoalAttention[], handled: GoalAttention[]): string {
+function AttentionCounts({ att, handled }: { att: GoalAttention[]; handled: GoalAttention[] }) {
+  const [why, setWhy] = useState(false);
   const by = new Map<string, number>();
   for (const a of att) by.set(a.status.status, (by.get(a.status.status) ?? 0) + 1);
   // The statuses that are themselves a reason for attention, in the order the vocabulary gives them.
@@ -367,7 +376,11 @@ function attentionCounts(att: GoalAttention[], handled: GoalAttention[]): string
   const rest = att.length - behind.reduce((n, k) => n + (by.get(k) ?? 0), 0);
   const parts = [...named, ...(rest ? [`${rest} on track but flagged for something else (getting worse, a missed date, an ask waiting)`] : [])];
   const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
-  const first = att.length ? `${att.length} ${att.length === 1 ? 'goal needs' : 'goals need'} attention, flagged for something new that nobody has picked up yet: ${list}.` : 'Nothing new needs attention.';
-  const also = handled.length ? ` Below them, ${handled.length} ${ATTENTION.handled.label.toLowerCase()}: someone looked at them after their latest check-in, and they come back if anything new happens. The count on the tab leaves those out; the list shows all ${att.length + handled.length}.` : '';
-  return `${first}${also} Home counts goals by status.`;
+  return (
+    <p className="hint attention-counts" data-why={why || undefined}>
+      <span className="strong">{attentionBadge(att.length, handled.length)}</span>
+      {why && <span className="attention-counts-more"> {att.length ? `Of them: ${list}.` : 'Nothing new needs attention.'}{handled.length ? ` ${ATTENTION.handled.label}: ${HANDLED_LINE.charAt(0).toLowerCase() + HANDLED_LINE.slice(1)}` : ''} Home counts goals by status.</span>}
+      {' '}<button type="button" className="linkish" aria-expanded={why} onClick={() => setWhy(!why)}>{why ? 'Less' : 'Why?'}</button>
+    </p>
+  );
 }

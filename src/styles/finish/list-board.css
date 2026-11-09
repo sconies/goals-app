@@ -262,3 +262,8 @@
 /* Each row of cards is one height (7). */
 /* The status row is 20px with or without a level, so titles line up (13). */
 /* The number, then its target line under it, on every card (14). */
+
+/* A goal being handled, on its card in its status's lane (GP, U14): a shape and the word, then what's in hand. */
+.board-handled { display: flex; align-items: center; gap: 4px; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-handled svg { flex: none; }
+.board-handled .muted { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
