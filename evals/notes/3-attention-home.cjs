@@ -19,11 +19,20 @@ module.exports = {
     const check = (ok, msg) => { if (!ok) fails.push(msg); };
 
     // What Watching says each person's watched goals need: the dashboard must agree with it.
-    // Daniel (an owner who watches three trees) and Amara (a leader who watches the north stars and SVP goals) each have one
-    // goal behind that someone has looked at since its latest check-in; the red goal nobody has looked at is Merge-to-deploy time.
-    const IN_HAND = { daniel: { title: 'Jenkins jobs still running', said: 'Reviewed in Developer Productivity fortnightly, week 44' }, amara: { title: 'Critical and high vulnerabilities fixed within SLA', said: 'Action: Farah, due week 48' } };
+    // Amara (a leader who watches the north stars and SVP goals) has one goal behind with an action agreed since its
+    // latest check-in: being handled. Daniel's Jenkins goal was only marked reviewed in the fortnightly, which since Lane's
+    // call of 10 Nov is a look, not a plan: it still needs attention. The red goal nobody has looked at is Merge-to-deploy time.
+    const IN_HAND = { amara: { title: 'Critical and high vulnerabilities fixed within SLA', said: 'Action: Farah, due week 48' } };
+    const LOOKED = { daniel: 'Jenkins jobs still running' };
     const watchNeeds = {};
-    for (const who of ['daniel', 'amara']) {
+    {
+      const [c, p] = await open(1280, 900, 'daniel', '/watching');
+      const needs = await rowsIn(p.locator('section.block').filter({ has: p.getByRole('heading', { name: /^Needs attention/ }) }));
+      watchNeeds.daniel = needs.length;
+      check(needs.some((t) => t.includes(LOOKED.daniel)) && !(await p.locator('section.handled-block').count()), `[ATTENTION-HANDLED] Daniel's Watching doesn't list ${LOOKED.daniel} (only reviewed) under Needs attention`);
+      await c.close();
+    }
+    for (const who of ['amara']) {
       const [c, p] = await open(1280, 900, who, '/watching');
       const needs = await rowsIn(p.locator('section.block').filter({ has: p.getByRole('heading', { name: /^Needs attention/ }) }));
       const handled = await rowsIn(p.locator('section.handled-block'));
@@ -88,7 +97,8 @@ module.exports = {
         const h2 = (await p.locator('.page.home h2').allInnerTexts()).map((t) => t.replace(/\s*\d+$/, '').trim());
         check(owner === h2.includes('Your goals'), `[HOME-DASHBOARD] ${at}: "Your goals" is ${owner ? 'missing' : 'shown with no goals'}`);
         check((who !== 'diego') === h2.includes('Goals you watch'), `[HOME-DASHBOARD] ${at}: "Goals you watch" is ${who === 'diego' ? 'shown with nothing watched' : 'missing'}`);
-        if (who !== 'diego') {
+        if (who === 'daniel') check(!(await p.locator('details.handled-fold').count()), `[ATTENTION-HANDLED] ${at}: Daniel has nothing being handled, but Home shows the fold`);
+        if (who === 'amara') {
           // Exceptions first, being handled folded away under them.
           const fold = p.locator('details.handled-fold').last();
           check(await fold.count() === 1 && !(await fold.evaluate((d) => d.open)), `[ATTENTION-HANDLED] ${at}: being handled is not folded on Home`);
@@ -106,12 +116,12 @@ module.exports = {
         await c.close();
       }
     }
-    // [ATTENTION-HANDLED] An owner's own list leaves out the goal being handled and keeps the one that needs attention:
-    // Chen's Jenkins goal was looked at in the fortnightly; his integration-tests goal has not been.
+    // [ATTENTION-HANDLED] An owner's own list keeps a goal that was only looked at: Chen's Jenkins goal was marked reviewed
+    // in the fortnightly, with no action, so it still needs attention beside his integration-tests goal (Lane, 10 Nov).
     {
       const [c, p] = await open(1280, 900, 'chen', '/');
       const mine = await section(p, 'Your goals').locator('.alist .arow-title').allInnerTexts();
-      check(!mine.includes('Jenkins jobs still running') && mine.includes('Changes shipped with automated integration tests'), `[ATTENTION-HANDLED] Chen's goals that need attention are ${mine.join(', ')}`);
+      check(mine.includes('Jenkins jobs still running') && mine.includes('Changes shipped with automated integration tests'), `[ATTENTION-HANDLED] Chen's goals that need attention are ${mine.join(', ')}`);
       await c.close();
     }
 
