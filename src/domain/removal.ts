@@ -360,9 +360,9 @@ export function cycleStanding(s: Snapshot, cycleId: string): { goals: number; ch
   const ids = new Set(s.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
   const checkIns = s.checkIns.filter((c) => ids.has(c.goalId) && !c.removedAt).length;
   const only = !s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
-  const goals = `${ids.size} ${ids.size === 1 ? 'goal' : 'goals'}`;
+  const goals = `${ids.size.toLocaleString('en-GB')} ${ids.size === 1 ? 'goal' : 'goals'}`;
   const says = checkIns
-    ? `${goals}, ${checkIns} ${checkIns === 1 ? 'check-in' : 'check-ins'}: it stays`
+    ? `${goals}, ${checkIns.toLocaleString('en-GB')} ${checkIns === 1 ? 'check-in' : 'check-ins'}: it stays`
     : only ? `${ids.size ? goals + ', no' : 'No goals and no'} check-ins yet; it’s the only cycle, so it stays`
     : `${ids.size ? goals + ', no' : 'No goals and no'} check-ins yet: it can be deleted`;
   return { goals: ids.size, checkIns, only, deletable: !checkIns && !only, says };

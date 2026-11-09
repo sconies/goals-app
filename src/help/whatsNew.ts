@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'workspace-one-place',
+    date: '2026-11-10',
+    title: 'Workspace in one place',
+    points: [
+      'The workspace’s name at the top of the sidebar (on a phone, under the page’s name) is now the workspace switcher: every workspace, whether you’re an admin in this one, and setting up one of your own, which has moved there from Home.',
+      'Your name at the foot of the sidebar says Admin where you are one, and Workspace says your permissions: what’s for admins, and who they are. Switch person is only about people now.',
+      'Workspace’s overview starts with what needs attention here (the year ending, people with no email, no review set up, new feedback from this workspace), then lists every section.',
+      'Cycles shows each goal year’s dates, which one is running and its week, and leads to the wrap-up.',
+      'Set-up starts “Who are you?” as the person you are, and says when the outcome and goals steps are skipped. Features says it counts the optional parts of Faro; Access says AI tokens work only in the real app.',
+    ],
+    articles: ['workspace', 'workspace-cycles', 'set-up', 'features', 'workspace-access'],
+  },
+  {
     id: 'feedback-leave-recording',
     date: '2026-11-10',
     title: 'Feedback beside Help, leaving a workspace, and recording you choose',

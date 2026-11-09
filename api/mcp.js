@@ -6037,8 +6037,8 @@ function cycleStanding(s, cycleId) {
 	const ids = new Set(s.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
 	const checkIns = s.checkIns.filter((c) => ids.has(c.goalId) && !c.removedAt).length;
 	const only = !s.cycles.some((c) => c.id !== cycleId && !c.removedAt);
-	const goals = `${ids.size} ${ids.size === 1 ? "goal" : "goals"}`;
-	const says = checkIns ? `${goals}, ${checkIns} ${checkIns === 1 ? "check-in" : "check-ins"}: it stays` : only ? `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet; it’s the only cycle, so it stays` : `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet: it can be deleted`;
+	const goals = `${ids.size.toLocaleString("en-GB")} ${ids.size === 1 ? "goal" : "goals"}`;
+	const says = checkIns ? `${goals}, ${checkIns.toLocaleString("en-GB")} ${checkIns === 1 ? "check-in" : "check-ins"}: it stays` : only ? `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet; it’s the only cycle, so it stays` : `${ids.size ? goals + ", no" : "No goals and no"} check-ins yet: it can be deleted`;
 	return {
 		goals: ids.size,
 		checkIns,
@@ -9970,7 +9970,8 @@ var CORE_ARTICLES = [
 					"A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
 					"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
 					"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.",
-					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later.",
+					"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
+					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
 					"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created.",
 					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
 					"Check each goal’s owner, where it starts and its target before you create the workspace.",
@@ -11115,6 +11116,19 @@ var CORE_ARTICLES = [
 		group: "you",
 		sections: [
 			{
+				heading: "Switching, and setting one up",
+				list: [
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open, says whether you’re an admin in this one, leads to Workspace, and offers setting up a workspace of your own (in the demo, Try it with your own team).",
+					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, a Workspace section), otherwise on Home. While it opens, the page says so.",
+					"Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.",
+					"Switch person (your name at the foot of the sidebar) is only about people."
+				]
+			},
+			{
+				heading: "Your role",
+				list: ["Where you’re an admin, your name at the foot of the sidebar says Admin.", "Workspace says your permissions in one line under its heading: an admin sees every section; anyone else is told which sections and changes are for admins, and who the admins are."]
+			},
+			{
 				heading: "Finding your way",
 				list: [
 					"On a computer, the sections are in a menu down the left; on a phone, Workspace opens as a list of them, and each section has Workspace at the top to go back.",
@@ -11126,7 +11140,8 @@ var CORE_ARTICLES = [
 				heading: "Overview",
 				list: [
 					"The workspace’s name (admins can rename it; a name has at most 80 characters, and the field counts them as you near the limit), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own, and for admins Reset the example, which only touches this browser).",
-					"Every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and tokens, how many optional features are on, whether recording is on and what was removed lately.",
+					"First, what needs attention here, each line leading to where it’s dealt with: the year ending (the wrap-up open, or opening within four weeks), no goals yet, new markups and feedback sent from this workspace, and for admins too few people, people with no email or no team, teams with no lead, and no review set up. When nothing does, it says so.",
+					"Then every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and tokens, how many optional features are on, whether recording is on and what was removed lately.",
 					"Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset."
 				]
 			},
@@ -11161,7 +11176,9 @@ var CORE_ARTICLES = [
 			"ADMIN",
 			"WORKSPACE-ADMIN",
 			"WORKSPACES",
-			"WORKSPACE-SECTIONS"
+			"WORKSPACE-SECTIONS",
+			"WORKSPACE-ONE-PLACE",
+			"LEAVE-WORKSPACE"
 		],
 		keywords: [
 			"admin",
@@ -11261,12 +11278,13 @@ var CORE_ARTICLES = [
 	{
 		id: "workspace-cycles",
 		title: "Workspace: Cycles",
-		summary: "For admins: the workspace’s cycles, newest first, and deleting one nobody has checked in to yet.",
+		summary: "For admins: the workspace’s goal years, newest first, with their dates, which one is running, the wrap-up, and deleting one nobody has checked in to yet.",
 		group: "you",
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Each cycle says whether it’s the one open now, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.",
+				"Each cycle shows its dates, whether it’s running (and which week it’s in), not started or over, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.",
+				"The running cycle leads to its wrap-up: See the wrap-up, or Wrap it up once it’s open.",
 				"A cycle nobody has checked in to can be deleted, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays.",
 				"A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped."
 			]
@@ -11293,7 +11311,11 @@ var CORE_ARTICLES = [
 		group: "you",
 		sections: [{
 			heading: "How to use it",
-			list: ["Admins lists everyone who is one. Make someone an admin, or stop them being one, from their entry in People. There is always at least one.", "AI assistants: Make a token for someone (it’s shown once), and revoke any token. The assistant then acts as that person, with their rights, and every change says it came through the assistant. See AI assistants."]
+			list: [
+				"Admins lists everyone who is one. Make someone an admin, or stop them being one, from their entry in People. There is always at least one.",
+				"In the demo, tokens don’t work: its data stays in your browser, where an assistant can’t reach it. Access says so, and the overview’s line for Access counts only the admins.",
+				"AI assistants: Make a token for someone (it’s shown once), and revoke any token. The assistant then acts as that person, with their rights, and every change says it came through the assistant. See AI assistants."
+			]
 		}, {
 			heading: "Who can",
 			text: ["Admins. Everyone finds their own tokens in Settings."]
@@ -11385,7 +11407,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"On Workspace, Features lists the parts of Faro this workspace can use, each with what it does. Untick one to switch it off for everyone here; tick it to switch it back on.",
+					"On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; the overview counts how many are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Untick one to switch it off for everyone here; tick it to switch it back on.",
 					"Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its tools for AI assistants. Anything that needs it goes off with it, and Features says so.",
 					"Nothing a feature saved is deleted. Switch it back on and everything is as it was.",
 					"Each switch is logged in Activity, with who did it.",
@@ -11662,7 +11684,8 @@ var CORE_ARTICLES = [
 			"MCP-FEEDBACK",
 			"CONNECT-CLAUDE",
 			"MCP-PICTURES",
-			"INBOX-TRIAGE"
+			"INBOX-TRIAGE",
+			"FEEDBACK-PAGE"
 		],
 		keywords: [
 			"inbox",
@@ -11858,6 +11881,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "workspace-one-place",
+		date: "2026-11-10",
+		title: "Workspace in one place",
+		points: [
+			"The workspace’s name at the top of the sidebar (on a phone, under the page’s name) is now the workspace switcher: every workspace, whether you’re an admin in this one, and setting up one of your own, which has moved there from Home.",
+			"Your name at the foot of the sidebar says Admin where you are one, and Workspace says your permissions: what’s for admins, and who they are. Switch person is only about people now.",
+			"Workspace’s overview starts with what needs attention here (the year ending, people with no email, no review set up, new feedback from this workspace), then lists every section.",
+			"Cycles shows each goal year’s dates, which one is running and its week, and leads to the wrap-up.",
+			"Set-up starts “Who are you?” as the person you are, and says when the outcome and goals steps are skipped. Features says it counts the optional parts of Faro; Access says AI tokens work only in the real app."
+		],
+		articles: [
+			"workspace",
+			"workspace-cycles",
+			"set-up",
+			"features",
+			"workspace-access"
+		]
+	},
 	{
 		id: "feedback-leave-recording",
 		date: "2026-11-10",

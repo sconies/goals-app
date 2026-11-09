@@ -7,6 +7,7 @@ import { NotAllowed, teamPeople, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
 import { currentWeek } from './plan';
 import { cycleStanding, leaveWorkspace } from './removal';
+import { cycleWhen, workspaceNeeds } from './workspaceAttention';
 import { MAX_WORKSPACE_NAME, nameLength, nameProblem } from './thresholds';
 import type { Snapshot } from './types';
 
@@ -24,7 +25,7 @@ describe('a cycle’s standing (backlog WS)', () => {
     const st = cycleStanding(s, s.cycles[0]!.id);
     expect(st.checkIns).toBeGreaterThan(0);
     expect(st.deletable).toBe(false);
-    expect(st.says).toMatch(/^\d+ goals, \d+ check-ins: it stays$/);
+    expect(st.says).toMatch(/^\d+ goals, \d{1,3}(,\d{3})* check-ins: it stays$/);
   });
   it('lets a second cycle nobody has checked in to be deleted', () => {
     const next = { ...s.cycles[0]!, id: 'c_next', name: '2027' };
@@ -78,5 +79,27 @@ describe('leaving a workspace yourself (backlog WS, Lane 9 Nov)', () => {
     expect(() => leaveWorkspace(ctx(one, 'grace'), {})).toThrow(NotAllowed);
     expect(() => leaveWorkspace(ctx(one, 'grace'), {})).toThrow('You’re the only admin here: make someone else an admin before you leave.');
     expect(leaveWorkspace(ctx(s, 'grace'), { goalsTo: 'amara', asksTo: 'amara' }).people?.[0]?.id).toBe('grace');
+  });
+});
+
+describe('what needs attention in a workspace (backlog WS)', () => {
+  const cycle = s.cycles[0]!;
+  it('tells admins what only they can fix, and everyone what anyone can', () => {
+    const bare = { ...s, people: s.people.slice(0, 2).map((p, i) => ({ ...p, email: undefined, teamId: i ? null : p.teamId })), goals: [], reviews: [], retros: [] };
+    const admin = workspaceNeeds(bare, cycle, 10, true, 3).map((x) => x.id);
+    expect(admin).toEqual(['no-goals', 'few-people', 'no-email', 'no-team', 'no-lead', 'no-review', 'feedback']);
+    const member = workspaceNeeds(bare, cycle, 10, false, 3);
+    expect(member.map((x) => x.id)).toEqual(['no-goals', 'feedback']);
+    expect(member[1]!.says).toBe('3 new markups and pieces of feedback were sent from this workspace.');
+  });
+  it('says when the year is ending, then when its wrap-up is open', () => {
+    expect(workspaceNeeds(s, cycle, cycle.weeks - 4, true, 0).find((x) => x.id === 'cycle-ending')?.says).toBe(`${cycle.name} ends soon: the wrap-up opens in 3 weeks, in week ${cycle.weeks - 1}.`);
+    expect(workspaceNeeds(s, cycle, cycle.weeks - 1, false, 0).map((x) => x.id)).toContain('wrap-up');
+    expect(workspaceNeeds(s, cycle, 20, false, null)).toEqual([]);
+  });
+  it('gives a cycle’s dates and where it stands', () => {
+    expect(cycleWhen({ startDate: '2025-12-22', weeks: 53 }, true, 45, today)).toEqual({ dates: '22 Dec 2025 to 27 Dec 2026, 53 weeks', now: 'Running: week 45 of 53' });
+    expect(cycleWhen({ startDate: '2026-12-28', weeks: 52 }, false, 45, today).now).toBe('Starts 28 Dec 2026');
+    expect(cycleWhen({ startDate: '2024-12-23', weeks: 52 }, false, 45, today).now).toBe('Over');
   });
 });

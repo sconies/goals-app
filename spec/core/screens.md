@@ -177,13 +177,13 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/workspace/overview` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins. Help: “Running the workspace” (`workspace`).
 - `/workspace/people` (`WorkspaceHome`): The directory of everyone in the workspace: find someone by name, job title or team; admins add people, change their details, make admins and mark people as left. Help: “Workspace: People” (`workspace-people`).
 - `/workspace/teams` (`WorkspaceHome`): The workspace’s teams, each with its lead and how many people and goals it has. Admins add, rename and remove them. Help: “Workspace: Teams” (`workspace-teams`).
-- `/workspace/cycles` (`WorkspaceHome`): For admins: the workspace’s cycles, newest first, and deleting one nobody has checked in to yet. Help: “Workspace: Cycles” (`workspace-cycles`).
+- `/workspace/cycles` (`WorkspaceHome`): For admins: the workspace’s goal years, newest first, with their dates, which one is running, the wrap-up, and deleting one nobody has checked in to yet. Help: “Workspace: Cycles” (`workspace-cycles`).
 - `/workspace/access` (`WorkspaceHome`): For admins: who the admins are, and the tokens AI assistants use to act as someone in this workspace. Help: “Workspace: Access” (`workspace-access`).
 - `/workspace/features` (`WorkspaceHome`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets. Help: “Features: switching parts of Faro on or off” (`features`).
 - `/workspace/privacy` (`WorkspaceHome`): The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use. Help: “What the app records” (`recording`).
 - `/workspace/removed` (`WorkspaceHome`): Anything you make can be taken away again: people leave, goals stop, check-ins, reviews, comments and views go, an import can be undone, and nothing is ever lost. Help: “Removing, stopping and undoing” (`removing`).
 
-- **Named parts:** “Workspace”, “Leave this workspace”, “Delete this workspace”, “Workspace sections (region)”, “What the app records (region)”, “Features (region)”
+- **Named parts:** “Workspace”, “Every section”, “Leave this workspace”, “Delete this workspace”, “Workspace sections (region)”, “Cycles (region)”, “What the app records (region)”, “Features (region)”
 - **Main action:** Run the workspace one section at a time, each with its own main action: Add a person on People, Add a team on Teams; the overview says what needs attention here.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_people`, `save_person`, `list_tokens`, `create_token`, `revoke_token`, `delete_workspace`, `rename_workspace`, `save_team`, `remove_team`, `set_recording`, `set_feature`, `mark_person_left`, `delete_person`, `list_removed`, `restore_removed`, `delete_cycle`

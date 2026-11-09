@@ -12,7 +12,9 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
+import { shortPeriod } from '../domain/year';
 import { Sheet } from './bits';
+import { Icon } from './Icon';
 
 /** Pages that exist in every workspace: a switch keeps you on them. Anything else (a goal, a check-in) goes Home. */
 const SAME_IN_EVERY = /^\/(goals|watching|reviews|activity|data|workspace(\/[a-z-]+)?|settings|help(\/[^/]+)?|whats-new|feedback|retro)?$/;
@@ -94,5 +96,73 @@ export function WorkspaceSwitchProvider({ children }: { children: ReactNode }) {
         </Sheet>
       )}
     </Ctx.Provider>
+  );
+}
+
+/**
+ * The workspace switcher (backlog WS): the sidebar's header (and, on a phone, the top bar's line under the page's name)
+ * names the open workspace and opens this. It lists every workspace you can open, says whether you're an admin here,
+ * leads to Workspace, and offers setting up a workspace of your own (moved here from Home, where Lane found it
+ * confusing). Switching is real navigation (useSwitchWorkspace). Even with one workspace it opens, for the rest.
+ */
+export function WorkspaceSwitcher({ variant }: { variant: 'side' | 'top' }) {
+  const app = useApp();
+  const switchTo = useSwitchWorkspace();
+  const nav = useNavigate();
+  const [open, setOpen] = useState(false);
+  const shown = app.opening ?? app.ws;
+  const name = shown.name.replace(/^Example:\s*/, '');
+  const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
+  const go = (to: string) => { setOpen(false); nav(to); };
+  const button = variant === 'side' ? (
+    <button type="button" className="ws-head ws-switch" title={shown.name} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      <span className="stack ws-head-text" style={{ gap: 0, minWidth: 0, flex: 1 }}>
+        {/* "Example: Platform Engineering" was cut to "Example: Platf…": the name, with "Example" as the quieter line. */}
+        <b className="ws-name">{name}</b>
+        <span className="tiny muted ws-meta">{app.opening ? 'Opening…' : `${app.ws.kind === 'example' ? 'Example · ' : ''}${shortPeriod(app.cycle, app.week)}`}</span>
+      </span>
+      <Icon name="chevron-down" size={14} className="ws-switch-chev" />
+      <span className="sr">: switch workspace, or set one up</span>
+    </button>
+  ) : (
+    <button type="button" className="ws-switch-top tiny muted" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      <span className="ellipsis">{app.opening ? `Opening ${shown.name}…` : `${app.ws.kind === 'example' ? 'Example data' : app.ws.name}, ${shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}`}</span>
+      <Icon name="chevron-down" size={12} />
+      <span className="sr">: switch workspace</span>
+    </button>
+  );
+  return (
+    <>
+      {button}
+      {open && (
+        <Sheet open onClose={() => setOpen(false)} title="Workspaces">
+          <div className="stack ws-switcher" style={{ gap: 'var(--s4)' }}>
+            <p className="small ws-role">{app.viewer.admin
+              ? <>You’re an <strong>admin</strong> in {app.ws.name}.</>
+              : <>You’re a member of {app.ws.name}. {admins.length ? `Its admins: ${admins.join(', ')}.` : ''}</>}</p>
+            <div className="stack" style={{ gap: 4 }} role="group" aria-label="Your workspaces">
+              <span className="field-label">{app.workspaces.length === 1 ? 'Your workspace' : `Your workspaces · ${app.workspaces.length}`}</span>
+              {app.workspaces.map((w) => (
+                <button key={w.id} type="button" className="menuitem ws-pick" aria-current={w.id === app.ws.id ? 'true' : undefined} onClick={() => { setOpen(false); switchTo(w.id); }}>
+                  <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
+                    <span className="strong ws-pick-name">{w.name}</span>
+                    <span className="tiny muted">{w.kind === 'example' ? 'Example data you can play with' : app.mode === 'demo' ? 'Your own, in this browser' : 'Your workspace'}</span>
+                  </span>
+                  {w.id === app.ws.id && <span className="tiny strong" style={{ color: 'var(--accent-text)' }}>You’re here</span>}
+                </button>
+              ))}
+            </div>
+            <div className="stack" style={{ gap: 4 }}>
+              <button type="button" className="menuitem ws-new" onClick={() => go('/workspace/new')}>
+                <span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Try it with your own team' : 'Set up a workspace'}</span><span className="tiny muted">{app.mode === 'demo' ? 'About 3 minutes; the example stays as it is.' : 'For another organisation, from a template or a spreadsheet, about 3 minutes.'}</span></span>
+              </button>
+              <button type="button" className="menuitem" onClick={() => go('/workspace')}>
+                <span className="stack" style={{ gap: 0 }}><span className="strong">Workspace</span><span className="tiny muted">What to look at in {app.ws.name}, its people, teams and settings</span></span>
+              </button>
+            </div>
+          </div>
+        </Sheet>
+      )}
+    </>
   );
 }
