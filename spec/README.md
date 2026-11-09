@@ -19,7 +19,7 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 | [modules/](modules/README.md) | One section per feature module, from its `module.json` |
 | [conformance/](conformance/README.md) | The demo workspace and what the rules give for every goal in every week, as CSV, with how a rebuild proves itself |
 | [rebuild/](rebuild/README.md) | The rebuild kit: the stages of a rebuild with entry and exit criteria, and the drill harness that scores stage 1 |
-| [requirements/internal/](requirements/internal/README.md) | What the internal app must do that Faro doesn’t build (sign-in and access, single sign-on, time zones, scale and safety), each with acceptance checks and its nearest rebuild stage |
+| [requirements/internal/](requirements/internal/README.md) | What the internal app must do that Faro doesn’t build (sign-in and access, single sign-on, time zones, scale and safety, the organisation, delegates, the planning round), each with acceptance checks and its nearest rebuild stage |
 
 ## Reading order for a rebuild of the core rules
 

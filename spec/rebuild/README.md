@@ -16,7 +16,7 @@ How to rebuild Faro from this folder and `llms.txt` alone, one stage at a time, 
 
 **What the kit fully supports today:** stage 1 only. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (43373 rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.
 
-**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others.
+**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others. Its goals store is the demo-scale port: before building on it for the whole company, read [the ports at company scale](ports-at-scale.md), the query and command ports that replace it.
 
 **What is an outline:** every other stage. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).
 
@@ -28,6 +28,9 @@ Some things the internal app must do, Faro leaves to the platform it is rebuilt 
 - [R2. Company single sign-on](../requirements/internal/r2-single-sign-on.md): signing in through the company’s identity provider, and leavers losing access the day they leave
 - [R3. Time zones](../requirements/internal/r3-time-zones.md): real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone
 - [R4. Scale and safety](../requirements/internal/r4-scale-and-safety.md): 15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key
+- [R6a. The organisation](../requirements/internal/r6a-organisation.md): teams in a tree, people with managers, levels set per workspace, and every list and count scoped to a part of the company
+- [R6b. Delegates](../requirements/internal/r6b-delegates.md): someone named to check in and answer asks for an owner while they are away, recorded as acting for them
+- [R6c. The planning round](../requirements/internal/r6c-planning-round.md): next cycle’s goals drafted, proposed and agreed before they go live, and counted nowhere until then
 - [Observability, as an idea](../requirements/internal/observability.md): not a requirement: what Faro records today, and what the internal app might take from it
 
 ## The drill: a fresh session rebuilds a stage from the kit alone
