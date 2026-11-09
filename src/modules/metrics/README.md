@@ -43,7 +43,7 @@ Read from `app.snapshot` (the open cycle, removed metrics already left out) and 
 
 Then, in the same change: list `/data/metrics` under `routes` and `data.tools` under `places` in `module.json`; add a Help article for the route in `src/modules/metrics/help.ts` and its id under `help`; add the screen to `SCREENS` in `src/mcp/parity.ts` (`Metrics: ['list_metrics', 'get_metric', 'save_metric', 'remove_metric']`); add its requirements to `evals/requirements.json` and `module.json`, and a journey. The screen file is `src/modules/metrics/Metrics.tsx` (a capitalised `.tsx` counts as a screen).
 
-**"Measured by" in New goal and goal edit.** The core already has the place: `goal.measure` (`src/core/app.tsx`, `PlaceProps`). It renders after "How it's measured" in New goal (`src/screens/GoalWizard.tsx`, step 2) and after the name in goal edit (`src/screens/GoalEdit.tsx`, whole edit and "Improve the definition"). It's given:
+**"Measured by" in New goal and goal edit.** The core already has the place: `goal.measure` (`src/core/app.tsx`, `PlaceProps`). It renders after "How it's measured" in New goal (`src/screens/GoalWizard.tsx`, the "How it's measured" step) and after the name in goal edit (`src/screens/GoalEdit.tsx`, whole edit and "Improve the definition"). It's given:
 
 - `goal`: the goal as saved, or `null` while it's new;
 - `kind`, `unit`, `teamId`: the form's as typed (to filter metrics by unit, and offer the goal's team as the slice);
@@ -77,9 +77,21 @@ The pickers use a plain search list for now (backlog 0a brings the shared find-a
 - **Labels in journeys:** on `/data/metrics` the search box is labelled "Search metrics by name", so `getByLabel('Name')` matches it too. Use `{ exact: true }` and wait for the form's heading first.
 - **Stay in the module.** A change to `src/core`, `src/app/state.tsx` or `src/domain/metrics.ts` is a rule change: it needs its own review, and it makes the evals run the full suite.
 
+## Small things the second rehearsal had to work out
+
+- **New goal has no goal yet.** `linkProblems(goal, metric)` needs a `Goal`; while the goal is new (`goal` is `null`), pass a stand-in built from the form (`{ kind: 'metric', unit }` plus a flat plan) so only the unit check applies; in goal edit pass `{ ...goal, unit } as Goal` with the typed unit.
+- **Styles** go in `src/modules/metrics/metrics.css`, imported by `Metrics.tsx`. Hairline rows only (design check P6).
+- **The Data link** is a screen too: `MetricsLink: ['list_metrics']` in `SCREENS`, and a `screens` entry in `help.ts`.
+- **The Help article** goes in group `data`, `after: 'data'`, as the spreadsheets module's does.
+- **The journey** sets all ten scores with `h.set`: entry, one-action, progress, budget, errors, finish, attention, parity, a11y, logged. Copy the spreadsheets module's journey (`U46` in `evals/journeys.cjs`) and change what it does.
+- **Leave `evals/report.md`:** an eval run rewrites it; restore it (`git checkout evals/report.md`), don't commit it.
+- **The rebuild stage** stays an outline in a live build: update the gap line in `module.json`'s `rebuild`; conformance rows and a drill come later.
+
 ## Before pushing the live build
 
-In this order:
+On stage, steps 1 to 3, then push and open the pull request so Vercel builds the preview, then step 4 while CI runs. Off stage, all of it before pushing (CLAUDE.md's quality gate). Either way, nothing merges before step 4 passes.
+
+Start with `npm ci` in a fresh session.
 
 1. `npm run typecheck`, `npm test`.
 2. `npm run spec`, and commit what it writes.
