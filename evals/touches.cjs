@@ -28,7 +28,7 @@ const RULES = [
   [/^(src\/mcp\/|server\/|api\/)/, ['U22']],
   [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U2', 'U16', 'U33', 'F1', 'N3', 'N6', 'P6']],
   [/^src\/screens\/Watching\.tsx/, ['U8', 'U9', 'F1']],
-  [/^src\/screens\/(CheckInFlow|QuickCheckIn)\.tsx|^src\/domain\/checkin\.ts/, ['U1', 'U15', 'U21', 'U25', 'U30', 'U31', 'U39', 'U40', 'U45', 'U57', 'F2', 'F9', 'N8']],
+  [/^src\/screens\/(CheckInFlow|QuickCheckIn)\.tsx|^src\/domain\/checkin\.ts/, ['U1', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'F2', 'F9', 'N8']],
   [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/domain\/templates\.ts/, ['U4', 'U18', 'U25', 'F3', 'F9']],
   [/^src\/screens\/(GoalScreen|Inspect|Respond)\.tsx|^src\/domain\/(goalPage|scorecard|story|chartStory|summary|summaryFacts|progress|trend)\.ts/, ['U6', 'U7', 'U36', 'U37', 'U38', 'U39', 'U57', 'F4', 'N2', 'N9', 'N6']],
   [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalCards|GoalFilters|GoalHistory)\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6']],

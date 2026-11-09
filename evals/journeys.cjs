@@ -1521,7 +1521,8 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
     if (asks) fail(`a number on plan asks why: ${(await row.innerText()).split('\n')[0]}`);
   }
   await h.click(p.getByRole('button', { name: /^Post/ }));
-  await see(p, 'Saved', 'posting the table did not confirm').catch(async (e) => {
+  // The table lands on the check-in's own confirmation (deep review U12).
+  await see(p, 'Posted from the table', 'posting the table did not confirm').catch(async (e) => {
     const said = (await p.locator('.toast, [role=alert], .qissues').allInnerTexts().catch(() => [])).join(' | ');
     fail(`${e.message}${said ? `: ${said}` : ''}`);
   });
@@ -1828,6 +1829,9 @@ journey('U37', ['PATH-TO-GREEN', 'ATTENTION', 'CHANGE-LOG', 'ONE-ASK'], 'Several
   await h.click(sheet.getByRole('button', { name: /Lead time for changes/ }));
   await see(p, 'one answer will cover all 4 goals', 'linking the request did not confirm');
   await h.checkpoint('linked');
+  // The number hasn't moved and neither has the reason: he says it's still true (deep review U9).
+  const still = p.getByLabel('Still true this week');
+  if (await still.isVisible().catch(() => false)) await h.click(still);
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Check-in saved', 'the check-in with the linked request did not post');
   // Amara, in the same demo data: the request shows once, for every goal; she answers it from Home.
