@@ -265,6 +265,8 @@ module.exports = {
     // Daniel runs the Developer Productivity fortnightly on Wednesday 11 November, as the demo does from /demo?today=2026-11-11.
     const talk = (route) => url(route).replace(/today=[\d-]+/, 'today=2026-11-11');
     const barText = async (p) => (await p.locator('.reviewbar .hint').innerText()).trim();
+    // The bar is read once it says what's expected, or after 4 seconds: straight after a move it can still be redrawing.
+    const barSays = async (p, re) => { for (let i = 0; i < 40; i++) { if (re.test(await barText(p).catch(() => ''))) return true; await p.waitForTimeout(100); } return false; };
     const goalOf = (p) => new URL(p.url()).pathname.split('/').pop();
     const walked = [];
     let total = 0;
@@ -286,12 +288,12 @@ module.exports = {
         await p.locator('.reviewbar').waitFor();
       }
       walked.push(goalOf(p));
-      fail(new RegExp(`^Goal ${k0 + 2} of ${total}`).test(await barText(p)), `T3: after two reviewed the bar says "${await barText(p)}", expected Goal ${k0 + 2} of ${total}`);
+      fail(await barSays(p, new RegExp(`^Goal ${k0 + 2} of ${total}`)), `T3: after two reviewed the bar says "${await barText(p)}", expected Goal ${k0 + 2} of ${total}`);
       await p.getByRole('button', { name: 'Close the review' }).click();
       await p.waitForURL(/\/reviews\/devprod(\?|$)/);
       await p.getByRole('button', { name: /^Continue review/ }).click();
       await p.locator('.reviewbar').waitFor();
-      fail(goalOf(p) === walked[2] && new RegExp(`^Goal ${k0 + 2} of ${total}`).test(await barText(p)), `T3: Continue review opened ${goalOf(p)} as "${await barText(p)}", expected ${walked[2]} as Goal ${k0 + 2} of ${total}`);
+      fail(await barSays(p, new RegExp(`^Goal ${k0 + 2} of ${total}`)) && goalOf(p) === walked[2], `T3: Continue review opened ${goalOf(p)} as "${await barText(p)}", expected ${walked[2]} as Goal ${k0 + 2} of ${total}`);
       fail(await p.getByRole('button', { name: 'Previous goal' }).isEnabled(), 'T3: Previous goal is disabled after Continue review');
 
       // The goals with nothing flagged: asked first, not the end of the review, and undone from the message.
