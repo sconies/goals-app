@@ -172,6 +172,16 @@ module.exports = {
       check(again.needs && !again.handled, '[ATTENTION-HANDLED] after a new check-in the red goal is not back under Needs attention');
       await c.close();
     }
+    // Review F13: the first-check-in note counts the whole workspace, whatever Goals is narrowed to, and says so.
+    {
+      const [c, p] = await open(1280, 900, 'amara', '/goals?show=mine');
+      const note = p.locator('.first-reports');
+      if (await note.count()) {
+        const t = (await note.innerText()).trim();
+        check(/^Across the whole workspace, \d+ of \d+ goals have had their first check-in\./.test(t), `F13: the first-check-in note doesn't say it counts the whole workspace: "${t.slice(0, 90)}"`);
+      }
+      await c.close();
+    }
     return fails;
   },
 };

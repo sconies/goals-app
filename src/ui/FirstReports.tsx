@@ -5,7 +5,7 @@ import { firstReports } from '../domain/progress';
 /**
  * While goals are still waiting for their first check-in: how many are in, and who hasn't reported yet. With `among`
  * (Home: your goals and the ones you watch), only while one of those is still waiting, as only then does it qualify what
- * the page lists. Goals says it whenever any goal is waiting.
+ * the page lists. Goals says it whenever any goal is waiting. The counts are always the workspace's, and say so.
  */
 export function FirstReports({ among }: { among?: readonly string[] }) {
   const app = useApp();
@@ -15,7 +15,8 @@ export function FirstReports({ among }: { among?: readonly string[] }) {
   const date = new Date(f.due + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
   return (
     <p className="first-reports small" role="status">
-      <strong>{f.reported} of {f.total} goals have had their first check-in.</strong> Until they have, “nothing needs attention” only means nobody has reported.
+      {/* The whole workspace's goals, whatever the page is narrowed to, so it says so (review F13). */}
+      <strong>Across the whole workspace, {f.reported} of {f.total} goals have had their first check-in.</strong> Until they have, “nothing needs attention” only means nobody has reported.
       {' '}Waiting on {names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(names.length === 2 ? ' and ' : ', ')}; this week’s are due {date}.
     </p>
   );

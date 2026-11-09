@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-09 10:26 UTC.
+Run 2026-11-09 10:28 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -22,7 +22,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**72 of 138 pass**, 1 fail, 65 untested. Spec scenarios 270/271.
+**71 of 138 pass**, 1 fail, 66 untested. Spec scenarios 270/271.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -90,7 +90,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ⚪ | **OTHER-CAUSE** When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause. | Check-ins | 0 | — |
 | ⚪ | **DEMO-FEEDBACK** Feedback sent from the demo reaches the people building the app: it is kept with the research notes, with the screen, the person being played and how they felt, and one id per visitor. The thanks says where it went. | Research | 0 | — |
 | ⚪ | **FIT-AND-FINISH** The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge. | Platform | 0 | — |
-| ✅ | **FIT-AND-FINISH-AREAS** The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area. | Platform | 0 | F4 |
+| ⚪ | **FIT-AND-FINISH-AREAS** The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area. | Platform | 0 | — |
 | ✅ | **CALENDAR-WEEKS** A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's. | Cycles | 6 | — |
 | ⚪ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | — |
 | ⚪ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | — |
@@ -115,8 +115,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ⚪ | **CHART-READ** On a goal's chart the plan and the actual never look alike: the plan is a broad pale band and the actual a thin solid line, different in width and colour in every theme and accent; each chart says which way is better (higher or lower) in its corner. | Plans | 0 | — |
 | ✅ | **PROJECTION-RANGE** The projection is steady on a noisy number and called exactly on a clean trend: one more noisy week moves it by a few points, not tens; it is a range everywhere it's shown (the chart, Home and reviews' warnings, exports and the AI assistant's get_goal). | Plans | 2 | — |
 | ✅ | **GOAL-SHARE** Share image makes a PNG of the goal's summary bar and a small chart, with the goal's link, without a new library: copied to the clipboard where the browser allows, otherwise saved through the one file saver with the link copied. | Goals | 1 | — |
-| ✅ | **ATTENTION-HANDLED** Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI). | Attention | 11 | — |
-| ✅ | **HOME-DASHBOARD** Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. | Home | 5 | — |
+| ✅ | **ATTENTION-HANDLED** Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI). | Attention | 11 | N3 |
+| ✅ | **HOME-DASHBOARD** Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. | Home | 5 | N3 |
 | ✅ | **SETTINGS** A Settings page holds personal choices that are remembered: light, dark or system, an accent colour, a collapsed or full side navigation, and your AI assistant tokens. Detail pages have a Back link to where you came from. | Interface | 13 | — |
 | ⚪ | **NAV-GOALS** Goals is one section of the navigation with Mine, Watching and All, and your saved views under it; a person in one workspace never sees a workspace switcher. | Interface | 0 | — |
 | ✅ | **WORKSPACE-ADMIN** Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. | Workspace | 6 | — |
@@ -167,7 +167,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Platform checks
 
-- ✅ **F4** Fit and finish, goal-history
+- ✅ **N3** Review notes, attention-home
 - ✅ **P5** No console or page errors across every journey
 
 ## Failing scenarios
