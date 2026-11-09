@@ -75,6 +75,7 @@ export const ACCESS: Access[] = [
   { area: 'Reviews', what: 'Change a review', who: 'Someone in it, whoever set it up, or an admin', code: [`${A}saveReview`] },
   { area: 'Reviews', what: 'Say something about a goal in a review (seen, a note, a question, an action)', who: 'Anyone; a question or action on your own goal is a note instead', code: [`${A}reviewCall`] },
   { area: 'Reviews', what: 'Correct what was said in a review, or an ask’s words', who: 'Whoever said or asked it, or an admin', code: [`${A}editCall`] },
+  { area: 'Reviews', what: 'Undo marking goals reviewed in a session', who: 'Whoever marked them, or an admin', code: [`${R}unmarkReviewed`] },
   { area: 'Reviews', what: 'Remove a note said in a review', who: 'Whoever said it, or an admin', code: [`${R}deleteNote`] },
   { area: 'Reviews', what: 'End a review, or delete one never held', who: 'Whoever set it up, or an admin', code: [`${R}endReview`, `${R}deleteReview`, `${R}reviewHeld`] },
   { area: 'Views and watching', what: 'Watch a goal, a tree or a level; stop watching', who: 'Anyone, for their own watches', code: [`${A}watch`, `${A}unwatch`] },

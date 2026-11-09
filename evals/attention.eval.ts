@@ -140,7 +140,8 @@ describe('the AI assistant sees the same split', () => {
   }
   it(R('ATTENTION-HANDLED', 'get_my_work lists the owner’s handled goal apart, with what’s in hand'), async () => {
     const w = await (await as('chen'))('get_my_work');
-    expect(w.data!.needsAttention.map((g: { id: string }) => g.id)).toEqual(['cfr-tests']);
+    // Nothing of Chen's needs attention: cfr-tests heads for 88–90% against 90%, which isn't heading short (deep review T5).
+    expect(w.data!.needsAttention.map((g: { id: string }) => g.id)).toEqual([]);
     expect(w.data!.beingHandled).toEqual([expect.objectContaining({ id: 'dep-jenkins', inHand: `Reviewed in Developer Productivity fortnightly, week ${week - 1}` })]);
     expect(w.text).toMatch(/Being handled .*Jenkins jobs still running \(At risk \(risk\)\): Reviewed in Developer Productivity fortnightly/);
   });
