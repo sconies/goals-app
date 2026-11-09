@@ -8,7 +8,7 @@ Lane's ideas and the follow-ups found along the way, in the order they should be
 
 **How items are ordered:** by what they unblock first, then value against effort. Effort: S (under a day), M (a release), L (more than one release).
 
-**In progress (9 Nov):** 8c and the live-build rehearsals are merged. Building: 8g (drill gaps and drill 2), G (phone Goals page), a hotfix for the Goals page's search box, URLs and history, a hotfix for the goal page (target sanity check, Done forecasts, labels, updated date), and R (review leftovers, F16 first). Next on the Goals page: GP, once both have landed.
+**In progress (9 Nov, evening):** merged today: 8c (#58), live-build kit (#56, #60), G (#61), the Goals search hotfix (#62), the goal-page hotfix (#63). Building: 8g with drill 2 (#59, 100% from the kit), R (#64), GP.
 
 ## Build, in order
 
