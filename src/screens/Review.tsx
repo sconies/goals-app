@@ -8,7 +8,7 @@ import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
-import { answerOf, dayText, daysPast, goalsIn, isHealthy, lastHeld, nextSessionWeek, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionDate, sessionState, sessionStateText, type ReviewSession, type SessionState } from '../domain/review';
+import { answerOf, dayText, daysPast, goalsIn, isHealthy, lastHeld, nextSessionDate, nextWhen, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionState, sessionStateText, sessionWhen, type ReviewSession, type SessionState } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
 import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
@@ -78,14 +78,18 @@ function ReviewLine({ s }: { s: ReviewSession }) {
   const actions = openActions(s.review, app.snapshot).length;
   const people = s.review.people.map((id) => app.person(id)).filter((p) => !!p);
   const past = daysPast(s, app.today);
+  const next = nextSessionDate(s, app.cycle, app.week, app.today);
+  // A session past its date is outstanding, and the next one is named beside it, not instead (review F07).
   const facts: [string, string][] = st.kind === 'held'
-    ? [['Next', dayText(sessionDate(s.review, app.cycle, nextSessionWeek(s.review, s.week)))], ['Open actions', String(actions)]]
-    : [['Session', dayText(s.date)], ['Last held', last ? dayText(last.on) : 'Not yet'], ['Open actions', String(actions)]];
+    ? [['Next', next ? dayText(next) : 'None this cycle'], ['Open actions', String(actions)]]
+    : past > 0
+      ? [['Outstanding from', dayText(s.date)], ...(next ? [['Next', dayText(next)] as [string, string]] : []), ['Open actions', String(actions)]]
+      : [['Session', dayText(s.date)], ['Last held', last ? dayText(last.on) : 'Not yet'], ['Open actions', String(actions)]];
   return (
     <Link className="arow rv-line" to={`/reviews/${s.review.id}`}>
       <SessionStateWord st={st} />
       <span className="rv-name">{s.review.name}</span>
-      <span className="rv-facts">{facts.map(([k, v]) => <span key={k} className="rv-fact"><span className="rv-fact-k">{k}</span> <span className="rv-fact-v">{v}</span>{k === 'Session' && past > 0 && <span className="rv-past"><WarnMark />{pastText(past)}</span>}</span>)}</span>
+      <span className="rv-facts">{facts.map(([k, v]) => <span key={k} className="rv-fact"><span className="rv-fact-k">{k}</span> <span className="rv-fact-v">{v}</span>{k === 'Outstanding from' && <span className="rv-past"><WarnMark />{pastText(past)}</span>}</span>)}</span>
       <span className="rv-people"><span className="rv-fact-k">People</span> <span className="rv-names">{people.map((p) => firstName(p.name)).join(', ')}</span></span>
     </Link>
   );
@@ -197,11 +201,13 @@ export function ReviewHome() {
   const remaining = walk.filter((a) => !s.covered.has(a.goal.id));
   const reviewedItems = s.items.filter((a) => s.covered.has(a.goal.id));
   // One terse line under the name: the date and what's on, or where it got to.
-  const line = done
-    ? `${sessionStateText(st)} · next ${dayText(sessionDate(review, app.cycle, nextSessionWeek(review, s.week)))}`
+  // A session past its date says "Outstanding from …", and the next one is named apart from it (review F07).
+  const next = nextWhen(s, app.cycle, app.week, app.today);
+  const line = (done
+    ? [sessionStateText(st), next]
     : st.kind === 'in-progress'
-      ? `${dayText(s.date)}${daysPast(s, app.today) ? ` (${pastText(daysPast(s, app.today))})` : ''} · ${reviewedText(s)}`
-      : [dayText(s.date) + (daysPast(s, app.today) ? ` (${pastText(daysPast(s, app.today))})` : ''), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} with nothing flagged` : ''].filter(Boolean).join(' · ');
+      ? [sessionWhen(s, app.today), reviewedText(s), next]
+      : [sessionWhen(s, app.today), exceptions.length ? `${exceptions.length} to discuss` : '', healthy.length ? `${healthy.length} with nothing flagged` : '', next]).filter(Boolean).join(' · ');
 
   return (
     <div className="page narrow review-home" data-part="Review">

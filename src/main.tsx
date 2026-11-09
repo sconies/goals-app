@@ -8,6 +8,7 @@ import { applyAppearance } from './app/appearance';
 import { startSplash } from './ui/Splash';
 import { telemetry } from './telemetry';
 import { installBrowser } from './telemetry/browser';
+import { installStaleCodeReload, recoverFromStaleCode } from './telemetry/staleCode';
 import { tracedStore } from './telemetry/store';
 import { shapeAgrees } from './domain/vocabulary';
 import './styles.css';
@@ -39,6 +40,8 @@ applyAppearance();
 startSplash();
 // Errors, load timings and the page closing (src/telemetry). Records nothing without a database.
 installBrowser(telemetry);
+// After a deploy, a tab running the old build reloads once when a part of it has gone (review F16).
+installStaleCodeReload();
 
 /** Everything under /demo is the demo: the example data in this browser, with a role switcher and a reset. */
 const mode: Mode = location.pathname === '/demo' || location.pathname.startsWith('/demo/') ? 'demo' : 'live';
@@ -89,6 +92,7 @@ void store(today).then(
     </StrictMode>,
   ),
   (e: unknown) => {
+    if (recoverFromStaleCode(e)) return;
     root.render(<div className="boot"><div className="boot-card"><span className="h3">The app couldn’t start</span><p className="muted">{e instanceof Error ? e.message : String(e)}</p><button className="btn primary" onClick={() => location.reload()}>Try again</button></div></div>);
   },
 );

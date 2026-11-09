@@ -35,6 +35,19 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['needs-attention', 'goals', 'goals-filters', 'history'],
   },
   {
+    id: 'review-leftovers',
+    date: '2026-11-09',
+    title: 'Smaller things from the full review',
+    points: [
+      'When Faro is updated while you have it open, a page that can’t load the part it needs reloads itself once, at the same address, instead of showing an error. Anything you were typing is kept.',
+      'Small amounts of money keep their decimals in forecasts: “about $0.63”, not “about $1”.',
+      'A review session past its date says “Outstanding from” its date, with the next session beside it, on Reviews, on the review’s page and in the bar you walk it with.',
+      'Weekly history says “Done since week 37” after a goal is done; a quarter it didn’t meet reads as quiet history once it’s on track; the first-check-in note says it counts the whole workspace.',
+      'Correcting a check-in in the same week asks about this week’s earlier check-in, not last week’s. Data’s columns start compact, so more fit on the screen.',
+    ],
+    articles: ['any-device', 'reviews', 'history', 'check-in', 'data'],
+  },
+  {
     id: 'goal-page-fixes',
     date: '2026-11-09',
     title: 'A goal page that never contradicts itself',

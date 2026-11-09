@@ -25,7 +25,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/check-in` (`CheckInFlow`): A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next. Help: “Checking in on a goal” (`check-in`).
 - `/check-in/:goalId` (`CheckInFlow`): A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next. Help: “Checking in on a goal” (`check-in`).
 
-- **Named parts:** “Check-in saved”, “Is what you said last week still true?”, “This week (region)”, “What you said last week (region)”, “What changed, and what happens next (region)”
+- **Named parts:** “Check-in saved”, “This week (region)”, “What changed, and what happens next (region)”
 - **Main action:** Post this week’s check-in, one goal at a time.
 - **Primary buttons in its markup:** “Open the goal”, “Save and skip”, “Back to home”
 - **AI tools:** `post_check_in`, `link_request`

@@ -18,21 +18,25 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 | The rebuild kit and its drill | `spec/rebuild/README.md`; the harness is `npm run drill -- <folder>` (item 8k) |
 | Handing Faro to the internal team: the checklist | `docs/handoff.md` (hand-written; keep it in step with 8g, 0c, 8c, 11) |
 
-## State on Sunday 8 November, night
+## State on Monday 9 November, night
 
-- **What Faro is for:** a model the company's internal team will copy and adapt (copy the code, plug in their own platform), plus demos and an off-site. Never real data. **Lane presents it on Wednesday 11 Nov** to a mixed audience (leaders and engineers), including **building a feature live with AI**.
-- **Shipped 7–8 Nov (all on main, CI green):** inbox with Claude (#40), faster tests (#41), feature modules (#42), spec + conformance (#43), rebuild kit and drill harness (#44), spec-only requirements R1–R4 (#45), demo polish (#47), open inbox (#48), set-up polish (#49), Workspace sections + real inbox (#50), numbers and names (#51), metric library back end (#52), Wednesday blockers (#53).
-- **Drill 1:** a fresh lighter-model session rebuilt the core rules from the kit alone: 100% of 302,370 values. Gaps in `docs/reviews/2026-11-08-drill-1.md` (8g, after Wednesday).
-- **Merged late 8 Nov:** PR #54 (backlog I): home-screen icon C, the lighthouse splash (about 2.5 s, once per launch), and the welcome page for leaders with Lane's line-by-line wording. Nothing is building now.
-- **Monday 9 Nov, before the talk:**
-  1. **Rehearse the live build:** a fresh session runs the brief in `docs/live-build/metrics.md` (screens for the metric library: Metrics page under Data, "Measured by" in the empty `goal.measure` place, the metric on the goal page). Time it; keep the result on an unmerged branch `demo/metrics-live-fallback` with its preview link. Fix the brief if it stumbles. The back end's guide is `src/modules/metrics/README.md`.
-  2. **Finalise** `docs/demo-script.md` and `docs/live-build/metrics.md` with what shipped (Workspace sections are in; metric library back end is in; drill 1 result; mention the splash and icon), and send Lane a short dry-run checklist.
-- **After Wednesday, in order:** 8g (close drill gaps, drill 2 saving its code in `docs/drills/`), 0c (Faro's own Supabase project: the shared one also holds another app's real family data; Lane creates the project), 8c (swappable parts + number source), 0a (find-and-pick), L (weekly loop + rhythm strip), small batch (G phone Goals page, 0u, 7, 10a, R5 + admin/member polish), 3a, 0t, 11. Wednesday's feedback may change it.
+- **What Faro is for:** a model the company's internal team will copy and adapt, plus demos and an off-site. Never real data. **Lane presents it on Wednesday 11 Nov** (moved from Tuesday) to leaders and engineers, including **building the metric library's screens live** (`docs/live-build/metrics.md`, script `docs/demo-script.md`, dry-run `docs/live-build/checklist.md`).
+- **Merged 9 Nov (main, CI green):** live-build kit and rehearsal lessons (#56, #60), 8c swappable parts (#58: `src/ports`, `src/adapters`, a plain-Postgres store, `spec/rebuild/adapters.md`), G phone Goals page (#61), Goals search/URL/history hotfix (#62), goal-page hotfix (#63: plan sanity check, Done goals show their result, "Updated" date), review triage GP/GD/NAV/MAP (#65), R review leftovers (#64: F16 reload after deploy, F03, F07, F08–F10, F13, F14).
+- **Live-build rehearsals:** run 1 (answer 3 "with a reason") 21 min to preview, 41 to green CI (#55); **run 2, the fallback** (#57, brief as on stage) 13 min to preview, 16 to green. Neither is merged; never merge them. Previews are behind Vercel sign-in.
+- **Building on the night of 9 Nov (each reports once to the planning session; Lane pre-approved "merge any time" when green and reviewed):**
+  - **8g** (#59): drill gaps closed; **drill 2 scored 100% (360,109 values) from the kit alone**, no answers read from the scorer. Being brought up to date with main.
+  - **GP** (branch `goals-decisions`): Needs attention shows handled goals in a "Being handled" group (Lane), Cards layout cut (Lane), health line, worst-first across trees, Board tweaks, History values; plus Lane's evening asks: "Being handled" explains itself everywhere, and New goal is no longer the Goals page's big button (the sidebar entry stays).
+  - **faro-mark** (branch `faro-mark`): the workspace initial top-left becomes Faro's F mark (Lane).
+  - **WS** (branch `workspace-rework`, Lane: before Wednesday): Workspace truthfulness bugs, the Inbox moved out of Workspace as a global "Feedback" place (open, never emails), reset admin-only plus Leave, recording asked at set-up, a persistent workspace switcher, "Admin" on badges and a permissions line, a real Overview and Cycles, Home's set-up prompt moved. Review: an outside deep dive of Workspace on 9 Nov (in Lane's chat, summarised in WS's brief).
+- **When GP and WS land:** update `docs/demo-script.md` with the changes they list (Needs attention numbers, Inbox location, review walkthrough's "Outstanding" line from R, the first-check-in note), then Lane's dry run on Tuesday evening.
+- **After Wednesday, in order:** 0c (own database: free Supabase tier allows 2 active projects and Lane has 2; options are Supabase Pro or plain Postgres via 8c's adapter), 0a, L, GD, NAV, MAP, small batch (0u, 10a, R5), 3a, 0t, 11. Wednesday's feedback may change it.
 - **Things to know:**
-  - The repo is **public** (8 Nov) so CI is free; nothing secret is in it.
-  - The live app's health check: `https://goals-app-puce-five.vercel.app/api/mcp?check` (database and pictures should be true; the service role key is on Vercel).
-  - Builds run in the cloud environment **goals-app** (it can reach the app and Supabase). The database has **no workspaces** (the "tester" one was deleted on 8 Nov), so no AI token works until Lane makes one in a new workspace.
-  - Reviews of the app by an outside reviewer are in `docs/reviews/` with triage; their open points are in the backlog.
+  - The repo is **public** so CI is free; nothing secret is in it.
+  - Health check: `https://goals-app-puce-five.vercel.app/api/mcp?check`.
+  - Builds run in the cloud environment **goals-app**. The database has no workspaces, so no AI token works until Lane makes one.
+  - **Build sessions block on permission prompts** (Send Message, Send Later) when nobody is watching; several sat for hours on 9 Nov. Their reports can be read from their transcripts (`list_events`, assistant kind). Pre-approving those tools in `.claude/settings.json` is Lane's to do. Tell builds not to use scheduling tools.
+  - Lane's Telegram bot (Keel, @Lane_claude_bot, token in the `api.telegram.org.` environment) didn't receive messages through a relay session on 9 Nov; parked.
+  - Outside reviews and their triage are in `docs/reviews/`; open points are in the backlog.
 
 ## How the planning session should run (lesson of 8 Nov)
 

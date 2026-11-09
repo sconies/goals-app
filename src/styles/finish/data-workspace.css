@@ -243,3 +243,13 @@
   .focus-onboard .optlist .opt[role="radio"]::before { grid-row: 1 / span 2; }
   .focus-onboard .optlist .opt[role="radio"] > .hint { grid-column: 2; text-align: left; }
 }
+
+/* Review F14 (9 Nov): a compact default layout. A field no longer takes the browser's wide default (about 210px), nor
+   a dropdown the width of its longest choice (Team was 416px): text 160px, figures 96px, choices 152px, cut with an
+   ellipsis (the whole value is in the field, and on hover). A width set by hand still wins. */
+.dtable .dcell input { width: 160px; min-width: 0; }
+.dtable .dcell.num input { width: 96px; }
+.dtable .dcell select { width: 152px; min-width: 0; max-width: 152px; }
+.dtable .dcell.sized input, .dtable .dcell.sized select { width: 100%; max-width: none; }
+.dtable .dcell.ro:not(.dname) { max-width: 240px; }
+.dtable td.dname select { max-width: none; }

@@ -14,6 +14,17 @@ describe('chart story in plain words (Lane, 5 Nov)', () => {
     expect(sayDiff(3, pct)).toBe('3 points');
     expect(sayDiff(1, pct)).toBe('1 point');
   });
+  it('keeps the goal’s decimals in small amounts of money (review F03)', () => {
+    const usd = { kind: 'metric', unit: 'USD', decimals: 2, plan: { start: 0.64, target: 0.62, shape: 'linear' } } as unknown as MetricGoal;
+    expect(sayAmount(0.62, usd)).toBe('$0.62');
+    expect(sayAmount(0.6, usd)).toBe('$0.60');
+    expect(sayAmount(1250.5, usd)).toBe('$1.3k');
+    const kd = { ...money, decimals: 2 } as MetricGoal;
+    expect(sayAmount(1.25, kd)).toBe('£1.25k');
+    const s = headingSentence(usd, { likely: 0.63, low: 0.62, high: 0.64 }, true, 'by 3 Jan');
+    expect(s).toContain('about $0.63');
+    expect(s).toContain('target of $0.62');
+  });
   it('heading: the likely end, the range, and how close to the target, in a sentence', () => {
     const s = headingSentence(money, { likely: 3558, low: 3409, high: 3706 }, true, 'by 3 Jan');
     expect(s).toBe('On its recent trend it ends at about £3.56m by 3 Jan (somewhere between £3.41m and £3.71m), just missing its target of £3.6m. Projected by the app from the last eight weeks, not the owner’s date.');
