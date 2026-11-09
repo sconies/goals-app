@@ -232,6 +232,16 @@
       "text": "The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address."
     },
     {
+      "id": "METRICS-PAGE",
+      "area": "Data",
+      "text": "Data has a Metrics page at /data/metrics: every metric in the library with its unit, which way is better, its owner, how many goals it measures and which teams use them (a company-wide link counts as the whole company), searchable by name. One form adds and edits a metric: name, unit and direction required; meaning and calculation, decimals, source and its owner, refresh, owner and caveats optional. Anyone adds; its owner or an admin edits or removes. It is the metrics module (src/modules/metrics)."
+    },
+    {
+      "id": "MEASURED-BY",
+      "area": "Data",
+      "text": "New goal and goal edit offer Measured by: pick a metric from the library (those in the goal's unit first) or create one in place, for the goal's team or the whole company, with the link's problems shown before saving. A goal can change its metric freely. The goal's page shows its metric, what it means, the slice and the goal's target in it."
+    },
+    {
       "id": "SPREADSHEETS-ON-DATA",
       "area": "Data",
       "text": "Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template (every sheet’s headers and README, no rows), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets)."

@@ -3,10 +3,16 @@
   "name": "Metric library",
   "summary": "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
   "needs": [],
-  "routes": [],
+  "routes": [
+    "/data/metrics"
+  ],
   "redirects": [],
   "navigation": [],
-  "places": [],
+  "places": [
+    "data.tools",
+    "goal.measure",
+    "goal.sections"
+  ],
   "tables": [
     {
       "name": "okr_metrics",
@@ -26,9 +32,16 @@
     "remove_metric",
     "link_goal_metric"
   ],
-  "help": [],
-  "requirements": [],
-  "journeys": [],
+  "help": [
+    "metrics"
+  ],
+  "requirements": [
+    "METRICS-PAGE",
+    "MEASURED-BY"
+  ],
+  "journeys": [
+    "U53"
+  ],
   "elsewhere": [
     "src/domain/metrics.ts",
     "src/data/platformOrg/metrics.ts"
@@ -48,7 +61,7 @@
       "The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move)."
     ],
     "gaps": [
-      "No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).",
+      "The screens are built (the Metrics page under Data, “Measured by” in the goal forms, the metric on a goal’s page); journey U53 walks them.",
       "No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.",
       "Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
     ]

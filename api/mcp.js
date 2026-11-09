@@ -31922,6 +31922,52 @@ function dashboard(personId, s, cycle, week, today) {
 }
 // \0virtual:faro-modules/help
 var help_default = [{
+	id: "metrics",
+	part: [{
+		id: "metrics",
+		title: "Metrics",
+		summary: "Define each number goals are measured by once, then say which metric measures a goal, for its team or the whole company.",
+		group: "data",
+		after: "data",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"On Data, choose Metrics. Every metric is listed with its unit, which way is better, its owner, how many goals it measures and which teams use it. Search by name.",
+				"Add a metric: give it a name, a unit and which way is better; everything else is optional (what it means and how it’s calculated, decimals, the source and who owns it, how often it refreshes, its owner and caveats).",
+				"Open a metric to see its definition and the goals it measures. Its owner or an admin can edit or remove it; removing unlinks its goals, with Undo, and it can be restored later from Workspace, Recently removed.",
+				"On New goal and when editing a goal, Measured by picks a metric from the library (those in the goal’s unit first) or creates one there and then. Choose whether it’s the team’s number or the whole company’s.",
+				"The goal must be in the metric’s unit, and a goal with dated stages can’t be measured by one. A goal aiming the other way from the metric’s better direction is allowed, with a warning.",
+				"A goal’s page shows the metric it’s measured by, what it means, for which team, and the goal’s target in it.",
+				"A goal can change its metric at any time, even after check-ins; the change is in its history."
+			]
+		}, {
+			heading: "Who can",
+			text: ["Anyone adds a metric and owns it unless they name another owner. Its owner or an admin changes or removes it. A goal’s owner or an admin chooses what measures it."]
+		}],
+		routes: ["/data/metrics"],
+		screens: [
+			"Metrics",
+			"MetricsLink",
+			"MeasuredBy",
+			"GoalMetric"
+		],
+		reqs: ["METRICS-PAGE", "MEASURED-BY"],
+		keywords: [
+			"metric",
+			"metrics",
+			"library",
+			"definition",
+			"measured by",
+			"unit",
+			"direction",
+			"source",
+			"owner",
+			"kpi",
+			"team"
+		],
+		related: ["data", "export"]
+	}]
+}, {
 	id: "spreadsheets",
 	part: [{
 		id: "import",
@@ -34111,6 +34157,18 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "metric-library-screens",
+		date: "2026-11-09",
+		title: "A library of metrics, and what measures each goal",
+		points: [
+			"Data has a Metrics page: every number goals are measured by, defined once, with its unit, which way is better, its owner, how many goals use it and which teams. Search it by name.",
+			"Add or edit a metric in one form. Only its name, unit and which way is better are needed; its meaning, source, refresh, owner and caveats can follow.",
+			"New goal and goal edit have Measured by: pick a metric, or create one there and then, for your team or the whole company.",
+			"A goal’s page shows the metric it’s measured by and what it means."
+		],
+		articles: ["metrics"]
+	},
+	{
 		id: "home-screen-icon-and-splash",
 		date: "2026-11-08",
 		title: "A clearer icon, a lighthouse, a new first page",
@@ -34862,10 +34920,14 @@ var _virtual_faro_modules_default = [{
 	name: "Metric library",
 	summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
 	needs: [],
-	routes: [],
+	routes: ["/data/metrics"],
 	redirects: [],
 	navigation: [],
-	places: [],
+	places: [
+		"data.tools",
+		"goal.measure",
+		"goal.sections"
+	],
 	tables: [{
 		"name": "okr_metrics",
 		"migration": "0033_metric_library.sql",
@@ -34882,9 +34944,9 @@ var _virtual_faro_modules_default = [{
 		"remove_metric",
 		"link_goal_metric"
 	],
-	help: [],
-	requirements: [],
-	journeys: [],
+	help: ["metrics"],
+	requirements: ["METRICS-PAGE", "MEASURED-BY"],
+	journeys: ["U53"],
 	elsewhere: ["src/domain/metrics.ts", "src/data/platformOrg/metrics.ts"],
 	rebuild: {
 		"status": "outline",
@@ -34898,7 +34960,7 @@ var _virtual_faro_modules_default = [{
 			"The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move)."
 		],
 		"gaps": [
-			"No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).",
+			"The screens are built (the Metrics page under Data, “Measured by” in the goal forms, the metric on a goal’s page); journey U53 walks them.",
 			"No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.",
 			"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
 		]

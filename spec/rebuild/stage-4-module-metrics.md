@@ -20,8 +20,8 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 
 ## Exit criteria
 
-1. Its requirements hold: none listed (words in [its section](../modules/metrics/README.md#requirements)).
-2. Its journeys and checks can be done: none listed ([its section](../modules/metrics/README.md#journeys-and-checks)).
+1. Its requirements hold: `METRICS-PAGE`, `MEASURED-BY` (words in [its section](../modules/metrics/README.md#requirements)).
+2. Its journeys and checks can be done: U53 ([its section](../modules/metrics/README.md#journeys-and-checks)).
 3. A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.
 4. Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.
 5. A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.
@@ -30,6 +30,6 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 
 ## Gaps in the kit
 
-- No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).
+- The screens are built (the Metrics page under Data, “Measured by” in the goal forms, the metric on a goal’s page); journey U53 walks them.
 - No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.
 - Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md.
