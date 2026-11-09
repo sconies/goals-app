@@ -30,6 +30,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere.',
       'The Board shows up to eight on-track goals before Show all, and each card says which goal it feeds into. History ends each row with the goal’s number now.',
       'Cards has gone: List shows everything it did. A link or saved view that opened Cards opens List and says so once.',
+      'Being handled now says what it means wherever it appears: someone looked at these after their latest check-in, and they come back under Needs attention if anything new happens. New goal on Goals is a quiet link; the sidebar’s New goal is unchanged.',
     ],
     articles: ['needs-attention', 'goals', 'goals-filters', 'history'],
   },

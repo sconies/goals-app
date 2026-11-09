@@ -157,12 +157,18 @@ export const ATTENTION = {
     rule: 'attention#needsAttention',
   }),
   handled: term('handled', {
-    label: 'Being handled', short: 'behind, and someone has looked',
-    meaning: 'Behind, but someone has looked since the latest check-in and nothing new has happened.',
+    label: 'Being handled', short: 'looked at since its latest check-in',
+    meaning: 'Someone looked at it after its latest check-in. It comes back to Needs attention if anything new happens.',
     long: 'Off track or at risk, and since its latest check-in someone other than the owner marked it reviewed or noted it, an action was agreed (and isn’t overdue), or its request was answered. A new check-in or a new flag makes it need attention again.',
     rule: 'attention#handledFor',
   }),
 } as const;
+
+/**
+ * Being handled, said under the words wherever a group of them is shown (Lane, 9 Nov: "I don't even know what that
+ * means"): Home, Watching, the Needs attention list, the count's note and reviews all use this one line.
+ */
+export const HANDLED_LINE = 'Someone looked at these after their latest check-in. They come back under Needs attention if anything new happens.';
 
 /** What the numbers would otherwise hide, on a goal's story, besides the flags above. Not a reason to need attention on its own. */
 export type WarningKind = 'slipped' | 'same-cause' | 'missed-quarter';

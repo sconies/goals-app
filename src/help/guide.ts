@@ -7,7 +7,7 @@
 import { CAUSES_AHEAD, CAUSES_BEHIND } from '../domain/checkin';
 import { RULES } from '../domain/thresholds';
 import MODULE_HELP from 'virtual:faro-modules/help';
-import { ATTENTION, ATTENTION_FLAGS, FLAG, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
+import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 import { PROTOTYPE_LINE } from './about';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
@@ -308,7 +308,7 @@ const CORE_ARTICLES: Article[] = [
         'Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.',
         'In the Table, select goals to change their owner or level, watch them or export them.',
         'In the sidebar, Goals has Mine, Watching, All and your saved views under it.',
-        'The status key sits under the goals. New goal is at the top right.',
+        'The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.',
       ] },
       { heading: 'Who can', text: ['Everyone sees every goal. Owners change their own goals from the Table; admins can change any.'] },
     ],
@@ -347,7 +347,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'goals',
     sections: [
       { heading: 'What it’s for', text: ['Keeping attention on the exceptions: what is behind, without a recent update or getting worse, and that nobody has picked up yet.'] },
-      { heading: 'What it means', text: [ATTENTION.needs.long, define(ATTENTION.handled)] },
+      { heading: 'What it means', text: [ATTENTION.needs.long, define(ATTENTION.handled), HANDLED_LINE] },
       { heading: 'Why a goal is flagged', list: [...(['off', 'risk', 'stale'] as const).map((k) => `${STATUS[k].label}: ${STATUS[k].meaning}`), ...(['decision', 'no-path', 'missed-path', 'trend', 'greener', 'due'] as const).map((k) => define(FLAG[k]))] },
       { heading: 'How to use it', list: [
         'Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.',

@@ -286,7 +286,7 @@ function codeFrom(terms, input) {
 	const coded = /\(([^)]+)\)\s*$/.exec(String(input ?? ""));
 	return coded ? codeFrom(terms, coded[1]) : null;
 }
-var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
+var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
 var init_vocabulary = __esmMin((() => {
 	init_thresholds();
 	ALL = [
@@ -461,12 +461,13 @@ var init_vocabulary = __esmMin((() => {
 		}),
 		handled: term("handled", {
 			label: "Being handled",
-			short: "behind, and someone has looked",
-			meaning: "Behind, but someone has looked since the latest check-in and nothing new has happened.",
+			short: "looked at since its latest check-in",
+			meaning: "Someone looked at it after its latest check-in. It comes back to Needs attention if anything new happens.",
 			long: "Off track or at risk, and since its latest check-in someone other than the owner marked it reviewed or noted it, an action was agreed (and isn’t overdue), or its request was answered. A new check-in or a new flag makes it need attention again.",
 			rule: "attention#handledFor"
 		})
 	};
+	HANDLED_LINE = "Someone looked at these after their latest check-in. They come back under Needs attention if anything new happens.";
 	WARNING = {
 		slipped: term("slipped", {
 			label: "Date slipped",
@@ -10307,7 +10308,7 @@ var CORE_ARTICLES = [
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
 					"In the sidebar, Goals has Mine, Watching, All and your saved views under it.",
-					"The status key sits under the goals. New goal is at the top right."
+					"The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere."
 				]
 			},
 			{
@@ -10408,7 +10409,11 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "What it means",
-				text: [ATTENTION.needs.long, define(ATTENTION.handled)]
+				text: [
+					ATTENTION.needs.long,
+					define(ATTENTION.handled),
+					HANDLED_LINE
+				]
 			},
 			{
 				heading: "Why a goal is flagged",
@@ -11841,7 +11846,8 @@ var WHATS_NEW = [
 			"A line above the goals says their health, as Home does: how many off track, at risk, on track and so on.",
 			"Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere.",
 			"The Board shows up to eight on-track goals before Show all, and each card says which goal it feeds into. History ends each row with the goal’s number now.",
-			"Cards has gone: List shows everything it did. A link or saved view that opened Cards opens List and says so once."
+			"Cards has gone: List shows everything it did. A link or saved view that opened Cards opens List and says so once.",
+			"Being handled now says what it means wherever it appears: someone looked at these after their latest check-in, and they come back under Needs attention if anything new happens. New goal on Goals is a quiet link; the sidebar’s New goal is unchanged."
 		],
 		articles: [
 			"needs-attention",
@@ -13223,7 +13229,7 @@ var WORK_TOOLS = [
 					`Asked for an update: ${asks.length ? asks.map((x) => `${s.goals.find((g) => g.id === x.goalId)?.title} by ${x.by} (${x.id})`).join("; ") : "none"}.`,
 					`Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? `, ${lower(ASK_STATUS.overdue)}` : ""}` : ""} (${x.id})`).join("; ") : "none"}.`,
 					`Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join(". ")}`).join("; ") : "none"}.`,
-					`${ATTENTION.handled.label} (${ATTENTION.handled.meaning.replace(/\.$/, "").toLowerCase()}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join("; ") : "none"}.`
+					`${ATTENTION.handled.label} (${HANDLED_LINE.replace(/\.$/, "")}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join("; ") : "none"}.`
 				].join("\n")
 			};
 		}

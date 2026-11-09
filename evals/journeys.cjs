@@ -1561,11 +1561,12 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await sheet.getByLabel('Sort').selectOption('due');
   await h.checkpoint('filters');
   await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
-  await see(p, '21 of 126 goals', 'the slipped-date filter does not narrow the goals');
+  // 21 need attention and 4 more are being handled, listed below them (Lane, 9 Nov, backlog GP): 25.
+  await see(p, '25 of 126 goals', 'the slipped-date filter does not narrow the goals');
   await chooseLayout(h, p, 'Table');
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
-  h.set('progress', rows === 21 && (await p.getByRole('button', { name: /Remove filter: Needs attention because: date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
+  h.set('progress', rows === 25 && (await p.getByRole('button', { name: /Remove filter: Needs attention because: date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
   // Save it: a name is needed; then it's a tab of its own. On a phone, saving and sharing are in one View menu (L&T 23).
   if (device === 'phone') await h.click(p.locator('.filter-view-menu > summary'));
   await h.click(p.getByRole('button', { name: 'Save view' }));
@@ -1584,12 +1585,12 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await p.goto(url('/goals?view=list'));
   await h.click(p.locator('.views-menu:visible > summary'));
   await h.click(p.getByRole('button', { name: /Slipped dates/ }));
-  await see(p, '21 of 126 goals', 'opening the saved view did not bring its filters back');
+  await see(p, '25 of 126 goals', 'opening the saved view did not bring its filters back');
   // A shared link opens the same goals for anyone.
   const other = await newPage(device, 'rhea');
   // A link from before release 2 (needs=slipped, without attention=1) opens the same goals.
   await other.goto(url('/goals?needs=slipped&sort=due'));
-  await see(other, '21 of 126 goals', 'a shared link does not open the same goals');
+  await see(other, '25 of 126 goals', 'a shared link does not open the same goals');
   await other.context().close();
   // Delete it: the tab goes.
   // Rename, pin and delete live in one menu, not beside the filters.

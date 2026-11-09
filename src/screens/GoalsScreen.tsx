@@ -30,7 +30,7 @@ import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
 import { HealthLine } from '../ui/HealthLine';
-import { ATTENTION, ATTENTION_FLAGS, STATUS, STATUS_ORDER } from '../domain/vocabulary';
+import { ATTENTION, ATTENTION_FLAGS, HANDLED_LINE, STATUS, STATUS_ORDER } from '../domain/vocabulary';
 import type { GoalAttention } from '../domain/attention';
 
 // The map loads only when someone opens it, so the rest of the app stays small.
@@ -59,7 +59,7 @@ export function GoalsScreen() {
   // Built once per change to the goals, so the views' summaries aren't recomputed on every render.
   const grouped: ViewGroup[] = useMemo(() => show === 'outcomes'
     ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
-    : show === 'attention' ? [one('attention', ATTENTION.needs.label, att.map((a) => a.goal)), ...(handled.length ? [{ ...one('handled', ATTENTION.handled.label, handled.map((a) => a.goal)), hint: ATTENTION.handled.meaning }] : [])]
+    : show === 'attention' ? [one('attention', ATTENTION.needs.label, att.map((a) => a.goal)), ...(handled.length ? [{ ...one('handled', ATTENTION.handled.label, handled.map((a) => a.goal)), hint: HANDLED_LINE }] : [])]
     : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'teams' ? app.snapshot.teams.map((t) => one(t.id, t.name, app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'mine' ? [one('mine', 'Mine', [...mine].sort(worstFirst(app)))]
@@ -116,7 +116,7 @@ export function GoalsScreen() {
     const of = (k: 'needs' | 'handled') => rows.filter((r) => attentionGroup(app.attentionOf(r.goal)) === k);
     return [
       { key: 'attention', title: ATTENTION.needs.label, rows: of('needs') },
-      { key: 'handled', title: ATTENTION.handled.label, rows: of('handled'), hint: ATTENTION.handled.meaning },
+      { key: 'handled', title: ATTENTION.handled.label, rows: of('handled'), hint: HANDLED_LINE },
     ].filter((g) => g.rows.length);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitted, ranked, query.sort, attentionOn, show, app.snapshot]);
@@ -164,7 +164,8 @@ export function GoalsScreen() {
           {/* The week line breaks only between its parts, never inside one. */}
           <span className="hint goals-period">{periodLabel(app.cycle, app.week).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
         </span>
-        <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn" to="/goals/new">New goal</Link></span>
+        {/* New goal is a quiet link here (Lane, 9 Nov): people seldom make one, so it isn't the page's big button. The sidebar's New goal is one step from anywhere. */}
+        <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
       </div>
       {/* On a phone, the goals come first (backlog G, Lane's markup, 9 Nov): which goals and how to see them are two
           choices on one line, instead of two rows of tabs, a row of layouts and a row for the download. The Views menu
@@ -348,7 +349,7 @@ function useBadLinks(asked: string | null, show: Show, mineCount: number): strin
 
 /** What the Needs attention tab's count counts, on the count itself (Lane, 9 Nov): the first group, not the second. */
 export function attentionBadge(needs: number, handled: number): string {
-  return `${needs} ${needs === 1 ? 'needs' : 'need'} attention${handled ? `; ${handled} ${ATTENTION.handled.label.toLowerCase()} are listed below them and not counted` : ''}.`;
+  return `${needs} ${needs === 1 ? 'needs' : 'need'} attention${handled ? `; ${handled} ${ATTENTION.handled.label.toLowerCase()} are listed below them and not counted (someone looked at them after their latest check-in)` : ''}.`;
 }
 
 /**
@@ -367,6 +368,6 @@ function attentionCounts(att: GoalAttention[], handled: GoalAttention[]): string
   const parts = [...named, ...(rest ? [`${rest} on track but flagged for something else (getting worse, a missed date, an ask waiting)`] : [])];
   const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
   const first = att.length ? `${att.length} ${att.length === 1 ? 'goal needs' : 'goals need'} attention, flagged for something new that nobody has picked up yet: ${list}.` : 'Nothing new needs attention.';
-  const also = handled.length ? ` Below them, ${handled.length} ${ATTENTION.handled.label.toLowerCase()}: behind, but someone has looked since the latest check-in. The count on the tab leaves those out; the list shows all ${att.length + handled.length}.` : '';
+  const also = handled.length ? ` Below them, ${handled.length} ${ATTENTION.handled.label.toLowerCase()}: someone looked at them after their latest check-in, and they come back if anything new happens. The count on the tab leaves those out; the list shows all ${att.length + handled.length}.` : '';
   return `${first}${also} Home counts goals by status.`;
 }
