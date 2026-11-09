@@ -18,13 +18,13 @@ Open the root page, **https://goals-app-puce-five.vercel.app**, in a tab you loa
 4. **Switch to Amara Nwosu, the VP.** Home recomposes: what needs her across 126 goals, the review ring. *Point out:* nobody built a separate "manager view"; it's the same rules seen by a different person.
 5. **Reviews.** Open this week's review → the walkthrough: "Goal 3 of 14 to discuss · 1 of 35 reviewed". Reviews only walk through goals that need attention; healthy ones are listed, not discussed.
 6. **Goals.** List → Board → Map. Search, a saved view, the "Needs attention" line explaining its count.
-7. **Workspace.** The side menu of sections (People, Teams, Inbox, Cycles, Access, Features, Privacy, Recently removed). Open **Inbox**: anyone can mark up a screen with Send feedback, and it lands here with the picture, ready to triage (New, In hand, Closed). *Point out:* **Features** turns modules on and off; that's the architecture showing through.
+7. **Workspace and Feedback.** As Amara (an admin). *Point out:* the workspace switcher at the top of the sidebar (the workspace's name), "Admin" under her name, and the "Your permissions" line. The side menu: Overview, People, Teams, Cycles, Access, Features, Privacy, Recently removed; the overview starts with "To look at here", then every section. **Features** turns modules on and off ("2 of 2 optional features on"): that's the architecture showing through. Then open **Feedback**, beside Help: "From every workspace and the demo". Anyone can mark up a screen with Send feedback, and it lands here with the picture, ready to triage (New, In hand, Closed). Optional: switch to Rhea to show the member view (four sections, and who the admins are).
 8. **Data.** Every table as a spreadsheet, in and out: the same format the import uses. *Point out:* the downloaded workbook already has a Metrics sheet, but Data has no Metrics page. "Hold that thought: we'll build it in a moment."
 
 ## Part 2, the technical half (5 minutes)
 
 1. **How it's built, in one breath:** a modular monolith, a small core with features as modules that plug in; the app, the spreadsheet import and the AI tools (MCP) share one set of rules. 51 user journeys, 136 requirements and about 560 unit tests run on every change. `docs/architecture.md`.
-2. **The drill, the headline:** `spec/` and `llms.txt` are generated from the code and can't drift. A fresh AI session given only that kit, on the lighter model, rebuilt the core rules and matched **100% of 302,370 values** in about five minutes. Be honest: the scorecard's exact words came from the scorer's differences; that gap list (`docs/reviews/2026-11-08-drill-1.md`) is the first thing we fix.
+2. **The drill, the headline:** `spec/` and `llms.txt` are generated from the code and can't drift. A fresh AI session given only that kit, on the lighter model, rebuilt the core rules and matched **100% of 302,370 values** in about five minutes, but the scorecard's exact words came from the scorer's differences. We closed those gaps, and **drill 2** (9 Nov, a fresh session, kit only) matched **100% of 360,109 values** across five files in three rounds, with the words coming from the kit. One detail (how "-0" is written) still came from the scorer, and is now in the kit too (`docs/reviews/2026-11-09-drill-2.md`).
 3. **Specified, not built:** sign-in, single sign-on, time zones, scale (`spec/requirements/internal/`): the internal platform does those.
 4. **The metric library, half built on purpose:** the back end shipped yesterday as a module (13 demo metrics, rules, tests, AI tools); the screens are what we build now.
 
@@ -34,10 +34,10 @@ Follow `docs/live-build/metrics.md`: the request, requirements on screen, refine
 
 ## Close: the ask
 
-- **How you'd rebuild it:** copy the code, plug in our platform. Next up in Faro is making that a matter of writing about five adapters (database, storage, identity, clock, a number source so metrics fill themselves in), each with a contract test that tells you when it's right.
+- **How you'd rebuild it:** copy the code, plug in our platform. That is already a matter of writing about five adapters (database, storage, identity, clock, a number source so metrics fill themselves in), each with a contract test that tells you when it's right; a plain-Postgres adapter passes the same tests as Supabase (`spec/rebuild/adapters.md`).
 - Look at the kit and the drill; decide whether we copy and adapt, or rewrite from the spec.
 - Pick a pilot team.
-- Known gaps, said plainly: no sign-in yet (by design: the internal platform does it), Faro shares a database project with another app (moving next), the phone layout of the Goals toolbar needs work.
+- Known gaps, said plainly: no sign-in yet (by design: the internal platform does it), Faro shares a database project with another app (moving next).
 
 ## If something goes wrong
 
