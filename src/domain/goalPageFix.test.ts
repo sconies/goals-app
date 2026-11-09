@@ -73,7 +73,9 @@ describe('a done goal shows its result, not a forecast', () => {
   });
 
   it('makes no forecast in lists and exports', () => {
-    expect(summarise(done, s, cycle, today, week).forecast).toBeNull();
+    expect(summarise(done, s, cycle, today, week)).toMatchObject({ forecast: null, projection: null });
+    const stopped = s.goals.find((g) => g.stoppedAt && g.kind === 'metric');
+    if (stopped) expect(summarise(stopped, s, cycle, today, week)).toMatchObject({ forecast: null, projection: null });
   });
 
   it('has no quarter still running after the one it was done in', () => {

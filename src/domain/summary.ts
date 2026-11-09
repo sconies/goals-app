@@ -84,7 +84,7 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
     attention: attentionFor(goal, s, cycle, today),
     // A goal gone quiet, done or stopped makes no forecast, here as on its page (status projects).
     forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,
-    projection: st.status === 'stale' || a.kind !== 'metric' ? null : a.projection,
+    projection: !projects(goal, st.status) || a.kind !== 'metric' ? null : a.projection,
     feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
     why: behind && last ? [last.cause ? causeLabel(last.cause) : '', last.why].filter((x) => x && x !== NO_REASON).join(': ') : '',
     pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : '') : '',
