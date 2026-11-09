@@ -22,7 +22,7 @@ import { ASK_KIND_LABEL, asksOf, canMarkDone, canWithdraw, openUpdateAsk } from 
 import { goalsIn, watchOf, watchScope } from '../domain/review';
 import {
   actionList, activityStream, askedOf, barFigures, feedingOrder, feedsLine, firstLook, lastTalked, pathCheck, planFor, postedLine,
-  primaryAction, sinceLooked, streamMatches, whyLine, type ActionItem, type AskedItem, type StreamFilter, type StreamItem,
+  primaryAction, sameReasonText, sinceLooked, updatedLine, streamMatches, whyLine, type ActionItem, type AskedItem, type StreamFilter, type StreamItem,
 } from '../domain/goalPage';
 import type { Ask, CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
 import { Avatar, Chip, Empty, LevelTag, StatusShape, timeAgo, WarnMark } from '../ui/bits';
@@ -207,7 +207,7 @@ function GoalView({ goal }: { goal: Goal }) {
       How it’s measured isn’t described yet, so others can’t tell exactly what’s counted. <Link className="linkish" to={`/goals/${goal.id}/edit?part=definition`}>Describe how it’s measured</Link>
     </p>
   );
-  const chart = <GoalChart key="chart" goal={goal} stale={stale} landed={posted} hit={hit} card={card} />;
+  const chart = <GoalChart key="chart" goal={goal} status={status} landed={posted} hit={hit} card={card} />;
   const whySection = !review && <WhySection key="why" goal={goal} why={why} />;
   const doing = !review && <DoingSection key="doing" goal={goal} withActions={!wide} asked={asked} />;
   const actionsSide = !review && wide && <ActionsSection key="actions" goal={goal} asked={asked} />;
@@ -277,6 +277,8 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
   const me = useShellTop();
   const slot = useRef<HTMLDivElement>(null);
   const c = useCompact(slot);
+  // When it was last updated: the latest check-in's date, beside its week.
+  const updated = updatedLine(goal, app.snapshot);
   const num = figures.nowValue != null && goal.kind !== 'milestone'
     ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={storyOn() ? STORY_MS * storyPace() : MOTION_MS} onLanded={storyOn() ? landedMoment : undefined} land={storyOn()} />
     : figures.now;
@@ -291,6 +293,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           <Avatar p={owner ?? { name: '?', initials: '?' }} size="sm" /><span>{owner?.name ?? 'No owner'}{team ? `, ${team.name}` : ''}</span>
           <LevelTag level={goal.level} />
           {goal.key && <span className="gkey" title={`This goal’s key: it never changes, and /goals/${goal.key} opens it`}>{goal.key}</span>}
+          {updated && <span className="bar-updated hint">{updated}</span>}
         </div>
         <div className="bar-2">
           {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
@@ -391,7 +394,7 @@ function useShare(goal: Goal, now: string, against: string[], why: string, statu
         status, statusWord: LABEL[status], now, against: against.join(' · '), why,
         when: `Week ${app.week} · ${app.today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
         link: link(),
-        chart: goal.kind === 'metric' && a.kind === 'metric' ? { goal: goal as MetricGoal, weeks: app.cycle.weeks, week: app.week, series, projection: projects(goal, status === 'stale') ? a.projection : null } : null,
+        chart: goal.kind === 'metric' && a.kind === 'metric' ? { goal: goal as MetricGoal, weeks: app.cycle.weeks, week: app.week, series, projection: projects(goal, status) ? a.projection : null } : null,
       };
       try {
         const png = await shareCardPng(card);
@@ -496,7 +499,8 @@ function ReplyBox({ goal, item, focus, onDone }: { goal: Goal; item: AskedItem; 
 
 /* ---------------------------------------------------------------------------------------------------- the chart */
 
-function GoalChart({ goal, stale, landed, hit, card }: { goal: Goal; stale: boolean; landed: boolean; hit: boolean; card: Scorecard }) {
+function GoalChart({ goal, status, landed, hit, card }: { goal: Goal; status: DisplayStatus; landed: boolean; hit: boolean; card: Scorecard }) {
+  const stale = status === 'stale';
   const app = useApp();
   const { cycle, week } = app;
   const own = app.checkInsOf(goal);
@@ -522,8 +526,8 @@ function GoalChart({ goal, stale, landed, hit, card }: { goal: Goal; stale: bool
   // Under the chart, one small footnote: where the likely end comes from. The numbers are the scorecard's, marked on the chart.
   const projected = card.cells.some((c) => c.key === 'hit' && c.likelihood);
   // A stopped goal makes no forecast, and says nothing about one.
-  const ahead = projects(goal, stale);
-  const foot = goal.stoppedAt ? null : stale ? 'No projection: the last check-in is too old to project from.'
+  const ahead = projects(goal, status);
+  const foot = goal.stoppedAt || status === 'done' ? null : stale ? 'No projection: the last check-in is too old to project from.'
     : projected ? (goal.kind === 'metric' ? 'Likely end projected from the last eight weeks, not the owner’s date.' : 'Likely end projected from the last eight weeks.')
     : null;
   const caption = foot ? <span className="chart-say chart-foot">{foot}</span> : null;
@@ -585,7 +589,7 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const by = latest ? app.person(latest.authorId)?.name.split(' ')[0] ?? 'The owner' : null;
   const when = latest ? (latest.week === app.week ? 'this week’s check-in' : `the week ${latest.week} check-in`) : null;
   const [title, purpose] = stale ? [`Why it has ${lower(STATUS.stale)}`, 'When the owner last said where it stands.']
-    : behind ? ['Why it’s behind', `The owner’s reason, from ${when ?? 'their check-in'}.`]
+    : behind ? [`Why it ${STATUS[status].short}`, `The owner’s reason, from ${when ?? 'their check-in'}.`]
     : onlySignals ? ['Worth knowing', 'What the numbers flag that the status doesn’t say.']
     : ['The latest word', when ? `What the owner said in ${when}.` : 'What the owner has said so far.'];
   return (
@@ -742,10 +746,10 @@ function FeedsSection({ feeding, feeds }: { feeding: Goal[]; feeds: ReturnType<t
   return (
     <section className="block feeds goal-section" id="feeds" aria-labelledby="g-feeds" data-part="What feeds it">
       <SectionHead id="g-feeds" title="What feeds it" purpose="The goals that move this number, worst first.">
-        {/* How they stand, said once: "Fed by four goals: 2 off track, 1 at risk". */}
+        {/* How they stand, said once: "Directly feeding it (four goals): 2 off track, 1 at risk". */}
         {feeds && (
           <p className="feeds-sum">
-            {feeds.text.split(/[:,]/)[0]}{feeds.counts.length > 0 ? <>: {feeds.counts.map((x, i) => <span key={x.status} className={'feeds-count tone-' + x.status}>{i ? ', ' : ''}<StatusShape k={x.status} />{x.n} {LABEL[x.status].toLowerCase()}</span>)}</> : ', none behind'}
+            {feeds.head}{feeds.counts.length > 0 ? <>: {feeds.counts.map((x, i) => <span key={x.status} className={'feeds-count tone-' + x.status}>{i ? ', ' : ''}<StatusShape k={x.status} />{x.n} {LABEL[x.status].toLowerCase()}</span>)}</> : ', none behind'}
           </p>
         )}
       </SectionHead>
@@ -774,7 +778,7 @@ function QuarterStrip({ goal }: { goal: Goal }) {
           <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
             <span className="q-head"><span className="strong">{r.quarter.label} <span className="hint nowrap">{r.quarter.months}</span></span>
               <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === now ? (app.week - r.quarter.from + 1) / (r.quarter.to - r.quarter.from + 1) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === now ? QUARTER.open.label : 'To come') : 'None due'}</span></span>
-            {r.kind !== 'none' && <span className="small">{quarterWords(r.text)}</span>}
+            {r.kind !== 'none' ? <span className="small">{quarterWords(r.text)}</span> : r.doneWeek != null && <span className="small">{STATUS.done.label} in week {r.doneWeek}</span>}
           </li>
         ))}
       </ol>
@@ -815,12 +819,12 @@ function StreamRow({ goal, x }: { goal: Goal; x: StreamItem }) {
   const [open, setOpen] = useState(false);
   if (x.kind === 'comment') return <ChangeItem c={x.change} manage />;
   if (x.kind === 'change') return <ChangeItem c={x.change} />;
-  if (x.kind === 'checkin') return <li className="stream-ci"><ol className="cilist ci-open"><CheckInRow goal={goal} c={x.checkIn} sameAs={x.sameAs} /></ol></li>;
+  if (x.kind === 'checkin') return <li className="stream-ci"><ol className="cilist ci-open"><CheckInRow goal={goal} c={x.checkIn} sameAs={x.sameAs} sameAsWhere={x.sameAsWhere} /></ol></li>;
   return (
     <li className="stream-group">
       <button type="button" className="group-row" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className="strong">Weeks {x.from}–{x.to}</span>
-        <span className="small group-why">{x.sameAs != null ? <span className="muted">The same reason as week {x.sameAs}, above</span> : x.why}</span>
+        <span className="small group-why">{x.sameAs != null ? <span className="muted">{sameReasonText(x.sameAs, x.sameAsWhere)}</span> : x.why}</span>
         <Icon name={open ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" />
       </button>
       {open && <ol className="cilist ci-open">{x.checkIns.map((c) => <CheckInRow key={c.id} goal={goal} c={c} quiet />)}</ol>}
@@ -867,7 +871,7 @@ function NoteComposer({ goal }: { goal: Goal }) {
 
 /** One check-in as a row (week, number, the call, the reason) that opens to the whole check-in. `quiet` leaves the
  *  reason out, inside a group that says it once; `sameAs` points to the newer week that already said it. */
-function CheckInRow({ goal, c, quiet, sameAs }: { goal: Goal; c: CheckIn; quiet?: boolean; sameAs?: number }) {
+function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere }: { goal: Goal; c: CheckIn; quiet?: boolean; sameAs?: number; sameAsWhere?: 'above' | 'below' }) {
   const [isOpen, setOpen] = useState(false);
   return (
     <li className={isOpen ? 'is-open' : undefined}>
@@ -875,7 +879,7 @@ function CheckInRow({ goal, c, quiet, sameAs }: { goal: Goal; c: CheckIn; quiet?
         <span className="strong ci-week"><span className="nowrap">Week {c.week}</span></span>
         <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
         <Chip k={c.status} />
-        <span className="ci-tail">{quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">The same reason as week {sameAs}, above</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
+        <span className="ci-tail">{quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
       {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
     </li>

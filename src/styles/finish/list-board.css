@@ -29,6 +29,19 @@
 .goals-tabs > .views-menu { flex: none; }
 .goals-tabs .view-tab { max-width: 200px; }
 @container page (max-width: 960px) { .goals-toolbar > .goals-tabs { flex: 1 1 100%; } }
+/* Never cut off beside the layouts (outside review, 9 Nov): in the list's frame the tabs shrank to make room and
+   scrolled, so Watching showed as a "W" on a 1920px screen. Above phone width they keep their whole width, and the
+   layouts and tools go to the next line when both don't fit. A phone keeps its one row that scrolls, with the fade. */
+@container app (min-width: 601px) {
+  .goals-toolbar { flex-wrap: wrap; }
+  .goals-toolbar > .goals-tabs { flex: 0 0 auto; max-width: 100%; }
+}
+/* So that, where it can, it's still one row: in a frame up to 1200px wide Export these goals is its icon, with its
+   name as the tooltip, as on a phone. The map at 1280×800 keeps its whole height below one row. */
+@container page (min-width: 601px) and (max-width: 1200px) {
+  .goals-page .goals-toolbar .view-bar > .io-buttons .export-these .btn-label { display: none; }
+  .goals-page .goals-toolbar .view-bar > .io-buttons .export-these { min-width: 40px; padding: 0; justify-content: center; }
+}
 /* Phones: one row that scrolls, the fade at its edge, and 16px after the last tab so it can scroll clear of the fade (2). */
 @container app (max-width: 600px) {
   .goals-tabs > .seg.tabs { overflow-x: auto !important; scroll-snap-type: x proximity; scroll-padding-inline: 4px 16px; padding-inline-end: var(--s4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }

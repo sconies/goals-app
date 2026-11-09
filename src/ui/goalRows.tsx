@@ -7,9 +7,10 @@ import { useApp } from '../app/state';
 import { fmt, gapBeside, LEVEL_LABEL, nowText } from '../domain/format';
 import { daysSince } from '../domain/plan';
 import { coveringWatches, watchOf } from '../domain/review';
-import { assessPosted, checkInsFor, LABEL } from '../domain/status';
+import { assessPosted, checkInsFor, LABEL, projects } from '../domain/status';
 import { goalResult, RESULT_TEXT } from '../domain/story';
 import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
+import { feederHead } from '../domain/goalPage';
 import type { Goal, Level, Watch } from '../domain/types';
 import { Spark, StageSpark } from './charts';
 import { Chip, LevelTag, Sheet, StatusWord, TitleTell } from './bits';
@@ -132,7 +133,7 @@ export function TreeCard({ node }: { node: TreeNode }) {
   const st = app.statusOf(g);
   const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
   const gap = gapBeside(g, a);
-  const fc = forecastText(g, a, app.cycle.weeks, app.cycle);
+  const fc = projects(g, st.status) ? forecastText(g, a, app.cycle.weeks, app.cycle) : null;
   const feed = descendants(node);
   const counts = (['off', 'risk', 'stale', 'on', 'done', 'planned'] as const).map((k) => [k, feed.filter((c) => app.statusOf(c).status === k).length] as const).filter(([, n]) => n);
   return (
@@ -150,7 +151,7 @@ export function TreeCard({ node }: { node: TreeNode }) {
           <span className="mix" role="img" aria-label={counts.map(([k, n]) => `${n} ${LABEL[k].toLowerCase()}`).join(', ')}>
             {counts.map(([k, n]) => <i key={k} className={'mix-' + k} style={{ flexGrow: n }} />)}
           </span>
-          <span className="hint">{feed.length} {feed.length === 1 ? 'goal feeds' : 'goals feed'} it: {counts.map(([k, n]) => `${n} ${LABEL[k].toLowerCase()}`).join(', ')}</span>
+          <span className="hint">{feederHead('tree', feed.length)}: {counts.map(([k, n]) => `${n} ${LABEL[k].toLowerCase()}`).join(', ')}</span>
         </span>
       )}
     </Link>

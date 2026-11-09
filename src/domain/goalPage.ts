@@ -104,8 +104,13 @@ export function whyLine(goal: Goal, s: Snapshot, att: GoalAttention): WhyLine {
   return { text: n >= 2 ? `The same call ${countWord(n)} check-ins running, since week ${own[k]!.week}` : `Called in week ${latest.week}`, by: null, handled: null, handledText: null };
 }
 
-/** For a goal others feed: "Fed by 3 goals: 1 off track", in the bar. */
-export interface FeedsLine { total: number; counts: { status: DisplayStatus; n: number }[]; text: string }
+/** The two ways feeders are counted, always labelled, so a goal page and a list card never look contradictory. */
+export const FEEDER_SCOPE = { direct: 'Directly feeding it', tree: 'Everything under it' } as const;
+/** "Directly feeding it (four goals)", "Everything under it (16 goals)". */
+export const feederHead = (scope: keyof typeof FEEDER_SCOPE, n: number) => `${FEEDER_SCOPE[scope]} (${n === 1 ? 'one goal' : `${countWord(n)} goals`})`;
+
+/** For a goal others feed: "Directly feeding it (three goals): 1 off track", on What feeds it. */
+export interface FeedsLine { total: number; counts: { status: DisplayStatus; n: number }[]; head: string; text: string }
 
 export function feedsLine(children: Goal[], statusOf: (g: Goal) => DisplayStatus): FeedsLine | null {
   if (!children.length) return null;
@@ -113,8 +118,8 @@ export function feedsLine(children: Goal[], statusOf: (g: Goal) => DisplayStatus
   for (const c of children) { const k = statusOf(c); by.set(k, (by.get(k) ?? 0) + 1); }
   const worst = (['off', 'risk', 'stale'] as DisplayStatus[]).filter((k) => by.get(k)).map((k) => ({ status: k, n: by.get(k)! }));
   const total = children.length;
-  const head = `Fed by ${total === 1 ? 'one goal' : `${countWord(total)} goals`}`;
-  return { total, counts: worst, text: worst.length ? `${head}: ${worst.map((x) => `${x.n} ${lower(x.status)}`).join(', ')}` : `${head}, none behind` };
+  const head = feederHead('direct', total);
+  return { total, counts: worst, head, text: worst.length ? `${head}: ${worst.map((x) => `${x.n} ${lower(x.status)}`).join(', ')}` : `${head}, none behind` };
 }
 
 /** What goes on the bar's one main button, by who's looking and what's waiting (approved plan, "Final page" 1). */
@@ -185,6 +190,14 @@ export function postedLine(goal: Goal, s: Snapshot, cycle: Cycle, week: number):
   const streak = onTimeStreak(goal.ownerId, s, cycle, week);
   const moved = prev && prev.status !== latest.status ? `${lower(prev.status)} → ${lower(latest.status)}` : prev ? `still ${lower(latest.status)}` : `first check-in, ${lower(latest.status)}`;
   return { text: `Posted: ${moved}${streak >= 2 ? ` · ${streak} weeks on time` : ''}`, from: prev?.status ?? null, to: latest.status, streak };
+}
+
+/** "Updated 6 Nov · week 45": when the goal's latest check-in was posted, and the week it's for. Null before the first. */
+export function updatedLine(goal: Goal, s: Snapshot): string | null {
+  const own = checkInsFor(goal, s.checkIns);
+  if (!own.length) return null;
+  const latest = own.reduce((a, b) => (b.postedAt > a.postedAt ? b : a));
+  return `Updated ${new Date(latest.postedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })} · week ${latest.week}`;
 }
 
 /** What a person saw last time they looked at a goal, kept in their browser. */
@@ -367,10 +380,11 @@ export function lastTalked(goal: Goal, s: Snapshot, cycle: Cycle, week: number, 
 /* ---------- 10. activity: one stream ---------- */
 
 export type StreamItem =
-  /** `sameAs`: the week of a newer check-in that already gave this reason, so it isn't said again. */
-  | { kind: 'checkin'; at: string; checkIn: CheckIn; sameAs?: number }
+  /** `sameAs`: the week of a newer check-in that already gave this reason, so it isn't said again; `sameAsWhere`: where
+      that week sits in this stream (newest first, by when it was posted), for `sameReasonText`. */
+  | { kind: 'checkin'; at: string; checkIn: CheckIn; sameAs?: number; sameAsWhere?: 'above' | 'below' }
   /** Check-ins in a row that gave the same reason, said once: "Weeks 43–45: billing questions doubled…". */
-  | { kind: 'checkins'; at: string; checkIns: CheckIn[]; why: string; from: number; to: number; sameAs?: number }
+  | { kind: 'checkins'; at: string; checkIns: CheckIn[]; why: string; from: number; to: number; sameAs?: number; sameAsWhere?: 'above' | 'below' }
   | { kind: 'comment'; at: string; change: Change }
   | { kind: 'change'; at: string; change: Change };
 export type StreamFilter = 'all' | 'checkins' | 'comments' | 'changes';
@@ -395,8 +409,14 @@ export function activityStream(goal: Goal, s: Snapshot): StreamItem[] {
   // Removed comments keep their place ("Comment removed"), so a thread still reads (domain/removal commentsOf).
   for (const n of writtenNotes(s.changes).filter((x) => x.goalId === goal.id)) items.push({ kind: 'comment', at: n.at, change: n });
   for (const ch of s.changes.filter((x) => x.goalId === goal.id && x.entity !== 'check-in' && x.entity !== 'note')) items.push({ kind: 'change', at: ch.at, change: ch });
-  return items.sort((a, b) => b.at.localeCompare(a.at));
+  items.sort((a, b) => b.at.localeCompare(a.at));
+  // Where the week it points to sits: usually above (newer), but a week loaded later sorts by when it was posted.
+  const at = (wk: number) => items.findIndex((x) => (x.kind === 'checkin' && x.checkIn.week === wk) || (x.kind === 'checkins' && x.checkIns.some((c) => c.week === wk)));
+  return items.map((x, i) => ((x.kind === 'checkin' || x.kind === 'checkins') && x.sameAs != null ? { ...x, sameAsWhere: at(x.sameAs) > i ? 'below' : 'above' } : x));
 }
+
+/** "The same reason as week 42, above": the week a repeated reason was said in, and which way to look for it. */
+export const sameReasonText = (week: number, where: 'above' | 'below' = 'above') => `The same reason as week ${week}, ${where}`;
 
 export const streamMatches = (f: StreamFilter) => (x: StreamItem) =>
   f === 'all' || (f === 'checkins' && (x.kind === 'checkin' || x.kind === 'checkins')) || (f === 'comments' && x.kind === 'comment') || (f === 'changes' && x.kind === 'change');

@@ -106,8 +106,11 @@ function rows(list: unknown, sheet: string): Rec[] {
   });
 }
 
-async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string }): Promise<ToolResult> {
-  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason });
+/** Yes to a plan question (a target that flips which way is better, a number far outside the old plan). */
+const CONFIRM = bool('True once the person has said a plan change that was questioned (it flips which way is better, or a number is far outside the old plan) is right.');
+
+async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean }): Promise<ToolResult> {
+  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm });
   const errors = cs.issues.filter((x) => x.severity === 'error');
   const warnings = cs.issues.filter((x) => x.severity === 'warning');
   const notes = cs.issues.filter((x) => x.severity === 'note');
@@ -120,10 +123,13 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     warnings: warnings.map((x) => ({ goal: x.goal, message: x.message })),
     notes: notes.map((x) => ({ goal: x.goal, message: x.message })),
     needsReason: cs.needsReason,
+    questions: cs.items.filter((x) => x.question).map((x) => ({ goalId: x.goalId, goal: x.goal, question: x.question!.text })),
+    needsConfirm: cs.needsConfirm,
   };
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
   if (errors.length) return { isError: true, data, text: `Not saved. Fix these and try again:\n${lines(errors)}` };
   if (cs.needsReason) return { isError: true, data, text: 'Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".' };
+  if (cs.needsConfirm) return { isError: true, data, text: `Not saved: check this with the person first.\n${lines(data.questions.map((x) => ({ goal: x.goal, message: x.question })))}\nIf they say it's right, call again with "confirm": true.` };
   if (!cs.items.length) return { data, text: 'Nothing to change: it already says that.' };
   const what = `${describe(cs)}.${warnings.length ? `\nNote:\n${lines(warnings)}` : ''}${notes.length ? `\nRead as:\n${lines(notes)}` : ''}`;
   if (opts.dry || !cs.commit) return { data, text: `Checked, not saved (dry run). Would save: ${what}` };
@@ -255,12 +261,12 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'update_goal',
     title: 'Change a goal',
-    description: 'Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), ...GOAL_FIELDS, reason: str('Why the plan is changing.'), dry_run: DRY } },
+    description: 'Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan. One that flips which way is better, or puts a number far outside the old plan, is checked with the person first (confirm: true).',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), ...GOAL_FIELDS, reason: str('Why the plan is changing.'), confirm: CONFIRM, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      return change(ctx, { goals: [row({ ...a, goal_id: g.id }, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined });
+      return change(ctx, { goals: [row({ ...a, goal_id: g.id }, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true });
     },
   },
   {
@@ -276,17 +282,17 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'set_plan_numbers',
     title: 'Set plan numbers by hand',
-    description: 'Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.',
+    description: 'Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started, and confirm: true when a number is far outside the old plan or flips which way is better.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'numbers'], properties: {
       goal_id: str('The goal’s ID or its key, e.g. G-12.'),
       numbers: { type: 'array', description: 'Planned values by week.', items: { type: 'object', required: ['week', 'value'], properties: { week: int('Week from the cycle start.'), value: num('Planned value.') } } },
-      reason: str('Why the plan is changing.'), dry_run: DRY,
+      reason: str('Why the plan is changing.'), confirm: CONFIRM, dry_run: DRY,
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const r: Rec = { __row: '1', id: goalRef(ctx, a.goal_id).id };
       for (const p of (a.numbers as { week: number; value: number }[]) ?? []) r[`week ${p.week}`] = String(p.value);
-      return change(ctx, { plan: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined });
+      return change(ctx, { plan: [r] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true });
     },
   },
   {
@@ -312,11 +318,12 @@ const CORE_TOOLS: ToolDef[] = [
       check_ins: { type: 'array', items: { type: 'object' }, description: 'Rows for the Check-ins sheet: Goal key (or Goal ID), Week, Value or Stages, Call, Cause, Why, Why greener, Path to green, Recovery, Back on plan by week, Needs, Next step; ID to correct one check-in.' },
       people: { type: 'array', items: { type: 'object' }, description: 'Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left.' },
       reason: str('Why plans are changing, for any plan change that needs one.'),
+      confirm: CONFIRM,
       apply: bool('Save the changes. Leave out first to check them.'),
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people') }, { dry: !a.apply, reason: a.reason as string | undefined });
+      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people') }, { dry: !a.apply, reason: a.reason as string | undefined, confirm: a.confirm === true });
     },
   },
 ];

@@ -5,9 +5,11 @@
    GoalHistory and GoalCards, with the bulk actions in BulkEdit and a goal's story in ui/GoalStory. */
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
+import { useLatestParams } from './GoalFilters';
 import { useApp } from '../app/state';
 import { summarise, type GoalSummary } from '../domain/summary';
 import type { Goal } from '../domain/types';
+import { MenuButton } from '../ui/MenuButton';
 
 export type Layout = 'list' | 'table' | 'board' | 'history' | 'cards' | 'map';
 export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['cards', 'Cards'], ['map', 'Map']];
@@ -26,15 +28,22 @@ const isLayout = (v: string | null): v is Layout => !!v && LAYOUTS.some(([k]) =>
 /** The layout from the address, else this person's last choice, else the list. */
 export function useLayout(): [Layout, (l: Layout) => void] {
   const [params, setParams] = useSearchParams();
+  const latest = useLatestParams();
   let saved: string | null = null;
   try { saved = localStorage.getItem(KEY); } catch { /* storage blocked */ }
   const fromUrl = params.get('view');
   const layout: Layout = isLayout(fromUrl) ? fromUrl : isLayout(saved) ? saved : 'list';
+  // Each layout is a step Back can return to (outside review, 9 Nov): a new history entry, never a replaced one. The
+  // list is the address without a layout, unless the layout came from this person's last choice: then the address
+  // says view=list, so the step is a real change of address and Back after it shows the layout it left.
   const set = (l: Layout) => {
+    if (l === layout) return;
     try { localStorage.setItem(KEY, l); } catch { /* storage blocked */ }
-    const next = new URLSearchParams(params);
-    if (l === 'list') next.delete('view'); else next.set('view', l);
-    setParams(next, { replace: true });
+    const next = latest(), was = next.get('view');
+    if (l !== 'list') next.set('view', l);
+    else if (isLayout(was) && was !== 'list') next.delete('view');
+    else next.set('view', 'list');
+    setParams(next);
   };
   return [layout, set];
 }
@@ -48,6 +57,18 @@ export function LayoutSwitch({ layout, onChange }: { layout: Layout; onChange: (
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * On a phone, the layouts are one choice rather than a row of six buttons (backlog G, 9 Nov): the button says the open
+ * layout, and the menu says what each one is, which the line under the toolbar says on a wider screen.
+ */
+export function LayoutMenu({ layout, onChange }: { layout: Layout; onChange: (l: Layout) => void }) {
+  const name = LAYOUTS.find(([k]) => k === layout)?.[1] ?? 'List';
+  return (
+    <MenuButton className="layout-menu" label="Layout" summary="" display={<><span className="sr">Layout: </span><LayoutIcon k={layout} />{name}</>}
+      items={LAYOUTS.map(([k, label]) => ({ label, hint: LAYOUT_ABOUT[k].replace(/^./, (c) => c.toUpperCase()), icon: <LayoutIcon k={k} />, current: k === layout, onClick: () => onChange(k) }))} />
   );
 }
 

@@ -26,7 +26,7 @@ The cells at the top of a goal’s page: against plan, since last week, what’s
 
 **Dated stages:** `done` (stages done of all, with how many are due by this week), `late` (stages behind their dates, slipping or late, and by up to how many weeks) and `next` (the week the next stage now lands, or All done).
 
-A stopped goal has no `hit` cell.
+A stopped goal has no `hit` cell. Nor has a done goal (`doneCheckIn`: its latest check-in, as of the week shown, is called done): a `result` cell takes its place, Result: Done, with the number it closed on and its week as the sub ("95% in week 37"), tone `good`. Neither projects anywhere (`projects`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
 
 **Short or over** (`shortWord(better)` in `src/domain/vocabulary.ts`, the one place the word is chosen): an amount on the wrong side of a plan or target is "short" when higher is better and "over" when lower is better: "1 pt short" of a 46% plan, "1 min over" a 6 min plan. The scorecard's `target` cell, the chart's mark at the due week ("5 over") and a quarter's result ("Q3: 7 min against a plan of 6 min, 1 min over") all use it.
 
@@ -43,6 +43,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The 30→75 goal with 36, 39, 42, 45 in weeks 1–4, seen in week 4. | `plan: 1 pt ahead of plan [good] (plan 44%); since: 3 pts better [good] (was 42% in week 3); target: 30 pts to go [flat] (target 75%); hit: Very unlikely [bad] (likely 72% by cycle end)` |
 | Short or over: higher is better, then lower is better. | `short, over` |
 | A 60→30 goal (lower is better) with 50, 48, 46, 45 in weeks 1–4, seen in week 4: To target. | `15 pts over [flat] (target 30%)` |
+| The 30→75 goal with 36, 39, 42, 45 in weeks 1–4 and 76 in week 5, called done; seen in week 7, and its forecast. | `result: Done [good] (76% in week 5); no forecast` |
 | The same, but stale. | `hit: Can’t say` |
 
 ## Not self-explanatory
@@ -52,6 +53,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ## Where it lives
 
 - [src/domain/scorecard.ts](../../../src/domain/scorecard.ts): `likelihood`, `likelihoodFloor`, `goalScorecard`, `amount`, `byWeekWords`
+- [src/domain/status.ts](../../../src/domain/status.ts): `doneCheckIn`, `projects`
 - [src/domain/summaryFacts.ts](../../../src/domain/summaryFacts.ts): `summaryFacts`
 - [src/domain/vocabulary.ts](../../../src/domain/vocabulary.ts): `shortWord`
 - [src/domain/year.ts](../../../src/domain/year.ts): `quarterResult`

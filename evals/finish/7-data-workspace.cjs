@@ -102,6 +102,8 @@ module.exports = {
     await r.locator('.dtable tbody td.num input').first().fill('7'); await r.waitForTimeout(200);
     await r.getByRole('button', { name: 'Review changes' }).click(); await r.waitForTimeout(400);
     const rv = await r.evaluate(() => {
+      // Measured at the bottom, where the sticky Save bar sits in its own place rather than over scrolled content.
+      document.querySelector('.sheet:has(.change-review) > .sheet-body')?.scrollTo(0, 1e6);
       const kids = [...document.querySelector('[role="dialog"] .change-review').children].filter((e) => e.getClientRects().length);
       const gaps = kids.slice(1).map((e, i) => Math.round(e.getBoundingClientRect().top - kids[i].getBoundingClientRect().bottom));
       document.activeElement?.blur(); const again = document.querySelector('.preview-again'), ta = document.querySelector('[role="dialog"] textarea');

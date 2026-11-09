@@ -60,7 +60,7 @@ module.exports = {
     // ---------- the goal page ----------
     // [Goal 2, 15, 17, 21, 22, 26, 29, 30; 6, 8, 10] Maya's north star on a laptop. Rebuilt as the flagship page (5 Nov):
     // the threats block is the pinned first row of What feeds it, the status line is the summary bar's second line, the
-    // contributing counts open What feeds it ("Fed by four goals: 2 off track, 1 at risk"; in the bar until the scorecard,
+    // contributing counts open What feeds it ("Directly feeding it (four goals): 2 off track, 1 at risk"; in the bar until the scorecard,
     // 5 Nov), and the comments tab is the one Activity stream.
     [c, p] = await open(1280, 800, 'rhea', '/goals/ns-lead');
     await p.locator('svg.chart').waitFor();

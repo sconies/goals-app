@@ -117,6 +117,20 @@ describe('MCP server', () => {
     expect(planAt((data().goals.find((g) => g.id === 'mttr-pir') as MetricGoal).plan, 48, WEEKS)).toBe(50);
   });
 
+  it('checks a target that flips which way is better with the person before saving it', async () => {
+    const { call, data } = await setup();
+    const g = data().goals.find((x) => x.id === 'mttr-pir') as MetricGoal;
+    const flipped = 2 * g.plan.start - g.plan.target;
+    const args = { goal_id: 'mttr-pir', target: flipped, reason: 'Measured the other way round now' };
+    const no = await call('update_goal', args);
+    expect(no.isError).toBe(true);
+    expect(no.content[0]!.text).toMatch(/This makes (higher|lower) better[\s\S]*"confirm": true/);
+    expect((data().goals.find((x) => x.id === 'mttr-pir') as MetricGoal).plan.target).toBe(g.plan.target);
+    const yes = await call('update_goal', { ...args, confirm: true });
+    expect(yes.isError).toBe(false);
+    expect((data().goals.find((x) => x.id === 'mttr-pir') as MetricGoal).plan.target).toBe(flipped);
+  });
+
   it('checks a bulk change first and saves only with apply', async () => {
     const { call, data } = await setup('amara');
     const rows = { goals: [{ ID: 'mttr-pir', Level: 'svp' }, { Goal: 'Runbooks with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: 20, Target: 90, 'Feeds into ID': 'ns-cfr' }] };

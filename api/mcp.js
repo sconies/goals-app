@@ -1110,6 +1110,15 @@ function goalStatus(goal, cycle, checkIns, today) {
 	};
 }
 /**
+* The check-in that closed a goal: its latest (as of `week`, when given), if the owner called it done. A done goal shows
+* its final result: no forecast, no projection, and no quarter after it still running (backlog 9 Nov, item 2).
+*/
+function doneCheckIn(goal, checkIns, week) {
+	const own = checkInsFor(goal, checkIns).filter((c) => week == null || c.week <= week);
+	const latest = own.length ? own.reduce((a, b) => b.postedAt > a.postedAt ? b : a) : null;
+	return latest?.status === "done" ? latest : null;
+}
+/**
 * Days since a goal's latest check-in was posted, or, with none, since it began (the cycle's start, or when it was
 * added if later). The one rule for "no recent update": stale at RULES.staleDays, and the Goals filter "No update for
 * N weeks" counts the same days in weeks.
@@ -1118,7 +1127,7 @@ function daysWithoutUpdate(goal, cycle, latest, today) {
 	if (latest) return daysSince(latest.postedAt, today);
 	return daysSince(goal.createdAt && goal.createdAt.slice(0, 10) > cycle.startDate ? goal.createdAt : cycle.startDate, today);
 }
-var RANK, byGoalCache;
+var RANK, byGoalCache, projects;
 var init_status = __esmMin((() => {
 	init_plan();
 	init_thresholds();
@@ -1133,6 +1142,7 @@ var init_status = __esmMin((() => {
 		off: 3
 	};
 	byGoalCache = /* @__PURE__ */ new WeakMap();
+	projects = (goal, status) => status !== "stale" && status !== "done" && !goal.stoppedAt;
 }));
 // src/domain/asks.ts
 /** "Amara Nwosu: approve the runner budget" → Amara, and the ask itself. Without a name it's for anyone. */
@@ -2186,6 +2196,33 @@ function planHint(d) {
 	if (d.kind === "range") return setupProblem(d.unit, parseNumber(d.limit), null);
 	return null;
 }
+function planQuestion(before, after) {
+	if (before?.kind !== "metric" || after.kind !== "metric" || !planChanged(before, after)) return null;
+	const was = before.plan, now = after.plan;
+	const d = after.decimals, u = after.unit.trim() === "%" ? "%" : after.unit.trim() ? " " + after.unit.trim() : "";
+	const n = (x) => fixed(x, d) + u;
+	const wasUp = was.target > was.start, nowUp = now.target > now.start;
+	if (wasUp !== nowUp) {
+		const better = nowUp ? "higher" : "lower";
+		return {
+			code: "direction",
+			text: `This makes ${better} better: the target (${n(now.target)}) is now ${nowUp ? "above" : "below"} the start (${n(now.start)}). It was ${n(was.start)} to ${n(was.target)}, ${wasUp ? "higher" : "lower"} is better.`,
+			confirm: `Yes, make ${better} better`
+		};
+	}
+	const old = new Map((was.points ?? []).map((p) => [p.week, p.value]));
+	const far = [
+		...now.target !== was.target ? [["target", now.target]] : [],
+		...now.start !== was.start ? [["start", now.start]] : [],
+		...(now.points ?? []).filter((p) => old.get(p.week) !== p.value).map((p) => [`week ${p.week}`, p.value])
+	].find(([, v]) => farOutside(v, was.start, was.target));
+	if (far) return {
+		code: "far",
+		text: `The ${far[0]} of ${n(far[1])} is far outside the plan it replaces (${n(was.start)} to ${n(was.target)}). Status, progress and the forecast will all be judged against it.`,
+		confirm: `Yes, ${far[0]} ${n(far[1])} is right`
+	};
+	return null;
+}
 /** Whether the plan itself differs: what status is judged against (start, target, shape, limit, stages). */
 function planChanged(a, b) {
 	if (a.kind !== b.kind) return true;
@@ -2368,16 +2405,24 @@ function targetAt(g, c, week) {
 	if (g.kind !== "metric") return null;
 	return planAt(g.plan, Math.min(week, planEnd(g.plan, c.weeks)), c.weeks);
 }
-/** How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. */
+/**
+* How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. Once the
+* owner calls it done, the quarter it closed in is judged on its final number, and any quarter after it has nothing due.
+*/
 function quarterResult(g, c, checkIns, q, week) {
 	const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
 	const last = own[own.length - 1];
-	const ended = week > q.to;
+	const done = doneCheckIn(g, checkIns, week);
 	const r = (kind, text) => ({
 		quarter: q,
 		kind,
 		text: `${q.label}: ${text}`
 	});
+	if (done && done.week < q.from) return {
+		...r("none", `done in week ${done.week}`),
+		doneWeek: done.week
+	};
+	const ended = week > q.to || !!done && done.week <= q.to;
 	if (g.kind === "metric") {
 		const p = ended ? goalAsOf(g, q.to) : g;
 		if ((p.plan.fromWeek ?? 0) >= q.to || planEnd(p.plan, c.weeks) < q.from) return r("none", "nothing planned");
@@ -3163,6 +3208,13 @@ function saidIn(s) {
 		dueWeek: a.dueWeek,
 		ask: a
 	}))];
+}
+/** The week of a review's next session on or after today: this week's, or the one after once its date has gone. Home's
+"Next review" and the review page's "Next" both use it, so they name the same day (review F07, 9 Nov). */
+function upcomingSessionWeek(r, cycle, week, today) {
+	const day = today.toISOString().slice(0, 10);
+	const w = sessionWeek(r, week, cycle);
+	return sessionDate(r, cycle, w) < day ? sessionWeek(r, w + 1, cycle) : w;
 }
 /**
 * The answer to a question or action said in a review: the ask's own answer (or the note it was marked done with),
@@ -5398,9 +5450,10 @@ function sayAmount(v, g) {
 		const scale = m[2]?.toLowerCase() === "k" ? 1e3 : m[2]?.toLowerCase() === "m" ? 1e6 : 1;
 		const x = Math.abs(v * scale), sign = v < 0 ? "−" : "";
 		const trim = (n, d) => String(Number(n.toFixed(d)));
-		if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, x >= 1e7 ? 1 : 2)}m`;
-		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, x >= 1e4 ? 0 : 1)}k`;
-		return `${sign}${sym}${Math.round(x)}`;
+		const own = (display, d) => display === scale ? Math.max(d, g.decimals) : d;
+		if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, own(1e6, x >= 1e7 ? 1 : 2))}m`;
+		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, own(1e3, x >= 1e4 ? 0 : 1))}k`;
+		return `${sign}${sym}${scale === 1 && g.decimals > 0 ? x.toFixed(g.decimals) : String(Math.round(x))}`;
 	}
 	const n = Number(v.toFixed(g.decimals)).toLocaleString("en-GB", { maximumFractionDigits: g.decimals });
 	if (!g.unit) return n;
@@ -7020,6 +7073,7 @@ function planChanges(input) {
 	const lookup = lookupNow();
 	const goalOut = /* @__PURE__ */ new Map();
 	let needsReason = false;
+	let needsConfirm = false;
 	for (const [id, t] of touched) {
 		const after = work.get(id);
 		const ch = goalChange(t.before, after, lookup, actor.id, now, newId("chg"));
@@ -7039,6 +7093,8 @@ function planChanges(input) {
 			from: "—",
 			to: reason
 		});
+		const q = planQuestion(t.before, after);
+		if (q && !input.confirm) needsConfirm = true;
 		goalOut.set(id, after);
 		changes.push(ch);
 		items.push({
@@ -7049,7 +7105,11 @@ function planChanges(input) {
 			kind: !t.before ? "new goal" : needs || t.plan && planChanged(t.before, after) ? "plan" : "goal",
 			summary: ch.summary,
 			diffs: ch.diffs,
-			needsReason: needs
+			needsReason: needs,
+			...q ? { question: {
+				text: q.text,
+				confirm: q.confirm
+			} } : {}
 		});
 	}
 	const ciOut = [];
@@ -7427,12 +7487,13 @@ function planChanges(input) {
 		deleted: items.filter((x) => x.kind === "delete goal").length,
 		left: items.filter((x) => x.kind === "person left").length
 	};
-	const ok = !issues.some((x) => x.severity === "error") && !needsReason && items.length > 0;
+	const ok = !issues.some((x) => x.severity === "error") && !needsReason && !needsConfirm && items.length > 0;
 	const result = {
 		items,
 		unchanged,
 		issues,
 		needsReason,
+		needsConfirm,
 		commit: null,
 		counts
 	};
@@ -7962,7 +8023,7 @@ function storyOf(g, s, cycle, week, today) {
 	const quarters = quarterResults(g, cycle, s.checkIns, week);
 	const lastEnded = [...quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed");
 	const fc = forecastText(g, a, cycle.weeks, cycle);
-	const outlook = fc && status !== "stale" ? fc.text : null;
+	const outlook = fc && projects(g, status) ? fc.text : null;
 	let why = null, doing = null, byWhen = null, needs = null;
 	const ptg = last?.pathToGreen ?? null;
 	if (behind && last) {
@@ -8060,8 +8121,8 @@ function summarise(goal, s, cycle, today, week) {
 		lastPostedAt: last?.postedAt ?? null,
 		quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
 		attention: attentionFor(goal, s, cycle, today),
-		forecast: st.status === "stale" ? null : forecastText(goal, a, cycle.weeks, cycle)?.text ?? null,
-		projection: st.status === "stale" || a.kind !== "metric" ? null : a.projection,
+		forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,
+		projection: !projects(goal, st.status) || a.kind !== "metric" ? null : a.projection,
 		feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
 		why: behind && last ? [last.cause ? causeLabel(last.cause) : "", last.why].filter((x) => x && x !== "On plan.").join(": ") : "",
 		pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : "") : "",
@@ -9331,10 +9392,19 @@ A stopped goal makes no forecast: its card says how it stood (no "will it hit?" 
 chart), and the note under it says when and why it stopped. */
 function goalScorecard(goal, cycle, checkIns, week, stale) {
 	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale) : milestoneCard(goal, checkIns, week);
-	if (!goal.stoppedAt) return card;
+	const done = doneCheckIn(goal, checkIns, week);
+	if (!goal.stoppedAt && !done) return card;
+	const cells = card.cells.filter((c) => c.key !== "hit");
+	if (done && goal.kind !== "milestone") cells.push({
+		key: "result",
+		label: "Result",
+		value: STATUS.done.label,
+		sub: `${done.value != null ? fmt(done.value, goal) + " " : ""}in week ${done.week}`,
+		tone: "good"
+	});
 	return {
 		...card,
-		cells: card.cells.filter((c) => c.key !== "hit"),
+		cells,
 		marks: card.marks && {
 			...card.marks,
 			end: null
@@ -9502,10 +9572,8 @@ function groupWatched(all) {
 }
 /** The next session of a review the person takes part in, today's included. */
 function nextReview(personId, s, cycle, week, today) {
-	const day = today.toISOString().slice(0, 10);
 	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
-		let w = sessionWeek(r, week, cycle);
-		if (sessionDate(r, cycle, w) < day) w = sessionWeek(r, w + 1, cycle);
+		const w = upcomingSessionWeek(r, cycle, week, today);
 		const date = sessionDate(r, cycle, w);
 		return {
 			id: r.id,
@@ -9570,7 +9638,7 @@ var help_default = [{
 				"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 				"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored. A word a column doesn’t know, such as a level of “vp”, is a problem to fix, never a guess.",
 				"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over, by email). The same rules as the app apply, and the preview shows what each does.",
-				"Every row is checked with the app’s own rules and shown before anything is saved. Nothing saves while a row needs fixing; plan changes after check-ins need a reason.",
+				"Every row is checked with the app’s own rules and shown before anything is saved. Nothing saves while a row needs fixing; plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is listed under Check these plan changes and saves only once you say yes.",
 				"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
 				"Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included."
 			]
@@ -9990,7 +10058,7 @@ var CORE_ARTICLES = [
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
 					`Causes when behind: ${causes(CAUSES_BEHIND)}. When ahead: ${causes(CAUSES_AHEAD)}. Something else lets you say it in your own words.`,
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
-					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
+					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. Correcting a check-in in the same week asks about this week’s earlier check-in instead. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
 					"What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.",
 					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
@@ -10221,8 +10289,11 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.",
-					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. Each button has its name, on a phone too, and a line under the buttons says what the open layout shows. Your last layout is remembered and is in the link.",
-					"On a phone the tabs and the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full.",
+					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.",
+					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.",
+					"Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.",
+					"A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.",
+					"On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.",
 					"When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.",
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
@@ -10272,7 +10343,9 @@ var CORE_ARTICLES = [
 			"mine",
 			"portfolio",
 			"outcomes",
-			"story"
+			"story",
+			"phone",
+			"views"
 		],
 		related: [
 			"goals-filters",
@@ -10289,7 +10362,8 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition.",
+				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.",
+				"Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.",
 				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Decision or help needed is one press. Each active filter shows as words you can remove.",
 				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest.",
@@ -10396,6 +10470,8 @@ var CORE_ARTICLES = [
 				"Choose History among the Goals layouts. It opens on quarter results: each goal’s number at the end of each quarter against the owner’s plan, met or missed, with this quarter in progress.",
 				"Weekly status is the other choice: each square is the owner’s call that week, one quarter at a time or the whole year.",
 				"Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.",
+				"Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.",
+				"On a goal on track or done now, a quarter it didn’t meet is shown quietly, as history, rather than as a warning.",
 				"A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan."
 			]
 		}],
@@ -10431,7 +10507,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Choose Map among the Goals layouts. North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.",
-				"Pan, zoom and drag goals about. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.",
+				"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.",
 				"The critical path, the inputs most likely to make a top goal miss, is drawn bold. Only what needs attention narrows the map to that.",
 				"Fit all shows everything small; Readable shows the critical path at a size you can read.",
 				"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.",
@@ -10467,6 +10543,7 @@ var CORE_ARTICLES = [
 				heading: "The summary bar",
 				list: [
 					"First line: the goal, its owner, its level and its key (G-12). Then its status as a shape and a word, and the number in the goal’s own units.",
+					"Beside the key: when it was last updated, the latest check-in’s date and its week (“Updated 6 Nov · week 45”).",
 					"Under them, the scorecard: four short cells, each with a label, a value and one line to back it up. For a number goal: Vs plan (“9 hours behind”, against this week’s plan), Vs last week (the latest check-in against the one before, worse or better whichever way is good; if a week was skipped it names the week it compares with), To target (what’s left to go; when lower is better, how far over the target it still is: “5 min over”), and Will it hit the target. A gap on the wrong side of a plan says “short” when higher is better and “over” when lower is better, and a number shown equal to its plan counts as met.",
 					"Will it hit the target says Likely, Possible, Unlikely or Very unlikely, never a percentage. It comes from where the target sits against the projected range: comfortably on the near side of the likeliest value is Likely; close to it, or inside the range beyond it, is Possible; just beyond the range (within half its width) is Unlikely; further is Very unlikely. Under it, the likeliest end, such as “likely 37 hours by year end”.",
 					"A goal that keeps a number within a limit gets Vs the limit, Vs last week, Room to the limit and Will it stay within. Dated stages get Stages done, Stages behind (slipping or late) and Next stage: when it now lands, and the week it was due if it’s late.",
@@ -10481,17 +10558,21 @@ var CORE_ARTICLES = [
 					"One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures. While a goal doesn’t say how it’s measured, its owner and admins see a line asking for it, with a link to describe it.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.",
 					"Every section under the chart has a heading and one line saying what it answers, with a rule between sections.",
-					"Why it’s behind: the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
+					"Why it could miss without a change (at risk), or Why it will miss without intervention (off track): the status’s own meaning, so a goal at risk that is recovering isn’t said to be behind, and the status word isn’t said twice. Under it, the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
 					"What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done.",
 					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
-					"What feeds it: how the goals feeding it stand (“Fed by four goals: 2 off track, 1 at risk”), then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
-					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks.",
+					"What feeds it: how the goals directly feeding it stand (“Directly feeding it (four goals): 2 off track, 1 at risk”). Cards on Goals count everything under a goal instead, and say so (“Everything under it (16 goals)”), so the two never look contradictory. Then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
+					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list.",
 					"About this goal: how it’s measured, its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change. It’s open the first time you visit, and folded after."
 				]
 			},
 			{
 				heading: "Changing it",
 				list: ["Change this goal (in About, or the “…” menu) offers three: improve the definition, change the plan or target, change the owner or level. Each asks why, and the reason goes in the activity for everyone watching.", "Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for whoever posted it or an admin; after a newer one it can only be corrected."]
+			},
+			{
+				heading: "A done goal",
+				list: ["Once the owner calls a goal done, it shows its final result, not a forecast: Result says Done, with the number it closed on and its week, where Will it hit the target was. Its chart has no projection, lists and exports give no forecast, and a quarter after the one it was done in says None due, done in week 38, rather than In progress."]
 			},
 			{
 				heading: "A stopped goal",
@@ -10656,6 +10737,7 @@ var CORE_ARTICLES = [
 				"Plan by week shows the numbers week by week; type over any week.",
 				"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s activity. A change made from one part of Change this goal always asks why.",
 				"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about.",
+				"A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.",
 				"The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.",
 				"A goal’s type can’t change once check-ins have started."
 			]
@@ -10703,7 +10785,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Running it",
 				list: [
-					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date says how many days past it is.",
+					"Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.",
 					"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too).",
 					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.",
 					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
@@ -10843,7 +10925,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.",
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
-					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too.",
+					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
 					"Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the blank template; and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
 					"IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email."
@@ -11593,7 +11675,11 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Your work is safe",
-				list: ["Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.", "Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."]
+				list: [
+					"Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.",
+					"When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.",
+					"Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
+				]
 			},
 			{
 				heading: "On your home screen",
@@ -11619,7 +11705,8 @@ var CORE_ARTICLES = [
 			"DRAFTS",
 			"PERSIST",
 			"MOTION",
-			"NAV-GOALS"
+			"NAV-GOALS",
+			"STALE-RELOAD"
 		],
 		keywords: [
 			"phone",
@@ -11742,6 +11829,67 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "review-leftovers",
+		date: "2026-11-09",
+		title: "Smaller things from the full review",
+		points: [
+			"When Faro is updated while you have it open, a page that can’t load the part it needs reloads itself once, at the same address, instead of showing an error. Anything you were typing is kept.",
+			"Small amounts of money keep their decimals in forecasts: “about $0.63”, not “about $1”.",
+			"A review session past its date says “Outstanding from” its date, with the next session beside it, on Reviews, on the review’s page and in the bar you walk it with.",
+			"Weekly history says “Done since week 37” after a goal is done; a quarter it didn’t meet reads as quiet history once it’s on track; the first-check-in note says it counts the whole workspace.",
+			"Correcting a check-in in the same week asks about this week’s earlier check-in, not last week’s. Data’s columns start compact, so more fit on the screen."
+		],
+		articles: [
+			"any-device",
+			"reviews",
+			"history",
+			"check-in",
+			"data"
+		]
+	},
+	{
+		id: "goal-page-fixes",
+		date: "2026-11-09",
+		title: "A goal page that never contradicts itself",
+		points: [
+			"A new target on the other side of the start flips which way is better, so it is no longer saved quietly: Faro says so (“This makes higher better”) and saves once you say yes. A number far outside the plan it replaces is asked about the same way, in the goal’s form, an import, Data and the AI assistant.",
+			"A goal called done shows its final result where the forecast was, with no projection, and its later quarters say None due rather than In progress.",
+			"The heading over the owner’s reason says what the status means: Why it could miss without a change, or Why it will miss without intervention, never “behind” for a goal that is recovering.",
+			"Feeder counts say what they count: “Directly feeding it” on a goal’s page, “Everything under it” on a card.",
+			"A repeated reason in the history says which way to look for the week it points to, and the header says when the goal was last updated."
+		],
+		articles: ["goal-page", "edit-goal"]
+	},
+	{
+		id: "goals-phone-goals-first",
+		date: "2026-11-09",
+		title: "Goals on a phone: the goals first",
+		points: [
+			"On a phone, Goals now starts with the goals: the first one is about a third of the way down the screen instead of below it.",
+			"Views and Layout are two buttons on one line. Views says which goals are open and how many, and holds the tabs, your saved views and Export these goals. Layout says the open layout and what each one shows.",
+			"The note about first check-ins is one line on a phone, with Why? for the rest.",
+			"On a computer, Goals is just as it was."
+		],
+		articles: ["goals"],
+		fixes: ["mk_3066bf5c5a35402e"]
+	},
+	{
+		id: "goals-search-and-back",
+		date: "2026-11-09",
+		title: "Search that keeps up, and Back that goes back",
+		points: [
+			"Search on Goals keeps every letter, however fast you type or paste; the goals follow a moment after you stop.",
+			"Clearing a search keeps the tab, the layout and the sort you had.",
+			"Each tab and layout you choose is a step Back returns to, with its search as it was.",
+			"A link to a tab or team that isn’t there opens the trees, or the goals without that filter, and says what it left out. Every tab is shown whole on a wide screen, and Delete on the map no longer does anything."
+		],
+		articles: [
+			"goals",
+			"goals-filters",
+			"goal-map"
+		]
+	},
 	{
 		id: "home-screen-icon-and-splash",
 		date: "2026-11-08",
@@ -15869,6 +16017,8 @@ function rows$1(list, sheet) {
 		return r;
 	});
 }
+/** Yes to a plan question (a target that flips which way is better, a number far outside the old plan). */
+var CONFIRM = bool("True once the person has said a plan change that was questioned (it flips which way is better, or a number is far outside the old plan) is right.");
 async function change(ctx, tables, opts) {
 	const cs = planChanges({
 		tables,
@@ -15879,7 +16029,8 @@ async function change(ctx, tables, opts) {
 		now: ctx.now,
 		newId: ctx.newId,
 		via: "mcp",
-		reason: opts.reason
+		reason: opts.reason,
+		confirm: opts.confirm
 	});
 	const errors = cs.issues.filter((x) => x.severity === "error");
 	const warnings = cs.issues.filter((x) => x.severity === "warning");
@@ -15914,7 +16065,13 @@ async function change(ctx, tables, opts) {
 			goal: x.goal,
 			message: x.message
 		})),
-		needsReason: cs.needsReason
+		needsReason: cs.needsReason,
+		questions: cs.items.filter((x) => x.question).map((x) => ({
+			goalId: x.goalId,
+			goal: x.goal,
+			question: x.question.text
+		})),
+		needsConfirm: cs.needsConfirm
 	};
 	const lines = (l) => l.map((x) => `- ${x.goal ? x.goal + ": " : ""}${x.message}`).join("\n");
 	if (errors.length) return {
@@ -15926,6 +16083,14 @@ async function change(ctx, tables, opts) {
 		isError: true,
 		data,
 		text: "Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with \"reason\"."
+	};
+	if (cs.needsConfirm) return {
+		isError: true,
+		data,
+		text: `Not saved: check this with the person first.\n${lines(data.questions.map((x) => ({
+			goal: x.goal,
+			message: x.question
+		})))}\nIf they say it's right, call again with "confirm": true.`
 	};
 	if (!cs.items.length) return {
 		data,
@@ -16225,7 +16390,7 @@ var CORE_TOOLS = [
 	{
 		name: "update_goal",
 		title: "Change a goal",
-		description: "Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan.",
+		description: "Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan. One that flips which way is better, or puts a number far outside the old plan, is checked with the person first (confirm: true).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -16234,6 +16399,7 @@ var CORE_TOOLS = [
 				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				...GOAL_FIELDS,
 				reason: str("Why the plan is changing."),
+				confirm: CONFIRM,
 				dry_run: DRY
 			}
 		},
@@ -16253,7 +16419,8 @@ var CORE_TOOLS = [
 				...GOAL_COLS
 			})] }, {
 				dry: !!a.dry_run,
-				reason: a.reason
+				reason: a.reason,
+				confirm: a.confirm === true
 			});
 		}
 	},
@@ -16294,7 +16461,7 @@ var CORE_TOOLS = [
 	{
 		name: "set_plan_numbers",
 		title: "Set plan numbers by hand",
-		description: "Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started.",
+		description: "Set a number goal’s planned value for particular weeks; the plan then runs straight between them. Setting the due week’s number changes the target. Needs a reason once check-ins have started, and confirm: true when a number is far outside the old plan or flips which way is better.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -16314,6 +16481,7 @@ var CORE_TOOLS = [
 					}
 				},
 				reason: str("Why the plan is changing."),
+				confirm: CONFIRM,
 				dry_run: DRY
 			}
 		},
@@ -16331,7 +16499,8 @@ var CORE_TOOLS = [
 			for (const p of a.numbers ?? []) r[`week ${p.week}`] = String(p.value);
 			return change(ctx, { plan: [r] }, {
 				dry: !!a.dry_run,
-				reason: a.reason
+				reason: a.reason,
+				confirm: a.confirm === true
 			});
 		}
 	},
@@ -16407,6 +16576,7 @@ var CORE_TOOLS = [
 					description: "Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left."
 				},
 				reason: str("Why plans are changing, for any plan change that needs one."),
+				confirm: CONFIRM,
 				apply: bool("Save the changes. Leave out first to check them.")
 			}
 		},
@@ -16424,7 +16594,8 @@ var CORE_TOOLS = [
 				people: rows$1(a.people, "people")
 			}, {
 				dry: !a.apply,
-				reason: a.reason
+				reason: a.reason,
+				confirm: a.confirm === true
 			});
 		}
 	}
