@@ -2,17 +2,20 @@
 
 About 25 minutes in the talk. The point is to show **how a feature gets added with AI**: start from a manager's request, agree requirements with the room, refine them, then watch an AI build it on a tested foundation, inside the rules the project already has.
 
-**Draft:** this is finished once the back end (backlog 0b) has merged and the rehearsal on Monday has run. The rehearsal's result is kept on the branch `demo/metrics-live-fallback` (not merged).
+The back end (backlog 0b) is on main (PR #52). The rehearsal's result is kept on the branch `demo/metrics-live-fallback` (never merged).
 
-## Before you start (5 minutes before the talk)
-- Open three tabs: the demo (`/demo`, Data page), this file, and a **new Claude Code session on the goals-app repository** (claude.ai/code), environment **goals-app**, mode **Auto** so it doesn't stop for permissions.
-- Check the fallback branch's preview link opens.
+**Rehearsal, Monday 9 Nov (23:16 UTC on the 8th):** the brief below, with the default answers and answer 3 as "yes, with a reason". A working preview at **21 minutes**, CI green at 41 (about 15 of those lost to a late look at a red run). Draft PR #55 (do not merge). **Fallback preview:** https://goals-app-git-demo-metric-925e78-lanehirschfield-5825s-projects.vercel.app/demo/data/metrics (behind Vercel sign-in: open it in a browser signed in to Vercel). What it taught, now in this brief and the module README: a reason for changing a metric is a rule change in the core, so it pulls the build out of the module and turns on the full eval suite; a new journey also turns on the full suite through `evals/touches.cjs`, so the brief names the eval command to run instead; changing `help.ts` changes `api/mcp.js`, so `build:mcp` runs last.
+
+## Before you start (15 minutes before the talk)
+- Work through `docs/live-build/checklist.md`.
+- Open three tabs: the demo (`/demo`, Data page), this file, and a **new Claude Code session on the goals-app repository** (claude.ai/code), environment **goals-app**, mode **Auto** so it doesn't stop for permissions. Auto has to be chosen when the session starts.
+- Check the fallback preview link opens.
 
 ## 1. The request (2 minutes)
 
 Say: *"My manager asked: every goal should say exactly what it measures, defined once, so two teams' 'build time' are the same thing. That's a metric library."*
 
-Show that the foundation is already there: in the demo, Data has no Metrics page yet, but ask the AI assistant (or show `src/modules/metrics/README.md`) and it lists about 10 metrics already defined and linked to goals. *"The data and the rules exist and are tested. What's missing is the screens. We'll add them now."*
+Show that the foundation is already there: in the demo, Data has a Metrics sheet but no Metrics page; show `src/modules/metrics/README.md` and the Metrics sheet in the workbook (Data → Spreadsheets → download): it lists 13 metrics already defined, 12 of them measuring a goal. *"The data and the rules exist and are tested. What's missing is the screens. We'll add them now."*
 
 ## 2. Requirements on screen (3 minutes)
 
@@ -27,17 +30,17 @@ Starting requirements:
 Ask, and write the answers into the brief before you paste it:
 1. **Who can create a metric?** (Faro's rule today: anyone; the owner or an admin edits it.) Keep, or admins only?
 2. **What must a metric have before a goal can use it?** (Today: name, unit, direction.) Add meaning and source?
-3. **Can a goal change its metric after check-ins have started?** (Suggest: yes, with a reason, like a plan change.)
+3. **Can a goal change its metric after check-ins have started?** (Faro today: yes, freely; the change is in its history.) If the room wants a reason, say that's a rule change in the core, not a screen: *"that's exactly the kind of change that goes through review, not a 20-minute build"*, and put it in the backlog. Keep "yes, freely" in the brief. (The rehearsal built the reason; it took the build into the core and the full test suite.)
 4. **Should the Metrics page show which teams use each metric?**
 5. Anything to leave out today? (Fewer requirements, faster build.)
 
-## 4. Build (15–20 minutes)
+## 4. Build (about 20 minutes)
 
 Paste the brief below into the new session, with the room's answers filled in. While it works, narrate:
 - it reads `CLAUDE.md` and the module README first: the project's own rules (design, tests, help, what's new) apply to AI too;
 - it builds the screens as part of the `metrics` module, plugging into places the core already offers (a Data page, a goal-form field);
 - it runs the checks the change touches, not everything, so it's fast;
-- it opens a pull request; CI runs; Vercel makes a preview link.
+- it opens a pull request; CI runs (about 3 to 4 minutes); Vercel makes a preview link within a minute or two of the push. **Open the preview as soon as Vercel says Ready;** don't wait for CI.
 
 ### The brief
 
@@ -50,7 +53,7 @@ Paste the brief below into the new session, with the room's answers filled in. W
 > 4. The goal page shows its metric and what it means.
 > [ROOM: answers to questions 1–5]
 >
-> Register the screens through the metrics module's places, not by editing the core. Add What's new and Help. Run `npm run typecheck`, `npm test` and only the evals your change touches (`npm run evals:changed`); skip the full suite. Open a pull request, wait for CI, and post the preview link. Be quick: this is being built live in front of an audience.
+> Register the screens through the metrics module's places, not by editing the core. Add What's new and Help. Read "Before pushing the live build" in the module README first and follow it. Run `npm run typecheck` and `npm test`; for evals, run only the ids `npm run evals:changed` lists, as the README says, never the full suite. Push and post the preview link as soon as Vercel has it, then open a pull request and watch CI; if it goes red, fix it at once. Be quick: this is being built live in front of an audience.
 
 ## 5. Show it (3 minutes)
 
