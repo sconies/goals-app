@@ -91,7 +91,7 @@ One meaning for every word the app uses for a state. Each is defined once, in `s
 | Code | Word | What it means | Decided by | Where | Don’t say |
 |---|---|---|---|---|---|
 | `needs` | Needs attention | Flagged for something new that nobody has picked up yet. | `needsAttention` (attention.ts) | screens, exports, help, ai |  |
-| `handled` | Being handled | Behind, but someone has looked since the latest check-in and nothing new has happened. | `handledFor` (attention.ts) | screens, exports, help, ai |  |
+| `handled` | Being handled | Someone looked at it after its latest check-in. It comes back to Needs attention if anything new happens. | `handledFor` (attention.ts) | screens, exports, help, ai |  |
 
 ### Other warnings on a goal’s story
 
