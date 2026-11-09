@@ -8,11 +8,11 @@ import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
-import { answerOf, dayText, daysPast, goalsIn, isHealthy, lastHeld, nextSessionDate, nextWhen, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionState, sessionStateText, sessionWhen, type ReviewSession, type SessionState } from '../domain/review';
+import { answerOf, dayText, daysPast, goalsIn, lastHeld, nextSessionDate, nextWhen, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionPlan, sessionState, sessionStateText, sessionWhen, walkOrder, type ReviewSession, type SessionState } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
 import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
-import { Avatar, Chip, Empty, ProgressRing, WarnMark } from '../ui/bits';
+import { Avatar, Chip, Empty, ProgressRing, Sheet, WarnMark } from '../ui/bits';
 import { saveReviewOrder } from './Inspect';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
@@ -166,6 +166,9 @@ export function ReviewHome() {
   const [walkAll, setWalkAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [listHealthy, setListHealthy] = useState(false);
+  // Marking the goals with nothing flagged asks first (deep review T3): 'mark' while goals to discuss are left, 'finish'
+  // when it is the last step and so ends the session.
+  const [confirming, setConfirming] = useState<'mark' | 'finish' | null>(null);
   // An ended review keeps its page: what it was, that it ended, and (for its owner or an admin) Reopen.
   const ended = !review ? app.snapshot.archive?.reviews.find((r) => r.id === reviewId) : undefined;
   if (ended) return <EndedReview review={ended} />;
@@ -173,21 +176,24 @@ export function ReviewHome() {
   const s = reviewSession(review, app.snapshot, app.cycle, app.today, app.week);
   const st = sessionState(s);
   // The walk is the exceptions, one at a time; healthy goals are acknowledged together below, or walked if you choose.
-  const exceptions = s.items.filter((a) => !isHealthy(a));
-  const healthy = s.items.filter(isHealthy);
-  const walk = walkAll || !exceptions.length ? s.items : exceptions;
+  // Which is which, and the order, are fixed as the session started, so walking it never reshuffles it (deep review T3).
+  const plan = sessionPlan(s, app.snapshot, app.cycle, app.today);
+  const exceptions = plan.discuss;
+  const healthy = plan.healthy;
+  const order = walkOrder(plan, walkAll);
+  const walk = order.map((id) => s.items.find((a) => a.goal.id === id)!).filter(Boolean);
   const first = walk.find((a) => !s.covered.has(a.goal.id));
   const start = () => {
-    saveReviewOrder(app.ws.id, review.id, s.week, walk.map((a) => a.goal.id));
+    saveReviewOrder(app.ws.id, review.id, s.week, order);
     if (first) nav(`/goals/${first.goal.id}?review=${review.id}`);
   };
   const healthyLeft = healthy.filter((a) => !s.covered.has(a.goal.id));
   const ackHealthy = async () => {
     setBusy(true);
-    // Marking these finishes the session when they're all that's left: then this page leads with what was said.
+    // One save, with Undo on its message. Marking the last of them finishes the session: only from Finish review.
     try {
-      for (const a of healthyLeft) await app.reviewCall(a.goal, review, s.week, 'acknowledge', '');
-      app.toast(`${goalsN(healthyLeft.length)} with nothing flagged marked reviewed`);
+      await app.markReviewed(healthyLeft.map((a) => a.goal), review, s.week);
+      setConfirming(null);
     } catch { /* the save already said what went wrong */ }
     setBusy(false);
   };
@@ -220,7 +226,7 @@ export function ReviewHome() {
           <span className="muted review-line">{line}</span>
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
             {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(walk.length)}`}</button>}
-            {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} with nothing flagged reviewed</button>}
+            {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => setConfirming('finish')}>Finish review</button>}
             {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
             <Link className="btn ghost print-link" to={`/reviews/${review.id}/print`}><Icon name="print" /><span className="print-link-label">Print or save as PDF</span></Link>
@@ -239,7 +245,7 @@ export function ReviewHome() {
         <section className="block healthy-group" data-part="Nothing flagged">
           <div className="healthy-head">
             <h2 className="block-title">Nothing flagged · {healthyLeft.length}</h2>
-            {inIt && first && <button className="btn" disabled={busy} onClick={() => void ackHealthy()}>Mark {goalsN(healthyLeft.length)} reviewed</button>}
+            {inIt && first && <button className="btn" disabled={busy} onClick={() => setConfirming('mark')}>Mark {goalsN(healthyLeft.length)} reviewed</button>}
           </div>
           {/* Folded, and the rows exist only once opened, so a folded group doesn't hide unlabelled status shapes. */}
           <details className="disclose" onToggle={(e) => setListHealthy(e.currentTarget.open)}><summary>Show {goalsN(healthyLeft.length)}</summary>
@@ -262,6 +268,16 @@ export function ReviewHome() {
         <div className="people">{people.map((p) => <span key={p.id} className="person"><Avatar p={p} size="sm" />{p.name}</span>)}</div>
       </section>
       <EndReview review={review} />
+      {/* Asked first, said plainly, with Undo on the message after (deep review T3). Only Finish ends the session. */}
+      <Sheet open={!!confirming} onClose={() => setConfirming(null)} title={confirming === 'finish' ? `Finish ${review.name}?` : `Mark ${goalsN(healthyLeft.length)} reviewed?`}>
+        <div className="stack" style={{ gap: 'var(--s4)' }}>
+          <p>{confirming === 'finish'
+            ? `The ${goalsN(healthyLeft.length)} with nothing flagged ${healthyLeft.length === 1 ? 'is' : 'are'} marked reviewed, and the session is recorded as held today. This page then leads with what was said.`
+            : `The ${goalsN(healthyLeft.length)} with nothing flagged ${healthyLeft.length === 1 ? 'is' : 'are'} marked reviewed. The ${goalsN(remaining.length)} to discuss stay${remaining.length === 1 ? 's' : ''} open, and the review carries on.`}</p>
+          <p className="hint">You can undo it from the message that follows.</p>
+          <div className="foot-row"><button className="btn ghost big-btn" onClick={() => setConfirming(null)}>Not yet</button><button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>{busy ? 'Saving…' : confirming === 'finish' ? 'Mark them and finish' : `Mark ${goalsN(healthyLeft.length)} reviewed`}</button></div>
+        </div>
+      </Sheet>
     </div>
   );
 }

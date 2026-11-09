@@ -6,7 +6,7 @@ import type { Cycle, MetricGoal, RangeGoal } from './types';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
 import { planAt, weekDates } from './plan';
-import { gapTrend } from './trend';
+import { planGapTrend } from './trend';
 import { GAP, lower, shortWord, TREND } from './vocabulary';
 
 const CURRENCY = /^([£$€]|USD|GBP|EUR)\s?([km]?)$/i;
@@ -60,7 +60,8 @@ export function standingSentence(goal: MetricGoal, points: { week: number; value
   const when = ago(last.week - earlier.week);
   const thenWords = Math.abs(then) < unit / 2 ? 'on plan' : `${sayDiff(then, goal)} ${then < 0 ? 'behind' : 'ahead'}`;
   if (Math.abs(move) < unit) return `${where}, about the same as ${when}.`;
-  const word = gapTrend(valued.slice(-3).map(gapAt), true);
+  // The one rule for a number's trend (domain/trend.ts planGapTrend): worse only if it shows at the goal's decimals.
+  const word = planGapTrend(valued.slice(-3).map(gapAt).map((raw) => ({ raw, gap: Number(raw.toFixed(goal.decimals)) })));
   if (word !== 'flat') return `${where} and ${lower(TREND[word])}: it was ${thenWords} ${when}.`;
   return `${where}; it was ${thenWords} ${when}.`;
 }

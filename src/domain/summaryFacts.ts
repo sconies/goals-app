@@ -8,7 +8,7 @@ import { fmt, fmtDiff, NO_VALUE, rangeText } from './format';
 import { goalAsOf, planAt, planEnd, projectionFor, type Projection } from './plan';
 import { assessMetric, assessMilestone, assessPosted, checkInsFor, LABEL } from './status';
 import { TREND_SPAN } from './thresholds';
-import { gapTrend, planGaps, stagesTrend } from './trend';
+import { gapTrend, planGapTrend, planGaps, stagesTrend } from './trend';
 import { GAP, gapPhrase, stagesBehind, TREND, type TrendWord } from './vocabulary';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 
@@ -101,7 +101,7 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
   else {
     const latest = span[span.length - 1]!;
     // The one trend rule (domain/trend.ts): the same "Getting worse" as the flag, the story and the chart.
-    const word = gapTrend(span.map((x) => x.raw), true);
+    const word = planGapTrend(span);
     const direction = DIRECTION[word];
     const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
     const num = (v: number) => fixed(Math.abs(v), goal.decimals);

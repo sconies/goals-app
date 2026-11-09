@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { weekDates } from '../domain/plan';
-import { reviewedText, reviewSession, sessionWhen } from '../domain/review';
+import { reviewedText, reviewSession, sessionPlan, sessionWhen, walkOrder } from '../domain/review';
 import type { Decision, Goal } from '../domain/types';
 import { Sheet } from '../ui/bits';
 import { Icon } from '../ui/Icon';
@@ -26,7 +26,16 @@ export function useReview(goalId: string) {
   const [params] = useSearchParams();
   const review = app.snapshot.reviews.find((r) => r.id === params.get('review'));
   const session = review ? reviewSession(review, app.snapshot, app.cycle, app.today, app.week) : null;
-  const order = review && session ? loadReviewOrder(app.ws.id, review.id, session.week) ?? session.items.map((a) => a.goal.id) : [];
+  // The order fixed when the session started. Opened from a goal's own address (or a new tab), it is the agenda's own
+  // walk as the session started, kept from then on, so saving an action never reshuffles it (deep review T3).
+  const saved = review && session ? loadReviewOrder(app.ws.id, review.id, session.week) : null;
+  let order: string[] = saved ?? [];
+  if (review && session && (!saved || !saved.includes(goalId))) {
+    const plan = sessionPlan(session, app.snapshot, app.cycle, app.today);
+    order = walkOrder(plan);
+    if (!order.includes(goalId)) order = walkOrder(plan, true);
+    saveReviewOrder(app.ws.id, review.id, session.week, order);
+  }
   const index = order.indexOf(goalId);
   const go = (id: string | undefined) => nav(id && review ? `/goals/${id}?review=${review.id}` : `/reviews/${review?.id ?? ''}`);
   const open = (id: string) => !!session && !session.covered.has(id);
