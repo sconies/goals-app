@@ -589,7 +589,7 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const by = latest ? app.person(latest.authorId)?.name.split(' ')[0] ?? 'The owner' : null;
   const when = latest ? (latest.week === app.week ? 'this week’s check-in' : `the week ${latest.week} check-in`) : null;
   const [title, purpose] = stale ? [`Why it has ${lower(STATUS.stale)}`, 'When the owner last said where it stands.']
-    : behind ? [`Why it’s ${lower(STATUS[status])}`, `The owner’s reason, from ${when ?? 'their check-in'}.`]
+    : behind ? [`Why it ${STATUS[status].short}`, `The owner’s reason, from ${when ?? 'their check-in'}.`]
     : onlySignals ? ['Worth knowing', 'What the numbers flag that the status doesn’t say.']
     : ['The latest word', when ? `What the owner said in ${when}.` : 'What the owner has said so far.'];
   return (
