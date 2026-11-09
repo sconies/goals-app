@@ -21,6 +21,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'checkin-honest-edges',
+    date: '2026-11-10',
+    title: 'A check-in that’s honest at its edges',
+    points: [
+      'The check-in says which week it’s for from the first screen (“Week 46 check-in · 1 of 2”), and keeps your place after a reload.',
+      'Behind needs a story, and Post alone no longer tells it: if last week’s reason and plan, opened with Something changed, are still word for word the same, you change what’s different or tick Still true this week.',
+      'One number check everywhere: the check-in, the one-table check-in and a spreadsheet refuse and question numbers the same way. A count can’t go below zero, a count past its target is questioned, and the example for letters in a number matches the goal’s decimal places.',
+      'On a goal’s page, the check-in you just posted always shows on its own, with its number and status.',
+      'The one-table check-in posts the rows that are ready (and says which aren’t), lands on the same confirmation as the one-by-one check-in, and shares its draft with it.',
+      'Home’s and a review’s rings now say what they count: check-ins, or reviewed.',
+    ],
+    articles: ['check-in', 'check-in-table', 'goal-page', 'home'],
+  },
+  {
     id: 'workspace-one-place',
     date: '2026-11-10',
     title: 'Workspace in one place',

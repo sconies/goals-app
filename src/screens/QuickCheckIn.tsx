@@ -1,11 +1,12 @@
 /* Type every number for the week in one table. Each row is judged as you type with the same rules as the
    check-in; a row that's behind or ahead opens just the fields it needs. Saved together through the bulk-change engine. */
 import { useMemo, useRef, useState, type SelectHTMLAttributes } from 'react';
-import { useDraft } from '../app/drafts';
+import { checkInDraftKey, checkInStepKey, clearDraft, peekDraft, writeDraft } from '../app/drafts';
+import type { FromTable } from './CheckInFlow';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
-import { describe, type Rec } from '../domain/changeset';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, MISSING_TEXT, REASON_CODES, valueProblem, type Draft, type Missing } from '../domain/checkin';
+import type { Rec } from '../domain/changeset';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, MISSING_TEXT, numberCheck, REASON_CODES, type Draft, type Missing } from '../domain/checkin';
 import { fmt } from '../domain/format';
 import { planAt, weekDates } from '../domain/plan';
 import { checkInsFor } from '../domain/status';
@@ -28,27 +29,50 @@ const missingWords = (c: Missing) => (c === 'path' ? 'how it gets back on plan' 
 
 type Row = { value: string; cause: Cause | null; why: string; path: string; by: number | null };
 const blank: Row = { value: '', cause: null, why: '', path: '', by: null };
+const isBlank = (r: Row) => !r.value.trim() && !r.cause && !r.why.trim() && !r.path.trim() && r.by == null;
+/** A row as the one-by-one check-in's draft holds it: the table and the flow share one draft per goal (deep review U12). */
+const rowOf = (d: Draft | null): Row => (d ? { value: d.value ?? '', cause: d.cause ?? null, why: d.why ?? '', path: d.ptgWhat ?? '', by: d.ptgBy ?? null } : blank);
 
 export function QuickCheckIn() {
   const app = useApp();
   const nav = useNavigate();
   const goals = app.snapshot.goals.filter((g): g is MetricGoal | RangeGoal => g.ownerId === app.viewer.id && g.kind !== 'milestone' && app.statusOf(g).status !== 'done');
   const milestones = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id && g.kind === 'milestone' && app.statusOf(g).status !== 'done');
-  // Kept as you type, like a single check-in's draft, so a refresh or a wrong turn doesn't lose the numbers (round 3 review).
-  const [rows, patchRows, clearRows, restored] = useDraft<Record<string, Row>>(`${app.ws.id}:bulk:${app.viewer.id}:${app.week}`, () => ({}));
-  const setRows = (f: (r: Record<string, Row>) => Record<string, Row>) => patchRows(f(rows));
-  const hasDraft = restored && Object.values(rows).some((r) => r.value.trim());
+  // Kept as you type, in each goal's own check-in draft: a refresh or a wrong turn doesn't lose the numbers (round 3
+  // review), and a number typed in the one-by-one check-in is here too, and back again (deep review U12).
+  const keyOf = (id: string) => checkInDraftKey(app.ws.id, id, app.week);
+  const legacyKey = `${app.ws.id}:bulk:${app.viewer.id}:${app.week}`;
+  const [rows, setRowsState] = useState<Record<string, Row>>(() => {
+    const legacy = peekDraft<Record<string, Row>>(legacyKey) ?? {};
+    return Object.fromEntries(goals.map((g) => [g.id, (() => { const own = rowOf(peekDraft<Draft>(keyOf(g.id))); return isBlank(own) ? { ...blank, ...legacy[g.id] } : own; })()]));
+  });
+  const [hasDraft, setHasDraft] = useState(() => Object.values(rows).some((r) => r.value.trim()));
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
-  const set = (id: string, patch: Partial<Row>) => setRows((r) => ({ ...r, [id]: { ...blank, ...r[id], ...patch } }));
+  const set = (id: string, patch: Partial<Row>) => {
+    const g = goals.find((x) => x.id === id);
+    const next: Row = { ...blank, ...rows[id], ...patch };
+    setRowsState((r) => ({ ...r, [id]: next }));
+    if (!g) return;
+    // The flow then opens at its first step with these numbers, not at a step an older draft was left at.
+    try { localStorage.removeItem(checkInStepKey(app.ws.id, id, app.week)); } catch { /* storage blocked */ }
+    if (isBlank(next)) { clearDraft(keyOf(id)); return; }
+    const was = peekDraft<Draft>(keyOf(id)) ?? emptyDraft(g, null);
+    writeDraft<Draft>(keyOf(id), { ...was, value: next.value, cause: next.cause, why: next.why, ptgWhat: next.path, ptgBy: next.by });
+  };
+  const startOver = () => {
+    for (const g of goals) { clearDraft(keyOf(g.id)); try { localStorage.removeItem(checkInStepKey(app.ws.id, g.id, app.week)); } catch { /* storage blocked */ } }
+    clearDraft(legacyKey);
+    setRowsState({});
+    setHasDraft(false);
+  };
 
   const judged = useMemo(() => goals.map((g) => {
     const r = rows[g.id] ?? blank;
     const posted = app.snapshot.checkIns.find((c) => c.goalId === g.id && c.week === app.week) ?? null;
     if (!r.value.trim()) return { g, r, posted, e: null, problem: null };
     // The number itself comes first: until it's a possible value there's no status to show or reason to ask for.
-    const last = checkInsFor(g, app.snapshot.checkIns).filter((c) => c.value != null).pop()?.value ?? null;
-    const problem = valueProblem(r.value, last, g.unit, g);
+    const problem = numberCheck(g, r.value, app.snapshot.checkIns);
     const d: Draft = { ...emptyDraft(g, null), value: r.value, cause: r.cause, why: r.why, ptgWhat: r.path, ptgBy: r.by, ptgState: 'plan' };
     return { g, r, posted, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns), problem };
   }), [goals, rows, app.snapshot.checkIns, app.cycle, app.week]);
@@ -59,11 +83,12 @@ export function QuickCheckIn() {
   const needReasons = filled.length - ready.length - badNumbers;
   // A second press while saving does nothing (a ref, because state updates too late to stop a quick double tap).
   const inFlight = useRef(false);
+  // Post counts the rows that are ready, and posts those; a row that isn't ready stays in the table, as a draft (U12).
   const save = async () => {
     if (inFlight.current) return;
     setTried(true);
-    if (!filled.length || ready.length < filled.length) return;
-    const recs: Rec[] = filled.map(({ g, r }, i) => ({
+    if (!ready.length) return;
+    const recs: Rec[] = ready.map(({ g, r }, i) => ({
       __row: String(i + 2), 'goal id': g.id, week: String(app.week), value: r.value, cause: r.cause ? causeLabel(r.cause) : '', why: r.why, 'path to green': r.path, 'back on plan by week': r.by == null ? '' : String(r.by),
     }));
     const cs = app.previewChanges({ checkIns: recs }, 'bulk');
@@ -72,17 +97,21 @@ export function QuickCheckIn() {
     setBusy(true);
     try {
       await app.applyChanges(cs);
-      clearRows();
-      app.toast(`Saved: ${describe(cs).toLowerCase()}`);
-      nav('/');
+      for (const { g } of ready) clearDraft(keyOf(g.id));
+      clearDraft(legacyKey);
+      // The same confirmation as the one-by-one check-in, with what was posted (deep review U12).
+      const fromTable: FromTable = { posted: ready.map((x) => x.g.id), kept: filled.length - ready.length };
+      nav('/check-in', { state: { fromTable } });
     } catch { inFlight.current = false; setBusy(false); }
   };
   const weeks = Array.from({ length: Math.max(0, app.cycle.weeks - app.week) }, (_, k) => app.week + 1 + k);
 
+  const notReady = [badNumbers ? `${badNumbers} ${badNumbers === 1 ? 'row needs' : 'rows need'} a possible number` : '', needReasons ? `${needReasons} ${needReasons === 1 ? 'row needs' : 'rows need'} a reason or a path to green` : ''].filter(Boolean).join('; ');
+  // Rows that aren't ready are said before Post, so a count that leaves them out is never a surprise.
   const summary = tried && !filled.length
     ? 'Type at least one number.'
-    : tried && filled.length > ready.length
-      ? [badNumbers ? `${badNumbers} ${badNumbers === 1 ? 'row needs' : 'rows need'} a possible number` : '', needReasons ? `${needReasons} ${needReasons === 1 ? 'row needs' : 'rows need'} a reason or a path to green` : ''].filter(Boolean).join('; ') + '.'
+    : filled.length > ready.length
+      ? (ready.length ? `Not posted until they’re ready: ${notReady}.` : notReady.charAt(0).toUpperCase() + notReady.slice(1) + '.')
       : '';
 
   return (
@@ -94,7 +123,7 @@ export function QuickCheckIn() {
       {!goals.length && <Empty title="No number goals to update"><Link className="btn" to="/check-in">Use the normal check-in</Link></Empty>}
       {goals.length > 0 && (
         <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
-          {hasDraft && <p className="restored small">Picked up the numbers you hadn’t posted yet. <button type="button" className="linkish" onClick={() => { clearRows(); window.location.reload(); }}>Start over</button></p>}
+          {hasDraft && <p className="restored small">Picked up the numbers you hadn’t posted yet. <button type="button" className="linkish" onClick={startOver}>Start over</button></p>}
           <div className="glist qgrid">
             {judged.map(({ g, r, posted, e: judgedE, problem }) => {
               const invalidNumber = !!problem?.block;
@@ -167,10 +196,10 @@ export function QuickCheckIn() {
           {milestones.length > 0 && <p className="hint">Stage goals ({milestones.map((g: Goal) => g.title).join(', ')}) use the <Link to="/check-in">normal check-in</Link>.</p>}
           {/* Post stays in sight however long the table gets; what's still wrong is said just above it. */}
           <div className="qfoot">
-            {summary && <p className="qsummary" role="alert">{summary}</p>}
+            {summary && <p className="qsummary" role={tried ? 'alert' : 'status'}>{summary}</p>}
             <div className="foot-row">
               <Link className="btn ghost big-btn" to="/">Cancel</Link>
-              <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : filled.length ? `Post ${filled.length} ${filled.length === 1 ? 'check-in' : 'check-ins'}` : 'Post check-ins'}</button>
+              <button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Saving…' : ready.length ? `Post ${ready.length} ${ready.length === 1 ? 'check-in' : 'check-ins'}` : 'Post check-ins'}</button>
             </div>
           </div>
         </form>

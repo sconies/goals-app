@@ -223,6 +223,16 @@ select.input { padding-right: 28px; }
 .ring-fill { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; transition: stroke-dasharray .5s cubic-bezier(.2, .8, .2, 1); }
 .ring.complete .ring-fill { stroke: var(--on-mark); }
 .ring-text { position: relative; font-weight: 700; font-size: 0.9375rem; color: var(--fg); }
+/* The one-table check-in's confirmation: what it posted (deep review U12). */
+.table-posted { text-align: left; align-self: stretch; max-width: 32rem; margin-inline: auto; }
+.table-posted ul { list-style: none; padding: 0; margin: 0; }
+/* Last time's words still untouched: one explicit choice (deep review U9). A full outline when it's still needed. */
+.still-true { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3); border: 1px solid var(--line); border-radius: 10px; }
+.still-true.invalid { border-color: var(--off-mark); }
+/* What the ring counts, under the number and inside the ring (deep review U16). A finished ring is its tick alone. */
+.ring:has(> .ring-counts) { flex-direction: column; }
+.ring-counts { position: relative; font-weight: 500; font-size: 0.625rem; line-height: 1; margin-top: 1px; color: var(--muted); }
+.ring.complete .ring-counts { display: none; }
 .ring.complete .ring-text { color: var(--on-mark); animation: pop .3s ease-out both; }
 
 /* attention: list rows, not cards */

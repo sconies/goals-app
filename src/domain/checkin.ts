@@ -1,7 +1,7 @@
 /* What a check-in must say before it can be posted. */
 import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Assessment } from './status';
 import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
-import { isShare } from './plan';
+import { isCount, isShare } from './plan';
 import { farOutside, fixed, notNumberText, precisionProblem, usuallyPositive } from './numbers';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
@@ -35,6 +35,24 @@ export interface Draft {
   needs: string;
   next: string;
   dataFlagged: boolean;
+  /** The reason and path copied in from the last check-in, as they were, when the owner chose "Something changed"
+      (deep review U9). While they're still word for word the same, the owner says whether they're still true. */
+  carried?: CarriedStory | null;
+  /** The owner said the carried words are still true this week. */
+  stillTrue?: boolean;
+}
+
+/** Last check-in's account, as copied into a new draft. */
+export interface CarriedStory { cause: Cause | null; why: string; what: string; by: number | null }
+
+/** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
+export function unchangedStory(draft: Draft, reason: boolean, path: boolean): ('reason' | 'path')[] {
+  const c = draft.carried;
+  if (!c) return [];
+  const out: ('reason' | 'path')[] = [];
+  if (reason && c.why.trim() && draft.cause === c.cause && draft.why.trim() === c.why.trim()) out.push('reason');
+  if (path && c.what.trim() && draft.ptgWhat.trim() === c.what.trim() && draft.ptgBy === c.by) out.push('path');
+  return out;
 }
 
 export function emptyDraft(goal: Goal, previous: CheckIn | null): Draft {
@@ -83,10 +101,12 @@ const decimalsOf = (goal: Goal | undefined, n: number) => (goal && goal.kind !==
 export function valueProblem(raw: string, last: number | null, unit: string, goal?: Goal): { block: boolean; text: string } | null {
   if (!raw.trim()) return { block: true, text: 'Type this week’s number.' };
   const n = parseNumber(raw);
-  if (n == null) return { block: true, text: notNumberText(raw) };
+  if (n == null) return { block: true, text: notNumberText(raw, goal && goal.kind !== 'milestone' ? goal.decimals : undefined) };
   const precise = goal && goal.kind !== 'milestone' ? precisionProblem(raw, n, goal.decimals) : null;
   if (precise) return { block: true, text: precise };
   if (n < 0 && usuallyPositive(unit)) return { block: true, text: `It can’t be below zero${unit ? ' ' + unit : ''}.` };
+  // A count (pairs, deploys, incidents) can't be below zero either (deep review U10: "-5 pairs" was only questioned).
+  if (n < 0 && isCount(goal)) return { block: true, text: `It can’t be below zero${unit ? ' ' + unit : ''}: this goal counts things.` };
   if (unit === '%' && n > 100) {
     // A share of something (coverage, adoption) can't pass 100%. A goal planned beyond 100% (growth, say) can.
     return isShare(goal) ? { block: true, text: 'It can’t be over 100%: this goal measures a share of something.' } : { block: false, text: 'That’s over 100%. Is that right?' };
@@ -95,15 +115,28 @@ export function valueProblem(raw: string, last: number | null, unit: string, goa
     const d = goal.decimals, u = unit === '%' ? '%' : unit ? ' ' + unit : '';
     return { block: false, text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?` };
   }
+  // Past a count's target ("41" for the top 40 service pairs) is worth a question: the target is often all there is.
+  if (goal?.kind === 'metric' && isCount(goal) && (goal.plan.target > goal.plan.start ? n > goal.plan.target : n < goal.plan.target)) {
+    return { block: false, text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? ' ' + unit : ''}. Is ${fixed(n, 0)} right?` };
+  }
   if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return { block: false, text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?` };
   return null;
 }
+
+/** The goal's latest number, the one a new number is compared with. */
+export const lastValueOf = (goal: Goal, all: CheckIn[]): number | null => checkInsFor(goal, all).filter((c) => c.value != null).pop()?.value ?? null;
+
+/**
+ * The one number check (deep review U10): the check-in form, the one-table check-in and the import all ask it, so a number
+ * is refused or questioned the same way, with the same words, wherever it is typed.
+ */
+export const numberCheck = (goal: Goal, raw: string, all: CheckIn[]) => valueProblem(raw, lastValueOf(goal, all), goal.kind === 'milestone' ? '' : goal.unit, goal);
 
 /**
  * What a check-in can still be missing, as a stable code. Screens and the import read the codes; the words for each are
  * in MISSING_TEXT, so a change of wording never changes what a screen checks.
  */
-export type Missing = 'value' | 'value-not-number' | 'value-precision' | 'value-impossible' | 'greener-why' | 'reason-behind' | 'reason-ahead' | 'path' | 'target';
+export type Missing = 'value' | 'value-not-number' | 'value-precision' | 'value-impossible' | 'greener-why' | 'reason-behind' | 'reason-ahead' | 'path' | 'story-unchanged' | 'target';
 
 export const MISSING_TEXT: Record<Missing, string> = {
   value: 'this week’s value',
@@ -114,6 +147,7 @@ export const MISSING_TEXT: Record<Missing, string> = {
   'reason-behind': 'why it’s behind',
   'reason-ahead': 'why it’s ahead',
   path: 'path to green',
+  'story-unchanged': 'whether what you said last time is still true',
   target: 'a proposed target beyond the current one',
 };
 
@@ -131,6 +165,8 @@ export interface Evaluation {
   reason: 'ahead' | 'behind' | null;
   asksTarget: boolean;
   needsPath: boolean;
+  /** The parts of last check-in's account carried in unchanged (`unchangedStory`), whether or not they're confirmed. */
+  unchanged: ('reason' | 'path')[];
   /** What's still missing, as codes, in the order the check-in asks for them. */
   codes: Missing[];
   /** The same, in words (MISSING_TEXT). */
@@ -169,12 +205,16 @@ export function evaluate(goal: Goal, cycle: Cycle, week: number, draft: Draft, a
   if (reason && (!draft.cause || draft.why.trim().length < MIN_REASON)) codes.push(reason === 'ahead' ? 'reason-ahead' : 'reason-behind');
   const planned = (draft.ptgState ?? 'plan') === 'plan';
   if (needsPath && (draft.ptgWhat.trim().length < MIN_PATH || (planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks)))) codes.push('path');
+  // "Behind needs a story" isn't met by posting last week's story untouched: what's carried in is changed, or said to be
+  // still true (deep review U9).
+  const unchanged = unchangedStory(draft, !!reason, needsPath);
+  if (unchanged.length && !draft.stillTrue) codes.push('story-unchanged');
   if (asksTarget && draft.proposeTarget.trim()) {
     const t = parseNumber(draft.proposeTarget);
     const better = goal.kind === 'metric' && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target);
     if (!better) codes.push('target');
   }
-  return { assessment, calc, status, greener, reason, asksTarget, needsPath, codes, missing: codes.map((c) => MISSING_TEXT[c]), canPost: codes.length === 0 };
+  return { assessment, calc, status, greener, reason, asksTarget, needsPath, unchanged, codes, missing: codes.map((c) => MISSING_TEXT[c]), canPost: codes.length === 0 };
 }
 
 /** Turn a valid draft into a check-in record. Throws if the draft cannot be posted. */

@@ -27,6 +27,7 @@ export const DEMO_SESSION = [
   'goals-trail',
   'goals-app-review:',
   'goals-research-skipped',
+  'goals-app-checkin-queue:',
 ] as const;
 
 /** Kept on purpose (see above). Listed so the test can tell a forgotten key from a kept one. */

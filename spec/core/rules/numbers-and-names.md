@@ -11,7 +11,7 @@ One rule for every way in: the check-in, New goal, goal edit, the workspace set-
 
 **Never rounded quietly.** Each number goal keeps a number of decimal places (*Decimals*, 0 to 3), and every number of it is shown at those places. A number typed with more (`typedDecimals`: the digits after the point, trailing zeros not counted; a decimal comma counts as a point) is refused (`precisionProblem`), saying what it would show as and the two ways forward: type it at the goal's places, or raise Decimals. This holds for a check-in's value, a start, target, limit, margin and any plan number typed by hand. A plan already stored isn't judged again when a goal is edited; only numbers changed are. An import that adds a goal without Decimals takes the most decimal places its start, target and limit were typed with (up to 3).
 
-**Letters in a number** get one message everywhere (`notNumberText`): ““a12” isn't a number. Type digits only, like 29.4.” (Letters after the digits are read as a unit: “12 days” is 12.)
+**Letters in a number** get one message everywhere (`notNumberText`): ““a12” isn't a number. Type digits only, like 29.4.” Its example is at the goal's decimal places when there is a goal (`exampleNumber`): “like 29” for whole numbers, “like 29.45” for two places. (Letters after the digits are read as a unit: “12 days” is 12.)
 
 **Thousands grouped.** Every number shown is written at its places with its thousands grouped by commas (`groupDigits`, `fixed`): 1,250,000; −12,000; 1,250.5. Files and the AI tools' data carry the plain number.
 
@@ -42,7 +42,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/numbers.ts](../../../src/domain/numbers.ts): `typedDecimals`, `precisionProblem`, `notNumberText`, `groupDigits`, `fixed`, `farOutside`, `setupProblem`
+- [src/domain/numbers.ts](../../../src/domain/numbers.ts): `typedDecimals`, `precisionProblem`, `exampleNumber`, `notNumberText`, `groupDigits`, `fixed`, `farOutside`, `setupProblem`
 - [src/domain/goal.ts](../../../src/domain/goal.ts): `validateGoal`, `planHint`, `planQuestion`
 - [src/domain/people.ts](../../../src/domain/people.ts): `sameNameNote`, `personTell`, `nameWithTell`, `avatarHues`, `duplicateTitles`, `goalTell`, `sameTitleNote`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `MIN_NAME`, `nameProblem`
@@ -65,6 +65,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - no silent rounding › reads a decimal comma as decimal places when an import works out a new goal’s decimals
 - no silent rounding › keeps the demo workspace to its own rule: no number stored finer than its goal shows
 - one message for letters in a number › says the same in the check-in, New goal, the workspace set-up and the import
+- one message for letters in a number › gives an example at the goal’s decimal places: no decimal on a whole-number goal (deep review U10)
 - thousand separators › groups the digits of every number shown
 - plausibility: asked, never refused › asks about a check-in far outside the plan
 - plausibility: asked, never refused › asks about a set-up number below zero for a time, money or percentage, a target a hundred times the start, or a billion

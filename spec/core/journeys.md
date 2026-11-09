@@ -59,6 +59,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U51 | Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees only Overview, People, Teams and Privacy (read-only), and old links still land, the inbox’s at Feedback | An admin, then a team member | `WORKSPACE-SECTIONS` | 14 | `evals/journeys.cjs` |
 | U52 | Anyone works an inbox of 75 markups and pieces of feedback down to nothing new: a folded row handled together, keys or Next, filters and search, and batches closed a page at a time | Anyone | `INBOX-TRIAGE` `MARKUP-INBOX` `FEEDBACK-INBOX` | 30 | `evals/journeys.cjs` |
 | U53 | Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role and permissions are said, the overview leads with what needs attention, Feedback is beside Help, and a member leaves |  | `WORKSPACE-ONE-PLACE` `FEEDBACK-PAGE` `LEAVE-WORKSPACE` | 45 | `evals/journeys.cjs` |
+| U57 | The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation | A goal owner | `HONEST-CHECKIN` `REASON-BEHIND` `DRAFTS` `BULK-EDIT` `GOAL-PAGE-ONCE` | 26 | `evals/journeys.cjs` |
 
 ## Platform checks
 

@@ -177,7 +177,15 @@ A reason (cause and explanation) is required when behind plan (below 95%).
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
 - **Tests:** `evals/scenarios.eval.ts` (3)
-- **Journeys and checks:** U1
+- **Journeys and checks:** U1, U57
+
+### HONEST-CHECKIN
+
+A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation.
+
+- **Rule:** [What a check-in must say](rules/check-in.md)
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
+- **Journeys and checks:** U57
 
 ### REASON-AHEAD
 
@@ -310,8 +318,8 @@ A goal's summary bar reads in two seconds: title, owner, level and key; status a
 Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. The chart is within the first phone screen.
 
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
-- **Tests:** `evals/goalPage.eval.ts` (3)
-- **Journeys and checks:** N9
+- **Tests:** `evals/goalPage.eval.ts` (4)
+- **Journeys and checks:** N9, U57
 
 ### GOAL-PAGE-SCORECARD
 
@@ -520,7 +528,7 @@ A review's agenda reads at a glance: one line per goal (status, name, number, ga
 Unsaved answers survive leaving a flow and are offered back when the user returns. Numbers typed in the one-table check-in are kept across a refresh until posted.
 
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** U1, U4, U30, U34
+- **Journeys and checks:** U1, U4, U30, U34, U57
 
 ## Data
 
@@ -537,7 +545,7 @@ An owner can type the week’s numbers for all their number goals in one table; 
 
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`
-- **Journeys and checks:** U21, U45
+- **Journeys and checks:** U21, U45, U57
 
 ### NO-DOUBLE-POST
 

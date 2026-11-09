@@ -213,7 +213,7 @@ export function ReviewHome() {
     <div className="page narrow review-home" data-part="Review">
       <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link></nav>
       <section className="hero">
-        <ProgressRing done={s.done} total={Math.max(1, s.total)} size={56} label={reviewedLabel(s)} />
+        <ProgressRing done={s.done} total={Math.max(1, s.total)} size={64} counts="reviewed" label={reviewedLabel(s)} />
         <div className="hero-body">
           <span className="eyebrow">{cadence(review)}</span>
           <h1 className="title-xl">{review.name}</h1>

@@ -69,6 +69,9 @@ module.exports = {
       if (await changed.count()) await changed.click();
       await p.getByRole('group', { name: 'Main cause' }).getByRole('button', { name: 'Something else' }).click();
       await p.getByLabel('What happened').fill(SECRET + ' moved the Jenkins job owners');
+      // Last week's plan, carried in unchanged, is said to be still true (deep review U9).
+      const still = p.getByLabel('Still true this week');
+      if (await still.isVisible().catch(() => false)) await still.check();
       await p.getByRole('button', { name: 'Post check-in' }).click();
       await p.getByText('Check-in saved').first().waitFor({ timeout: 5000 });
     }

@@ -200,7 +200,8 @@ module.exports = {
       await p.getByLabel(/Flaky test rate in the main pipelines: this week’s number/).fill('abc');
       const post = p.getByRole('button', { name: /^Post/ });
       if (!(await post.count())) { fail(`numbers 7: the button no longer says Post at ${w}`); await c.close(); continue; }
-      if (!/^Post \d check-ins?$/.test((await post.innerText()).trim())) fail(`numbers 7: the button says “${await post.innerText()}”`);
+      // It counts only the rows that are ready (deep review U12): none here, so it says Post check-ins.
+      if (!/^Post (\d check-ins?|check-ins)$/.test((await post.innerText()).trim())) fail(`numbers 7: the button says “${await post.innerText()}”`);
       await post.click();
       const pb = await box(post);
       if (pb.b > h || pb.y < 0) fail(`numbers 1: Post is off screen at ${w}×${h} (bottom ${Math.round(pb.b)})`);

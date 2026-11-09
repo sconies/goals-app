@@ -76,8 +76,8 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
     <>
       <section className="hero home-hero split-a" data-part="This week’s main action">
         {p.goals.length > 0 && !(myReview && (allIn || !p.done.length) && !p.due.length && !wrapLeft.length) && !(p.upcoming.length && !p.due.length && !p.done.length)
-          ? <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
-          : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={56} label={reviewedLabel(myReview, myReview.review.name)} /> : null}
+          ? <ProgressRing done={p.done.length} total={p.goals.length} size={64} counts="check-ins" label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
+          : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={64} counts="reviewed" label={reviewedLabel(myReview, myReview.review.name)} /> : null}
         <div className="hero-body">
           {p.due.length ? (
             <>
