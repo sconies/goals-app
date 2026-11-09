@@ -165,6 +165,10 @@ export function isShare(goal?: Goal): boolean {
   return !!goal && goal.kind !== 'milestone' && goal.unit.trim() === '%' && planValues(goal).every((v) => v >= 0 && v <= 100);
 }
 
+/** Units that are a time, money, points or a score, so never a count (trimmed, lower case): the whole unit is one of the
+    words, or it has a currency code or sign, or a degree sign, anywhere in it. */
+export const NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
+
 /**
  * Does a number goal count things (deploys, templates, runbooks, incidents)? Whole numbers, a plan that never goes
  * below zero, and a unit that isn't a share, a time, money or a score (a score can go below zero).
@@ -172,7 +176,7 @@ export function isShare(goal?: Goal): boolean {
 export function isCount(goal?: Goal): boolean {
   if (!goal || goal.kind === 'milestone' || goal.decimals !== 0) return false;
   const unit = goal.unit.trim().toLowerCase();
-  if (unit === '%' || /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/.test(unit)) return false;
+  if (unit === '%' || NOT_A_COUNT.test(unit)) return false;
   return planValues(goal).every((v) => v >= 0 && Number.isInteger(v));
 }
 function planValues(goal: Goal): number[] {

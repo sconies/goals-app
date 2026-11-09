@@ -19,7 +19,20 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 2. Week 0 of the cycle (not the plan's `fromWeek`): `planned`. No number: `none`.
 3. If nothing is planned yet (|*planned*| < 10⁻⁹, as on a stepped plan before its first step): `on`, unless the number went the wrong way from *start* (then `risk`, and *behind*).
 4. *ratio* = (*actual* − *start*) / *planned*, rounded to 9 decimal places, so 95% is 95% and not 94.9999…%. It reads the same whichever way is better.
-5. **On plan as written.** A number is typed to the goal's decimals. If *actual* equals the plan rounded to those decimals, and no number that can be written at those decimals lands in the on-track band (a ratio of at least 0.95 and under 1.2), the goal is `on` with ratio 1. This is a new goal's first week when the plan has moved less than one decimal step.
+5. **On plan as written.** A number is typed to the goal's decimals *d*. If *actual* equals the plan rounded to those decimals, and no number that can be written at those decimals lands in the on-track band (a ratio of at least 0.95 and under 1.2), the goal is `on` with ratio 1. This is a new goal's first week when the plan has moved less than one decimal step. Exactly:
+
+   ```
+   step = 10^-d
+   a = start + planned × 0.95;  b = start + planned × 1.2
+   writable = |b − a| ≥ step                       (a band a step wide always holds a number)
+   if not writable:
+     for k from floor(min(a, b) / step) − 1 to ceil(max(a, b) / step) + 1:
+       v = k × step rounded to d places
+       if 0.95 ≤ ratio(v) < 1.2: writable = true
+   if |actual − (plan rounded to d places)| < 10⁻⁹ and not writable: on, ratio 1
+   ```
+
+   *ratio(v)* is step 4's ratio for *v*. Otherwise go on to step 6.
 6. Otherwise: ratio ≥ 0.95 is `on`; ≥ 0.8 is `risk`; below that `off`. It is *well ahead* at ratio ≥ 1.2 (still `on`) and *behind* below 0.95.
 7. It also carries the projection to the due week (see [the projection](projection.md)) from the earlier numbers plus this one, and *forecastMisses*: the projection's likeliest value falls short of the target in the better direction.
 
@@ -38,10 +51,11 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 
 **From what has been posted** (`assessPosted`, used everywhere a goal's status is shown) in week *w*:
 
-- Take the goal's check-ins up to week *w*, ordered by week, then by when they were posted. The latest is the one that counts, judged **in its own week**, not this week: a goal checked in last week is judged against last week's plan.
+- Take the goal's check-ins up to week *w* (those with `week` ≤ *w*, from the ones posted by today), ordered by week, then by when they were posted. The latest is the one that counts, judged **in its own week**, not this week: a goal checked in last week is judged against last week's plan.
 - A number goal is judged with the plan as of that check-in's week, its number, and the numbers before it (for the projection).
 - A range goal is judged with its number and the one before it.
-- Dated stages are judged in week *w* (this week), with the latest check-in's stage updates: a stage that is overdue is late whether or not anyone has checked in. With no check-in at all and nothing late, it is `none`, not `on` (no evidence is not good news).
+- A number goal (to move or keep in range) with no check-in up to week *w* is judged in week *w* with no number: `planned` in week 0, else `none`.
+- Dated stages are judged in week *w* (this week), with the latest check-in's stage updates (a stage the updates don't mention has no update: not done, expected in its due week): a stage that is overdue is late whether or not anyone has checked in. With no check-in at all and nothing late, it is `none`, not `on` (no evidence is not good news).
 
 ### The official status
 

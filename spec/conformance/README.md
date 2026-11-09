@@ -10,7 +10,7 @@ The demo workspace (Platform Engineering, 126 goals, 5249 check-ins, a 53-week g
 
 ## How each week is judged
 
-Weeks 0 to 45. Week *w* is judged at its review day, noon UTC: the cycle’s start + 7·*w* + `reviewDay` days, at 12:00 (`weekMoment`). That moment is “today” for every rule. The workspace is taken as it stood then (`asOf`):
+Weeks 0 to the cycle’s week at `builtFor` (`currentWeek(cycle, builtFor)`: 45 here). Week *w* is judged at its review day, noon UTC: the cycle’s start + 7·*w* + `reviewDay` days, at 12:00 (`weekMoment`). That moment is “today” for every rule. The workspace is taken as it stood then (`asOf`):
 
 - goals added by then (`createdAt`), and not stopped by then (`stoppedAt`);
 - check-ins posted by then (`postedAt`);
@@ -19,9 +19,11 @@ Weeks 0 to 45. Week *w* is judged at its review day, noon UTC: the cycle’s sta
 
 “By then” means at or before the moment (ISO timestamps compared as text). Days without an update count calendar days (UTC).
 
+**Two cuts, both applied.** Every rule reads only the check-ins posted by the moment. The calculation, the projection and the scorecard (the rules’ “check-ins up to week *w*”) then also keep only those with `week` ≤ *w*; the official status, its latest check-in, the flags and the trend take every check-in posted by the moment, whatever week it is for.
+
 **Not self-explanatory:** goals are taken as they are now in every week: their plan history (`planHistory`) says which plan applied when, but other edits (a stage’s due week, a goal linked to an ask later) are not replayed. The rows are made the same way, so a rebuild that reads workspace.json the same way matches them.
 
-**Not self-explanatory:** two different check-ins are “the latest”: the official status (and `latest_week`, `greener`, days without an update) takes the one posted most recently, by `postedAt`; the calculation, projection and scorecard take the last by week, then posting. They differ when a check-in for an earlier week is posted later (a backfill).
+**Not self-explanatory:** two different check-ins are “the latest”: the official status (and `latest_week`, `greener`, days without an update) takes the one posted most recently, by `postedAt`; the calculation, projection and scorecard take the last by week, then posting. They differ when a check-in for an earlier week is posted later (a backfill). Ties (the same `postedAt`, or the same week and `postedAt`) keep the earlier record in `workspace.json`'s order.
 
 Rows go by week, then goals in key order (G-1, G-2 … G-126).
 
@@ -33,21 +35,23 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | [flags.csv](flags.csv) | 5696 | goal and week | `week`, `goal`, `flags`, `handled`, `needs_attention` |
 | [projection.csv](projection.csv) | 4822 | number goal (metric or range) and week | `week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses` |
 | [scorecard.csv](scorecard.csv) | 21910 | scorecard cell, goal and week | `week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub` |
+| [checkin.csv](checkin.csv) | 5249 | check-in in the workspace | `checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing` |
 
 What each column is, and the rule that gives it:
 
-- **status.csv** ([the status](../core/rules/status.md)): `status` is the official status, `goalStatus(goal, cycle, checkIns, moment).status`; `calculated` is what the numbers say (`.calc`, from `assessPosted` in the current week); `greener` whether the latest call is greener than its calculation; `latest_week` the week of the latest check-in (by when it was posted), empty with none; `days_without_update` from `daysWithoutUpdate`. Codes as in [the vocabulary](../core/vocabulary.md).
+- **status.csv** ([the status](../core/rules/status.md)): `status` is the official status, `goalStatus(goal, cycle, checkIns, moment).status`; `calculated` is what the numbers say (`.calc`, from `assessPosted` in the current week); `greener` whether the latest call is greener than its calculation; `latest_week` the week of the latest check-in (by when it was posted), empty with none; `days_without_update` from `daysWithoutUpdate`. Codes as in [the vocabulary](../core/vocabulary.md). With no check-in posted yet, `greener` is `no` and `latest_week` is empty.
 - **flags.csv** ([flags](../core/rules/flags.md)): `flags` the flag codes worst first, separated by spaces (empty with none); `handled` how it is being handled (`action`, `answered`, `noted`, `reviewed`) or empty; `needs_attention` `yes` or `no`.
-- **projection.csv** ([the projection](../core/rules/projection.md)): for a number to move, the projection `assessPosted` makes (to its due week, from the check-ins up to this week), and `forecast_misses`; for a number to keep in range, one number per week (the latest posted in each week), projected to the cycle’s end, made whether or not the goal is stale (the scorecard itself says Can’t say when stale); no `forecast_misses`. Every column but the first three is empty when there is no projection. `value`, `low`, `high` and `slope` are rounded to 6 decimal places; `first_week` and `last_week` are the weeks of numbers the line used, `to_week` the week projected to.
-- **scorecard.csv** ([the scorecard](../core/rules/scorecard.md)): `goalScorecard(goal, cycle, checkIns, week, stale)` with `stale` when the status is `stale`; one row per cell, in order. `cell`, `tone` and `likelihood` are the rule; `value`, `label` and `sub` its words.
+- **projection.csv** ([the projection](../core/rules/projection.md)): for a number to move, the projection `assessPosted` makes (to its due week, from the check-ins up to this week), and `forecast_misses`; for a number to keep in range, one number per week (the latest posted in each week), projected to the cycle’s end, made whether or not the goal is stale (the scorecard itself says Can’t say when stale); `forecast_misses` always empty. With no projection every column after `kind` is empty, `forecast_misses` included; with one, a number to move has `forecast_misses` `yes` or `no`. `slope` is the slope the projection leans by (*lean* × the fitted slope), not the fitted slope. `value`, `low`, `high` and `slope` are rounded to 6 decimal places; `first_week` and `last_week` are the weeks of numbers the line used, `to_week` the week projected to.
+- **scorecard.csv** ([the scorecard](../core/rules/scorecard.md)): `goalScorecard(goal, cycle, checkIns, week, stale)` with `stale` when the status is `stale`; one row per cell, in order. `cell`, `tone` and `likelihood` are the rule; `value`, `label` and `sub` its words ([every one of them](../core/rules/scorecard.md#the-words)). `likelihood` is the code (`likely`, `possible`, `unlikely`, `very-unlikely`) on a `hit` cell that has a likelihood, and empty on every other cell and on a `hit` cell that says Can’t say or Too early to say.
+- **checkin.csv** ([what a check-in must say](../core/rules/check-in.md)): one row per check-in in `workspace.json` (`checkin` is its `id`), judged again as a draft by `evaluate` in its own `week`, for the goal with the plan of that week (`goalAsOf`), with every check-in in the workspace (the rule uses those for earlier weeks). First the **bare draft**: the check-in’s number (written as the stored number, `String(value)`; empty when null) or its stage updates, and nothing else, the owner’s call left to the calculation: `calculated` (`on`, `risk`, `off` or `done`: `planned` and `none` count as `on`), `reason` (`ahead`, `behind` or empty), `asks_target` and `needs_path` (`yes`/`no`), `missing` (the codes still missing, in order, separated by spaces; empty when it can be posted). Then the same bare draft with only the owner’s call as posted added (`call`, the check-in’s `status`; the posted words, cause, path and target are not attached): `greener` and `call_missing`. Rows go by week, then goal key, then id.
 
-Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does.
+Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.
 
 ## How a rebuild proves itself
 
 1. Read `workspace.json`.
-2. For each week from 0 to 45, take the workspace as it stood at that week’s moment (above), and for each goal there, in key order, compute the status, flags, projection and scorecard with the rebuilt rules.
-3. Write the four files with the same columns and compare them row by row with these. Every difference is a rule that differs: the first few rows that differ, for one goal, usually name it.
+2. For each week from 0 to the week it was built for, take the workspace as it stood at that week’s moment (above), and for each goal there, in key order, compute the status, flags, projection and scorecard with the rebuilt rules; and for each check-in in the workspace, what a check-in must say.
+3. Write the five files with the same columns and compare them row by row with these. Every difference is a rule that differs: the first few rows that differ, for one goal, usually name it.
 
 A rebuild of the status rules alone can compare `status.csv` first, then the projection, then the flags (which need the trend and asks), then the scorecard.
 
