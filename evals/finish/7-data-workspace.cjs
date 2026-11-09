@@ -74,6 +74,10 @@ module.exports = {
     if (!near(d.shape, 8)) fails.push(`[D16] the Status column has no 8px shape (${d.shape})`);
     if (!/tabular/.test(d.tnum) || /tabular/.test(d.plain) || d.numPad !== '12px') fails.push(`[D9, D15] figures ${d.tnum} (padding ${d.numPad}), words ${d.plain}`);
     if (d.offCentre > 2) fails.push(`[D11] cell text sits ${d.offCentre.toFixed(1)}px off centre`);
+    // Review F14: a compact default layout. No column wider than 260px but the goal's name; the goals table, as rhea
+    // edits it, fits in about 2100px (it was 2721px at 1363px wide, Team alone 416px).
+    const lay = await r.evaluate(() => ({ table: document.querySelector('.dtable').getBoundingClientRect().width, wide: [...document.querySelectorAll('.dtable thead th')].filter((t) => !t.classList.contains('dname') && t.getBoundingClientRect().width > 260).map((t) => `${t.innerText.trim()} ${Math.round(t.getBoundingClientRect().width)}px`) }));
+    if (lay.wide.length || lay.table > 2100) fails.push(`[F14] Data's default columns aren't compact: the table is ${Math.round(lay.table)}px; wide: ${lay.wide.join(', ') || 'none'}`);
     // Sorting doesn't widen a column; the icon is in a 12px slot.
     const before = await r.evaluate(() => [...document.querySelectorAll('.dtable thead th')].find((t) => t.innerText.trim() === 'Owner').getBoundingClientRect().width);
     await r.locator('.dtable thead').getByRole('button', { name: /^Owner/ }).click(); await r.waitForTimeout(250);

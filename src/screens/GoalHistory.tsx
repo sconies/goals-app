@@ -181,7 +181,7 @@ function WeeklyHistory({ groups, span }: { groups: ViewGroup[]; span: Span }) {
     const ci = c.get(w);
     // A goal done needs no more check-ins: the weeks after say so, not "No check-in" (review F09).
     const done = doneSince(c);
-    if (!ci && done != null && w > done) return w <= app.week ? `Done since week ${done}` : 'Done';
+    if (!ci && done != null && w > done) return w <= app.week ? `${LABEL.done} since week ${done}` : LABEL.done;
     if (!ci) return w <= app.week ? 'No check-in' : 'Not yet';
     const v = s.goal.kind === 'milestone' ? `${(ci.stages ?? []).filter((u) => u.doneWeek != null).length} of ${s.goal.stages.length} stages` : ci.value == null ? '' : fmt(ci.value, s.goal);
     return `${LABEL[ci.status]}${v ? ', ' + v : ''}${ci.backfilled ? ' (loaded later)' : ''}`;
