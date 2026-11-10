@@ -546,9 +546,9 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   await p.goto(url('/'));
   // Setting up your own is in the workspace switcher, at the top of the sidebar or the phone's top bar (backlog WS).
   const sw = await openSwitcher(p, h);
-  await h.inView(sw.getByRole('button', { name: /Try it with your own team/ }), 'entry', 'Try it with your own team');
+  await h.inView(sw.getByRole('button', { name: /Set up a new workspace/ }), 'entry', 'Set up a new workspace');
   await h.checkpoint('admin home');
-  await h.click(sw.getByRole('button', { name: /Try it with your own team/ }));
+  await h.click(sw.getByRole('button', { name: /Set up a new workspace/ }));
   await p.locator('.steps').first().waitFor();
   await h.progressShown('set up');
   await h.fill(p.getByLabel('Name', { exact: true }), 'Platform Engineering');
@@ -598,7 +598,8 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   h.set('logged', !!s && s.changes.some((c) => c.action === 'imported' && /5 people/.test(c.summary)), 'creating the workspace is not logged');
   // Switching workspace is the switcher at the top of the sidebar (backlog WS), as real navigation: Back returns.
   const sw2 = await openSwitcher(p);
-  await sw2.getByRole('button', { name: /Example: Platform Engineering/ }).click();
+  // The example's row says what kind it is (WR2): its name is the same as the one just made.
+  await sw2.getByRole('button', { name: /Example data/ }).click();
   await see(p, 'Grace', 'switching back shows the example again');
   await p.locator('.side .ws-name:visible, .ws-switch-top:visible').filter({ hasText: /Platform Engineering|Example data/ }).first().waitFor();
   await p.goBack();
@@ -667,8 +668,8 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(sunday('/'));
   const sw = await openSwitcher(p, h);
-  await h.inView(sw.getByRole('button', { name: /Try it with your own team/ }), 'entry', 'Try it with your own team');
-  await h.click(sw.getByRole('button', { name: /Try it with your own team/ }));
+  await h.inView(sw.getByRole('button', { name: /Set up a new workspace/ }), 'entry', 'Set up a new workspace');
+  await h.click(sw.getByRole('button', { name: /Set up a new workspace/ }));
   await p.locator('.steps').first().waitFor();
   await h.progressShown('set up');
   // One minimum name length for workspaces and goals, said under the field.
@@ -789,7 +790,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/'));
   const sw = await openSwitcher(p, h);
-  await h.click(sw.getByRole('button', { name: /Try it with your own team/ }));
+  await h.click(sw.getByRole('button', { name: /Set up a new workspace/ }));
   await p.locator('.steps').first().waitFor();
   await h.progressShown('set up');
   await h.fill(p.getByLabel('Name', { exact: true }), 'Field Operations');
@@ -887,11 +888,8 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
   await see(p, 'Good', 'Amara’s home opens');
   await see(p, 'goals to discuss', 'Amara’s home leads with her review');
   h.set('progress', await p.locator('.ring:visible').count() > 0, 'no progress on Amara’s home');
-  // A change in the demo stays in this browser and can be undone in one place.
-  await p.goto(url('/workspace/overview'));
-  await h.click(p.getByRole('button', { name: 'Reset the example' }));
-  await h.click(p.getByRole('button', { name: 'Yes, reset it' }));
-  await see(p, 'The example is back to its starting point');
+  // A change in the demo stays in this browser and is undone in one place: Start over, in the Demo panel (Workspace's
+  // own Reset the example went with WR2).
   // Start over in the Demo panel clears what the demo keeps besides its saves (demo review, 8 Nov, item 1): a half-typed
   // check-in, What's new marked as read, a walkthrough in progress. The person you're viewing as stays.
   await p.evaluate(() => {
@@ -1239,12 +1237,12 @@ journey('U16', ['ATTENTION', 'WATCHING', 'ONE-ASK', 'ONE-WATCHING'], 'Home by re
 
 journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without the bar, and deleting a workspace', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
-  await p.goto(url('/workspace/overview'));
-  // One example now (Platform Engineering): the other example companies are gone, and starting over is on this page.
-  await see(p, 'Example: Platform Engineering');
+  await p.goto(url('/workspace'));
+  // One example now (Platform Engineering): the other example companies are gone. About names it, with "example data".
+  await see(p, 'example data');
   for (const name of ['Customer Support', 'B2B Sales', 'Product Growth', 'Developer Platform']) if (await p.getByText('Example: ' + name).count()) fail(`“Example: ${name}” is still offered`);
-  // Resetting the example is for admins (Lane, 9 Nov); Rhea isn't one, so she's pointed at the demo's Start over, which only touches this browser.
-  h.set('entry', await p.getByRole('button', { name: 'Reset the example' }).count() === 0 && await p.getByText('use Start over in Demo controls. It only touches this browser').isVisible(), 'someone who isn’t an admin is offered Reset the example, or not told where Start over is');
+  // Workspace is about this workspace (WR2): no Reset the example (Start over is in Demo controls) and no button about another workspace.
+  h.set('entry', await p.getByRole('button', { name: 'Reset the example' }).count() === 0 && await p.locator('main').getByRole('link', { name: /Try it with your own team|Set up a workspace|Try the demo/ }).count() === 0, 'Workspace offers Reset the example, or a button about another workspace');
   await h.checkpoint('workspaces');
   await p.goto(url('/goals'));
   await see(p, 'Lead time for changes', 'the example has its goals');
@@ -1265,7 +1263,7 @@ journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without 
     localStorage.setItem('goals-app-v2:ws_temp', JSON.stringify({ ...ex, people: ex.people.map((x) => ({ ...x, admin: x.id === 'rhea' ? true : x.admin })) }));
     localStorage.setItem('goals-app-workspace', 'ws_temp');
   });
-  await p.goto(url('/workspace/overview'));
+  await p.goto(url('/workspace'));
   await h.click(p.getByRole('button', { name: 'Delete this workspace…' }));
   h.set('errors', await p.getByRole('button', { name: 'Delete it for good' }).isDisabled(), 'deleting does not ask for the name first');
   await h.fill(p.getByLabel('Type Temp team to confirm'), 'Temp team');
@@ -2580,16 +2578,17 @@ journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says
   await p.context().close();
 }, ['logged', 'one-action', 'attention', 'parity']);
 
-journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees Overview, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
-  const SECTIONS = [['overview', 'Overview'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
+journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees About, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
+  const SECTIONS = [['overview', 'About'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/workspace'));
-  // A side menu on a computer, the overview beside it; a list of the sections on a phone.
+  // A side menu on a computer, About beside it; on a phone About, then the other sections as a list (WR2).
   const menu = phone ? p.getByRole('list', { name: 'Workspace sections' }) : p.getByRole('navigation', { name: 'Workspace sections' });
   await menu.waitFor();
   const labels = (await menu.getByRole('link').allInnerTexts()).map((x) => x.split(/\n| · /)[0].trim());
-  h.set('attention', JSON.stringify(labels) === JSON.stringify(SECTIONS.map(([, l]) => l)), `an admin’s sections are ${labels.join(', ')}`);
+  const want = (ls) => (phone ? ls.filter((l) => l !== 'About') : ls);
+  h.set('attention', JSON.stringify(labels) === JSON.stringify(want(SECTIONS.map(([, l]) => l))), `an admin’s sections are ${labels.join(', ')}`);
   // A long workspace name wraps to two lines in the sidebar, then ends with … and the full name on hover.
   if (!phone) {
     await p.evaluate(() => { const n = document.querySelector('.side .ws-name'); if (n) n.textContent = 'Voss Test Workspace for the platform engineering off-site in November'; });
@@ -2597,7 +2596,7 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
     h.set('attention', nm.lines === 2 && nm.clipped && nm.hover.length > 0, `a long workspace name shows on ${nm.lines} lines (clipped ${nm.clipped}, hover “${nm.hover}”)`);
     await p.reload(); await menu.waitFor();
   }
-  h.set('progress', phone ? await p.locator('.ws-menu').count() === 0 && await p.locator('.ws-counts').count() === 0 : await p.locator('.ws-counts').isVisible(), phone ? 'a phone shows the side menu or the overview instead of the list' : 'a computer does not show the overview beside the menu');
+  h.set('progress', phone ? await p.locator('.ws-menu').count() === 0 && await p.locator('.ws-facts').isVisible() : await p.locator('.ws-facts').isVisible(), phone ? 'a phone shows the side menu, or not About above the list' : 'a computer does not show About beside the menu');
   await h.checkpoint('sections');
   // Into a section and back, from the menu or the list: its address, its heading, and (on a phone) the way back.
   await h.click(menu.getByRole('link', { name: /^Cycles/ }));
@@ -2615,7 +2614,9 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
     await p.locator('.page-head').first().waitFor();
     const title = phone ? await p.locator('.page-head h1').innerText() : await p.locator('.ws-body h2').first().innerText().catch(() => '');
     const primaries = await p.locator('.ws-body .btn.primary:visible').count();
-    if (title !== label || await p.getByText('Page not found').count() || primaries > 1) broken.push(`${id}: “${title}”, ${primaries} main actions`);
+    // About is Workspace's own page: on a phone its heading is Workspace's, on a computer "About this workspace".
+    const expected = id === 'overview' ? (phone ? 'Workspace' : 'About this workspace') : label;
+    if (title !== expected || await p.getByText('Page not found').count() || primaries > 1) broken.push(`${id}: “${title}”, ${primaries} main actions`);
   }
   h.set('finish', !broken.length, `sections that don’t open as themselves: ${broken.join('; ')}`);
   // Old links: the inbox's from a GitHub issue, and the one-page Workspace's anchors.
@@ -2624,13 +2625,13 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.goto(BASE + '/demo/workspace?today=' + TODAY + '#people');
   const toPeople = await p.waitForURL(/\/demo\/people(\?|$)/, { timeout: 5000 }).then(() => true, () => false);
   h.set('errors', toInbox && toPeople, `old links: the inbox’s ${toInbox}, #people ${toPeople}`);
-  // Someone who isn't an admin: Overview, Cycles, Privacy and Recently removed, and an admins' section says whose it is.
+  // Someone who isn't an admin: About, Cycles, Privacy and Recently removed, and an admins' section says whose it is.
   await viewAs(p, 'Oskar');
   await p.goto(url('/workspace'));
   await menu.waitFor();
   const theirs = (await menu.getByRole('link').allInnerTexts()).map((x) => x.split(/\n| · /)[0].trim());
   await p.goto(url('/workspace/access'));
-  const told = await see(p, 'Access is for the workspace’s admins.').then(() => true, () => false);
+  const told = await see(p, 'Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.').then(() => true, () => false);
   // Privacy reads for everyone, what the app records about them; only admins have its switch (re-review, 8 Nov, backlog T).
   await p.goto(url('/workspace/privacy'));
   const reads = await see(p, 'Only admins change it').then(() => true, () => false);
@@ -2640,7 +2641,7 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   const cyclesRead = await see(p, 'Only admins delete a cycle').then(() => true, () => false) && await p.getByRole('button', { name: /^Delete the cycle/ }).count() === 0;
   await p.goto(url('/workspace/removed'));
   const ownOnly = await see(p, 'Admins see what everyone has removed.').then(() => true, () => false);
-  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'Cycles', 'Privacy', 'Recently removed']) && told && reads && noSwitch && cyclesRead && ownOnly && await p.getByRole('button', { name: 'Make an MCP token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}; Cycles read-only ${cyclesRead}; Recently removed their own ${ownOnly}`);
+  h.set('attention', JSON.stringify(theirs) === JSON.stringify(want(['About', 'Cycles', 'Privacy', 'Recently removed'])) && told && reads && noSwitch && cyclesRead && ownOnly && await p.getByRole('button', { name: 'Make an MCP token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}; Cycles read-only ${cyclesRead}; Recently removed their own ${ownOnly}`);
   await p.context().close();
 }, ['logged']);
 
@@ -2710,6 +2711,89 @@ journey('U58', ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'], 'Anyone finds a person and
   h.set('logged', !wrong.length, `old addresses: ${wrong.join('; ')}`);
   await p.context().close();
 });
+
+/* App redesign WR2: Workspace opens on About. */
+journey('U59', ['WORKSPACE-ABOUT', 'WORKSPACE-SECTIONS'], 'Workspace opens on About: one line under the title, the facts each leading to their section, nothing about another workspace; a member sees the same facts with whom to ask and nothing to sort out, and an admins’ section says who the admins are; on a phone About comes first, then the other sections', 8, async (h, device) => {
+  const phone = device === 'phone';
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  if (phone) { await h.click(p.locator('.tabbar').getByRole('button', { name: 'More' })); await h.click(p.getByRole('dialog').getByRole('link', { name: 'Workspace', exact: true })); }
+  else await h.click(p.locator('.side').getByRole('link', { name: 'Workspace', exact: true }));
+  await p.locator('.ws-facts').waitFor();
+  await h.inView(p.locator('.ws-facts'), 'entry', 'the facts');
+  const line = await p.locator('.ws-role-line').innerText();
+  const head = await p.locator('.page-head').first().innerText();
+  h.set('progress', line === 'Platform Engineering · you’re an admin here' && !/permissions|stays in this browser/i.test(head), `the header says “${head.replace(/\s+/g, ' ')}”`);
+  // Each fact links to its section; nothing on About is about another workspace.
+  const links = await p.locator('.ws-facts a').evaluateAll((as) => as.map((a) => new URL(a.href).pathname.replace(/^\/demo/, '')));
+  const want = ['/people', '/workspace/cycles', '/workspace/access', '/workspace/features', '/workspace/privacy'];
+  h.set('finish', want.every((w) => links.includes(w)), `About’s facts link to ${links.join(', ')}`);
+  const foreign = await p.locator('main').getByRole('link', { name: /Try it with your own team|Set up a workspace|Try the demo/ }).count() + await p.locator('main').getByRole('button', { name: /Reset the example|Leave this workspace/ }).count();
+  h.set('attention', foreign === 0 && await p.getByRole('list', { name: 'Every section' }).count() === 0, `About has ${foreign} buttons about another workspace, or an “Every section” list`);
+  await h.checkpoint('about');
+  // On a phone, About comes first and the other sections follow; a section opens with Workspace to go back to.
+  if (phone) {
+    const more = p.getByRole('list', { name: 'Workspace sections' });
+    await more.waitFor();
+    const factsTop = await p.locator('.ws-facts').evaluate((e) => e.getBoundingClientRect().top + scrollY);
+    const moreTop = await more.evaluate((e) => e.getBoundingClientRect().top + scrollY);
+    h.set('progress', factsTop < moreTop, 'on a phone the sections come before About');
+    await h.click(more.getByRole('link', { name: /^Privacy/ }));
+    await p.getByRole('link', { name: 'Workspace', exact: true }).waitFor();
+  }
+  // A member: the same facts, whom to ask, nothing to sort out; Access's address says who the admins are.
+  await viewAs(p, 'Rhea');
+  await p.goto(url('/workspace'));
+  await p.locator('.ws-facts').waitFor();
+  const facts = await p.locator('.ws-facts').innerText();
+  const sortOut = await p.getByRole('heading', { name: /To sort out/ }).count();
+  await p.goto(url('/workspace/access'));
+  const told = await see(p, 'Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.').then(() => true, () => false);
+  h.set('errors', /Ask one of them to add someone, change a team or change a setting\./.test(facts) && !sortOut && told, `a member’s About: “${facts.replace(/\s+/g, ' ').slice(0, 200)}”, to sort out ${sortOut}, Access told ${told}`);
+  await p.context().close();
+}, ['logged']);
+
+journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a two-person workspace just set up has nothing to sort out and its team says No lead without a warning; with 12 people and still one admin, About says “You’re the only admin” with Choose someone', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  // A workspace just set up: Rosa (its admin) and Omar, one team with no lead, four goals and a weekly review.
+  const seed = (n) => p.evaluate(async (count) => {
+    const full = await window.__goalsStore.load('platform-org');
+    const base = full.people.slice(0, count).map((x, i) => ({ ...x, admin: i === 0, teamId: 'field', leftAt: null }));
+    const people = [{ ...base[0], id: 'rosa', name: 'Rosa Lind', initials: 'RL', email: 'rosa@example.com' }, { ...base[1], id: 'omar', name: 'Omar Haddad', initials: 'OH', email: 'omar@example.com' }, ...base.slice(2)];
+    const goals = full.goals.filter((g) => !g.removedAt && !g.stoppedAt && g.cycleId === full.cycles[0].id).slice(0, 4).map((g) => ({ ...g, ownerId: 'rosa', teamId: 'field', parentId: null }));
+    const reviews = full.reviews.slice(0, 1).map((r) => ({ ...r, people: ['rosa', 'omar'], createdBy: 'rosa', scope: { goals: goals.map((g) => g.id), trees: [], levels: [] } }));
+    const ws = { id: 'ws_field', name: 'Field Operations', kind: 'own', createdAt: '2026-11-09T00:00:00Z' };
+    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([ws]));
+    localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
+    localStorage.setItem('goals-app-workspace', 'ws_field');
+    localStorage.setItem('goals-app-viewer:ws_field', 'rosa');
+  }, n);
+  await seed(2);
+  await p.goto(url('/workspace'));
+  await p.locator('.ws-facts').waitFor();
+  await h.inView(p.locator('.ws-facts'), 'entry', 'the facts');
+  const quiet = await p.getByRole('heading', { name: /To sort out/ }).count() === 0;
+  await h.checkpoint('about');
+  await p.goto(url('/teams'));
+  await p.locator('.team-row').first().waitFor();
+  const row = await p.locator('.team-row').first().innerText();
+  h.set('attention', quiet && /No lead/.test(row) && await p.locator('.team-row .warn-mark, .team-row svg[data-warn]').count() === 0, `day one: to sort out shown ${!quiet}; the team row says “${row.replace(/\s+/g, ' ')}”`);
+  // A year on: 12 people, still one admin.
+  await seed(12);
+  await p.goto(url('/workspace'));
+  await p.locator('.ws-facts').waitFor();
+  const rowOnly = p.locator('.ws-sort-row[data-need="only-admin"]');
+  const said = await rowOnly.innerText().catch(() => '');
+  h.set('finish', /You’re the only admin/.test(said) && /Make a second/.test(said) && await rowOnly.getByRole('link', { name: 'Choose someone' }).isVisible().catch(() => false), `About says “${said.replace(/\s+/g, ' ')}”`);
+  await h.click(rowOnly.getByRole('link', { name: 'Choose someone' }));
+  await p.waitForURL(/\/workspace\/access/);
+  h.set('progress', true);
+  h.set('errors', true);
+  await p.context().close();
+}, ['logged']);
 
 journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-PAGE-ONCE'], 'The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation', 26, async (h, device) => {
   // Chen has two goals due (Jenkins jobs, integration tests); Jenkins was behind last week, with a reason and a plan.
@@ -2799,7 +2883,7 @@ journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-
   await q.context().close();
 });
 
-journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role and permissions are said, the overview leads with what needs attention, Feedback is beside Help, and a member leaves', 45, async (h, device) => {
+journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role is said in one line, About names the admins, Feedback is beside Help, and a member leaves from Settings', 45, async (h, device) => {
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
@@ -2811,12 +2895,13 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
     localStorage.setItem('goals-app-v2:ws_mine', JSON.stringify({ ...full, changes: [], checkIns: full.checkIns.filter((c) => c.week >= 43) }));
     localStorage.setItem('goals-app-viewer:ws_mine', 'rhea');
   });
-  // Rhea isn't an admin: Workspace says her permissions and who the admins are; her badge doesn't say Admin.
-  await p.goto(url('/workspace/overview'));
-  const perms = await p.locator('.ws-perms').innerText();
-  h.set('attention', /you’re a member here/.test(perms) && /Grace Achterberg/.test(perms) && /Access and Features/.test(perms) && !/Cycles/.test(perms), `a member’s permissions line says “${perms}”`);
+  // Rhea isn't an admin: Workspace says so in one line, and About names the admins (WR2); her badge doesn't say Admin.
+  await p.goto(url('/workspace'));
+  const role = await p.locator('.ws-role-line').innerText();
+  h.set('attention', role === 'Platform Engineering · you’re a member here', `a member’s line says “${role}”`);
   if (!phone) h.set('attention', !/Admin/.test(await p.locator('.side .me').innerText()), 'a member’s badge says Admin');
-  h.set('attention', await p.getByRole('heading', { name: /To look at here/ }).isVisible() && await p.getByRole('list', { name: 'Every section' }).getByRole('link').count() === 3, 'the overview does not lead with what needs attention, then every section');
+  const facts = await p.locator('.ws-facts').innerText();
+  h.set('attention', /Grace Achterberg/.test(facts) && /Ask one of them/.test(facts) && await p.getByRole('heading', { name: /To sort out/ }).count() === 0, 'About does not name the admins for a member, or shows a member what to sort out');
   await h.checkpoint('member');
   // Part-way through a check-in, switching asks first and says the draft stays. (A phone's check-in takes the whole
   // screen, with no switcher: there you switch from Home.)
@@ -2824,7 +2909,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   if (!phone) { await p.getByLabel('This week’s value').fill('7'); await p.waitForTimeout(300); }
   const at = new URL(p.url()).pathname;
   const sw = await openSwitcher(p, h);
-  h.set('attention', /You’re a member of/.test(await sw.innerText()), 'the switcher does not say Rhea’s role');
+  h.set('attention', /you’re a member/i.test(await sw.innerText()) && /Open now/.test(await sw.innerText()), 'the switcher does not say Rhea’s role on the open workspace');
   await h.inView(sw.getByRole('button', { name: /Rhea’s own team/ }), 'entry', 'Rhea’s own team');
   await h.click(sw.getByRole('button', { name: /Rhea’s own team/ }));
   if (!phone) {
@@ -2853,8 +2938,8 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   // Wait for the page to draw: under a loaded machine the address changes a moment before the heading shows.
   h.set('entry', await p.getByRole('heading', { level: 1, name: 'Feedback' }).waitFor({ timeout: 5000 }).then(() => true, () => false), 'the inbox’s old address does not open Feedback');
   if (!phone) h.set('entry', await p.locator('.side').getByRole('link', { name: 'Feedback' }).isVisible(), 'Feedback is not in the sidebar');
-  // Rhea leaves the example: who takes over her goals first.
-  await p.goto(url('/workspace/overview'));
+  // Rhea leaves the example, from Settings (WR2): who takes over her goals first.
+  await p.goto(url('/settings'));
   await h.click(p.getByRole('button', { name: 'Leave this workspace…' }));
   const leave = p.getByRole('dialog', { name: /Leave .*Platform Engineering/ });
   await leave.waitFor();

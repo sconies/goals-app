@@ -126,3 +126,21 @@
 .ws-need-who { color: var(--muted); font-size: var(--t-sm); }
 .ws-calm { margin: 0; }
 .cycle-when { display: flex; flex-direction: column; gap: 2px; }
+
+/* About (app redesign WR2): "To sort out" as a hairline list, a sentence in bold, its why under it, one plain button;
+   then the facts, label then value; Delete at the foot, quiet. */
+.ws-role-line { max-width: 70ch; }
+.ws-sort { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.ws-sort-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-bottom: 1px solid var(--line-2); }
+.ws-sort-row .btn { flex: none; }
+.ws-about .ws-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.ws-facts { display: grid; grid-template-columns: 120px minmax(0, 1fr); column-gap: var(--s4); row-gap: var(--s3); margin: 0; }
+.ws-facts dt { font-size: 0.75rem; line-height: 1.375rem; font-weight: 600; color: var(--muted); }
+.ws-facts dd { margin: 0; }
+.ws-more { margin-top: var(--s2); }
+.ws-delete { display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s4); border-top: 1px solid var(--line-2); }
+@container page (max-width: 620px) {
+  .ws-facts { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .ws-facts dd { margin-bottom: var(--s2); }
+  .ws-sort-row { flex-wrap: wrap; }
+}
