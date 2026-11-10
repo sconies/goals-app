@@ -87,7 +87,7 @@ module.exports = {
           await p.getByRole('button', { name: 'Post comment' }).click();
           await p.getByText(SECRET + ' said the vendor').first().waitFor({ timeout: 3000 });
           await go(p, '/goals?scope=all&q=' + encodeURIComponent(SECRET));
-          await p.locator('main h1').first().waitFor();
+          await p.locator('main h1:visible, main .goals-phonebar:visible').first().waitFor();
           await p.waitForTimeout(300);
           await hide(p);
           await waitFor(p, () => rows(sent, 'okr_telemetry_spans').some((s) => s.name === 'addNote'));
@@ -151,7 +151,7 @@ module.exports = {
         const { c, p, sent, errors } = await open(w, h, touch, 'chen', 404);
         try {
           await checkIn(p);
-          for (const route of ['/', '/goals?scope=all', '/goals/dep-jenkins', '/settings']) { await p.goto(url(route)); await p.locator('main h1, main .home-hero').first().waitFor(); await hide(p); }
+          for (const route of ['/', '/goals?scope=all', '/goals/dep-jenkins', '/settings']) { await p.goto(url(route)); await p.locator('main h1:visible, main .home-hero:visible, main .goals-phonebar:visible').first().waitFor(); await hide(p); }
           await p.waitForTimeout(600);
           const own = errors.filter((t) => !/^Failed to load resource/.test(t));
           fail(!own.length, `[TELEMETRY-SIGNALS] ${w}: console errors when the telemetry tables answer 404: ${own.slice(0, 2).join(' | ')}`);

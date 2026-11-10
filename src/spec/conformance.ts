@@ -176,7 +176,9 @@ export function findRowsOf(w: ConformanceWorkspace): string[][] {
 /* ---------- navigation ---------- */
 
 /** The addresses navigation.csv answers for each viewer (the navigation rules, AR2). */
-export const NAV_ADDRESSES = ['/', '/check-in', '/goals', '/goals?show=mine', '/watching', '/goals/new', '/goals/lead-mq', '/reviews/weekly', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro/x', '/research'];
+export const NAV_ADDRESSES = ['/', '/check-in', '/goals', '/goals?scope=mine', '/watching', '/goals/new', '/goals/lead-mq', '/reviews/weekly', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro/x', '/research'];
+/** A module's menu item, as a module's app.tsx gives it, for the rows that show where one goes. */
+export const NAV_MODULE = { id: 'example', to: '/example', label: 'Example', group: 'lookup' as const };
 /** Two viewers: one who owns goals, one who owns none. */
 export const NAV_VIEWERS = ['rhea', 'oskar'];
 export const NAV_HEADER = ['viewer', 'owns_goals', 'address', 'menu', 'tabs', 'lit', 'page'];
@@ -194,9 +196,15 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
     const tabs = phoneTabs(owns);
     for (const address of NAV_ADDRESSES) {
       const [path = '/', q = ''] = address.split('?');
-      const show = new URLSearchParams(q).get('show');
+      const show = new URLSearchParams(q).get('scope') ?? new URLSearchParams(q).get('show');
       const at = path === '/watching' ? 'watching' : path === '/goals' ? (show === 'mine' ? 'mine' : 'all') : null;
       rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), tabs.join(' '), litItem(path, side) ?? '', pageName(path, at, [...side, ...tabs] as NavId[])]);
+    }
+    // A module's item (AR2): placed in its group by the same rule, and lit on its own pages; it names its own page.
+    const mg = menuGroups(owns, [NAV_MODULE]);
+    const mside = [...mg.work, ...mg.lookup, ...mg.make, ...mg.you];
+    for (const address of [NAV_MODULE.to, NAV_MODULE.to + '/one']) {
+      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => mg[k].join(' ')).join(' | '), tabs.join(' '), litItem(address, mside, [NAV_MODULE]) ?? '', pageName(address, null, [...side, ...tabs] as NavId[], NAV_MODULE.label)]);
     }
   }
   return rows;

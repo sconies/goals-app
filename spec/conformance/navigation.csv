@@ -2,7 +2,7 @@ viewer,owns_goals,address,menu,tabs,lit,page
 rhea,yes,/,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,home,Home
 rhea,yes,/check-in,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,checkin,Check-in
 rhea,yes,/goals,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,goals,Goals
-rhea,yes,/goals?show=mine,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,goals,Mine
+rhea,yes,/goals?scope=mine,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,goals,Mine
 rhea,yes,/watching,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,,Watching
 rhea,yes,/goals/new,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,new,New goal
 rhea,yes,/goals/lead-mq,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,goals,Goals
@@ -15,10 +15,12 @@ rhea,yes,/help/check-in,home checkin goals reviews | people activity data | new 
 rhea,yes,/whats-new,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,help,What’s new
 rhea,yes,/retro/x,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,,Wrap up
 rhea,yes,/research,home checkin goals reviews | people activity data | new | workspace settings help feedback,home checkin goals reviews,,Research
+rhea,yes,/example,home checkin goals reviews | people module:example activity data | new | workspace settings help feedback,home checkin goals reviews,module:example,Example
+rhea,yes,/example/one,home checkin goals reviews | people module:example activity data | new | workspace settings help feedback,home checkin goals reviews,module:example,Example
 oskar,no,/,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,home,Home
 oskar,no,/check-in,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,,Check-in
 oskar,no,/goals,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,goals,Goals
-oskar,no,/goals?show=mine,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,goals,Mine
+oskar,no,/goals?scope=mine,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,goals,Mine
 oskar,no,/watching,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,,Watching
 oskar,no,/goals/new,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,new,New goal
 oskar,no,/goals/lead-mq,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,goals,Goals
@@ -31,3 +33,5 @@ oskar,no,/help/check-in,home goals reviews | people activity data | new | worksp
 oskar,no,/whats-new,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,help,What’s new
 oskar,no,/retro/x,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,,Wrap up
 oskar,no,/research,home goals reviews | people activity data | new | workspace settings help feedback,home goals reviews people,,Research
+oskar,no,/example,home goals reviews | people module:example activity data | new | workspace settings help feedback,home goals reviews people,module:example,Example
+oskar,no,/example/one,home goals reviews | people module:example activity data | new | workspace settings help feedback,home goals reviews people,module:example,Example

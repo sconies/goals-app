@@ -9997,6 +9997,19 @@ function treeOf(goalId, s) {
 	}
 	return out;
 }
+/** A change's words for search: what it says, who made it, its goal, and each field with its before and after. */
+function activityWords(c, actor, goal) {
+	return [
+		c.summary,
+		actor,
+		goal,
+		...c.diffs.flatMap((d) => [
+			d.field,
+			d.from,
+			d.to
+		])
+	].join(" ");
+}
 /** A test for one change against the query (every setting must match). */
 function activityFilter(a, x) {
 	const s = x.snapshot;
@@ -10019,19 +10032,7 @@ function activityFilter(a, x) {
 		}
 		if (a.level.length && (!g || !a.level.includes(g.level))) return false;
 		if (a.kind.length && !a.kind.includes(kindOf(c))) return false;
-		if (words.length) {
-			const hay = [
-				c.summary,
-				person(c.actorId)?.name ?? "",
-				g?.title ?? "",
-				...c.diffs.flatMap((d) => [
-					d.field,
-					d.from,
-					d.to
-				])
-			].join(" ").toLowerCase();
-			if (!words.every((w) => hay.includes(w))) return false;
-		}
+		if (words.length && !textMatches(activityWords(c, person(c.actorId)?.name ?? "", g?.title ?? ""), a.q, g?.key)) return false;
 		return true;
 	};
 }
@@ -12205,7 +12206,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Choose Send feedback, at the foot of the sidebar or in More on a phone. Its first choice is Mark up this screen. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere.",
+					"Go to Feedback (in the menu’s last group, or in More on a phone) and choose Send feedback. Its first choice is Mark up the last screen: it takes you back to the page you came from and keeps a picture of it. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) marks up the screen you’re on from anywhere.",
 					"The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.",
 					"Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.",
 					"Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.",
@@ -12259,7 +12260,7 @@ var CORE_ARTICLES = [
 					"The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.",
 					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
 					"It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.",
-					"Send feedback, at the top, opens the same sheet as Send feedback in the sidebar."
+					"Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it."
 				]
 			},
 			{
@@ -12353,7 +12354,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How it fits",
 				list: [
-					"On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Data, Settings, Help and Send feedback.",
+					"On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, in the same groups as the sidebar, including Data, Settings, Help and Feedback.",
 					"On a tablet the sidebar is a rail of icons, each named on hover. On a desktop you can choose the rail in Settings.",
 					"Focused tasks such as a check-in stay narrow; tables, boards and the map use the whole width.",
 					"Text follows your browser’s text size, and every control is big enough to tap."
@@ -12364,7 +12365,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.",
 					"When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.",
-					"Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
+					"Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
 				]
 			},
 			{
@@ -12477,7 +12478,6 @@ var MOVED_ARTICLES = {
 	"workspace-teams": "teams"
 };
 var articleById = (id) => BY_ID.get(id) ?? BY_ID.get(MOVED_ARTICLES[id] ?? "");
-/** All the words of an article, for search. */
 function textOf(a) {
 	return [
 		a.title,
@@ -12500,7 +12500,7 @@ function searchGuide(query) {
 	if (!words.length) return [];
 	return ARTICLES.map((a) => {
 		const all = norm(textOf(a));
-		if (!words.every((w) => all.includes(w))) return null;
+		if (!textMatches(textOf(a), query)) return null;
 		const title = norm(a.title), keys = norm(a.keywords.join(" ")), sum = norm(a.summary);
 		return {
 			a,
@@ -12530,9 +12530,14 @@ var WHATS_NEW = [
 			"Goals’ tabs now say whose goals: Mine, My team, Watching and All, each with its count. It opens on the one you used last.",
 			"How they’re arranged is its own choice, Group (as trees, by team, by level, or one list), and Needs attention is a switch that works on any tab.",
 			"One line under the bar counts the goals shown and their statuses.",
-			"The menu is four groups: your work, things to look up, New goal, and this workspace and you. Collapsed, each icon names itself. On a phone, More holds the rest in the same groups."
+			"The menu is four groups: your work, things to look up, New goal, and this workspace and you. Collapsed, each icon names itself. On a phone, More holds the rest in the same groups.",
+			"Feedback and Send feedback are one item: Feedback’s page has Send feedback, and from there you can mark up the screen you came from."
 		],
-		articles: ["goals", "any-device"]
+		articles: [
+			"goals",
+			"any-device",
+			"feedback"
+		]
 	},
 	{
 		id: "one-list-bar",

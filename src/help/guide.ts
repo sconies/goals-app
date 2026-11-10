@@ -6,6 +6,7 @@
    restated; where the guide says what a status, flag or result means, it reads the vocabulary (domain/vocabulary.ts). */
 import { CAUSES_AHEAD, CAUSES_BEHIND } from '../domain/checkin';
 import { RULES } from '../domain/thresholds';
+import { textMatches } from '../domain/find';
 import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 import { PROTOTYPE_LINE } from './about';
@@ -1126,6 +1127,7 @@ export const MOVED_ARTICLES: Record<string, string> = { 'workspace-people': 'peo
 export const articleById = (id: string): Article | undefined => BY_ID.get(id) ?? BY_ID.get(MOVED_ARTICLES[id] ?? '');
 
 /** All the words of an article, for search. */
+export const articleWords = (a: Article): string => textOf(a);
 function textOf(a: Article): string {
   return [a.title, a.summary, ...a.keywords, ...a.sections.flatMap((s) => [s.heading, ...(s.text ?? []), ...(s.list ?? [])])].join(' ').toLowerCase();
 }
@@ -1140,7 +1142,8 @@ export function searchGuide(query: string): Article[] {
   if (!words.length) return [];
   const scored = ARTICLES.map((a) => {
     const all = norm(textOf(a));
-    if (!words.every((w) => all.includes(w))) return null;
+    // Find's rule 1, as everywhere: each word must start a word in the article ("eck" finds nothing).
+    if (!textMatches(textOf(a), query)) return null;
     const title = norm(a.title), keys = norm(a.keywords.join(' ')), sum = norm(a.summary);
     // Where a word appears counts most; how often it appears breaks ties.
     const score = words.reduce((n, w) => n + (title.includes(w) ? 8 : 0) + (keys.includes(w) ? 4 : 0) + (sum.includes(w) ? 2 : 0) + Math.min(4, all.split(w).length - 1), 0);

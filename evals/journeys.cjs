@@ -247,8 +247,8 @@ const navTo = async (h, p, label) => {
   // the instant visibility checks below would then take the phone's way (the tab bar's More) on a desktop, where it
   // never appears (U8 timed out on the CI runners that way).
   await p.locator('.side:visible, .tabbar:visible').first().waitFor();
-  // From the start of the name: "Goals" is not the saved view "My goals by status" under it.
-  const name = new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  // From the start of the name (after a tab's count): "Goals" is not the saved view "My goals by status" under it.
+  const name = new RegExp('^(\\d+\\s*)?' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const side = p.locator('.side').getByRole('link', { name });
   if (await side.isVisible().catch(() => false)) return h.click(side);
   const tab = p.locator('.tabbar').getByRole('link', { name });
@@ -1496,7 +1496,9 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
 journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter met or missed, and the year’s history', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));
-  await see(p, 'Week 45 of 53 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
+  // A phone's Goals page has no title (goals spec, 2.4): its top bar says the week.
+  if (device === 'phone') h.set('entry', /week 45/.test(await p.locator('.mtop').first().innerText()), 'the top bar does not say the week');
+  else await see(p, 'Week 45 of 53 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
   await h.inView(p.getByText('Week 45 of 53 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
   await p.goto(url('/goals/cost-rightsize'));
   const strip = p.getByRole('region', { name: 'This year by quarter' });
@@ -1788,11 +1790,9 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
   h.set('attention', tall <= 60, `a table story row is ${Math.round(tall)}px tall before it is opened`);
   await h.click(row.getByRole('button', { name: /^Details/ }));
   h.set('finish', await row.locator('dl').isVisible(), 'Details does not open the story');
-  // One press for the goals waiting on a decision (on a phone, it's in Filters).
-  if (device === 'desktop') {
-    await h.click(p.getByRole('button', { name: 'Decision or help needed', exact: true }));
-    await see(p, /of 12\d goals/, 'the decision filter did not narrow the goals');
-  }
+  // One press for the goals that need attention, on any screen (the switch, goals spec 2.1).
+  await h.click(p.locator('.attention-switch:visible'));
+  await see(p, /\d+ need attention: /, 'the Needs attention switch did not narrow the goals');
   // New goal with one left unpublished: asked first, not dropped into its last step.
   await p.goto(url('/goals/new'));
   await h.fill(p.getByRole('textbox').first(), 'Half-written goal');
@@ -2553,6 +2553,11 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
   h.set('attention', await p.locator('.count-line[role="status"]').isVisible(), 'the count line is not read out when it changes');
   h.set('finish', /[?&]q=Rhea/.test(p.url()), `the search is not in the address (${p.url()})`);
   await h.checkpoint('activity search');
+  // Back returns to the list before the search, in one step (find spec, rule 4: the search's first key adds the entry).
+  await p.goBack();
+  await p.waitForTimeout(250);
+  h.set('errors', !/[?&]q=/.test(p.url()) && (await box.inputValue()) === '', `Back after a search leaves ${p.url()} and “${await box.inputValue()}”`);
+  await p.goForward();
   await h.fill(box, 'zzzz'); await box.press('Enter');
   await see(p, 'No change matches “zzzz”.', 'a search that finds nothing is not said in the list bar’s words');
   await h.click(p.getByRole('button', { name: 'Clear the search' }));
@@ -2624,12 +2629,15 @@ journey('U73', ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS'], 'Goals opens
 journey('U67', ['NAV-PLACES', 'NAV-COLLAPSED'], 'The menu in groups: an owner has Check-in and someone who owns nothing doesn’t; four groups with one item lit; collapsed, an icon names itself on focus; a phone has four tabs and More in the same groups', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
+  await p.locator('.side:visible .nav-group, .tabbar:visible a').first().waitFor();
   if (device === 'phone') {
     const tabs = (await p.locator('.tabbar a, .tabbar button').allInnerTexts()).map((t) => t.replace(/\d+/g, '').trim());
     h.set('entry', JSON.stringify(tabs) === JSON.stringify(['Home', 'Check-in', 'Goals', 'Reviews', 'More']), `the tabs are ${tabs.join(', ')}`);
     await h.click(p.locator('.tabbar').getByRole('button', { name: /More/ }));
     const groups = await p.getByRole('dialog', { name: 'More' }).getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
     h.set('attention', JSON.stringify(groups) === JSON.stringify(['Look up', 'Make', 'This workspace and you']), `More's groups are ${groups.join(', ')}`);
+    await p.keyboard.press('Escape');
+    await p.getByRole('dialog', { name: 'More' }).waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
   } else {
     const groups = await p.locator('.side [role="group"].nav-group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
     h.set('entry', JSON.stringify(groups) === JSON.stringify(['Your work', 'Look up', 'Make', 'This workspace and you']), `the menu's groups are ${groups.join(', ')}`);

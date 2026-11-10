@@ -95,10 +95,12 @@
    layout; Group is in the Views menu (goals spec, 2.4). */
 @container app (max-width: 600px) {
   .goals-page .filterbar-row > .attention-switch, .goals-page .filterbar-row > .group-menu { display: none; }
-  .goals-page .page-head.goals-head { display: none; }
+  /* No title on a phone's page (its top bar names it): the heading stays for screen readers. */
+  .goals-page .page-head.goals-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; padding: 0; }
   .goals-page .goals-phone-switch, .goals-page .goals-phone-end { display: flex; }
   .goals-page .goals-phone-switch > .attention-switch { min-height: 44px; }
-  .goals-page .goals-line { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .goals-page .goals-phone-switch { margin-top: calc(-1 * var(--s1)); }
+  .goals-page .goals-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .goals-page .filterbar-row { flex-wrap: nowrap; }
   .goals-page .filterbar-row .filter-search { flex: 1 1 auto; min-width: 0; }
   .goals-page .filterbar-row > .btn { flex: none; }
@@ -110,7 +112,7 @@
 .attention-switch[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); border: 2px solid var(--fg); padding-inline: 15px; }
 .attention-switch[aria-pressed="true"]:hover { background: var(--surface-3); }
 .goals-page .filterbar-row > .group-menu { flex: none; }
-.goals-page .goals-line { margin-block: var(--s1) 0; }
+.goals-page .goals-line { margin-block: var(--s1) 0; max-width: none; }
 .goals-phone-switch, .goals-phone-end { display: none; }
 .goals-phone-end { gap: var(--s2); margin-top: var(--s4); }
 /* The active filters. Wide: they wrap, with Save view and Copy link at the end. Phones: one row, the filters scrolling

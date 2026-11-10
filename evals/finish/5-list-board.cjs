@@ -28,7 +28,7 @@ module.exports = {
           row: row?.height, first: rect('.outcome')?.top - ban, placeholder: document.querySelector('.filter-search input')?.placeholder, side: document.documentElement.scrollWidth - innerWidth };
       }, bannerPx.toString());
       // Goals spec 2.4: no title on a phone's page; the top bar names it and says the week.
-      chk(!m.head, `G: 360px Goals still draws its own ${r0(m.head)}px header under the top bar`);
+      chk((m.head ?? 0) <= 1, `G: 360px Goals still draws its own ${r0(m.head)}px header under the top bar`);
       chk(m.bar <= 48 && m.hidden === 0, `G: 360px views and layout take ${r0(m.bar)}px (one 44px row expected), ${m.hidden} of the wide toolbar's rows still shown`);
       chk(/^Views: All ?, ?\d+ goals$/.test(m.views ?? '') && /^Layout: List$/.test(m.layout ?? ''), `G: 360px menus say “${m.views}” and “${m.layout}”`);
       chk(m.row <= 48, `L&T 4: 360px search and Filters take ${r0(m.row)}px (one row expected)`);

@@ -6,7 +6,7 @@ import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
 import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
-import { CORE_NAV, GROUP_NAMES, isLit, menuGroups, menuViews, moreFor, pageName, phoneTabs, type GoalsAt, type NavId } from '../domain/navigation';
+import { CORE_NAV, GROUP_NAMES, isLit, litItem, menuGroups, menuViews, moreFor, pageName, phoneTabs, type GoalsAt, type NavId } from '../domain/navigation';
 import { recentsOf, usePrefs } from '../app/search';
 import { DemoEntry, DemoPanel } from './Demo';
 import { Coach } from './Coach';
@@ -255,14 +255,16 @@ function ShellBody({ children }: { children: ReactNode }) {
     </>
   );
 
+  // The one lit item, by the navigation rules (rule 2): core items and modules' alike.
+  const lit = litItem(navAt, [...groups.work, ...groups.lookup, ...groups.make, ...groups.you], moduleNav);
   const row = (id: string) => {
     if (id === 'goals') return <GoalsSection key={id} at={sideAt} navAt={navAt} views={shownViews} label={label} />;
     const m = id.startsWith('module:') ? moduleNav.find((n) => `module:${n.id}` === id) : null;
-    if (m) return <Link key={id} to={m.to} className="nav" {...label(m.label)} aria-current={navAt === m.to || navAt.startsWith(m.to + '/') ? 'page' : undefined}>{m.icon}<span>{m.label}</span></Link>;
+    if (m) return <Link key={id} to={m.to} className="nav" {...label(m.label)} aria-current={lit === id ? 'page' : undefined}>{m.icon}<span>{m.label}</span></Link>;
     const n = id as NavId;
     const words = n === 'help' && unread ? 'Help, something new' : count(n) > 0 ? `${NAV[n].label}, ${count(n)} to do` : NAV[n].label;
     return (
-      <Link key={id} to={NAV[n].to} className={'nav' + (n === 'settings' ? ' settings-nav' : n === 'help' ? ' help-nav' : n === 'feedback' ? ' inbox-nav' : '')} {...label(words)} aria-current={isActive(n, navAt) ? 'page' : undefined}>
+      <Link key={id} to={NAV[n].to} className={'nav' + (n === 'settings' ? ' settings-nav' : n === 'help' ? ' help-nav' : n === 'feedback' ? ' inbox-nav' : '')} {...label(words)} aria-current={lit === id ? 'page' : undefined}>
         {NAV[n].icon}<span>{NAV[n].label}</span>
         {n === 'help' && unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}
         {count(n) > 0 && <span className="count">{count(n)}<span className="sr"> to do</span></span>}
