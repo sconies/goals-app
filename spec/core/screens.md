@@ -208,7 +208,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - **Named parts:** “People”, “For admins”, “What it is here to do”, “Goals”, “People and teams (region)”, “Pages (region)”
 - **Main action:** Find a person or a team and go to their goals; for admins, Add a person on People and Add a team on Teams.
 - **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `list_people`, `save_person`, `save_team`, `remove_team`, `mark_person_left`, `delete_person`, `find_goals`
+- **AI tools:** `list_people`, `save_person`, `save_team`, `remove_team`, `mark_person_left`, `delete_person`, `create_token`, `find_goals`
 
 ## Feedback
 
@@ -225,12 +225,12 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/Settings.tsx](../../src/screens/Settings.tsx)
 
-- `/settings` (`Settings`): Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your MCP tokens. It also says what the app records. Help: “Settings” (`settings`).
+- `/settings` (`Settings`): About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace. Help: “Settings” (`settings`).
 
-- **Named parts:** “Settings”, “Appearance”, “Navigation”, “You”, “Motion lab”, “What the app records”
-- **Main action:** Change your own settings.
+- **Named parts:** “Settings”, “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”
+- **Main action:** Change your own choices; see who you are here and go to your page.
 - **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `list_tokens`, `revoke_token`, `create_token`, `get_help`, `set_recording`
+- **AI tools:** `list_tokens`, `revoke_token`, `get_help`
 
 ## Help
 

@@ -144,3 +144,14 @@
   .ws-facts dd { margin-bottom: var(--s2); }
   .ws-sort-row { flex-wrap: wrap; }
 }
+
+/* Access (WR3): the admins and the tokens as hairline lists; removing an admin asks in place. */
+.admin-list, .token-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.admin-row, .token-row { display: flex; align-items: center; gap: var(--s3); padding: 12px 0; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; }
+.admin-row .person-text { flex: 1; min-width: 0; }
+.admin-row .person-name { color: var(--fg); text-decoration: none; }
+.admin-row .person-name:hover { text-decoration: underline; }
+.admin-confirm { display: flex; flex-direction: column; gap: var(--s2); flex: 1 1 260px; }
+.access-tokens { margin-top: var(--s5); }
+.people-admin-actions { flex-wrap: wrap; gap: var(--s2); }
+.pick-row { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; }

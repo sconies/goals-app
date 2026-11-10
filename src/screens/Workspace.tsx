@@ -16,10 +16,12 @@ import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
 import { sectionsFor } from '../core/module';
-import { Avatar } from '../ui/bits';
+import { Avatar, Sheet } from '../ui/bits';
 import { adminsLine, cycleWhen, NEEDS_SHOWN, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { canRestore, cycleStanding } from '../domain/removal';
-import { AiAssistants } from '../ui/AiAssistants';
+import { AccessTokens } from '../ui/AiAssistants';
+import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
+import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
 import { wrapUpOpen } from '../domain/cycle';
@@ -293,21 +295,52 @@ function CyclesSection() {
   );
 }
 
+/** Access (admins, WR3): the admins, where they are made and taken back, then every MCP token. */
 function AccessSection() {
   const app = useApp();
-  const admins = app.snapshot.people.filter((p) => p.admin);
+  const [adding, setAdding] = useState(false);
+  const setAdmin = useSetAdmin();
+  const admins = app.snapshot.people.filter((p) => p.admin).sort((a, b) => a.name.localeCompare(b.name, 'en-GB', { sensitivity: 'base' }));
   return (
     <>
-      <SectionHead id="access" />
-      <section className="block admins-block" aria-labelledby="ws-admins">
-        <h3 className="label" id="ws-admins">Admins · {admins.length}</h3>
-        <ul className="optlist" aria-label="Admins">
-          {admins.map((p) => <li key={p.id} className="opt static person-opt"><Avatar p={p} size="sm" /><span className="person-text"><span className="person-name">{p.name}</span>{p.role && <span className="hint">{p.role}</span>}</span></li>)}
+      <SectionHead id="access">Who the admins are, and the MCP tokens that let an AI tool act as someone here.</SectionHead>
+      <section className="stack admins-block" style={{ gap: 'var(--s2)' }} aria-labelledby="ws-admins">
+        <div className="row between">
+          <h3 className="block-title" id="ws-admins">Admins · {admins.length}</h3>
+          <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add an admin</button>
+        </div>
+        <p className="hint">Admins add people, change teams and settings, and make MCP tokens. There is always at least one.</p>
+        <ul className="admin-list" aria-label="Admins">
+          {admins.map((p) => (
+            <li key={p.id} className="admin-row">
+              <Avatar p={p} size="sm" />
+              <span className="person-text"><span><Link className="person-name" to={`/people/${encodeURIComponent(p.id)}`}>{p.name}</Link>{p.id === app.viewer.id && <span className="hint"> · you</span>}</span>{p.role && <span className="hint">{p.role}</span>}</span>
+              <RemoveAdmin p={p} setAdmin={setAdmin} />
+            </li>
+          ))}
         </ul>
-        <p className="hint">Make someone an admin, or stop them being one, from their page in <Link to="/people">People</Link> (Change details). There is always at least one.</p>
       </section>
-      <AiAssistants />
+      <AccessTokens />
+      {adding && <AddAdminSheet setAdmin={setAdmin} onClose={() => setAdding(false)} />}
     </>
+  );
+}
+
+/** "Add an admin": find a person (FS1's find-and-pick; anyone already an admin is refused, saying so), then make them one. */
+function AddAdminSheet({ onClose, setAdmin }: { onClose: () => void; setAdmin: ReturnType<typeof useSetAdmin> }) {
+  const app = useApp();
+  const [pick, setPick] = useState<string | null>(null);
+  const chosen = pick ? app.person(pick) : undefined;
+  return (
+    <Sheet open onClose={onClose} title="Add an admin">
+      <div className="stack" style={{ gap: 'var(--s4)' }}>
+        <PickOne kind="person" label="Who" value={pick} onChange={setPick} refuse={(row) => (app.person(row.id)?.admin ? 'Already an admin' : null)} />
+        <div className="foot-row">
+          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn primary big-btn" disabled={!chosen} onClick={() => { if (chosen) { onClose(); void setAdmin(chosen, true); } }}>{chosen ? `Make ${chosen.name.split(/\s+/)[0]} an admin` : 'Make them an admin'}</button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 
