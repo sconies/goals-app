@@ -375,6 +375,7 @@ Goals opens on the viewer's own goals: its tabs say whose goals (Mine when they 
 
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
 
 ### GOALS-ATTENTION
 
@@ -382,6 +383,7 @@ Needs attention is a switch on any scope, with its count for that scope and thos
 
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
 
 ### GOALS-ADDRESS
 
@@ -389,6 +391,7 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
 
 ## Platform
 
@@ -969,12 +972,14 @@ Anyone can leave a workspace from Settings (last, after a rule), with a confirm 
 The menu is four groups: your work (Home; Check-in for someone with a goal to check in on; Goals with up to four saved views; Reviews), things to look up (People, a module's places, Activity, Data), New goal, and this workspace and you (Workspace, Settings, Help, Feedback); one item is lit. A phone has four tabs (Check-in or People as the second) and More, in the same groups.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** U67
 
 ### NAV-COLLAPSED
 
 Collapsed to a rail (and always between 761 and 1100 px), each icon names itself in the app's own label, after a moment on hover and at once on keyboard focus, with its full words (“Check-in, 5 to do”).
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** U67
 
 ## Finding
 

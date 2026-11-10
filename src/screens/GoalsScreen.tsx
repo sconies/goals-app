@@ -17,7 +17,7 @@ import { WatchingBody } from './Watching';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LAYOUT_ABOUT, LAYOUTS, LayoutMenu, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
+import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LayoutMenu, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
 import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
@@ -35,8 +35,7 @@ const GOAL_WORDS = { thing: 'goal', things: 'goals' };
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
-import { ATTENTION, ATTENTION_FLAGS, HANDLED_LINE, STATUS, STATUS_ORDER } from '../domain/vocabulary';
-import type { GoalAttention } from '../domain/attention';
+import { ATTENTION, HANDLED_LINE } from '../domain/vocabulary';
 
 // The map loads only when someone opens it, so the rest of the app stays small.
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
@@ -63,17 +62,36 @@ export function GoalsScreen() {
   const { tabs: scopeTabs, opens } = scopesFor(scopeFacts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'));
   const hasScope = (x: Scope) => scopeTabs.some((t) => t.id === x);
   // Old addresses (show=…, a filter with no scope, a bare /goals) say what they meant, replacing the entry (rule 6).
-  const [movedNote, setMovedNote] = useState<string | null>(null);
+  // A filter naming a team, person or goal the workspace doesn't have is dropped, and the page says so (spec 2.1, item 7).
+  const [moved, setMoved] = useState<{ text: string; at: string; from: string } | null>(null);
+  const loaded = app.snapshot.people.length > 0;
   useEffect(() => {
+    // Said until the address moves on from the one it fixed (or the one it came from, before the fix lands).
+    if (moved && params.toString() !== moved.at && params.toString() !== moved.from) setMoved(null);
+    if (!loaded) return;
+    const said: string[] = [];
+    let next = latest();
     // Cards has gone: a link or a remembered layout that says it opens in List, said once.
-    const cur = latest();
-    if (cur.get('view') === GONE_LAYOUT || forgetGoneLayout()) { setMovedNote(GONE_LAYOUT_NOTE); if (cur.get('view') === GONE_LAYOUT) { cur.delete('view'); setParams(cur, { replace: true }); return; } }
-    const moved = movedGoals(cur.toString(), opens, hasScope);
-    if (!moved) return;
-    if (moved.note) setMovedNote(moved.note);
-    setParams(new URLSearchParams(moved.search), { replace: true });
+    if (next.get('view') === GONE_LAYOUT) { next.delete('view'); said.push(GONE_LAYOUT_NOTE); }
+    else if (forgetGoneLayout()) said.push(GONE_LAYOUT_NOTE);
+    const old = movedGoals(next.toString(), opens, hasScope);
+    if (old) { next = new URLSearchParams(old.search); if (old.note) said.push(old.note); }
+    const keep = (key: string, known: (id: string) => boolean, what: string) => {
+      const ids = (next.get(key) ?? '').split(',').filter(Boolean);
+      const gone = ids.filter((id) => !known(id));
+      if (!gone.length) return;
+      const left = ids.filter(known);
+      if (left.length) next.set(key, left.join(',')); else next.delete(key);
+      said.push(`No ${what} “${gone.join('”, “')}” in ${app.ws.name}, so that filter is off.`);
+    };
+    keep('team', (id) => !!app.team(id), 'team');
+    keep('owner', (id) => !!app.person(id), 'person');
+    keep('feeds', (id) => !!app.goal(id), 'goal');
+    if (next.toString() === params.toString() && !said.length) return;
+    if (said.length) setMoved({ text: said.join(' '), at: next.toString(), from: params.toString() });
+    if (next.toString() !== params.toString()) setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, opens]);
+  }, [params, opens, loaded]);
   const scope: Scope = hasScope(params.get('scope') as Scope) ? (params.get('scope') as Scope) : opens;
   useEffect(() => { if (params.get('scope')) prefs.set(app.ws.id, app.viewer.id, 'goals-scope', scope); }, [scope, params, prefs, app.ws.id, app.viewer.id]);
   const scopeTab = scopeTabs.find((t) => t.id === scope)!;
@@ -160,19 +178,12 @@ export function GoalsScreen() {
   // On the map, a filtered goal keeps the goals it feeds into, so it isn't cut off from its tree.
   const mapGoals = narrowed ? (() => { const keep = withAncestors(app.snapshot.goals, new Set(shown.map((g) => g.id))); return app.snapshot.goals.filter((g) => keep.has(g.id)); })() : shown;
   const alt = layout !== 'list';
-  // The Needs attention list as shown (filters applied): the line above it and the health line count what's on screen,
-  // and only the first group, as the tab does (outside review, 10 Nov, U13 and U15): one set of numbers.
-  const listed = useMemo(() => {
-    const of = (key: string) => groups.filter((g) => g.key === key).flatMap((g) => g.rows.map((r) => app.attentionOf(r.goal)));
-    return { needs: of('attention'), handled: of('handled') };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, app.snapshot]);
   // The switch's count (rule 3): the scope's goals needing attention, after the search and filters.
   const sumsInScope = useMemo(() => summariseAll(app.snapshot.goals.filter((g) => inScope.has(g.id)), app.snapshot, app.cycle, app.today, app.week), [app.snapshot, inScope, app.cycle, app.today, app.week]);
   const switchCount = useMemo(() => attentionCount(sumsInScope, query, { goals: app.snapshot.goals, cycle: app.cycle, week: app.week }), [sumsInScope, query, app.snapshot.goals, app.cycle, app.week]);
   const shownIds = new Set(shown.map((g) => g.id));
   const line = goalsLine(sumsInScope.filter((x) => shownIds.has(x.goal.id)), narrowed, query.sort ? (SORT_OPTIONS.find(([k]) => k === query.sort)?.[1] ?? '').toLowerCase() : group === 'tree' ? 'as trees' : 'worst first', switchOn);
-  const linkNote = movedNote;
+  const linkNote = moved?.text ?? null;
   // Each kind of view gets the room it needs: a list reads best narrow, a table or board wants width, the map wants everything.
   const frame = (!alt ? 'page' : layout === 'map' ? 'page full' : 'page wide') + ' goals-page' + (show === 'watching' && !alt ? ' watching' : '');
   // Watching is a scope of Goals (one Watching, 5 Nov): the same toolbar, filters and layouts, and in the list its own
@@ -183,7 +194,7 @@ export function GoalsScreen() {
   // A choice adds a history entry (find spec, rule 4). Choosing a scope keeps the search and filters; its own group returns.
   const pickScope = (k: Scope) => { if (scope === k && !activeView) return; const p = latest(); p.set('scope', k); p.delete('group'); p.delete('show'); setParams(p); };
   const pickGroup = (k: Group) => { const p = latest(); if (k === ownGroup(scope)) p.delete('group'); else p.set('group', k); setParams(p); };
-  const toggleSwitch = () => setQuery((cur) => (cur.attention || cur.needs.length ? { ...cur, attention: false, needs: [] } : { ...cur, attention: true }));
+  const toggleSwitch = () => setQuery((cur) => (cur.attention || cur.needs.length ? { ...cur, attention: false, needs: [] } : { ...cur, attention: true }), { push: true });
   const viewName = scopeTab.label;
   // The selected tab is always in view, even when it's past the edge of a row that scrolls sideways.
   const tabRow = useRef<HTMLDivElement>(null);
@@ -243,9 +254,6 @@ export function GoalsScreen() {
         </div>
         {app.snapshot.goals.length > 0 && (
           <div className="row view-bar">
-            <button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button>
-            {layout !== 'map' && <MenuButton className="group-menu" label="Group" display={switchOn ? 'Group: needs attention first' : `Group: ${GROUPS.find(([k]) => k === group)![1]}`}
-              items={switchOn ? [{ label: 'Needs attention has its own two groups' }] : GROUPS.map(([k, l]) => ({ label: l, current: group === k, onClick: () => pickGroup(k) }))} />}
             <LayoutSwitch layout={layout} onChange={setLayout} />
             {/* Modules' tools for these goals (the goals.tools place): the spreadsheets module's quiet Export these goals. */}
             <span className="row io-buttons" style={{ gap: 'var(--s2)' }}>
@@ -255,17 +263,17 @@ export function GoalsScreen() {
         )}
       </div>
 
-      {/* What the open layout is, and the health of the goals shown (backlog GP), on one line so the goals stay high. */}
-      {app.snapshot.goals.length > 0 && (
-        <div className="goals-about">
-          <p className="hint layout-about" aria-live="polite"><span className="strong">{LAYOUTS.find(([k]) => k === layout)?.[1]}</span>: {LAYOUT_ABOUT[layout]}</p>
-          {line && <p className="small goals-line" role="status">{line}</p>}
-        </div>
-      )}
-      {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
+      {/* The list bar: search, the Needs attention switch, Filters, Sort, Group (goals spec, 2.1); then the count line. */}
+      {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length}
+        lead={<button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button>}
+        trail={layout !== 'map' && <MenuButton className="group-menu" label="Group" display={switchOn ? 'Group: needs attention first' : `Group: ${GROUPS.find(([k]) => k === group)![1]}`}
+          items={switchOn ? [{ label: `${ATTENTION.needs.label} has its own two groups` }] : GROUPS.map(([k, l]) => ({ label: l, current: group === k, onClick: () => pickGroup(k) }))} />} />}
+      {/* On a phone the switch has a row of its own under the search (goals spec, 2.4); in the bar it's hidden there. */}
+      {app.snapshot.goals.length > 0 && <div className="goals-phone-switch"><button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button></div>}
+      {app.snapshot.goals.length > 0 && line && <p className="small goals-line" role="status">{line}</p>}
       {linkNote && <p className="hint link-note" role="status">{linkNote}</p>}
-      {show === 'attention' && !activeView && listed.needs.length + listed.handled.length > 0 && <AttentionCounts att={listed.needs} handled={listed.handled} />}
-      <FirstReports />
+      {/* Until every goal has had its first check-in, the switch says how far that has got (goals spec, 2.1, item 6). */}
+      {switchOn && <FirstReports />}
       {refined && (shown.length === 0 || near) && <NoneFound things={GOAL_WORDS} q={query.q} filtered={filters({ ...query, q: '' })} near={near} onClearSearch={() => setQuery((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setQuery((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))} />}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
       {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><Icon name="check-circle" size={15} /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
@@ -346,40 +354,13 @@ export function GoalsScreen() {
       {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><GoalRow g={g} showOwner={false} /></li>)}</ul>}
       {/* The key sits after the goals: every row already shows its status in words. */}
       {app.snapshot.goals.length > 0 && shown.length > 0 && layout !== 'map' && <StatusLegend />}
+      {/* A phone has no page title (its top bar says Goals), so New goal, and Wrap up when it's open, close the page. */}
+      <p className="row goals-phone-end">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm" to="/goals/new">New goal</Link></p>
     </div>
   );
 }
 
 
-/** What the Needs attention tab's count counts, on the count itself (Lane, 9 Nov): the first group, not the second. */
-export function attentionBadge(needs: number, handled: number): string {
-  return `${needs} ${needs === 1 ? 'needs' : 'need'} attention${handled ? `; ${handled} ${ATTENTION.handled.label.toLowerCase()} are listed below them and not counted` : ''}.`;
-}
-
-/**
- * What the Needs attention count counts, in one line with Why? for the rest (outside review, 10 Nov, U15: a 57-word
- * paragraph pushed the first goal far down a phone). It counts the goals shown, so a team filter counts that team. The
- * Board groups the same goals by status, so Why? says how many are on track but flagged for something else; and that
- * the goals being handled are listed below, not counted, and Home counts goals by status instead.
- */
-function AttentionCounts({ att, handled }: { att: GoalAttention[]; handled: GoalAttention[] }) {
-  const [why, setWhy] = useState(false);
-  const by = new Map<string, number>();
-  for (const a of att) by.set(a.status.status, (by.get(a.status.status) ?? 0) + 1);
-  // The statuses that are themselves a reason for attention, in the order the vocabulary gives them.
-  const behind = ATTENTION_FLAGS.filter((k): k is 'off' | 'risk' | 'stale' => k in STATUS && k !== 'greener').sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b));
-  const named = behind.filter((k) => by.get(k)).map((k) => `${by.get(k)} ${STATUS[k].label.toLowerCase()}`);
-  const rest = att.length - behind.reduce((n, k) => n + (by.get(k) ?? 0), 0);
-  const parts = [...named, ...(rest ? [`${rest} on track but flagged for something else (getting worse, a missed date, an ask waiting)`] : [])];
-  const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
-  return (
-    <p className="hint attention-counts" data-why={why || undefined}>
-      <span className="strong">{attentionBadge(att.length, handled.length)}</span>
-      {why && <span className="attention-counts-more"> {att.length ? `Of them: ${list}.` : 'Nothing new needs attention.'}{handled.length ? ` ${ATTENTION.handled.label}: ${HANDLED_LINE.charAt(0).toLowerCase() + HANDLED_LINE.slice(1)}` : ''} Home counts goals by status.</span>}
-      {' '}<button type="button" className="linkish" aria-expanded={why} onClick={() => setWhy(!why)}>{why ? 'Less' : 'Why?'}</button>
-    </p>
-  );
-}
 
 /** The teams that have goals, worst first (domain/order.ts worstGroupsFirst), each with its goals worst first (U24). */
 function teamsWorstFirst(app: ReturnType<typeof useApp>) {

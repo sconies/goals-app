@@ -233,17 +233,28 @@ const goalMenu = async (h, p, item) => {
   await h.click(p.getByRole('group', { name: 'More about this goal' }).getByRole(item === 'Print or save as PDF' || /^Check in/.test(item) || item === 'Change this goal' ? 'link' : 'button', { name: item }));
 };
 
+/** Watching is a scope of Goals (GL1): Goals in the menu, then its Watching tab, or the Views menu on a phone. */
+const toWatching = async (h, p) => {
+  await navTo(h, p, 'Goals');
+  if (await phoneBar(p)) {
+    await h.click(p.locator('.show-menu > summary'));
+    await h.click(p.getByRole('menuitem', { name: /^Watching/ }).or(p.getByRole('button', { name: /^Watching/ })).first());
+  } else await h.click(p.getByRole('tablist', { name: 'Whose goals' }).getByRole('tab', { name: /^Watching/ }));
+  await p.waitForURL(/scope=watching/);
+};
 const navTo = async (h, p, label) => {
   // Wait for the app's navigation first. Right after p.goto a slow machine can still be showing "Loading goals…", and
   // the instant visibility checks below would then take the phone's way (the tab bar's More) on a desktop, where it
   // never appears (U8 timed out on the CI runners that way).
   await p.locator('.side:visible, .tabbar:visible').first().waitFor();
-  const side = p.locator('.side').getByRole('link', { name: label });
+  // From the start of the name: "Goals" is not the saved view "My goals by status" under it.
+  const name = new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const side = p.locator('.side').getByRole('link', { name });
   if (await side.isVisible().catch(() => false)) return h.click(side);
-  const tab = p.locator('.tabbar').getByRole('link', { name: label });
+  const tab = p.locator('.tabbar').getByRole('link', { name });
   if (await tab.isVisible().catch(() => false)) return h.click(tab);
   await h.click(p.locator('.tabbar').getByRole('button', { name: 'More' }));
-  await h.click(p.getByRole('dialog').getByRole('link', { name: label }));
+  await h.click(p.getByRole('dialog').getByRole('link', { name }));
 };
 
 /** Status shapes whose words disagree with them (SHAPE-MATCHES-WORD): the shape says one status and the words nearest it
@@ -840,7 +851,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   const link = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');
   if (!link.endsWith('/demo?workspace=' + encodeURIComponent(wsId))) fail('the invitation link doesn’t name the workspace: ' + link);
   // U6: on day one the first-check-in count agrees with Ready, and nothing is late.
-  await p.goto(url('/goals?scope=all'));
+  await p.goto(url('/goals?scope=all&attention=1'));
   const first = await p.locator('.first-reports').first().innerText().catch(() => '');
   if (!first.includes(`0 of ${readyGoals} goals`)) fail(`Goals says “${first}” after Ready said ${readyGoals} goals`);
   const late = await p.getByText(/\d+ weeks? late|up to \d+ weeks/).filter({ visible: true }).allInnerTexts();
@@ -914,9 +925,9 @@ journey('U12', ['DEMO-MODE'], 'Demo: switch person, look around, start over', 4,
 journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], 'Understand a goal and its change history', 3, async (h, device) => {
   // Santiago owns the Kafka migration: a milestone, off track, with late stages and a worsening trend.
   const p = h.use(await newPage(device, 'santiago'));
-  await p.goto(url('/goals?show=attention'));
-  await h.inView(p.locator('.arow').first(), 'entry', 'the first goal');
-  await h.click(p.locator('.arow-main', { hasText: 'Kafka moved to the managed service' }));
+  await p.goto(url('/goals?scope=all&attention=1'));
+  await h.inView(p.locator('.trow').first(), 'entry', 'the first goal');
+  await h.click(p.locator('.trow', { hasText: 'Kafka moved to the managed service' }).first());
   await p.locator('.goal-bar').waitFor();
   // The summary bar says off track and how many stages are late; Why opens with the reason (the scorecard, 5 Nov).
   h.set('attention', await p.locator('.goal-bar[data-tone=off] .bar-status.off').isVisible() && /^[1-9]\d*$/.test((await p.locator('.goal-bar .sc-late .sc-value').innerText()).trim()) && (await p.locator('.why-block .why-text').innerText()).length > 10, 'off track and its reasons are not shown');
@@ -976,7 +987,7 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   // Same browser, Oskar, who watches this goal: Watching shows the change.
   await viewAs(p, 'Oskar');
   await see(p, 'Good');
-  await navTo(h, p, 'Watching');
+  await toWatching(h, p);
   await see(p, 'What changed this week');
   h.set('progress', true);
   h.set('attention', await p.locator('.changes').getByText('Pull requests with AI-assisted review').first().isVisible().catch(() => false) || await p.locator('.changes .change').count() > 0, 'the watched change is not shown');
@@ -990,9 +1001,8 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   // (one Watching, 5 Nov): the same toolbar, the Level filter instead of tabs, what changed beside it.
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
-  await navTo(h, p, 'Watching');
-  await p.waitForURL(/\/goals\?(.*&)?show=watching/);
-  await see(p, 'No recent update');
+  await toWatching(h, p);
+    await see(p, 'No recent update');
   await see(p, /\d+ goals · .*need/, 'the summary line counts what needs attention');
   h.set('parity', /^Watching/.test(await openShow(p)) && await p.locator('.goals-toolbar .view-bar, .goals-phonebar').filter({ visible: true }).count() > 0, 'Watching is not a Goals tab with the Goals toolbar');
   // A goal with no recent update needs attention (the one rule): it's in that group, saying its status.
@@ -1014,7 +1024,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   h.set('logged', !!ask && s.changes.some((c) => c.entity === 'request' && c.entityId === ask.id && c.action === 'asked' && c.actorId === 'rhea'), 'the chase is not an open ask, logged');
   // /watching is the way in; the Level filter narrows it, as on any Goals scope.
   await p.goto(url('/watching?level=team'));
-  await p.waitForURL(/show=watching/);
+  await p.waitForURL(/scope=watching/);
   h.set('parity', /level=team/.test(p.url()) && await p.locator('.filter-chip, .chip').filter({ hasText: /Team/ }).first().isVisible().catch(() => false), 'the Level filter is not applied to Watching');
   await p.context().close();
 }, ['errors']);
@@ -1036,7 +1046,7 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   await h.click(p.getByRole('button', { name: /Watch it and everything feeding it/ }));
   await see(p, 'Watching all');
   // And a whole level from Watching.
-  await navTo(h, p, 'Watching');
+  await toWatching(h, p);
   await h.click(p.getByRole('button', { name: 'Change', exact: true }));
   await h.click(p.getByRole('button', { name: /^Watch SVP/ }));
   await see(p, 'Every SVP goal');
@@ -1226,11 +1236,12 @@ journey('U16', ['ATTENTION', 'WATCHING', 'ONE-ASK', 'ONE-WATCHING'], 'Home by re
   { const panel = await demoPanel(p, h); h.set('progress', !(await panel.getByRole('button', { name: /4 tabs/ }).count()), 'the four-tab trial is still offered'); await p.keyboard.press('Escape'); }
   if (device === 'phone') {
     const labels = await p.locator('.tabbar').getByRole('link').allInnerTexts();
-    h.set('progress', labels.map((x) => x.replace(/\d+/g, '').trim()).join(',') === 'Home,Goals,Watching,Reviews', `phone tabs are ${labels.join(', ')}`);
+    h.set('progress', labels.map((x) => x.replace(/\d+/g, '').trim()).join(',') === 'Home,Goals,Reviews,People', `phone tabs are ${labels.join(', ')}`);
   }
-  await p.goto(url('/goals?show=watching'));
+  await p.goto(url('/goals?scope=watching'));
   await see(p, 'Needs attention', 'Watching shows inside Goals');
-  h.set('finish', await p.getByRole('heading', { name: 'Watching', level: 1 }).isVisible(), 'Watching inside Goals is not named Watching');
+  // A phone has no page title: its top bar names the page.
+  h.set('finish', device === 'phone' ? (await p.locator('.mtop strong').first().innerText()).trim() === 'Watching' : await p.getByRole('heading', { name: 'Watching', level: 1 }).isVisible(), 'Watching inside Goals is not named Watching');
   await p.context().close();
 }, ['errors', 'logged']);
 
@@ -1702,8 +1713,9 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await sheet.getByLabel('Sort').selectOption('due');
   await h.checkpoint('filters');
   await h.click(sheet.getByRole('button', { name: 'Show the goals' }));
-  // 21 need attention and 4 more are being handled, listed below them (Lane, 9 Nov, backlog GP): 25.
-  await see(p, '25 of 126 goals', 'the slipped-date filter does not narrow the goals');
+  // 24 need attention and 1 more is being handled, listed below them (Lane, 9 Nov, backlog GP): 25. The line says
+  // it the Needs attention way (goals spec, rule 4), since the filter is a reason to need attention.
+  await see(p, /24 need attention: .*1 being handled is listed below/, 'the slipped-date filter does not narrow the goals');
   await chooseLayout(h, p, 'Table');
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
@@ -1726,12 +1738,12 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await p.goto(url('/goals?scope=all&view=list'));
   await h.click(p.locator('.views-menu:visible > summary'));
   await h.click(p.getByRole('button', { name: /Slipped dates/ }));
-  await see(p, '25 of 126 goals', 'opening the saved view did not bring its filters back');
+  await see(p, /24 need attention: .*1 being handled/, 'opening the saved view did not bring its filters back');
   // A shared link opens the same goals for anyone.
   const other = await newPage(device, 'rhea');
   // A link from before release 2 (needs=slipped, without attention=1) opens the same goals.
   await other.goto(url('/goals?scope=all&needs=slipped&sort=due'));
-  await see(other, '25 of 126 goals', 'a shared link does not open the same goals');
+  await see(other, /24 need attention: .*1 being handled/, 'a shared link does not open the same goals');
   await other.context().close();
   // Delete it: the tab goes.
   // Rename, pin and delete live in one menu, not beside the filters.
@@ -2135,8 +2147,9 @@ journey('U40', ['OTHER-CAUSE', 'DEMO-FEEDBACK', 'RESEARCH'], 'Research notes fol
   // Feedback in the demo says it goes to the people building the app (it used to stay in the browser).
   await p.goto(url('/'));
   await p.locator('main').first().waitFor();
-  if (await p.locator('.feedback-nav').isVisible().catch(() => false)) await h.click(p.locator('.feedback-nav'));
-  else { await h.click(p.locator('.tabbar').getByRole('button', { name: /More/ })); await h.click(p.getByRole('button', { name: /Send feedback/ })); }
+  // Feedback is one item (WR5): its page's Send feedback opens the sheet.
+  await navTo(h, p, 'Feedback');
+  await h.click(p.locator('main').getByRole('button', { name: 'Send feedback' }));
   const sheet = p.getByRole('dialog', { name: 'How is the app working for you?' });
   await h.click(sheet.getByRole('button', { name: 'It gets in the way' }));
   await h.fill(sheet.getByRole('textbox'), 'The causes didn’t fit my week.');
@@ -2198,7 +2211,8 @@ async function pictureDiffers(p, live) {
 }
 
 journey('U41', ['MARKUP'], 'Mark up a screen on a phone and a desktop: draw, add a note, check the picture, say what should change, send', 14, async (h, device) => {
-  // Rhea, on her north star's page. On a phone she starts from Send feedback in More; on a desktop with Ctrl+Shift+M.
+  // Rhea, on her north star's page. On a phone she goes to Feedback in More, Send feedback, and marks up the last
+  // screen, which takes her back to it; on a desktop with Ctrl+Shift+M.
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/ns-lead'));
   await p.locator('.goal-bar').first().waitFor();
@@ -2206,11 +2220,11 @@ journey('U41', ['MARKUP'], 'Mark up a screen on a phone and a desktop: draw, add
   const vp = DEVICES[device];
   const live = await settledScreenshot(p);
   if (device === 'phone') {
-    await h.click(p.locator('.tabbar').getByRole('button', { name: /More/ }));
-    await h.click(p.getByRole('dialog', { name: 'More' }).getByRole('button', { name: 'Send feedback' }));
+    await navTo(h, p, 'Feedback');
+    await h.click(p.locator('main').getByRole('button', { name: 'Send feedback' }));
     const sheet = p.getByRole('dialog', { name: 'How is the app working for you?' });
-    await h.inView(sheet.getByRole('button', { name: /Mark up this screen/ }), 'entry', 'Mark up this screen');
-    await h.click(sheet.getByRole('button', { name: /Mark up this screen/ }));
+    await h.inView(sheet.getByRole('button', { name: /Mark up the last screen/ }), 'entry', 'Mark up the last screen');
+    await h.click(sheet.getByRole('button', { name: /Mark up the last screen/ }));
   } else {
     // Escape cancels a markup, leaving the page as it was.
     await p.keyboard.press('Control+Shift+M');
@@ -3944,10 +3958,10 @@ async function platformChecks() {
     await c.close();
     [c, r] = await at(1024, 768, 'amara', '/reviews/weekly', true);
     const go = r.getByRole('link', { name: /Start|Continue|Open/ }).first(); if (await go.count()) { await go.click(); await r.waitForTimeout(500); }
-    const rv = await r.evaluate(() => { const d = document.querySelector('.side .demo-entry')?.getBoundingClientRect(); return { side: document.documentElement.scrollWidth - innerWidth, demo: d ? [Math.round(d.width), Math.round(d.height)] : null, titles: [...document.querySelectorAll('.side .nav')].filter((n) => !n.getAttribute('title')).length }; });
+    const rv = await r.evaluate(() => { const d = document.querySelector('.side .demo-entry')?.getBoundingClientRect(); return { side: document.documentElement.scrollWidth - innerWidth, demo: d ? [Math.round(d.width), Math.round(d.height)] : null, titles: [...document.querySelectorAll('.side .nav')].filter((n) => !n.getAttribute('title') && !n.getAttribute('data-label')).length }; });
     if (rv.side > 1) finish.push(`1024px review scrolls sideways by ${rv.side}px`);
     if (!rv.demo || rv.demo[0] > 48 || rv.demo[1] < 44) finish.push(`1024px rail Demo box is ${rv.demo}`);
-    if (rv.titles) finish.push(`${rv.titles} rail icons have no name on hover`);
+    if (rv.titles) finish.push(`${rv.titles} rail icons have no name on hover (the app's label, navigation spec 2.2)`);
     await c.close();
     [c, r] = await at(1440, 700, 'amara', '/goals?scope=all');
     const lx = await r.evaluate(() => Math.round(document.querySelector('.goals-head h1').getBoundingClientRect().left));

@@ -2,7 +2,7 @@
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
 import { isTableView } from '../domain/tableLayout';
 import { movedGoals } from '../domain/goalsPage';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
@@ -34,16 +34,17 @@ export function useLatestParams(): () => URLSearchParams {
 }
 
 /** The query in the URL, and a way to change it that keeps everything else (grouping, layout, the demo's date). */
-export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery) => GoalQuery)) => void] {
+export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery) => GoalQuery), opts?: { push?: boolean }) => void] {
   const [params, setParams] = useSearchParams();
   const latest = useLatestParams();
   const q = useMemo(() => parseQuery(params), [params]);
   // Two quick changes (tick a filter, then pick a sort) must not undo each other: each builds on the latest address.
-  const set = (change: GoalQuery | ((q: GoalQuery) => GoalQuery)) => {
+  // A choice that changes what the page is (the Needs attention switch) is a step Back undoes: it pushes.
+  const set = (change: GoalQuery | ((q: GoalQuery) => GoalQuery), opts?: { push?: boolean }) => {
     const base = latest();
     const next = typeof change === 'function' ? change(parseQuery(base)) : change;
     const out = new URLSearchParams([...[...base].filter(([k]) => !QUERY_KEYS.includes(k)), ...queryEntries(next)]);
-    if (out.toString() !== base.toString()) setParams(out, { replace: true });
+    if (out.toString() !== base.toString()) setParams(out, { replace: !opts?.push });
   };
   return [q, set];
 }
@@ -59,7 +60,13 @@ export function useViews(): SavedView[] {
 }
 
 /** Search, filters and sort, with the active filters as words you can remove one by one. */
-export function FilterBar({ count, total }: { count: number; total: number }) {
+export function FilterBar({ count, total, lead, trail }: {
+  count: number; total: number;
+  /** After the search: the Needs attention switch (goals spec, 2.1). */
+  lead?: ReactNode;
+  /** After Sort: the Group menu. */
+  trail?: ReactNode;
+}) {
   const app = useApp();
   const [q, setQ] = useGoalQuery();
   const [open, setOpen] = useState(false);
@@ -82,16 +89,12 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
     catch { app.toast('Couldn’t copy the link. Copy it from the address bar.', 'error'); }
   };
   const viewMenu = useViewMenu(active);
-  // The decision filter shows as the pressed toggle beside Filters; a chip for it as well would say it twice. Where the
-  // toggle is hidden (a phone) the chip stays.
-  const decisionOnly = q.needs.length === 1 && q.needs[0] === 'decision';
   return (
     <div className="filterbar">
       <div className="filterbar-row">
         <SearchBox value={q.q} onSearch={(text) => setQ((cur) => ({ ...cur, q: text }))} />
+        {lead}
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{chips.some((c) => c.key !== 'q') ? ` · ${chips.filter((c) => c.key !== 'q').length}` : ''}</button>
-        {/* The most common question in a weekly scan, one press away. */}
-        <button type="button" className="btn quick-filter" aria-pressed={q.needs.includes('decision')} onClick={() => setQ((cur) => (cur.needs.includes('decision') ? { ...cur, needs: cur.needs.filter((n) => n !== 'decision'), attention: cur.needs.length > 1 } : { ...cur, needs: [...cur.needs, 'decision'], attention: true }))}>{NEED_OPTIONS.find(([k]) => k === 'decision')![1]}</button>
         <label className="filter-sort inline-sort"><span className="sr">Sort</span>
           <select className="input" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">Sort: as grouped</option>
@@ -99,6 +102,7 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
             {SORT_OPTIONS.filter(([k]) => k === 'title' || k === 'due').map(([k, l]) => <option key={k + '.desc'} value={k + '.desc'}>Sort: {l}, reversed</option>)}
           </select>
         </label>
+        {trail}
       </div>
       {/* Saving and sharing only appear once there's something to save or share. On a phone this is one row: the
           count, the filters scrolling sideways, and one View menu for saving and sharing. */}
@@ -107,7 +111,7 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
           {active && <span className="small strong filter-view-name">{active.name}{active.pinned ? ' · pinned for everyone' : ''}</span>}
           {narrowed && <span className="small filter-count" role="status">{count} of {total} {total === 1 ? 'goal' : 'goals'}</span>}
           <span className="filter-chip-scroll">
-            {chips.map((c) => <button key={c.key} type="button" className={'filter-chip' + (c.key === 'needs' && decisionOnly ? ' chip-decision' : '')} aria-label={`Remove filter: ${c.text}`} onClick={() => setQ((cur) => without(cur, c.key))}>{c.text}<Icon name="close" size={12} className="chip-x" /></button>)}
+            {chips.map((c) => <button key={c.key} type="button" className="filter-chip" aria-label={`Remove filter: ${c.text}`} onClick={() => setQ((cur) => without(cur, c.key))}>{c.text}<Icon name="close" size={12} className="chip-x" /></button>)}
             {!narrowed && q.sort && !active && <span className="small filter-sorted">{SORT_OPTIONS.find(([k]) => k === q.sort)?.[1]}{q.dir === -1 ? ', reversed' : ''}</span>}
             {narrowed && <button type="button" className="linkish small filter-clear" onClick={() => setQ((cur) => ({ ...EMPTY_QUERY, sort: cur.sort, dir: cur.dir }))}>Clear filters</button>}
           </span>

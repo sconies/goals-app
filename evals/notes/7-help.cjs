@@ -92,7 +92,7 @@ module.exports = {
           await p.getByRole('dialog', { name: 'More' }).getByRole('link', { name: /^Help/ }).click();
         } else {
           const link = p.locator('.side a.help-nav');
-          const m = await link.evaluate((e) => ({ title: e.getAttribute('title'), w: Math.round(e.getBoundingClientRect().width), words: [...e.querySelectorAll('span')].some((s) => !s.classList.contains('sr') && s.getBoundingClientRect().width > 2) }));
+          const m = await link.evaluate((e) => ({ title: e.getAttribute('data-label') || e.getAttribute('title'), w: Math.round(e.getBoundingClientRect().width), words: [...e.querySelectorAll('span')].some((s) => !s.classList.contains('sr') && s.getBoundingClientRect().width > 2) }));
           fail(/^Help/.test(m.title || ''), `[HELP-GUIDE] ${w}: the sidebar's Help has no name on hover`);
           if (w < 1101) fail(m.w <= 52 && !m.words, `[HELP-GUIDE] ${w}: the rail's Help is ${m.w}px wide, words shown ${m.words}`);
           await link.click();

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, matchPath, useLocation } from 'react-router';
+import { Link, matchPath, useLocation, useNavigate } from 'react-router';
 import { useModules } from '../core/app';
 import { useApp, useToasts } from '../app/state';
 import { weekProgress } from '../domain/progress';
@@ -52,11 +52,12 @@ const NAV = Object.fromEntries((Object.keys(ICONS) as NavId[]).map((id) => [id, 
 /** Where you are under Goals: one of its sub-items, or none (a goal page, or not in Goals at all). */
 function goalsAt(path: string, search: string, views: SavedView[]): GoalsAt {
   const q = new URLSearchParams(search);
-  if (path === '/watching' || (path === '/goals' && q.get('show') === 'watching')) return 'watching';
+  const scope = q.get('scope') ?? q.get('show');
+  if (path === '/watching' || (path === '/goals' && scope === 'watching')) return 'watching';
   if (path !== '/goals') return null;
   const v = views.find((x) => x.params === viewParams(q));
   if (v) return `view:${v.id}`;
-  return q.get('show') === 'mine' ? 'mine' : 'all';
+  return scope === 'mine' ? 'mine' : 'all';
 }
 
 const isActive = isLit;
@@ -78,7 +79,7 @@ function YouMenu({ onClose }: { onClose: () => void }) {
 
 /** What someone thinks of the app, from wherever they are. Two taps; the words are optional. First, the choice to mark up
     the screen instead: a picture with a drawing on it, for the people building the app. */
-function FeedbackSheet({ onClose, onMarkup, path }: { onClose: () => void; onMarkup: () => void; path: string }) {
+function FeedbackSheet({ onClose, onMarkup, path, fromPage }: { onClose: () => void; onMarkup: () => void; path: string; fromPage?: boolean }) {
   const app = useApp();
   const [mood, setMood] = useState<'good' | 'meh' | 'bad' | null>(null);
   const [text, setText] = useState('');
@@ -96,7 +97,7 @@ function FeedbackSheet({ onClose, onMarkup, path }: { onClose: () => void; onMar
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void send(); }}>
         <button type="button" className="menuitem markup-choice" onClick={onMarkup}>
           <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="10" rx="1.5" /><path d="M4.5 9.5 7 7l1.5 1.5 3-3" /></svg>
-          <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Mark up this screen</span><span className="tiny muted">Draw on a picture of it and say what should change{MAC ? ' (Cmd+Shift+M)' : ' (Ctrl+Shift+M)'}</span></span>
+          <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">{fromPage ? 'Mark up the last screen' : 'Mark up this screen'}</span><span className="tiny muted">{fromPage ? 'Go back to it, draw' : 'Draw'} on a picture of it and say what should change{MAC ? ' (Cmd+Shift+M)' : ' (Ctrl+Shift+M)'}</span></span>
         </button>
         <span className="field-label">Or say how it’s working</span>
         <div className="stack" style={{ gap: 'var(--s2)' }}>
@@ -148,6 +149,19 @@ function ShellBody({ children }: { children: ReactNode }) {
   const look = useAppearance();
   const [sheet, setSheet] = useState<'profile' | 'more' | 'feedback' | 'demo' | 'people' | null>(null);
   const [marking, setMarking] = useState(false);
+  // Feedback is one item (WR5): its page's Send feedback opens the sheet, which records the page you came from.
+  // Marking up from there goes back to that page first, then draws on it (a phone has no Ctrl+Shift+M).
+  const cameFrom = useRef({ path: '/', to: '' });
+  const markAfter = useRef(false);
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (pathname === '/feedback') return;
+    cameFrom.current = { path: pathname, to: pathname + search };
+    if (!markAfter.current) return;
+    markAfter.current = false;
+    const t = window.setTimeout(() => setMarking(true), 400);
+    return () => window.clearTimeout(t);
+  }, [pathname, search]);
   // Ctrl+Shift+M (Cmd+Shift+M on a Mac), from anywhere: mark up this screen. Any open sheet closes first, so it isn't in the picture.
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (!isMarkupKey(e)) return; e.preventDefault(); setSheet(null); setMarking(true); };
@@ -342,7 +356,9 @@ function ShellBody({ children }: { children: ReactNode }) {
       )}
       {app.mode === 'demo' && <Coach />}
       <ResearchBar />
-      {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} onMarkup={() => { setSheet(null); setMarking(true); }} path={pathname} />}
+      {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} fromPage={pathname === '/feedback' && !!cameFrom.current.to}
+        onMarkup={() => { setSheet(null); if (pathname === '/feedback' && cameFrom.current.to) { markAfter.current = true; void navigate(cameFrom.current.to); } else setMarking(true); }}
+        path={pathname === '/feedback' ? cameFrom.current.path : pathname} />}
       {marking && <Suspense fallback={null}><MarkupFlow onClose={() => setMarking(false)} /></Suspense>}
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => (

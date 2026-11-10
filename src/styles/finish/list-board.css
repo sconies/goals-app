@@ -91,17 +91,28 @@
   .goals-page .filterbar-row { flex-wrap: nowrap; }
   .goals-page .filter-search { flex: 1 1 200px; min-width: 0; }
 }
-/* Phones: the search and Filters share a line (4, 31). */
+/* Phones: the search and Filters share a line (4, 31). The switch sits in the row above, between whose goals and the
+   layout; Group is in the Views menu (goals spec, 2.4). */
 @container app (max-width: 600px) {
+  .goals-page .filterbar-row > .attention-switch, .goals-page .filterbar-row > .group-menu { display: none; }
+  .goals-page .page-head.goals-head { display: none; }
+  .goals-page .goals-phone-switch, .goals-page .goals-phone-end { display: flex; }
+  .goals-page .goals-phone-switch > .attention-switch { min-height: 44px; }
+  .goals-page .goals-line { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .goals-page .filterbar-row { flex-wrap: nowrap; }
   .goals-page .filterbar-row .filter-search { flex: 1 1 auto; min-width: 0; }
   .goals-page .filterbar-row > .btn { flex: none; }
 }
 /* The decision toggle, pressed: a light fill and a full 2px outline in the text colour, never a dark block that reads
    as the main action (25). Its chip is left out while the toggle shows it. */
-.quick-filter[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); border: 2px solid var(--fg); padding-inline: 15px; }
-.quick-filter[aria-pressed="true"]:hover { background: var(--surface-3); }
-@container app (min-width: 521px) { .goals-page .filter-chip.chip-decision { display: none; } }
+/* The Needs attention switch, pressed: the same quiet weight as a pressed toggle anywhere, with a heavier edge. */
+.attention-switch { flex: none; white-space: nowrap; }
+.attention-switch[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); border: 2px solid var(--fg); padding-inline: 15px; }
+.attention-switch[aria-pressed="true"]:hover { background: var(--surface-3); }
+.goals-page .filterbar-row > .group-menu { flex: none; }
+.goals-page .goals-line { margin-block: var(--s1) 0; }
+.goals-phone-switch, .goals-phone-end { display: none; }
+.goals-phone-end { gap: var(--s2); margin-top: var(--s4); }
 /* The active filters. Wide: they wrap, with Save view and Copy link at the end. Phones: one row, the filters scrolling
    sideways, and one View menu for saving and sharing (23). */
 .filter-chip-scroll { display: contents; }

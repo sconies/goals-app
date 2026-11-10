@@ -136,7 +136,8 @@ export function placeName(path: string, names: PlaceNames): string {
   const review = sp.get('review');
   if (review && p.startsWith('/goals/')) return names.review(review) ?? 'the review';
   if (p === '/') return 'Home';
-  if (p === '/goals') return names.view(sp) ?? (sp.get('show') === 'mine' ? 'your goals' : sp.get('show') === 'watching' ? 'Watching' : 'Goals');
+  const scope = sp.get('scope') ?? sp.get('show');
+  if (p === '/goals') return names.view(sp) ?? (scope === 'mine' ? 'your goals' : scope === 'watching' ? 'Watching' : 'Goals');
   const goal = /^\/goals\/([^/]+)$/.exec(p);
   if (goal) return names.goal(goal[1]!) ?? 'the goal';
   const rev = /^\/reviews\/([^/]+)$/.exec(p);

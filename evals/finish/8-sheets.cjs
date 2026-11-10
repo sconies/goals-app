@@ -123,8 +123,8 @@ module.exports = {
 
     // #18: with no sheet open, a desktop message is centred on the work area, 24px up.
     await step('toast centring', async () => {
-      const [c, p] = await open(1440, 900, 'rhea', '/goals?scope=all');
-      await p.getByRole('button', { name: 'Send feedback' }).click();
+      const [c, p] = await open(1440, 900, 'rhea', '/feedback');
+      await p.locator('main').getByRole('button', { name: 'Send feedback' }).click();
       const sheet = p.getByRole('dialog', { name: 'How is the app working for you?' });
       // #27: Send is enabled and reachable; pressed with no answer, it says what's missing.
       if (await sheet.getByRole('button', { name: 'Send' }).isDisabled()) fails.push('Send feedback: Send is disabled (greyed out, skipped by Tab)');
@@ -241,8 +241,9 @@ module.exports = {
       // Its name comes from its own words, still there for screen readers when the rail hides them.
       const name = (await me.innerText().catch(() => '')) || (await me.textContent());
       const shown = await me.evaluate((b) => { const s = b.querySelector('.stack'); return s ? getComputedStyle(s).display !== 'none' : false; });
-      if (!/Rhea Kapoor/.test(name || '') || !/Switch person/.test(name || '') || !shown) fails.push(`rail at 1024: the person button is named "${(name || '').replace(/\s+/g, ' ').trim()}"`);
-      if (!/^Switch person \(Rhea Kapoor\)$/.test((await me.getAttribute('title')) || '')) fails.push('rail at 1024: the person button has no "Switch person" tooltip');
+      // Navigation spec 2.1: you, by name and team; the rail's label says what it opens.
+      if (!/Rhea Kapoor/.test(name || '') || !/CI\/CD/.test(name || '') || !shown) fails.push(`rail at 1024: the person button is named "${(name || '').replace(/\s+/g, ' ').trim()}"`);
+      if (!/^Rhea Kapoor: .*switch person/.test((await me.getAttribute('data-label')) || '')) fails.push('rail at 1024: the person button has no label saying it switches person');
       await me.click();
       if (!(await p.getByRole('dialog', { name: 'Switch person' }).isVisible().catch(() => false))) fails.push('rail at 1024: the person button does not open "Switch person"');
       await c.close();
