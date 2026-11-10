@@ -44,3 +44,47 @@ Read against `docs/design/architecture.md` 1.4 and section 2 (AR3). Each alias i
 - Suggested fix: change the words to "Anyone", as `reviewCall`'s row has it (no behaviour change). If Lane wants it limited to people in the review, that is a product call and a new check in `reviewCall`, with a test.
 
 Nothing else found.
+
+### #89 0c: Faro fenced off inside family-hq (reviewed before merge, at 43eef67, at the planning session's request)
+
+**Verdict: GO to merge.** Migration 0035 is safe for the other app's tables and for the running app. One thing must be fixed before the role script is run and the fence is called done (finding 1); it does not make merging unsafe.
+
+How it was checked: every file read; the PR's own tests run (`src/data/fence.test.ts`, `src/adapters/supabase/schema.test.ts`, `src/adapters/stores.test.ts`: 36 pass); and a local Postgres 16 shaped like Supabase (a `postgres` role that is not a superuser, `anon`, `authenticated`, `service_role`, Supabase's default grants in `public`, a family table with rows, a row rule and a function, and a table named `okra_recipes`), with 0001–0034 applied by main's migrator and then this branch's `check-fence`, `migrate` and role script. The live project was not touched or queried.
+
+**What holds**
+
+| Claim | Result |
+|---|---|
+| 0035 moves only `okr_*` | Yes. 28 tables, 42 functions, 69 row rules and 4 triggers moved; nothing else is in `faro`; the family table's rows (checksum), owner and grants, and `okra_recipes`, are unchanged |
+| One transaction; a failure half way | Yes. `scripts/migrate.mjs:39-47` wraps the file and its record in one transaction. Forced to fail on an `okr_` table the role didn't own: no `faro` schema, every table still in `public`, nothing recorded |
+| Safe to run twice | Yes. A second run is "Database is up to date"; the SQL itself skips what has moved and what already has a redirect |
+| Grants and `search_path` widen nothing | Yes. Every table's grants and row-rule switch, and every function's grants, are identical before and after. `anon` gets only USAGE on `faro`: still refused on `okr_api_tokens` and `okr_telemetry_nightly()` by either name, can't truncate or create. Redirect views are all `security_invoker`; no redirect function is `security definer` |
+| The redirects keep today's app working | In Postgres, yes: old names read and write, the storage rules follow their functions to `faro`, and no earlier migration uses a custom type, an extension function or a realtime channel that the new `search_path` would lose. Not provable here: the real Data API over the views (see 4) |
+| The pg_cron reschedule | Same name, schedule and role as 0022's, so it replaces the job. But see 1 |
+| `check-fence.mjs` prints no names or secrets | Yes: role names and counts only |
+| The PGRST106 fallback | Correct as read and as tested: only a 406 with that code, only on a request that asked for `faro`; the retry carries the same body. No HEAD requests, raw Data API calls or realtime outside it |
+| No service-role key in code that runs | Yes. The only matches are supabase-js's own comments inside `api/mcp.js` |
+
+**1. High, before step 2 (not blocking the merge). `faro_owner` can get out of the fence, two ways, while the fence check says "Fenced".**
+
+- (a) `supabase/migrations/0035_faro_schema.sql:115` schedules the nightly job as whoever applies 0035 (postgres), calling `faro.okr_telemetry_nightly()`. `supabase/manual/faro-role.sql:54-60` then gives that function to `faro_owner`, who can replace it. Reproduced: as `faro_owner`, `create or replace function faro.okr_telemetry_nightly() … security invoker` copying the family table into `faro`; run as postgres, as pg_cron would that night, it copied both rows.
+- (b) `supabase/manual/faro-role.sql:57` leaves five `security definer` functions with postgres (`okr_is_builder`, `okr_builder_tokens`, `okr_builder_token_create`, `okr_builder_token_revoke`, `okr_markup_pictures_open`). They read Faro's own tables by plain name, and `faro_owner` owns those. Reproduced: as `faro_owner`, rename `okr_builders`, put a view in its place whose column calls a function of its own, set `request.jwt.claims`, call `faro.okr_is_builder()`: the function ran as postgres at once. As the schema's owner, `faro_owner` can also drop all five.
+- Why it matters: the script's promise is "nothing outside faro". Against an accident it holds; against anyone holding CI's `DATABASE_URL` it does not. It is still better than today, when CI holds postgres itself.
+- Suggested fix: nothing in `faro` owned by a stronger role, and no stronger role running Faro's code as itself.
+  - The job: run it as `faro_owner` (reschedule it from the role script under that user, or drop it and run `select faro.okr_telemetry_nightly()` from a scheduled CI job on `DATABASE_URL`).
+  - The five functions: have the builder ones read `current_setting('request.jwt.claims', true)` instead of `auth.jwt()`, so `faro_owner` can own them; for `okr_markup_pictures_open`, either a column grant on `storage.buckets (id, public)` or drop the function and have the deploy check ask another way.
+  - `scripts/check-fence.mjs`: also fail when anything in `faro` belongs to another role, and when a cron job that names `faro` runs as another user. Add both cases to `src/data/fence.test.ts`.
+
+**2. Medium. The fence check counts tables only** (`scripts/check-fence.mjs:31`). Functions are executable by everyone unless revoked, so a `security definer` function of the other app is a way to read its rows that the check can't see. Reproduced with a stand-in: `faro_owner` read both family rows through `public.family_all()` while the check said "Fenced". Whether the live project has such functions is for Lane to look at. Fix: count `security definer` functions outside `faro` and the system schemas that the role may execute, and fail on any.
+
+**3. Medium. After 0035, the next migration behaves differently, and "any order works" stops being true.**
+
+- A new table lands in `faro`, where Supabase's default grants for `public` don't apply. Migrations such as 0033 never grant to `anon`: they relied on that default. From 0036 each new table needs its grants written out.
+- A new table or column has no redirect: the views are `select *` fixed when made (`0035:73`), and `faro_owner` can't create in `public`. Until "Exposed schemas" includes `faro` (step 4), the app in fallback can't see it. Dropping or retyping a column a redirect shows will fail (and roll back).
+- AS part 2 may bring a migration today. Do step 4 before any 0036 merges, and say both points in the migration notes.
+
+**4. Low. To watch at the merge.**
+
+- The redirects were proven on Postgres and on the repo's stand-in client, not on the real Data API. Saves through the views rely on it working out each view's key and reloading its schema cache after the move. Adding `notify pgrst, 'reload schema';` to the end of 0035 costs nothing; open the shared app and save something straight after the merge, and do step 4 soon so the fallback is short-lived.
+- `src/adapters/supabase/server.ts:21` now reads `SUPABASE_KEY` before `VITE_SUPABASE_KEY`. If Vercel has a `SUPABASE_KEY` holding anything but the public key, the server would use it. Check when deleting the service-role key.
+- A migration applied as postgres between 0035 and the secret change is owned by postgres; run the role script again afterwards (it is safe to).
