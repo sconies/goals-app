@@ -139,6 +139,9 @@ Features still lists every installed module with its switch; a module switched o
 
 ## Decisions for Lane
 
+**Lane's answers (10 Nov):** every recommendation on decisions 2–8 (decision 1 was done in PR #82).
+
+
 One batch; the recommended answer is first.
 
 1. **The giant warning mark on the live overview (F1), before Wednesday's talk.**
