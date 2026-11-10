@@ -21,7 +21,7 @@ import { adminsLine, cycleWhen, NEEDS_SHOWN, workspaceName, workspaceNeeds, year
 import { canRestore, cycleStanding } from '../domain/removal';
 import { AccessTokens } from '../ui/AiAssistants';
 import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
-import { findInDirectory } from '../domain/directory';
+import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
 import { wrapUpOpen } from '../domain/cycle';
@@ -325,29 +325,15 @@ function AccessSection() {
   );
 }
 
-/** "Add an admin": find a person who isn't one, then make them one. */
+/** "Add an admin": find a person (FS1's find-and-pick; anyone already an admin is refused, saying so), then make them one. */
 function AddAdminSheet({ onClose, setAdmin }: { onClose: () => void; setAdmin: ReturnType<typeof useSetAdmin> }) {
   const app = useApp();
-  const [q, setQ] = useState('');
   const [pick, setPick] = useState<string | null>(null);
-  const members = app.snapshot.people.filter((p) => !p.admin);
-  const found = q.trim() ? findInDirectory(members, app.snapshot.teams, { q, size: 8 }).rows : [];
   const chosen = pick ? app.person(pick) : undefined;
   return (
     <Sheet open onClose={onClose} title="Add an admin">
       <div className="stack" style={{ gap: 'var(--s4)' }}>
-        {chosen ? (
-          <p className="row person-chosen" style={{ gap: 'var(--s2)' }}><Avatar p={chosen} size="sm" /><strong>{chosen.name}</strong><button type="button" className="linkish" onClick={() => setPick(null)}>Change</button></p>
-        ) : (
-          <label className="field"><span className="field-label">Who</span>
-            <input className="input" type="search" autoFocus value={q} placeholder="Find by name, job title or team" onChange={(e) => setQ(e.target.value)} />
-          </label>
-        )}
-        {!chosen && q.trim() && (found.length ? (
-          <ul className="people-list" aria-label="People found">
-            {found.map((p) => <li key={p.id}><button type="button" className="people-row pick-row" onClick={() => setPick(p.id)}><Avatar p={p} size="sm" /><span className="person-text"><span className="person-name">{app.personName(p.id)}</span><span className="hint">{[p.role, app.team(p.teamId ?? '')?.name].filter(Boolean).join(' · ')}</span></span></button></li>)}
-          </ul>
-        ) : <p className="hint">No one who isn’t an admin matches “{q.trim()}”.</p>)}
+        <PickOne kind="person" label="Who" value={pick} onChange={setPick} refuse={(row) => (app.person(row.id)?.admin ? 'Already an admin' : null)} />
         <div className="foot-row">
           <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn primary big-btn" disabled={!chosen} onClick={() => { if (chosen) { onClose(); void setAdmin(chosen, true); } }}>{chosen ? `Make ${chosen.name.split(/\s+/)[0]} an admin` : 'Make them an admin'}</button>

@@ -63,7 +63,8 @@ describe('Marking up a screen', () => {
     const id = (await as<{ id: string }>('anon', 'select okr_markup_new_id() as id')).rows[0]!.id;
     await addMarkup({ id, workspace_id: 'platform-org', demo: true, line: 'The strip should say the week', route: '/', parts: [[['Home', 'Week at a glance']]], strokes: [{ kind: 'box', x: 1, y: 1, w: 9, h: 9 }], pictures: ['screen.png', 'ink.png'] });
     for (const f of ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg']) await as('anon', 'insert into storage.objects (bucket_id, name) values ($1, $2)', ['markups', `${id}/${f}`]);
-    await expect(as('anon', 'insert into storage.objects (bucket_id, name) values ($1, $2)', ['markups', 'mk_0000000000000000/screen.png'])).rejects.toThrow();
+    // Pictures go only into a folder named like a markup id (0037: Storage's rule checks the shape and calls nothing in faro).
+    await expect(as('anon', 'insert into storage.objects (bucket_id, name) values ($1, $2)', ['markups', 'not-a-markup/screen.png'])).rejects.toThrow();
     await expect(addMarkup({ id: 'mk_0000000000000000', workspace_id: 'acme', line: 'Made-up id' })).rejects.toThrow();
     await expect(addMarkup({ id: (await as<{ id: string }>('anon', 'select okr_markup_new_id() as id')).rows[0]!.id, workspace_id: 'acme', line: 'Already fixed', status: 'fixed' })).rejects.toThrow();
     await expect(as('anon', 'select * from storage.objects')).rejects.toThrow(/permission denied/);

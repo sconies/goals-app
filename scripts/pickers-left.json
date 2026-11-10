@@ -1,0 +1,9 @@
+{
+  "about": "The places that still choose a person, team, goal or workspace from a <select> of everything, and how many: the pickers lint fails any other, and any of these with more. Each moves to find-and-pick (src/ui/Pick.tsx) in its item: GoalWizard and GoalEdit after the 11 Nov talk (FS1, second part); Activity and the Feedback inbox with the list bar (FS2); People (a person’s team, a team’s lead) and MCP access with the People and Workspace redesign (WR2, WR3). Lower a count or drop a file when you do.",
+  "files": {
+    "src/markup/Inbox.tsx": 1,
+    "src/screens/Activity.tsx": 1,
+    "src/screens/GoalEdit.tsx": 3,
+    "src/screens/GoalWizard.tsx": 2
+  }
+}

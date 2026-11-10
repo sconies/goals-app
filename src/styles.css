@@ -1436,3 +1436,34 @@ fieldset > legend { padding: 0; }
   .focus-foot, .decide, .sheet-foot { position: static; }
   .focus-top, .reviewbar { position: static; }
 }
+
+/* Find-and-pick (src/ui/Pick.tsx, find spec 2.3): the choice as plain words with Change; open, a search over hairline
+   rows. Nothing chosen is ever a capsule (design check P17). */
+.pick { position: relative; display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.pick-field { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: 44px; padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+.pick-field.invalid { border-bottom-color: var(--off-mark); }
+.pick-open { text-align: left; color: var(--muted); cursor: pointer; }
+.pick-chosen { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pick-chosen .pick-row { border-top: 1px solid var(--line-2); }
+.pick-chosen .pick-row:first-child { border-top: 0; }
+.pick-panel { position: absolute; z-index: 30; top: 100%; left: 0; margin-top: var(--s1); width: max(100%, 360px); max-width: calc(100vw - 2 * var(--s4)); display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
+.pick-list { list-style: none; margin: 0; padding: 0; max-height: calc(8 * 52px); overflow-y: auto; }
+.pick-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: 48px; padding: var(--s1) var(--s2); border-top: 1px solid var(--line-2); }
+.pick-list .pick-row:first-child { border-top: 0; }
+.pick-row.option { cursor: pointer; }
+.pick-row.active { background: var(--accent-soft); }
+.pick-row.refused { cursor: default; color: var(--muted); }
+.pick-text { display: flex; flex-direction: column; min-width: 0; }
+.pick-name { display: inline-flex; align-items: center; gap: var(--s2); font-weight: 600; min-width: 0; }
+.pick-name > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.pick-status { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
+.pick-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-tick { font-size: var(--fs-small, 0.875rem); color: var(--muted); }
+.pick-foot { display: flex; justify-content: flex-end; padding-top: var(--s2); border-top: 1px solid var(--line-2); }
+@media (max-width: 640px) {
+  .pick-panel { position: fixed; inset: 0; margin: 0; width: auto; max-width: none; border-radius: 0; z-index: 60; overflow-y: auto; }
+  .pick-list { max-height: none; }
+  .pick-row { min-height: 52px; }
+}
+.pick-head { display: none; }
+@media (max-width: 640px) { .pick-head { display: flex; justify-content: space-between; align-items: center; min-height: 44px; } }

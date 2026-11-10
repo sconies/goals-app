@@ -83,7 +83,7 @@ describe('Faro fenced off in a shared database', () => {
     await expect(as('anon', 'select * from faro.okr_api_tokens')).rejects.toThrow(/permission denied/);
   });
 
-  it('won’t make the role with the placeholder password, or before 0035 and 0036', async () => {
+  it('won’t make the role with the placeholder password, or before 0035, 0036 and 0037', async () => {
     await expect(db.exec(roleSql)).rejects.toThrow(/password/);
     const early = new PGlite();
     await expect(early.exec(withPassword)).rejects.toThrow(/0035/);
@@ -91,6 +91,10 @@ describe('Faro fenced off in a shared database', () => {
     await db.exec(`create function faro.okr_old_builder() returns jsonb language sql as 'select auth.jwt()'`);
     await expect(db.exec(withPassword)).rejects.toThrow(/0036/);
     await db.exec('drop function faro.okr_old_builder()');
+    // Nor before 0037, while a rule outside faro calls a Faro function.
+    await db.exec(`create policy "old upload" on storage.objects for insert to anon with check (faro.okr_markup_id_ok(name))`);
+    await expect(db.exec(withPassword)).rejects.toThrow(/0037/);
+    await db.exec(`drop policy "old upload" on storage.objects`);
   });
 
   it('gives the Faro role faro and nothing else, however often the script is run', async () => {
@@ -174,6 +178,16 @@ describe('Faro fenced off in a shared database', () => {
     await db.exec(`drop function public.family_all()`);
   });
 
+  it('fails the fence when a row rule outside faro calls a function in faro (Storage’s rules ran as the other app’s users)', async () => {
+    expect(await rows(`select polname from pg_policy where polrelid = 'storage.objects'::regclass and polname = 'markups: builders read'`)).toEqual([]);
+    expect((await report('faro_owner')).state).toBe('fenced');
+    await db.exec(`create policy "sneaky read" on storage.objects for select to authenticated using (faro.okr_is_builder())`);
+    expect(await report()).toMatchObject({ state: 'not-fenced', rules: 1 });
+    expect((await report('faro_owner')).problems).toEqual(['1 row rule outside faro calls a function in faro: apply migration 0037 as postgres.']);
+    await db.exec(`drop policy "sneaky read" on storage.objects`);
+    expect((await report('faro_owner')).state).toBe('fenced');
+  });
+
   it('fails the fence when a pg_cron job runs Faro’s code as another role, where the Faro role can see the jobs', async () => {
     // pg_cron's job list, as the extension keeps it (PGlite has no pg_cron).
     await db.exec(`create schema cron; create table cron.job (jobid serial primary key, jobname text, command text, username text);
@@ -187,6 +201,26 @@ describe('Faro fenced off in a shared database', () => {
     await db.exec(`update cron.job set username = 'faro_owner' where jobname = 'okr-telemetry-nightly'`);
     expect((await report('faro_owner')).problems).toEqual(['faro_owner may read or write 1 table outside the faro schema.']);
     await db.exec(`drop schema cron cascade`);
+  });
+
+  it('changes Storage’s rules in 0037 by trying: when the table belongs to a role the runner isn’t in, as on hosted Supabase', async () => {
+    const STORAGE = read('0037_storage_rules.sql');
+    // Hosted Supabase: storage.objects belongs to supabase_storage_admin, postgres is not in that role, yet may change its
+    // rules. Stock Postgres has no such grant short of being a superuser, so the test database's superuser stands in.
+    await db.exec(`create role storage_admin nologin; alter table storage.objects owner to storage_admin;`);
+    try {
+      expect(await rows(`select 1 from pg_auth_members m where m.roleid = 'storage_admin'::regrole and m.member = current_user::regrole`)).toEqual([]);
+      await db.exec(`create policy "markups: builders read" on storage.objects for select to authenticated using (bucket_id = 'markups')`);
+      await db.exec(STORAGE);
+      expect((await rows<{ polname: string }>(`select polname from pg_policy where polrelid = 'storage.objects'::regclass order by 1`)).map((r) => r.polname)).toEqual(['markups: upload']);
+      // A role with no right to change them stops, so CI fails loudly rather than recording 0037 as done.
+      await expect(as('anon', STORAGE)).rejects.toThrow(/anon can't change Storage's rules/);
+      // The Faro role, by design, changes nothing and goes on; the fence check is what then fails.
+      await expect(as('faro_owner', STORAGE)).resolves.toBeDefined();
+      expect((await rows<{ polname: string }>(`select polname from pg_policy where polrelid = 'storage.objects'::regclass order by 1`)).map((r) => r.polname)).toEqual(['markups: upload']);
+    } finally {
+      await db.exec(`alter table storage.objects owner to postgres; drop role storage_admin;`);
+    }
   });
 
   it('says there is nothing to fence before 0035', async () => {

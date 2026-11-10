@@ -1,5 +1,5 @@
 -- Faro's own database role (backlog 0c, Lane, 10 Nov). Run as postgres, in Supabase → SQL editor, AFTER CI has
--- applied migrations 0035 and 0036 (it stops and says so if not). Put a long random password in place of the
+-- applied migrations 0035, 0036 and 0037 (it stops and says so if not). Put a long random password in place of the
 -- placeholder first (it stops if you haven't); keep it only in CI's DATABASE_URL secret. Safe to run again: it changes
 -- nothing twice, and a run with another password changes the password.
 -- Run it again after you change the secret, with the same password: anything CI's migrations made as postgres in
@@ -33,6 +33,12 @@ begin
   if exists (select 1 from pg_proc p where p.pronamespace = 'faro'::regnamespace and (p.prosrc like '%auth.%' or p.prosrc like '%storage.%')) then
     raise exception 'Migration 0036 hasn''t been applied yet: some of Faro''s functions still read outside faro. Merge it, let CI apply it, then run this.';
   end if;
+  if exists (select 1 from pg_policy pol join pg_class t on t.oid = pol.polrelid
+               join pg_depend d on d.classid = 'pg_policy'::regclass and d.objid = pol.oid and d.refclassid = 'pg_proc'::regclass
+               join pg_proc f on f.oid = d.refobjid
+              where t.relnamespace <> 'faro'::regnamespace and f.pronamespace = 'faro'::regnamespace) then
+    raise exception 'Migration 0037 hasn''t been applied yet: a rule outside faro (Storage''s) still calls a Faro function. Merge it, let CI apply it, then run this.';
+  end if;
 
   -- 1. The role.
   if not exists (select 1 from pg_roles where rolname = 'faro_owner') then
@@ -65,8 +71,8 @@ begin
   --    another app's tables. scripts/check-fence.mjs proves it before every migration.
   revoke create on schema public from faro_owner;
 
-  -- 5. No job runs Faro's code as postgres (0036 removed the nightly one; this is in case it came back).
+  -- 5. The nightly job never runs Faro's code as postgres again (0036 removed it; this is in case it came back).
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
-    execute $job$select cron.unschedule(jobid) from cron.job where command ~ '(faro\.|okr_)' and username <> 'faro_owner'$job$;
+    execute $job$select cron.unschedule(jobid) from cron.job where jobname = 'okr-telemetry-nightly' and username <> 'faro_owner'$job$;
   end if;
 end $$;

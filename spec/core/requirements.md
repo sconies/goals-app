@@ -820,7 +820,7 @@ A research hub for people and AI agents: what the app is for, a note that access
 The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge.
 
 - **Help:** “What the statuses mean” (`status`)
-- **Journeys and checks:** P6
+- **Journeys and checks:** F11, P6
 
 ### SHAPE-MATCHES-WORD
 
@@ -940,6 +940,15 @@ Anyone can leave a workspace from Settings (last, after a rule), with a confirm 
 
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Journeys and checks:** U53, U62
+
+## Finding
+
+### FIND-AND-PICK
+
+A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
+
+- **Help:** “Finding and choosing” (`finding`)
+- **Journeys and checks:** F11, U63
 
 ## Export
 

@@ -313,7 +313,9 @@ module.exports = {
         const dlg = p.getByRole('dialog', { name: 'Remove Security Engineering' });
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
         fail(await dlg.getByRole('alert').filter({ hasText: 'Choose where they go' }).isVisible(), `[WORKSPACE-ADMIN] ${w}: removing a team with people, without saying where they go, is not explained`);
-        await dlg.getByLabel('Move them to').selectOption({ label: 'Insights Platform' });
+        await click(dlg.getByRole('button', { name: /Move them to/ }));
+        await dlg.getByRole('combobox').fill('Insights');
+        await click(dlg.getByRole('option', { name: /Insights Platform/ }));
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
         await p.waitForURL(/\/teams(\?|$)/); await p.locator('.team-row').first().waitFor();
         await p.waitForTimeout(300);

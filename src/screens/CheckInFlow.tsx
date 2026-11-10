@@ -12,6 +12,7 @@ import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/form
 import { daysToReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
+import { PickOne } from '../ui/Pick';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
 import { useMark } from '../telemetry/react';
@@ -523,13 +524,10 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
           {tried && !wayOk && <span className="hint tone-off" role="alert">{draft.ptgWhat.trim().length < MIN_PATH ? 'Say a few words about it.' : 'Pick the week it’s back on plan, or choose another option if you don’t know yet.'}</span>}
           {draft.ptgState === 'help' ? (
             // One request: what's needed (above) and who from. Saved as the goal's "decision or help needed".
-            <label className="field"><span className="field-label">Who can decide or help?</span>
-              <select className="input" value={helpFrom} onChange={(ev) => setHelpFrom(ev.target.value)}>
-                <option value="">Pick someone</option>
-                {app.snapshot.people.filter((p) => p.id !== app.viewer.id).map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}
-              </select>
+            <div className="field">
+              <PickOne kind="person" label="Who can decide or help?" value={helpFrom || null} onChange={(id) => setHelpFrom(id ?? '')} hide={[app.viewer.id]} invalid={tried && !helpFrom} />
               {tried && !helpFrom && <span className="hint tone-off" role="alert">Pick who it goes to.</span>}
-            </label>
+            </div>
           ) : null}
           {needsWay && linkOffer}
           {draft.ptgState === 'help' ? (

@@ -7,6 +7,7 @@ import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import type { ApiToken } from '../domain/types';
 import { Sheet, timeAgo } from './bits';
+import { PersonPick } from './PersonPick';
 
 /** In the demo, in place of the tokens: why there are none. */
 const DEMO_LINE = 'Tokens work in the real app. The demo’s data stays in this browser, where an AI tool can’t reach it.';
@@ -103,9 +104,7 @@ export function TokenSheet({ onClose, personId: fixed }: { onClose: () => void; 
     <Sheet open onClose={onClose} title="Make an MCP token">
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void make(); }}>
         {fixed ? <p className="small">It acts as <strong>{who}</strong>.</p> : (
-          <label className="field"><span className="field-label">Who it acts as</span>
-            <select className="input" value={personId} onChange={(e) => setPersonId(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}</select>
-          </label>
+          <PersonPick label="Who it acts as" value={personId} onChange={setPersonId} />
         )}
         <span className="hint">The AI tool can do anything {who.split(' ')[0] || 'they'} can in the app, with the same rights: check in, change their own goals{app.person(personId)?.admin ? ' (and any goal, as they’re an admin)' : ''}, answer asks, take part in reviews and more.</span>
         <label className="field"><span className="field-label">What it’s for</span>

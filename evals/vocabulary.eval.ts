@@ -66,6 +66,7 @@ const ALLOWED: { file: string; word: string; why: string }[] = [
   { file: 'src/screens/CheckInFlow.tsx', word: 'Done', why: 'The button that closes the “why better than the numbers” sheet: finished with this sheet, not a status.' },
   { file: 'src/screens/DataLayout.tsx', word: 'Done', why: 'The button that closes the column layout sheet, not a status.' },
   { file: 'src/screens/Watching.tsx', word: 'Done', why: 'The button that finishes changing what you watch, not a status.' },
+  { file: 'src/ui/Pick.tsx', word: 'Done', why: 'The button that closes a picker where several can be chosen (find-and-pick), not a status.' },
   { file: 'src/ui/AiAssistants.tsx', word: 'Done', why: 'The button that closes the assistants sheet, not a status.' },
   { file: 'src/ui/ResearchBar.tsx', word: 'Done', why: 'A research session’s outcome as the tester reports it (Done, Stuck, Gave up), not a goal’s status.' },
   { file: 'src/screens/Home.tsx', word: 'Open', why: 'The verb on a button that opens a goal, not an ask’s state.' },
