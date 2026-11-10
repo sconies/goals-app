@@ -12521,13 +12521,15 @@ var WHATS_NEW = [
 			"Each cycle shows its week, its dates and when the wrap-up opens, with one action: see the wrap-up, wrap it up, or start the next cycle.",
 			"Deleting an empty cycle asks first.",
 			"Features and Privacy say On or Off in words beside each switch.",
-			"A long Recently removed list can be searched by name and narrowed to one kind."
+			"A long Recently removed list can be searched by name and narrowed to one kind.",
+			"People and Teams search and count like every other list: the same bar, and the filters in words with Remove."
 		],
 		articles: [
 			"workspace-cycles",
 			"features",
 			"recording",
-			"removing"
+			"removing",
+			"people"
 		]
 	},
 	{
