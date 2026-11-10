@@ -225,3 +225,18 @@ Read against `docs/design/find/spec.md` 2.3, section 4 and rules 6 and 7, and `d
 - On a phone the open picker is a panel over the lower half of the screen (390 by 438 px at 390 by 844), where the spec and the PR say a full sheet titled by the field's label.
 
 **Carried over from #88.** Its two findings (a Goals link's search differing between the screen and `find_goals`; `status` and `level` with a link) are untouched by this PR and still on main.
+
+### #99 AR2: the module contract's additions, and navigation as rules (track 1, merged 14:16 UTC)
+
+Read against `docs/design/architecture.md` 1.2, section 2 (AR2) and 4.1 to 4.2. The seven additions are the seven the architecture lists and no more; the four it cut are not there. `src/domain/navigation.ts` is pure and takes names, not the workspace. `sideFor`, `tabsFor`, `isLit`, `pageName` and `placeName` are the shell's and the Back link's old code moved unchanged, and the shell and Back link now call them.
+
+**1. Medium. Two of the new navigation rules are not what the shell runs.**
+
+- Where: `menuFor` and `litItem` (`src/domain/navigation.ts:44` and `:65`) are called only by the spec's rule page and the conformance file (`src/spec/rules.ts`, `src/spec/conformance.ts`). The shell still places a module's menu item and lights it with its own inline code (`src/ui/Shell.tsx:264`: the group test, and `navAt === n.to || navAt.startsWith(n.to + '/')`).
+- Why it matters: the architecture asked for the menu and the lit item to be rules the shell draws. As merged, where a module's item goes and when it lights is written twice, and the copy that is tested and written into the rebuild kit is the one the app doesn't use. NV1's grouped menu and the Metrics row (ML1) are built on this next.
+- Confirm: `grep -rn "menuFor\|litItem" src` finds no caller outside `src/spec` and the rule's own test.
+- Suggested fix: have the shell draw the sidebar from `menuFor(ownsGoals, moduleNav)` and take the lit item from `litItem`; add a module item to one conformance row so the placement is pinned.
+
+**2. Low.** `ModuleFinder.things` (a kind's nouns) is declared but the picker keeps its own table of nouns per kind (`src/ui/Pick.tsx`, `KINDS`, which already names `metric`), so a module's own words wouldn't be used.
+
+Nothing else found. The filters-as-data shape matches 4.2; nothing applies a module's filter yet, which is GL1's and ML2's to do.
