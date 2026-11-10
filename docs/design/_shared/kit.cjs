@@ -95,7 +95,7 @@ function shell({ title, cur, who = 'rhea', body, width = '', tab, counts = { 'Ch
   return `${head}
 <div class="top"><span class="f">F</span><div style="flex:1;min-width:0"><b>${title}</b><span>Platform Engineering · week 46</span></div><span class="tf">Find</span><span class="av">${w[0]}</span></div>
 <div class="app"><nav class="side"><div class="brand">Faro</div><div class="wsname"><div><b>Platform Engineering</b><span>Example data · week 46 · Q4</span></div><span class="chev">⌄</span></div>
-<div class="find"><span>Find</span><span class="kbd">/</span></div>
+<div class="find"><span>Find</span><span class="kbd">Ctrl K</span></div>
 ${main.map(item).join('')}${views && cur === 'Goals' ? views.map((v) => `<div class="nav sub ${v[1] ? 'cur' : ''}">${v[0]}</div>`).join('') : ''}
 <div class="sep"></div>
 ${LOOK.map(item).join('')}
