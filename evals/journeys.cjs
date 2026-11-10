@@ -1025,7 +1025,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   // /watching is the way in; the Level filter narrows it, as on any Goals scope.
   await p.goto(url('/watching?level=team'));
   await p.waitForURL(/scope=watching/);
-  h.set('parity', /level=team/.test(p.url()) && await p.locator('.filter-chip, .chip').filter({ hasText: /Team/ }).first().isVisible().catch(() => false), 'the Level filter is not applied to Watching');
+  h.set('parity', /level=team/.test(p.url()) && await p.locator('.filter-line').filter({ hasText: /Level Team/ }).first().isVisible().catch(() => false), 'the Level filter is not applied to Watching');
   await p.context().close();
 }, ['errors']);
 
@@ -1342,8 +1342,8 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   await chooseLayout(h, p, 'Board');
   await p.locator('.board').waitFor();
   for (const col of ['Off track', 'At risk', 'No recent update', 'On track']) await see(p, col);
-  // Each card names the goal it feeds into (backlog GP); the page's health line counts the same goals the lanes do.
-  h.set('parity', (await p.locator('.board-card .board-parent').count()) > 0 && (await phoneBar(p) || await p.locator('.health-line').isVisible()), 'board cards don’t name their parent, or there’s no health line');
+  // Each card names the goal it feeds into (backlog GP); the page's count line counts the same goals the lanes do.
+  h.set('parity', (await p.locator('.board-card .board-parent').count()) > 0 && (await phoneBar(p) || await p.locator('.goals-line').isVisible()), 'board cards don’t name their parent, or there’s no health line');
   await h.checkpoint('board');
   // History: a square per goal per week, the owner's call.
   await chooseLayout(h, p, 'History');
@@ -1712,7 +1712,7 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await h.inView(search, 'entry', 'the search box');
   // Search finds goals by any word: a title, an owner, a reason.
   await h.fill(search, 'December date');
-  await see(p, '1 of 126 goals', 'searching does not say how many goals match');
+  await see(p, '1 goal matches.', 'searching does not say how many goals match');
   h.set('attention', await p.getByRole('link', { name: /Kafka moved to the managed service/ }).first().isVisible().catch(() => false) || (await p.getByText('Kafka moved to the managed service').count()) > 0, 'a search on the owner’s reason did not find the goal');
   await h.fill(search, '');
   // Filters: what needs someone. Then sort, and the same goals in the Table.
@@ -1730,7 +1730,7 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await chooseLayout(h, p, 'Table');
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
-  h.set('progress', rows === 25 && (await p.getByRole('button', { name: /Remove filter: Needs attention because: date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
+  h.set('progress', rows === 25 && (await p.getByRole('button', { name: /Remove the filter Needs attention because date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
   // Save it: a name is needed; then it's a tab of its own. On a phone, saving and sharing are in one View menu (L&T 23).
   if (device === 'phone') await h.click(p.locator('.filter-view-menu > summary'));
   await h.click(p.getByRole('button', { name: 'Save view' }));
@@ -1822,7 +1822,7 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   await p.waitForURL(/status=off(%2C|,)risk(%2C|,)stale/, { timeout: 3000 }).catch(() => {});
   // The map's toggle is the Goals screen's Needs attention filter (the one rule), so the link carries attention=1.
   h.set('logged', /attention=1/.test(p.url()), 'the attention filter is not in the link');
-  await see(p, /\d+ of 126 goals/, 'the attention filter does not show in the count');
+  await see(p, /\d+ needs? attention: /, 'the attention filter does not show in the count');
   await h.click(await exportButton(h, p));
   const scope = p.getByRole('dialog', { name: 'Export goals' }).getByLabel(/What’s shown now/);
   h.set('attention', await scope.isChecked().catch(() => false), 'a filtered export does not start from what is shown');

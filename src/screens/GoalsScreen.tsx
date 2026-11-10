@@ -174,7 +174,6 @@ export function GoalsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitted, ranked, query.sort, attentionOn, show, app.snapshot]);
   const shown = [...new Map(groups.flatMap((g) => g.rows.map((r) => [r.goal.id, r.goal] as const))).values()];
-  const everyone = [...new Map(grouped.flatMap((g) => g.rows.map((r) => [r.goal.id, r.goal] as const))).values()];
   // On the map, a filtered goal keeps the goals it feeds into, so it isn't cut off from its tree.
   const mapGoals = narrowed ? (() => { const keep = withAncestors(app.snapshot.goals, new Set(shown.map((g) => g.id))); return app.snapshot.goals.filter((g) => keep.has(g.id)); })() : shown;
   const alt = layout !== 'list';
@@ -266,13 +265,17 @@ export function GoalsScreen() {
       </div>
 
       {/* The list bar: search, the Needs attention switch, Filters, Sort, Group (goals spec, 2.1); then the count line. */}
-      {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length}
+      {app.snapshot.goals.length > 0 && <FilterBar
         lead={<button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button>}
         trail={layout !== 'map' && <MenuButton className="group-menu" label="Group" display={switchOn ? 'Group: needs attention first' : `Group: ${GROUPS.find(([k]) => k === group)![1]}`}
-          items={switchOn ? [{ label: `${ATTENTION.needs.label} has its own two groups` }] : GROUPS.map(([k, l]) => ({ label: l, current: group === k, onClick: () => pickGroup(k) }))} />} />}
-      {/* On a phone the switch has a row of its own under the search (goals spec, 2.4); in the bar it's hidden there. */}
-      {app.snapshot.goals.length > 0 && <div className="goals-phone-switch"><button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button></div>}
-      {app.snapshot.goals.length > 0 && line && <p className="small goals-line" role="status">{line}</p>}
+          items={switchOn ? [{ label: `${ATTENTION.needs.label} has its own two groups` }] : GROUPS.map(([k, l]) => ({ label: l, current: group === k, onClick: () => pickGroup(k) }))} />}
+        after={<>
+          {/* On a phone the switch has a row of its own under the search (goals spec, 2.4); in the bar it's hidden there. */}
+          <div className="goals-phone-switch"><button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button></div>
+          {/* The one count line (rule 4); the filter line follows it. */}
+          {line && <p className="small goals-line" role="status">{line}</p>}
+        </>} />}
+
       {linkNote && <p className="hint link-note" role="status">{linkNote}</p>}
       {/* Until every goal has had its first check-in, the switch says how far that has got (goals spec, 2.1, item 6). */}
       {switchOn && <FirstReports />}
