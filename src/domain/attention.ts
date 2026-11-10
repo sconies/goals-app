@@ -27,11 +27,17 @@ export interface GoalAttention {
   flags: Flag[];
   /** Higher needs attention sooner. */
   weight: number;
-  /** Behind, but someone has looked since the latest check-in and nothing new has happened since: what's in hand. */
+  /** Behind, with an agreed action (an owner and a date) or an answered request since the latest check-in: what's in hand. */
   handled: Handled | null;
+  /** Someone other than the owner marked it reviewed or noted it since its latest check-in. A quiet line only: it
+      doesn't put the goal in hand (Lane, 10 Nov), so a goal looked at still needs attention. */
+  lookedAt: Handled | null;
 }
 
-/** What's in hand for a goal that is behind: the latest look at it since its latest check-in. */
+/**
+ * What's in hand for a goal that is behind (`action`, `answered`), or the latest look at it (`noted`,
+ * `reviewed`), since its latest check-in.
+ */
 export interface Handled {
   kind: 'action' | 'answered' | 'noted' | 'reviewed';
   /** One line: "Action: Maya, due week 47", "Reviewed in Platform weekly review, week 44". */
@@ -82,23 +88,18 @@ export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { 
 
 export function attentionFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): GoalAttention {
   const { status, flags } = flagsFor(goal, s, cycle, today);
-  return { goal, status, flags, weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0), handled: handledFor(goal, s, cycle, today, status, flags) };
+  return { goal, status, flags, weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0), handled: handledFor(goal, s, cycle, today, status, flags), lookedAt: lookedAtFor(goal, s, cycle, today, status) };
 }
 
-/** The kinds of look that put a behind goal in hand, strongest first. */
+/** The kinds of look, strongest first: an agreed action and an answer put a behind goal in hand; a note or a review mark doesn't. */
 const HANDLED_ORDER: Handled['kind'][] = ['action', 'answered', 'noted', 'reviewed'];
 const LOOKS: Partial<Record<Decision['kind'], Handled['kind']>> = { note: 'noted', acknowledge: 'reviewed' };
 
-/**
- * Whether a goal that is off track or at risk is being handled, and by what. It is when, since its latest check-in,
- * someone other than the owner marked it reviewed or added a note, an action was agreed (and isn't overdue), or a
- * request it's waiting on was answered; and no flag has appeared since that look (a missed recovery date, say). A new
- * check-in always makes it news again, so it needs attention until someone looks at that.
- */
-export function handledFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, status = goalStatus(goal, cycle, s.checkIns, today), flags?: Flag[]): Handled | null {
-  if (status.status !== 'off' && status.status !== 'risk') return null;
+/** Every look at a behind goal since its latest check-in, on or before today's date, in no particular order. */
+function looksAt(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, status: GoalStatus): Handled[] {
+  if (status.status !== 'off' && status.status !== 'risk') return [];
   const latest = status.latest;
-  if (!latest) return null;
+  if (!latest) return [];
   const since = latest.postedAt;
   const week = currentWeek(cycle, today);
   const first = (id: string | null | undefined) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
@@ -110,26 +111,44 @@ export function handledFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, s
     if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
     if (d.byId === goal.ownerId) continue;
     const review = d.reviewId ? s.reviews.find((r) => r.id === d.reviewId)?.name : null;
-    const where = review ? `in ${review}` : `by ${first(d.byId)}`;
-    looks.push({ kind, text: `${kind === 'noted' ? 'Noted' : 'Reviewed'} ${where}, week ${d.week}`, said: kind === 'reviewed' ? '' : d.note, byId: d.byId, at: d.at, week: d.week, reviewId: d.reviewId });
+    looks.push({ kind, text: `Looked at by ${first(d.byId)}${review ? ` in ${review}` : ''}, week ${d.week}`, said: kind === 'reviewed' ? '' : d.note, byId: d.byId, at: d.at, week: d.week, reviewId: d.reviewId });
   }
-  // An action agreed since, still open: in hand until it's done, or until its week passes (then it's news).
+  // An action agreed since, with an owner and a due week, still open: in hand until it's done, or until its week
+  // passes (then it's news). An action with no date doesn't put it in hand.
   for (const a of openAsksFor(goal.id, s, ['action'])) {
-    if (a.createdAt <= since || a.createdAt.slice(0, 10) > day || isOverdue(a, week)) continue;
-    looks.push({ kind: 'action', text: `Action: ${first(a.recipientId ?? goal.ownerId)}${a.dueWeek != null ? `, due week ${a.dueWeek}` : ''}`, said: a.ask, byId: a.askedBy, at: a.createdAt, week: a.week ?? currentWeek(cycle, new Date(a.createdAt)), reviewId: a.reviewId });
+    if (a.dueWeek == null || a.createdAt <= since || a.createdAt.slice(0, 10) > day || isOverdue(a, week)) continue;
+    looks.push({ kind: 'action', text: `Action: ${first(a.recipientId ?? goal.ownerId)}, due week ${a.dueWeek}`, said: a.ask, byId: a.askedBy, at: a.createdAt, week: a.week ?? currentWeek(cycle, new Date(a.createdAt)), reviewId: a.reviewId });
   }
   const answer = answeredSince(goal.id, since, s);
   if (answer?.answeredAt && answer.answeredAt.slice(0, 10) <= day) {
     const w = currentWeek(cycle, new Date(answer.answeredAt));
     looks.push({ kind: 'answered', text: `Request answered by ${first(answer.answeredBy)}, week ${w}`, said: answer.answer ?? '', byId: answer.answeredBy ?? '', at: answer.answeredAt, week: w, reviewId: null });
   }
+  return looks;
+}
+
+/**
+ * Whether a goal that is off track or at risk is being handled, and by what (Lane, 10 Nov). It is when, since its
+ * latest check-in, an action was agreed with an owner and a due week (and isn't overdue), or, for a goal at risk, a
+ * request it's waiting on was answered; and no flag has appeared since then (a missed recovery date, say). An off-track
+ * goal is in hand only with an action. Marking it reviewed or noting it is a look (lookedAtFor), not a plan: the goal
+ * still needs attention. A new check-in always makes it news again.
+ */
+export function handledFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, status = goalStatus(goal, cycle, s.checkIns, today), flags?: Flag[]): Handled | null {
+  const looks = looksAt(goal, s, cycle, today, status).filter((l) => l.kind === 'action' || (l.kind === 'answered' && status.status === 'risk'));
   if (!looks.length) return null;
-  // Anything flagged now that wasn't when someone first looked is new information.
+  // Anything flagged now that wasn't when it was first put in hand is new information.
   const firstLook = looks.reduce((a, b) => (a.at < b.at ? a : b));
   const now = (flags ?? flagsFor(goal, s, cycle, today).flags).filter((f) => f.kind !== 'due').map((f) => f.kind);
   const then = new Set(flagsFor(goal, s, cycle, new Date(firstLook.at)).flags.map((f) => f.kind));
   if (now.some((k) => !then.has(k))) return null;
   return looks.sort((a, b) => HANDLED_ORDER.indexOf(a.kind) - HANDLED_ORDER.indexOf(b.kind) || b.at.localeCompare(a.at))[0]!;
+}
+
+/** The latest time someone other than the owner marked a behind goal reviewed or noted it since its latest check-in: "Looked at by Amara in …". */
+export function lookedAtFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, status = goalStatus(goal, cycle, s.checkIns, today)): Handled | null {
+  const looks = looksAt(goal, s, cycle, today, status).filter((l) => l.kind === 'noted' || l.kind === 'reviewed');
+  return looks.sort((a, b) => b.at.localeCompare(a.at))[0] ?? null;
 }
 
 /**
@@ -139,9 +158,24 @@ export function handledFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, s
  */
 export const needsAttention = (a: GoalAttention) => !a.handled && a.flags.some((f) => f.kind !== 'due');
 
+/**
+ * Which group of the Needs attention list a goal is in (Lane, 9 Nov, backlog GP): `needs` (needs attention: listed
+ * first, and what every count counts), `handled` (being handled: listed below them, never left out), or null (not
+ * listed). A goal being handled is always flagged (it is behind), so the list is every goal flagged for something
+ * beyond a due check-in. Nothing is hidden: a manager filtering her team sees her goals that are behind even when
+ * someone has already looked at them.
+ */
+export function attentionGroup(a: GoalAttention): 'needs' | 'handled' | null {
+  if (needsAttention(a)) return 'needs';
+  return a.handled ? 'handled' : null;
+}
+
+/** On the Needs attention list: it needs attention, or it is being handled (listed below those that do). */
+export const onAttentionList = (a: GoalAttention) => attentionGroup(a) !== null;
+
 /** A list of goals' attention split into what needs attention (new information) and what is being handled. */
 export function splitAttention(list: GoalAttention[]): { needs: GoalAttention[]; handled: GoalAttention[] } {
-  return { needs: list.filter(needsAttention), handled: list.filter((a) => !!a.handled) };
+  return { needs: list.filter((a) => attentionGroup(a) === 'needs'), handled: list.filter((a) => attentionGroup(a) === 'handled') };
 }
 
 /**

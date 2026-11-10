@@ -31,7 +31,7 @@ const RULES = [
   [/^src\/screens\/(CheckInFlow|QuickCheckIn)\.tsx|^src\/domain\/checkin\.ts/, ['U1', 'U54', 'U15', 'U25', 'U31', 'F2', 'F9']],
   [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/domain\/templates\.ts/, ['U4', 'U54', 'U18', 'U25', 'F3', 'F9']],
   [/^src\/screens\/(GoalScreen|Inspect|Respond)\.tsx|^src\/domain\/(goalPage|scorecard|story|chartStory|summary|summaryFacts|progress|trend)\.ts/, ['U6', 'U7', 'U36', 'U37', 'U38', 'U39', 'F4', 'N2', 'N9', 'N6']],
-  [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalCards|GoalFilters|GoalHistory)\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6']],
+  [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalFilters|GoalHistory)\.tsx|^src\/ui\/HealthLine\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6']],
   [/^src\/screens\/GoalMap\.tsx|^src\/domain\/(map|tree)\.ts/, ['U26', 'U30', 'U34', 'F6']],
   [/^src\/screens\/(Review|Retro)\.tsx|^src\/domain\/review\.ts/, ['U3', 'U10', 'U13', 'U36', 'F6', 'N1']],
   [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],

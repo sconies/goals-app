@@ -1,7 +1,7 @@
 /* Search, filters and sort for the goals: one definition of what each means, used by the Goals screen in every layout,
    by exports, by saved views and shared links (as a query string), and by the AI assistant's find_goals. */
 import { LEVEL_LABEL } from './format';
-import { needsAttention } from './attention';
+import { onAttentionList } from './attention';
 import { RANK } from './status';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, LABEL, QUARTER, RESULT, WARNING, type FlagKind } from './vocabulary';
 import type { GoalSummary } from './summary';
@@ -22,7 +22,7 @@ export interface GoalQuery {
   team: string[];
   owner: string[];
   kind: GoalKind[];
-  /** Only goals that need attention: the same rule as Home, Watching, the map, reviews and the AI (domain/attention.ts). */
+  /** Only the goals on the Needs attention list (those being handled with them, grouped below): the same rule as Home, Watching, the map, reviews and the AI (domain/attention.ts). */
   attention: boolean;
   /** …and only because of one of these (empty: for any reason). */
   needs: Need[];
@@ -137,7 +137,8 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
   if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
   if (q.kind.length && !q.kind.includes(g.kind)) return false;
   if (q.attention || q.needs.length) {
-    if (!needsAttention(s.attention)) return false;
+    // Needs attention lists the goals being handled too, below the others (Lane, 9 Nov): nothing is hidden.
+    if (!onAttentionList(s.attention)) return false;
     if (q.needs.length && !q.needs.some((n) => (n === 'slipped' ? s.story.flags.includes('slipped') : s.attention.flags.some((f) => f.kind === n)))) return false;
   }
   if (q.due != null) {

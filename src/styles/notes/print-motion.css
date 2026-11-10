@@ -48,9 +48,9 @@ main.work > .page, main.work > .focus { animation: pm-page-in .18s ease-out back
 
 /* Hover lift on cards: a pixel up, no shadow (surfaces stay flat). Pointer devices only. */
 @media (hover: hover) {
-  .board-card, .gcard, .outcome-card, .headline-card, .kindcard, .card.link { transition: transform .15s ease-out, border-color .15s, background-color .15s; }
-  .board-card:hover, .gcard:hover, .outcome-card:hover, .headline-card:hover, .kindcard:hover, .card.link:hover { transform: translateY(-1px); }
-  .board-card:active, .gcard:active, .outcome-card:active, .headline-card:active, .kindcard:active { transform: none; }
+  .board-card, .outcome-card, .headline-card, .kindcard, .card.link { transition: transform .15s ease-out, border-color .15s, background-color .15s; }
+  .board-card:hover, .outcome-card:hover, .headline-card:hover, .kindcard:hover, .card.link:hover { transform: translateY(-1px); }
+  .board-card:active, .outcome-card:active, .headline-card:active, .kindcard:active { transform: none; }
 }
 
 /* ---------- 2. print ---------- */
@@ -174,5 +174,5 @@ main.work > .page, main.work > .focus { animation: pm-page-in .18s ease-out back
 /* ---------- reduced motion: nothing moves ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .board-card:hover, .gcard:hover, .outcome-card:hover, .headline-card:hover, .kindcard:hover, .card.link:hover { transform: none; }
+  .board-card:hover, .outcome-card:hover, .headline-card:hover, .kindcard:hover, .card.link:hover { transform: none; }
 }
