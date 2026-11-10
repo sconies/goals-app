@@ -150,12 +150,14 @@ module.exports = {
       const strip0 = await stripCounts();
       await p.goto(url('/goals/lead-merge?review=weekly'));
       await p.locator('.decide').waitFor();
-      await p.getByRole('button', { name: 'Add an action' }).click();
+      // An off-track goal asks what happens next (deep review P2): a next step, its owner found by searching.
+      await p.getByRole('button', { name: 'Add the next step' }).click();
       const dlg = p.getByRole('dialog');
       await dlg.getByPlaceholder('What needs doing').fill('Chase the vendor for the batching fix date');
-      await dlg.getByLabel('Who').selectOption('pavel');
+      await dlg.getByRole('searchbox', { name: /^Who/ }).fill('Pavel');
+      await dlg.getByRole('radio', { name: /Pavel/ }).click();
       await dlg.getByLabel(/^By/).selectOption('46');
-      await dlg.getByRole('button', { name: 'Save action' }).click();
+      await dlg.getByRole('button', { name: 'Save the next step' }).click();
       await p.locator('.said').getByText('Chase the vendor').waitFor();
       const after = await watchState();
       check(!after.needs && /Off track/.test(after.handled) && /Action: Pavel, due week 46/.test(after.handled), `[ATTENTION-HANDLED] after the action the red goal is not being handled with "Action: Pavel, due week 46" and its status ("${after.handled.replace(/\n/g, ' ')}")`);

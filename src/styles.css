@@ -656,6 +656,8 @@ h1[tabindex='-1']:focus { outline: none; }
 /* Deciding in a review (deep review P2): the question, asked plainly above its two answers. */
 .decide-next { display: flex; flex-direction: column; gap: var(--s2); }
 .decide-q { margin: 0; font-size: var(--t-md); line-height: 1.375rem; font-weight: 600; }
+/* On a phone the bar stays slim (F6, RV 4): the question alone; the composer it opens says the rest. */
+@media (max-width: 600px) { .decide-next { gap: 4px; } .decide-next > .hint { display: none; } .decide-q { font-size: var(--t-sm); line-height: 1.125rem; } }
 .said.carried li { background: transparent; border: 1px solid var(--line); }
 .said .action-state svg, .last-time .action-state svg, .finish-summary svg { width: 12px; height: 12px; flex: none; }
 .action-state { display: inline-flex; align-items: center; gap: 4px; }
