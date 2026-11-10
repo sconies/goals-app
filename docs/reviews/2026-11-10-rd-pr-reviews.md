@@ -182,6 +182,8 @@ How it was checked: the local Postgres 16 shaped like Supabase, brought to the s
 - Suggested fix: don't ask first; try, and catch the refusal. Wrap the three statements in `begin … exception when insufficient_privilege then` and there keep today's two outcomes (a notice for `faro_owner`, an error for anyone else). That is right whichever way the live project is set up.
 - Or, to merge as it is: Lane runs `select pg_has_role('postgres', (select relowner from pg_class where oid = 'storage.objects'::regclass), 'usage');` in the SQL editor. If it says true, this is a GO unchanged.
 
+**After the review.** #95 merged at e7997ab at 13:48 UTC with finding 1 fixed as suggested: 0037 now tries the change and catches `insufficient_privilege`, with a test for it; nothing else changed from the commit reviewed.
+
 **2. Low, a trade-off the migration states.** Uploading no longer needs an id issued in the last two hours, only one of the right shape. Anyone with the public key could already issue ids without limit, so the bucket is no more open to filling. The new part: a picture can be added later to an existing markup that lacks one of its four (ids are readable in the open inbox). It can't replace one.
 
 ### #94 WR2: Workspace opens on About (track 3, merged 13:32 UTC)
