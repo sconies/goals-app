@@ -4,7 +4,7 @@
    (whether the viewer owns goals, names looked up by id), never the workspace. */
 
 /** The core's places in the menu. */
-export type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'people' | 'data' | 'new' | 'workspace' | 'settings';
+export type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'people' | 'data' | 'new' | 'workspace' | 'settings' | 'help' | 'feedback';
 
 /** Where a menu item belongs: your work (Home, Check-in, Goals, Reviews), or things to look up (Activity, Data…). */
 export type NavGroup = 'work' | 'lookup';
@@ -21,34 +21,56 @@ export const CORE_NAV: Record<NavId, { to: string; label: string; group: NavGrou
   new: { to: '/goals/new', label: 'New goal', group: 'work' },
   workspace: { to: '/workspace', label: 'Workspace', group: 'you' },
   settings: { to: '/settings', label: 'Settings', group: 'you' },
+  help: { to: '/help', label: 'Help', group: 'you' },
+  feedback: { to: '/feedback', label: 'Feedback', group: 'you' },
 };
+
+/** The menu's groups (navigation spec, 2.1): each a row of places, a group to screen readers, hairlines between. */
+export interface MenuGroups { work: string[]; lookup: string[]; make: string[]; you: string[] }
+export const GROUP_NAMES: Record<keyof MenuGroups, string> = { work: 'Your work', lookup: 'Look up', make: 'Make', you: 'This workspace and you' };
+
+/**
+ * Rule 1. The menu in its groups: your work (Home; Check-in for someone with a goal to check in on; Goals; Reviews),
+ * things to look up (People, then the modules' items in the order they register, then Activity and Data), New goal, and
+ * this workspace and you (Workspace, Settings, Help, Feedback). A module's item in the work group follows Reviews.
+ */
+export function menuGroups(checksIn: boolean, modules: ModuleNavItem[] = []): MenuGroups {
+  const id = (m: ModuleNavItem) => `module:${m.id}`;
+  return {
+    work: ['home', ...(checksIn ? ['checkin'] : []), 'goals', 'reviews', ...modules.filter((m) => m.group === 'work').map(id)],
+    lookup: ['people', ...modules.filter((m) => m.group !== 'work').map(id), 'activity', 'data'],
+    make: ['new'],
+    you: ['workspace', 'settings', 'help', 'feedback'],
+  };
+}
+
+/** The phone's four tabs: Check-in for whoever checks in, People for anyone else. More holds the rest. */
+export function phoneTabs(checksIn: boolean): NavId[] {
+  return checksIn ? ['home', 'checkin', 'goals', 'reviews'] : ['home', 'goals', 'reviews', 'people'];
+}
+
+/** More, on a phone: every row the tabs don't hold, in the menu's groups (work's rows are all tabs). */
+export function moreFor(groups: MenuGroups, tabs: string[]): Pick<MenuGroups, 'lookup' | 'make' | 'you'> {
+  const not = (xs: string[]) => xs.filter((x) => !tabs.includes(x));
+  return { lookup: not([...groups.work.filter((x) => x.startsWith('module:')), ...groups.lookup]), make: not(groups.make), you: not(groups.you) };
+}
+
+/** A saved view as the menu lists it. */
+export interface MenuView { id: string; name: string; pinned: boolean; mine: boolean; createdAt: string }
+
+/** Up to four saved views under Goals: those pinned for everyone A to Z, then your own, the latest opened first. */
+export function menuViews(views: MenuView[], openedLately: string[]): MenuView[] {
+  const pinned = views.filter((v) => v.pinned).sort((a, b) => a.name.localeCompare(b.name));
+  const rank = (v: MenuView) => { const i = openedLately.indexOf(v.id); return i < 0 ? Number.MAX_SAFE_INTEGER : i; };
+  const mine = views.filter((v) => !v.pinned && v.mine).sort((a, b) => rank(a) - rank(b) || b.createdAt.localeCompare(a.createdAt));
+  return [...pinned, ...mine].slice(0, 4);
+}
 
 /** A module's menu item, as its app.tsx gives it (module.json lists it by label). */
 export interface ModuleNavItem { id: string; to: string; label: string; group?: NavGroup }
 
-/** The sidebar: Check-in only for someone who owns a goal. */
-export function sideFor(ownsGoals: boolean): NavId[] {
-  return ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'reviews', 'activity', 'people', 'data', 'new', 'workspace'];
-}
-
-/** The phone's tabs. An owner gets Check-in; someone who owns nothing mostly follows goals, so gets Watching. */
-export function tabsFor(ownsGoals: boolean): NavId[] {
-  return ownsGoals ? ['home', 'checkin', 'goals', 'reviews'] : ['home', 'goals', 'watching', 'reviews'];
-}
-
-/**
- * The sidebar with the modules' items in it: a module's item in the work group follows Reviews, one to look things up
- * (the default) follows Data. Ids, in order; a module's item is "module:<id>".
- */
-export function menuFor(ownsGoals: boolean, modules: ModuleNavItem[]): string[] {
-  const out: string[] = [];
-  for (const id of sideFor(ownsGoals)) {
-    out.push(id);
-    if (id === 'reviews') out.push(...modules.filter((m) => m.group === 'work').map((m) => `module:${m.id}`));
-    if (id === 'data') out.push(...modules.filter((m) => m.group !== 'work').map((m) => `module:${m.id}`));
-  }
-  return out;
-}
+/** Every row of the menu, in order (the groups flattened). */
+export const menuRows = (g: MenuGroups) => [...g.work, ...g.lookup, ...g.make, ...g.you];
 
 /** Whether a core item is the one lit for this address. On a phone without a Watching tab, Watching lights Goals. */
 export function isLit(id: NavId, path: string, tabs?: NavId[]): boolean {
@@ -57,6 +79,9 @@ export function isLit(id: NavId, path: string, tabs?: NavId[]): boolean {
   if (id === 'goals') return (path.startsWith('/goals') && path !== '/goals/new') || (path === '/watching' && !!tabs && !tabs.includes('watching'));
   // People and Teams are one place (app redesign WR1).
   if (id === 'people') return /^\/(people|teams)(\/|$)/.test(path);
+  if (id === 'help') return /^\/(help|whats-new)(\/|$)/.test(path);
+  if (id === 'checkin') return /^\/(check-in|quick-check-in)(\/|$)/.test(path);
+  if (id === 'workspace') return /^\/workspace(\/|$)/.test(path) && !path.startsWith('/workspace/new');
   return path === to || path.startsWith(to + '/');
 }
 
