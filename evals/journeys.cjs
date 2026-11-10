@@ -2659,7 +2659,7 @@ journey('U58', ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'], 'Anyone finds a person and
   await p.waitForURL(/\/demo\/people(\?|$)/);
   await p.locator('.people-row').first().waitFor();
   await h.inView(p.getByPlaceholder('Find by name, job title or team'), 'entry', 'Find a person');
-  const count = (await p.locator('.people-count').innerText()).trim();
+  const count = (await p.locator('.count-line').innerText()).trim();
   h.set('progress', /^\d+ people, A to Z\. Showing 1 to 50\.$/.test(count), `People’s count line says “${count}”`);
   await h.checkpoint('people');
   await h.fill(p.getByPlaceholder('Find by name, job title or team'), 'rhea');
@@ -3185,7 +3185,7 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   // Gone from the directory; on Recently removed (its own section), with Restore.
   await see(p, 'Left Platform Engineering on', 'his page does not say he left');
   await p.goto(url('/people?q=Mateo'));
-  await see(p, 'No one matches', 'Mateo is still in the directory');
+  await see(p, 'No person matches “Mateo”.', 'Mateo is still in the directory');
   await p.goto(url('/workspace/removed'));
   const removed = p.locator('.removed-block');
   await see(removed, 'Person who left', 'Recently removed does not list him');

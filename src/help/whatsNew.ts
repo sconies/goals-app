@@ -29,8 +29,9 @@ export const WHATS_NEW: NewsEntry[] = [
       'Deleting an empty cycle asks first.',
       'Features and Privacy say On or Off in words beside each switch.',
       'A long Recently removed list can be searched by name and narrowed to one kind.',
+      'People and Teams search and count like every other list: the same bar, and the filters in words with Remove.',
     ],
-    articles: ['workspace-cycles', 'features', 'recording', 'removing'],
+    articles: ['workspace-cycles', 'features', 'recording', 'removing', 'people'],
   },
   {
     id: 'admins-on-access',
