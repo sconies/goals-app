@@ -3621,7 +3621,10 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   // Add a next step, as someone who doesn't own the goal: nobody chosen to start with.
   await h.click(p.locator('.next-steps').getByRole('button', { name: 'Add a next step' }));
   const step = p.getByRole('dialog', { name: /^Add a next step/ });
-  h.set('attention', !(await step.locator('.person-chosen').count()) && await step.getByRole('radio', { name: /Oskar .*, you/ }).isVisible(), 'Add a next step starts with someone chosen, or without the suggestions');
+  const empty = !(await step.locator('.pick-field').count());
+  await step.locator('.pick-open').click();
+  h.set('attention', empty && await step.getByRole('option', { name: /Oskar .*\(you\)/ }).isVisible() && await step.getByRole('option', { name: /Rhea .*who owns this goal/ }).isVisible(), 'Add a next step starts with someone chosen, or without the suggestions');
+  await p.keyboard.press('Escape');
   await step.getByRole('button', { name: 'Cancel' }).click();
   const s = await h.snapshot();
   h.set('logged', s.requests.some((r) => r.kind === 'question' && r.askedBy === 'oskar' && /week 49 still/.test(r.ask)) && s.changes.some((c) => c.actorId === 'oskar' && c.entity === 'watch'), 'the question or the watch is not saved and logged');
