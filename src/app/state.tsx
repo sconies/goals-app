@@ -65,7 +65,7 @@ export interface AppState {
   /** Admins: give the open workspace a new name. */
   renameWorkspace(name: string): Promise<void>;
   /** Admins: add a team, or rename one or change its lead. Returns its id. */
-  saveTeam(t: { id?: string; name: string; leadId?: string | null }): Promise<string>;
+  saveTeam(t: { id?: string; name: string; leadId?: string | null; objective?: string }): Promise<string>;
   /** Admins: remove a team; one with people or goals moves them to `moveTo` in the same save. */
   removeTeam(id: string, moveTo?: string | null): Promise<void>;
   /** Admins: turn on or off recording of how the app is used in the open workspace. Off, nothing is sent. */

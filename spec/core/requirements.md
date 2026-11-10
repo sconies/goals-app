@@ -401,7 +401,7 @@ Every main screen works at every width from a 360px phone, through a tablet held
 The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** P10
+- **Journeys and checks:** F10, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -409,6 +409,14 @@ The fourteen per-area fit-and-finish reports hold: every page, sheet and form me
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** F1, F2, F3, F4, F5, F6, F7, F8
+
+### OLD-ADDRESSES
+
+Every address that worked before still lands on the right page, without a history entry and keeping its query: /workspace/people goes to /people, /workspace/people?team=<id> to that team's page, /workspace/teams to /teams, and /workspace#people and #teams to People and Teams (domain/directory movedTo).
+
+- **Rule:** [The directory: who People lists, what a search finds, and where old addresses lead](rules/directory.md)
+- **Help:** “People: finding someone” (`people`), screens `People`
+- **Journeys and checks:** U58
 
 ### BRAND
 
@@ -431,7 +439,7 @@ Faro can be put on a phone's home screen and is easy to see there: a web app man
 
 There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings.
 
-- **Help:** “Home and your week at a glance” (`home`), screens `Home`; “Workspace: People” (`workspace-people`)
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`; “People: finding someone” (`people`), screens `People`
 - **Journeys and checks:** U1, U2, U9
 
 ### ADMIN
@@ -441,11 +449,19 @@ Whoever sets up a workspace is its admin. Admins add people, change their detail
 - **Help:** “Running the workspace” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
 - **Journeys and checks:** U5, U10, U14
 
+### PEOPLE-DIRECTORY
+
+Anyone finds a person or a team, and gets from either to their goals (app redesign WR1). People (/people, in the sidebar; on a phone under More) lists everyone not marked as left, A to Z ignoring case and accents, 50 a page; a search matches when every word typed starts a word of the name, job title or team; filters for a team (its lead counts) or no team, and admins only; everything in the address. A row links to the person, with their job title, team and line (Admin; what they lead; their goals this year). A person's page: team, email, role here, goals counted by status as shape and word (each a link to those goals), reviews, and "See {name}’s goals". Teams (/teams) lists each team with its lead, people and goals by status, the same numbers as Goals' By team; a team's page says what it is here to do, its goals by status and its people, with "See its goals". Members see no control that changes anything; admins add, change and mark people as left, and add, change and remove teams there.
+
+- **Rule:** [The directory: who People lists, what a search finds, and where old addresses lead](rules/directory.md)
+- **Help:** “People: finding someone” (`people`), screens `People`; “Teams” (`teams`)
+- **Journeys and checks:** F10, U58
+
 ### PERSON-EMAIL
 
 Every person has an email, kept lower case and unique in the workspace (migration 0027): required when someone is added, in Workspace, set-up, a spreadsheet or the AI assistant. Exports write each person’s name and email, and imports match people by email. People added before emails are listed on Workspace for an admin to fill in, together. The example’s people have example emails (firstname.lastname@example.com).
 
-- **Help:** “Workspace: People” (`workspace-people`)
+- **Help:** “People: finding someone” (`people`), screens `People`
 - **Tests:** `evals/format.eval.ts` (3)
 - **Journeys and checks:** U46
 
@@ -868,20 +884,20 @@ The app moves with purpose: numbers and status change visibly when a check-in po
 
 Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it.
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`; “Workspace: Teams” (`workspace-teams`)
+- **Help:** “Running the workspace” (`workspace`), screens `Workspace`; “Teams” (`teams`)
 - **Tests:** `evals/workspace-admin.eval.ts` (6)
 - **Journeys and checks:** N4
 
 ### WORKSPACE-SECTIONS
 
-Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (what needs attention, then every section with one true line each, leaving, and deleting the workspace at the end, for admins), People, Teams, Cycles, Access (admins and AI tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, People, Teams and Privacy; anyone else opening an admins’ section is told who the admins are. Old addresses (/workspace?inbox=1&markup=…, /workspace/inbox, #people) lead to the page they meant; the inbox's go to Feedback. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections).
+Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (what needs attention, then every section with one true line each, leaving, and deleting the workspace at the end, for admins), Cycles, Access (admins and MCP tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, Cycles, Privacy and Recently removed; anyone else opening an admins’ section is told who the admins are. People and Teams are a place of their own (PEOPLE-DIRECTORY). Old addresses (/workspace?inbox=1&markup=…, /workspace/inbox, #people) lead to the page they meant; the inbox's go to Feedback. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections).
 
 - **Help:** “Running the workspace” (`workspace`), screens `Workspace`
 - **Journeys and checks:** U51
 
 ### WORKSPACE-ONE-PLACE
 
-Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace, lists every workspace, says whether you're an admin here, and offers setting up a workspace of your own (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says your permissions in one line (what is for admins, and who they are). The overview lists what needs attention here first (domain/workspaceAttention), then every section. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead and opens its people; a workspace name's 80-character limit is said while typing, never cut; no button clips its label.
+Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace, lists every workspace, says whether you're an admin here, and offers setting up a workspace of your own (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says your permissions in one line (what is for admins, and who they are). The overview lists what needs attention here first (domain/workspaceAttention), then every section. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead; a workspace name's 80-character limit is said while typing, never cut; no button clips its label.
 
 - **Rule:** [The workspace: cycles, teams, names, leaving and what needs attention](rules/workspace.md)
 - **Help:** “Running the workspace” (`workspace`), screens `Workspace`
@@ -1087,7 +1103,7 @@ Every removal shows a message with an Undo button for 10 seconds, which puts bac
 
 An admin marks someone as left from a dialog that first asks who takes over their goals and their open asks (as asker and as responder); they vanish from pickers, counts, review people and Home, their token no longer works, and history keeps their name as “Name (left)”. Someone with no goals, check-ins, notes or asks is deleted outright instead.
 
-- **Help:** “Removing, stopping and undoing” (`removing`); “Workspace: People” (`workspace-people`)
+- **Help:** “Removing, stopping and undoing” (`removing`); “People: finding someone” (`people`), screens `People`
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U43
 
@@ -1135,5 +1151,5 @@ A number is never rounded quietly: one typed with more decimal places than its g
 Two goals may share a title and two people a name (the email is who someone is). Creating one warns; wherever both could be on screen, a goal shows its key and a person their team or job title beside the name, and people with the same initials get different avatar colours.
 
 - **Rule:** [Numbers and names](rules/numbers-and-names.md)
-- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “Workspace: People” (`workspace-people`)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “People: finding someone” (`people`), screens `People`
 - **Journeys and checks:** F9

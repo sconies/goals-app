@@ -5,6 +5,8 @@
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { findPeople } from '../domain/people';
+import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
+import { scopeToCycle } from '../domain/cycle';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
@@ -75,6 +77,12 @@ function workspace(checkIns: Snapshot['checkIns'], requests: Ask[] = [], decisio
 }
 const flagCodes = (s: Snapshot, today: string) => flagsFor(g3075, s, CYCLE, at(today)).flags.map((f) => f.kind).join(', ') || 'none';
 
+/* ---------- the demo workspace on Wednesday 11 November, for the directory's examples ---------- */
+const DIR_NOW = new Date('2026-11-11T12:00:00Z');
+let dir: Snapshot | null = null;
+const dirWs = (): Snapshot => dir!;
+const dirAsk = (a: Parameters<typeof findInDirectory>[2]) => findInDirectory(dirWs().people, dirWs().teams, a);
+
 /* ---------- the demo workspace, for the change engine's examples ---------- */
 let demo: Snapshot | null = null;
 async function demoWorkspace(): Promise<Snapshot> {
@@ -82,7 +90,10 @@ async function demoWorkspace(): Promise<Snapshot> {
   return demo;
 }
 /** Called once before the examples run: the change engine's examples read the demo workspace. */
-export async function prepareExamples() { await demoWorkspace(); }
+export async function prepareExamples() {
+  await demoWorkspace();
+  if (!dir) { const full = (await import('../data/platformOrg/generate')).buildPlatformOrg(DIR_NOW); dir = scopeToCycle(full, full.cycles[0]!); }
+}
 function change(actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}) {
   const s = demo!;
   const cycle = s.cycles[0]!;
@@ -648,6 +659,37 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, for Pat, who isn’t an admin.', then: 'feedback', run: () => workspaceNeeds(workspace([]), CYCLE, 2, false, 4).map((x) => x.id).join(', ') },
     ],
     unclear: ['How many weeks before the wrap-up "ends soon" starts (four) is a choice, not a law; the rebuild may tune it.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
+  },
+
+  /* ---------- the directory: People and Teams (app redesign WR1) ---------- */
+  {
+    id: 'directory',
+    title: 'The directory: who People lists, what a search finds, and where old addresses lead',
+    summary: 'People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead.',
+    code: [{ file: 'src/domain/directory.ts', names: ['findInDirectory', 'matchesWords', 'byName', 'findTeams', 'personLine', 'teamSummary', 'movedTo', 'DIRECTORY_PAGE'] }],
+    tests: ['src/domain/directory.test.ts'],
+    reqs: ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'],
+    body: `
+**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. ${DIRECTORY_PAGE} at a time; a page past the end is the last page.
+
+**What a search finds.** A person matches when every word typed starts a word of their name, their job title or their team’s name, ignoring case and accents (so “eng man” finds “Engineering Manager”, and “lucia” finds “Lucía”). Words are split at spaces and at the punctuation inside names (“Build & Release”, “Cloud Cost (FinOps)”). A team filter keeps the team’s people as \`teamPeople\` gives them: its lead counts, wherever their own team is; “no team” keeps people with no team or a team that is gone. Teams match on the team’s name or its lead’s, and are listed A to Z.
+
+**A person’s line**, beside them in a list: “Admin”; then “leads the team” (their own), “leads {team}” (another, the first A to Z) or “leads {n} teams”; then their goals in the running cycle that aren’t stopped (“{n} goals”, “1 goal”, “no goals”). The first part takes a capital.
+
+**A team’s summary**: its lead, its people (its lead among them) and its goals in the running cycle counted by status, worst first, from the same statuses Goals uses, so a team’s counts on People and under Goals’ By team are the same numbers.
+
+**Old addresses.** /workspace/people leads to /people, keeping its query; with ?team=<id> it leads to that team’s page; /workspace/teams leads to /teams; /workspace#people and #teams to People and Teams. Each is a replace, not a new history entry.`,
+    examples: [
+      { given: 'The demo workspace on Wednesday 11 November: People with nothing asked.', then: '97 people; 1 to 50 of page 1 of 2; first Adaeze Obi', run: () => { const r = dirAsk({}); return `${r.total} people; ${r.from} to ${r.to} of page ${r.page} of ${r.pages}; first ${r.rows[0]!.name}`; } },
+      { given: 'The same, page 9.', then: 'page 2: 51 to 97', run: () => { const r = dirAsk({ page: 9 }); return `page ${r.page}: ${r.from} to ${r.to}`; } },
+      { given: 'Searching for “rhea”, “lucia” and “Romero”.', then: 'Rhea Kapoor / Lucía Romero / Lucía Romero', run: () => ['rhea', 'lucia', 'Romero'].map((q) => dirAsk({ q }).rows.map((p) => p.name).join(', ')).join(' / ') },
+      { given: 'The CI/CD team’s people, and the admins.', then: '7 people / Amara Nwosu, Grace Achterberg, Hamid Rezaei', run: () => `${dirAsk({ teamId: 'cicd' }).total} people / ${dirAsk({ admins: true }).rows.map((p) => p.name).join(', ')}` },
+      { given: 'Teams whose name or lead starts with “rhea”.', then: 'CI/CD', run: () => findTeams(dirWs().teams, dirWs().people, 'rhea').map((t) => t.name).join(', ') },
+      { given: 'The lines beside Amara, Rhea and Oskar.', then: 'Admin · leads the team · no goals / Leads the team · 8 goals / No goals', run: () => ['amara', 'rhea', 'oskar'].map((id) => personLine({ snapshot: dirWs() }, id)).join(' / ') },
+      { given: 'CI/CD’s summary.', then: 'led by Rhea Kapoor; 7 people; 17 goals', run: () => { const t = teamSummary({ snapshot: dirWs(), statusOf: (g) => goalStatus(g, dirWs().cycles[0]!, dirWs().checkIns, DIR_NOW).status }, 'cicd'); return `led by ${t.lead?.name}; ${t.people.length} people; ${t.goals.length} goals`; } },
+      { given: 'Old addresses: /workspace/people?team=cicd, /workspace/people?team=-, /workspace/teams, /workspace#people.', then: '/teams/cicd, /people?team=-, /teams, /people', run: () => [movedTo('/workspace/people', '?team=cicd'), movedTo('/workspace/people', '?team=-'), movedTo('/workspace/teams'), movedTo('/workspace', '', '#people')].join(', ') },
+    ],
+    unclear: ['The page size (50) and the reading of “a word” (split at spaces and at & / ( ) , . -) are choices; a rebuild with a server search should keep the rule that every word typed starts a word.', 'Who leads a team is not a role: a lead is any person a team names, in any team.'],
   },
 
   /* ---------- the goal map ---------- */
