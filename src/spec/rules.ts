@@ -26,6 +26,7 @@ import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domai
 import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
+import { primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
 import { nearMiss, search, textMatches } from '../domain/find';
@@ -727,6 +728,53 @@ For a range, better means further from the limit on its safe side.
       ];
     })(),
     unclear: ['How the trees wrap into rows is a choice about drawing, not a rule: any layout in which Fit all shows every goal, the trees in order, at least as large as this one, conforms.'],
+  },
+
+  /* ---------- act on a goal: its buttons and its one list (goal spec, GT1) ---------- */
+  {
+    id: 'goal-act',
+    title: 'Acting on a goal: its buttons, and next steps and asks',
+    summary: 'Which main button a goal’s page offers whoever is looking, the plain button beside it, and the one list of everything asked and agreed on the goal, each row with at most one button.',
+    code: [{ file: 'src/domain/goalPage.ts', names: ['primaryAction', 'standingAction', 'stepsAndAsks', 'whyPointer', 'asksOnGoal'] }],
+    tests: ['src/domain/goalAct.test.ts', 'evals/goalPage.eval.ts'],
+    reqs: ['GOAL-ACT', 'GOAL-ASK-ONCE'],
+    body: `
+**The main button**, the first that applies: a question asked of the viewer here ("Answer {name}’s question"); a decision or help asked of them ("Answer {name}’s request"); for the owner, a goal with no check-in yet ("Post the first check-in"), then this week’s check-in when it is due ("Check in for week {n}"); the viewer’s own open next step ("Mark your next step done"); for the owner of a goal off track or at risk with no next step open, "Add a next step"; for anyone else on a goal with no recent update that nobody has asked about, "Ask {owner} for an update". Otherwise none. Watch is never the main button.
+
+**Beside it**: the owner has "Check in again" unless the main button is a check-in, and never on a done or stopped goal; anyone else has "Watch", or "Watching" once they do; a stopped goal has nothing.
+
+**Next steps and asks** lists every ask on the goal that isn’t withdrawn (a decision or help, a question, an ask for an update) and every next step. *For you*: the open rows the viewer is asked (or, for a decision, asked of no one in particular) or a next step they do. *Open*, in order: overdue next steps (longest overdue first), decisions, questions, next steps by their week, asks for an update. *Done*: answered or done, newest first.
+
+Each row says its kind and its words ("Decision or help: …", "Question: …", "Next step: …", "Update asked"); who and when ("Asked of Amara by Rhea · 3 weeks ago", with "· for 3 goals" when one decision covers several; for a next step "Amara · by week 47 (Thu 19 Nov) · agreed in {review}" or "agreed by {name}"); its state ("Open", "Overdue by 1 week" with the warning mark, "Answered", "Done · week 44"); and an answered or done row’s answer as "{name}: {words}".
+
+**At most one button**, the first that applies: "Respond" (a decision the viewer may answer), "Answer" (a question they may answer), "Mark done" (a next step they do or agreed, or an admin), "Check in" (an ask for an update, for the owner), "Withdraw" (whoever asked, an admin, or for a decision the owner of the goal it was raised on). The rights are the asks’ own rules (canAnswer, canMarkDone, canWithdraw), not restated.
+
+**The gap**: a goal off track or at risk with no next step open. Its page says "No next step yet. Nobody has said what happens next, who does it and by when."
+
+**Why points, it doesn’t repeat**: with a decision or help open, Why says "Waiting on a decision from {name}: see Next steps and asks" ("from {name} and {name}" for several; "Waiting on a decision: see Next steps and asks" when asked of no one in particular). The ask’s words are said only in the list.`,
+    examples: (() => {
+      const people = [{ id: 'p', name: 'Pat Owner' }, { id: 'l', name: 'Lee Lead' }, { id: 'o', name: 'Oz Other' }];
+      const P = (id: string) => ({ id, name: people.find((x) => x.id === id)!.name, role: '', initials: '', teamId: 't', admin: false });
+      const ask = (x: Partial<Ask> & Pick<Ask, 'id' | 'kind' | 'ask'>): Ask => ({ goalIds: ['m'], askedBy: 'p', recipientId: 'l', status: 'open', dueWeek: null, reviewId: null, week: null, checkInId: null, createdAt: '2026-10-19T10:00:00Z', updatedAt: '2026-10-19T10:00:00Z', answer: null, answeredBy: null, answeredAt: null, ...x });
+      const decision = ask({ id: 'd', kind: 'decision', ask: 'approve the extra runner budget' });
+      const step = ask({ id: 's', kind: 'action', ask: 'Take the budget to finance', askedBy: 'l', recipientId: 'l', dueWeek: 9 });
+      const done = ask({ id: 'x', kind: 'action', ask: 'Write the one-page case', askedBy: 'l', recipientId: 'p', dueWeek: 6, status: 'done', answer: 'Sent to Lee', answeredBy: 'p', answeredAt: '2026-10-14T10:00:00Z' });
+      const run = (viewer: string, asks: Ask[], week = 8, status: DisplayStatus = 'off') => stepsAndAsks({ goal: g3075, viewer: P(viewer), week, cycle: CYCLE, status, asks, people, reviews: [] });
+      const rows = (xs: { text: string; button: string | null }[]) => xs.map((r) => `${r.text} [${r.button ?? 'no button'}]`).join('; ') || 'none';
+      const pr = (viewer: string, extra: Partial<Parameters<typeof primaryAction>[0]> = {}) => primaryAction({ goal: g3075, viewer: P(viewer), owner: P('p'), status: 'off', due: false, week: 8, asked: [], updateAsked: false, openSteps: 1, ...extra });
+      return [
+        { given: 'Week 8. Pat owns the goal (off track) and asked Lee for a decision; Lee agreed a next step for himself, due week 9. Lee looks.', then: 'For you: Decision or help: approve the extra runner budget [Respond]; Next step: Take the budget to finance [Mark done]', run: () => `For you: ${rows(run('l', [decision, step]).forYou)}` },
+        { given: 'The same, as Pat.', then: 'Open: Decision or help: approve the extra runner budget [Withdraw]; Next step: Take the budget to finance [no button]', run: () => `Open: ${rows(run('p', [decision, step]).open)}` },
+        { given: 'The same, as Oz, who is neither asked nor asked anything.', then: 'Open: Decision or help: approve the extra runner budget [no button]; Next step: Take the budget to finance [no button]', run: () => `Open: ${rows(run('o', [decision, step]).open)}` },
+        { given: 'The next step in week 11, still open, as Oz: its state and its place.', then: 'Overdue by 2 weeks, first', run: () => { const x = run('o', [decision, step], 11).open; return `${x.find((r) => r.kind === 'action')!.state}, ${x[0]!.kind === 'action' ? 'first' : 'not first'}`; } },
+        { given: 'A next step Pat marked done on Wednesday 14 October (week 5), as Oz: its state and its answer.', then: 'Done · week 5 · Pat: Sent to Lee', run: () => { const r = run('o', [done]).done[0]!; return `${r.state} · ${r.answer}`; } },
+        { given: 'Off track, with the decision open and no next step; then on track with nothing.', then: 'gap: yes; gap: no', run: () => `gap: ${run('o', [decision]).gap ? 'yes' : 'no'}; gap: ${run('o', [], 8, 'on').gap ? 'yes' : 'no'}` },
+        { given: 'Pat, the owner: one next step open; then none; then this week’s check-in due.', then: 'none; Add a next step; Check in for week 8', run: () => [pr('p'), pr('p', { openSteps: 0 }), pr('p', { openSteps: 0, due: true })].map((x) => x.label || 'none').join('; ') },
+        { given: 'Beside it: Pat with no check-in due; Oz, watching; Oz, not.', then: 'Check in again; Watching; Watch', run: () => [standingAction({ goal: g3075, viewer: P('p'), primary: pr('p'), watching: false, status: 'off' }), standingAction({ goal: g3075, viewer: P('o'), primary: pr('o'), watching: true, status: 'off' }), standingAction({ goal: g3075, viewer: P('o'), primary: pr('o'), watching: false, status: 'off' })].map((x) => x.label).join('; ') },
+        { given: 'What Why says about the decision asked of Lee; then one asked of no one.', then: 'Waiting on a decision from Lee: see Next steps and asks; Waiting on a decision: see Next steps and asks', run: () => [whyPointer(g3075, [decision], people), whyPointer(g3075, [{ ...decision, recipientId: null }], people)].join('; ') },
+      ];
+    })(),
+    unclear: ['How many done rows show before “Show all” (three) is a choice about the page, not the rule.', '“3 weeks ago” counts weeks of the cycle between when it was asked and now, not days.'],
   },
 
   /* ---------- finding things (the app redesign, AR1) ---------- */
