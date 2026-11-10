@@ -294,3 +294,25 @@ Read against `docs/design/goal/spec.md` section 1 (the address), 2.2 and rule 4.
 
 - Whether an ask belongs under Reviews is decided by looking for " in {a review's name}" in the change's sentence (`historyKind`). Renaming a review moves its past asks to Comments, and a short review name can match other sentences. The ask records its review; the change could carry it.
 - An ask from outside a review, and marking a next step done, count under Comments ("Rhea Kapoor marked the action done"). The spec's four kinds don't say where these go.
+
+### #102 GT3: Watch and comments say what they do (track 2, merged 15:07 UTC)
+
+Read against `docs/design/goal/spec.md` 2.2 (the comment box), 2.5, 2.7, 2.8 and rule 5.
+
+**Nothing found of medium severity or worse.** In the demo as Oskar on Lead time for changes: the Watch sheet has the spec's sentence and the choice "This goal" / "It and the 16 goals feeding it"; watching and stopping each say what they did, with Undo; the comment box says "Rhea and the 6 people watching see it on Home" (and, as Rhea, "The 6 people watching"); Cancel keeps what was typed; the print page reads "North star · a number to move". Watching goes through `app.run`. The edit page (2.7) waiting until Thursday is stated.
+
+**Low.** A comment's draft is kept per workspace and goal, not per person (`src/screens/GoalScreen.tsx`, `NoteComposer`: `{ws}:comment:{goal}`). In the demo, what Oskar typed and cancelled is in Rhea's comment box, open, after "Switch person". Anyone may comment, so unlike a check-in's draft it can cross from one person to another on a shared browser.
+
+### #100 WR4: Cycles, Features, Privacy and Recently removed, plainer; People on the list bar (track 3, merged 15:16 UTC)
+
+Read against `docs/design/workspace/spec.md` 2.1, 2.3, 2.6, 2.8, 2.9 and 2.10, and the find spec's 2.1.
+
+**Nothing new of medium severity or worse.** In the demo as Amara at 1440 px and Rhea at 390 px: Cycles' row reads as the spec has it, with one action; members see the one line about admins; Features and Privacy carry On or Off as a word beside the switch, and a member sees the word and "Admins change it"; Recently removed has the new sentences; People and Teams use the shared count line and filter line; nothing scrolls sideways.
+
+**Carried in from #94.** Cycles now prints the same sentence as About ("The wrap-up opens on 14 Dec 2026."), so the date that is a week early shows in two places until `yearLine` is fixed.
+
+**Low.**
+
+- Moving People onto the shared none-found words lost three of the Workspace spec's own: a search that finds no one says "No person matches “zzzz”." where 2.1 (and the find spec) keep "No one matches “zzzz”."; `/people?team=-` with nobody says "No people match these filters." where it said "Everyone is in a team."; and that filter reads "Team none".
+- Recently removed's search matches anywhere in a name (`src/ui/RecentlyRemoved.tsx`, `includes`), a further matcher beside rule 1.
+- Recently removed now opens with two sentences that say the same thing (the section's summary line, then the new one).
