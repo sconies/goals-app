@@ -1025,7 +1025,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   // /watching is the way in; the Level filter narrows it, as on any Goals scope.
   await p.goto(url('/watching?level=team'));
   await p.waitForURL(/scope=watching/);
-  h.set('parity', /level=team/.test(p.url()) && await p.locator('.filter-chip, .chip').filter({ hasText: /Team/ }).first().isVisible().catch(() => false), 'the Level filter is not applied to Watching');
+  h.set('parity', /level=team/.test(p.url()) && await p.locator('.filter-line').filter({ hasText: /Level Team/ }).first().isVisible().catch(() => false), 'the Level filter is not applied to Watching');
   await p.context().close();
 }, ['errors']);
 
@@ -1730,7 +1730,7 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await chooseLayout(h, p, 'Table');
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
-  h.set('progress', rows === 25 && (await p.getByRole('button', { name: /Remove filter: Needs attention because: date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
+  h.set('progress', rows === 25 && (await p.getByRole('button', { name: /Remove the filter Needs attention because date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
   // Save it: a name is needed; then it's a tab of its own. On a phone, saving and sharing are in one View menu (L&T 23).
   if (device === 'phone') await h.click(p.locator('.filter-view-menu > summary'));
   await h.click(p.getByRole('button', { name: 'Save view' }));

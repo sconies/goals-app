@@ -4,7 +4,7 @@ import { LEVEL_LABEL } from './format';
 import { onAttentionList } from './attention';
 import { RANK } from './status';
 import { formatKey, normalKey } from './goalKey';
-import { goalWords, textMatches } from './find';
+import { goalWords, textMatches, type FilterPart } from './find';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, LABEL, QUARTER, RESULT, WARNING, type FlagKind } from './vocabulary';
 import type { GoalSummary } from './summary';
 import type { Cycle, Goal, GoalKind, Level } from './types';
@@ -209,6 +209,28 @@ export function describeQuery(q: GoalQuery, names: { team: (id: string) => strin
   if (q.result.length) out.push({ key: 'result', text: q.result.map((r) => label(RESULT_OPTIONS, r)).join(' or ') });
   if (q.feeds) out.push({ key: 'feeds', text: `In the tree of ${names.goal(q.feeds)}` });
   if (q.helps) out.push({ key: 'helps', text: 'With “also helps” links' });
+  return out;
+}
+
+/**
+ * The filters on, as find's rule 3 says them ("Team CI/CD · Status Off track or At risk"), each removable by its key.
+ * A search is never a filter, and the Needs attention switch isn't one (the switch says it); its reasons are.
+ */
+export function queryParts(q: GoalQuery, names: { team: (id: string) => string; person: (id: string) => string; goal: (id: string) => string }): FilterPart[] {
+  const label = <T extends string>(opts: [T, string][], v: T) => opts.find(([k]) => k === v)?.[1] ?? v;
+  const out: FilterPart[] = [];
+  if (q.status.length) out.push({ key: 'status', label: 'Status', values: q.status.map((s) => label(STATUS_OPTIONS, s)) });
+  if (q.level.length) out.push({ key: 'level', label: 'Level', values: q.level.map((l) => LEVEL_LABEL[l]) });
+  if (q.team.length) out.push({ key: 'team', label: 'Team', values: q.team.map(names.team) });
+  if (q.owner.length) out.push({ key: 'owner', label: 'Owner', values: q.owner.map(names.person) });
+  if (q.kind.length) out.push({ key: 'kind', label: 'Kind', values: q.kind.map((k) => label(KIND_OPTIONS, k)) });
+  if (q.needs.length) out.push({ key: 'needs', label: `${ATTENTION.needs.label} because`, values: q.needs.map((n) => label(NEED_OPTIONS, n).toLowerCase()) });
+  if (q.due != null) out.push({ key: 'due', label: 'Due', values: [q.due === 'quarter' ? 'this quarter' : `by week ${q.due}`] });
+  if (q.quiet != null) out.push({ key: 'quiet', label: 'No update for', values: [`${q.quiet}+ ${q.quiet === 1 ? 'week' : 'weeks'}`] });
+  if (q.quarter) out.push({ key: 'qtr', label: 'Last quarter', values: [QUARTER[q.quarter].label] });
+  if (q.result.length) out.push({ key: 'result', label: 'Result', values: q.result.map((r) => label(RESULT_OPTIONS, r)) });
+  if (q.feeds) out.push({ key: 'feeds', label: 'In the tree of', values: [names.goal(q.feeds)] });
+  if (q.helps) out.push({ key: 'helps', label: 'With', values: ['“also helps” links'] });
   return out;
 }
 

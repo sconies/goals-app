@@ -102,11 +102,12 @@ module.exports = {
       await p.waitForTimeout(300);
       // Backlog N (8 Nov) replaced the one scrolling row: every active filter shows in full, wrapping, none cut off.
       const m = await p.evaluate(() => {
-        const chips = [...document.querySelectorAll('.filter-chips .filter-chip')];
+        // The filter line (find rule 3): each filter in words with Remove, wrapping.
+        const chips = [...document.querySelectorAll('.filter-line .filter-part')];
         const cut = chips.filter((e) => { const r = e.getBoundingClientRect(); return r.left < -0.5 || r.right > innerWidth + 0.5 || e.scrollWidth > e.clientWidth + 1; }).map((e) => e.textContent.trim());
         return { n: chips.length, cut, table: !!document.querySelector('.table-wrap') };
       });
-      chk(m.n >= 4 && m.cut.length === 0, `N: ${m.n} filter chips, cut off: ${m.cut.join(', ') || 'none'}`);
+      chk(m.n >= 4 && m.cut.length === 0, `N: ${m.n} filters in the filter line, cut off: ${m.cut.join(', ') || 'none'}`);
       chk(m.table, 'L&T 23: with filters there is no table');
       await c.close();
     }
@@ -343,7 +344,7 @@ module.exports = {
       const [c, p] = await open(1440, 900, 'amara', '/goals?show=nonsense&team=no-such-team');
       await p.locator('.link-note').waitFor({ timeout: 5000 }).catch(() => {});
       const m = await p.evaluate(() => ({ note: document.querySelector('.link-note')?.textContent ?? '', trees: document.querySelectorAll('.outcome').length,
-        sel: document.querySelector('.goals-tabs [aria-selected="true"]')?.textContent ?? '', chips: [...document.querySelectorAll('.filter-chip')].map((x) => x.textContent) }));
+        sel: document.querySelector('.goals-tabs [aria-selected="true"]')?.textContent ?? '', chips: [...document.querySelectorAll('.filter-line .filter-part')].map((x) => x.textContent) }));
       const u = new URL(p.url()).searchParams;
       chk(/no “nonsense” tab/.test(m.note) && /no-such-team/.test(m.note), `OR 4: a bad link says “${m.note}”`);
       // Goals spec rule 6: an unknown tab opens on the viewer's own scope (Amara owns none, so Watching), said in words.

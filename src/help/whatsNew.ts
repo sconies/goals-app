@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goals-filters-in-words',
+    date: '2026-11-10',
+    title: 'Goals counts once, and says its filters in words',
+    points: [
+      'With a search or a filter on, Goals says how many match once, in the line under the bar, and its filters in words underneath: “Filtered by: Status Off track · Owner Rhea Kapoor”, each with Remove.',
+      'A search is never listed as a filter: it stays in the search box.',
+    ],
+    articles: ['goals-filters', 'finding'],
+  },
+  {
     id: 'track3-fixes',
     date: '2026-11-10',
     title: 'The right wrap-up date, and fewer surprises with admins',

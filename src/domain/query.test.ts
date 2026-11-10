@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentWeek } from './plan';
-import { applyQuery, describeQuery, EMPTY_QUERY, filters, parseQuery, queryEntries, without, type GoalQuery } from './query';
+import { applyQuery, describeQuery, EMPTY_QUERY, filters, parseQuery, queryEntries, queryParts, without, type GoalQuery } from './query';
+import { filterText } from './find';
 import { summariseAll } from './summary';
 
 const today = new Date('2026-11-05T12:00:00Z');
@@ -79,5 +80,17 @@ describe('searching, filtering and sorting goals', () => {
     expect(describeQuery({ ...EMPTY_QUERY, attention: true, quiet: 2, quarter: 'missed' }, { team: (x) => x, person: (x) => x, goal: (x) => x }).map((c) => c.text)).toEqual(['Needs attention', 'No update for 2+ weeks', 'Not met last quarter']);
     expect(without(q, 'needs')).toMatchObject({ attention: false, needs: [] });
     expect(without(q, 'due').due).toBeNull();
+  });
+});
+
+describe('queryParts (find rule 3, on Goals)', () => {
+  const names = { team: (id: string) => (id === 'cicd' ? 'CI/CD' : id), person: (id: string) => (id === 'rhea' ? 'Rhea Kapoor' : id), goal: (id: string) => id };
+  it('says each filter as its label and values, never the search or the switch', () => {
+    const q = { ...EMPTY_QUERY, q: 'queue', attention: true, status: ['off', 'risk'], owner: ['rhea'], team: ['cicd'] } as GoalQuery;
+    expect(queryParts(q, names).map(filterText)).toEqual(['Status Off track or At risk', 'Team CI/CD', 'Owner Rhea Kapoor']);
+  });
+  it('says the reasons for needing attention when they narrow it', () => {
+    const q = { ...EMPTY_QUERY, attention: true, needs: ['slipped'] } as GoalQuery;
+    expect(queryParts(q, names).map(filterText)).toEqual(['Needs attention because date slipped']);
   });
 });
