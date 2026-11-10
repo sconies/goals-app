@@ -7,6 +7,7 @@ import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '..
 import { findPeople } from '../domain/people';
 import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
 import { scopeToCycle } from '../domain/cycle';
+import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
@@ -78,6 +79,17 @@ function workspace(checkIns: Snapshot['checkIns'], requests: Ask[] = [], decisio
   };
 }
 const flagCodes = (s: Snapshot, today: string) => flagsFor(g3075, s, CYCLE, at(today)).flags.map((f) => f.kind).join(', ') || 'none';
+
+/* ---------- a workspace just set up, for day one's examples ---------- */
+const DAY_MADE = '2026-11-11T09:00:00Z';
+const DAY_NOW = new Date('2026-11-11T15:00:00Z');
+const DAY_WS = { name: 'Field Operations', kind: 'own', createdAt: DAY_MADE };
+const dayOneWs = (owners: string[]): Pick<Snapshot, 'people' | 'goals' | 'checkIns' | 'watches' | 'changes'> => ({
+  people: [{ id: 'ana', name: 'Ana Silva', role: '', initials: 'AS', teamId: 't', admin: true }, { id: 'ben', name: 'Ben Ortiz', role: '', initials: 'BO', teamId: 't', admin: false }],
+  goals: owners.map((ownerId, i) => ({ id: `g${i}`, ownerId, title: `Goal ${i}` } as unknown as Goal)),
+  checkIns: [], watches: [],
+  changes: [{ id: 'c', at: DAY_MADE, actorId: 'ana', goalId: null, entity: 'workspace', entityId: 'w', action: 'created', summary: 'Created “Field Operations” with 2 people', diffs: [] }],
+});
 
 /* ---------- the demo workspace on Wednesday 11 November, for the directory's examples ---------- */
 const DIR_NOW = new Date('2026-11-11T12:00:00Z');
@@ -698,6 +710,29 @@ For a range, better means further from the limit on its safe side.
       { given: 'Old addresses: /workspace/people?team=cicd, /workspace/people?team=-, /workspace/teams, /workspace#people.', then: '/teams/cicd, /people?team=-, /teams, /people', run: () => [movedTo('/workspace/people', '?team=cicd'), movedTo('/workspace/people', '?team=-'), movedTo('/workspace/teams'), movedTo('/workspace', '', '#people')].join(', ') },
     ],
     unclear: ['The page size (50) and the reading of “a word” (split at spaces and at & / ( ) , . -) are choices; a rebuild with a server search should keep the rule that every word typed starts a word.', 'Who leads a team is not a role: a lead is any person a team names, in any team.'],
+  },
+
+  /* ---------- day one (app redesign OB3) ---------- */
+  {
+    id: 'day-one',
+    title: 'Day one: set-up’s steps and “Getting started”',
+    summary: 'How many steps set-up counts for the path chosen, and what Home’s “Getting started” tells each person in a workspace’s first weeks.',
+    code: [{ file: 'src/domain/dayOne.ts', names: ['setupSteps', 'stepCounter', 'gettingStarted', 'creatorOf', 'DAY_ONE_DAYS', 'NEW_WORKSPACE_DAYS'] }],
+    tests: ['src/domain/dayOne.test.ts'],
+    reqs: ['DAY-ONE', 'ONBOARDING'],
+    body: `
+**Set-up’s steps.** A template or “Start blank”: seven (workspace, you, your team, starting point, outcome, goals, check). “Set goals up later” or a spreadsheet: five, without the outcome and the goals, so Check is “Step 5 of 5”.
+
+**Who set it up** is whoever the workspace’s “Created …” change names, or else its first admin. A goal set-up left with no owner is made theirs, and its id is kept for them (the Prefs port), so Home can ask them to give it one; nothing is added to the goal.
+
+**Getting started**, for one person, in this order, each left out when it doesn’t apply or is done. Whoever set it up: their first check-ins (goals they own with none); “Give {n} goals an owner” (the goals set-up left without one that they still own); “Add the people who own goals” while they’re alone, otherwise “Send your team the link” until they copy it; “Set up the first goal” while there are none. Anyone else: who set it up, when, and how many goals they were given; their first check-ins; and, owning none, the goals to see (until opened), to watch (until they watch one), and a goal of their own. Nothing at all when they hid it, ${DAY_ONE_DAYS} days after their first visit, in the example, or in a workspace more than ${NEW_WORKSPACE_DAYS} days old that they didn’t just join.`,
+    examples: [
+      { given: 'The counter on Check: a template; goals set up later.', then: 'Step 7 of 7 / Step 5 of 5', run: () => `${stepCounter('check', 'product')} / ${stepCounter('check', 'later')}` },
+      { given: 'Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees.', then: 'first-check-in, assign (Give 2 goals an owner.), invite', run: () => { const r = gettingStarted('ana', dayOneWs(['ana', 'ana', 'ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE, unowned: ['g1', 'g2'] }, DAY_NOW, 'Thursday'); return r.map((x) => (x.id === 'assign' ? `assign (${x.says})` : x.id)).join(', '); } },
+      { given: 'Ben opens it for the first time.', then: 'Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in', run: () => { const r = gettingStarted('ben', dayOneWs(['ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE }, DAY_NOW, 'Thursday'); return `${r[0]!.says} / ${r.slice(1).map((x) => x.id).join(', ')}`; } },
+      { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneWs(['ana']), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },
+    ],
+    unclear: ['Two weeks, and 28 days for a workspace to stop being new, are choices; the rebuild may tune them.', 'Which goals were left without an owner is kept per person (the Prefs port), not on the goal: a rebuild keeps it out of the goal’s record too.'],
   },
 
   /* ---------- the goal map ---------- */

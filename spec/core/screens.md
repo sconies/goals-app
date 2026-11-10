@@ -13,7 +13,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your first check-in is next week”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “For you (region)”, “Your week at a glance (region)”
+- **Named parts:** “Your first check-in is next week”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “Getting started”, “For you (region)”, “Your week at a glance (region)”
 - **Main action:** The week’s one main thing: your check-ins when they’re due, then the wrap-up at the end of the year, then the review you’re in.
 - **Primary buttons in its markup:** “Start the wrap-up”, “Find goals to watch”, “Set up the first goal”
 - **AI tools:** `get_my_work`, `get_overview`
