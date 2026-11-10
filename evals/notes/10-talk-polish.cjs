@@ -10,7 +10,8 @@
 const STATUS = ['off', 'risk', 'stale', 'none'];
 const WORD = { off: 'off track', risk: 'at risk', stale: 'no recent update', none: 'no check-in yet', on: 'on track', done: 'done', planned: 'not started' };
 const tally = (text) => Object.fromEntries(Object.entries(WORD).map(([k, w]) => [k, Number((new RegExp('(\\d+) ' + w + '\\b').exec(text) || [0, 0])[1])]));
-const shownOf = (p) => p.evaluate(() => Number((/(\d+) of \d+ goals?/.exec(document.querySelector('main').innerText) || [0, -1])[1]));
+// The count line (goals spec, rule 4): "3 goals match." or "41 need attention: …".
+const shownOf = (p) => p.evaluate(() => Number((/^(\d+) (goals? match|needs? attention)/.exec(document.querySelector('.goals-line')?.textContent ?? '') || [0, -1])[1]));
 const settle = (p, ms = 700) => p.waitForTimeout(ms);
 
 module.exports = {
