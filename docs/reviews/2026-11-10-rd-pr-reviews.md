@@ -333,3 +333,9 @@ Read against `docs/design/onboarding/spec.md` 2.8, 2.9 and rules 6 and 7, and `d
 - The `welcome` row has no "seen": for someone who has done everything else it stays as the block's only row until day 14 or "Hide this", where the spec has it done once seen and the block go when every row is done.
 - `invite` is done only by copying the link; the spec also ends it when a second person has opened the workspace.
 - Set-up finds the goals left without an owner by their titles (`src/screens/Onboarding.tsx`, `unownedTitles`), so two template goals with one title, one owned and one not, are both marked.
+
+### #105 History's week entry at the end of its week; R1 says "Anyone" for mark reviewed (track 2, merged 16:11 UTC)
+
+The fixes for #96's finding 1 and #87's finding 1, as suggested. Read in the code: `weekEnd` is now the second before `weekDate(cycle, w + 1)`, with a unit test and a line in U79 that a comment made this week sits under this week's entry; R1's row for marking reviewed and accepting a risk says "Anyone", matching the rule, and the spec is regenerated.
+
+**Nothing found.** Both earlier findings are closed.
