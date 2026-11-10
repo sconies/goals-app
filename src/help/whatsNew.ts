@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'workspace-mark-size',
+    date: '2026-11-10',
+    title: 'Workspace’s overview mark back to its size',
+    points: [
+      'The small warning mark beside each thing to look at on Workspace’s overview had grown to fill the page. It is a small mark again.',
+      'On a phone, the overview no longer scrolls sideways.',
+    ],
+    articles: ['workspace'],
+  },
+  {
     id: 'small-batch-mcp-access',
     date: '2026-11-10',
     title: 'MCP access, and Workspace for everyone',

@@ -120,7 +120,7 @@
 .ws-need { display: flex; align-items: center; gap: var(--s3); min-height: 52px; padding: var(--s3) var(--s4); color: inherit; text-decoration: none; }
 .ws-need:hover { background: var(--surface-2); }
 .ws-need:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.ws-need > .warn-mark { flex: none; color: var(--risk-fg); }
+.ws-need > svg { flex: none; width: 14px; height: 14px; color: var(--risk-fg); }
 .ws-need > span { flex: 1; min-width: 0; }
 .ws-need > svg:last-child { flex: none; color: var(--muted); }
 .ws-need-who { color: var(--muted); font-size: var(--t-sm); }

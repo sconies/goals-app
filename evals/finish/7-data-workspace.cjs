@@ -153,6 +153,19 @@ module.exports = {
 
     /* ---------- Workspace ---------- */
     [c, r] = await open(360, 740, 'grace', '/workspace/overview');
+    // No mark on the overview draws at its own size: an unsized svg fills the row (deep review of Workspace, F1, 10 Nov).
+    {
+      // The example may have nothing to look at, so measure a row of the same shape on this page too.
+      const big = await r.evaluate(() => {
+        const probe = document.createElement('div'); probe.className = 'ws-needs';
+        probe.innerHTML = '<a class="ws-need" href="#"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8 15 14H1z"/></svg><span>Probe</span></a>';
+        (document.querySelector('main') || document.body).appendChild(probe);
+        const n = [...document.querySelectorAll('main svg')].map((e) => e.getBoundingClientRect()).filter((b) => b.width > 64 || b.height > 64).length;
+        probe.remove(); return n;
+      });
+      const wide = await r.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (big || wide > 1) fails.push(`[W22] 360 overview: ${big} oversized marks, ${wide}px sideways scroll`);
+    }
     // There is one example now, so give the person a second workspace of their own to tell the marks apart.
     await r.evaluate(() => localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_other', name: 'Support desk', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }])));
     await r.reload(); await r.waitForTimeout(500);
