@@ -74,6 +74,16 @@ describe('one home for each fact', () => {
     expect(group && group.kind === 'checkins' && group.from < group.to).toBe(true);
   });
 
+  it(R('GOAL-PAGE-ONCE', 'the newest check-in is never folded into a range: it shows its own number and status (deep review U11)'), () => {
+    const last3 = s.checkIns.filter((c) => c.goalId === 'ns-lead').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).slice(-3).map((c) => c.id);
+    const same: Snapshot = { ...s, checkIns: s.checkIns.map((c) => (last3.includes(c.id) ? { ...c, why: 'The merge queue is still waiting on MergeFlow.', cause: 'external' as const } : c)) };
+    const stream = activityStream(goal('ns-lead'), same).filter((x) => x.kind === 'checkin' || x.kind === 'checkins');
+    expect(stream[0]?.kind).toBe('checkin');
+    expect(stream[0]?.kind === 'checkin' && stream[0].checkIn.id).toBe(last3[2]);
+    // The two before it still fold, and point back to the newest, which said it first in the stream.
+    expect(stream[1]?.kind === 'checkins' && stream[1].checkIns.length).toBe(2);
+  });
+
   it(R('GOAL-PAGE-ONCE', 'what is being done is one list: the path to green and every ask on the goal, each open, done or overdue by its own state'), () => {
     const g = goal('ns-lead');
     const st = goalStatus(g, cycle, s.checkIns, today);

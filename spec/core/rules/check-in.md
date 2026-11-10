@@ -11,7 +11,9 @@ A check-in is one week's report on one goal, by its owner (or an admin): the num
 
 **Reading a number** (`parseNumber`): spaces and a trailing unit or `%` are ignored; a decimal comma with one or two digits (`29,4`) is a decimal point; commas grouping thousands (`1,250`, `1,250.5`) are dropped. Anything else that isn't plain digits with one optional point and sign (hex, exponents, words, two points) is not a number; nor is anything 10¹² or more.
 
-**Impossible and surprising numbers** (`valueProblem`): letters are refused with the one message of [numbers and names](numbers-and-names.md); a number with more decimal places than the goal keeps is refused (never rounded, the same rule); below zero is refused for a percentage or a time or money unit; over 100% is refused for a share (see [the projection](projection.md)) and only questioned otherwise; a number goal's value more than 2 times the plan's width beyond either end of its plan is questioned ("That's far outside this goal's plan (30 to 75%). Is 400 right?"); a number more than 3 times or less than a third of last week's is questioned ("Last week was 29.4. Is 294 right?"). Questions never refuse.
+**Impossible and surprising numbers** (`valueProblem`): letters are refused with the one message of [numbers and names](numbers-and-names.md); a number with more decimal places than the goal keeps is refused (never rounded, the same rule); below zero is refused for a percentage or a time or money unit, and for a count (see [the projection](projection.md)); over 100% is refused for a share (see [the projection](projection.md)) and only questioned otherwise; a number goal's value more than 2 times the plan's width beyond either end of its plan is questioned ("That's far outside this goal's plan (30 to 75%). Is 400 right?"); a count's value past its target (beyond it in the better direction) is questioned ("That's past the target of 40 pairs. Is 41 right?"); a number more than 3 times or less than a third of last week's is questioned ("Last week was 29.4. Is 294 right?"). Questions never refuse.
+
+**One number check** (`numberCheck`): every way a number is typed (the check-in, the bulk grid, a spreadsheet) asks `valueProblem` with the goal's latest number (`lastValueOf`: the newest of its check-ins that has a value), and a spreadsheet's error for an unusable number is `valueProblem`'s own words.
 
 **Judging the draft** (`evaluate`, for the goal, the week, the draft and the goal's check-ins): the check-in is judged as in [the status](status.md), with the goal's earlier check-ins (weeks before this one). The calculated call is the calculation, with `planned` and `none` counting as `on`. The owner's call defaults to it.
 
@@ -26,7 +28,8 @@ What is still missing, as codes, in this order:
 2. `greener-why`: a greener call needs its own reason of at least 10 characters.
 3. `reason-behind` / `reason-ahead`: a cause (one of the listed causes, or "Something else") and a why of at least 10 characters.
 4. `path`: what changes (at least 8 characters) and, when the recovery state is `plan` (the default), a week to be back on plan by that is after this week and no later than the cycle's last week. The other recovery states (`investigating`, `help`, `target`) need no week.
-5. `target`: a proposed target, when given, must be beyond the current target in the better direction.
+5. `story-unchanged`: the draft carries last check-in's account (`carried`: its cause, why, path and week, copied in when the owner chose to edit it), and a part still asked for is word for word the same (`unchangedStory`: the reason when a reason is needed and the cause and the why, trimmed, are unchanged; the path when a path is needed and what changes, trimmed, and the week are unchanged), and the owner hasn't said it is still true (`stillTrue`). A draft that carries nothing (a spreadsheet, the AI tools) is never asked this.
+6. `target`: a proposed target, when given, must be beyond the current target in the better direction.
 
 It can be posted when nothing is missing.
 
@@ -44,11 +47,13 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The 30→75 goal in week 4 (plan 43.846): nothing typed; "abc"; "140"; "44". Every code still missing, in order: a refused number is still judged, so 140 (well ahead) also asks for its reason. | `value; value-not-number; value-impossible, reason-ahead; nothing missing` |
 | 40 in week 4 (off track) with nothing else; then with a cause, a why, a path and back by week 7; then back by week 4. | `reason-behind, path; can post; path` |
 | 58 in week 4 (well ahead): nothing else; with a reason and a proposed target of 70; with 95. | `reason-ahead; target; can post` |
+| 40 in week 4, with last week’s cause, why, path and week copied in untouched; then said to be still true; then with the why rewritten. | `story-unchanged; can post; story-unchanged (the path)` |
+| A count, 4 → 40 pairs: -5; 41. | `refused; questioned: That’s past the target of 40 pairs. Is 41 right?` |
 | 40 in week 4, called on track, with a reason for being behind but none for the greener call. | `greener-why` |
 
 ## Where it lives
 
-- [src/domain/checkin.ts](../../../src/domain/checkin.ts): `emptyDraft`, `parseNumber`, `valueProblem`, `evaluate`, `toCheckIn`, `MISSING_TEXT`, `CAUSES_BEHIND`, `CAUSES_AHEAD`
+- [src/domain/checkin.ts](../../../src/domain/checkin.ts): `emptyDraft`, `parseNumber`, `valueProblem`, `lastValueOf`, `numberCheck`, `unchangedStory`, `evaluate`, `toCheckIn`, `MISSING_TEXT`, `CAUSES_BEHIND`, `CAUSES_AHEAD`
 
 ## Requirements
 
@@ -60,6 +65,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - `CHECKIN-STATUS-VS-PLAN`: The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed.
 - `OTHER-CAUSE`: When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause.
 - `FIRST-CHECKIN`: Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead.
+- `HONEST-CHECKIN`: A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation.
 
 ## Tests that check it
 

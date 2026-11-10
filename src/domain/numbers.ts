@@ -36,8 +36,12 @@ export function placesToKeep(raw: string, n: number | null, decimals: number): n
   return precisionProblem(raw, n, decimals) ? Math.min(3, typedDecimals(raw)) : null;
 }
 
-/** The one message for letters (or anything else) where a number should be: the same on every screen, sheet and tool. */
-export const notNumberText = (raw: string) => `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.`;
+/** An example number at a goal's decimal places: "29" for whole numbers, "29.4" for one place (the default with no goal). */
+export const exampleNumber = (decimals = 1) => (decimals > 0 ? '29.' + '4567'.slice(0, Math.min(decimals, 3)) : '29');
+
+/** The one message for letters (or anything else) where a number should be: the same on every screen, sheet and tool. Its
+    example is at the goal's decimal places, so a whole-number goal isn't shown a decimal (deep review U10). */
+export const notNumberText = (raw: string, decimals?: number) => `“${raw.trim()}” isn’t a number. Type digits only, like ${exampleNumber(decimals)}.`;
 
 /** Digits in groups of three, as every number on screen is shown: "1250.5" → "1,250.5", "-12000" → "-12,000". */
 export function groupDigits(s: string): string {

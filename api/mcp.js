@@ -1826,7 +1826,7 @@ function setupProblem(unit, start, target) {
 	if (nums.some((x) => Math.abs(x) >= 1e9)) return "That’s a billion or more. Is it right?";
 	return null;
 }
-var PLACES, placesText, notNumberText, fixed, usuallyPositive;
+var PLACES, placesText, exampleNumber, notNumberText, fixed, usuallyPositive;
 var init_numbers = __esmMin((() => {
 	PLACES = [
 		"whole numbers",
@@ -1835,11 +1835,21 @@ var init_numbers = __esmMin((() => {
 		"3 decimal places"
 	];
 	placesText = (d) => PLACES[d] ?? `${d} decimal places`;
-	notNumberText = (raw) => `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.`;
+	exampleNumber = (decimals = 1) => decimals > 0 ? "29." + "4567".slice(0, Math.min(decimals, 3)) : "29";
+	notNumberText = (raw, decimals) => `“${raw.trim()}” isn’t a number. Type digits only, like ${exampleNumber(decimals)}.`;
 	fixed = (v, decimals) => groupDigits(v.toFixed(decimals));
 	usuallyPositive = (unit) => unit.trim() === "%" || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit);
 }));
 // src/domain/checkin.ts
+/** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
+function unchangedStory(draft, reason, path) {
+	const c = draft.carried;
+	if (!c) return [];
+	const out = [];
+	if (reason && c.why.trim() && draft.cause === c.cause && draft.why.trim() === c.why.trim()) out.push("reason");
+	if (path && c.what.trim() && draft.ptgWhat.trim() === c.what.trim() && draft.ptgBy === c.by) out.push("path");
+	return out;
+}
 /**
 * A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
 * Anything else (hex, exponents, words) is not a number.
@@ -1862,7 +1872,7 @@ function valueProblem(raw, last, unit, goal) {
 	const n = parseNumber(raw);
 	if (n == null) return {
 		block: true,
-		text: notNumberText(raw)
+		text: notNumberText(raw, goal && goal.kind !== "milestone" ? goal.decimals : void 0)
 	};
 	const precise = goal && goal.kind !== "milestone" ? precisionProblem(raw, n, goal.decimals) : null;
 	if (precise) return {
@@ -1872,6 +1882,10 @@ function valueProblem(raw, last, unit, goal) {
 	if (n < 0 && usuallyPositive(unit)) return {
 		block: true,
 		text: `It can’t be below zero${unit ? " " + unit : ""}.`
+	};
+	if (n < 0 && isCount(goal)) return {
+		block: true,
+		text: `It can’t be below zero${unit ? " " + unit : ""}: this goal counts things.`
 	};
 	if (unit === "%" && n > 100) return isShare(goal) ? {
 		block: true,
@@ -1887,6 +1901,10 @@ function valueProblem(raw, last, unit, goal) {
 			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`
 		};
 	}
+	if (goal?.kind === "metric" && isCount(goal) && (goal.plan.target > goal.plan.start ? n > goal.plan.target : n < goal.plan.target)) return {
+		block: false,
+		text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? " " + unit : ""}. Is ${fixed(n, 0)} right?`
+	};
 	if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return {
 		block: false,
 		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`
@@ -1922,6 +1940,8 @@ function evaluate(goal, cycle, week, draft, all) {
 	if (reason && (!draft.cause || draft.why.trim().length < 10)) codes.push(reason === "ahead" ? "reason-ahead" : "reason-behind");
 	const planned = (draft.ptgState ?? "plan") === "plan";
 	if (needsPath && (draft.ptgWhat.trim().length < 8 || planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks))) codes.push("path");
+	const unchanged = unchangedStory(draft, !!reason, needsPath);
+	if (unchanged.length && !draft.stillTrue) codes.push("story-unchanged");
 	if (asksTarget && draft.proposeTarget.trim()) {
 		const t = parseNumber(draft.proposeTarget);
 		if (!(goal.kind === "metric" && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target))) codes.push("target");
@@ -1934,6 +1954,7 @@ function evaluate(goal, cycle, week, draft, all) {
 		reason,
 		asksTarget,
 		needsPath,
+		unchanged,
 		codes,
 		missing: codes.map((c) => MISSING_TEXT[c]),
 		canPost: codes.length === 0
@@ -1967,7 +1988,7 @@ function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
 		dataFlagged: draft.dataFlagged
 	};
 }
-var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT;
+var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_CODES;
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
@@ -1999,8 +2020,15 @@ var init_checkin = __esmMin((() => {
 		"reason-behind": "why it’s behind",
 		"reason-ahead": "why it’s ahead",
 		path: "path to green",
+		"story-unchanged": "whether what you said last time is still true",
 		target: "a proposed target beyond the current one"
 	};
+	VALUE_CODES = [
+		"value",
+		"value-not-number",
+		"value-precision",
+		"value-impossible"
+	];
 }));
 // src/domain/format.ts
 /** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
@@ -7115,7 +7143,7 @@ function planChanges(input) {
 		const origEnd = planEnd(orig.plan, cycle.weeks);
 		const tol = .5 * 10 ** -g.decimals;
 		const startTyped = val(r, "start") ? parseNumber(val(r, "start")) : null;
-		if (val(r, "start") && startTyped == null) return err("Plan", row, g.title, `Start: ${notNumberText(val(r, "start"))}`);
+		if (val(r, "start") && startTyped == null) return err("Plan", row, g.title, `Start: ${notNumberText(val(r, "start"), g.decimals)}`);
 		const startPrecise = val(r, "start") ? precisionProblem(val(r, "start"), startTyped, g.decimals) : null;
 		if (startPrecise) return err("Plan", row, g.title, `Start: ${startPrecise}`);
 		const typed = /* @__PURE__ */ new Map();
@@ -7123,7 +7151,7 @@ function planChanges(input) {
 			const m = /^week (\d+)$/.exec(k);
 			if (!m || !String(v).trim()) continue;
 			const n = parseNumber(String(v));
-			if (n == null) return err("Plan", row, g.title, `Week ${m[1]}: ${notNumberText(String(v))}`);
+			if (n == null) return err("Plan", row, g.title, `Week ${m[1]}: ${notNumberText(String(v), g.decimals)}`);
 			const precise = precisionProblem(String(v), n, g.decimals);
 			if (precise) return err("Plan", row, g.title, `Week ${m[1]}: ${precise}`);
 			const w = Number(m[1]);
@@ -7376,9 +7404,10 @@ function planChanges(input) {
 				"reason-behind": `a Cause and a Why of 10 characters or more (it’s behind plan)`,
 				"reason-ahead": `a Cause and a Why of 10 characters or more (it’s ahead of plan)`,
 				path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
+				"story-unchanged": MISSING_TEXT["story-unchanged"],
 				target: MISSING_TEXT.target
 			};
-			const typedValue = g.kind === "milestone" ? null : e.codes[0] === "value-not-number" ? notNumberText(draft.value) : e.codes[0] === "value-precision" ? precisionProblem(draft.value, parseNumber(draft.value), g.decimals) : null;
+			const typedValue = g.kind !== "milestone" && e.codes[0] && e.codes[0] !== "value" && VALUE_CODES.includes(e.codes[0]) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
 			err("Check-ins", row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join("; ")}.`);
 			continue;
 		}
@@ -9897,7 +9926,7 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it, and each count of your goals opens just those goals (“11 off track” lists the 11). The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
-					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session.",
+					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session. Its ring says what it counts inside it: check-ins, or reviewed.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
@@ -10173,17 +10202,20 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Start check-in on Home walks through every goal due this week. From a goal’s page, Check in does just that goal.",
+					"The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.",
 					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
 					`Causes when behind: ${causes(CAUSES_BEHIND)}. When ahead: ${causes(CAUSES_AHEAD)}. Something else lets you say it in your own words.`,
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
-					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. Correcting a check-in in the same week asks about this week’s earlier check-in instead. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
+					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. Correcting a check-in in the same week asks about this week’s earlier check-in instead. Something changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
+					"Behind needs a story, and Post alone never tells it: if what you opened with Something changed is still word for word what you said last time, the check-in asks you to change what’s different or tick Still true this week. The goal page then shows it as the same reason as last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
 					"What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.",
 					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
 					"A number is kept exactly as you type it, never rounded quietly. One with more decimal places than the goal keeps (12.5 in a goal of whole numbers) is refused with what it would show as: type it to the goal’s places, or choose Keep 1 decimal place for this goal, which changes the goal’s decimals in one step, logged on its history.",
 					"A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.",
-					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, like 29.4. Every number Faro shows has its thousands grouped: 1,250."
+					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.",
+					"The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned."
 				]
 			},
 			{
@@ -10217,7 +10249,8 @@ var CORE_ARTICLES = [
 			"OTHER-CAUSE",
 			"NO-DOUBLE-POST",
 			"DRAFTS",
-			"FIRST-CHECKIN"
+			"FIRST-CHECKIN",
+			"HONEST-CHECKIN"
 		],
 		keywords: [
 			"update",
@@ -10258,8 +10291,9 @@ var CORE_ARTICLES = [
 				list: [
 					"On Home, choose “Or type all your numbers in one table” under Start check-in.",
 					"Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.",
-					"Post sends every row with a number. A row that still needs something says so under it, and nothing posts until it’s fixed.",
-					"Numbers you typed are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
+					"Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.",
+					"After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.",
+					"The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
 				]
 			},
 			{
@@ -10272,7 +10306,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"BULK-EDIT",
 			"DRAFTS",
-			"NO-DOUBLE-POST"
+			"NO-DOUBLE-POST",
+			"HONEST-CHECKIN"
 		],
 		keywords: [
 			"quick check-in",
@@ -10703,7 +10738,7 @@ var CORE_ARTICLES = [
 					"Add a next step, on any goal still running: what happens next, who does it (find them by name or team) and the week it’s due by. Whoever agreed a next step, or an admin, can change its words, who or when there with Change; the log keeps the before and after.",
 					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
 					"What feeds it: how the goals directly feeding it stand (“Directly feeding it (four goals): 2 off track, 1 at risk”). Cards on Goals count everything under a goal instead, and say so (“Everything under it (16 goals)”), so the two never look contradictory. Then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
-					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list.",
+					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list. The newest check-in is never folded in: it always shows on its own, with its number and status.",
 					"About this goal: how it’s measured, its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change. It’s open the first time you visit, and folded after."
 				]
 			},
@@ -12015,6 +12050,25 @@ var WHATS_NEW = [
 			"No more “Drawing the map” wait: the goals are there as soon as the map opens."
 		],
 		articles: ["goal-map"]
+	},
+	{
+		id: "checkin-honest-edges",
+		date: "2026-11-10",
+		title: "A check-in that’s honest at its edges",
+		points: [
+			"The check-in says which week it’s for from the first screen (“Week 46 check-in · 1 of 2”), and keeps your place after a reload.",
+			"Behind needs a story, and Post alone no longer tells it: if last week’s reason and plan, opened with Something changed, are still word for word the same, you change what’s different or tick Still true this week.",
+			"One number check everywhere: the check-in, the one-table check-in and a spreadsheet refuse and question numbers the same way. A count can’t go below zero, a count past its target is questioned, and the example for letters in a number matches the goal’s decimal places.",
+			"On a goal’s page, the check-in you just posted always shows on its own, with its number and status.",
+			"The one-table check-in posts the rows that are ready (and says which aren’t), lands on the same confirmation as the one-by-one check-in, and shares its draft with it.",
+			"Home’s and a review’s rings now say what they count: check-ins, or reviewed."
+		],
+		articles: [
+			"check-in",
+			"check-in-table",
+			"goal-page",
+			"home"
+		]
 	},
 	{
 		id: "talk-path-polish",
@@ -17631,7 +17685,7 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 		clearTimeout(timer);
 	} catch {}
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -17639,7 +17693,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// ../../../../../../home/user/goals-app/node_modules/tslib/tslib.es6.mjs
+// node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -17675,12 +17729,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/functions-js/dist/module/helper.js
+// node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/functions-js/dist/module/types.js
+// node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -17770,7 +17824,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// ../../../../../../home/user/goals-app/node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -18023,7 +18077,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/postgrest-js/dist/index.mjs
+// node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -21997,7 +22051,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -22090,7 +22144,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -22124,7 +22178,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -22266,7 +22320,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -22452,7 +22506,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -24147,7 +24201,7 @@ var Socket = class {
 		}
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -24234,7 +24288,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -24267,7 +24321,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -24289,7 +24343,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -24391,7 +24445,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -24526,7 +24580,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -25217,7 +25271,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -25328,7 +25382,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -25940,7 +25994,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/iceberg-js/dist/index.mjs
+// node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -26436,7 +26490,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/storage-js/dist/index.mjs
+// node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -29623,9 +29677,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/version.js
+// node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -29654,7 +29708,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -29940,7 +29994,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -30143,7 +30197,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -30541,7 +30595,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -30700,13 +30754,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/types.js
+// node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -31852,7 +31906,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -31884,7 +31938,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -31903,7 +31957,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -31943,7 +31997,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -32133,7 +32187,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -32739,7 +32793,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -38240,9 +38294,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// ../../../../../../home/user/goals-app/node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// ../../../../../../home/user/goals-app/node_modules/@supabase/supabase-js/dist/index.mjs
+// node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;

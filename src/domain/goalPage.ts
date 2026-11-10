@@ -389,7 +389,8 @@ export type StreamItem =
   | { kind: 'change'; at: string; change: Change };
 export type StreamFilter = 'all' | 'checkins' | 'comments' | 'changes';
 
-/** Check-ins, comments and changes in one stream, newest first, with a reason repeated week after week said once. */
+/** Check-ins, comments and changes in one stream, newest first, with a reason repeated week after week said once. The
+    newest check-in always stands on its own. */
 export function activityStream(goal: Goal, s: Snapshot): StreamItem[] {
   const own = checkInsFor(goal, s.checkIns).slice().reverse();
   const items: StreamItem[] = [];
@@ -399,7 +400,9 @@ export function activityStream(goal: Goal, s: Snapshot): StreamItem[] {
     const c = own[i]!;
     let j = i + 1;
     const key = (x: CheckIn) => x.why.trim();
-    while (j < own.length && said(c.why) && key(own[j]!) === key(c) && own[j]!.cause === c.cause) j++;
+    // The newest check-in is never folded into a group: it's the fact people came for, with its number and status
+    // (deep review U11). Older ones that repeat its reason fold, and point back to it.
+    while (i > 0 && j < own.length && said(c.why) && key(own[j]!) === key(c) && own[j]!.cause === c.cause) j++;
     const sameAs = said(c.why) ? first.get(key(c)) : undefined;
     if (said(c.why) && sameAs == null) first.set(key(c), c.week);
     if (j - i >= 2) items.push({ kind: 'checkins', at: c.postedAt, checkIns: own.slice(i, j), why: c.why, from: own[j - 1]!.week, to: c.week, ...(sameAs != null ? { sameAs } : {}) });
