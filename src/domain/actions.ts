@@ -467,7 +467,7 @@ export function saveTeam(x: ActionContext, t: { id?: string; name: string; leadI
  * Board shows for it now, this cycle's that are neither removed nor stopped (`current`, what its card counts); and every goal
  * that names it, removed ones too (`named`, what moves when the team is removed, so nothing points at a team that's gone).
  */
-export function teamMembers(x: Pick<ActionContext, 'snapshot' | 'allGoals'>, teamId: string) {
+export function teamMembers(x: { snapshot: Pick<Snapshot, 'people' | 'goals'>; allGoals?: Goal[] }, teamId: string) {
   const named = (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId);
   return {
     people: x.snapshot.people.filter((p) => p.teamId === teamId),
@@ -478,7 +478,7 @@ export function teamMembers(x: Pick<ActionContext, 'snapshot' | 'allGoals'>, tea
 }
 
 /** A team's people as the directory counts them: everyone in it, and its lead wherever their own team is (backlog WS). */
-export function teamPeople(x: Pick<ActionContext, 'snapshot'>, teamId: string) {
+export function teamPeople(x: { snapshot: Pick<Snapshot, 'people' | 'teams'> }, teamId: string) {
   const lead = x.snapshot.teams.find((t) => t.id === teamId)?.leadId;
   return x.snapshot.people.filter((p) => p.teamId === teamId || p.id === lead);
 }

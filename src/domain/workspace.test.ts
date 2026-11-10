@@ -126,9 +126,10 @@ describe('the workspace in words (rules 1, 2 and 6)', () => {
   });
   it('says where the year stands, and when its wrap-up opens', () => {
     const c = { name: '2026', startDate: '2025-12-22', weeks: 53 };
-    expect(yearLine(c, 47, new Date('2026-11-11T12:00:00Z'), 30)).toBe('2026, week 47 of 53. The wrap-up opens on 14 Dec 2026.');
-    expect(yearLine(c, 52, new Date('2026-12-15T12:00:00Z'), 31)).toBe('2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.');
-    expect(yearLine(c, 53, new Date('2026-12-22T12:00:00Z'), 0)).toBe('2026, week 53 of 53. The wrap-up is open: every goal is wrapped up.');
+    expect(yearLine(c, 46, new Date('2026-11-11T12:00:00Z'), 30)).toBe('2026, week 46 of 53. The wrap-up opens on 21 Dec 2026.');
+    expect(yearLine(c, 51, new Date('2026-12-15T12:00:00Z'), 31)).toBe('2026, week 51 of 53. The wrap-up opens on 21 Dec 2026.');
+    expect(yearLine(c, 52, new Date('2026-12-22T12:00:00Z'), 31)).toBe('2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.');
+    expect(yearLine(c, 53, new Date('2026-12-29T12:00:00Z'), 0)).toBe('2026, week 53 of 53. The wrap-up is open: every goal is wrapped up.');
     expect(yearLine({ name: '2027', startDate: '2027-01-04', weeks: 52 }, 1, new Date('2026-11-11T12:00:00Z'), 0)).toBe('2027 starts on 4 Jan 2027.');
   });
 });

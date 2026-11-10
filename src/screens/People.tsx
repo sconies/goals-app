@@ -14,7 +14,7 @@ import { DIRECTORY_PAGE, findInDirectory, findTeams, personLine, teamSummary } f
 import { initials } from '../domain/importer';
 import { normalEmail, personProblems, sameNameNote } from '../domain/people';
 import { teamMembers } from '../domain/actions';
-import { LABEL } from '../domain/vocabulary';
+import { LABEL, leftName } from '../domain/vocabulary';
 import { statusCounts } from '../domain/order';
 import type { DisplayStatus, Person, Team } from '../domain/types';
 import { newId } from '../data/store';
@@ -210,7 +210,7 @@ export function PersonPage() {
         <div className="row person-who">
           <Avatar p={p} size="lg" />
           <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-            <h1 className="title-xl">{p.name}{left ? ' (left)' : ''}</h1>
+            <h1 className="title-xl">{left && !p.name.endsWith(leftName('')) ? leftName(p.name) : p.name}</h1>
             {left ? <span className="hint">Left {wsName(app.ws)} on {dateOf(p.leftAt!)}. Their history stays.</span> : p.role ? <span className="hint">{p.role}</span> : null}
           </span>
         </div>

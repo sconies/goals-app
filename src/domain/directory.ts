@@ -2,6 +2,8 @@
    and 8). Who is listed and in what order, what a search finds, the line beside a person, a team's summary, and where
    the addresses People and Teams had under Workspace now lead. Pure: the screens and their tests read these, and
    `findInDirectory` is the seam where an internal app plugs in its server search (R4). */
+import { teamMembers, teamPeople } from './actions';
+import { textMatches } from './find';
 import { statusCounts } from './order';
 import type { DisplayStatus, Goal, Person, Snapshot, Team } from './types';
 
@@ -10,14 +12,10 @@ export const DIRECTORY_PAGE = 50;
 
 /** Lower case, accents gone: "Lucía" and "lucia" are the same to a search. */
 export const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-/** The words of a name, a job title or a team's name: split at spaces, and at the punctuation inside names ("Build & Release", "(FinOps)"). */
-const wordsOf = (s: string) => { const f = fold(s); return [...new Set([...f.split(/\s+/), ...f.split(/[\s\-/(),.&]+/)].filter(Boolean))]; };
-/** Whether every word typed starts a word of one of the texts: "eng man" finds "Engineering Manager". */
+/** Whether every word typed starts a word of one of the texts: "eng man" finds "Engineering Manager". The search rule
+ * all lists share (find.ts `textMatches`), over a name, a job title and a team's name. */
 export function matchesWords(q: string, texts: string[]): boolean {
-  const asked = fold(q).split(/\s+/).filter(Boolean);
-  if (!asked.length) return true;
-  const words = texts.flatMap(wordsOf);
-  return asked.every((a) => words.some((w) => w.startsWith(a)));
+  return textMatches(texts.join(' '), q);
 }
 
 const collator = new Intl.Collator('en-GB', { sensitivity: 'base' });
@@ -81,8 +79,8 @@ export function personLine(x: Pick<DirectoryCtx, 'snapshot'>, personId: string):
  */
 export function teamSummary(x: DirectoryCtx, teamId: string) {
   const team = x.snapshot.teams.find((t) => t.id === teamId);
-  const people = x.snapshot.people.filter((p) => p.teamId === teamId || p.id === team?.leadId);
-  const goals = x.snapshot.goals.filter((g) => g.teamId === teamId && !g.stoppedAt && !g.removedAt);
+  const people = teamPeople(x, teamId);
+  const goals = teamMembers(x, teamId).current;
   return { lead: x.snapshot.people.find((p) => p.id === team?.leadId) ?? null, people, goals, byStatus: statusCounts(goals.map(x.statusOf)) };
 }
 

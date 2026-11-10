@@ -41,7 +41,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The example’s name in the demo, and a workspace called “Growth” in the real app. | `Platform Engineering (example data) / Growth` |
 | Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu. | `Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others` |
 | Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; and for a 2027 cycle with nothing in it yet. | `2026 · running / Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet` |
-| A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 47), and on Tuesday 15 December (week 52) with 31 goals not wrapped up. | `2026, week 47 of 53. The wrap-up opens on 14 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.` |
+| A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), and on Tuesday 22 December (week 52) with 31 goals not wrapped up. | `2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.` |
 
 ## Not self-explanatory
 
