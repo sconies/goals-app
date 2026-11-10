@@ -128,7 +128,7 @@ module.exports = {
       const pages = w < 761
         ? [['rhea', '/', 'Home and your week at a glance'], ['rhea', '/goals/ns-lead', 'A goal’s page'], ['grace', '/data', 'Data']]
         : [['rhea', '/', 'Home and your week at a glance'], ['amara', '/goals?view=table', 'Goals and its layouts'], ['amara', '/goals?view=map', 'The goal map'], ['amara', '/goals?view=history', 'History: quarter results and weekly status'],
-          ['rhea', '/goals/ns-lead', 'A goal’s page'], ['amara', '/reviews/weekly', 'Reviews'], ['mateo', '/check-in/mttr-pir', 'Checking in on a goal'], ['grace', '/data', 'Data'], ['rhea', '/settings', 'Settings'], ['grace', '/workspace', 'Running the workspace']];
+          ['rhea', '/goals/ns-lead', 'A goal’s page'], ['amara', '/reviews/weekly', 'Reviews'], ['mateo', '/check-in/mttr-pir', 'Checking in on a goal'], ['grace', '/data', 'Data'], ['rhea', '/settings', 'Settings'], ['grace', '/workspace', 'Workspace: about this one']];
       if (w === 768) pages.splice(3);
       for (const [who, route, title] of pages) {
         const [c, p] = await open(w, h, who, route, touch);

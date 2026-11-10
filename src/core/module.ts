@@ -70,6 +70,15 @@ export function placeSections<T extends { id: string; after?: string }>(core: re
   return all;
 }
 
+/**
+ * The Workspace sections someone sees, in menu order (rule 7, app redesign WR2): the core's and the modules', placed
+ * by `placeSections`, without the admins-only ones for anyone who isn't an admin. The menu, the phone's "More in
+ * Workspace" and the admins-only page all ask this.
+ */
+export function sectionsFor<T extends { id: string; after?: string; admins?: boolean }>(viewer: { admin: boolean }, core: readonly T[], added: readonly T[]): T[] {
+  return placeSections(core, added).filter((s) => !s.admins || viewer.admin);
+}
+
 /** Why a module isn't on, when it isn't. */
 export type OffReason = { kind: 'switched-off' } | { kind: 'needs'; missing: string[] };
 
