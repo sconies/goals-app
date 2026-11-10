@@ -9,7 +9,7 @@ How a typed number is kept and shown, which numbers are questioned, and how two 
 
 One rule for every way in: the check-in, New goal, goal edit, the workspace set-up, the spreadsheet import and the AI tools (backlog N).
 
-**Never rounded quietly.** Each number goal keeps a number of decimal places (*Decimals*, 0 to 3), and every number of it is shown at those places. A number typed with more (`typedDecimals`: the digits after the point, trailing zeros not counted; a decimal comma counts as a point) is refused (`precisionProblem`), saying what it would show as and the two ways forward: type it at the goal's places, or raise Decimals. This holds for a check-in's value, a start, target, limit, margin and any plan number typed by hand. A plan already stored isn't judged again when a goal is edited; only numbers changed are. An import that adds a goal without Decimals takes the most decimal places its start, target and limit were typed with (up to 3).
+**Never rounded quietly.** Each number goal keeps a number of decimal places (*Decimals*, 0 to 3), and every number of it is shown at those places. A number typed with more (`typedDecimals`: the digits after the point, trailing zeros not counted; a decimal comma counts as a point) is refused (`precisionProblem`), saying what it would show as and the two ways forward: type it at the goal's places, or raise Decimals. In a check-in the refusal offers to raise Decimals for the goal in one step, to the places the number was typed with, up to 3 (`placesToKeep`: "Keep 1 decimal place for this goal"), logged as a change to the goal with why. This holds for a check-in's value, a start, target, limit, margin and any plan number typed by hand. A plan already stored isn't judged again when a goal is edited; only numbers changed are. An import that adds a goal without Decimals takes the most decimal places its start, target and limit were typed with (up to 3).
 
 **Letters in a number** get one message everywhere (`notNumberText`): ““a12” isn't a number. Type digits only, like 29.4.” Its example is at the goal's decimal places when there is a goal (`exampleNumber`): “like 29” for whole numbers, “like 29.45” for two places. (Letters after the digits are read as a unit: “12 days” is 12.)
 
@@ -33,6 +33,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | Typed "12.5", "12.50", "1,250", "29,4", "3.25 days". | `1, 1, 0, 1, 2` |
 | 12.5 in a goal of whole numbers. | `12.5 has 1 decimal place, but this goal keeps whole numbers, so it would show as 13. Type 13, or set the goal’s Decimals to 1.` |
+| The places a check-in offers to keep for 5.5, 5.25 and 1.23456 on a whole-number goal, and for 5. | `1, 2, 3, none` |
 | 1250000, -12000 and 1250.5 shown. | `1,250,000, -12,000, 1,250.5` |
 | A start of 10 signups and a target of 5,000. | `The target is over 100 times the start (10 to 5,000). Is that right?` |
 | 400 typed for the 30→75 goal, then 110. | `questioned; fine` |
@@ -42,7 +43,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/numbers.ts](../../../src/domain/numbers.ts): `typedDecimals`, `precisionProblem`, `exampleNumber`, `notNumberText`, `groupDigits`, `fixed`, `farOutside`, `setupProblem`
+- [src/domain/numbers.ts](../../../src/domain/numbers.ts): `typedDecimals`, `precisionProblem`, `placesToKeep`, `exampleNumber`, `notNumberText`, `groupDigits`, `fixed`, `farOutside`, `setupProblem`
 - [src/domain/goal.ts](../../../src/domain/goal.ts): `validateGoal`, `planHint`, `planQuestion`
 - [src/domain/people.ts](../../../src/domain/people.ts): `sameNameNote`, `personTell`, `nameWithTell`, `avatarHues`, `duplicateTitles`, `goalTell`, `sameTitleNote`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `MIN_NAME`, `nameProblem`

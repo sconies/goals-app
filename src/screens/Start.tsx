@@ -44,6 +44,9 @@ export function WhoAreYou() {
   );
 }
 
+/** The address to send colleagues: the app, opened at this workspace's "Who are you?" (deep review U2). */
+export const inviteLink = (origin: string, mode: string, wsId: string) => `${origin}${mode === 'demo' ? '/demo' : '/'}?workspace=${encodeURIComponent(wsId)}`;
+
 /** Right after setting up: what's there now, and the one next thing. */
 export function Ready() {
   const app = useApp();
@@ -51,7 +54,8 @@ export function Ready() {
   const [copied, setCopied] = useState(false);
   const goals = app.snapshot.goals.length;
   const review = app.snapshot.reviews.find((r) => r.name === WEEKLY_REVIEW) ?? app.snapshot.reviews[0];
-  const link = typeof location !== 'undefined' ? location.origin + (app.mode === 'demo' ? '/demo' : '/') : '';
+  // The link names this workspace, so it opens here and not the site's first workspace (deep review U2).
+  const link = typeof location !== 'undefined' ? inviteLink(location.origin, app.mode, app.ws.id) : '';
   const copy = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); } catch { setCopied(false); }
   };
@@ -62,7 +66,10 @@ export function Ready() {
         <h1 className="title-xl">{app.ws.name} is ready</h1>
         <p className="muted">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'}{goals ? `, ${goals} ${goals === 1 ? 'goal' : 'goals'}` : ''}. {periodLabel(app.cycle, app.week)}.</p>
         {/* The review set-up made, and when the first check-ins are due: never already late (setup review, 8 Nov). */}
-        <p className="muted">{review ? `${review.name} for everyone on ${WEEKDAY[review.weekday]}s. ` : ''}The first check-ins are due before {WEEKDAY[app.cycle.reviewDay]} {dayText(firstReview(app.cycle, app.today).date).slice(4)}{review ? '’s review' : ''}.</p>
+        {/* With no goals yet ("Set goals up later"), nothing is due: it says so rather than naming a date (deep review U6). */}
+        <p className="muted">{review ? `${review.name} for everyone on ${WEEKDAY[review.weekday]}s. ` : ''}{goals
+          ? <>The first check-ins are due before {WEEKDAY[app.cycle.reviewDay]} {dayText(firstReview(app.cycle, app.today).date).slice(4)}{review ? '’s review' : ''}.</>
+          : 'No check-ins are due until there are goals: each owner adds theirs from New goal.'}</p>
         <div className="stack" style={{ gap: 'var(--s3)', alignItems: 'center' }}>
           {mine.due.length + mine.upcoming.length > 0
             ? <Link className="btn primary big-btn" to={mine.due.length ? '/check-in' : '/'}>{mine.due.length ? `Check in on your ${mine.due.length === 1 ? 'goal' : `${mine.due.length} goals`}` : 'Go to Home'}</Link>

@@ -4,6 +4,7 @@ import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, numberCheck, parseNumber, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
+import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
 import { weekDates } from '../domain/plan';
@@ -420,6 +421,15 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
                 {goal.unit && <span className="bignum-unit">{goal.unit}</span>}
               </label>
               {shown && <span id="value-msg" className={'hint ' + (shown.block ? 'tone-off' : 'tone-risk')} role={shown.block ? 'alert' : 'status'}>{shown.text}</span>}
+              {/* A number refused for its decimal places offers to keep them for this goal, in one step (deep review U3). */}
+              {shown?.block && (() => {
+                const keep = placesToKeep(draft.value, parseNumber(draft.value), goal.decimals);
+                return keep == null ? null : (
+                  <button type="button" className="linkish tap small keep-places" style={{ alignSelf: 'flex-start' }} onClick={() => void app.saveGoal({ ...goal, decimals: keep }, goal, `So check-ins can say ${draft.value.trim()}`).then(() => app.toast(`${goal.title} now keeps ${placesText(keep)}.`)).catch(() => undefined)}>
+                    Keep {placesText(keep)} for this goal
+                  </button>
+                );
+              })()}
               {empty && <span id="value-msg" className="hint tone-off" role="alert">Type this week’s number.</span>}
               <span id="value-hint" className="valuehint hint">
                 <span>{previous?.value != null ? `Week ${previous.week}: ${fmt(previous.value, goal)}` : 'First check-in'}</span>
