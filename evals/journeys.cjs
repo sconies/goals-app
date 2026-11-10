@@ -2508,7 +2508,10 @@ journey('U63', ['FIND-AND-PICK'], 'One way to pick: in a review’s set-up, peop
   await list.waitFor({ state: 'detached' });
   const chosen = p.locator('.pick-chosen').first();
   h.set('finish', /Daniel Okafor/.test(await chosen.innerText()) && await chosen.getByRole('button', { name: 'Remove Daniel Okafor' }).isVisible(), 'Daniel Okafor isn’t listed as chosen, with Remove');
-  h.set('errors', await p.evaluate(() => document.activeElement?.closest('.pick') != null), 'Escape didn’t return to the field');
+  // Focus goes back to the field once the picker has closed (a frame later).
+  let back = false;
+  for (let i = 0; i < 10 && !back; i++) { back = await p.evaluate(() => document.activeElement?.closest('.pick') != null); if (!back) await p.waitForTimeout(100); }
+  h.set('errors', back, 'Escape didn’t return to the field');
   // A goal by its key.
   await h.click(p.getByRole('button', { name: /^Single goals/ }));
   await h.fill(p.getByRole('combobox', { name: /Single goals/ }), 'G-48');
