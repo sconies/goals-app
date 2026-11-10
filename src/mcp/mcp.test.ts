@@ -85,7 +85,7 @@ describe('MCP server', () => {
     expect(ids(await call('find_goals', { query: 'status=on', status: 'off' }))).toEqual([]);
     expect(ids(await call('find_goals', { query: 'level=team', level: 'svp' }))).toEqual([]);
     expect(ids(await call('find_goals', { query: 'level=team,svp', level: 'svp' })).length).toBeGreaterThan(0);
-   }, 30_000);
+  }, 30_000);
 
   it('finds goals with the Goals screen’s filters, by a link’s query or a saved view’s name', async () => {
     const { call, data } = await setup();
