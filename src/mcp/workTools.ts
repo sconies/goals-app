@@ -681,15 +681,16 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'save_team',
     title: 'Add or change a team',
-    description: 'Admins: add a team, or rename one or change its lead. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.',
+    description: 'Admins: add a team, or rename one, change its lead or say what it is here to do. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['name'], properties: {
       team: str('The team to change (name or ID). Leave out to add a team.'), name: str('The team’s name.'), lead: str('The team lead (a person’s name or ID); empty string for none.'),
+      purpose: str('What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.'),
     } },
     annotations: WRITE,
     async run(a, ctx) {
       const id = a.team !== undefined ? teamOf(ctx, a.team) ?? undefined : undefined;
       const leadId = a.lead === undefined ? undefined : a.lead === '' || a.lead === null ? null : personOf(ctx, a.lead).id;
-      const out = A.saveTeam(ax(ctx), { id, name: String(a.name ?? ''), ...(leadId !== undefined ? { leadId } : {}) });
+      const out = A.saveTeam(ax(ctx), { id, name: String(a.name ?? ''), ...(leadId !== undefined ? { leadId } : {}), ...(a.purpose !== undefined && a.purpose !== null ? { objective: String(a.purpose) } : {}) });
       const res = await save(ctx, out.commit, id ? `Saved the team ${String(a.name ?? '').trim()}` : `Added the team ${String(a.name ?? '').trim()} (ID ${out.id})`, 'Nothing to change: the team already says that.');
       return { ...res, data: { id: out.id } };
     },

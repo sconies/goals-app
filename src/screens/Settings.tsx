@@ -67,7 +67,7 @@ export function Settings() {
           </span>
           <button type="button" className="btn" onClick={() => setWho(true)}>{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</button>
         </div>
-        <p className="hint">{app.viewer.admin ? <>Names, job titles and teams are changed on <Link to="/workspace/people">Workspace, People</Link>.</> : 'An admin changes your name, job title or team.'} You’re in {app.ws.name}.</p>
+        <p className="hint">{app.viewer.admin ? <>Names, job titles and teams are changed on <Link to={`/people/${encodeURIComponent(app.viewer.id)}`}>your page in People</Link>.</> : 'An admin changes your name, job title or team.'} You’re in {app.ws.name}.</p>
       </section>
 
       <WhatIsRecorded />

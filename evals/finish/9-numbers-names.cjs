@@ -63,7 +63,7 @@ module.exports = {
 
     // People: a second Rhea Kapoor can be added; the note says the email tells them apart.
     {
-      const [c, p] = await open(1280, 900, 'amara', '/workspace/people');
+      const [c, p] = await open(1280, 900, 'amara', '/people');
       await p.getByRole('button', { name: 'Add a person' }).click();
       const sheet = p.getByRole('dialog');
       await sheet.getByLabel('Name').fill('Rhea Kapoor');
@@ -74,7 +74,11 @@ module.exports = {
       await p.waitForTimeout(400);
       if (await sheet.isVisible().catch(() => false)) fail(`people: a second Rhea Kapoor couldn’t be added (${await text(p, '[role="dialog"] [role="alert"]')})`);
       else {
-        await p.getByLabel('Find a person').fill('Rhea');
+        // The new person's page opens; the list shows both.
+        await p.waitForURL(/\/people\/[^?]+/);
+        const u = new URL(p.url()); u.pathname = u.pathname.replace(/\/people\/.+$/, '/people'); u.searchParams.set('q', 'Rhea');
+        await p.goto(u.toString());
+        await p.locator('.people-row').first().waitFor();
         await p.waitForTimeout(200);
         const names = await p.locator('.person-name').allInnerTexts();
         const both = names.filter((n) => n.startsWith('Rhea Kapoor'));
