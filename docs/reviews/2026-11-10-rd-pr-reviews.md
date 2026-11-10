@@ -190,7 +190,7 @@ Read against `docs/design/workspace/spec.md` 2.5, 2.12, rules 1, 2, 3, 6 and 7 a
 
 **1. Medium. About's Year fact gives the wrap-up's opening date a week early.**
 
-- Where: `src/domain/workspaceAttention.ts:83` (`yearLine`): the first day of week `first` is worked out as the start plus `(first - 1) * 7` days. Weeks count from 0 at the cycle's start (`currentWeek`, and `weekDate` in `src/domain/plan.ts:38`, which is start plus `week * 7`), so that is the Monday before.
+- Where: `src/domain/workspaceAttention.ts:84` (`yearLine`): the first day of week `first` is worked out as the start plus `(first - 1) * 7` days. Weeks count from 0 at the cycle's start (`currentWeek`, and `weekDate` in `src/domain/plan.ts:38`, which is start plus `week * 7`), so that is the Monday before.
 - Reproduce: the demo on 11 Nov 2026, Workspace: "2026, week 46 of 53. The wrap-up opens on 14 Dec 2026." The cycle starts 22 Dec 2025 and the wrap-up opens in week 52 (`wrapUpOpen`), which begins on 21 Dec 2026. With the demo's date set to 14 Dec, the line says 8 Feb 2027 for a wrap-up that opens on 15 Feb.
 - Why the tests didn't catch it: `src/domain/workspace.test.ts:129-130` pins "14 Dec 2026", and feeds the rule week 47 for 11 Nov and week 52 for 15 Dec, which that cycle's dates don't give (46 and 51). The spec asked for a conformance row from `wrapUpOpen`'s own date, and for the rule not to work the week out again.
 - Suggested fix: use `weekDate(cycle, first)` for the date; correct the test's weeks and expect 21 Dec 2026; run `npm run spec`. Step 7 of tomorrow's demo shows this fact.
