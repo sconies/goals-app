@@ -154,7 +154,12 @@ module.exports = {
       const st = await p.locator('.rv-line', { hasText: 'Merge queue check' }).locator('.session-state').innerText();
       fail(st.trim() === 'In progress · 1 of 2 reviewed', `List mid-session: Merge queue check says "${st}"`);
       await p.goto(url('/reviews/small'));
-      await p.getByRole('button', { name: /^Mark 1 goal with nothing flagged reviewed/ }).click();
+      // Finishing is its own step, asked first (deep review T3): the one goal with nothing flagged is marked in it.
+      await p.getByRole('button', { name: 'Finish review' }).click();
+      const ask = p.getByRole('dialog', { name: 'Finish Merge queue check?' });
+      await ask.waitFor({ timeout: 3000 }).catch(() => fail(false, 'Finish review: no question first'));
+      fail(/1 goal with nothing flagged is marked reviewed/.test(await ask.innerText().catch(() => '')), 'Finish review: the question does not say what is recorded');
+      await ask.getByRole('button', { name: 'Mark them and finish' }).click();
       await p.locator('.review-home .session-record').waitFor({ timeout: 5000 }).catch(() => fail(false, `Finishing: ${p.url()} does not lead with what was said`));
       fail(/\/reviews\/small(\?|$)/.test(p.url()), `Finishing: landed on ${p.url()}, not the review`);
       const s = await p.evaluate(() => {
@@ -256,6 +261,82 @@ module.exports = {
       if (m) fail(m[1] === rt ? !m[2] : !!m[2], `Walk: “${bar}” doesn’t say the walk is the goals to discuss`);
       await c.close();
     }
+    // ---------- Deep review T3 (10 Nov): on the talk's day, the walk keeps its place, its count and its order ----------
+    // Daniel runs the Developer Productivity fortnightly on Wednesday 11 November, as the demo does from /demo?today=2026-11-11.
+    const talk = (route) => url(route).replace(/today=[\d-]+/, 'today=2026-11-11');
+    const barText = async (p) => (await p.locator('.reviewbar .hint').innerText()).trim();
+    // The bar is read once it says what's expected, or after 4 seconds: straight after a move it can still be redrawing.
+    const barSays = async (p, re) => { for (let i = 0; i < 40; i++) { if (re.test(await barText(p).catch(() => ''))) return true; await p.waitForTimeout(100); } return false; };
+    const goalOf = (p) => new URL(p.url()).pathname.split('/').pop();
+    const walked = [];
+    let total = 0;
+    {
+      const [c, p] = await open(1280, 900, 'daniel', '/reviews');
+      await p.goto(talk('/reviews/devprod'));
+      await p.getByRole('button', { name: /^(Start|Continue) review/ }).click();
+      await p.locator('.reviewbar').waitFor();
+      const first = /^Goal (\d+) of (\d+)/.exec(await barText(p)) || [];
+      const k0 = Number(first[1]);
+      total = Number(first[2]);
+      fail(total > 3, `T3: the walk is "${await barText(p)}"`);
+      // Two goals reviewed, then leave and continue: the third goal, counted as the third.
+      for (let i = 0; i < 2; i++) {
+        walked.push(goalOf(p));
+        const here = p.url();
+        await p.locator('.decide').getByRole('button', { name: /^Reviewed & / }).click();
+        await p.waitForURL((u) => u.href !== here);
+        await p.locator('.reviewbar').waitFor();
+      }
+      walked.push(goalOf(p));
+      fail(await barSays(p, new RegExp(`^Goal ${k0 + 2} of ${total}`)), `T3: after two reviewed the bar says "${await barText(p)}", expected Goal ${k0 + 2} of ${total}`);
+      await p.getByRole('button', { name: 'Close the review' }).click();
+      await p.waitForURL(/\/reviews\/devprod(\?|$)/);
+      await p.getByRole('button', { name: /^Continue review/ }).click();
+      await p.locator('.reviewbar').waitFor();
+      fail(await barSays(p, new RegExp(`^Goal ${k0 + 2} of ${total}`)) && goalOf(p) === walked[2], `T3: Continue review opened ${goalOf(p)} as "${await barText(p)}", expected ${walked[2]} as Goal ${k0 + 2} of ${total}`);
+      fail(await p.getByRole('button', { name: 'Previous goal' }).isEnabled(), 'T3: Previous goal is disabled after Continue review');
+
+      // The goals with nothing flagged: asked first, not the end of the review, and undone from the message.
+      await p.goto(talk('/reviews/devprod'));
+      const line0 = (await p.locator('.review-line').innerText()).trim();
+      const mark = p.locator('.healthy-group').getByRole('button', { name: /^Mark \d+ goals? reviewed$/ });
+      const k = Number(((await mark.innerText().catch(() => '')).match(/\d+/) || ['0'])[0]);
+      fail(k > 0, 'T3: no goals with nothing flagged to mark');
+      await mark.click();
+      const ask = p.getByRole('dialog', { name: new RegExp(`^Mark ${k} goals? reviewed\\?$`) });
+      await ask.waitFor({ timeout: 3000 }).catch(() => fail(false, 'T3: marking the goals with nothing flagged did not ask first'));
+      await ask.getByRole('button', { name: 'Not yet' }).click();
+      fail((await p.locator('.review-line').innerText()).trim() === line0, 'T3: "Not yet" still marked goals reviewed');
+      await mark.click();
+      await ask.getByRole('button', { name: new RegExp(`^Mark ${k} goals? reviewed$`) }).click();
+      const toast = p.locator('.toast').filter({ hasText: /marked reviewed in Developer Productivity/ });
+      await toast.waitFor({ timeout: 4000 }).catch(() => fail(false, 'T3: no message after marking'));
+      fail(!(await p.locator('.review-home .session-record').filter({ hasText: 'What was said' }).count()) && /In progress|reviewed/.test(await p.locator('.review-line').innerText()), `T3: marking ended the review ("${await p.locator('.review-line').innerText()}")`);
+      fail(await p.getByRole('button', { name: /^Continue review/ }).isVisible(), 'T3: after marking, the review has no Continue');
+      await toast.getByRole('button', { name: 'Undo' }).click();
+      await p.waitForTimeout(600);
+      fail((await p.locator('.review-line').innerText()).trim() === line0 && await mark.isVisible(), `T3: Undo did not put the goals back ("${(await p.locator('.review-line').innerText()).trim()}", was "${line0}")`);
+      await c.close();
+    }
+    // Opened from a goal's own address: the agenda's order, the same count, and saving an action moves nothing.
+    {
+      const [c, p] = await open(1280, 900, 'daniel', '/reviews');
+      await p.goto(talk(`/goals/${walked[0]}?review=devprod`));
+      await p.locator('.reviewbar').waitFor();
+      const before = await barText(p);
+      fail(new RegExp(` of ${total}( |$)`).test(before), `T3 deep link: the bar says "${before}", expected the walk's ${total}`);
+      await p.locator('.decide .quiet-links').getByRole('button', { name: 'Add an action' }).click();
+      await p.getByPlaceholder('What needs doing').fill('Agree the runner budget with Amara');
+      await p.getByRole('button', { name: 'Save action' }).click();
+      await p.locator('.said').getByText('Agree the runner budget').waitFor();
+      fail(await barText(p) === before, `T3 deep link: saving an action moved the goal from "${before}" to "${await barText(p)}"`);
+      const here = p.url();
+      await p.locator('.decide').getByRole('button', { name: /^Reviewed & / }).click();
+      await p.waitForURL((u) => u.href !== here);
+      fail(goalOf(p) === walked[1], `T3 deep link: Reviewed & next went to ${goalOf(p)}, not the next goal on the agenda (${walked[1]})`);
+      await c.close();
+    }
+
     return fails;
   },
 };

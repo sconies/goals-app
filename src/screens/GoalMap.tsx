@@ -211,7 +211,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           <KeyMore />
         </div>
         <div className="map-tools">
-          <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> Only what {ATTENTION.needs.label.toLowerCase()}</label>
+          <label className="check small" title={`With the goals ${ATTENTION.handled.label.toLowerCase()}: nothing behind is hidden`}><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> Only what {ATTENTION.needs.label.toLowerCase()}</label>
           <button type="button" className="btn sm map-fold" onClick={fold}>{collapsed.size ? 'Unfold all' : 'Fold all'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
           {/* Two framings, one at a time: every goal, or the north stars and the critical path at a readable size. */}

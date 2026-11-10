@@ -7,7 +7,7 @@
 import { CAUSES_AHEAD, CAUSES_BEHIND } from '../domain/checkin';
 import { RULES } from '../domain/thresholds';
 import MODULE_HELP from 'virtual:faro-modules/help';
-import { ATTENTION, ATTENTION_FLAGS, FLAG, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
+import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 import { PROTOTYPE_LINE } from './about';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
@@ -69,8 +69,8 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Home is where you start each week. It leads with the one thing most worth doing now, so you don’t have to hunt for it.'] },
       { heading: 'How to use it', list: [
-        'The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it. The streak counts weeks with every check-in in before the review; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.',
-        'Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. Its ring says what it counts inside it: check-ins, or reviewed.',
+        'The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it. The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.',
+        'Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session. Its ring says what it counts inside it: check-ins, or reviewed.',
         'Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it.',
         'Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.',
         'While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.',
@@ -301,23 +301,26 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Scanning the whole set of goals, or a slice of it, in whatever shape suits the question you have.'] },
       { heading: 'How to use it', list: [
         'Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.',
-        'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status), Cards and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.',
+        'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.',
         'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.',
+        'Above the goals, one line says their health, as Home does: how many are off track, at risk, on track and so on, each with its shape and word. It counts the goals shown, so a tab or a filter changes it. On a phone the Views button counts them instead, so the goals come first.',
+        'The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into.',
+        'Cards has gone: List shows everything it did. A link or saved view that opens Cards opens List, and says so once.',
         'Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.',
         'A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.',
         'On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.',
-        'When two goals have the same title, each shows its key beside it, here and on the Board, History, Cards, the map and the check-in.',
+        'When two goals have the same title, each shows its key beside it, here and on the Board, History, the map and the check-in.',
         'Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.',
         'In the Table, select goals to change their owner or level, watch them or export them.',
         'In the sidebar, Goals has Mine, Watching, All and your saved views under it.',
-        'The status key sits under the goals. New goal is at the top right.',
+        'The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.',
       ] },
       { heading: 'Who can', text: ['Everyone sees every goal. Owners change their own goals from the Table; admins can change any.'] },
     ],
-    routes: ['/goals', '/goals?view=list', '/goals?view=table', '/goals?view=board', '/goals?view=cards'],
-    screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'GoalCards', 'BulkEdit'],
+    routes: ['/goals', '/goals?view=list', '/goals?view=table', '/goals?view=board'],
+    screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'BulkEdit'],
     reqs: ['VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
-    keywords: ['list', 'table', 'board', 'cards', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story', 'phone', 'views'],
+    keywords: ['list', 'table', 'board', 'cards', 'health', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story', 'phone', 'views'],
     related: ['goals-filters', 'history', 'goal-map', 'needs-attention'],
   },
   {
@@ -329,9 +332,9 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.',
         'Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.',
-        `Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(', ')}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
+        `Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(', ')}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
         'Decision or help needed is one press. Each active filter shows as words you can remove.',
-        'Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest.',
+        'Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.',
         'Everything is in the link: Copy link shares exactly what you see. Save view keeps it as a tab of your own; rename or delete it from Views.',
       ] },
       { heading: 'Who can', text: ['Anyone saves their own views. Admins can pin a view for everyone.'] },
@@ -349,12 +352,14 @@ const CORE_ARTICLES: Article[] = [
     group: 'goals',
     sections: [
       { heading: 'What it’s for', text: ['Keeping attention on the exceptions: what is behind, without a recent update or getting worse, and that nobody has picked up yet.'] },
-      { heading: 'What it means', text: [ATTENTION.needs.long, define(ATTENTION.handled)] },
+      { heading: 'What it means', text: [ATTENTION.needs.long, define(ATTENTION.handled), HANDLED_LINE] },
       { heading: 'Why a goal is flagged', list: [...(['off', 'risk', 'stale'] as const).map((k) => `${STATUS[k].label}: ${STATUS[k].meaning}`), ...(['decision', 'no-path', 'missed-path', 'trend', 'greener', 'due'] as const).map((k) => define(FLAG[k]))] },
       { heading: 'How to use it', list: [
         'Each goal leads with its status, its shape and word, and then each flag is one line with its reason, in numbers where there are numbers. A goal on track that is getting worse keeps its on-track shape: the flag is said beside the warning mark, never with another status’s shape.',
         `A new check-in, or a new flag, makes a goal that is ${lower(ATTENTION.handled)} need attention again.`,
-        'On Goals, the Needs attention tab says what its count is made of: how many are off track, at risk or without a recent update, and how many are on track or done but flagged for something else (getting worse, a missed date, an ask waiting). The Board groups the same goals by status.',
+        'Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.',
+        'Being handled takes a plan: an action with an owner and a due week agreed after the latest check-in, or, for a goal at risk, an answer to its request. An off-track goal stays counted until it has an action. A goal someone only marked reviewed or noted still needs attention; pointing at its reason says who looked at it (“Looked at by Amara in Platform leadership weekly, week 45”).',
+        'On Goals, the Needs attention tab’s count counts the goals that need attention, not those being handled, and says so if you point at it. One line above the goals says the same for the goals shown (a team filter counts that team); Why? says what the count is made of: how many are off track, at risk or without a recent update, and how many are on track but flagged for something else (getting worse, a missed date, an ask waiting). The health line there counts the same goals. On the Board, a goal being handled says so on its card.',
         'Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.',
       ] },
     ],
@@ -373,6 +378,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['Seeing results over the year without mistaking a week’s confidence for a quarter’s result.'] },
       { heading: 'How to use it', list: [
         'Choose History among the Goals layouts. It opens on quarter results: each goal’s number at the end of each quarter against the owner’s plan, met or missed, with this quarter in progress.',
+        'In both, the last column, Now, is each goal’s latest number (or stages done), as the list and the table say it.',
         'Weekly status is the other choice: each square is the owner’s call that week, one quarter at a time or the whole year.',
         'Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.',
         'Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.',
@@ -542,8 +548,8 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Running it', list: [
         'Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.',
-        'Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too).',
-        'Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead.',
+        'Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too). The order is fixed when the session starts: reviewing a goal or saving an action never moves one, Continue review picks up at the goal you left, and Previous goal goes back to ones already reviewed. Opening a goal’s walk from its own address keeps the same order.',
+        'Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.',
         'The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.',
         'Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.',
       ] },

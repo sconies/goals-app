@@ -174,7 +174,7 @@ export function AttentionCard({ a, action, to }: { a: GoalAttention; action?: Re
       <span className={'arow-icon tone-' + k}><StatusShape k={k} /></span>
       <Link to={to} className="arow-main">
         <span className="arow-title">{a.goal.title}</span>
-        <span className="arow-why" title={top.detail}>
+        <span className="arow-why" title={a.lookedAt && !a.handled ? `${top.detail} (${a.lookedAt.text})` : top.detail}>
           <span className={'arow-status tone-' + k}>{LABEL[k]}</span>
           {others.length > 0 && <>{' · '}<span className="arow-flags"><WarnMark />{others.map((f) => f.label).join(' · ')}</span></>}
           {' — '}{top.detail}

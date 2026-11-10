@@ -241,7 +241,7 @@ Only the goal's owner can post its check-in.
 
 A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses.
 
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (1)
 - **Journeys and checks:** U4, U9
 
@@ -264,21 +264,21 @@ The goal page leads with its summary bar, then the chart (plan, actual, projecti
 
 Goals are shown as trees: each goal that feeds nothing heads a tree, with what feeds it worst first; team goals that are not linked are flagged.
 
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U3
 
 ### LEVELS
 
 Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged.
 
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U4, U9, U13
 
 ### STICKY-HEAD
 
 In the Goals table and the quarter results, the column headings stay in view while the goals scroll under them, on a phone and a desktop.
 
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U38
 
 ### FIRST-CHECKIN
@@ -461,16 +461,16 @@ Off track, stale, a worsening trend, a missed or missing path to green, and pend
 
 ### ATTENTION-HANDLED
 
-Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI).
+Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card.
 
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
-- **Tests:** `evals/attention.eval.ts` (9)
+- **Tests:** `evals/attention.eval.ts` (10)
 - **Journeys and checks:** N3
 
 ### ONE-ATTENTION-RULE
 
-Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's "Only what needs attention", the Goals filter (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on; an old link's needs=no-recovery still opens No path to green.
+Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's "Only what needs attention", the Goals filter (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green.
 
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
@@ -544,7 +544,7 @@ The example and your own data live in separate workspaces; you can load your own
 An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log.
 
 - **Rule:** [The change engine](rules/change-engine.md)
-- **Help:** “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`
+- **Help:** “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U21, U45, U57
 
 ### NO-DOUBLE-POST
@@ -697,9 +697,9 @@ A goal year's weeks follow the calendar: week 1 is the week with the first Thurs
 
 ### VIEWS
 
-The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen.
+The same goals can be seen as a list, a sortable table, a board by status, or a week-by-week history grid of owners’ calls (each with the goal’s number now). Cards went on 9 Nov: a link, saved view or remembered choice that names it opens the list and says so once. Every layout has the same one-line health summary above the goals (how many off track, at risk, on track and so on, shape and word, as Home counts them). Sorted, the Trees tab is one list across every tree. The Board shows 8 cards in a healthy lane before Show all, and each card names the goal it feeds into. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen.
 
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U19
 
 ### GOAL-MAP
@@ -737,7 +737,7 @@ AI assistant tokens are made and revoked only by security-definer functions (okr
 
 Every goal that is off track, at risk or gone quiet tells its story where it is listed and in exports: why it is off, what the owner will do, by when, what they need and from whom. Things the numbers would hide are flagged: no recovery plan, a missed or slipping date, the same cause week after week, a call greener than the numbers, a goal gone quiet. A legend says what each status means. Once due, a goal shows Completed, Completed late or Did not meet.
 
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`; “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** U19, U33
 
 ### QUARTER-RESULTS
@@ -840,7 +840,7 @@ A Settings page holds personal choices that are remembered: light, dark or syste
 
 Goals is one section of the navigation with Mine, Watching and All, and your saved views under it; a person in one workspace never sees a workspace switcher.
 
-- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `GoalCards`, `BulkEdit`; “On a phone, a tablet or a big screen” (`any-device`)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N4
 
 ### MOTION-ALIVE

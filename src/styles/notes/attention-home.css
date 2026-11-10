@@ -61,3 +61,13 @@ a.dash-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 @container app (max-width: 600px) {
   .handled-fold-hint { display: none; }
 }
+
+/* Goals' health line (backlog GP): the same counts as Home's strip, shape and word, on one quiet line. */
+.goals-about { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: var(--s4); row-gap: 2px; min-width: 0; }
+.goals-about > .layout-about { flex: 1 1 0; min-width: 12rem; }
+.health-line { flex: 0 1 auto; display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0; margin: 0; }
+/* Where both don't fit on one line, the health line takes the row: the layout is still named on its pressed button. */
+@container page (max-width: 940px) { .goals-about:has(> .health-line) > .layout-about { display: none; } }
+.health-count { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); line-height: 1.375rem; font-weight: 600; white-space: nowrap; }
+.health-count svg { flex: none; width: 14px; height: 14px; }
+.group-hint { margin: 0 0 var(--s2); }

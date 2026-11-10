@@ -14,7 +14,8 @@ import { LABEL, type TrendWord } from './vocabulary';
  * Which way a series is heading. `gaps` are the last check-ins' distance from where they should be, oldest first,
  * unrounded, positive when better: ahead of plan, room inside a limit. Only the last TREND_SPAN count.
  *   Getting worse: lower at each of the last two steps, and, with `behindOnly`, short now. A number held flat while the
- *     plan moves on is further behind at each check-in, so it is getting worse, even before the gap shows a whole unit.
+ *     plan moves on is further behind at each check-in, so it is getting worse, even before the gap shows a whole unit;
+ *     goalTrend then also asks that it shows: behind now, and further behind than at the start (deep review T5).
  *   Getting better: higher at each of the last two steps.
  *   Anything else, or fewer than TREND_SPAN check-ins: no clear change.
  */
@@ -36,6 +37,19 @@ export function planGaps(goal: MetricGoal, cycle: Cycle, valued: CheckIn[]): { c
     const raw = (c.value! - plan) * dir;
     return { c, plan, raw, gap: Number(raw.toFixed(goal.decimals)) };
   });
+}
+
+/**
+ * A number goal's trend from its gaps to plan (planGaps): gapTrend on the unrounded gaps, a "worse" kept only if it
+ * shows at the goal's decimals (deep review T5, 10 Nov): behind now as shown, and further behind than at the start of
+ * the span. A number typed as the plan reads "on plan", so it is never getting worse, and no sentence prints "on plan →
+ * on plan → on plan" or three equal gaps as worse. The flag, the story and the summary bar all ask here.
+ */
+export function planGapTrend(gaps: { gap: number; raw: number }[]): TrendWord {
+  const word = gapTrend(gaps.map((x) => x.raw), true);
+  const shown = gaps.slice(-TREND_SPAN).map((x) => x.gap);
+  const visible = shown.length > 0 && shown[shown.length - 1]! < 0 && shown[0]! > shown[shown.length - 1]!;
+  return word === 'worse' && !visible ? 'flat' : word;
 }
 
 /** Stages at the latest check-in against the one before: worse when any is expected later, better when only sooner. */
@@ -62,17 +76,21 @@ export function goalTrend(goal: Goal, cycle: Cycle, checkIns: CheckIn[]): GoalTr
   if (goal.kind === 'metric') {
     const valued = own.filter((c) => c.value != null);
     const gaps = planGaps(goal, cycle, valued);
-    const word = gapTrend(gaps.map((x) => x.raw), true);
+    const word = planGapTrend(gaps);
     if (word === 'worse') {
       const last = gaps.slice(-TREND_SPAN);
       const n = (v: number) => fixed(Math.abs(v), goal.decimals);
       return { word, detail: `Further behind plan at each of the last two check-ins: ${last.map((x) => (x.gap < 0 ? n(x.gap) + ' behind' : x.gap > 0 ? n(x.gap) + ' ahead' : 'on plan')).join(' → ')}${goal.unit ? ` (${goal.unit === '%' ? 'pts' : goal.unit})` : ''}.` };
     }
-    // On track today, but heading short of the target: getting worse by where it's going, not where it is.
+    // On track today, but heading short of the target: getting worse by where it's going, not where it is. Only when
+    // the whole range it heads for, as shown, misses the target: "89–91% against a target of 90%" isn't heading short.
     if (valued.length >= TREND_SPAN) {
       const pts = valued.map((c) => ({ week: c.week, value: c.value as number }));
       const at = assessMetric(goal, cycle.weeks, pts[pts.length - 1]!.week, pts[pts.length - 1]!.value, pts.slice(0, -1));
-      if (at.forecastMisses && at.projection && at.calc === 'on') return { word: 'worse', detail: `${LABEL.on} today, but the recent trend heads for ${rangeText(at.projection, goal, isShare(goal))} by week ${at.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.` };
+      const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
+      const best = at.projection ? Number((dir > 0 ? at.projection.high : at.projection.low).toFixed(goal.decimals)) : null;
+      const allShort = best != null && (best - Number(goal.plan.target.toFixed(goal.decimals))) * dir < 0;
+      if (at.forecastMisses && allShort && at.projection && at.calc === 'on') return { word: 'worse', detail: `${LABEL.on} today, but the recent trend heads for ${rangeText(at.projection, goal, isShare(goal))} by week ${at.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.` };
     }
     return { word, detail: null };
   }
