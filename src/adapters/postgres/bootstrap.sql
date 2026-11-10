@@ -4,6 +4,8 @@
 -- It makes stand-ins with the same names, so the migrations run unchanged. Your service connects as the owner of the
 -- tables; the stand-in roles exist so the migrations' grants and row rules have someone to name. Files themselves live
 -- wherever your Files adapter keeps them (src/ports/index.ts); storage.objects here only records the paths.
+-- Migration 0035 moves Faro's tables and functions into their own schema, faro: connect with search_path faro (or as a
+-- role whose default it is, like supabase/manual/faro-role.sql's faro_owner).
 -- Safe to run twice.
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
