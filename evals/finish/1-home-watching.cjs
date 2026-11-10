@@ -136,7 +136,7 @@ module.exports = {
     // [WA] 4, 5, 7, 14, 22: Activity on a phone.
     for (const w of [360, 390]) {
       const [c, p] = await open(w, 800, 'amara', '/activity', true);
-      check(await p.getAttribute('.filter-search input', 'placeholder') === 'Search changes', '[WA] 5: the search placeholder is still long');
+      check(await p.getAttribute('.filter-search input', 'placeholder') === 'Find by person, goal, key or what was said', '[WA] 5, find spec 2.1: the search placeholder isn’t the list bar’s');
       const fb = await box(p, '.filterbar');
       check(fb && fb.h <= 160, `[WA] 14: the filter bar is ${fb && Math.round(fb.h)}px tall at ${w}`);
       const kc = await box(p, '.kind-chips');

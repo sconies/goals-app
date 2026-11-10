@@ -229,7 +229,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/help/:id` (`HelpArticle`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 - `/whats-new` (`WhatsNew`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 
-- **Named parts:** “Help”, “Related”, “What’s new”, “Search results (region)”
+- **Named parts:** “Help”, “Search results”, “Related”, “What’s new”, “Search results (region)”
 - **Main action:** Find an answer: search, or open an article.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_help`, `whats_new`

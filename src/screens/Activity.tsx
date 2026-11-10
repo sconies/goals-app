@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { saveAndSay } from '../app/files';
 import { useApp } from '../app/state';
 import {
-  ACTIVITY_KEYS, ACTIVITY_KINDS, activityEntries, activityFilter, activityRows, describeActivity, EMPTY_ACTIVITY, kindOf, parseActivity, WHEN_OPTIONS, withoutActivity,
+  ACTIVITY_KEYS, ACTIVITY_KINDS, activityEntries, activityParts, activityFilter, activityRows, describeActivity, EMPTY_ACTIVITY, kindOf, parseActivity, WHEN_OPTIONS, withoutActivity,
   type ActivityQuery, type When,
 } from '../domain/activity';
 import { toCsv } from '../domain/export';
@@ -12,7 +12,9 @@ import { watchedGoals } from '../domain/review';
 import type { Change, Level } from '../domain/types';
 import { Avatar, Sheet } from '../ui/bits';
 import { ChangeItem } from '../ui/ChangeItem';
-import { Icon } from '../ui/Icon';
+import { historyStep, type ListChange } from '../domain/find';
+import { CountLine, FilterLine, ListSearch, NoneFound } from '../ui/ListBar';
+import { Pick, PickOne } from '../ui/Pick';
 
 function dayLabel(iso: string, today: Date) {
   const d = new Date(iso);
@@ -23,15 +25,17 @@ function dayLabel(iso: string, today: Date) {
 }
 
 /** The query in the link: every change builds on the link as it is now. */
-function useActivityQuery(): [ActivityQuery, (f: (a: ActivityQuery) => ActivityQuery) => void] {
+/** A choice adds a history entry; typing in the search replaces it until it settles (find spec, rule 4). */
+function useActivityQuery(): [ActivityQuery, (f: (a: ActivityQuery) => ActivityQuery, change?: ListChange) => void] {
   const [params, setParams] = useSearchParams();
   const a = parseActivity(params);
-  const set = (f: (a: ActivityQuery) => ActivityQuery) => setParams((cur) => {
+  const set = (f: (a: ActivityQuery) => ActivityQuery, change: ListChange = 'choice') => setParams((cur) => {
     const next = f(parseActivity(cur));
     return new URLSearchParams([...[...cur].filter(([k]) => !ACTIVITY_KEYS.includes(k)), ...activityEntries(next)]);
-  }, { replace: true });
+  }, { replace: historyStep(change) === 'replace' });
   return [a, set];
 }
+const CHANGES = { thing: 'change', things: 'changes' };
 
 /**
  * The change log: every save, by whom and when, newest first. Drafts never appear here. Filter it by who, which goal
@@ -58,6 +62,7 @@ export function Activity() {
     else groups.push([k, [c]]);
   }
   const chips = describeActivity(a, app.snapshot, app.cycle, app.week);
+  const parts = activityParts(a, app.snapshot, app.cycle, app.week);
   const scopeText = a.watching != null ? `Goals you watch${level ? ` (${LEVEL_LABEL[level]})` : ''}${a.since ? ` · since ${new Date(a.since + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''}` : '';
   const counts = new Map(ACTIVITY_KINDS.map(([k]) => [k, inScope.filter((c) => kindOf(c) === k).length]));
   const narrowed = chips.length > 0 || a.watching != null;
@@ -80,9 +85,7 @@ export function Activity() {
       )}
       <div className="filterbar">
         <div className="filterbar-row">
-          <label className="filter-search"><span className="sr">Search changes</span><span className="sr" id="activity-search-hint">Finds names, reasons and numbers</span>
-            <input className="input" type="search" placeholder="Search changes" aria-describedby="activity-search-hint" value={a.q} onChange={(e) => { const v = e.target.value; setA((cur) => ({ ...cur, q: v })); setLimit(40); }} />
-          </label>
+          <ListSearch value={a.q} label="Find a change" placeholder="Find by person, goal, key or what was said" onSearch={(v, settled) => { setA((cur) => ({ ...cur, q: v }), settled ? 'settled' : 'typing'); setLimit(40); }} />
           <label className="filter-sort"><span className="sr">When</span>
             <select className="input" value={a.when ?? ''} onChange={(e) => { const v = (e.target.value || null) as When | null; setA((cur) => ({ ...cur, when: v })); if (v === 'custom') setOpen(true); setLimit(40); }}>
               <option value="">Any time</option>
@@ -97,13 +100,8 @@ export function Activity() {
             <button key={k} type="button" className="filter-chip" aria-pressed={a.kind.includes(k)} onClick={() => { setA((cur) => ({ ...cur, kind: cur.kind.includes(k) ? cur.kind.filter((x) => x !== k) : [...cur.kind, k] })); setLimit(40); }}>{l}<span className="tabcount">{counts.get(k)}</span></button>
           ))}
         </div>
-        {narrowed && (
-          <div className="filter-chips" aria-label="Active filters">
-            <span className="small" role="status">{list.length} of {all.length} changes</span>
-            {chips.map((c) => <button key={c.key} type="button" className="filter-chip" aria-label={`Remove filter: ${c.text}`} onClick={() => setA((cur) => withoutActivity(cur, c.key))}>{c.text}<Icon name="close" size={12} className="chip-x" /></button>)}
-            {chips.length > 0 && <button type="button" className="linkish small" onClick={() => setA((cur) => ({ ...EMPTY_ACTIVITY, watching: cur.watching, since: cur.since }))}>Clear filters</button>}
-          </div>
-        )}
+        {list.length > 0 && <CountLine things={CHANGES} n={list.length} narrowed={narrowed || !!a.q.trim()} order="newest first" />}
+        <FilterLine parts={parts} onRemove={(k) => setA((cur) => withoutActivity(cur, k))} onClear={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />
       </div>
       {groups.length ? groups.map(([day, items]) => (
         <section key={day} className="block">
@@ -112,13 +110,8 @@ export function Activity() {
             ? <ReviewedRun key={r[0]!.id} run={r} />
             : r.map((c) => <ChangeItem key={c.id} c={c} showGoal />)))}</ol>
         </section>
-      )) : narrowed ? (
-        <div className="activity-none">
-          <p className="activity-none-title">No changes match</p>
-          <p className="activity-none-hint">Remove a filter to see more.</p>
-          {/* Narrowed only by Watching's scope, the way out is "Show all activity" above. */}
-          {chips.length > 0 && <button type="button" className="btn" onClick={() => setA((cur) => ({ ...EMPTY_ACTIVITY, watching: cur.watching, since: cur.since }))}>Clear filters</button>}
-        </div>
+      )) : narrowed || a.q.trim() ? (
+        <NoneFound things={CHANGES} q={a.q} filtered={parts.length > 0} onClearSearch={() => setA((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />
       ) : <div className="activity-none"><p className="activity-none-title">Nothing here yet</p></div>}
       {list.length > shown.length && <button className="btn" onClick={() => setLimit((n) => n + 40)}>Show more ({list.length - shown.length} older)</button>}
       {open && <ActivityFilters onClose={() => setOpen(false)} onSave={list.length ? saveCsv : null} />}
@@ -130,23 +123,16 @@ export function Activity() {
 function ActivityFilters({ onClose, onSave }: { onClose: () => void; onSave: (() => void) | null }) {
   const app = useApp();
   const [a, setA] = useActivityQuery();
-  const [who, setWho] = useState('');
   const toggle = <T extends string>(l: T[], v: T) => (l.includes(v) ? l.filter((x) => x !== v) : [...l, v]);
-  const people = app.snapshot.people.filter((p) => !a.who.includes(p.id) && who.trim() && p.name.toLowerCase().includes(who.trim().toLowerCase())).slice(0, 6);
   return (
     <Sheet open onClose={onClose} title="Filter activity" wide>
       <div className="filter-sheet activity-filter-sheet">
         <fieldset className="filter-group"><legend className="field-label">Who made the change</legend>
-          {a.who.length > 0 && <span className="filter-options">{a.who.map((id) => <button key={id} type="button" className="filter-chip" aria-label={`Remove ${app.person(id)?.name}`} onClick={() => setA((cur) => ({ ...cur, who: cur.who.filter((x) => x !== id) }))}>{app.person(id)?.name}<Icon name="close" size={12} className="chip-x" /></button>)}</span>}
-          <input className="input" type="search" placeholder="Find a person" aria-label="Find a person" value={who} onChange={(e) => setWho(e.target.value)} />
-          {people.length > 0 && <span className="filter-options">{people.map((p) => <button key={p.id} type="button" className="btn sm" onClick={() => { setA((cur) => ({ ...cur, who: [...cur.who, p.id] })); setWho(''); }}>{p.name}</button>)}</span>}
+          <Pick kind="person" several label="Who" value={a.who} onChange={(who) => setA((cur) => ({ ...cur, who }))} />
           <label className="check"><input type="checkbox" checked={a.who.length === 1 && a.who[0] === app.viewer.id} onChange={(e) => setA((cur) => ({ ...cur, who: e.target.checked ? [app.viewer.id] : [] }))} /> Only my changes</label>
         </fieldset>
         <fieldset className="filter-group"><legend className="field-label">Goal</legend>
-          <select className="input" aria-label="Goal" value={a.goal ?? ''} onChange={(e) => setA((cur) => ({ ...cur, goal: e.target.value || null }))}>
-            <option value="">Any goal</option>
-            {[...app.snapshot.goals].sort((x, y) => x.title.localeCompare(y.title)).map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
-          </select>
+          <PickOne kind="goal" label="Goal" none="Any goal" value={a.goal} onChange={(goal) => setA((cur) => ({ ...cur, goal, tree: goal ? cur.tree : false }))} />
           {/* Offered once there is a goal to follow down, never as a disabled box with no reason (demo review, 8 Nov). */}
           {a.goal
             ? <label className="check"><input type="checkbox" checked={a.tree} onChange={(e) => setA((cur) => ({ ...cur, tree: e.target.checked }))} /> And every goal feeding it</label>

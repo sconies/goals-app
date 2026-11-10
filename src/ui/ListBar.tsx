@@ -16,8 +16,8 @@ export function ListSearch({ value, onSearch, label, placeholder, autoFocus }: {
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const send = (t: string, settled: boolean) => { const w = t.trim().slice(0, 200); mine.current = w; onSearch(w, settled); };
   return (
-    <label className="list-search"><span className="sr">{label}</span>
-      <input className="input" type="search" placeholder={placeholder} maxLength={200} value={text} autoFocus={autoFocus} aria-label={label}
+    <label className="filter-search list-search"><span className="sr">{label}</span>
+      <input className="input" type="search" placeholder={placeholder} maxLength={200} value={text} autoFocus={autoFocus && typeof window !== 'undefined' && !!window.matchMedia?.('(min-width: 761px)').matches} aria-label={label}
         onChange={(e) => {
           const t = e.target.value;
           setText(t);

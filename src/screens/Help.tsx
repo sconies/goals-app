@@ -4,6 +4,8 @@
    HomeNews is the one quiet line on Home after a release the person hasn't seen. */
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
+import { historyStep } from '../domain/find';
+import { CountLine, ListSearch, NoneFound } from '../ui/ListBar';
 import { ARTICLES, GROUPS, articleById as anyArticle, articleForPath, searchGuide, type Article } from '../help/guide';
 import { useModules } from '../core/app';
 
@@ -38,6 +40,7 @@ export function HelpHome() {
   const shown = useShown();
   const q = params.get('q') ?? '';
   const found = q.trim() ? searchGuide(q).filter(shown) : null;
+  const ARTICLE_WORDS = { thing: 'article', things: 'articles' };
   const latest = latestNews();
   const unread = useUnreadNews().length > 0;
   return (
@@ -46,10 +49,9 @@ export function HelpHome() {
         <h1 className="title-xl">Help</h1>
         <span className="hint">What each page in Faro does, and how to use it.</span>
       </div>
-      <label className="help-search">
-        <span className="sr">Search help</span>
-        <input className="input" type="search" placeholder="Search help" value={q} onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })} />
-      </label>
+      <div className="help-search">
+        <ListSearch value={q} label="Find in Help" placeholder="Find in Help" autoFocus onSearch={(v, settled) => setParams(v ? { q: v } : {}, { replace: historyStep(settled ? 'settled' : 'typing') === 'replace' })} />
+      </div>
       {latest && !found && (
         <Link to="/whats-new" className="help-news">
           <span className="help-news-label">What’s new{unread && <span className="help-dot" aria-hidden="true" />}{unread && <span className="sr"> (unread)</span>}</span>
@@ -59,10 +61,11 @@ export function HelpHome() {
       )}
       {found ? (
         <section className="block" aria-label="Search results">
-          <h2 className="block-title">{found.length === 1 ? '1 article' : `${found.length} articles`}</h2>
+          <h2 className="sr">Search results</h2>
+          {found.length > 0 && <CountLine things={ARTICLE_WORDS} n={found.length} narrowed />}
           {found.length
             ? <ul className="help-list">{found.map((a) => <ArticleRow key={a.id} a={a} />)}</ul>
-            : <EmptyResult title="No articles match" action={<button type="button" className="btn" onClick={() => setParams({}, { replace: true })}>Clear the search</button>}>Try fewer or plainer words.</EmptyResult>}
+            : <NoneFound things={ARTICLE_WORDS} q={q} filtered={false} onClearSearch={() => setParams({})} onClearFilters={() => setParams({})} />}
         </section>
       ) : GROUPS.map((g) => (
         <section key={g.id} className="block" aria-labelledby={'help-' + g.id}>

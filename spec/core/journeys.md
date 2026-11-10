@@ -62,6 +62,8 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U54 | Set up from the app’s own spreadsheet as the deep review did: people typed are kept, nothing is late on day one, the counts agree, no one is made a team lead, the invitation opens this workspace, and a refused decimal is fixed in one step |  | `ONBOARDING` `WORKSPACES` `HONEST-NUMBERS` | 22 | `evals/journeys.cjs` |
 | U57 | The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation | A goal owner | `HONEST-CHECKIN` `REASON-BEHIND` `DRAFTS` `BULK-EDIT` `GOAL-PAGE-ONCE` | 26 | `evals/journeys.cjs` |
 | U63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone |  | `FIND-AND-PICK` | 9 | `evals/journeys.cjs` |
+| U64 | One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them |  | `LIST-BAR` | 10 | `evals/journeys.cjs` |
+| U66 | A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back |  | `LIST-BAR` | 4 | `evals/journeys.cjs` |
 
 ## Platform checks
 
