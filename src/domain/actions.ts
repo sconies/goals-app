@@ -169,7 +169,7 @@ export function reviewCall(x: ActionContext, goal: Goal, review: Review, kind: C
 
 /**
  * The review accepts the risk on a goal behind (deep review P2): no action for now, with a reason, said in the session
- * as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone in the review.
+ * as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone may; only the screen keeps it to those in the review.
  */
 export function acceptRisk(x: ActionContext, goal: Goal, review: Review, reason: string, week: number): Commit {
   if (reason.trim().length < MIN_ACCEPT_REASON) no('Say why the review accepts the risk.');
