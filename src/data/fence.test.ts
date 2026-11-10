@@ -83,7 +83,7 @@ describe('Faro fenced off in a shared database', () => {
     await expect(as('anon', 'select * from faro.okr_api_tokens')).rejects.toThrow(/permission denied/);
   });
 
-  it('won’t make the role with the placeholder password, or before 0035 and 0036', async () => {
+  it('won’t make the role with the placeholder password, or before 0035, 0036 and 0037', async () => {
     await expect(db.exec(roleSql)).rejects.toThrow(/password/);
     const early = new PGlite();
     await expect(early.exec(withPassword)).rejects.toThrow(/0035/);
@@ -91,6 +91,10 @@ describe('Faro fenced off in a shared database', () => {
     await db.exec(`create function faro.okr_old_builder() returns jsonb language sql as 'select auth.jwt()'`);
     await expect(db.exec(withPassword)).rejects.toThrow(/0036/);
     await db.exec('drop function faro.okr_old_builder()');
+    // Nor before 0037, while a rule outside faro calls a Faro function.
+    await db.exec(`create policy "old upload" on storage.objects for insert to anon with check (faro.okr_markup_id_ok(name))`);
+    await expect(db.exec(withPassword)).rejects.toThrow(/0037/);
+    await db.exec(`drop policy "old upload" on storage.objects`);
   });
 
   it('gives the Faro role faro and nothing else, however often the script is run', async () => {
@@ -172,6 +176,16 @@ describe('Faro fenced off in a shared database', () => {
     await db.exec(`revoke execute on function public.family_all() from public`);
     expect((await report('faro_owner')).state).toBe('fenced');
     await db.exec(`drop function public.family_all()`);
+  });
+
+  it('fails the fence when a row rule outside faro calls a function in faro (Storage’s rules ran as the other app’s users)', async () => {
+    expect(await rows(`select polname from pg_policy where polrelid = 'storage.objects'::regclass and polname = 'markups: builders read'`)).toEqual([]);
+    expect((await report('faro_owner')).state).toBe('fenced');
+    await db.exec(`create policy "sneaky read" on storage.objects for select to authenticated using (faro.okr_is_builder())`);
+    expect(await report()).toMatchObject({ state: 'not-fenced', rules: 1 });
+    expect((await report('faro_owner')).problems).toEqual(['1 row rule outside faro calls a function in faro: apply migration 0037 as postgres.']);
+    await db.exec(`drop policy "sneaky read" on storage.objects`);
+    expect((await report('faro_owner')).state).toBe('fenced');
   });
 
   it('fails the fence when a pg_cron job runs Faro’s code as another role, where the Faro role can see the jobs', async () => {

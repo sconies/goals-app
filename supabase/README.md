@@ -10,8 +10,12 @@ Faro shares the family-hq Supabase project with another app's real family data, 
 - **Nothing outside `faro`.** A function reads only `faro`; a security definer function runs as `faro_owner`. No pg_cron job: anything on a schedule is a CI job (`.github/workflows/nightly.yml`).
 - **Safe to run twice**, as before (`if not exists`, `create or replace`, `drop … if exists`), and one transaction per file.
 
+## Looking at Faro's tables as postgres
+
+Supabase's table editor and SQL editor run as postgres. Once `faro_owner` owns `faro`, anything you read there (a table's triggers and rules, a view, a function a query calls) can run code `faro_owner` put behind it, with postgres's rights over the whole project, the other app's data included. So before you read or change Faro's tables in the SQL editor, run `set role faro_owner;` first (and `reset role;` after), and don't browse `faro` in the table editor. Only postgres changes the fence itself (`manual/faro-role.sql`, a migration that must run as postgres, such as 0037).
+
 ## What's here
 
-- `migrations/0001`–`0034`: written for `public`, with Supabase's default grants; 0035 moved everything to `faro`; 0036 removed the last things that ran as postgres.
-- `manual/faro-role.sql`: makes `faro_owner` and hands it `faro`. Run it after 0035 and 0036, and again after CI's `DATABASE_URL` becomes `faro_owner`.
+- `migrations/0001`–`0034`: written for `public`, with Supabase's default grants; 0035 moved everything to `faro`; 0036 removed the last things that ran as postgres; 0037 took Faro's functions out of Storage's rules.
+- `manual/faro-role.sql`: makes `faro_owner` and hands it `faro`. Run it after 0035, 0036 and 0037, and again after CI's `DATABASE_URL` becomes `faro_owner`.
 - `manual/apply-*.sql`: old paste-ins, from before CI applied migrations.
