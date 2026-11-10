@@ -182,7 +182,7 @@ describe('Privacy: nothing anyone types', () => {
     const settings = readFileSync(join(__dirname, '../src/screens/Settings.tsx'), 'utf8');
     expect(settings).toContain('/workspace/privacy');
     const privacy = readFileSync(join(__dirname, '../src/screens/Workspace.tsx'), 'utf8');
-    for (const words of ['Never anything anyone types', '90 days', 'only the people who build the app can read it']) expect(privacy).toContain(words);
+    for (const words of ['Never anything anyone types', 'Kept 90 days', 'Only the people who build Faro can read it']) expect(privacy).toContain(words);
   });
 });
 

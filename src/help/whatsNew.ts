@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'cycles-plainer',
+    date: '2026-11-10',
+    title: 'Cycles says where the year stands',
+    points: [
+      'Each cycle shows its week, its dates and when the wrap-up opens, with one action: see the wrap-up, wrap it up, or start the next cycle.',
+      'Deleting an empty cycle asks first.',
+      'Features and Privacy say On or Off in words beside each switch.',
+      'A long Recently removed list can be searched by name and narrowed to one kind.',
+      'People and Teams search and count like every other list: the same bar, and the filters in words with Remove.',
+    ],
+    articles: ['workspace-cycles', 'features', 'recording', 'removing', 'people'],
+  },
+  {
     id: 'watch-and-comment-say',
     date: '2026-11-10',
     title: 'Watch and comments say what they do',

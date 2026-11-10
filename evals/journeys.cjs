@@ -2643,13 +2643,13 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   const told = await see(p, 'Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.').then(() => true, () => false);
   // Privacy reads for everyone, what the app records about them; only admins have its switch (re-review, 8 Nov, backlog T).
   await p.goto(url('/workspace/privacy'));
-  const reads = await see(p, 'Only admins change it').then(() => true, () => false);
+  const reads = await see(p, 'Admins change it').then(() => true, () => false);
   const noSwitch = await p.getByRole('checkbox', { name: /Record how the app is used/ }).count() === 0;
   // Cycles reads for everyone, with nothing to delete; Recently removed lists only what they removed (8 Nov).
   await p.goto(url('/workspace/cycles'));
-  const cyclesRead = await see(p, 'Only admins delete a cycle').then(() => true, () => false) && await p.getByRole('button', { name: /^Delete the cycle/ }).count() === 0;
+  const cyclesRead = await see(p, 'Admins start the next cycle and delete an empty one.').then(() => true, () => false) && await p.getByRole('button', { name: /^Delete the cycle/ }).count() === 0;
   await p.goto(url('/workspace/removed'));
-  const ownOnly = await see(p, 'Admins see what everyone has removed.').then(() => true, () => false);
+  const ownOnly = await see(p, 'Admins see everyone’s.').then(() => true, () => false);
   h.set('attention', JSON.stringify(theirs) === JSON.stringify(want(['About', 'Cycles', 'Privacy', 'Recently removed'])) && told && reads && noSwitch && cyclesRead && ownOnly && await p.getByRole('button', { name: 'Make an MCP token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}; Cycles read-only ${cyclesRead}; Recently removed their own ${ownOnly}`);
   await p.context().close();
 }, ['logged']);
@@ -2662,7 +2662,7 @@ journey('U58', ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'], 'Anyone finds a person and
   await p.waitForURL(/\/demo\/people(\?|$)/);
   await p.locator('.people-row').first().waitFor();
   await h.inView(p.getByPlaceholder('Find by name, job title or team'), 'entry', 'Find a person');
-  const count = (await p.locator('.people-count').innerText()).trim();
+  const count = (await p.locator('.count-line').innerText()).trim();
   h.set('progress', /^\d+ people, A to Z\. Showing 1 to 50\.$/.test(count), `People’s count line says “${count}”`);
   await h.checkpoint('people');
   await h.fill(p.getByPlaceholder('Find by name, job title or team'), 'rhea');
@@ -3049,7 +3049,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   // An admin: Admin on her badge, every section, and Cycles with dates and what's running.
   const g = await newPage(device, 'grace');
   await g.goto(url('/workspace/cycles'));
-  await see(g, 'Running: week 45 of 53', 'Cycles does not say which cycle is running');
+  await see(g, 'Week 45 of 53', 'Cycles does not say which cycle is running');
   h.set('attention', /22 Dec 2025 to 27 Dec 2026/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
   await g.goto(url('/teams'));
   await g.locator('.team-row', { hasText: 'CI/CD' }).click();
@@ -3188,7 +3188,7 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   // Gone from the directory; on Recently removed (its own section), with Restore.
   await see(p, 'Left Platform Engineering on', 'his page does not say he left');
   await p.goto(url('/people?q=Mateo'));
-  await see(p, 'No one matches', 'Mateo is still in the directory');
+  await see(p, 'No person matches “Mateo”.', 'Mateo is still in the directory');
   await p.goto(url('/workspace/removed'));
   const removed = p.locator('.removed-block');
   await see(removed, 'Person who left', 'Recently removed does not list him');
