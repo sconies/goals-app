@@ -62,7 +62,7 @@ export function Activity() {
     else groups.push([k, [c]]);
   }
   const chips = describeActivity(a, app.snapshot, app.cycle, app.week);
-  const parts = activityParts(a, app.snapshot, app.cycle, app.week);
+  const parts = activityParts(a, { person: (id) => app.person(id)?.name ?? id, goal: (id) => app.goal(id)?.title ?? 'a goal', team: (id) => app.team(id)?.name ?? id }, chips.find((c) => c.key === 'when')?.text ?? '');
   const scopeText = a.watching != null ? `Goals you watch${level ? ` (${LEVEL_LABEL[level]})` : ''}${a.since ? ` · since ${new Date(a.since + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''}` : '';
   const counts = new Map(ACTIVITY_KINDS.map(([k]) => [k, inScope.filter((c) => kindOf(c) === k).length]));
   const narrowed = chips.length > 0 || a.watching != null;

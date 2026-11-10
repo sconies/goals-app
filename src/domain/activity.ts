@@ -151,17 +151,18 @@ export function describeActivity(a: ActivityQuery, s: Snapshot, cycle: Cycle, we
 }
 
 /** The query without one setting. */
-/** The active filters as the filter line says them (find spec, rule 3): a label and its values. The search isn't one. */
-export function activityParts(a: ActivityQuery, s: Snapshot, cycle: Cycle, week: number): { key: string; label: string; values: string[] }[] {
-  const name = (id: string) => s.people.find((p) => p.id === id)?.name ?? id;
-  const text = new Map(describeActivity(a, s, cycle, week).map((c) => [c.key, c.text]));
+/**
+ * The active filters as the filter line says them (find spec, rule 3): a label and its values. The search isn't one.
+ * Takes names, not the workspace (AR4), and the words for the dates, as describeActivity gives them.
+ */
+export function activityParts(a: ActivityQuery, names: { person: (id: string) => string; goal: (id: string) => string; team: (id: string) => string }, whenText: string): { key: string; label: string; values: string[] }[] {
   const out: { key: string; label: string; values: string[] }[] = [];
-  if (a.who.length) out.push({ key: 'who', label: 'Who', values: a.who.map(name) });
-  if (a.goal) out.push({ key: 'goal', label: a.tree ? 'In the tree of' : 'Goal', values: [s.goals.find((g) => g.id === a.goal)?.title ?? 'a goal'] });
-  if (a.team.length) out.push({ key: 'team', label: 'Team', values: a.team.map((t) => s.teams.find((x) => x.id === t)?.name ?? t) });
+  if (a.who.length) out.push({ key: 'who', label: 'Who', values: a.who.map(names.person) });
+  if (a.goal) out.push({ key: 'goal', label: a.tree ? 'In the tree of' : 'Goal', values: [names.goal(a.goal)] });
+  if (a.team.length) out.push({ key: 'team', label: 'Team', values: a.team.map(names.team) });
   if (a.level.length) out.push({ key: 'level', label: 'Level', values: a.level.map((l) => LEVEL_LABEL[l]) });
   if (a.kind.length) out.push({ key: 'kind', label: 'Kind', values: a.kind.map((k) => ACTIVITY_KINDS.find(([x]) => x === k)![1]) });
-  if (a.when) out.push({ key: 'when', label: 'When', values: [text.get('when') ?? ''] });
+  if (a.when) out.push({ key: 'when', label: 'When', values: [whenText] });
   return out;
 }
 

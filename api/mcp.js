@@ -7876,11 +7876,237 @@ function applyCommit(s, c) {
 	};
 }
 var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+// src/domain/find.ts
+init_format();
+init_goalKey();
+init_vocabulary();
+/** Lower case, accents gone: "Lucía" reads as "lucia". */
+var fold = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+/** The words of a text: broken at spaces and at / - , . : ( ), folded. */
+var wordsOf = (s) => fold(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+/**
+* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
+* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
+*/
+function textMatches(words, q, key) {
+	const asked = wordsOf(q);
+	if (!asked.length) return true;
+	const typedKey = normalKey(q.trim());
+	if (typedKey) return !!key && typedKey === key;
+	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
+	if (bare && key && bare === key) return true;
+	const have = wordsOf(words);
+	return asked.every((w) => have.some((h) => h.startsWith(w)));
+}
+/** One letter added, dropped or changed, or two next to each other swapped. */
+function oneEditApart(a, b) {
+	if (a === b) return false;
+	if (Math.abs(a.length - b.length) > 1) return false;
+	if (a.length === b.length) {
+		const diff = [];
+		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
+		if (diff.length === 1) return true;
+		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
+	}
+	const [s, l] = a.length < b.length ? [a, b] : [b, a];
+	let i = 0;
+	while (i < s.length && s[i] === l[i]) i++;
+	return s.slice(i) === l.slice(i + 1);
+}
+/**
+* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
+* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
+* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
+* with a short word that matches nothing.
+*/
+function nearMiss(q, vocabulary) {
+	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
+	const asked = wordsOf(q);
+	if (!asked.length) return null;
+	const count = /* @__PURE__ */ new Map();
+	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
+	let changed = false;
+	const out = [];
+	for (const w of asked) {
+		if ([...count.keys()].some((v) => v.startsWith(w))) {
+			out.push(w);
+			continue;
+		}
+		if (w.length < 4) return null;
+		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
+		if (!best) return null;
+		out.push(best[0]);
+		changed = true;
+	}
+	return changed ? out.join(" ") : null;
+}
+var MAX_PAGE = 200;
+/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
+function page(all, ask) {
+	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
+	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
+	const rows = all.slice(from, from + size);
+	return {
+		total: all.length,
+		rows,
+		next: from + size < all.length ? String(from + size) : null
+	};
+}
+/** The words a goal's row is found by (find spec, 2.1): title, key, owner, team, level, status word, this week's reason and path to green, definition, source. */
+var goalWords = (s) => [
+	s.goal.title,
+	s.goal.key ?? "",
+	s.owner,
+	s.team,
+	LEVEL_LABEL[s.goal.level],
+	LABEL[s.status],
+	s.story.why ?? "",
+	s.story.doing ?? "",
+	s.story.needs ?? "",
+	s.goal.definition,
+	s.goal.source
+].join(" ");
+var goalRow = (s) => ({
+	kind: "goal",
+	id: s.goal.id,
+	name: s.goal.title,
+	detail: [
+		s.goal.key,
+		s.owner,
+		s.team
+	].filter(Boolean).join(" · "),
+	status: s.status,
+	key: s.goal.key ?? null
+});
+/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
+function searchGoals(r, ask) {
+	const query = {
+		...parseQuery(new URLSearchParams({
+			...ask.filters ?? {},
+			...ask.sort ? { sort: ask.sort } : {}
+		})),
+		q: ""
+	};
+	return applyQuery(r.summaries, {
+		...query,
+		sort: query.sort ?? "worst"
+	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
+}
+/** People: name, job title and team; nobody marked as left; those whose name starts with the search first, then A to Z. */
+function searchPeople(r, ask) {
+	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
+	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
+	return r.people.filter((p) => !p.leftAt && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
+		kind: "person",
+		id: p.id,
+		name: p.name,
+		detail: [p.role, team(p)].filter(Boolean).join(" · ")
+	}));
+}
+/** Teams: the name and its lead's name; A to Z. Line 2: "Led by {name} · {n} people", or "No lead". */
+function searchTeams(r, ask) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? null;
+	const people = (t) => {
+		const n = here.filter((p) => p.teamId === t.id).length;
+		return `${n} ${n === 1 ? "person" : "people"}`;
+	};
+	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t) ?? ""}`, ask.q)).sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({
+		kind: "team",
+		id: t.id,
+		name: t.name,
+		detail: `${lead(t) ? `Led by ${lead(t)}` : "No lead"} · ${people(t)}`
+	}));
+}
+function searchWorkspaces(r, ask) {
+	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
+		kind: "workspace",
+		id: w.id,
+		name: w.name,
+		detail: w.detail
+	}));
+}
+/** The words each kind's near miss may correct to. */
+function vocabulary(r) {
+	switch (r.kind) {
+		case "goal": return r.summaries.map(goalWords);
+		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
+		case "team": return r.teams.map((t) => t.name);
+		case "workspace": return r.workspaces.map((w) => w.name);
+	}
+}
+/**
+* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
+* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
+*/
+function search(rows, ask) {
+	const run = (a) => {
+		switch (rows.kind) {
+			case "goal": return searchGoals(rows, a);
+			case "person": return searchPeople(rows, a);
+			case "team": return searchTeams(rows, a);
+			case "workspace": return searchWorkspaces(rows, a);
+		}
+	};
+	const all = run(ask);
+	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
+	const near = nearMiss(ask.q, vocabulary(rows));
+	const again = near ? run({
+		...ask,
+		q: near
+	}) : [];
+	return near && again.length ? {
+		...page(again, ask),
+		near
+	} : page([], ask);
+}
+/**
+* Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
+* then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+* worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
+* when the rest would fill the list. Nobody marked as left; nothing it can't find.
+*/
+function suggest(rows, viewerId, recents) {
+	const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
+	const pick = (ids, row) => {
+		const out = [];
+		const add = (id, limit) => {
+			if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
+			const r = row(id);
+			if (r) out.push(r);
+		};
+		const lately = recent.filter((id) => !ids.includes(id) && row(id));
+		for (const id of ids) add(id, 6 - Math.min(2, lately.length));
+		for (const id of [...recent, ...ids]) add(id, 6);
+		return out;
+	};
+	switch (rows.kind) {
+		case "person": {
+			const all = searchPeople(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const me = rows.people.find((p) => p.id === viewerId);
+			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
+		}
+		case "team": {
+			const all = searchTeams(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
+			return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
+		}
+		case "goal": {
+			const all = searchGoals(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
+			const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
+			return pick([...mine, ...fed], (id) => by.get(id) ?? null);
+		}
+	}
+}
 // src/domain/query.ts
 init_format();
 init_attention();
 init_status();
-init_goalKey();
 init_vocabulary();
 init_year();
 var EMPTY_QUERY = {
@@ -8013,30 +8239,10 @@ function treeOf$1(id, goals) {
 	}
 	return out;
 }
-/** The goal key a search names, if the whole search is one: "G-48", "g48" or a bare "48" all name G-48. */
-function searchKey(text) {
-	const t = text.trim();
-	return normalKey(t) ?? (/^\d{1,9}$/.test(t) ? formatKey(Number(t)) : null);
-}
 /** Does this goal pass every filter in the query? */
 function matches(s, q, ctx, tree) {
 	const g = s.goal;
-	if (q.q.trim()) {
-		const hay = [
-			g.title,
-			s.owner,
-			s.team,
-			LEVEL_LABEL[g.level],
-			s.story.why ?? "",
-			s.story.doing ?? "",
-			s.story.needs ?? "",
-			g.definition,
-			g.source
-		].join(" ").toLowerCase();
-		const key = searchKey(q.q);
-		const byKey = !!key && g.key === key;
-		if (normalKey(q.q) != null ? !byKey : !byKey && !q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
-	}
+	if (q.q.trim() && !textMatches(goalWords(s), q.q, g.key)) return false;
 	if (q.status.length && !q.status.includes(s.status)) return false;
 	if (q.level.length && !q.level.includes(g.level)) return false;
 	if (q.team.length && !q.team.includes(g.teamId)) return false;
@@ -8357,233 +8563,6 @@ function searchRows(s, cycle, today, week) {
 		person: once(() => personRows(s)),
 		team: once(() => teamRows(s))
 	};
-}
-// src/domain/find.ts
-init_format();
-init_goalKey();
-init_vocabulary();
-/** Lower case, accents gone: "Lucía" reads as "lucia". */
-var fold = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-/** The words of a text: broken at spaces and at / - , . : ( ), folded. */
-var wordsOf = (s) => fold(s).split(/[\s/\-,.:()]+/).filter(Boolean);
-/**
-* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
-* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
-* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
-*/
-function textMatches(words, q, key) {
-	const asked = wordsOf(q);
-	if (!asked.length) return true;
-	const typedKey = normalKey(q.trim());
-	if (typedKey) return !!key && typedKey === key;
-	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-	if (bare && key && bare === key) return true;
-	const have = wordsOf(words);
-	return asked.every((w) => have.some((h) => h.startsWith(w)));
-}
-/** One letter added, dropped or changed, or two next to each other swapped. */
-function oneEditApart(a, b) {
-	if (a === b) return false;
-	if (Math.abs(a.length - b.length) > 1) return false;
-	if (a.length === b.length) {
-		const diff = [];
-		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
-		if (diff.length === 1) return true;
-		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
-	}
-	const [s, l] = a.length < b.length ? [a, b] : [b, a];
-	let i = 0;
-	while (i < s.length && s[i] === l[i]) i++;
-	return s.slice(i) === l.slice(i + 1);
-}
-/**
-* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
-* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
-* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
-* with a short word that matches nothing.
-*/
-function nearMiss(q, vocabulary) {
-	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
-	const asked = wordsOf(q);
-	if (!asked.length) return null;
-	const count = /* @__PURE__ */ new Map();
-	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
-	let changed = false;
-	const out = [];
-	for (const w of asked) {
-		if ([...count.keys()].some((v) => v.startsWith(w))) {
-			out.push(w);
-			continue;
-		}
-		if (w.length < 4) return null;
-		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
-		if (!best) return null;
-		out.push(best[0]);
-		changed = true;
-	}
-	return changed ? out.join(" ") : null;
-}
-var MAX_PAGE = 200;
-/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
-function page(all, ask) {
-	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
-	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
-	const rows = all.slice(from, from + size);
-	return {
-		total: all.length,
-		rows,
-		next: from + size < all.length ? String(from + size) : null
-	};
-}
-/** The words a goal's row is found by (find spec, 2.1): title, key, owner, team, level, status word, this week's reason and path to green, definition, source. */
-var goalWords = (s) => [
-	s.goal.title,
-	s.goal.key ?? "",
-	s.owner,
-	s.team,
-	LEVEL_LABEL[s.goal.level],
-	LABEL[s.status],
-	s.story.why ?? "",
-	s.story.doing ?? "",
-	s.story.needs ?? "",
-	s.goal.definition,
-	s.goal.source
-].join(" ");
-var goalRow = (s) => ({
-	kind: "goal",
-	id: s.goal.id,
-	name: s.goal.title,
-	detail: [
-		s.goal.key,
-		s.owner,
-		s.team
-	].filter(Boolean).join(" · "),
-	status: s.status,
-	key: s.goal.key ?? null
-});
-/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
-function searchGoals(r, ask) {
-	const query = {
-		...parseQuery(new URLSearchParams({
-			...ask.filters ?? {},
-			...ask.sort ? { sort: ask.sort } : {}
-		})),
-		q: ""
-	};
-	return applyQuery(r.summaries, {
-		...query,
-		sort: query.sort ?? "worst"
-	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
-}
-/** People: name, job title and team; nobody marked as left; those whose name starts with the search first, then A to Z. */
-function searchPeople(r, ask) {
-	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
-	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-	return r.people.filter((p) => !p.leftAt && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
-		kind: "person",
-		id: p.id,
-		name: p.name,
-		detail: [p.role, team(p)].filter(Boolean).join(" · ")
-	}));
-}
-/** Teams: the name and its lead's name; A to Z. Line 2: "Led by {name} · {n} people", or "No lead". */
-function searchTeams(r, ask) {
-	const here = r.people.filter((p) => !p.leftAt);
-	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? null;
-	const people = (t) => {
-		const n = here.filter((p) => p.teamId === t.id).length;
-		return `${n} ${n === 1 ? "person" : "people"}`;
-	};
-	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t) ?? ""}`, ask.q)).sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({
-		kind: "team",
-		id: t.id,
-		name: t.name,
-		detail: `${lead(t) ? `Led by ${lead(t)}` : "No lead"} · ${people(t)}`
-	}));
-}
-function searchWorkspaces(r, ask) {
-	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
-		kind: "workspace",
-		id: w.id,
-		name: w.name,
-		detail: w.detail
-	}));
-}
-/** The words each kind's near miss may correct to. */
-function vocabulary(r) {
-	switch (r.kind) {
-		case "goal": return r.summaries.map(goalWords);
-		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
-		case "team": return r.teams.map((t) => t.name);
-		case "workspace": return r.workspaces.map((w) => w.name);
-	}
-}
-/**
-* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
-* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
-*/
-function search(rows, ask) {
-	const run = (a) => {
-		switch (rows.kind) {
-			case "goal": return searchGoals(rows, a);
-			case "person": return searchPeople(rows, a);
-			case "team": return searchTeams(rows, a);
-			case "workspace": return searchWorkspaces(rows, a);
-		}
-	};
-	const all = run(ask);
-	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
-	const near = nearMiss(ask.q, vocabulary(rows));
-	const again = near ? run({
-		...ask,
-		q: near
-	}) : [];
-	return near && again.length ? {
-		...page(again, ask),
-		near
-	} : page([], ask);
-}
-/**
-* Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
-* then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
-* worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
-* when the rest would fill the list. Nobody marked as left; nothing it can't find.
-*/
-function suggest(rows, viewerId, recents) {
-	const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
-	const pick = (ids, row) => {
-		const out = [];
-		const add = (id, limit) => {
-			if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
-			const r = row(id);
-			if (r) out.push(r);
-		};
-		const lately = recent.filter((id) => !ids.includes(id) && row(id));
-		for (const id of ids) add(id, 6 - Math.min(2, lately.length));
-		for (const id of [...recent, ...ids]) add(id, 6);
-		return out;
-	};
-	switch (rows.kind) {
-		case "person": {
-			const all = searchPeople(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const me = rows.people.find((p) => p.id === viewerId);
-			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
-		}
-		case "team": {
-			const all = searchTeams(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
-			return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
-		}
-		case "goal": {
-			const all = searchGoals(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
-			const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
-			return pick([...mine, ...fed], (id) => by.get(id) ?? null);
-		}
-	}
 }
 // src/ports/search.ts
 /** The core's kinds; a module adds its own (the metric library: 'metric'). */
@@ -11208,21 +11187,33 @@ var CORE_ARTICLES = [
 		title: "Finding and choosing",
 		summary: "A person, a team or a goal is chosen by typing to find it: you and your team are suggested first, and a goal’s key finds it.",
 		group: "goals",
-		sections: [{
-			heading: "Choosing someone or something",
-			list: [
-				"Wherever you choose a person, a team or a goal (who takes part in a review, a next step’s owner, the new owner of goals, who can decide or help), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal).",
-				"Open it and a few are suggested before you type: you first, then your team, then those you chose lately. Type to find others: a name, a job title, a team, or a goal’s words or its key (G-48, g48 or 48). It says how many match and shows up to 50; keep typing to narrow the rest.",
-				"Down and Up move through the rows, Enter chooses, Escape closes and keeps what you had. Where you can choose several, each one chosen is listed with Remove, and Done closes the list.",
-				"Someone marked as left is never offered."
-			]
-		}, {
-			heading: "What a search matches",
-			list: ["Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.", "A goal is found by its title, key, owner, team, level, status, the owner’s latest reason, its definition and its source."]
-		}],
+		sections: [
+			{
+				heading: "Choosing someone or something",
+				list: [
+					"Wherever you choose a person, a team or a goal (who takes part in a review, a next step’s owner, the new owner of goals, who can decide or help), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal).",
+					"Open it and a few are suggested before you type: you first, then your team, then those you chose lately. Type to find others: a name, a job title, a team, or a goal’s words or its key (G-48, g48 or 48). It says how many match and shows up to 50; keep typing to narrow the rest.",
+					"Down and Up move through the rows, Enter chooses, Escape closes and keeps what you had. Where you can choose several, each one chosen is listed with Remove, and Done closes the list.",
+					"Someone marked as left is never offered."
+				]
+			},
+			{
+				heading: "What a search matches",
+				list: ["Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.", "A goal is found by its title, key, owner, team, level, status, the owner’s latest reason, its definition and its source."]
+			},
+			{
+				heading: "Searching a list",
+				list: [
+					"Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).",
+					"When nothing matches, it says so (“No goal matches “zzzz”.”) with Clear the search. If one letter is off, it tries the nearest word and says what it shows instead: “No goal matches “rolback”. Showing goals that match “rollback”.”",
+					"On Activity, the filters that are on read as words under the search, each with Remove (“Filtered by: Kind Check-ins”), and Clear filters when there are two or more.",
+					"The address keeps the search and the filters, so a link you share shows the same list, and Back undoes the last choice."
+				]
+			}
+		],
 		routes: [],
 		screens: [],
-		reqs: ["FIND-AND-PICK"],
+		reqs: ["FIND-AND-PICK", "LIST-BAR"],
 		keywords: [
 			"find",
 			"search",
@@ -11237,7 +11228,8 @@ var CORE_ARTICLES = [
 		related: [
 			"keys",
 			"reviews",
-			"goals-filters"
+			"goals-filters",
+			"activity"
 		]
 	},
 	{
@@ -11421,8 +11413,8 @@ var CORE_ARTICLES = [
 			list: [
 				"Every save is logged: goals, plans, check-ins, comments, review calls, people and the workspace. Drafts are not.",
 				"Filter by who, a goal or its whole tree, team, level, kind of change (check-ins, plans and targets, goal details, reviews, comments, people, imports, via MCP, wrap-ups) and when.",
-				"Search finds names, reasons and numbers. Show the changes opens the before and after.",
-				"The filters are in the link, so a filtered log can be shared. Save .csv exports what is shown.",
+				"Search finds the words on a change: who, the goal and its key, what was said and the numbers. A line under it says how many match; the filters on read as words with Remove (see Finding and choosing). Choose who and which goal by typing their name. Show the changes opens the before and after.",
+				"The search and filters are in the link, so a filtered log can be shared, and Back undoes the last choice. Save .csv exports what is shown.",
 				"Every removal is here too: a goal stopped, a person marked as left, a check-in or comment deleted, a view deleted, a watch stopped, and each restore.",
 				"An import or bulk edit has Undo this import on its entry, for whoever made it or an admin. It puts every row back as it was; rows changed since are skipped and listed on the entry that says it was undone."
 			]
@@ -12433,6 +12425,21 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "one-list-bar",
+		date: "2026-11-10",
+		title: "Searching works the same on Goals, Activity and Help",
+		points: [
+			"A search finds the words you can see on a row, each from its start, a goal’s key included: “roll” finds “Rollback”.",
+			"Each list says how many match in the same words, and when nothing does, says so with Clear the search. One letter off, it shows the nearest match and says so.",
+			"On Activity, choosing a person or a goal to filter by is a search, the filters on read as words with Remove, and the address keeps them, so Back and a shared link show the same list."
+		],
+		articles: [
+			"finding",
+			"activity",
+			"help"
+		]
+	},
 	{
 		id: "find-and-pick",
 		date: "2026-11-10",
@@ -18139,7 +18146,7 @@ async function sendSpans(deps, rows, workspaceId, ctx) {
 		clearTimeout(timer);
 	} catch {}
 }
-// ../goals-app/node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
+// node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 /**
 * The currently registered trace context extractor, if any.
@@ -18147,7 +18154,7 @@ var EXTRACTOR_KEY = Symbol.for("@supabase/supabase-js.traceContextExtractor");
 function getTraceContextExtractor() {
 	return globalThis[EXTRACTOR_KEY];
 }
-// ../goals-app/node_modules/tslib/tslib.es6.mjs
+// node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
 	var t = {};
 	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
@@ -18183,12 +18190,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 		step((generator = generator.apply(thisArg, _arguments || [])).next());
 	});
 }
-// ../goals-app/node_modules/@supabase/functions-js/dist/module/helper.js
+// node_modules/@supabase/functions-js/dist/module/helper.js
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
 };
-// ../goals-app/node_modules/@supabase/functions-js/dist/module/types.js
+// node_modules/@supabase/functions-js/dist/module/types.js
 /**
 * Base error for Supabase Edge Function invocations.
 *
@@ -18278,7 +18285,7 @@ var FunctionRegion;
 	FunctionRegion["UsWest1"] = "us-west-1";
 	FunctionRegion["UsWest2"] = "us-west-2";
 })(FunctionRegion || (FunctionRegion = {}));
-// ../goals-app/node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
+// node_modules/@supabase/functions-js/dist/module/FunctionsClient.js
 /**
 * Client for invoking Supabase Edge Functions.
 */
@@ -18531,7 +18538,7 @@ var FunctionsClient = class {
 		});
 	}
 };
-// ../goals-app/node_modules/@supabase/postgrest-js/dist/index.mjs
+// node_modules/@supabase/postgrest-js/dist/index.mjs
 /**
 * Error format
 *
@@ -22505,7 +22512,7 @@ var PostgrestClient = class PostgrestClient {
 		});
 	}
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
+// node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -22598,7 +22605,7 @@ var WebSocketFactory = class {
 		}
 	}
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/constants.js
+// node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/2.118.0`;
 var VSN_1_0_0 = "1.0.0";
 var VSN_2_0_0 = "2.0.0";
@@ -22632,7 +22639,7 @@ var CONNECTION_STATE = {
 	closing: "closing",
 	closed: "closed"
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
+// node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
 var Serializer = class {
 	constructor(allowedMetadataKeys) {
 		this.HEADER_LENGTH = 1;
@@ -22774,7 +22781,7 @@ var Serializer = class {
 		return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
 	}
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
+// node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 /**
 * Helpers to convert the change Payload into native JS types.
 */
@@ -22960,7 +22967,7 @@ var httpEndpointURL = (socketUrl) => {
 	else wsUrl.pathname = wsUrl.pathname + "/api/broadcast";
 	return wsUrl.href;
 };
-// ../goals-app/node_modules/@supabase/phoenix/priv/static/phoenix.mjs
+// node_modules/@supabase/phoenix/priv/static/phoenix.mjs
 var closure = (value) => {
 	if (typeof value === "function") return value;
 	else {
@@ -24655,7 +24662,7 @@ var Socket = class {
 		}
 	}
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/presenceAdapter.js
 var PresenceAdapter = class PresenceAdapter {
 	constructor(channel, opts) {
 		const phoenixOptions = phoenixPresenceOptions(opts);
@@ -24742,7 +24749,7 @@ function phoenixPresenceOptions(opts) {
 function parseCurrentPresences(currentPresences) {
 	return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
 }
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimePresence.js
 var REALTIME_PRESENCE_LISTEN_EVENTS;
 (function(REALTIME_PRESENCE_LISTEN_EVENTS) {
 	REALTIME_PRESENCE_LISTEN_EVENTS["SYNC"] = "sync";
@@ -24775,7 +24782,7 @@ var RealtimePresence = class {
 		this.presenceAdapter = new PresenceAdapter(this.channel.channelAdapter, opts);
 	}
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
+// node_modules/@supabase/realtime-js/dist/module/lib/normalizeChannelError.js
 /**
 * Normalize the various shapes a channel error reason can take into a real `Error`.
 *
@@ -24797,7 +24804,7 @@ function normalizeChannelError(reason) {
 	}
 	return /* @__PURE__ */ new Error("channel error: connection lost");
 }
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/channelAdapter.js
 var ChannelAdapter = class {
 	constructor(socket, topic, params) {
 		const phoenixParams = phoenixChannelParams(params);
@@ -24899,7 +24906,7 @@ function phoenixChannelParams(options) {
 		private: false
 	}, options.config) };
 }
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimePostgresFilterBuilder.js
 var PostgrestReservedCharsRegexp = /[,()"\\]/;
 var needsQuoting = (value) => PostgrestReservedCharsRegexp.test(value) || value !== value.trim();
 var quote = (value) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
@@ -25034,7 +25041,7 @@ var RealtimePostgresFilterBuilder = class {
 		return this.build();
 	}
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimeChannel.js
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
 (function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT) {
 	REALTIME_POSTGRES_CHANGES_LISTEN_EVENT["ALL"] = "*";
@@ -25725,7 +25732,7 @@ var RealtimeChannel = class RealtimeChannel {
 		return records;
 	}
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
+// node_modules/@supabase/realtime-js/dist/module/phoenix/socketAdapter.js
 var SocketAdapter = class {
 	constructor(endPoint, options) {
 		this.socket = new Socket(endPoint, options);
@@ -25836,7 +25843,7 @@ var SocketAdapter = class {
 		return this.socket;
 	}
 };
-// ../goals-app/node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
+// node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js
 var CONNECTION_TIMEOUTS = {
 	HEARTBEAT_INTERVAL: 25e3,
 	RECONNECT_DELAY: 10,
@@ -26448,7 +26455,7 @@ var RealtimeClient = class {
 		if (!this.isConnected()) this.connect();
 	}
 };
-// ../goals-app/node_modules/iceberg-js/dist/index.mjs
+// node_modules/iceberg-js/dist/index.mjs
 var IcebergError = class extends Error {
 	constructor(message, opts) {
 		super(message);
@@ -26944,7 +26951,7 @@ var IcebergRestCatalog = class {
 		return this.tableOps.createTableIfNotExists(namespace, request);
 	}
 };
-// ../goals-app/node_modules/@supabase/storage-js/dist/index.mjs
+// node_modules/@supabase/storage-js/dist/index.mjs
 function _typeof$1(o) {
 	"@babel/helpers - typeof";
 	return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o$1) {
@@ -30131,9 +30138,9 @@ var StorageClient = class extends StorageBucketApi {
 		return new StorageAnalyticsClient(this.url + "/iceberg", this.headers, this.fetch);
 	}
 };
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/version.js
+// node_modules/@supabase/auth-js/dist/module/lib/version.js
 var version$1 = "2.118.0";
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/constants.js
+// node_modules/@supabase/auth-js/dist/module/lib/constants.js
 /** Current session will be checked for refresh at this interval. */
 var AUTO_REFRESH_TICK_DURATION_MS = 3e4;
 var EXPIRY_MARGIN_MS = 3 * AUTO_REFRESH_TICK_DURATION_MS;
@@ -30162,7 +30169,7 @@ var BASE64URL_REGEX = /^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$/i;
 * verifier itself never appears in a URL.
 */
 var PKCE_FLOW_ID_PARAM = "sb_flow_id";
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/errors.js
+// node_modules/@supabase/auth-js/dist/module/lib/errors.js
 /**
 * Base error thrown by Supabase Auth helpers.
 *
@@ -30448,7 +30455,7 @@ var AuthInvalidJwtError = class extends CustomAuthError {
 		super(message, "AuthInvalidJwtError", 400, "invalid_jwt");
 	}
 };
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/base64url.js
+// node_modules/@supabase/auth-js/dist/module/lib/base64url.js
 /**
 * Avoid modifying this file. It's part of
 * https://github.com/supabase-community/base64url-js.  Submit all fixes on
@@ -30651,7 +30658,7 @@ function bytesToBase64URL(bytes) {
 	byteToBase64URL(null, state, onChar);
 	return result.join("");
 }
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/helpers.js
+// node_modules/@supabase/auth-js/dist/module/lib/helpers.js
 function expiresAt(expiresIn) {
 	return Math.round(Date.now() / 1e3) + expiresIn;
 }
@@ -31049,7 +31056,7 @@ function insecureUserWarningProxy(user, suppressWarningRef) {
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/fetch.js
+// node_modules/@supabase/auth-js/dist/module/lib/fetch.js
 var _getErrorMessage = (err) => {
 	if (typeof err === "object" && err !== null) {
 		const e = err;
@@ -31208,13 +31215,13 @@ function _noResolveJsonResponse(data) {
 function hasSession(data) {
 	return !!data.access_token && !!data.refresh_token && !!data.expires_in;
 }
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/types.js
+// node_modules/@supabase/auth-js/dist/module/lib/types.js
 var SIGN_OUT_SCOPES = [
 	"global",
 	"local",
 	"others"
 ];
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
+// node_modules/@supabase/auth-js/dist/module/GoTrueAdminApi.js
 var GoTrueAdminApi = class {
 	/**
 	* Creates an admin API client that can be used to manage users and OAuth clients.
@@ -32360,7 +32367,7 @@ var GoTrueAdminApi = class {
 		}
 	}
 };
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
+// node_modules/@supabase/auth-js/dist/module/lib/local-storage.js
 /**
 * Returns a localStorage-like object that stores the key-value pairs in
 * memory.
@@ -32392,7 +32399,7 @@ var LockAcquireTimeoutError = class extends Error {
 		this.isAcquireTimeout = true;
 	}
 };
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
+// node_modules/@supabase/auth-js/dist/module/lib/polyfills.js
 /**
 * https://mathiasbynens.be/notes/globalthis
 */
@@ -32411,7 +32418,7 @@ function polyfillGlobalThis() {
 		if (typeof self !== "undefined") self.globalThis = self;
 	}
 }
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
+// node_modules/@supabase/auth-js/dist/module/lib/web3/ethereum.js
 function getAddress(address) {
 	if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error(`@supabase/auth-js: Address "${address}" is invalid.`);
 	return address.toLowerCase();
@@ -32451,7 +32458,7 @@ function createSiweMessage(parameters) {
 	}
 	return `${prefix}\n${suffix}`;
 }
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
+// node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js
 /**
 * A custom Error used to return a more nuanced error detailing _why_ one of the eight documented
 * errors in the spec was raised after calling `navigator.credentials.create()` or
@@ -32641,7 +32648,7 @@ function identifyAuthenticationError({ error, options }) {
 		cause: error
 	});
 }
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
+// node_modules/@supabase/auth-js/dist/module/lib/webauthn.js
 /**
 * WebAuthn abort service to manage ceremony cancellation.
 * Ensures only one WebAuthn ceremony is active at a time to prevent "operation already in progress" errors.
@@ -33247,7 +33254,7 @@ var WebAuthnApi = class {
 		}
 	}
 };
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
+// node_modules/@supabase/auth-js/dist/module/GoTrueClient.js
 polyfillGlobalThis();
 var DEFAULT_OPTIONS = {
 	url: GOTRUE_URL,
@@ -38748,9 +38755,9 @@ var GoTrueClient = class GoTrueClient {
 	}
 };
 GoTrueClient.nextInstanceID = {};
-// ../goals-app/node_modules/@supabase/auth-js/dist/module/AuthClient.js
+// node_modules/@supabase/auth-js/dist/module/AuthClient.js
 var AuthClient = GoTrueClient;
-// ../goals-app/node_modules/@supabase/supabase-js/dist/index.mjs
+// node_modules/@supabase/supabase-js/dist/index.mjs
 var version = "2.118.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
