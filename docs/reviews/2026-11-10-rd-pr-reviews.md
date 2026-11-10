@@ -220,8 +220,8 @@ Read against `docs/design/find/spec.md` 2.3, section 4 and rules 6 and 7, and `d
 
 **2. Low.**
 
-- The words of a chosen row are written a second time in the control (`src/ui/Pick.tsx:197`, `rowFor`: a person's, a team's and a goal's two lines), beside `goalRow`, `searchPeople` and `searchTeams` in `src/domain/find.ts`; and it reads them from the loaded workspace, where the architecture has pickers ask only the Search port. A way to ask the port for rows by id would remove both.
-- A person's suggestions list their team A to Z (`src/domain/find.ts:198`); rule 6 puts the team's lead first.
+- The words of a chosen row are written a second time in the control (`src/ui/Pick.tsx:205`, `rowFor`: a person's, a team's and a goal's two lines), beside `goalRow`, `searchPeople` and `searchTeams` in `src/domain/find.ts`; and it reads them from the loaded workspace, where the architecture has pickers ask only the Search port. A way to ask the port for rows by id would remove both.
+- A person's suggestions list their team A to Z (`src/domain/find.ts:236`); rule 6 puts the team's lead first.
 - On a phone the open picker is a panel over the lower half of the screen (390 by 438 px at 390 by 844), where the spec and the PR say a full sheet titled by the field's label.
 
 **Carried over from #88.** Its two findings (a Goals link's search differing between the screen and `find_goals`; `status` and `level` with a link) are untouched by this PR and still on main.
