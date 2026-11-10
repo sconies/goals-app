@@ -11,6 +11,8 @@
      (in a folder of its own) and the path of a folder to write into (<rebuild folder>/drill-out, emptied first). The command writes status.csv,
      flags.csv, projection.csv, scorecard.csv and checkin.csv there, with the columns spec/conformance/README.md lists, and exits 0.
    A folder with no drill.json but the five CSVs in it is scored as it is, without running anything.
+   find.csv (the find rules: what a search for a goal, a person or a team finds) is not part of stage 1: it is scored
+   only when drill.json lists it under "also" ({ "stage": 1, "run": "…", "also": ["find"] }) or --files names it.
 
    Options:
      --files status,flags   score only these files (the others are listed as not scored)
@@ -26,8 +28,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FILES = ['status', 'flags', 'projection', 'scorecard', 'checkin'];
+/** Files beyond stage 1's, scored only when asked for ("also" in drill.json, or --files). */
+const ALSO = ['find'];
 /** The columns that name a row: a row in the rebuild's file is matched to the expected row with the same values in them. */
-const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], checkin: ['checkin'] };
+const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], checkin: ['checkin'], find: ['kind', 'q'] };
 /** Numbers are written with up to 6 decimal places, so two that differ by rounding in the last place still match. */
 const TOLERANCE = 1.5e-6;
 
@@ -156,11 +160,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 /** spec/conformance: next to this file's folder in a copy of spec/ (spec/rebuild/drill.mjs), or under spec/ from scripts/. */
 const defaultExpected = () => [path.join(here, '..', 'conformance'), path.join(here, '..', 'spec', 'conformance')].find((d) => fs.existsSync(path.join(d, 'workspace.json')));
 
-const readCsvs = (dir) => Object.fromEntries(FILES.map((n) => [n, fs.existsSync(path.join(dir, `${n}.csv`)) ? parseCsv(fs.readFileSync(path.join(dir, `${n}.csv`), 'utf8')) : null]));
+const readCsvs = (dir) => Object.fromEntries([...FILES, ...ALSO].map((n) => [n, fs.existsSync(path.join(dir, `${n}.csv`)) ? parseCsv(fs.readFileSync(path.join(dir, `${n}.csv`), 'utf8')) : null]));
 const quote = (s) => (process.platform === 'win32' ? `"${s}"` : `'${s.replace(/'/g, `'\\''`)}'`);
 
 function main(argv) {
-  const opt = { diffs: 10, timeout: 600, files: FILES, json: false, expected: null, target: null };
+  const opt = { diffs: 10, timeout: 600, files: null, json: false, expected: null, target: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--diffs') opt.diffs = Number(argv[++i]);
@@ -173,8 +177,8 @@ function main(argv) {
     else { console.error(`Unknown argument: ${a}`); return 2; }
   }
   if (!opt.target) { console.error('Usage: npm run drill -- <rebuild folder> [--files status,flags] [--diffs 10] (or node spec/rebuild/drill.mjs <rebuild folder>)'); return 2; }
-  const bad = opt.files.filter((f) => !FILES.includes(f));
-  if (bad.length) { console.error(`--files takes ${FILES.join(', ')}; not ${bad.join(', ')}`); return 2; }
+  const bad = (opt.files ?? []).filter((f) => !FILES.includes(f) && !ALSO.includes(f));
+  if (bad.length) { console.error(`--files takes ${[...FILES, ...ALSO].join(', ')}; not ${bad.join(', ')}`); return 2; }
   const expectedDir = opt.expected ? path.resolve(opt.expected) : defaultExpected();
   if (!expectedDir || !fs.existsSync(path.join(expectedDir, 'workspace.json'))) { console.error('Can’t find the conformance data (spec/conformance/workspace.json). Pass --expected <folder>.'); return 2; }
   const target = path.resolve(opt.target);
@@ -188,6 +192,7 @@ function main(argv) {
     try { m = JSON.parse(fs.readFileSync(manifest, 'utf8')); } catch (e) { console.error(`drill.json isn’t JSON: ${e.message}`); return 2; }
     if (typeof m.run !== 'string' || !m.run.trim()) { console.error('drill.json needs "run": the command that writes the five CSV files, e.g. { "stage": 1, "run": "node main.mjs" }'); return 2; }
     if (m.stage != null && m.stage !== 1) { console.error(`drill.json says stage ${m.stage}; this harness scores stage 1 only (spec/rebuild/README.md says which stages have a drill).`); return 2; }
+    if (!opt.files) opt.files = [...FILES, ...(Array.isArray(m.also) ? m.also.filter((f) => ALSO.includes(f)) : [])];
     outDir = path.join(target, 'drill-out');
     fs.rmSync(outDir, { recursive: true, force: true });
     fs.mkdirSync(outDir, { recursive: true });
@@ -205,6 +210,7 @@ function main(argv) {
     } else say(`Finished in ${ran.seconds.toFixed(1)} s.`);
   } else say(`No drill.json in ${target}: scoring the CSV files already there.`);
 
+  if (!opt.files) opt.files = FILES;
   const expected = readCsvs(expectedDir);
   const actual = readCsvs(outDir);
   const score = scoreAll(expected, actual, opt.files);

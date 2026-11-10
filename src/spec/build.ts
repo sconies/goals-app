@@ -16,7 +16,7 @@ import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
 import { rebuildFiles, stages, type ModuleWithRebuild, type Stage } from './rebuild';
-import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, HEADERS, type ConformanceWorkspace } from './conformance';
+import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, HEADERS, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
 
@@ -334,6 +334,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
       ['[projection.csv](projection.csv)', String(rows('projection.csv')), 'number goal (metric or range) and week', HEADERS.projection.map((x) => `\`${x}\``).join(', ')],
       ['[scorecard.csv](scorecard.csv)', String(rows('scorecard.csv')), 'scorecard cell, goal and week', HEADERS.scorecard.map((x) => `\`${x}\``).join(', ')],
       ['[checkin.csv](checkin.csv)', String(rows('checkin.csv')), 'check-in in the workspace', HEADERS.checkin.map((x) => `\`${x}\``).join(', ')],
+      ['[find.csv](find.csv) (not stage 1)', String(rows('find.csv')), 'search', FIND_HEADER.map((x) => `\`${x}\``).join(', ')],
     ]),
     '',
     'What each column is, and the rule that gives it:',
@@ -343,6 +344,8 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '- **projection.csv** ([the projection](../core/rules/projection.md)): for a number to move, the projection `assessPosted` makes (to its due week, from the check-ins up to this week), and `forecast_misses`; for a number to keep in range, one number per week (the latest posted in each week), projected to the cycle’s end, made whether or not the goal is stale (the scorecard itself says Can’t say when stale); `forecast_misses` always empty. With no projection every column after `kind` is empty, `forecast_misses` included; with one, a number to move has `forecast_misses` `yes` or `no`. `slope` is the slope the projection leans by (*lean* × the fitted slope), not the fitted slope. `value`, `low`, `high` and `slope` are rounded to 6 decimal places; `first_week` and `last_week` are the weeks of numbers the line used, `to_week` the week projected to.',
     '- **scorecard.csv** ([the scorecard](../core/rules/scorecard.md)): `goalScorecard(goal, cycle, checkIns, week, stale)` with `stale` when the status is `stale`; one row per cell, in order. `cell`, `tone` and `likelihood` are the rule; `value`, `label` and `sub` its words ([every one of them](../core/rules/scorecard.md#the-words)). `likelihood` is the code (`likely`, `possible`, `unlikely`, `very-unlikely`) on a `hit` cell that has a likelihood, and empty on every other cell and on a `hit` cell that says Can’t say or Too early to say.',
     '- **checkin.csv** ([what a check-in must say](../core/rules/check-in.md)): one row per check-in in `workspace.json` (`checkin` is its `id`), judged again as a draft by `evaluate` in its own `week`, for the goal with the plan of that week (`goalAsOf`), with every check-in in the workspace (the rule uses those for earlier weeks). First the **bare draft**: the check-in’s number (written as the stored number, `String(value)`; empty when null) or its stage updates, and nothing else, the owner’s call left to the calculation: `calculated` (`on`, `risk`, `off` or `done`: `planned` and `none` count as `on`), `reason` (`ahead`, `behind` or empty), `asks_target` and `needs_path` (`yes`/`no`), `missing` (the codes still missing, in order, separated by spaces; empty when it can be posted). Then the same bare draft with only the owner’s call as posted added (`call`, the check-in’s `status`; the posted words, cause, path and target are not attached): `greener` and `call_missing`. Rows go by week, then goal key, then id.',
+    '',
+    '- **find.csv** ([finding things](../core/rules/finding.md)): not part of stage 1, and scored by the drill only when asked (`"also": ["find"]` in `drill.json`, or `--files find`). One row per search in a fixed list (the find rules’ worked examples), made on the workspace as it stood at `builtFor` (the same `asOf`; people have no job title in workspace.json, so a person is found by name and team only): `kind` (`goal`, `person` or `team`) and `q` the search; `total` how many match; `near` the near miss offered when nothing matched, else empty; `ids` the ids of every row found (the near miss’s when there is one), in the kind’s order, separated by spaces. Goals are the live goals not stopped by then, worst first then by title; people are those not marked as left, those whose name starts with the search first, then A to Z; teams A to Z.',
     '',
     'Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.',
     '',
@@ -399,7 +402,8 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   out['spec/conformance/workspace.json'] = workspaceJson(w);
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
-  const rows = Object.fromEntries(Object.entries(files).map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
+  // Stage 1's files only: find.csv belongs to the find rules, scored when asked.
+  const rows = Object.fromEntries(Object.entries(files).filter(([f]) => f !== 'find.csv').map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
   Object.assign(out, internalFiles());
   Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs')));
   return out;

@@ -1,1 +1,1 @@
-{ "stage": 1, "run": "node main.mjs" }
+{ "stage": 1, "run": "node main.mjs", "also": ["find"] }
