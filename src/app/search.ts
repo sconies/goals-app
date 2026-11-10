@@ -9,12 +9,15 @@ import type { Prefs } from '../ports/prefs';
 import type { Search } from '../ports/search';
 import { searchRows } from './reads';
 import { useApp } from './state';
+import { useModules } from '../core/app';
 
 const prefs = browserPrefs('faro-prefs:');
 
 export function useSearch(): Search {
   const app = useApp();
-  return useMemo(() => localSearch(searchRows(app.snapshot, app.cycle, app.today, app.week)), [app.snapshot, app.cycle, app.today, app.week]);
+  // A module's kinds (its finders) answer through the same port; with the module off, the kind is gone.
+  const { screens } = useModules();
+  return useMemo(() => localSearch(searchRows(app.snapshot, app.cycle, app.today, app.week), Object.fromEntries(screens.flatMap((m) => m.finders ?? []).map((f) => [f.kind, f.search]))), [app.snapshot, app.cycle, app.today, app.week, screens]);
 }
 
 export function usePrefs(): Prefs { return prefs; }

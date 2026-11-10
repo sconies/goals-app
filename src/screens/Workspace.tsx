@@ -205,12 +205,13 @@ const featuresSentence = (on: string[], off: string[]) => {
 function AboutSection() {
   const app = useApp();
   const { narrow, sections } = useWs();
-  const { installed, on } = useModules();
+  const { installed, on, screens } = useModules();
   const [all, setAll] = useState(false);
   const admin = app.viewer.admin;
   const ws = workspaceName(app.ws, app.mode);
-  // What an admin has to sort out (rule 3), then each module section's own.
-  const needs = [...workspaceNeeds(app.snapshot, app.cycle, admin), ...sections.flatMap((s) => s.needs?.(app.snapshot, app.viewer) ?? [])];
+  // What an admin has to sort out (rule 3), then each module section's own, then what a module with no section raises
+  // (AR2: toSortOut).
+  const needs = [...workspaceNeeds(app.snapshot, app.cycle, admin), ...sections.flatMap((s) => s.needs?.(app.snapshot, app.viewer) ?? []), ...screens.flatMap((m) => m.toSortOut?.(app.snapshot, app.viewer) ?? [])];
   const shownNeeds = all ? needs : needs.slice(0, NEEDS_SHOWN);
   const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
   const admins = adminsLine(app.snapshot.people);
