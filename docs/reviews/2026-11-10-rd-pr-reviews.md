@@ -106,7 +106,7 @@ Read against `docs/design/workspace/spec.md` sections 1, 2.1 to 2.4, 3, rules 4,
 - Reproduce: in the demo as Amara, open Oskar Lindgren, "Mark as left…", then open `/people/oskar`: the heading reads "Oskar Lindgren (left) (left)". The browser's title is right.
 - Suggested fix: drop the heading's own suffix; have U43 check the heading's exact words.
 
-### #93 0c hardening: the fix for #89's finding 1 (reviewed before merge, at d392023, at the planning session's request)
+### #93 0c hardening: the fix for #89's finding 1 (reviewed before merge at d392023, at the planning session's request; merged unchanged at 13:20 UTC)
 
 **Verdict: GO to merge.** Both ways out that I found in #89 are closed, and 0036 changes nothing outside Faro.
 
