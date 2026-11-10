@@ -2755,7 +2755,8 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   // Feedback is its own page beside Help; the old inbox address leads there.
   await p.goto(url('/workspace/inbox'));
   await p.waitForURL(/\/feedback/, { timeout: 5000 });
-  h.set('entry', await p.getByRole('heading', { level: 1, name: 'Feedback' }).isVisible(), 'the inbox’s old address does not open Feedback');
+  // Wait for the page to draw: under a loaded machine the address changes a moment before the heading shows.
+  h.set('entry', await p.getByRole('heading', { level: 1, name: 'Feedback' }).waitFor({ timeout: 5000 }).then(() => true, () => false), 'the inbox’s old address does not open Feedback');
   if (!phone) h.set('entry', await p.locator('.side').getByRole('link', { name: 'Feedback' }).isVisible(), 'Feedback is not in the sidebar');
   // Rhea leaves the example: who takes over her goals first.
   await p.goto(url('/workspace/overview'));
