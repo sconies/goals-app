@@ -157,3 +157,29 @@ Checked in the demo on Lead time for changes as Rhea, Amara and Oskar at 1440 px
 The two things kept back until after Wednesday (`goal.sections` not yet inside About; the review walkthrough's list) are stated in the PR. The section link still says "Activity": the rename to History is GT2's.
 
 **Low.** An open next step's row shows "Change" beside its one button for whoever agreed it or an admin (`src/screens/GoalScreen.tsx`, `StepRowItem`), where the spec gives a row one button at most. It is today's way to correct a step, so it may be meant; the PR doesn't say.
+
+### #95 0c: Storage's rules call nothing in faro (reviewed before merge, at 5b9276a, at the planning session's request)
+
+**Verdict: NO-GO as written, for one small thing (finding 1). The fix itself is right, and with that guard changed it is a GO.**
+
+How it was checked: the local Postgres 16 shaped like Supabase, brought to the state after 0036 by main's migrator, with a rule of the other app's on `storage.objects`; then this branch's `check-fence`, 0037 (twice) and the role script (twice). The PR's tests pass (24). Nothing live was touched.
+
+**What holds**
+
+| Claim | Result |
+|---|---|
+| The Storage escape is closed | Yes. With `okr_is_builder` and `okr_markup_id_ok` rewritten by `faro_owner` to copy the family table, a signed-in user of the other app listed Storage (a `markups` row included): nothing was copied |
+| anon can still upload a markup's pictures | Yes. The four pictures go into a folder named like a markup id. Refused: a fifth name, a folder that isn't `mk_` and 16 hex digits, a nested folder, no folder, another bucket, replacing one, renaming, deleting |
+| 0037 touches only Faro's two rules | Yes. "markups: builders read" is gone, "markups: upload" names no function in `faro`, and the other app's rule on `storage.objects` is unchanged. A second run is a no-op |
+| `check-fence` | As postgres it warned of 2 rules before 0037 and counted 0 after; as `faro_owner` it says "Fenced" |
+| The role script | Refuses before 0037; runs twice; unschedules only `okr-telemetry-nightly` |
+
+**1. Blocking, though it fails safe. 0037's guard may stop the migration on the live project.**
+
+- Where: `supabase/migrations/0037_storage_rules.sql:17-24`. It goes ahead only if the role applying it owns `storage.objects` or is a member of its owner; otherwise, for any role but `faro_owner`, it raises "postgres can't change Storage's rules".
+- On hosted Supabase `storage.objects` belongs to `supabase_storage_admin`. As far as I know postgres is not a member of that role there, and can still make rules on Storage's tables by a grant of the platform's own, which is how 0024's rules were made. If so, the guard answers "no" for a role that can, and 0037 fails. I could not check this without querying the live project.
+- Reproduced locally in that shape (the table owned by a role postgres isn't in): "0037_storage_rules.sql failed and was rolled back". Nothing is harmed, but CI's migrate job goes red, every later migration waits behind it, and the role script keeps refusing.
+- Suggested fix: don't ask first; try, and catch the refusal. Wrap the three statements in `begin … exception when insufficient_privilege then` and there keep today's two outcomes (a notice for `faro_owner`, an error for anyone else). That is right whichever way the live project is set up.
+- Or, to merge as it is: Lane runs `select pg_has_role('postgres', (select relowner from pg_class where oid = 'storage.objects'::regclass), 'usage');` in the SQL editor. If it says true, this is a GO unchanged.
+
+**2. Low, a trade-off the migration states.** Uploading no longer needs an id issued in the last two hours, only one of the right shape. Anyone with the public key could already issue ids without limit, so the bucket is no more open to filling. The new part: a picture can be added later to an existing markup that lacks one of its four (ids are readable in the open inbox). It can't replace one.
