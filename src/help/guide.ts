@@ -801,9 +801,10 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Each cycle shows its dates, whether it’s running (and which week it’s in), not started or over, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.',
-        'The running cycle leads to its wrap-up: See the wrap-up, or Wrap it up once it’s open.',
-        'An admin can delete a cycle nobody has checked in to, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays. Anyone else reads the list, without Delete, and is told who the admins are.',
+        'Each cycle says where it stands in a word (running, over, or starts on a date), then its week and dates (the running one) or only its dates, then how many goals and check-ins it has (“no check-ins yet” for none).',
+        'The running cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up.',
+        'Its one action: See the wrap-up, before it opens (once any goal has a check-in); Wrap it up, once it’s open; and for admins, once every goal is wrapped up, Start the next cycle.',
+        'An admin can delete a cycle nobody has checked in to, with its goals: Delete… asks first (“Delete 2027 and its 4 goals? Nobody has checked in to it.”). It’s listed in Recently removed and can be restored for 30 days. One with check-ins stays, and the only cycle always stays.',
         'A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped.',
       ] },
       { heading: 'Who can', text: ['Everyone reads Cycles and opens the wrap-up. Only admins delete a cycle or start the next one.'] },
@@ -868,7 +869,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Untick one to switch it off for everyone here; tick it to switch it back on.',
+        'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Each has a switch with On or Off beside it; switch one off for everyone here; tick it to switch it back on.',
         'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.',
         'Nothing a feature saved is deleted. Switch it back on and everything is as it was.',
         'Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.',
@@ -914,8 +915,8 @@ const CORE_ARTICLES: Article[] = [
         'Only the people building Faro read markups.',
       ] },
       { heading: 'Turning it off', list: [
-        'A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says whether it is on where you are.',
-        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first, and turning it off says so with Undo. While it is off, nothing is recorded or sent from that workspace, by the app or through MCP.',
+        'A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says in one line whether it is on where you are, and leads to Privacy.',
+        'Anyone can read what is recorded, and whether it is on (On or Off, in a word), on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first, and turning it off says so with Undo. While it is off, nothing is recorded or sent from that workspace, by the app or through MCP.',
       ] },
     ],
     routes: ['/workspace/privacy'],

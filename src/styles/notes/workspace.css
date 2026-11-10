@@ -155,3 +155,10 @@
 .access-tokens { margin-top: var(--s5); }
 .people-admin-actions { flex-wrap: wrap; gap: var(--s2); }
 .pick-row { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; }
+
+/* Features and Privacy (WR4): a row with what it is, its state in a word, and the switch at the right. */
+.switch-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-bottom: 1px solid var(--line-2); min-height: 44px; }
+.switch-word { flex: none; font-weight: 600; font-size: var(--t-sm); min-width: 2em; text-align: right; }
+.switch-row input.switch { flex: none; width: 20px; height: 20px; }
+.removed-find { flex-wrap: wrap; gap: var(--s3); }
+.cycle-row { flex-wrap: wrap; }

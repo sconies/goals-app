@@ -21,6 +21,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'cycles-plainer',
+    date: '2026-11-10',
+    title: 'Cycles says where the year stands',
+    points: [
+      'Each cycle shows its week, its dates and when the wrap-up opens, with one action: see the wrap-up, wrap it up, or start the next cycle.',
+      'Deleting an empty cycle asks first.',
+      'Features and Privacy say On or Off in words beside each switch.',
+      'A long Recently removed list can be searched by name and narrowed to one kind.',
+    ],
+    articles: ['workspace-cycles', 'features', 'recording', 'removing'],
+  },
+  {
     id: 'admins-on-access',
     date: '2026-11-10',
     title: 'Admins are managed where they are listed',
