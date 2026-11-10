@@ -6,7 +6,7 @@ import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
 import { dashboard, groupWatched, type Dashboard } from '../domain/home';
 import { daysToReview, onTimeStreak, reviewDate, weekCompletion, weekProgress, WEEKDAY } from '../domain/progress';
-import { agendaOf, dayText, daysPast, nextSessionWeek, pastText, reviewedLabel, reviewSession, sessionDate, sessionPlan, upcomingSessionWeek, walkOrder, watchedGoals } from '../domain/review';
+import { agendaOf, dayText, daysPast, nextSessionWeek, pastText, reviewedLabel, reviewSession, sessionDate, sessionToDo, sessionPlan, upcomingSessionWeek, walkOrder, watchedGoals } from '../domain/review';
 import { weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
@@ -72,7 +72,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
   const { needs, handled } = splitAttention(att);
   const rest = mine.filter((g) => !att.some((a) => a.goal.id === g.id));
   const wrapLeft = wrapUpOpen(app.cycle, app.week) ? mine.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)) : [];
-  const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => s.week === Math.max(1, app.week) && s.done < s.total);
+  const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => sessionToDo(s, app.snapshot, app.week, app.today));
   const resuming = p.due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
   // The same reading as the check-in's confirmation (domain/progress weekCompletion).
@@ -81,8 +81,8 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
     <>
       <section className="hero home-hero split-a" data-part="This week’s main action">
         {p.goals.length > 0 && !(myReview && (allIn || !p.done.length) && !p.due.length && !wrapLeft.length) && !(p.upcoming.length && !p.due.length && !p.done.length)
-          ? <ProgressRing done={p.done.length} total={p.goals.length} size={56} label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
-          : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={56} label={reviewedLabel(myReview, myReview.review.name)} /> : null}
+          ? <ProgressRing done={p.done.length} total={p.goals.length} size={64} counts="check-ins" label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
+          : myReview ? <ProgressRing done={myReview.done} total={myReview.total} size={64} counts="reviewed" label={reviewedLabel(myReview, myReview.review.name)} /> : null}
         <div className="hero-body">
           {p.due.length ? (
             <>
@@ -346,12 +346,17 @@ function DashStrip({ d, streakNote }: { d: Dashboard; streakNote: string }) {
   const when = d.next ? (d.next.days === 0 ? 'today' : d.next.days === 1 ? 'tomorrow' : `in ${d.next.days} days`) : '';
   return (
     <section className="dash" aria-label="Your week at a glance" data-part="Week at a glance">
-      <Link className="dash-cell dash-goals" to={d.scope === 'mine' ? '/goals?show=mine' : '/goals'}>
-        <span className="dash-label">{d.scope === 'mine' ? 'Your goals' : 'All goals'} · {d.total}</span>
+      {/* Each count opens its own goals: "11 off track" lists the 11 (U23). The label opens them all. */}
+      <div className="dash-cell dash-goals">
+        <Link className="dash-label dash-all" to={d.scope === 'mine' ? '/goals?show=mine' : '/goals'}>{d.scope === 'mine' ? 'Your goals' : 'All goals'} · {d.total}</Link>
         <span className="dash-counts">
-          {d.counts.map((c) => <span key={c.status} className={'dash-count tone-' + c.status}><StatusShape k={c.status} />{c.n} {LABEL[c.status].toLowerCase()}</span>)}
+          {d.counts.map((c) => (
+            <Link key={c.status} className={'dash-count tone-' + c.status} to={`/goals?${d.scope === 'mine' ? 'show=mine&' : ''}status=${c.status}`} aria-label={`${c.n} ${LABEL[c.status].toLowerCase()}: show ${c.n === 1 ? 'it' : 'them'}`}>
+              <StatusShape k={c.status} />{c.n} {LABEL[c.status].toLowerCase()}
+            </Link>
+          ))}
         </span>
-      </Link>
+      </div>
       {d.streak != null && (
         <div className="dash-cell dash-streak">
           <span className="dash-label">On-time streak</span>

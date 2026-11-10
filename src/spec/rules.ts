@@ -3,6 +3,8 @@
    rule by src/spec/spec.test.ts (and by the generator, which refuses to write an example that isn't true), so an
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
+import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
+import { findPeople } from '../domain/people';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
@@ -12,15 +14,16 @@ import { fmt } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
-import { teamPeople } from '../domain/actions';
+import { acceptRisk, teamPeople } from '../domain/actions';
 import { ENDING_WEEKS, workspaceNeeds } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domain/attention';
-import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
-import type { Ask, MetricGoal, Snapshot } from '../domain/types';
+import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
+import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
+import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -283,15 +286,17 @@ The projection fits a least-squares line through the recent numbers, not a slope
     id: 'check-in',
     title: 'What a check-in must say',
     summary: 'What a check-in needs before it can be posted, and the record it becomes.',
-    code: [{ file: 'src/domain/checkin.ts', names: ['emptyDraft', 'parseNumber', 'valueProblem', 'evaluate', 'toCheckIn', 'MISSING_TEXT', 'CAUSES_BEHIND', 'CAUSES_AHEAD'] }],
+    code: [{ file: 'src/domain/checkin.ts', names: ['emptyDraft', 'parseNumber', 'valueProblem', 'lastValueOf', 'numberCheck', 'unchangedStory', 'evaluate', 'toCheckIn', 'MISSING_TEXT', 'CAUSES_BEHIND', 'CAUSES_AHEAD'] }],
     tests: ['src/domain/rules.test.ts#check-in rules', 'src/domain/rules.test.ts#typed numbers', 'src/domain/rules.test.ts#what a check-in still needs, as stable codes', 'evals/scenarios.eval.ts'],
-    reqs: ['REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'GREENER', 'OWNER-CALL', 'CHECKIN-STATUS-VS-PLAN', 'OTHER-CAUSE', 'FIRST-CHECKIN'],
+    reqs: ['REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'GREENER', 'OWNER-CALL', 'CHECKIN-STATUS-VS-PLAN', 'OTHER-CAUSE', 'FIRST-CHECKIN', 'HONEST-CHECKIN'],
     body: `
 A check-in is one week's report on one goal, by its owner (or an admin): the number (or each stage's state), the owner's call, and the words the numbers ask for. Every way in (the check-in screen, the bulk grid, a spreadsheet, the AI assistant) uses these rules.
 
 **Reading a number** (\`parseNumber\`): spaces and a trailing unit or \`%\` are ignored; a decimal comma with one or two digits (\`29,4\`) is a decimal point; commas grouping thousands (\`1,250\`, \`1,250.5\`) are dropped. Anything else that isn't plain digits with one optional point and sign (hex, exponents, words, two points) is not a number; nor is anything 10¹² or more.
 
-**Impossible and surprising numbers** (\`valueProblem\`): letters are refused with the one message of [numbers and names](numbers-and-names.md); a number with more decimal places than the goal keeps is refused (never rounded, the same rule); below zero is refused for a percentage or a time or money unit; over 100% is refused for a share (see [the projection](projection.md)) and only questioned otherwise; a number goal's value more than ${FAR_OUTSIDE} times the plan's width beyond either end of its plan is questioned ("That's far outside this goal's plan (30 to 75%). Is 400 right?"); a number more than 3 times or less than a third of last week's is questioned ("Last week was 29.4. Is 294 right?"). Questions never refuse.
+**Impossible and surprising numbers** (\`valueProblem\`): letters are refused with the one message of [numbers and names](numbers-and-names.md); a number with more decimal places than the goal keeps is refused (never rounded, the same rule); below zero is refused for a percentage or a time or money unit, and for a count (see [the projection](projection.md)); over 100% is refused for a share (see [the projection](projection.md)) and only questioned otherwise; a number goal's value more than ${FAR_OUTSIDE} times the plan's width beyond either end of its plan is questioned ("That's far outside this goal's plan (30 to 75%). Is 400 right?"); a count's value past its target (beyond it in the better direction) is questioned ("That's past the target of 40 pairs. Is 41 right?"); a number more than 3 times or less than a third of last week's is questioned ("Last week was 29.4. Is 294 right?"). Questions never refuse.
+
+**One number check** (\`numberCheck\`): every way a number is typed (the check-in, the bulk grid, a spreadsheet) asks \`valueProblem\` with the goal's latest number (\`lastValueOf\`: the newest of its check-ins that has a value), and a spreadsheet's error for an unusable number is \`valueProblem\`'s own words.
 
 **Judging the draft** (\`evaluate\`, for the goal, the week, the draft and the goal's check-ins): the check-in is judged as in [the status](status.md), with the goal's earlier check-ins (weeks before this one). The calculated call is the calculation, with \`planned\` and \`none\` counting as \`on\`. The owner's call defaults to it.
 
@@ -306,7 +311,8 @@ What is still missing, as codes, in this order:
 2. \`greener-why\`: a greener call needs its own reason of at least ${MIN_REASON} characters.
 3. \`reason-behind\` / \`reason-ahead\`: a cause (one of the listed causes, or "Something else") and a why of at least ${MIN_REASON} characters.
 4. \`path\`: what changes (at least ${MIN_PATH} characters) and, when the recovery state is \`plan\` (the default), a week to be back on plan by that is after this week and no later than the cycle's last week. The other recovery states (\`investigating\`, \`help\`, \`target\`) need no week.
-5. \`target\`: a proposed target, when given, must be beyond the current target in the better direction.
+5. \`story-unchanged\`: the draft carries last check-in's account (\`carried\`: its cause, why, path and week, copied in when the owner chose to edit it), and a part still asked for is word for word the same (\`unchangedStory\`: the reason when a reason is needed and the cause and the why, trimmed, are unchanged; the path when a path is needed and what changes, trimmed, and the week are unchanged), and the owner hasn't said it is still true (\`stillTrue\`). A draft that carries nothing (a spreadsheet, the AI tools) is never asked this.
+6. \`target\`: a proposed target, when given, must be beyond the current target in the better direction.
 
 It can be posted when nothing is missing.
 
@@ -318,6 +324,8 @@ It can be posted when nothing is missing.
       { given: 'The 30→75 goal in week 4 (plan 43.846): nothing typed; "abc"; "140"; "44". Every code still missing, in order: a refused number is still judged, so 140 (well ahead) also asks for its reason.', then: 'value; value-not-number; value-impossible, reason-ahead; nothing missing', run: () => [{}, { value: 'abc' }, { value: '140' }, { value: '44' }].map((d) => evaluate(g3075, CYCLE, 4, D(d), []).codes.join(', ') || 'nothing missing').join('; ') },
       { given: '40 in week 4 (off track) with nothing else; then with a cause, a why, a path and back by week 7; then back by week 4.', then: 'reason-behind, path; can post; path', run: () => { const why = { cause: 'slower' as const, why: 'Rollout paused for a week', ptgWhat: 'Restart the rollout' }; return [D({ value: '40' }), D({ value: '40', ...why, ptgBy: 7 }), D({ value: '40', ...why, ptgBy: 4 })].map((d) => { const e = evaluate(g3075, CYCLE, 4, d, []); return e.canPost ? 'can post' : e.codes.join(', '); }).join('; '); } },
       { given: '58 in week 4 (well ahead): nothing else; with a reason and a proposed target of 70; with 95.', then: 'reason-ahead; target; can post', run: () => { const why = { value: '58', cause: 'early' as const, why: 'The bot shipped two weeks early' }; return [D({ value: '58' }), D({ ...why, proposeTarget: '70' }), D({ ...why, proposeTarget: '95' })].map((d) => { const e = evaluate(g3075, CYCLE, 4, d, []); return e.canPost ? 'can post' : e.codes.join(', '); }).join('; '); } },
+      { given: '40 in week 4, with last week’s cause, why, path and week copied in untouched; then said to be still true; then with the why rewritten.', then: 'story-unchanged; can post; story-unchanged (the path)', run: () => { const carried = { cause: 'slower' as const, why: 'Rollout paused for a week', what: 'Restart the rollout', by: 7 }; const same = { value: '40', cause: 'slower' as const, why: carried.why, ptgWhat: carried.what, ptgBy: 7, carried }; return [D(same), D({ ...same, stillTrue: true }), D({ ...same, why: 'The fix is waiting on review' })].map((d, i) => { const e = evaluate(g3075, CYCLE, 4, d, []); return e.canPost ? 'can post' : e.codes.join(', ') + (i === 2 ? ` (the ${e.unchanged.join(', ')})` : ''); }).join('; '); } },
+      { given: 'A count, 4 → 40 pairs: -5; 41.', then: 'refused; questioned: That’s past the target of 40 pairs. Is 41 right?', run: () => { const pairs = { ...g3075, unit: 'pairs', decimals: 0, plan: { ...g3075.plan, start: 4, target: 40 } }; const a = valueProblem('-5', 10, 'pairs', pairs), b = valueProblem('41', 38, 'pairs', pairs); return `${a?.block ? 'refused' : 'fine'}; ${b && !b.block ? 'questioned' : 'fine'}: ${b?.text}`; } },
       { given: '40 in week 4, called on track, with a reason for being behind but none for the greener call.', then: 'greener-why', run: () => evaluate(g3075, CYCLE, 4, D({ value: '40', status: 'on', cause: 'slower', why: 'Rollout paused for a week' }), []).codes.join(', ') },
     ],
   },
@@ -328,7 +336,7 @@ It can be posted when nothing is missing.
     title: 'Numbers and names',
     summary: 'How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart.',
     code: [
-      { file: 'src/domain/numbers.ts', names: ['typedDecimals', 'precisionProblem', 'placesToKeep', 'notNumberText', 'groupDigits', 'fixed', 'farOutside', 'setupProblem'] },
+      { file: 'src/domain/numbers.ts', names: ['typedDecimals', 'precisionProblem', 'placesToKeep', 'exampleNumber', 'notNumberText', 'groupDigits', 'fixed', 'farOutside', 'setupProblem'] },
       { file: 'src/domain/goal.ts', names: ['validateGoal', 'planHint', 'planQuestion'] },
       { file: 'src/domain/people.ts', names: ['sameNameNote', 'personTell', 'nameWithTell', 'avatarHues', 'duplicateTitles', 'goalTell', 'sameTitleNote'] },
       { file: 'src/domain/thresholds.ts', names: ['MIN_NAME', 'nameProblem'] },
@@ -340,7 +348,7 @@ One rule for every way in: the check-in, New goal, goal edit, the workspace set-
 
 **Never rounded quietly.** Each number goal keeps a number of decimal places (*Decimals*, 0 to 3), and every number of it is shown at those places. A number typed with more (\`typedDecimals\`: the digits after the point, trailing zeros not counted; a decimal comma counts as a point) is refused (\`precisionProblem\`), saying what it would show as and the two ways forward: type it at the goal's places, or raise Decimals. In a check-in the refusal offers to raise Decimals for the goal in one step, to the places the number was typed with, up to 3 (\`placesToKeep\`: "Keep 1 decimal place for this goal"), logged as a change to the goal with why. This holds for a check-in's value, a start, target, limit, margin and any plan number typed by hand. A plan already stored isn't judged again when a goal is edited; only numbers changed are. An import that adds a goal without Decimals takes the most decimal places its start, target and limit were typed with (up to 3).
 
-**Letters in a number** get one message everywhere (\`notNumberText\`): ““a12” isn't a number. Type digits only, like 29.4.” (Letters after the digits are read as a unit: “12 days” is 12.)
+**Letters in a number** get one message everywhere (\`notNumberText\`): ““a12” isn't a number. Type digits only, like 29.4.” Its example is at the goal's decimal places when there is a goal (\`exampleNumber\`): “like 29” for whole numbers, “like 29.45” for two places. (Letters after the digits are read as a unit: “12 days” is 12.)
 
 **Thousands grouped.** Every number shown is written at its places with its thousands grouped by commas (\`groupDigits\`, \`fixed\`): 1,250,000; −12,000; 1,250.5. Files and the AI tools' data carry the plain number.
 
@@ -371,7 +379,7 @@ The app asks beside the target, with a tick box carrying the yes; Import and Dat
     id: 'flags',
     title: 'Flags, the trend and needs attention',
     summary: 'Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled.',
-    code: [{ file: 'src/domain/trend.ts', names: ['gapTrend', 'planGaps', 'stagesTrend', 'goalTrend'] }, { file: 'src/domain/attention.ts', names: ['flagsFor', 'attentionFor', 'handledFor', 'lookedAtFor', 'needsAttention', 'attentionGroup', 'attentionList'] }, { file: 'src/domain/asks.ts', names: ['openFor', 'answeredSince', 'isOverdue'] }],
+    code: [{ file: 'src/domain/trend.ts', names: ['gapTrend', 'planGaps', 'stagesTrend', 'goalTrend'] }, { file: 'src/domain/attention.ts', names: ['flagsFor', 'attentionFor', 'handledFor', 'lookedAtFor', 'needsAttention', 'waitingOnDecision', 'attentionGroup', 'attentionList'] }, { file: 'src/domain/asks.ts', names: ['openFor', 'answeredSince', 'isOverdue'] }],
     tests: ['src/domain/attention.test.ts', 'src/domain/story.test.ts', 'evals/attention.eval.ts', 'evals/vocabulary.eval.ts'],
     reqs: ['ATTENTION', 'ATTENTION-HANDLED', 'ONE-ATTENTION-RULE', 'ONE-TREND', 'PATH-TO-GREEN', 'GREENER', 'STALE'],
     body: `
@@ -400,6 +408,8 @@ One rule says whether a goal is **getting worse**, **getting better** or neither
 | ${FLAG.trend.label} (\`trend\`) | not done, and the trend is \`worse\` |
 | ${FLAG.greener.label} (\`greener\`) | not done, the latest call is greener than its calculation, and the status isn't \`stale\` |
 | ${FLAG.due.label} (\`due\`) | week ≥ 1, not done, and no check-in for this week yet |
+
+A goal is **waiting on a decision** (\`waitingOnDecision\`) exactly when it has the \`decision\` flag. The Goals filter "${FLAG.decision.label}" and every saved view built on it, the Table's one-line story, the Board's order within a lane and Home's asks all use this one rule, so they name the same goals.
 
 They are listed worst first: ${list(ATTENTION_FLAGS.map((k) => `\`${k}\``))}, then \`due\`. A goal's weight is that of its worst flag. A check-in due, on its own, doesn't make a goal need attention. A done goal raises none of them, so it never needs attention and a review lists it with the goals that have nothing flagged.
 
@@ -559,6 +569,42 @@ For a range, better means further from the limit on its safe side.
     ],
     unclear: ['The engine is large (`src/domain/changeset.ts`): this section says what it does; its every message and column rule is in the code and its tests (listed below). A rebuild of the core status rules does not need it; a rebuild of import and bulk edit does.'],
   },
+  /* ---------- deciding in a review (deep review P2, 10 Nov) ---------- */
+  {
+    id: 'review-decide',
+    title: 'Deciding in a review',
+    summary: 'A goal behind leaves a review with a next step (an owner and a week) or an accepted risk with a reason; the next session opens with what the last one agreed.',
+    code: [
+      { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
+      { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
+      { file: 'src/domain/review.ts', names: ['sessionToDo'] },
+      { file: 'src/domain/people.ts', names: ['findPeople'] },
+    ],
+    tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts'],
+    reqs: ['REVIEW-DECIDE', 'REVIEW-RUN'],
+    body: `
+**Who must decide.** A goal whose status is \`off\` or \`risk\` (\`needsDecision\`) is not marked reviewed in a walk until something is decided about it. Every other goal is marked reviewed as before.
+
+**What counts as a decision** (\`decisionFor\`), the latest in the session first:
+- a **next step** said in this session: an action with a person who does it and a week it is due by (open or done). An action without a week, a note or a question is not a decision;
+- the review **accepting the risk**: a note said in the session whose words are "${DECIDED['accept-risk'].label}: " and then the reason, at least ${MIN_ACCEPT_REASON} characters (\`acceptRisk\`; \`acceptedReason\` reads it back). It is a look, not a plan: the goal still needs attention;
+- or, wherever it was agreed (the goal's page, say), an open action on the goal with a person and a week, agreed since the goal's latest check-in and not yet overdue. This is the record [needs attention](flags.md) reads for "being handled".
+
+**The people search** (\`findPeople\`): nothing is listed until something is typed; then the people whose name or team contains it, those whose name starts with it first, at most 8, never someone marked as left.
+
+**Last time** (\`lastTime\`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week.
+
+**Finishing** marks every goal not yet reviewed, in one save with Undo (\`markReviewed\`; Undo is \`unmarkReviewed\`), and so holds the session. Before it does, it says what was decided (\`sessionDecisions\`): the next steps by who owns them, the risks accepted, and the questions still open.
+
+**To do** (\`sessionToDo\`): a person's session counts as something to do (the Reviews count, Home's main action) when it is this week's, not held, and either its day has come or a goal in it has been checked in on. So a workspace set up this morning doesn't say a review is to do.`,
+    examples: [
+      { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
+      { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
+      { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
+      { given: 'Searching the demo workspace’s people for "", then for "kap".', then: 'nobody / Rhea Kapoor', run: () => { const team = (id: string) => demo!.teams.find((t) => t.id === id)?.name ?? ''; return `${findPeople(demo!.people, '', team).map((p) => p.name).join(', ') || 'nobody'} / ${findPeople(demo!.people, 'kap', team).map((p) => p.name).join(', ')}`; } },
+    ],
+    unclear: ['Accepting the risk is stored as a note whose words start with a fixed phrase, so no new kind of record was needed before the talk. A rebuild should give it a kind of its own (a decision with a reason), and keep the phrase only for what people read.'],
+  },
   /* ---------- the workspace (backlog WS) ---------- */
   {
     id: 'workspace',
@@ -600,6 +646,43 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, for Pat, who isn’t an admin.', then: 'feedback', run: () => workspaceNeeds(workspace([]), CYCLE, 2, false, 4).map((x) => x.id).join(', ') },
     ],
     unclear: ['How many weeks before the wrap-up "ends soon" starts (four) is a choice, not a law; the rebuild may tune it.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
+  },
+
+  /* ---------- the goal map ---------- */
+  {
+    id: 'map',
+    title: 'The goal map',
+    summary: 'The critical path, what the map shows when folded, what a parent says about the goals under it, which trees are in trouble, and finding a goal by name or key.',
+    code: [{ file: 'src/domain/map.ts', names: ['criticalPath', 'shownOnMap', 'rollup', 'rollupText', 'troubled', 'findOnMap', 'layout', 'pack', 'layoutIndented'] }],
+    tests: ['src/domain/map.test.ts'],
+    reqs: ['GOAL-MAP'],
+    body: `
+**The critical path.** From each top goal (a goal with nothing above it), step down to the input most likely to make it miss: each input scores its threat (off track 4; at risk or no recent update 2; anything else 0) times one half plus its share of its siblings' estimated effect (equal shares when none is set). The path takes the highest score (a tie goes to the worse status) and stops where nothing below scores above 0. A path is only drawn when it reaches a goal in trouble.
+
+**What the map shows, folded.** Every top goal, always. Under a goal: everything feeding it once it is *opened*; nothing once it is *shut*; otherwise only its next step on the critical path. So the map opens on the top goals with the critical path drawn beneath the ones in trouble, and a goal's fold button counts the inputs still hidden. When the Goals screen is searched or filtered, every match is unfolded.
+
+**What's under a goal** (the roll-up, shared with the List's tree cards): everything feeding it, at any depth. Its status is the group's status of those goals (\`worst\`, in [A goal's status](status.md)); its words count the goals behind, worst first ("2 off track, 1 at risk"), or else say "None behind" with the group's status, or "All *n* done". A goal with no check-in yet is not counted.
+
+**A tree in trouble:** the group's status of its top goal and everything under it ranks 2 or worse (off track, at risk or no recent update). Troubled trees only keeps those trees.
+
+**Finding a goal.** Best first: the goal whose key has the number typed ("G-48", "g48", "g-48"), then titles starting with the words, then titles holding every word, then keys starting with what was typed. Finding a goal opens every goal above it.
+
+**Fit all.** The trees keep their order and wrap into rows; of every place the rows could break, the map takes the one that lets it be drawn largest in the window. Fit all then shows every goal, as large as fits and never above 100%. Readable shows the top goals and the critical path at no less than 75%.`,
+    examples: (() => {
+      const g = (id: string, parentId: string | null, title: string, key: string) => ({ ...g3075, id, parentId, title, key });
+      const tree = [g('t', null, 'Lead time for changes', 'G-1'), g('a', 't', 'Merge to deploy', 'G-2'), g('b', 't', 'Review time', 'G-3'), g('c', 'a', 'Merge queue live', 'G-4'), g('d', null, 'Cloud cost', 'G-5'), g('e', 'd', 'Idle machines off', 'G-6')];
+      const st = (s: Record<string, DisplayStatus>) => (x: Goal) => s[x.id] ?? 'on';
+      const bad = st({ a: 'off', b: 'risk', c: 'on', d: 'on', e: 'done' });
+      return [
+        { given: 'Lead time (on track) fed by Merge to deploy (off track, fed by Merge queue live, on track) and Review time (at risk); Cloud cost (on track) fed by Idle machines off (done). The critical path.', then: 't, a', run: () => [...criticalPath(tree, bad)].join(', ') },
+        { given: 'The same goals, folded: what the map shows; then with Lead time opened; then with Lead time shut.', then: 't, a, d; t, a, c, b, d; t, d', run: () => { const c = criticalPath(tree, bad); const show = (open: string[], shut: string[]) => [...shownOnMap(tree, c, { open: new Set(open), shut: new Set(shut), trail: true })].join(', '); return [show([], []), show(['t', 'a'], []), show([], ['t'])].join('; '); } },
+        { given: 'What’s under Lead time, and under Cloud cost.', then: 'off: 1 off track, 1 at risk; done: All 1 done', run: () => ['t', 'd'].map((id) => { const r = rollup(tree.find((x) => x.id === id)!, tree, bad)!; return `${r.worst}: ${rollupText(r)}`; }).join('; ') },
+        { given: 'Under a goal: one on track and one done; then one on track and one with no recent update.', then: 'None behind: on track; 1 no recent update', run: () => ([['on', 'done'], ['on', 'stale']] as const).map(([x, y]) => rollupText(rollup(tree[0]!, tree.slice(0, 3), st({ a: x, b: y }))!)).join('; ') },
+        { given: 'Which trees are in trouble.', then: 't', run: () => tree.filter((x) => !x.parentId && troubled(x, tree, bad)).map((x) => x.id).join(', ') },
+        { given: 'Finding “g4”, “G-2”, “merge” and “queue merge” (titles that start the same way go A to Z).', then: 'c; a; c, a; c', run: () => ['g4', 'G-2', 'merge', 'queue merge'].map((q) => findOnMap(tree, q).map((x) => x.id).join(', ')).join('; ') },
+      ];
+    })(),
+    unclear: ['How the trees wrap into rows is a choice about drawing, not a rule: any layout in which Fit all shows every goal, the trees in order, at least as large as this one, conforms.'],
   },
 ];
 

@@ -113,8 +113,9 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
   );
 }
 
-/** A ring that fills as work gets done. The number in the middle is what's left. */
-export function ProgressRing({ done, total, size = 56, label }: { done: number; total: number; size?: number; label?: string }) {
+/** A ring that fills as work gets done. The number in the middle is what's left; `counts` says what it counts, inside the
+    ring ("check-ins", "reviewed"), so two rings never look alike and mean different things (deep review U16). */
+export function ProgressRing({ done, total, size = 56, label, counts }: { done: number; total: number; size?: number; label?: string; counts?: string }) {
   // The arc draws in from empty and moves on when another goal is done (CSS). The count is always the true one, the
   // same as the label: it never counts (a count caught mid-way, or held back by a busy browser, once read 2/56 beside
   // a label of 0 of 56: re-review, 8 Nov, backlog T).
@@ -129,6 +130,7 @@ export function ProgressRing({ done, total, size = 56, label }: { done: number; 
       <span className="ring-text" aria-hidden="true">
         {complete ? <svg viewBox="0 0 16 16" width={size / 2.6} height={size / 2.6}><path d="m3.5 8.5 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg> : `${done}/${total}`}
       </span>
+      {counts && <span className="ring-counts" aria-hidden="true">{counts}</span>}
     </span>
   );
 }

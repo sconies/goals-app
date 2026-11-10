@@ -3,7 +3,7 @@ import { Link, matchPath, useLocation } from 'react-router';
 import { useModules } from '../core/app';
 import { useApp, useToasts } from '../app/state';
 import { weekProgress } from '../domain/progress';
-import { reviewSession } from '../domain/review';
+import { reviewSession, sessionToDo } from '../domain/review';
 import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
 import { DemoEntry, DemoPanel } from './Demo';
@@ -192,8 +192,8 @@ function ShellBody({ children }: { children: ReactNode }) {
   });
   const setPresent = (on: boolean) => { try { sessionStorage.setItem('goals-present', on ? '1' : ''); } catch { /* private mode */ } setPresentState(on); };
   const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.length;
-  // A review you're in that's held this week and still has goals to cover.
-  const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => x.week === Math.max(1, app.week) && x.done < x.total).length;
+  // A review you're in that's held this week, still has goals to cover, and has something to review (review.sessionToDo).
+  const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => sessionToDo(x, app.snapshot, app.week, app.today)).length;
   const count = (id: NavId) => (id === 'checkin' ? due : id === 'reviews' ? reviewsOpen : 0);
   // The More sheet: everything not on the tab bar. Goals' own items come first, under its name.
   const all: NavId[] = ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'watching', 'reviews', 'activity', 'data', 'new', 'workspace'];

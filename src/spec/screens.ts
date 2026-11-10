@@ -5,7 +5,7 @@
 export const MAIN_ACTION: Record<string, string> = {
   Home: 'The week’s one main thing: your check-ins when they’re due, then the wrap-up at the end of the year, then the review you’re in.',
   CheckInFlow: 'Post this week’s check-in, one goal at a time.',
-  QuickCheckIn: 'Post every number typed in the table at once.',
+  QuickCheckIn: 'Post every row of the table that is ready, at once, and land on the check-in’s confirmation.',
   Research: 'Start the research session.',
   Review: 'Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.',
   Watching: 'Open a goal you watch that needs attention.',

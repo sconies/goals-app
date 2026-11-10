@@ -16,7 +16,7 @@ const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
 const askState = (r: { status: AskStatus; overdue: boolean }) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : '');
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
-import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, watchedGoals } from '../domain/review';
+import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, sessionWeek, watchedGoals } from '../domain/review';
 import { weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
@@ -415,21 +415,33 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'review_call',
     title: 'Say something in a review',
-    description: 'In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, or agree an action (who and by when). Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.',
+    description: 'In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['review_id', 'goal_id', 'kind'], properties: {
       review_id: str('The review’s ID.'), goal_id: str('The goal’s ID or its key, e.g. G-12.'),
-      kind: str('What it is.', { enum: ['acknowledge', 'note', 'ask', 'action'] }),
-      text: str('The note, question or action. Optional when acknowledging.'),
+      kind: str('What it is.', { enum: ['acknowledge', 'note', 'ask', 'action', 'accept'] }),
+      text: str('The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging.'),
       who: str('Actions: who does it (name or ID). Defaults to the goal’s owner.'),
       due_week: int('Actions: the week it’s due by.'),
     } },
     annotations: WRITE,
     async run(a, ctx) {
       const r = reviewOf(ctx, a.review_id), g = goalOf(ctx, a.goal_id);
+      if (a.kind === 'accept') return save(ctx, A.acceptRisk(ax(ctx), g, r, String(a.text ?? ''), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, '');
       const kind = a.kind as A.CallKind;
-      if (!['acknowledge', 'note', 'ask', 'action'].includes(kind)) throw new Error('kind is acknowledge, note, ask or action.');
+      if (!['acknowledge', 'note', 'ask', 'action'].includes(kind)) throw new Error('kind is acknowledge, note, ask, action or accept.');
       const assigneeId = kind === 'action' && a.who ? personOf(ctx, a.who).id : undefined;
       return save(ctx, A.reviewCall(ax(ctx), g, r, kind, String(a.text ?? ''), { assigneeId, dueWeek: a.due_week as number | undefined }), `${({ acknowledge: 'Marked reviewed', note: 'Added a note', ask: 'Asked the owner', action: 'Agreed an action' } as const)[kind]}: ${g.title} in ${r.name}`, '');
+    },
+  },
+  {
+    name: 'add_action',
+    title: 'Add a next step to a goal',
+    description: 'Agree a next step on a goal outside a review: what, who does it and the week it’s due by. An action is an ask: open until it’s marked done (mark_action_done) or withdrawn; overdue once its week has passed. Change one with edit_call.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id', 'text', 'who'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), text: str('What needs doing.'), who: str('Who does it (name or ID).'), due_week: int('The week it’s due by.') } },
+    annotations: WRITE,
+    async run(a, ctx) {
+      const g = goalOf(ctx, a.goal_id);
+      return save(ctx, A.addAction(ax(ctx), g, String(a.text ?? ''), { assigneeId: personOf(ctx, a.who).id, dueWeek: a.due_week == null ? null : Number(a.due_week) }), `Agreed a next step on ${g.title}`, '');
     },
   },
   {

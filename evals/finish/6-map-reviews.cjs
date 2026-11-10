@@ -72,7 +72,6 @@ module.exports = {
       fail(Math.abs(m.cvB - (m.ih - 24)) <= 2, `Map 16: canvas ends at ${n(m.cvB)}, not 24px above the window (${m.ih - 24})`);
       fail(m.cvR - m.ctR >= 10 && m.cvR - m.ctR <= 16 && m.ctT - m.cvT >= 10 && m.ctT - m.cvT <= 16, `Map 7/11: zoom controls not top right 12px in (right gap ${n(m.cvR - m.ctR)}, top gap ${n(m.ctT - m.cvT)})`);
       fail(m.fold >= 96, `Map 17: Fold all is ${n(m.fold)}px wide (min 96)`);
-      fail(m.feed === 'rgb(154, 163, 161)' && m.feedW === '1.5px', `Map 26: feeds-into lines ${m.feed} at ${m.feedW}`);
       fail(m.critW === '3px' && m.order, `Map 9: critical lines ${m.critW}, drawn last ${m.order}`);
       fail(m.pad === '12px', `Map 24: node padding ${m.pad}`);
       fail(m.nums === 'normal', `Map 23: map titles use ${m.nums} figures`);
@@ -155,14 +154,30 @@ module.exports = {
       fail(!!coach && coach.b <= sheet.t - 15 && coach.t >= 60, `Map 2: at ${w} the step 3 card is not above the sheet (card ${n(coach?.t)}–${n(coach?.b)}, sheet ${n(sheet?.t)})`);
       await c.close();
     }
-    // Fit all never goes below 75%.
-    for (const w of [360, 1440]) {
-      const [c, p] = await open(w, 900, 'amara', MAP);
+    // Fit all fits: every goal drawn is inside the map, at any width, folded or unfolded (MAP, 9 Nov; it used to stop
+    // at 75% and show two of twelve trees at 1920).
+    for (const [w, h, unfold] of [[360, 900, false], [1440, 900, false], [1440, 900, true]]) {
+      const [c, p] = await open(w, h, 'amara', MAP);
       await p.locator('.react-flow__node').first().waitFor();
+      if (unfold) await p.getByRole('button', { name: 'Unfold all' }).click();
       await p.getByRole('button', { name: 'Fit all' }).click();
-      await p.waitForTimeout(400);
-      const z = await p.evaluate(() => Number(/scale\(([\d.]+)\)/.exec(document.querySelector('.react-flow__viewport').style.transform)?.[1] ?? 0));
-      fail(z >= 0.749, `Map 10: Fit all zooms to ${z} at ${w}`);
+      await p.waitForTimeout(500);
+      const r = await p.evaluate(() => {
+        const cv = document.querySelector('.map-canvas').getBoundingClientRect();
+        const ns = [...document.querySelectorAll('.react-flow__node')].map((e) => e.getBoundingClientRect());
+        return { n: ns.length, out: ns.filter((b) => b.left < cv.left - 1 || b.right > cv.right + 1 || b.top < cv.top - 1 || b.bottom > cv.bottom + 1).length };
+      });
+      fail(r.n > 0 && r.out === 0, `Map 10: Fit all leaves ${r.out} of ${r.n} goals outside the map at ${w}${unfold ? ', unfolded' : ''}`);
+      await c.close();
+    }
+    // Feeds-into lines: thin and grey (Map 26), measured with the branches unfolded.
+    {
+      const [c, p] = await open(1280, 800, 'amara', MAP);
+      await p.locator('.react-flow__node').first().waitFor();
+      await p.getByRole('button', { name: 'Unfold all' }).click();
+      await p.waitForFunction(() => document.querySelector('.react-flow__edge.feeds:not(.critical) .react-flow__edge-path'), null, { timeout: 5000 }).catch(() => {});
+      const f = await p.evaluate(() => { const e = document.querySelector('.react-flow__edge.feeds:not(.critical) .react-flow__edge-path'); return e && [getComputedStyle(e).stroke, getComputedStyle(e).strokeWidth]; });
+      fail(!!f && f[0] === 'rgb(154, 163, 161)' && f[1] === '1.5px', `Map 26: feeds-into lines ${f ? f.join(' at ') : 'not drawn'}`);
       await c.close();
     }
     {
@@ -171,11 +186,81 @@ module.exports = {
       await p.waitForTimeout(300);
       const ok = await p.evaluate(() => {
         const cv = document.querySelector('.map-canvas').getBoundingClientRect();
-        // Twelve north stars now, so they can't all be in view at once: the first, on the critical path (Lead time for changes), is.
+        // Twelve north stars: the map opens on all of them (MAP, 9 Nov); the first, on the critical path, is in view.
         const crit = [...document.querySelectorAll('.react-flow__node[data-id="ns-lead"]')];
         return crit.length > 0 && crit.every((e) => { const b = e.getBoundingClientRect(); return b.left >= cv.left && b.right <= cv.right; });
       });
       fail(ok, 'Map 16: at 1920 the map does not open with both north stars in view');
+      await c.close();
+    }
+
+    // ---------- the map at scale: 126 goals (backlog MAP, outside review 9 Nov) ----------
+    const inMap = (p, sel) => p.evaluate((s) => {
+      const cv = document.querySelector('.map-canvas').getBoundingClientRect(), e = document.querySelector(s);
+      if (!e) return null;
+      const b = e.getBoundingClientRect(), find = document.querySelector('.map-find')?.getBoundingClientRect();
+      return { in: b.left >= cv.left - 1 && b.right <= cv.right + 1 && b.top >= cv.top - 1 && b.bottom <= cv.bottom + 1, underFind: !!find && b.top < find.bottom && b.left < find.right && b.right > find.left };
+    }, sel);
+    for (const [w, h, touch] of [[1920, 1080, false], [390, 844, true]]) {
+      const at = `at ${w}`;
+      const [c, p] = await open(w, h, 'amara', '/goals', touch);
+      // MAP 6: no staged "Drawing the map" wait: the goals are drawn soon after Map is chosen, and nothing says it's drawing.
+      const t0 = Date.now();
+      if (touch) await p.locator('.layout-menu > summary').click();
+      await p.getByRole('group', { name: 'Layout' }).filter({ visible: true }).getByRole('button', { name: /^Map/ }).first().click();
+      await p.locator('.react-flow__node').first().waitFor({ timeout: 10000 }).catch(() => {});
+      const ms = Date.now() - t0;
+      fail(ms < 4000, `MAP 6: the map took ${ms}ms to show its goals ${at}`);
+      fail(!(await p.locator('.map-loading').count()), `MAP 6: the map still has a staged "Drawing the map" wait ${at}`);
+      await p.waitForTimeout(500);
+      // MAP 5: it opens folded to the top goals: all 14 of them, with the critical path drawn beneath the ones in trouble.
+      const open1 = await p.evaluate(() => ({ n: document.querySelectorAll('.react-flow__node').length, roots: ['ns-lead', 'ns-ci', 'ns-deploy', 'ns-cfr', 'ns-mttr', 'ns-slo', 'ns-cost', 'ns-devsat', 'ns-vuln', 'ns-ai', 'ns-env', 'ns-fresh', 'laptops', 'ci-cost'].filter((id) => document.querySelector(`.react-flow__node[data-id="${id}"]`)).length, crit: document.querySelectorAll('.react-flow__edge.critical').length }));
+      fail(open1.roots === 14 && open1.n < 63 && open1.crit > 0, `MAP 5: ${at} the map opens with ${open1.n} goals, ${open1.roots} of 14 top goals and ${open1.crit} critical lines`);
+      // MAP 1: on a desktop it opens on every tree (Fit all), each top goal inside the map.
+      if (!touch) {
+        const all = await p.evaluate(() => { const cv = document.querySelector('.map-canvas').getBoundingClientRect(); return [...document.querySelectorAll('.react-flow__node')].every((e) => { const b = e.getBoundingClientRect(); return b.left >= cv.left - 1 && b.right <= cv.right + 1 && b.top >= cv.top - 1 && b.bottom <= cv.bottom + 1; }); });
+        fail(all, `MAP 1: ${at} the map does not open with every tree in view`);
+      }
+      // MAP 3 and 4: numbers on the nodes, and a parent shows the worst status under it, shape and words agreeing.
+      const lead = await p.evaluate(() => {
+        const n = document.querySelector('.react-flow__node[data-id="ns-lead"] .map-node');
+        return n && { nums: n.querySelector('.map-nums')?.textContent ?? '', under: n.querySelector('.map-under svg')?.dataset.status, words: n.querySelector('.map-under')?.textContent ?? '' };
+      });
+      fail(!!lead && /\d/.test(lead.nums) && /target/.test(lead.nums) && /behind|ahead|plan/.test(lead.nums), `MAP 3: ${at} Lead time's node has no value, target and gap ("${lead?.nums}")`);
+      fail(!!lead && lead.under === 'off' && /Under it: \d+ off track/.test(lead.words), `MAP 4: ${at} Lead time's node does not show the worst status under it (${lead?.under}: "${lead?.words}")`);
+      // MAP 2: search finds the node by its key: it opens the tree, outlines the goal and moves the map to it.
+      const box = p.getByRole('combobox', { name: /Find a goal/ });
+      await box.fill('G-48');
+      await p.getByRole('option', { name: /G-48/ }).first().waitFor({ timeout: 3000 }).catch(() => {});
+      await p.keyboard.press('Enter');
+      await p.waitForTimeout(800);
+      const g48 = await p.evaluate(() => { const n = document.querySelector('.map-node.found'); return n && n.closest('.react-flow__node').dataset.id; });
+      const seen = g48 && await inMap(p, `.react-flow__node[data-id="${g48}"]`);
+      fail(g48 === 'mttr-oncall' && !!seen && seen.in && !seen.underFind, `MAP 2: ${at} finding G-48 found ${g48 ?? 'nothing'}, in view ${seen?.in}, under the find box ${seen?.underFind}`);
+      // ...and by its title.
+      await box.fill('merge queue live');
+      await p.waitForTimeout(200);
+      await p.getByRole('option', { name: /Merge queue live/ }).first().click().catch(() => {});
+      await p.waitForTimeout(800);
+      const mq = await inMap(p, '.react-flow__node[data-id="lead-mq"] .map-node.found');
+      fail(!!mq && mq.in, `MAP 2: ${at} finding "merge queue live" does not outline and show it`);
+      // MAP 5: Troubled trees only: fewer trees, each of them in trouble (its top goal or something under it behind).
+      await p.getByLabel(/Troubled trees/).check();
+      await p.waitForTimeout(600);
+      const tr = await p.evaluate(() => {
+        const tops = ['ns-lead', 'ns-ci', 'ns-deploy', 'ns-cfr', 'ns-mttr', 'ns-slo', 'ns-cost', 'ns-devsat', 'ns-vuln', 'ns-ai', 'ns-env', 'ns-fresh', 'laptops', 'ci-cost'].map((id) => document.querySelector(`.react-flow__node[data-id="${id}"] .map-node`)).filter(Boolean);
+        const bad = (k) => ['off', 'risk', 'stale'].includes(k);
+        return { n: tops.length, ok: tops.every((t) => bad(t.dataset.tone) || bad(t.querySelector('.map-under svg')?.dataset.status)) };
+      });
+      fail(tr.n > 0 && tr.n < 14 && tr.ok, `MAP 5: ${at} Troubled trees only shows ${tr.n} trees, all in trouble ${tr.ok}`);
+      // F05: the map refits when what it shows changes: with the trees in trouble only, every goal is in view again.
+      if (!touch) {
+        await p.getByRole('button', { name: 'Fit all' }).click();
+        await p.getByLabel(/Troubled trees/).uncheck();
+        await p.waitForTimeout(700);
+        const out = await p.evaluate(() => { const cv = document.querySelector('.map-canvas').getBoundingClientRect(); return [...document.querySelectorAll('.react-flow__node')].filter((e) => { const b = e.getBoundingClientRect(); return b.right < cv.left || b.left > cv.right || b.bottom < cv.top || b.top > cv.bottom; }).length; });
+        fail(out === 0, `F05: ${at} after the trees in trouble are shown again, ${out} goals are off the map`);
+      } else await p.getByLabel(/Troubled trees/).uncheck();
       await c.close();
     }
 

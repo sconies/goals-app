@@ -379,7 +379,9 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   await p.context().close();
 }, ['errors', 'logged']);
 
-journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG', 'REVIEW-RUN', 'ONE-ASK'], 'Weekly review: walk the goals worst first and record what was said', 18, async (h, device) => {
+// Budget 30, was 18 (deep review P2, 10 Nov): each goal behind now leaves with a next step (add, write, save: three
+// steps), and this walk meets five of them. The walk itself didn't get longer; deciding is the new work.
+journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG', 'REVIEW-RUN', 'REVIEW-DECIDE', 'ONE-ASK'], 'Weekly review: walk the goals worst first, decide what happens next and record what was said', 30, async (h, device) => {
   // Marisol runs the Reliability weekly, already under way this Thursday (nine goals reviewed). One ask model: a
   // question she asks in it is an ask, open on the owner's Home and goal page until they answer it.
   const p = h.use(await newPage(device, 'marisol'));
@@ -416,6 +418,17 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     const here = p.url();
     const reviewedNext = p.locator('.decide').getByRole('button', { name: /^Reviewed & / });
     const askOwner = p.locator('.decide .quiet-links').getByRole('button', { name: /^Ask / });
+    // A goal behind asks what happens next before it moves on (deep review P2): a next step with an owner and a date.
+    const decideNext = async () => {
+      const add = p.locator('.decide').getByRole('button', { name: 'Add the next step' });
+      await add.or(reviewedNext).first().waitFor();
+      if (!(await add.isVisible().catch(() => false))) return;
+      await h.click(add);
+      await h.fill(p.getByPlaceholder('What needs doing'), 'Owner to bring a recovery plan to the next session');
+      await p.getByRole('dialog').getByLabel(/^By/).selectOption({ index: 1 });
+      await h.click(p.getByRole('button', { name: 'Save the next step' }));
+      await reviewedNext.waitFor();
+    };
     if (!asked && await askOwner.isVisible().catch(() => false)) {
       // Ask the owner in a composer that names the goal; an empty question is refused; saving stays on the goal.
       const title = (await p.locator('h1').first().innerText()).trim();
@@ -429,14 +442,17 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
       h.set('finish', p.url() === here, 'saving a question moved to another goal');
       asked = here;
       await h.checkpoint('saved question');
+      await decideNext();
       await h.click(reviewedNext);
     } else if (items === 2) {
       await h.click(p.getByRole('button', { name: 'Add a note' }));
       await h.fill(p.getByPlaceholder('What the review said'), 'Agreed to pair SRE and Observability on the burn-rate alerts.');
       await h.click(p.getByRole('button', { name: 'Save note' }));
       await p.locator('.said').getByText('Agreed to pair').waitFor();
+      await decideNext();
       await h.click(reviewedNext);
     } else {
+      await decideNext();
       await reviewedNext.click();
     }
     const toasts = await p.locator('.toast').count();
@@ -457,7 +473,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   const finish = p.getByRole('dialog', { name: /^Finish Reliability weekly/ });
   await finish.waitFor();
   await h.checkpoint('finish question');
-  await h.click(finish.getByRole('button', { name: 'Mark them and finish' }));
+  await h.click(finish.getByRole('button', { name: 'Finish the review' }));
   await see(p, 'What was said', 'the held review leads with its record');
   disagree.push(...await reviewedEverywhere(p, 'reliability', 'Reliability weekly'));
   h.set('progress', !disagree.length, `the reviewed count differs between views: ${disagree.join('; ')}`);
@@ -1386,8 +1402,8 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   const alertsV = valueAt(g21('dep-jenkins'), NOW, 1.02), cacheV = valueAt(g21('cfr-tests'), NOW, 1.05);
   const alerts = p.getByLabel(/Jenkins jobs still running: this week’s number/);
   await h.fill(alerts, valueAt(g21('dep-jenkins'), NOW, 0.4));
-  // Behind plan: the row asks why, and won't post without it.
-  await h.click(p.getByRole('button', { name: 'Post 1 check-in' }));
+  // Behind plan: the row asks why, and won't post without it; Post counts only the rows that are ready (deep review U12).
+  await h.click(p.getByRole('button', { name: 'Post check-ins' }));
   await see(p, 'needs a reason or a path to green');
   h.set('errors', true);
   await h.fill(alerts, alertsV);
@@ -1395,7 +1411,8 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   await h.checkpoint('grid');
   h.set('progress', (await p.locator('.qstatus .chip').count()) === 2, 'each row does not show its status as you type');
   await h.click(p.getByRole('button', { name: 'Post 2 check-ins' }));
-  await see(p, 'Saved: 2 check-ins');
+  // It lands on the check-in's own confirmation, with what was posted (deep review U12).
+  await see(p, 'Posted from the table');
   // The table: select two goals and change their level together.
   await p.goto(url('/goals?view=table'));
   await h.click(p.getByLabel('Select Jenkins jobs still running').first());
@@ -1561,7 +1578,7 @@ journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust,
   await h.fill(row.getByRole('textbox'), '150');
   await see(row, 'can’t be over 100%', 'a coverage of 150% is not refused');
   // Post keeps its label; what's wrong is said in the summary above it (fit and finish, 4 Nov: Numbers 7).
-  await h.click(p.getByRole('button', { name: /^Post 1 check-in/ }));
+  await h.click(p.getByRole('button', { name: /^Post check-ins/ }));
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'needs a possible number' }).isVisible(), 'the summary blames a reason, not the number');
   const s = await h.snapshot();
   h.set('logged', !s.checkIns.some((c) => c.goalId === 'cfr-tests' && c.value === 150), 'an impossible coverage was saved');
@@ -1616,7 +1633,8 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
     if (asks) fail(`a number on plan asks why: ${(await row.innerText()).split('\n')[0]}`);
   }
   await h.click(p.getByRole('button', { name: /^Post/ }));
-  await see(p, 'Saved', 'posting the table did not confirm').catch(async (e) => {
+  // The table lands on the check-in's own confirmation (deep review U12).
+  await see(p, 'Posted from the table', 'posting the table did not confirm').catch(async (e) => {
     const said = (await p.locator('.toast, [role=alert], .qissues').allInnerTexts().catch(() => [])).join(' | ');
     fail(`${e.message}${said ? `: ${said}` : ''}`);
   });
@@ -1924,6 +1942,9 @@ journey('U37', ['PATH-TO-GREEN', 'ATTENTION', 'CHANGE-LOG', 'ONE-ASK'], 'Several
   await h.click(sheet.getByRole('button', { name: /Lead time for changes/ }));
   await see(p, 'one answer will cover all 4 goals', 'linking the request did not confirm');
   await h.checkpoint('linked');
+  // The number hasn't moved and neither has the reason: he says it's still true (deep review U9).
+  const still = p.getByLabel('Still true this week');
+  if (await still.isVisible().catch(() => false)) await h.click(still);
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Check-in saved', 'the check-in with the linked request did not post');
   // Amara, in the same demo data: the request shows once, for every goal; she answers it from Home.
@@ -2096,6 +2117,9 @@ journey('U40', ['OTHER-CAUSE', 'DEMO-FEEDBACK', 'RESEARCH'], 'Research notes fol
   await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
   await h.click(p.getByRole('group', { name: 'Main cause' }).getByRole('button', { name: 'Something else' }));
   await h.fill(p.getByLabel('What happened'), 'A reorganisation moved the Jenkins job owners to another team mid-week.');
+  // Last week's plan is still word for word: say it's still true (deep review U9).
+  const stillTrue = p.getByLabel('Still true this week');
+  if (await stillTrue.isVisible().catch(() => false)) await h.click(stillTrue);
   await h.checkpoint('something else');
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Check-in saved');
@@ -2524,6 +2548,94 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.context().close();
 }, ['logged']);
 
+journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-PAGE-ONCE'], 'The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation', 26, async (h, device) => {
+  // Chen has two goals due (Jenkins jobs, integration tests); Jenkins was behind last week, with a reason and a plan.
+  const p = h.use(await newPage(device, 'chen'));
+  await p.goto(url('/'));
+  // U16: Home's ring says what it counts (on a computer; a phone's ring sits beside the title that says it).
+  if (device !== 'phone') h.set('attention', /check-ins/.test(await p.locator('.home-hero .ring').innerText()), 'Home’s ring doesn’t say it counts check-ins');
+  const start = p.locator('.home-hero').getByRole('link', { name: /Start check-in|Pick up where you left off/ });
+  await h.inView(start, 'entry', 'Start check-in');
+  await h.click(start);
+  // U8: which week, and where in the queue, from the first screen.
+  const head = p.locator('.ci-week');
+  await head.waitFor();
+  const said = async () => (await head.innerText()).replace(/\s+/g, ' ').trim();
+  h.set('progress', await said() === `Week ${NOW} check-in · 1 of 2`, `the header says “${await said()}”`);
+  const s0 = await h.snapshot();
+  const was = s0.checkIns.filter((c) => c.goalId === 'dep-jenkins').sort((a, b) => a.postedAt.localeCompare(b.postedAt)).pop();
+  const one = async () => {
+    const title = (await p.locator('.goalhead h1').innerText()).trim();
+    const g = s0.goals.find((x) => x.title === title);
+    if (g.id !== 'dep-jenkins') {
+      await h.fill(p.getByLabel('This week’s value'), valueAt(g, NOW, 1.05));
+      await h.click(p.getByRole('button', { name: 'Post check-in' }));
+      await see(p, 'Check-in saved');
+      return;
+    }
+    // U9: behind plan; "Something changed" brings last week's words in to edit. Posting them untouched asks first.
+    await h.fill(p.getByLabel('This week’s value'), valueAt(g, NOW, 0.4));
+    await h.click(p.getByRole('button', { name: 'Continue' }));
+    await h.click(p.getByRole('button', { name: 'Something changed', exact: true }));
+    await h.checkpoint('carried words');
+    await h.click(p.getByRole('button', { name: 'Post check-in' }));
+    h.set('errors', await p.getByRole('alert').filter({ hasText: 'Still true this week' }).isVisible(), 'last week’s story, untouched, is not questioned');
+    const mid = await h.snapshot();
+    h.set('logged', !mid.checkIns.some((c) => c.goalId === 'dep-jenkins' && c.week === NOW), 'last week’s story was posted by pressing Post');
+    await h.click(p.getByLabel('Still true this week'));
+    await h.click(p.getByRole('button', { name: 'Post check-in' }));
+    await see(p, 'Check-in saved');
+  };
+  await one();
+  // A reload keeps the queue: still "2 of 2", not a shorter queue of what's left. (Opened again by its address, the same
+  // tab: a bare reload would drop the demo's pinned day.)
+  await p.goto(url('/check-in'));
+  await head.waitFor();
+  h.set('progress', await said() === `Week ${NOW} check-in · 2 of 2`, `after a reload the header says “${await said()}”`);
+  await one();
+  const s1 = await h.snapshot();
+  const now = s1.checkIns.filter((c) => c.goalId === 'dep-jenkins' && c.week === NOW).pop();
+  h.set('logged', !!now && !!was && now.why === was.why && now.pathToGreen?.what === was.pathToGreen?.what, 'the story said to be still true was not posted as it was');
+  // U11: on the goal page, the check-in just posted stands on its own, with its number and status.
+  await p.goto(url('/goals/dep-jenkins'));
+  const firstCi = p.locator('.stream > li.stream-ci, .stream > li.stream-group').first();
+  await firstCi.waitFor();
+  h.set('attention', (await firstCi.getAttribute('class')).includes('stream-ci') && await firstCi.locator('.status-shape, .chip').count() > 0, 'the newest check-in is folded into a range');
+  await h.checkpoint('goal page');
+  await p.context().close();
+
+  // U12: the one-table check-in shares the draft with the one-by-one check-in, both ways.
+  const q = h.use(await newPage(device, 'chen'));
+  await q.goto(url('/quick-check-in'));
+  const s2 = await h.snapshot();
+  const tests = s2.goals.find((g) => g.id === 'cfr-tests');
+  const testsRow = q.getByLabel(/Changes shipped with automated integration tests: this week’s number/);
+  await h.fill(testsRow, valueAt(tests, NOW, 1.05));
+  await q.waitForTimeout(200);
+  await q.goto(url('/check-in/cfr-tests'));
+  const carried = await q.getByLabel('This week’s value').inputValue();
+  await h.fill(q.getByLabel('This week’s value'), valueAt(tests, NOW, 1.04));
+  await q.waitForTimeout(200);
+  await q.goto(url('/quick-check-in'));
+  const back = await q.getByLabel(/Changes shipped with automated integration tests: this week’s number/).inputValue();
+  h.set('progress', carried === valueAt(tests, NOW, 1.05) && back === valueAt(tests, NOW, 1.04), `the draft is not shared: the check-in had “${carried}”, the table then “${back}”`);
+  // Post counts only the rows that are ready, and says which aren't.
+  await h.fill(q.getByLabel(/Jenkins jobs still running: this week’s number/), 'abc');
+  const post = q.getByRole('button', { name: 'Post 1 check-in' });
+  await h.inView(post, 'entry', 'Post 1 check-in');
+  h.set('errors', await q.locator('.qsummary').filter({ hasText: 'needs a possible number' }).isVisible(), 'the row that is not ready is not said before Post');
+  await h.checkpoint('table');
+  await h.click(post);
+  // The same confirmation as the one-by-one check-in, with what was posted and what was kept.
+  await see(q, 'Posted from the table');
+  await see(q, '1 row wasn’t ready', 'the row kept back is not mentioned');
+  await h.checkpoint('confirmation');
+  const s3 = await h.snapshot();
+  h.set('logged', s3.checkIns.some((c) => c.goalId === 'cfr-tests' && c.week === NOW && String(c.value) === String(Number(valueAt(tests, NOW, 1.04)))) && !s3.checkIns.some((c) => c.goalId === 'dep-jenkins' && c.week === NOW), 'the table posted the wrong rows');
+  h.set('finish', true);
+  await q.context().close();
+});
+
 journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role and permissions are said, the overview leads with what needs attention, Feedback is beside Help, and a member leaves', 45, async (h, device) => {
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'rhea'));
@@ -2820,7 +2932,7 @@ journey('U45', ['IMPORT-UNDO', 'BULK-EDIT'], 'Undo an import: every row back as 
   await h.fill(p.getByLabel(/Jenkins jobs still running: this week’s number/), jenkins);
   await h.fill(p.getByLabel(/Changes shipped with automated integration tests: this week’s number/), tests);
   await h.click(p.getByRole('button', { name: 'Post 2 check-ins' }));
-  await see(p, 'Saved: 2 check-ins');
+  await see(p, 'Posted from the table');
   // Someone corrects one of the two afterwards: undoing the import must leave that one alone.
   const imp = await p.evaluate(async () => {
     const s = await window.__goalsStore.load('platform-org');
@@ -3014,21 +3126,24 @@ journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map
   const panel = p.getByRole('complementary', { name: /Merge queue live for every monorepo/ });
   await panel.waitFor();
   h.set('finish', /Why/.test(await panel.innerText()) && /On the critical path/.test(await panel.innerText()) && await panel.getByRole('link', { name: 'Open the goal' }).isVisible(), 'the story panel is missing its why or link');
-  // Fold the branches, then show only what needs attention.
+  // It opens folded to the top goals with only the critical path beneath them (MAP, 9 Nov); Unfold all shows every
+  // goal, Fold to the top goes back; then show only what needs attention.
   const before = await p.locator('.react-flow__node').count();
-  await h.click(p.getByRole('button', { name: 'Fold all' }));
-  const folded = await p.locator('.react-flow__node').count();
   await h.click(p.getByRole('button', { name: 'Unfold all' }));
-  await h.click(p.getByLabel('Only what needs attention'));
-  // It's the status filter now, so the map redraws from the link.
-  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length < n, before, { timeout: 3000 }).catch(() => {});
-  const attention = await p.locator('.react-flow__node').count();
-  h.set('progress', folded < before && attention < before && attention >= 3, `nodes: ${before} all, ${folded} folded, ${attention} needing attention`);
-  // Dotted lines for goals that also help others.
-  await h.click(p.getByLabel('Only what needs attention'));
-  // The canvas draws its lines after the nodes are measured, so wait for them rather than counting at once.
-  // (Drawn, not necessarily on screen: on a phone the dotted lines sit lower down the canvas.)
+  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length > n, before, { timeout: 3000 }).catch(() => {});
+  const all = await p.locator('.react-flow__node').count();
+  // Dotted lines for goals that also help others. The canvas draws its lines after the nodes are measured, so wait
+  // for them rather than counting at once. (Drawn, not necessarily on screen: on a phone they sit lower down.)
   const helps = await p.waitForFunction(() => document.querySelectorAll('.react-flow__edge.helps').length > 0, null, { timeout: 5000 }).then(() => true, () => false);
+  await h.click(p.getByRole('button', { name: 'Fold to the top' }));
+  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length < n, all, { timeout: 3000 }).catch(() => {});
+  const folded = await p.locator('.react-flow__node').count();
+  await h.click(p.getByLabel(/Only what needs attention|^Needs attention$/));
+  // It's the status filter now, so the map redraws from the link, every match unfolded.
+  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length !== n, folded, { timeout: 3000 }).catch(() => {});
+  const attention = await p.locator('.react-flow__node').count();
+  h.set('progress', before < all && folded === before && attention < all && attention >= 3, `nodes: ${before} on opening, ${all} unfolded, ${folded} folded again, ${attention} needing attention`);
+  await h.click(p.getByLabel(/Only what needs attention|^Needs attention$/));
   h.set('logged', helps, 'no dotted also-helps lines');
   await p.context().close();
 }, ['errors', 'budget']);

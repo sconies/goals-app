@@ -314,7 +314,9 @@ export function buildPlatformOrg(today: Date): Snapshot {
       const story = s.arc.some((p) => p.path && w >= T(p.to) - 8);
       if (!fixed && w > 2 && w < NOW && R.next() < (s.skip ?? (story ? 0.015 : 0.04))) continue;
       const late = !fixed && R.next() < 0.1;
-      const posted = late ? at(w, R.next() < 0.3 ? 7 : 4, 9 + R.next() * 8) : at(w, 1 + Math.floor(R.next() * 2), 9 + R.next() * 8);
+      // Late is after the review but still within its own week (Friday): a check-in "for week 45" is never dated in week
+      // 46 (deep review, 10 Nov, U26). The draw that once picked the day stays, so the random stream doesn't move.
+      const posted = late ? (R.next(), at(w, 4, 9 + R.next() * 8)) : at(w, 1 + Math.floor(R.next() * 2), 9 + R.next() * 8);
       if (!happened(posted)) continue;
       const author = s.reowner && w >= T(s.reowner.week) ? s.reowner.to : s.owner;
       const history = own.get(s.id)!;

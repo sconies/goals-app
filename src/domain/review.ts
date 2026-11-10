@@ -141,6 +141,18 @@ export function walkOrder(plan: ReturnType<typeof sessionPlan>, everything = fal
   return (everything || !plan.discuss.length ? plan.all : plan.discuss).map((a) => a.goal.id);
 }
 
+/**
+ * Whether a person's review session is something to do this week (deep review U6): it is this week's, not held, and
+ * there is something to review, either its day has come or a goal in it has been checked in on. So a workspace set up
+ * this morning doesn't say "Reviews 1 to do" before any check-in is in or the review's day arrives.
+ */
+export function sessionToDo(ss: ReviewSession, s: Pick<Snapshot, 'checkIns'>, week: number, today: Date): boolean {
+  if (ss.week !== Math.max(1, week) || ss.done >= ss.total) return false;
+  if (ss.date <= today.toISOString().slice(0, 10)) return true;
+  const ids = new Set(ss.items.map((a) => a.goal.id));
+  return s.checkIns.some((c) => ids.has(c.goalId) && !c.removedAt);
+}
+
 /** "Thu 5 Nov", from yyyy-mm-dd or a full timestamp. */
 export const dayText = (iso: string) => new Date(iso.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 

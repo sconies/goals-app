@@ -288,7 +288,7 @@ function codeFrom(terms, input) {
 	const coded = /\(([^)]+)\)\s*$/.exec(String(input ?? ""));
 	return coded ? codeFrom(terms, coded[1]) : null;
 }
-var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
+var ALL, pct$3, term, STATUS, STATUS_ORDER, statusFlag, FLAG, ATTENTION_FLAGS, ATTENTION, HANDLED_LINE, WARNING, RESULT, QUARTER, OWNER_VIEW_LABEL, OWNER_VIEW, STAGE, ASK_KIND, ASK_STATUS, SESSION, DECIDED, TREND, GAP, REMOVAL, leftName, LEFT, STOPPED, ENDED, COMMENT_REMOVED, NOTE_REMOVED, GROUPS$1, labels, LABEL, MEANING, RESULT_TEXT, RESULT_MEANING, lower, withCode, choices;
 var init_vocabulary = __esmMin((() => {
 	init_thresholds();
 	ALL = [
@@ -700,6 +700,22 @@ var init_vocabulary = __esmMin((() => {
 			meaning: "Every goal in the session has been marked reviewed.",
 			long: "Every goal in it has been marked reviewed; it was held on the day the last one was.",
 			rule: "review#sessionState"
+		})
+	};
+	DECIDED = {
+		"next-step": term("next-step", {
+			label: "Next step",
+			short: "who does what, by when",
+			meaning: "What happens next for a goal behind: an action with an owner and a week it is due by.",
+			long: "An action agreed for a goal that is off track or at risk, with the person who does it and the week it is due by. Open until it is marked done; overdue once its week has passed.",
+			rule: "decide#decisionFor"
+		}),
+		"accept-risk": term("accept-risk", {
+			label: "We accept the risk",
+			short: "no action, with a reason",
+			meaning: "The review decided to take no action on a goal behind, and said why.",
+			long: "A review looked at a goal that is off track or at risk and decided to take no action for now, with a reason everyone can read. It is kept on the goal and in the review’s record; the goal still needs attention.",
+			rule: "decide#decisionFor"
 		})
 	};
 	TREND = {
@@ -1720,6 +1736,53 @@ function newToken() {
 	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
 }
 var init_token = __esmMin((() => {}));
+// src/domain/progress.ts
+/** The person's goals this week: which are checked in and which are still due. */
+function weekProgress(personId, s, cycle, week, today) {
+	const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== "done");
+	const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
+	const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
+	return {
+		goals,
+		done,
+		upcoming,
+		due: week < 1 ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
+	};
+}
+/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
+function reviewDate(cycle, week) {
+	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
+	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
+	return d.toISOString().slice(0, 10);
+}
+/**
+* Consecutive weeks, counting back from the latest finished one, in which every goal the
+* person owns was checked in by the owner on or before the review day.
+*/
+function onTimeStreak(personId, s, cycle, week) {
+	const goals = s.goals.filter((g) => g.ownerId === personId);
+	if (!goals.length) return 0;
+	const onTime = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
+	if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
+	let streak = 0;
+	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
+	return streak;
+}
+var firstDueWeek, WEEKDAY;
+var init_progress = __esmMin((() => {
+	init_plan();
+	init_status();
+	firstDueWeek = (g, cycle) => firstWeekFrom(cycle, g.createdAt, cycle.reviewDay);
+	WEEKDAY = [
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday",
+		"Sunday"
+	];
+}));
 // src/domain/numbers.ts
 /** How many decimal places a typed number has: "12.5" 1, "1,250" 0, "29,4" (a decimal comma) 1. */
 function typedDecimals(raw) {
@@ -1763,7 +1826,7 @@ function setupProblem(unit, start, target) {
 	if (nums.some((x) => Math.abs(x) >= 1e9)) return "That’s a billion or more. Is it right?";
 	return null;
 }
-var PLACES, placesText, notNumberText, fixed, usuallyPositive;
+var PLACES, placesText, exampleNumber, notNumberText, fixed, usuallyPositive;
 var init_numbers = __esmMin((() => {
 	PLACES = [
 		"whole numbers",
@@ -1772,9 +1835,200 @@ var init_numbers = __esmMin((() => {
 		"3 decimal places"
 	];
 	placesText = (d) => PLACES[d] ?? `${d} decimal places`;
-	notNumberText = (raw) => `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.`;
+	exampleNumber = (decimals = 1) => decimals > 0 ? "29." + "4567".slice(0, Math.min(decimals, 3)) : "29";
+	notNumberText = (raw, decimals) => `“${raw.trim()}” isn’t a number. Type digits only, like ${exampleNumber(decimals)}.`;
 	fixed = (v, decimals) => groupDigits(v.toFixed(decimals));
 	usuallyPositive = (unit) => unit.trim() === "%" || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit);
+}));
+// src/domain/checkin.ts
+/** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
+function unchangedStory(draft, reason, path) {
+	const c = draft.carried;
+	if (!c) return [];
+	const out = [];
+	if (reason && c.why.trim() && draft.cause === c.cause && draft.why.trim() === c.why.trim()) out.push("reason");
+	if (path && c.what.trim() && draft.ptgWhat.trim() === c.what.trim() && draft.ptgBy === c.by) out.push("path");
+	return out;
+}
+/**
+* A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
+* Anything else (hex, exponents, words) is not a number.
+*/
+function parseNumber(s) {
+	let t = s.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, "").replace(/\s/g, "");
+	if (!t) return null;
+	if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(",", ".");
+	else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, "");
+	if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
+	const n = Number(t);
+	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
+}
+/** Why a typed value can't be used, or a check worth making before posting it. */
+function valueProblem(raw, last, unit, goal) {
+	if (!raw.trim()) return {
+		block: true,
+		text: "Type this week’s number."
+	};
+	const n = parseNumber(raw);
+	if (n == null) return {
+		block: true,
+		text: notNumberText(raw, goal && goal.kind !== "milestone" ? goal.decimals : void 0)
+	};
+	const precise = goal && goal.kind !== "milestone" ? precisionProblem(raw, n, goal.decimals) : null;
+	if (precise) return {
+		block: true,
+		text: precise
+	};
+	if (n < 0 && usuallyPositive(unit)) return {
+		block: true,
+		text: `It can’t be below zero${unit ? " " + unit : ""}.`
+	};
+	if (n < 0 && isCount(goal)) return {
+		block: true,
+		text: `It can’t be below zero${unit ? " " + unit : ""}: this goal counts things.`
+	};
+	if (unit === "%" && n > 100) return isShare(goal) ? {
+		block: true,
+		text: "It can’t be over 100%: this goal measures a share of something."
+	} : {
+		block: false,
+		text: "That’s over 100%. Is that right?"
+	};
+	if (goal?.kind === "metric" && farOutside(n, goal.plan.start, goal.plan.target)) {
+		const d = goal.decimals, u = unit === "%" ? "%" : unit ? " " + unit : "";
+		return {
+			block: false,
+			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`
+		};
+	}
+	if (goal?.kind === "metric" && isCount(goal) && (goal.plan.target > goal.plan.start ? n > goal.plan.target : n < goal.plan.target)) return {
+		block: false,
+		text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? " " + unit : ""}. Is ${fixed(n, 0)} right?`
+	};
+	if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return {
+		block: false,
+		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`
+	};
+	return null;
+}
+function evaluate(goal, cycle, week, draft, all) {
+	const before = checkInsFor(goal, all).filter((c) => c.week < week);
+	const value = parseNumber(draft.value);
+	let assessment;
+	if (goal.kind === "metric") {
+		const history = before.filter((c) => c.value != null).map((c) => ({
+			week: c.week,
+			value: c.value
+		}));
+		assessment = assessMetric(goal, cycle.weeks, week, value, history);
+	} else if (goal.kind === "range") assessment = assessRange(goal, week, value, before.filter((c) => c.value != null).pop()?.value ?? null);
+	else assessment = assessMilestone(goal, week, draft.stages);
+	const a = assessment;
+	const calc = a.calc === "planned" || a.calc === "none" ? "on" : a.calc;
+	const status = draft.status ?? calc;
+	const greener = RANK[status] < RANK[calc];
+	let reason = null;
+	if (a.kind === "metric") reason = a.ahead ? "ahead" : a.behind ? "behind" : null;
+	else if (a.calc === "risk" || a.calc === "off") reason = "behind";
+	const asksTarget = a.kind === "metric" && a.ahead;
+	const needsPath = status === "risk" || status === "off";
+	const codes = [];
+	if (goal.kind !== "milestone" && value == null) codes.push(draft.value.trim() ? "value-not-number" : "value");
+	else if (goal.kind !== "milestone" && precisionProblem(draft.value, value, goal.decimals)) codes.push("value-precision");
+	else if (goal.kind !== "milestone" && valueProblem(draft.value, null, goal.unit, goal)?.block) codes.push("value-impossible");
+	if (greener && draft.greenerWhy.trim().length < 10) codes.push("greener-why");
+	if (reason && (!draft.cause || draft.why.trim().length < 10)) codes.push(reason === "ahead" ? "reason-ahead" : "reason-behind");
+	const planned = (draft.ptgState ?? "plan") === "plan";
+	if (needsPath && (draft.ptgWhat.trim().length < 8 || planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks))) codes.push("path");
+	const unchanged = unchangedStory(draft, !!reason, needsPath);
+	if (unchanged.length && !draft.stillTrue) codes.push("story-unchanged");
+	if (asksTarget && draft.proposeTarget.trim()) {
+		const t = parseNumber(draft.proposeTarget);
+		if (!(goal.kind === "metric" && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target))) codes.push("target");
+	}
+	return {
+		assessment,
+		calc,
+		status,
+		greener,
+		reason,
+		asksTarget,
+		needsPath,
+		unchanged,
+		codes,
+		missing: codes.map((c) => MISSING_TEXT[c]),
+		canPost: codes.length === 0
+	};
+}
+/** Turn a valid draft into a check-in record. Throws if the draft cannot be posted. */
+function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
+	const e = evaluate(goal, cycle, week, draft, all);
+	if (!e.canPost) throw new Error("Still needed: " + e.missing.join(", "));
+	return {
+		id,
+		goalId: goal.id,
+		authorId,
+		week,
+		postedAt: now.toISOString(),
+		value: goal.kind === "milestone" ? null : parseNumber(draft.value),
+		stages: goal.kind === "milestone" ? draft.stages : null,
+		status: e.status,
+		calculated: e.calc,
+		cause: e.reason ? draft.cause : null,
+		why: draft.why.trim(),
+		greenerWhy: e.greener ? draft.greenerWhy.trim() : "",
+		proposeTarget: e.asksTarget ? parseNumber(draft.proposeTarget) : null,
+		pathToGreen: e.needsPath ? {
+			what: draft.ptgWhat.trim(),
+			byWeek: (draft.ptgState ?? "plan") === "plan" ? draft.ptgBy : null,
+			needs: draft.needs.trim(),
+			state: draft.ptgState ?? "plan"
+		} : null,
+		next: draft.next.trim(),
+		dataFlagged: draft.dataFlagged
+	};
+}
+var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_CODES;
+var init_checkin = __esmMin((() => {
+	init_status();
+	init_plan();
+	init_numbers();
+	CAUSES_BEHIND = [
+		["aggressive", "Plan too aggressive"],
+		["slower", "Delivery slower"],
+		["blocked", "Blocked by a dependency"],
+		["external", "External factor"],
+		["data", "Data problem"],
+		["other", "Something else"]
+	];
+	CAUSES_AHEAD = [
+		["cautious", "Plan too cautious"],
+		["early", "Change landed early"],
+		["external", "External factor"],
+		["oneoff", "One-off, won’t last"],
+		["data", "Data problem"],
+		["other", "Something else"]
+	];
+	causeLabel = (c) => [...CAUSES_BEHIND, ...CAUSES_AHEAD].find(([k]) => k === c)?.[1] ?? "";
+	decimalsOf = (goal, n) => goal && goal.kind !== "milestone" ? goal.decimals : (String(n).split(".")[1] ?? "").length;
+	MISSING_TEXT = {
+		value: "this week’s value",
+		"value-not-number": "a number for this week’s value",
+		"value-precision": "this week’s value at the goal’s decimal places",
+		"value-impossible": "a possible value",
+		"greener-why": "why your call is greener",
+		"reason-behind": "why it’s behind",
+		"reason-ahead": "why it’s ahead",
+		path: "path to green",
+		"story-unchanged": "whether what you said last time is still true",
+		target: "a proposed target beyond the current one"
+	};
+	VALUE_CODES = [
+		"value",
+		"value-not-number",
+		"value-precision",
+		"value-impossible"
+	];
 }));
 // src/domain/format.ts
 /** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
@@ -1910,168 +2164,500 @@ var init_format = __esmMin((() => {
 		team: "Team"
 	};
 }));
-// src/domain/checkin.ts
+// src/domain/trend.ts
 /**
-* A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
-* Anything else (hex, exponents, words) is not a number.
+* Which way a series is heading. `gaps` are the last check-ins' distance from where they should be, oldest first,
+* unrounded, positive when better: ahead of plan, room inside a limit. Only the last TREND_SPAN count.
+*   Getting worse: lower at each of the last two steps, and, with `behindOnly`, short now. A number held flat while the
+*     plan moves on is further behind at each check-in, so it is getting worse, even before the gap shows a whole unit;
+*     goalTrend then also asks that it shows: behind now, and further behind than at the start (deep review T5).
+*   Getting better: higher at each of the last two steps.
+*   Anything else, or fewer than TREND_SPAN check-ins: no clear change.
 */
-function parseNumber(s) {
-	let t = s.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, "").replace(/\s/g, "");
-	if (!t) return null;
-	if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(",", ".");
-	else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, "");
-	if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
-	const n = Number(t);
-	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
+function gapTrend(gaps, behindOnly = false) {
+	const g = gaps.slice(-3);
+	if (g.length < 3) return "flat";
+	const steps = g.slice(1).map((v, i) => v - g[i]);
+	if (steps.every((d) => d < -1e-9) && (!behindOnly || g[g.length - 1] < -1e-9)) return "worse";
+	if (steps.every((d) => d > 1e-9)) return "better";
+	return "flat";
 }
-/** Why a typed value can't be used, or a check worth making before posting it. */
-function valueProblem(raw, last, unit, goal) {
-	if (!raw.trim()) return {
-		block: true,
-		text: "Type this week’s number."
-	};
-	const n = parseNumber(raw);
-	if (n == null) return {
-		block: true,
-		text: notNumberText(raw)
-	};
-	const precise = goal && goal.kind !== "milestone" ? precisionProblem(raw, n, goal.decimals) : null;
-	if (precise) return {
-		block: true,
-		text: precise
-	};
-	if (n < 0 && usuallyPositive(unit)) return {
-		block: true,
-		text: `It can’t be below zero${unit ? " " + unit : ""}.`
-	};
-	if (unit === "%" && n > 100) return isShare(goal) ? {
-		block: true,
-		text: "It can’t be over 100%: this goal measures a share of something."
-	} : {
-		block: false,
-		text: "That’s over 100%. Is that right?"
-	};
-	if (goal?.kind === "metric" && farOutside(n, goal.plan.start, goal.plan.target)) {
-		const d = goal.decimals, u = unit === "%" ? "%" : unit ? " " + unit : "";
+/** A number goal's gap to the plan of each check-in's own week, in its units, positive when ahead (whichever way is
+better): `gap` at the goal's decimals, to say; `raw` unrounded, for the trend. */
+function planGaps(goal, cycle, valued) {
+	const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
+	return valued.filter((c) => c.value != null).map((c) => {
+		const plan = planAt(goalAsOf(goal, c.week).plan, c.week, cycle.weeks);
+		const raw = (c.value - plan) * dir;
 		return {
-			block: false,
-			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`
+			c,
+			plan,
+			raw,
+			gap: Number(raw.toFixed(goal.decimals))
+		};
+	});
+}
+/**
+* A number goal's trend from its gaps to plan (planGaps): gapTrend on the unrounded gaps, a "worse" kept only if it
+* shows at the goal's decimals (deep review T5, 10 Nov): behind now as shown, and further behind than at the start of
+* the span. A number typed as the plan reads "on plan", so it is never getting worse, and no sentence prints "on plan →
+* on plan → on plan" or three equal gaps as worse. The flag, the story and the summary bar all ask here.
+*/
+function planGapTrend(gaps) {
+	const word = gapTrend(gaps.map((x) => x.raw), true);
+	const shown = gaps.slice(-3).map((x) => x.gap);
+	const visible = shown.length > 0 && shown[shown.length - 1] < 0 && shown[0] > shown[shown.length - 1];
+	return word === "worse" && !visible ? "flat" : word;
+}
+/** Stages at the latest check-in against the one before: worse when any is expected later, better when only sooner. */
+function stagesTrend(goal, own) {
+	const withStages = own.filter((c) => c.stages);
+	if (withStages.length < 2) return {
+		word: "flat",
+		slipped: null
+	};
+	const prev = withStages[withStages.length - 2], last = withStages[withStages.length - 1];
+	const before = assessMilestone(goal, prev.week, prev.stages), now = assessMilestone(goal, last.week, last.stages);
+	const later = now.stages.find((s, i) => s.kind !== "done" && s.expectedWeek > (before.stages[i]?.expectedWeek ?? s.expectedWeek));
+	if (later) return {
+		word: "worse",
+		slipped: {
+			name: later.name,
+			week: later.expectedWeek
+		}
+	};
+	return {
+		word: now.stages.some((s, i) => s.kind === "done" && before.stages[i]?.kind !== "done" && (s.doneWeek ?? 0) < (before.stages[i]?.expectedWeek ?? 0) || s.kind !== "done" && s.expectedWeek < (before.stages[i]?.expectedWeek ?? s.expectedWeek)) ? "better" : "flat",
+		slipped: null
+	};
+}
+/** Whether a goal is getting worse or better over its last check-ins: the rule behind the "Getting worse" flag. */
+function goalTrend(goal, cycle, checkIns) {
+	const own = checkInsFor(goal, checkIns);
+	if (goal.kind === "metric") {
+		const valued = own.filter((c) => c.value != null);
+		const gaps = planGaps(goal, cycle, valued);
+		const word = planGapTrend(gaps);
+		if (word === "worse") {
+			const last = gaps.slice(-3);
+			const n = (v) => fixed(Math.abs(v), goal.decimals);
+			return {
+				word,
+				detail: `Further behind plan at each of the last two check-ins: ${last.map((x) => x.gap < 0 ? n(x.gap) + " behind" : x.gap > 0 ? n(x.gap) + " ahead" : "on plan").join(" → ")}${goal.unit ? ` (${goal.unit === "%" ? "pts" : goal.unit})` : ""}.`
+			};
+		}
+		if (valued.length >= 3) {
+			const pts = valued.map((c) => ({
+				week: c.week,
+				value: c.value
+			}));
+			const at = assessMetric(goal, cycle.weeks, pts[pts.length - 1].week, pts[pts.length - 1].value, pts.slice(0, -1));
+			const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
+			const best = at.projection ? Number((dir > 0 ? at.projection.high : at.projection.low).toFixed(goal.decimals)) : null;
+			const allShort = best != null && (best - Number(goal.plan.target.toFixed(goal.decimals))) * dir < 0;
+			if (at.forecastMisses && allShort && at.projection && at.calc === "on") return {
+				word: "worse",
+				detail: `${LABEL.on} today, but the recent trend heads for ${rangeText(at.projection, goal, isShare(goal))} by week ${at.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.`
+			};
+		}
+		return {
+			word,
+			detail: null
 		};
 	}
-	if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return {
-		block: false,
-		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`
-	};
-	return null;
-}
-function evaluate(goal, cycle, week, draft, all) {
-	const before = checkInsFor(goal, all).filter((c) => c.week < week);
-	const value = parseNumber(draft.value);
-	let assessment;
-	if (goal.kind === "metric") {
-		const history = before.filter((c) => c.value != null).map((c) => ({
-			week: c.week,
-			value: c.value
-		}));
-		assessment = assessMetric(goal, cycle.weeks, week, value, history);
-	} else if (goal.kind === "range") assessment = assessRange(goal, week, value, before.filter((c) => c.value != null).pop()?.value ?? null);
-	else assessment = assessMilestone(goal, week, draft.stages);
-	const a = assessment;
-	const calc = a.calc === "planned" || a.calc === "none" ? "on" : a.calc;
-	const status = draft.status ?? calc;
-	const greener = RANK[status] < RANK[calc];
-	let reason = null;
-	if (a.kind === "metric") reason = a.ahead ? "ahead" : a.behind ? "behind" : null;
-	else if (a.calc === "risk" || a.calc === "off") reason = "behind";
-	const asksTarget = a.kind === "metric" && a.ahead;
-	const needsPath = status === "risk" || status === "off";
-	const codes = [];
-	if (goal.kind !== "milestone" && value == null) codes.push(draft.value.trim() ? "value-not-number" : "value");
-	else if (goal.kind !== "milestone" && precisionProblem(draft.value, value, goal.decimals)) codes.push("value-precision");
-	else if (goal.kind !== "milestone" && valueProblem(draft.value, null, goal.unit, goal)?.block) codes.push("value-impossible");
-	if (greener && draft.greenerWhy.trim().length < 10) codes.push("greener-why");
-	if (reason && (!draft.cause || draft.why.trim().length < 10)) codes.push(reason === "ahead" ? "reason-ahead" : "reason-behind");
-	const planned = (draft.ptgState ?? "plan") === "plan";
-	if (needsPath && (draft.ptgWhat.trim().length < 8 || planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks))) codes.push("path");
-	if (asksTarget && draft.proposeTarget.trim()) {
-		const t = parseNumber(draft.proposeTarget);
-		if (!(goal.kind === "metric" && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target))) codes.push("target");
+	if (goal.kind === "range") {
+		const v = own.filter((c) => c.value != null).map((c) => c.value).slice(-3);
+		const safe = goal.range.bound === "atMost" ? -1 : 1;
+		const word = gapTrend(v.map((x) => (x - goal.range.limit) * safe));
+		if (word !== "worse") return {
+			word,
+			detail: null
+		};
+		return {
+			word,
+			detail: `${assessRange(goal, 1, v[v.length - 1], null).out ? "Further past" : "Closer to"} the limit at each of the last two check-ins: ${v.map((x) => fmt(x, goal)).join(" → ")} (limit ${fmt(goal.range.limit, goal)}).`
+		};
 	}
+	const t = stagesTrend(goal, own);
 	return {
-		assessment,
-		calc,
-		status,
-		greener,
-		reason,
-		asksTarget,
-		needsPath,
-		codes,
-		missing: codes.map((c) => MISSING_TEXT[c]),
-		canPost: codes.length === 0
+		word: t.word,
+		detail: t.slipped ? `${t.slipped.name} is expected later than at the check-in before: now ${weekLabel(t.slipped.week, cycle.weeks)}.` : null
 	};
 }
-/** Turn a valid draft into a check-in record. Throws if the draft cannot be posted. */
-function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
-	const e = evaluate(goal, cycle, week, draft, all);
-	if (!e.canPost) throw new Error("Still needed: " + e.missing.join(", "));
-	return {
-		id,
-		goalId: goal.id,
-		authorId,
-		week,
-		postedAt: now.toISOString(),
-		value: goal.kind === "milestone" ? null : parseNumber(draft.value),
-		stages: goal.kind === "milestone" ? draft.stages : null,
-		status: e.status,
-		calculated: e.calc,
-		cause: e.reason ? draft.cause : null,
-		why: draft.why.trim(),
-		greenerWhy: e.greener ? draft.greenerWhy.trim() : "",
-		proposeTarget: e.asksTarget ? parseNumber(draft.proposeTarget) : null,
-		pathToGreen: e.needsPath ? {
-			what: draft.ptgWhat.trim(),
-			byWeek: (draft.ptgState ?? "plan") === "plan" ? draft.ptgBy : null,
-			needs: draft.needs.trim(),
-			state: draft.ptgState ?? "plan"
-		} : null,
-		next: draft.next.trim(),
-		dataFlagged: draft.dataFlagged
-	};
-}
-var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT;
-var init_checkin = __esmMin((() => {
-	init_status();
-	init_plan();
+var init_trend = __esmMin((() => {
 	init_numbers();
-	CAUSES_BEHIND = [
-		["aggressive", "Plan too aggressive"],
-		["slower", "Delivery slower"],
-		["blocked", "Blocked by a dependency"],
-		["external", "External factor"],
-		["data", "Data problem"],
-		["other", "Something else"]
-	];
-	CAUSES_AHEAD = [
-		["cautious", "Plan too cautious"],
-		["early", "Change landed early"],
-		["external", "External factor"],
-		["oneoff", "One-off, won’t last"],
-		["data", "Data problem"],
-		["other", "Something else"]
-	];
-	causeLabel = (c) => [...CAUSES_BEHIND, ...CAUSES_AHEAD].find(([k]) => k === c)?.[1] ?? "";
-	decimalsOf = (goal, n) => goal && goal.kind !== "milestone" ? goal.decimals : (String(n).split(".")[1] ?? "").length;
-	MISSING_TEXT = {
-		value: "this week’s value",
-		"value-not-number": "a number for this week’s value",
-		"value-precision": "this week’s value at the goal’s decimal places",
-		"value-impossible": "a possible value",
-		"greener-why": "why your call is greener",
-		"reason-behind": "why it’s behind",
-		"reason-ahead": "why it’s ahead",
-		path: "path to green",
-		target: "a proposed target beyond the current one"
+	init_checkin();
+	init_format();
+	init_plan();
+	init_status();
+	init_thresholds();
+	init_vocabulary();
+}));
+// src/domain/attention.ts
+/** A worsening trend the status may not show yet (domain/trend.ts, the one trend rule): its sentence, or null. */
+function worseningTrend(goal, cycle, checkIns) {
+	const t = goalTrend(goal, cycle, checkIns);
+	return t.word === "worse" ? t.detail : null;
+}
+function flagsFor(goal, s, cycle, today) {
+	const status = goalStatus(goal, cycle, s.checkIns, today);
+	const { latest, week } = status;
+	const flags = [];
+	const add = (kind, detail, tone) => flags.push({
+		kind,
+		label: FLAG[kind].label,
+		detail,
+		tone
+	});
+	const ptg = latest?.pathToGreen ?? null;
+	const behind = status.status === "off" || status.status === "risk";
+	const why = latest?.why && latest.why !== "On plan." ? latest.why : null;
+	if (status.status === "off") add("off", why ?? `The owner called it ${lower(FLAG.off)}.`, "off");
+	if (status.status === "stale") add("stale", latest ? `No check-in for ${status.daysSinceCheckIn} days; the last was week ${latest.week} (${LABEL[latest.status].toLowerCase()}).` : "No check-in this cycle yet.", "stale");
+	if (behind && ptg && ptg.byWeek != null && ptg.byWeek < week) add("missed-path", `Said it would be back on plan by week ${ptg.byWeek}: ${ptg.what}`, "off");
+	const waiting = status.status !== "done" ? openFor(goal.id, s) : [];
+	if (waiting.length) add("decision", `Waiting on ${waiting.map((r) => askText(r, s.people)).join("; ")}.`, behind ? "off" : "risk");
+	if (behind && !ptg) add("no-path", "It is behind and the owner has not said how it gets back.", "off");
+	if (status.status === "risk") add("risk", why ?? `The owner called it ${lower(FLAG.risk)}.`, "risk");
+	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
+	if (trend) add("trend", trend, "risk");
+	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
+	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
+	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
+	return {
+		status,
+		flags
 	};
+}
+function attentionFor(goal, s, cycle, today) {
+	const { status, flags } = flagsFor(goal, s, cycle, today);
+	return {
+		goal,
+		status,
+		flags,
+		weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0),
+		handled: handledFor(goal, s, cycle, today, status, flags),
+		lookedAt: lookedAtFor(goal, s, cycle, today, status)
+	};
+}
+/** Every look at a behind goal since its latest check-in, on or before today's date, in no particular order. */
+function looksAt(goal, s, cycle, today, status) {
+	if (status.status !== "off" && status.status !== "risk") return [];
+	const latest = status.latest;
+	if (!latest) return [];
+	const since = latest.postedAt;
+	const week = currentWeek(cycle, today);
+	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
+	const day = today.toISOString().slice(0, 10);
+	const looks = [];
+	for (const d of s.decisions) {
+		const kind = LOOKS[d.kind];
+		if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
+		if (d.byId === goal.ownerId) continue;
+		const review = d.reviewId ? s.reviews.find((r) => r.id === d.reviewId)?.name : null;
+		looks.push({
+			kind,
+			text: `Looked at by ${first(d.byId)}${review ? ` in ${review}` : ""}, week ${d.week}`,
+			said: kind === "reviewed" ? "" : d.note,
+			byId: d.byId,
+			at: d.at,
+			week: d.week,
+			reviewId: d.reviewId
+		});
+	}
+	for (const a of openAsksFor(goal.id, s, ["action"])) {
+		if (a.dueWeek == null || a.createdAt <= since || a.createdAt.slice(0, 10) > day || isOverdue(a, week)) continue;
+		looks.push({
+			kind: "action",
+			text: `Action: ${first(a.recipientId ?? goal.ownerId)}, due week ${a.dueWeek}`,
+			said: a.ask,
+			byId: a.askedBy,
+			at: a.createdAt,
+			week: a.week ?? currentWeek(cycle, new Date(a.createdAt)),
+			reviewId: a.reviewId
+		});
+	}
+	const answer = answeredSince(goal.id, since, s);
+	if (answer?.answeredAt && answer.answeredAt.slice(0, 10) <= day) {
+		const w = currentWeek(cycle, new Date(answer.answeredAt));
+		looks.push({
+			kind: "answered",
+			text: `Request answered by ${first(answer.answeredBy)}, week ${w}`,
+			said: answer.answer ?? "",
+			byId: answer.answeredBy ?? "",
+			at: answer.answeredAt,
+			week: w,
+			reviewId: null
+		});
+	}
+	return looks;
+}
+/**
+* Whether a goal that is off track or at risk is being handled, and by what (Lane, 10 Nov). It is when, since its
+* latest check-in, an action was agreed with an owner and a due week (and isn't overdue), or, for a goal at risk, a
+* request it's waiting on was answered; and no flag has appeared since then (a missed recovery date, say). An off-track
+* goal is in hand only with an action. Marking it reviewed or noting it is a look (lookedAtFor), not a plan: the goal
+* still needs attention. A new check-in always makes it news again.
+*/
+function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today), flags) {
+	const looks = looksAt(goal, s, cycle, today, status).filter((l) => l.kind === "action" || l.kind === "answered" && status.status === "risk");
+	if (!looks.length) return null;
+	const firstLook = looks.reduce((a, b) => a.at < b.at ? a : b);
+	const now = (flags ?? flagsFor(goal, s, cycle, today).flags).filter((f) => f.kind !== "due").map((f) => f.kind);
+	const then = new Set(flagsFor(goal, s, cycle, new Date(firstLook.at)).flags.map((f) => f.kind));
+	if (now.some((k) => !then.has(k))) return null;
+	return looks.sort((a, b) => HANDLED_ORDER.indexOf(a.kind) - HANDLED_ORDER.indexOf(b.kind) || b.at.localeCompare(a.at))[0];
+}
+/** The latest time someone other than the owner marked a behind goal reviewed or noted it since its latest check-in: "Looked at by Amara in …". */
+function lookedAtFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today)) {
+	return looksAt(goal, s, cycle, today, status).filter((l) => l.kind === "noted" || l.kind === "reviewed").sort((a, b) => b.at.localeCompare(a.at))[0] ?? null;
+}
+/**
+* Which group of the Needs attention list a goal is in (Lane, 9 Nov, backlog GP): `needs` (needs attention: listed
+* first, and what every count counts), `handled` (being handled: listed below them, never left out), or null (not
+* listed). A goal being handled is always flagged (it is behind), so the list is every goal flagged for something
+* beyond a due check-in. Nothing is hidden: a manager filtering her team sees her goals that are behind even when
+* someone has already looked at them.
+*/
+function attentionGroup(a) {
+	if (needsAttention(a)) return "needs";
+	return a.handled ? "handled" : null;
+}
+/** A list of goals' attention split into what needs attention (new information) and what is being handled. */
+function splitAttention(list) {
+	return {
+		needs: list.filter((a) => attentionGroup(a) === "needs"),
+		handled: list.filter((a) => attentionGroup(a) === "handled")
+	};
+}
+/**
+* Everything flagged, worst first, with the goals being handled after the ones that need attention (split them with
+* splitAttention). Goals with only a due check-in are left out unless asked.
+*/
+function attentionList(s, cycle, today, opts = {}) {
+	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort(attentionOrder);
+}
+var WEIGHT, HANDLED_ORDER, LOOKS, needsAttention, onAttentionList, attentionOrder;
+var init_attention = __esmMin((() => {
+	init_status();
+	init_asks();
+	init_progress();
+	init_plan();
+	init_trend();
+	init_vocabulary();
+	init_checkin();
+	WEIGHT = Object.fromEntries([...ATTENTION_FLAGS, "due"].map((k, i, all) => [k, (all.length - i) * 10]));
+	HANDLED_ORDER = [
+		"action",
+		"answered",
+		"noted",
+		"reviewed"
+	];
+	LOOKS = {
+		note: "noted",
+		acknowledge: "reviewed"
+	};
+	needsAttention = (a) => !a.handled && a.flags.some((f) => f.kind !== "due");
+	onAttentionList = (a) => attentionGroup(a) !== null;
+	attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
+}));
+// src/domain/review.ts
+/** A goal and every goal feeding it, at any depth. */
+function treeOf$2(rootId, goals) {
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	const walk = (id) => {
+		const g = goals.find((x) => x.id === id);
+		if (!g || seen.has(id)) return;
+		seen.add(id);
+		out.push(g);
+		for (const c of goals.filter((x) => x.parentId === id)) walk(c.id);
+	};
+	walk(rootId);
+	return out;
+}
+/** The goals a set of picks covers: single goals, whole trees and whole levels, each once. */
+function goalsIn(scope, goals) {
+	const ids = /* @__PURE__ */ new Set([...scope.goals, ...scope.trees.flatMap((t) => treeOf$2(t, goals).map((g) => g.id))]);
+	for (const g of goals) if (scope.levels.includes(g.level)) ids.add(g.id);
+	return goals.filter((g) => ids.has(g.id));
+}
+/** What a person watches, as the same kind of scope a review uses. */
+function watchScope(personId, watches) {
+	const mine = watches.filter((w) => w.personId === personId);
+	return {
+		goals: mine.filter((w) => w.kind === "goal").map((w) => w.ref),
+		trees: mine.filter((w) => w.kind === "tree").map((w) => w.ref),
+		levels: mine.filter((w) => w.kind === "level").map((w) => w.ref)
+	};
+}
+function watchedGoals(personId, s) {
+	return goalsIn(watchScope(personId, s.watches), s.goals);
+}
+/** The week of a review's current session: this week if it's held this week, otherwise the next week it is. */
+function sessionWeek(r, week, cycle) {
+	const n = Math.max(1, r.everyWeeks);
+	const w = Math.max(1, week, cycle ? firstWeekFrom(cycle, r.createdAt, r.weekday) : 1);
+	return w % n === 0 ? w : w + (n - w % n);
+}
+/** The date of a review's session in a given week, as yyyy-mm-dd. */
+function sessionDate(r, cycle, week) {
+	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
+	d.setUTCDate(d.getUTCDate() + r.weekday);
+	return d.toISOString().slice(0, 10);
+}
+/**
+* What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
+* every goal that isn't healthy, the ones with new information first; `handled` names the ones in it that are already
+* being handled (someone looked since the latest check-in), so an agenda can group them under "Being handled".
+*/
+function agendaOf(s) {
+	const left = s.items.filter((a) => !s.covered.has(a.goal.id));
+	const discuss = left.filter((a) => !isHealthy(a));
+	return {
+		discuss,
+		healthy: left.filter(isHealthy),
+		handled: discuss.filter((a) => !!a.handled)
+	};
+}
+/** A review's goals in agenda order: new information, then what's being handled, then the healthy goals. */
+function agendaItems(r, s, cycle, today) {
+	const lastCheckIn = (g) => {
+		const own = checkInsFor(g, s.checkIns);
+		const last = own[own.length - 1];
+		return last ? daysSince(last.postedAt, today) : 999;
+	};
+	return goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
+}
+function reviewSession(r, s, cycle, today, week) {
+	const w = sessionWeek(r, week, cycle);
+	const items = agendaItems(r, s, cycle, today);
+	const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
+	const covered = new Set(said.filter((d) => d.kind === "acknowledge").map((d) => d.goalId));
+	const done = items.filter((a) => covered.has(a.goal.id)).length;
+	return {
+		review: r,
+		week: w,
+		date: sessionDate(r, cycle, w),
+		items,
+		covered,
+		done,
+		total: items.length,
+		said
+	};
+}
+function sessionState(s) {
+	if (s.total > 0 && s.done >= s.total) return {
+		kind: "held",
+		on: (s.said.filter((d) => d.kind === "acknowledge").map((d) => d.at).sort().at(-1) ?? s.date).slice(0, 10)
+	};
+	if (s.done > 0 || s.said.length > 0) return {
+		kind: "in-progress",
+		done: s.done,
+		total: s.total
+	};
+	return { kind: "not-started" };
+}
+/**
+* How many days a session not yet held is past its date (demo review, 8 Nov, item 9): 0 on the day or before it.
+* `today` is the viewer's day, as the rest of the app counts it.
+*/
+function daysPast(s, today) {
+	if (sessionState(s).kind === "held") return 0;
+	const day = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+	const due = Date.parse(s.date.slice(0, 10) + "T00:00:00Z");
+	return Math.max(0, Math.round((day - due) / 864e5));
+}
+/** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
+function sessionStateText(st) {
+	if (st.kind === "held") return `${SESSION.held.label} ${dayText(st.on)}`;
+	if (st.kind === "in-progress") return `${SESSION["in-progress"].label} · ${reviewedText(st)}`;
+	return SESSION["not-started"].label;
+}
+/**
+* When a review was last held before its current session: the latest earlier session in which anything was said
+* (a goal reviewed, a note, a question or an action), dated by the last thing said in it. Null if it never has been.
+*/
+function lastHeld(r, s, sessionWk) {
+	const past = saidIn(s).filter((d) => d.reviewId === r.id && d.week < sessionWk);
+	if (!past.length) return null;
+	const week = Math.max(...past.map((d) => d.week));
+	return {
+		week,
+		on: past.filter((d) => d.week === week).map((d) => d.at).sort().at(-1).slice(0, 10)
+	};
+}
+/** A review's open actions: every action agreed in it, in any session, not yet marked done or withdrawn (overdue ones included). */
+function openActions(r, s) {
+	return asksOf(s).filter((a) => a.reviewId === r.id && a.kind === "action" && a.status === "open");
+}
+/** Everything said in reviews: the notes, and the questions and actions raised in them (not ones taken back). */
+function saidIn(s) {
+	return [...s.decisions.map((d) => ({
+		...d,
+		ask: null
+	})), ...asksOf(s).filter((a) => a.reviewId && (a.kind === "question" || a.kind === "action") && a.status !== "withdrawn").map((a) => ({
+		id: a.id,
+		goalId: a.goalIds[0],
+		checkInId: null,
+		reviewId: a.reviewId,
+		week: a.week ?? 0,
+		kind: a.kind === "question" ? "ask" : "action",
+		byId: a.askedBy,
+		at: a.createdAt,
+		note: a.ask,
+		assigneeId: a.recipientId,
+		dueWeek: a.dueWeek,
+		ask: a
+	}))];
+}
+/** The week of a review's next session on or after today: this week's, or the one after once its date has gone. Home's
+"Next review" and the review page's "Next" both use it, so they name the same day (review F07, 9 Nov). */
+function upcomingSessionWeek(r, cycle, week, today) {
+	const day = today.toISOString().slice(0, 10);
+	const w = sessionWeek(r, week, cycle);
+	return sessionDate(r, cycle, w) < day ? sessionWeek(r, w + 1, cycle) : w;
+}
+/**
+* The answer to a question or action said in a review: the ask's own answer (or the note it was marked done with),
+* once it has one. A comment never answers it. Null while it's open.
+*/
+function answerOf(d) {
+	const a = d.ask;
+	if (!a || !isResolved(a)) return null;
+	return {
+		text: a.answer || (a.status === "done" ? ASK_STATUS.done.label : ""),
+		at: a.answeredAt ?? a.updatedAt,
+		byId: a.answeredBy ?? ""
+	};
+}
+var isHealthy, tier, dayText, reviewedText;
+var init_review = __esmMin((() => {
+	init_attention();
+	init_vocabulary();
+	init_plan();
+	init_status();
+	init_asks();
+	isHealthy = (a) => !needsAttention(a) && !a.handled;
+	tier = (a) => a.handled ? 1 : isHealthy(a) ? 2 : 0;
+	dayText = (iso) => (/* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z")).toLocaleDateString("en-GB", {
+		weekday: "short",
+		day: "numeric",
+		month: "short",
+		timeZone: "UTC"
+	});
+	reviewedText = (s) => `${s.done} of ${s.total} reviewed`;
+	ASK_KIND.action.label;
+}));
+// src/domain/decide.ts
+var ACCEPT, acceptNote;
+var init_decide = __esmMin((() => {
+	init_asks();
+	init_review();
+	init_status();
+	init_vocabulary();
+	ACCEPT = `${DECIDED["accept-risk"].label}: `;
+	acceptNote = (reason) => ACCEPT + reason.trim();
 }));
 // src/domain/goal.ts
 function blankGoal(teamId, ownerId, parentId) {
@@ -2759,538 +3345,6 @@ var init_people = __esmMin((() => {
 	norm$3 = (s) => s.trim().toLowerCase();
 	normalEmail = (s) => (s ?? "").trim().toLowerCase();
 	isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) && s.length <= 254;
-}));
-// src/domain/progress.ts
-/** The person's goals this week: which are checked in and which are still due. */
-function weekProgress(personId, s, cycle, week, today) {
-	const goals = s.goals.filter((g) => g.ownerId === personId && goalStatus(g, cycle, s.checkIns, today).status !== "done");
-	const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
-	const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
-	return {
-		goals,
-		done,
-		upcoming,
-		due: week < 1 ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
-	};
-}
-/** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
-function reviewDate(cycle, week) {
-	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
-	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
-	return d.toISOString().slice(0, 10);
-}
-/**
-* Consecutive weeks, counting back from the latest finished one, in which every goal the
-* person owns was checked in by the owner on or before the review day.
-*/
-function onTimeStreak(personId, s, cycle, week) {
-	const goals = s.goals.filter((g) => g.ownerId === personId);
-	if (!goals.length) return 0;
-	const onTime = (w) => goals.some((g) => firstDueWeek(g, cycle) <= w) && goals.every((g) => firstDueWeek(g, cycle) > w || s.checkIns.some((c) => c.goalId === g.id && c.week === w && c.authorId === personId && c.postedAt.slice(0, 10) <= reviewDate(cycle, w)));
-	if (goals.every((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week)) && !onTime(week)) return 0;
-	let streak = 0;
-	for (let w = onTime(week) ? week : week - 1; w >= 1 && onTime(w); w--) streak++;
-	return streak;
-}
-var firstDueWeek, WEEKDAY;
-var init_progress = __esmMin((() => {
-	init_plan();
-	init_status();
-	firstDueWeek = (g, cycle) => firstWeekFrom(cycle, g.createdAt, cycle.reviewDay);
-	WEEKDAY = [
-		"Monday",
-		"Tuesday",
-		"Wednesday",
-		"Thursday",
-		"Friday",
-		"Saturday",
-		"Sunday"
-	];
-}));
-// src/domain/trend.ts
-/**
-* Which way a series is heading. `gaps` are the last check-ins' distance from where they should be, oldest first,
-* unrounded, positive when better: ahead of plan, room inside a limit. Only the last TREND_SPAN count.
-*   Getting worse: lower at each of the last two steps, and, with `behindOnly`, short now. A number held flat while the
-*     plan moves on is further behind at each check-in, so it is getting worse, even before the gap shows a whole unit;
-*     goalTrend then also asks that it shows: behind now, and further behind than at the start (deep review T5).
-*   Getting better: higher at each of the last two steps.
-*   Anything else, or fewer than TREND_SPAN check-ins: no clear change.
-*/
-function gapTrend(gaps, behindOnly = false) {
-	const g = gaps.slice(-3);
-	if (g.length < 3) return "flat";
-	const steps = g.slice(1).map((v, i) => v - g[i]);
-	if (steps.every((d) => d < -1e-9) && (!behindOnly || g[g.length - 1] < -1e-9)) return "worse";
-	if (steps.every((d) => d > 1e-9)) return "better";
-	return "flat";
-}
-/** A number goal's gap to the plan of each check-in's own week, in its units, positive when ahead (whichever way is
-better): `gap` at the goal's decimals, to say; `raw` unrounded, for the trend. */
-function planGaps(goal, cycle, valued) {
-	const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
-	return valued.filter((c) => c.value != null).map((c) => {
-		const plan = planAt(goalAsOf(goal, c.week).plan, c.week, cycle.weeks);
-		const raw = (c.value - plan) * dir;
-		return {
-			c,
-			plan,
-			raw,
-			gap: Number(raw.toFixed(goal.decimals))
-		};
-	});
-}
-/**
-* A number goal's trend from its gaps to plan (planGaps): gapTrend on the unrounded gaps, a "worse" kept only if it
-* shows at the goal's decimals (deep review T5, 10 Nov): behind now as shown, and further behind than at the start of
-* the span. A number typed as the plan reads "on plan", so it is never getting worse, and no sentence prints "on plan →
-* on plan → on plan" or three equal gaps as worse. The flag, the story and the summary bar all ask here.
-*/
-function planGapTrend(gaps) {
-	const word = gapTrend(gaps.map((x) => x.raw), true);
-	const shown = gaps.slice(-3).map((x) => x.gap);
-	const visible = shown.length > 0 && shown[shown.length - 1] < 0 && shown[0] > shown[shown.length - 1];
-	return word === "worse" && !visible ? "flat" : word;
-}
-/** Stages at the latest check-in against the one before: worse when any is expected later, better when only sooner. */
-function stagesTrend(goal, own) {
-	const withStages = own.filter((c) => c.stages);
-	if (withStages.length < 2) return {
-		word: "flat",
-		slipped: null
-	};
-	const prev = withStages[withStages.length - 2], last = withStages[withStages.length - 1];
-	const before = assessMilestone(goal, prev.week, prev.stages), now = assessMilestone(goal, last.week, last.stages);
-	const later = now.stages.find((s, i) => s.kind !== "done" && s.expectedWeek > (before.stages[i]?.expectedWeek ?? s.expectedWeek));
-	if (later) return {
-		word: "worse",
-		slipped: {
-			name: later.name,
-			week: later.expectedWeek
-		}
-	};
-	return {
-		word: now.stages.some((s, i) => s.kind === "done" && before.stages[i]?.kind !== "done" && (s.doneWeek ?? 0) < (before.stages[i]?.expectedWeek ?? 0) || s.kind !== "done" && s.expectedWeek < (before.stages[i]?.expectedWeek ?? s.expectedWeek)) ? "better" : "flat",
-		slipped: null
-	};
-}
-/** Whether a goal is getting worse or better over its last check-ins: the rule behind the "Getting worse" flag. */
-function goalTrend(goal, cycle, checkIns) {
-	const own = checkInsFor(goal, checkIns);
-	if (goal.kind === "metric") {
-		const valued = own.filter((c) => c.value != null);
-		const gaps = planGaps(goal, cycle, valued);
-		const word = planGapTrend(gaps);
-		if (word === "worse") {
-			const last = gaps.slice(-3);
-			const n = (v) => fixed(Math.abs(v), goal.decimals);
-			return {
-				word,
-				detail: `Further behind plan at each of the last two check-ins: ${last.map((x) => x.gap < 0 ? n(x.gap) + " behind" : x.gap > 0 ? n(x.gap) + " ahead" : "on plan").join(" → ")}${goal.unit ? ` (${goal.unit === "%" ? "pts" : goal.unit})` : ""}.`
-			};
-		}
-		if (valued.length >= 3) {
-			const pts = valued.map((c) => ({
-				week: c.week,
-				value: c.value
-			}));
-			const at = assessMetric(goal, cycle.weeks, pts[pts.length - 1].week, pts[pts.length - 1].value, pts.slice(0, -1));
-			const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
-			const best = at.projection ? Number((dir > 0 ? at.projection.high : at.projection.low).toFixed(goal.decimals)) : null;
-			const allShort = best != null && (best - Number(goal.plan.target.toFixed(goal.decimals))) * dir < 0;
-			if (at.forecastMisses && allShort && at.projection && at.calc === "on") return {
-				word: "worse",
-				detail: `${LABEL.on} today, but the recent trend heads for ${rangeText(at.projection, goal, isShare(goal))} by week ${at.projection.week}, against a target of ${fmt(goal.plan.target, goal)}.`
-			};
-		}
-		return {
-			word,
-			detail: null
-		};
-	}
-	if (goal.kind === "range") {
-		const v = own.filter((c) => c.value != null).map((c) => c.value).slice(-3);
-		const safe = goal.range.bound === "atMost" ? -1 : 1;
-		const word = gapTrend(v.map((x) => (x - goal.range.limit) * safe));
-		if (word !== "worse") return {
-			word,
-			detail: null
-		};
-		return {
-			word,
-			detail: `${assessRange(goal, 1, v[v.length - 1], null).out ? "Further past" : "Closer to"} the limit at each of the last two check-ins: ${v.map((x) => fmt(x, goal)).join(" → ")} (limit ${fmt(goal.range.limit, goal)}).`
-		};
-	}
-	const t = stagesTrend(goal, own);
-	return {
-		word: t.word,
-		detail: t.slipped ? `${t.slipped.name} is expected later than at the check-in before: now ${weekLabel(t.slipped.week, cycle.weeks)}.` : null
-	};
-}
-var init_trend = __esmMin((() => {
-	init_numbers();
-	init_checkin();
-	init_format();
-	init_plan();
-	init_status();
-	init_thresholds();
-	init_vocabulary();
-}));
-// src/domain/attention.ts
-/** A worsening trend the status may not show yet (domain/trend.ts, the one trend rule): its sentence, or null. */
-function worseningTrend(goal, cycle, checkIns) {
-	const t = goalTrend(goal, cycle, checkIns);
-	return t.word === "worse" ? t.detail : null;
-}
-function flagsFor(goal, s, cycle, today) {
-	const status = goalStatus(goal, cycle, s.checkIns, today);
-	const { latest, week } = status;
-	const flags = [];
-	const add = (kind, detail, tone) => flags.push({
-		kind,
-		label: FLAG[kind].label,
-		detail,
-		tone
-	});
-	const ptg = latest?.pathToGreen ?? null;
-	const behind = status.status === "off" || status.status === "risk";
-	const why = latest?.why && latest.why !== "On plan." ? latest.why : null;
-	if (status.status === "off") add("off", why ?? `The owner called it ${lower(FLAG.off)}.`, "off");
-	if (status.status === "stale") add("stale", latest ? `No check-in for ${status.daysSinceCheckIn} days; the last was week ${latest.week} (${LABEL[latest.status].toLowerCase()}).` : "No check-in this cycle yet.", "stale");
-	if (behind && ptg && ptg.byWeek != null && ptg.byWeek < week) add("missed-path", `Said it would be back on plan by week ${ptg.byWeek}: ${ptg.what}`, "off");
-	const waiting = status.status !== "done" ? openFor(goal.id, s) : [];
-	if (waiting.length) add("decision", `Waiting on ${waiting.map((r) => askText(r, s.people)).join("; ")}.`, behind ? "off" : "risk");
-	if (behind && !ptg) add("no-path", "It is behind and the owner has not said how it gets back.", "off");
-	if (status.status === "risk") add("risk", why ?? `The owner called it ${lower(FLAG.risk)}.`, "risk");
-	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
-	if (trend) add("trend", trend, "risk");
-	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
-	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
-	return {
-		status,
-		flags
-	};
-}
-function attentionFor(goal, s, cycle, today) {
-	const { status, flags } = flagsFor(goal, s, cycle, today);
-	return {
-		goal,
-		status,
-		flags,
-		weight: flags.reduce((m, f) => Math.max(m, WEIGHT[f.kind]), 0),
-		handled: handledFor(goal, s, cycle, today, status, flags),
-		lookedAt: lookedAtFor(goal, s, cycle, today, status)
-	};
-}
-/** Every look at a behind goal since its latest check-in, on or before today's date, in no particular order. */
-function looksAt(goal, s, cycle, today, status) {
-	if (status.status !== "off" && status.status !== "risk") return [];
-	const latest = status.latest;
-	if (!latest) return [];
-	const since = latest.postedAt;
-	const week = currentWeek(cycle, today);
-	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
-	const day = today.toISOString().slice(0, 10);
-	const looks = [];
-	for (const d of s.decisions) {
-		const kind = LOOKS[d.kind];
-		if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
-		if (d.byId === goal.ownerId) continue;
-		const review = d.reviewId ? s.reviews.find((r) => r.id === d.reviewId)?.name : null;
-		looks.push({
-			kind,
-			text: `Looked at by ${first(d.byId)}${review ? ` in ${review}` : ""}, week ${d.week}`,
-			said: kind === "reviewed" ? "" : d.note,
-			byId: d.byId,
-			at: d.at,
-			week: d.week,
-			reviewId: d.reviewId
-		});
-	}
-	for (const a of openAsksFor(goal.id, s, ["action"])) {
-		if (a.dueWeek == null || a.createdAt <= since || a.createdAt.slice(0, 10) > day || isOverdue(a, week)) continue;
-		looks.push({
-			kind: "action",
-			text: `Action: ${first(a.recipientId ?? goal.ownerId)}, due week ${a.dueWeek}`,
-			said: a.ask,
-			byId: a.askedBy,
-			at: a.createdAt,
-			week: a.week ?? currentWeek(cycle, new Date(a.createdAt)),
-			reviewId: a.reviewId
-		});
-	}
-	const answer = answeredSince(goal.id, since, s);
-	if (answer?.answeredAt && answer.answeredAt.slice(0, 10) <= day) {
-		const w = currentWeek(cycle, new Date(answer.answeredAt));
-		looks.push({
-			kind: "answered",
-			text: `Request answered by ${first(answer.answeredBy)}, week ${w}`,
-			said: answer.answer ?? "",
-			byId: answer.answeredBy ?? "",
-			at: answer.answeredAt,
-			week: w,
-			reviewId: null
-		});
-	}
-	return looks;
-}
-/**
-* Whether a goal that is off track or at risk is being handled, and by what (Lane, 10 Nov). It is when, since its
-* latest check-in, an action was agreed with an owner and a due week (and isn't overdue), or, for a goal at risk, a
-* request it's waiting on was answered; and no flag has appeared since then (a missed recovery date, say). An off-track
-* goal is in hand only with an action. Marking it reviewed or noting it is a look (lookedAtFor), not a plan: the goal
-* still needs attention. A new check-in always makes it news again.
-*/
-function handledFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today), flags) {
-	const looks = looksAt(goal, s, cycle, today, status).filter((l) => l.kind === "action" || l.kind === "answered" && status.status === "risk");
-	if (!looks.length) return null;
-	const firstLook = looks.reduce((a, b) => a.at < b.at ? a : b);
-	const now = (flags ?? flagsFor(goal, s, cycle, today).flags).filter((f) => f.kind !== "due").map((f) => f.kind);
-	const then = new Set(flagsFor(goal, s, cycle, new Date(firstLook.at)).flags.map((f) => f.kind));
-	if (now.some((k) => !then.has(k))) return null;
-	return looks.sort((a, b) => HANDLED_ORDER.indexOf(a.kind) - HANDLED_ORDER.indexOf(b.kind) || b.at.localeCompare(a.at))[0];
-}
-/** The latest time someone other than the owner marked a behind goal reviewed or noted it since its latest check-in: "Looked at by Amara in …". */
-function lookedAtFor(goal, s, cycle, today, status = goalStatus(goal, cycle, s.checkIns, today)) {
-	return looksAt(goal, s, cycle, today, status).filter((l) => l.kind === "noted" || l.kind === "reviewed").sort((a, b) => b.at.localeCompare(a.at))[0] ?? null;
-}
-/**
-* Which group of the Needs attention list a goal is in (Lane, 9 Nov, backlog GP): `needs` (needs attention: listed
-* first, and what every count counts), `handled` (being handled: listed below them, never left out), or null (not
-* listed). A goal being handled is always flagged (it is behind), so the list is every goal flagged for something
-* beyond a due check-in. Nothing is hidden: a manager filtering her team sees her goals that are behind even when
-* someone has already looked at them.
-*/
-function attentionGroup(a) {
-	if (needsAttention(a)) return "needs";
-	return a.handled ? "handled" : null;
-}
-/** A list of goals' attention split into what needs attention (new information) and what is being handled. */
-function splitAttention(list) {
-	return {
-		needs: list.filter((a) => attentionGroup(a) === "needs"),
-		handled: list.filter((a) => attentionGroup(a) === "handled")
-	};
-}
-/**
-* Everything flagged, worst first, with the goals being handled after the ones that need attention (split them with
-* splitAttention). Goals with only a due check-in are left out unless asked.
-*/
-function attentionList(s, cycle, today, opts = {}) {
-	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort(attentionOrder);
-}
-var WEIGHT, HANDLED_ORDER, LOOKS, needsAttention, onAttentionList, attentionOrder;
-var init_attention = __esmMin((() => {
-	init_status();
-	init_asks();
-	init_progress();
-	init_plan();
-	init_trend();
-	init_vocabulary();
-	init_checkin();
-	WEIGHT = Object.fromEntries([...ATTENTION_FLAGS, "due"].map((k, i, all) => [k, (all.length - i) * 10]));
-	HANDLED_ORDER = [
-		"action",
-		"answered",
-		"noted",
-		"reviewed"
-	];
-	LOOKS = {
-		note: "noted",
-		acknowledge: "reviewed"
-	};
-	needsAttention = (a) => !a.handled && a.flags.some((f) => f.kind !== "due");
-	onAttentionList = (a) => attentionGroup(a) !== null;
-	attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
-}));
-// src/domain/review.ts
-/** A goal and every goal feeding it, at any depth. */
-function treeOf$2(rootId, goals) {
-	const out = [];
-	const seen = /* @__PURE__ */ new Set();
-	const walk = (id) => {
-		const g = goals.find((x) => x.id === id);
-		if (!g || seen.has(id)) return;
-		seen.add(id);
-		out.push(g);
-		for (const c of goals.filter((x) => x.parentId === id)) walk(c.id);
-	};
-	walk(rootId);
-	return out;
-}
-/** The goals a set of picks covers: single goals, whole trees and whole levels, each once. */
-function goalsIn(scope, goals) {
-	const ids = /* @__PURE__ */ new Set([...scope.goals, ...scope.trees.flatMap((t) => treeOf$2(t, goals).map((g) => g.id))]);
-	for (const g of goals) if (scope.levels.includes(g.level)) ids.add(g.id);
-	return goals.filter((g) => ids.has(g.id));
-}
-/** What a person watches, as the same kind of scope a review uses. */
-function watchScope(personId, watches) {
-	const mine = watches.filter((w) => w.personId === personId);
-	return {
-		goals: mine.filter((w) => w.kind === "goal").map((w) => w.ref),
-		trees: mine.filter((w) => w.kind === "tree").map((w) => w.ref),
-		levels: mine.filter((w) => w.kind === "level").map((w) => w.ref)
-	};
-}
-function watchedGoals(personId, s) {
-	return goalsIn(watchScope(personId, s.watches), s.goals);
-}
-/** The week of a review's current session: this week if it's held this week, otherwise the next week it is. */
-function sessionWeek(r, week, cycle) {
-	const n = Math.max(1, r.everyWeeks);
-	const w = Math.max(1, week, cycle ? firstWeekFrom(cycle, r.createdAt, r.weekday) : 1);
-	return w % n === 0 ? w : w + (n - w % n);
-}
-/** The date of a review's session in a given week, as yyyy-mm-dd. */
-function sessionDate(r, cycle, week) {
-	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
-	d.setUTCDate(d.getUTCDate() + r.weekday);
-	return d.toISOString().slice(0, 10);
-}
-/**
-* What a session still has to do: goals to discuss one at a time, and goals on track to cover together. Discuss keeps
-* every goal that isn't healthy, the ones with new information first; `handled` names the ones in it that are already
-* being handled (someone looked since the latest check-in), so an agenda can group them under "Being handled".
-*/
-function agendaOf(s) {
-	const left = s.items.filter((a) => !s.covered.has(a.goal.id));
-	const discuss = left.filter((a) => !isHealthy(a));
-	return {
-		discuss,
-		healthy: left.filter(isHealthy),
-		handled: discuss.filter((a) => !!a.handled)
-	};
-}
-/** A review's goals in agenda order: new information, then what's being handled, then the healthy goals. */
-function agendaItems(r, s, cycle, today) {
-	const lastCheckIn = (g) => {
-		const own = checkInsFor(g, s.checkIns);
-		const last = own[own.length - 1];
-		return last ? daysSince(last.postedAt, today) : 999;
-	};
-	return goalsIn(r.scope, s.goals).map((g) => attentionFor(g, s, cycle, today)).sort((a, b) => tier(a) - tier(b) || b.weight - a.weight || RANK[b.status.status] - RANK[a.status.status] || lastCheckIn(b.goal) - lastCheckIn(a.goal) || a.goal.title.localeCompare(b.goal.title));
-}
-function reviewSession(r, s, cycle, today, week) {
-	const w = sessionWeek(r, week, cycle);
-	const items = agendaItems(r, s, cycle, today);
-	const said = saidIn(s).filter((d) => d.reviewId === r.id && d.week === w);
-	const covered = new Set(said.filter((d) => d.kind === "acknowledge").map((d) => d.goalId));
-	const done = items.filter((a) => covered.has(a.goal.id)).length;
-	return {
-		review: r,
-		week: w,
-		date: sessionDate(r, cycle, w),
-		items,
-		covered,
-		done,
-		total: items.length,
-		said
-	};
-}
-function sessionState(s) {
-	if (s.total > 0 && s.done >= s.total) return {
-		kind: "held",
-		on: (s.said.filter((d) => d.kind === "acknowledge").map((d) => d.at).sort().at(-1) ?? s.date).slice(0, 10)
-	};
-	if (s.done > 0 || s.said.length > 0) return {
-		kind: "in-progress",
-		done: s.done,
-		total: s.total
-	};
-	return { kind: "not-started" };
-}
-/**
-* How many days a session not yet held is past its date (demo review, 8 Nov, item 9): 0 on the day or before it.
-* `today` is the viewer's day, as the rest of the app counts it.
-*/
-function daysPast(s, today) {
-	if (sessionState(s).kind === "held") return 0;
-	const day = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-	const due = Date.parse(s.date.slice(0, 10) + "T00:00:00Z");
-	return Math.max(0, Math.round((day - due) / 864e5));
-}
-/** The words for a session's state: "Not started", "In progress · 3 of 7 reviewed", "Held Thu 5 Nov". */
-function sessionStateText(st) {
-	if (st.kind === "held") return `${SESSION.held.label} ${dayText(st.on)}`;
-	if (st.kind === "in-progress") return `${SESSION["in-progress"].label} · ${reviewedText(st)}`;
-	return SESSION["not-started"].label;
-}
-/**
-* When a review was last held before its current session: the latest earlier session in which anything was said
-* (a goal reviewed, a note, a question or an action), dated by the last thing said in it. Null if it never has been.
-*/
-function lastHeld(r, s, sessionWk) {
-	const past = saidIn(s).filter((d) => d.reviewId === r.id && d.week < sessionWk);
-	if (!past.length) return null;
-	const week = Math.max(...past.map((d) => d.week));
-	return {
-		week,
-		on: past.filter((d) => d.week === week).map((d) => d.at).sort().at(-1).slice(0, 10)
-	};
-}
-/** A review's open actions: every action agreed in it, in any session, not yet marked done or withdrawn (overdue ones included). */
-function openActions(r, s) {
-	return asksOf(s).filter((a) => a.reviewId === r.id && a.kind === "action" && a.status === "open");
-}
-/** Everything said in reviews: the notes, and the questions and actions raised in them (not ones taken back). */
-function saidIn(s) {
-	return [...s.decisions.map((d) => ({
-		...d,
-		ask: null
-	})), ...asksOf(s).filter((a) => a.reviewId && (a.kind === "question" || a.kind === "action") && a.status !== "withdrawn").map((a) => ({
-		id: a.id,
-		goalId: a.goalIds[0],
-		checkInId: null,
-		reviewId: a.reviewId,
-		week: a.week ?? 0,
-		kind: a.kind === "question" ? "ask" : "action",
-		byId: a.askedBy,
-		at: a.createdAt,
-		note: a.ask,
-		assigneeId: a.recipientId,
-		dueWeek: a.dueWeek,
-		ask: a
-	}))];
-}
-/** The week of a review's next session on or after today: this week's, or the one after once its date has gone. Home's
-"Next review" and the review page's "Next" both use it, so they name the same day (review F07, 9 Nov). */
-function upcomingSessionWeek(r, cycle, week, today) {
-	const day = today.toISOString().slice(0, 10);
-	const w = sessionWeek(r, week, cycle);
-	return sessionDate(r, cycle, w) < day ? sessionWeek(r, w + 1, cycle) : w;
-}
-/**
-* The answer to a question or action said in a review: the ask's own answer (or the note it was marked done with),
-* once it has one. A comment never answers it. Null while it's open.
-*/
-function answerOf(d) {
-	const a = d.ask;
-	if (!a || !isResolved(a)) return null;
-	return {
-		text: a.answer || (a.status === "done" ? ASK_STATUS.done.label : ""),
-		at: a.answeredAt ?? a.updatedAt,
-		byId: a.answeredBy ?? ""
-	};
-}
-var isHealthy, tier, dayText, reviewedText;
-var init_review = __esmMin((() => {
-	init_attention();
-	init_vocabulary();
-	init_plan();
-	init_status();
-	init_asks();
-	isHealthy = (a) => !needsAttention(a) && !a.handled;
-	tier = (a) => a.handled ? 1 : isHealthy(a) ? 2 : 0;
-	dayText = (iso) => (/* @__PURE__ */ new Date(iso.slice(0, 10) + "T00:00:00Z")).toLocaleDateString("en-GB", {
-		weekday: "short",
-		day: "numeric",
-		month: "short",
-		timeZone: "UTC"
-	});
-	reviewedText = (s) => `${s.done} of ${s.total} reviewed`;
-	ASK_KIND.action.label;
 }));
 // src/domain/changes.ts
 function goalFields(g, l) {
@@ -4755,6 +4809,14 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 	};
 }
 /**
+* The review accepts the risk on a goal behind (deep review P2): no action for now, with a reason, said in the session
+* as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone in the review.
+*/
+function acceptRisk(x, goal, review, reason, week) {
+	if (reason.trim().length < 5) no$1("Say why the review accepts the risk.");
+	return reviewCall(x, goal, review, "note", acceptNote(reason), { week });
+}
+/**
 * Correct a note, question or action said in a review (or any ask's words): whoever said it, or an admin. An answered or
 * done ask stays as it was answered. Null when nothing changed.
 */
@@ -5454,6 +5516,7 @@ function canDeleteWorkspace(actor, kind, name, confirmName) {
 }
 var NotAllowed, no$1, lookupOf, ownsOrAdmin$1, latestOf, askById, nameOf, watchWhat, initialsOf$1, liveView;
 var init_actions = __esmMin((() => {
+	init_decide();
 	init_thresholds();
 	init_cycle();
 	init_people();
@@ -7081,7 +7144,7 @@ function planChanges(input) {
 		const origEnd = planEnd(orig.plan, cycle.weeks);
 		const tol = .5 * 10 ** -g.decimals;
 		const startTyped = val(r, "start") ? parseNumber(val(r, "start")) : null;
-		if (val(r, "start") && startTyped == null) return err("Plan", row, g.title, `Start: ${notNumberText(val(r, "start"))}`);
+		if (val(r, "start") && startTyped == null) return err("Plan", row, g.title, `Start: ${notNumberText(val(r, "start"), g.decimals)}`);
 		const startPrecise = val(r, "start") ? precisionProblem(val(r, "start"), startTyped, g.decimals) : null;
 		if (startPrecise) return err("Plan", row, g.title, `Start: ${startPrecise}`);
 		const typed = /* @__PURE__ */ new Map();
@@ -7089,7 +7152,7 @@ function planChanges(input) {
 			const m = /^week (\d+)$/.exec(k);
 			if (!m || !String(v).trim()) continue;
 			const n = parseNumber(String(v));
-			if (n == null) return err("Plan", row, g.title, `Week ${m[1]}: ${notNumberText(String(v))}`);
+			if (n == null) return err("Plan", row, g.title, `Week ${m[1]}: ${notNumberText(String(v), g.decimals)}`);
 			const precise = precisionProblem(String(v), n, g.decimals);
 			if (precise) return err("Plan", row, g.title, `Week ${m[1]}: ${precise}`);
 			const w = Number(m[1]);
@@ -7342,9 +7405,10 @@ function planChanges(input) {
 				"reason-behind": `a Cause and a Why of 10 characters or more (it’s behind plan)`,
 				"reason-ahead": `a Cause and a Why of 10 characters or more (it’s ahead of plan)`,
 				path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
+				"story-unchanged": MISSING_TEXT["story-unchanged"],
 				target: MISSING_TEXT.target
 			};
-			const typedValue = g.kind === "milestone" ? null : e.codes[0] === "value-not-number" ? notNumberText(draft.value) : e.codes[0] === "value-precision" ? precisionProblem(draft.value, parseNumber(draft.value), g.decimals) : null;
+			const typedValue = g.kind !== "milestone" && e.codes[0] && e.codes[0] !== "value" && VALUE_CODES.includes(e.codes[0]) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
 			err("Check-ins", row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join("; ")}.`);
 			continue;
 		}
@@ -7816,6 +7880,7 @@ var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) +
 init_format();
 init_attention();
 init_status();
+init_goalKey();
 init_vocabulary();
 init_year();
 var STATUS_OPTIONS = [
@@ -7910,6 +7975,11 @@ function treeOf$1(id, goals) {
 	}
 	return out;
 }
+/** The goal key a search names, if the whole search is one: "G-48", "g48" or a bare "48" all name G-48. */
+function searchKey(text) {
+	const t = text.trim();
+	return normalKey(t) ?? (/^\d{1,9}$/.test(t) ? formatKey(Number(t)) : null);
+}
 /** Does this goal pass every filter in the query? */
 function matches(s, q, ctx, tree) {
 	const g = s.goal;
@@ -7925,7 +7995,9 @@ function matches(s, q, ctx, tree) {
 			g.definition,
 			g.source
 		].join(" ").toLowerCase();
-		if (!q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
+		const key = searchKey(q.q);
+		const byKey = !!key && g.key === key;
+		if (normalKey(q.q) != null ? !byKey : !byKey && !q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
 	}
 	if (q.status.length && !q.status.includes(s.status)) return false;
 	if (q.level.length && !q.level.includes(g.level)) return false;
@@ -9626,6 +9698,18 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
+// src/domain/order.ts
+init_status();
+init_vocabulary();
+/** How many goals have each status, worst first, only the statuses that have any: "11 off track, 23 at risk …". */
+function statusCounts(statuses) {
+	const by = /* @__PURE__ */ new Map();
+	for (const k of statuses) by.set(k, (by.get(k) ?? 0) + 1);
+	return STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({
+		status: k,
+		n: by.get(k)
+	}));
+}
 // src/domain/home.ts
 init_attention();
 init_plan();
@@ -9674,18 +9758,10 @@ function missedReviews(personId, s, cycle, week, today) {
 function dashboard(personId, s, cycle, week, today) {
 	const mine = s.goals.filter((g) => g.ownerId === personId);
 	const goals = mine.length ? mine : s.goals;
-	const by = /* @__PURE__ */ new Map();
-	for (const g of goals) {
-		const k = goalStatus(g, cycle, s.checkIns, today).status;
-		by.set(k, (by.get(k) ?? 0) + 1);
-	}
 	const watched = watchedGoals(personId, s);
 	return {
 		scope: mine.length ? "mine" : "all",
-		counts: STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({
-			status: k,
-			n: by.get(k)
-		})),
+		counts: statusCounts(goals.map((g) => goalStatus(g, cycle, s.checkIns, today).status)),
 		total: goals.length,
 		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
 		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
@@ -9856,9 +9932,9 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it. The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
-					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session.",
-					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it.",
+					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it, and each count of your goals opens just those goals (“11 off track” lists the 11). The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
+					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session. Its ring says what it counts inside it: check-ins, or reviewed.",
+					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
@@ -10031,6 +10107,7 @@ var CORE_ARTICLES = [
 					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
+					"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
 					"The last screen gives you the one next thing to do, and a link to copy for your team. The link opens this workspace, whichever one their browser last had open. Faro sends no email: you send the link yourself.",
 					"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
 					"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
@@ -10132,17 +10209,20 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Start check-in on Home walks through every goal due this week. From a goal’s page, Check in does just that goal.",
+					"The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.",
 					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
 					`Causes when behind: ${causes(CAUSES_BEHIND)}. When ahead: ${causes(CAUSES_AHEAD)}. Something else lets you say it in your own words.`,
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
-					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. Correcting a check-in in the same week asks about this week’s earlier check-in instead. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
+					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. Correcting a check-in in the same week asks about this week’s earlier check-in instead. Something changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
+					"Behind needs a story, and Post alone never tells it: if what you opened with Something changed is still word for word what you said last time, the check-in asks you to change what’s different or tick Still true this week. The goal page then shows it as the same reason as last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
 					"What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.",
 					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
 					"A number is kept exactly as you type it, never rounded quietly. One with more decimal places than the goal keeps (12.5 in a goal of whole numbers) is refused with what it would show as: type it to the goal’s places, or choose Keep 1 decimal place for this goal, which changes the goal’s decimals in one step, logged on its history.",
 					"A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.",
-					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, like 29.4. Every number Faro shows has its thousands grouped: 1,250."
+					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.",
+					"The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned."
 				]
 			},
 			{
@@ -10176,7 +10256,8 @@ var CORE_ARTICLES = [
 			"OTHER-CAUSE",
 			"NO-DOUBLE-POST",
 			"DRAFTS",
-			"FIRST-CHECKIN"
+			"FIRST-CHECKIN",
+			"HONEST-CHECKIN"
 		],
 		keywords: [
 			"update",
@@ -10217,8 +10298,9 @@ var CORE_ARTICLES = [
 				list: [
 					"On Home, choose “Or type all your numbers in one table” under Start check-in.",
 					"Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.",
-					"Post sends every row with a number. A row that still needs something says so under it, and nothing posts until it’s fixed.",
-					"Numbers you typed are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
+					"Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.",
+					"After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.",
+					"The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
 				]
 			},
 			{
@@ -10231,7 +10313,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"BULK-EDIT",
 			"DRAFTS",
-			"NO-DOUBLE-POST"
+			"NO-DOUBLE-POST",
+			"HONEST-CHECKIN"
 		],
 		keywords: [
 			"quick check-in",
@@ -10367,10 +10450,12 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.",
+					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
 					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.",
 					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.",
 					"Above the goals, one line says their health, as Home does: how many are off track, at risk, on track and so on, each with its shape and word. It counts the goals shown, so a tab or a filter changes it. On a phone the Views button counts them instead, so the goals come first.",
-					"The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into.",
+					"The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into. Every card starts with its own status, a shape and its word, so a card still says where it stands on a phone, where the lanes stack and its lane’s heading has scrolled away.",
+					"Decision or help needed means the same goals everywhere: the Goals filter and the saved views built on it, the Table’s story line and the Board’s order all ask the one rule, an open ask for a decision or help on a goal that isn’t done.",
 					"Cards has gone: List shows everything it did. A link or saved view that opens Cards opens List, and says so once.",
 					"Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.",
 					"A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.",
@@ -10443,6 +10528,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.",
+				"Search for a goal’s key to find it, however it’s typed: G-48, g48 or just 48. A key finds only its own goal; a bare number also finds goals with that number in their words.",
 				"Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.",
 				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Decision or help needed is one press. Each active filter shows as words you can remove.",
@@ -10594,9 +10680,12 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Choose Map among the Goals layouts. North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.",
-				"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Branches fold and unfold; Fold all and Unfold all do every branch at once, and Tidy up puts dragged goals back.",
-				"The critical path, the inputs most likely to make a top goal miss, is drawn bold. Only what needs attention narrows the map to that.",
-				"Fit all shows everything small; Readable shows the critical path at a size you can read.",
+				"It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.",
+				"Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.",
+				"Find a goal, at the top left of the map, finds a goal by its name or its key (G-48). Choose one: its tree opens, the goal is outlined and the map moves to it. Press Enter to read its story.",
+				"Fit all shows every goal on the map at once, the trees wrapped into rows; Readable shows the top goals and the critical path at a size you can read. The map fits itself again whenever what it shows changes: a search, a filter or the trees in trouble.",
+				"Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. Only what needs attention narrows the map to those goals and what they feed, every branch unfolded.",
+				"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.",
 				"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.",
 				"The map’s walkthrough ends beside the story: on a desktop its card sits over the map, left of the story and level with its foot; on a phone, above the story."
 			]
@@ -10612,7 +10701,13 @@ var CORE_ARTICLES = [
 			"also helps",
 			"feeds into",
 			"dependencies",
-			"graph"
+			"graph",
+			"find",
+			"key",
+			"fit all",
+			"troubled",
+			"roll-up",
+			"worst status"
 		],
 		related: ["goals", "goal-page"]
 	},
@@ -10646,10 +10741,11 @@ var CORE_ARTICLES = [
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.",
 					"Every section under the chart has a heading and one line saying what it answers, with a rule between sections.",
 					"Why it could miss without a change (at risk), or Why it will miss without intervention (off track): the status’s own meaning, so a goal at risk that is recovering isn’t said to be behind, and the status word isn’t said twice. Under it, the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
-					"What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when, and whether each is open, overdue or done.",
+					"What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when (the week and its date), and whether each is open, overdue or done. An overdue next step is flagged, and a goal behind needs attention again.",
+					"Add a next step, on any goal still running: what happens next, who does it (find them by name or team) and the week it’s due by. Whoever agreed a next step, or an admin, can change its words, who or when there with Change; the log keeps the before and after.",
 					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
 					"What feeds it: how the goals directly feeding it stand (“Directly feeding it (four goals): 2 off track, 1 at risk”). Cards on Goals count everything under a goal instead, and say so (“Everything under it (16 goals)”), so the two never look contradictory. Then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
-					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list.",
+					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list. The newest check-in is never folded in: it always shows on its own, with its number and status.",
 					"About this goal: how it’s measured, its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change. It’s open the first time you visit, and folded after."
 				]
 			},
@@ -10738,7 +10834,7 @@ var CORE_ARTICLES = [
 			list: [
 				"Keys are given in the order goals are created, per workspace, and are never reused. A goal carried into the next year keeps its key.",
 				"You’ll see the key on the goal’s page, in the Goals table, in Data and in exports.",
-				"Open a goal straight from its key: /goals/G-12.",
+				"Open a goal straight from its key: /goals/G-12. Or type the key in Goals’ search: G-12, g12 and 12 all find it.",
 				"Imports and MCP accept a key wherever a goal’s ID goes, and look for the key first: a file from last year still finds the goals carried over, which keep their keys but not their IDs. Check-ins, plans and people have IDs that never change, shown first in Data; people are also matched by their email."
 			]
 		}],
@@ -10876,6 +10972,9 @@ var CORE_ARTICLES = [
 					"Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too). The order is fixed when the session starts: reviewing a goal or saving an action never moves one, Continue review picks up at the goal you left, and Previous goal goes back to ones already reviewed. Opening a goal’s walk from its own address keeps the same order.",
 					"Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.",
 					"The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.",
+					"A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; find the person by name or team), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.",
+					"A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own.",
+					"Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.",
 					"Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session."
 				]
 			},
@@ -10902,6 +11001,7 @@ var CORE_ARTICLES = [
 			"REVIEW",
 			"REVIEW-SETUP",
 			"REVIEW-RUN",
+			"REVIEW-DECIDE",
 			"INSPECT-ACT",
 			"REVIEW-LIST-STATE",
 			"REVIEW-AGENDA",
@@ -11966,6 +12066,70 @@ var WHATS_NEW = [
 			"removing",
 			"features"
 		]
+	},
+	{
+		id: "map-at-scale",
+		date: "2026-11-10",
+		title: "The map works at the size of a division",
+		points: [
+			"The map opens on every top goal, with only the critical path drawn beneath the ones in trouble. Fit all now fits: the trees wrap into rows, so all of them are in view at once.",
+			"Find a goal on the map by its name or its key (G-48): its tree opens, the goal is outlined and the map moves to it.",
+			"Each goal shows its number, its target and how far it is from plan. A goal others feed also shows the worst status of everything under it, counted the way the List’s tree cards count.",
+			"Troubled trees only hides the trees where nothing is off track, at risk or without a recent update. The map fits itself again whenever what it shows changes.",
+			"No more “Drawing the map” wait: the goals are there as soon as the map opens."
+		],
+		articles: ["goal-map"]
+	},
+	{
+		id: "checkin-honest-edges",
+		date: "2026-11-10",
+		title: "A check-in that’s honest at its edges",
+		points: [
+			"The check-in says which week it’s for from the first screen (“Week 46 check-in · 1 of 2”), and keeps your place after a reload.",
+			"Behind needs a story, and Post alone no longer tells it: if last week’s reason and plan, opened with Something changed, are still word for word the same, you change what’s different or tick Still true this week.",
+			"One number check everywhere: the check-in, the one-table check-in and a spreadsheet refuse and question numbers the same way. A count can’t go below zero, a count past its target is questioned, and the example for letters in a number matches the goal’s decimal places.",
+			"On a goal’s page, the check-in you just posted always shows on its own, with its number and status.",
+			"The one-table check-in posts the rows that are ready (and says which aren’t), lands on the same confirmation as the one-by-one check-in, and shares its draft with it.",
+			"Home’s and a review’s rings now say what they count: check-ins, or reviewed."
+		],
+		articles: [
+			"check-in",
+			"check-in-table",
+			"goal-page",
+			"home"
+		]
+	},
+	{
+		id: "talk-path-polish",
+		date: "2026-11-10",
+		title: "Find a goal by its key, and counts that open their goals",
+		points: [
+			"Search Goals for a goal’s key and it finds it, however you type it: G-48, g48 or 48.",
+			"On Home, each count of goals by status opens just those goals: “11 off track” lists the 11.",
+			"By team lists the teams worst first, each with how many of its goals are off track, at risk, on track and so on.",
+			"Board cards start with their own status, a shape and its word, so a card says where it stands on a phone too.",
+			"Decision or help needed names the same goals in the filter, its saved view, the Table and the Board. On a phone, what someone asked of you wraps to two lines instead of being cut mid-word, and set-up’s small links are easier to hit.",
+			"The example workspace no longer contradicts itself: a note no longer answers a question that is still open, an ask names the right week, and late check-ins are dated in their own week."
+		],
+		articles: [
+			"goals-filters",
+			"home",
+			"goals",
+			"keys"
+		]
+	},
+	{
+		id: "decide-in-review",
+		date: "2026-11-10",
+		title: "Decide in the review",
+		points: [
+			"In a review, a goal off track or at risk asks “What happens next, who, by when?” before it’s marked reviewed: a next step with an owner and a date, or “We accept the risk” with a reason.",
+			"Who does it is found by searching for a name or a team, never chosen from a list of everyone.",
+			"A goal’s page shows its next steps with who and the date. Anyone can add one, and whoever agreed it can change it there. An overdue one is flagged.",
+			"The next session opens with what the last one agreed, and asks if it’s done. Finish review says what was decided and who owns what, with Undo.",
+			"A new workspace no longer says a review is to do before anything is due, and Home’s “Not held yet” mark is the right size again."
+		],
+		articles: ["reviews", "goal-page"]
 	},
 	{
 		id: "setup-tells-the-truth",
@@ -14062,7 +14226,7 @@ var WORK_TOOLS = [
 	{
 		name: "review_call",
 		title: "Say something in a review",
-		description: "In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, or agree an action (who and by when). Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.",
+		description: "In a review, about one goal: mark it reviewed (acknowledge), add a note, ask the owner a question, agree an action (who and by when), or accept the risk on a goal behind (accept, with the reason as text). A goal off track or at risk leaves a review with a decision: an action with who and due_week, or accept. Logged in this session of the review. A question or an action is an ask: open until it’s answered (answer_request) or done (mark_action_done), or withdrawn.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -14078,9 +14242,10 @@ var WORK_TOOLS = [
 					"acknowledge",
 					"note",
 					"ask",
-					"action"
+					"action",
+					"accept"
 				] }),
-				text: str$6("The note, question or action. Optional when acknowledging."),
+				text: str$6("The note, question or action, or (accept) why the review accepts the risk. Optional when acknowledging."),
 				who: str$6("Actions: who does it (name or ID). Defaults to the goal’s owner."),
 				due_week: int$2("Actions: the week it’s due by.")
 			}
@@ -14088,13 +14253,14 @@ var WORK_TOOLS = [
 		annotations: WRITE$2,
 		async run(a, ctx) {
 			const r = reviewOf(ctx, a.review_id), g = goalOf$2(ctx, a.goal_id);
+			if (a.kind === "accept") return save$2(ctx, acceptRisk(ax$2(ctx), g, r, String(a.text ?? ""), sessionWeek(r, ctx.week, ctx.cycle)), `Accepted the risk: ${g.title} in ${r.name}`, "");
 			const kind = a.kind;
 			if (![
 				"acknowledge",
 				"note",
 				"ask",
 				"action"
-			].includes(kind)) throw new Error("kind is acknowledge, note, ask or action.");
+			].includes(kind)) throw new Error("kind is acknowledge, note, ask, action or accept.");
 			const assigneeId = kind === "action" && a.who ? personOf$2(ctx, a.who).id : void 0;
 			return save$2(ctx, reviewCall(ax$2(ctx), g, r, kind, String(a.text ?? ""), {
 				assigneeId,
@@ -14105,6 +14271,34 @@ var WORK_TOOLS = [
 				ask: "Asked the owner",
 				action: "Agreed an action"
 			}[kind]}: ${g.title} in ${r.name}`, "");
+		}
+	},
+	{
+		name: "add_action",
+		title: "Add a next step to a goal",
+		description: "Agree a next step on a goal outside a review: what, who does it and the week it’s due by. An action is an ask: open until it’s marked done (mark_action_done) or withdrawn; overdue once its week has passed. Change one with edit_call.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: [
+				"goal_id",
+				"text",
+				"who"
+			],
+			properties: {
+				goal_id: str$6("The goal’s ID or its key, e.g. G-12."),
+				text: str$6("What needs doing."),
+				who: str$6("Who does it (name or ID)."),
+				due_week: int$2("The week it’s due by.")
+			}
+		},
+		annotations: WRITE$2,
+		async run(a, ctx) {
+			const g = goalOf$2(ctx, a.goal_id);
+			return save$2(ctx, addAction(ax$2(ctx), g, String(a.text ?? ""), {
+				assigneeId: personOf$2(ctx, a.who).id,
+				dueWeek: a.due_week == null ? null : Number(a.due_week)
+			}), `Agreed a next step on ${g.title}`, "");
 		}
 	},
 	{

@@ -12,7 +12,7 @@ import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
-import { evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, type Draft, type Missing } from './checkin';
+import { evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, YES_WORDS,
   type Words,
@@ -535,7 +535,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const origEnd = planEnd(orig.plan, cycle.weeks);
     const tol = 0.5 * 10 ** -g.decimals;
     const startTyped = val(r, 'start') ? parseNumber(val(r, 'start')) : null;
-    if (val(r, 'start') && startTyped == null) return err('Plan', row, g.title, `Start: ${notNumberText(val(r, 'start'))}`);
+    if (val(r, 'start') && startTyped == null) return err('Plan', row, g.title, `Start: ${notNumberText(val(r, 'start'), g.decimals)}`);
     const startPrecise = val(r, 'start') ? precisionProblem(val(r, 'start'), startTyped, g.decimals) : null;
     if (startPrecise) return err('Plan', row, g.title, `Start: ${startPrecise}`);
     const typed = new Map<number, number>();
@@ -543,7 +543,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       const m = /^week (\d+)$/.exec(k);
       if (!m || !String(v).trim()) continue;
       const n = parseNumber(String(v));
-      if (n == null) return err('Plan', row, g.title, `Week ${m[1]}: ${notNumberText(String(v))}`);
+      if (n == null) return err('Plan', row, g.title, `Week ${m[1]}: ${notNumberText(String(v), g.decimals)}`);
       const precise = precisionProblem(String(v), n, g.decimals);
       if (precise) return err('Plan', row, g.title, `Week ${m[1]}: ${precise}`);
       const w = Number(m[1]);
@@ -694,10 +694,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
         'greener-why': `Why greener (the call is ${lower(FLAG.greener)})`,
         'reason-behind': `a Cause and a Why of ${MIN_REASON} characters or more (it’s behind plan)`, 'reason-ahead': `a Cause and a Why of ${MIN_REASON} characters or more (it’s ahead of plan)`,
         path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
+        'story-unchanged': MISSING_TEXT['story-unchanged'],
         target: MISSING_TEXT.target,
       };
       // A number that isn't one, or has more decimal places than the goal keeps, gets the same words as on screen.
-      const typedValue = g.kind === 'milestone' ? null : e.codes[0] === 'value-not-number' ? notNumberText(draft.value) : e.codes[0] === 'value-precision' ? precisionProblem(draft.value, parseNumber(draft.value), g.decimals) : null;
+      // A number that can't be used gets the same words as on screen: the one number check (deep review U10).
+      const typedValue = g.kind !== 'milestone' && e.codes[0] && e.codes[0] !== 'value' && VALUE_CODES.includes(e.codes[0]) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
       err('Check-ins', row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join('; ')}.`);
       continue;
     }

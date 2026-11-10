@@ -25,7 +25,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/check-in` (`CheckInFlow`): A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next. Help: “Checking in on a goal” (`check-in`).
 - `/check-in/:goalId` (`CheckInFlow`): A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next. Help: “Checking in on a goal” (`check-in`).
 
-- **Named parts:** “Check-in saved”, “This week (region)”, “What changed, and what happens next (region)”
+- **Named parts:** “Posted from the table”, “Check-in saved”, “This week (region)”, “What changed, and what happens next (region)”
 - **Main action:** Post this week’s check-in, one goal at a time.
 - **Primary buttons in its markup:** “Open the goal”, “Save and skip”, “Back to home”
 - **AI tools:** `post_check_in`, `link_request`
@@ -37,7 +37,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/quick-check-in` (`QuickCheckIn`): If you own several number goals, type this week’s numbers for all of them on one screen. Help: “Typing all your numbers in one table” (`check-in-table`).
 
 - **Named parts:** “Type all your numbers in one table”
-- **Main action:** Post every number typed in the table at once.
+- **Main action:** Post every row of the table that is ready, at once, and land on the check-in’s confirmation.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `bulk_change`, `post_check_in`
 
@@ -63,7 +63,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/reviews/:reviewId/edit` (`ReviewEdit`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
 - `/reviews/:reviewId/summary` (`ReviewSummary`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
 
-- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “When”, “Which goals”, “Who takes part”, “Breadcrumb (region)”
+- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”, “Breadcrumb (region)”
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”
 - **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
