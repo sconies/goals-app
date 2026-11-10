@@ -102,7 +102,6 @@ describe('markups, tokens and feedback (0024)', () => {
 
   it('makes a public-read bucket (0031) the public key can only upload a markup’s four pictures into, under an issued id', async () => {
     expect((await one<{ public: boolean }>(`select public from storage.buckets where id = 'markups'`, [], false)).public).toBe(true);
-    expect((await one<{ open: boolean }>('select okr_markup_pictures_open() as open')).open).toBe(true);
     const id = await newId();
     const up = (name: string, bucket = 'markups') => asAnon('insert into storage.objects (bucket_id, name) values ($1, $2)', [bucket, name]);
     await up(`${id}/screen.png`);

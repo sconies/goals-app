@@ -83,10 +83,14 @@ describe('Faro fenced off in a shared database', () => {
     await expect(as('anon', 'select * from faro.okr_api_tokens')).rejects.toThrow(/permission denied/);
   });
 
-  it('won’t make the role with the placeholder password, or before 0035', async () => {
+  it('won’t make the role with the placeholder password, or before 0035 and 0036', async () => {
     await expect(db.exec(roleSql)).rejects.toThrow(/password/);
     const early = new PGlite();
     await expect(early.exec(withPassword)).rejects.toThrow(/0035/);
+    // Nor before 0036, while a Faro function still reads outside faro.
+    await db.exec(`create function faro.okr_old_builder() returns jsonb language sql as 'select auth.jwt()'`);
+    await expect(db.exec(withPassword)).rejects.toThrow(/0036/);
+    await db.exec('drop function faro.okr_old_builder()');
   });
 
   it('gives the Faro role faro and nothing else, however often the script is run', async () => {
@@ -135,6 +139,54 @@ describe('Faro fenced off in a shared database', () => {
     expect(await rows('select id from faro.okr_teams')).toEqual([]);
     expect(await rows(`select id from faro.okr_markup_ids where id = 'm-kept'`)).toEqual([{ id: 'm-kept' }]);
     expect(await family()).toEqual((before as { rows: unknown }).rows);
+  });
+
+  it('leaves nothing in faro to a stronger role: the builder functions read the request’s claims, and nothing reads storage', async () => {
+    expect(await rows(`select proname from pg_proc where pronamespace = 'faro'::regnamespace and (prosrc like '%auth.%' or prosrc like '%storage.%')`)).toEqual([]);
+    expect(await rows(`select to_regprocedure('faro.okr_markup_pictures_open()') as f, to_regprocedure('public.okr_markup_pictures_open()') as p`)).toEqual([{ f: null, p: null }]);
+    const others = await rows(`select 1 from pg_proc where pronamespace = 'faro'::regnamespace and proowner <> 'faro_owner'::regrole
+      union all select 1 from pg_class where relnamespace = 'faro'::regnamespace and relowner <> 'faro_owner'::regrole`);
+    expect(others).toEqual([]);
+    await db.exec(`insert into faro.okr_builders (email) values ('lane@example.com') on conflict do nothing`);
+    const asBuilder = async (email: string) => {
+      await db.exec(`set request.jwt.claims = '${JSON.stringify({ email })}'`);
+      try { return (await as<{ b: boolean }>('authenticated', 'select faro.okr_is_builder() as b'))[0]!.b; } finally { await db.exec(`reset request.jwt.claims`); }
+    };
+    expect(await asBuilder('Lane@Example.com ')).toBe(true);
+    expect(await asBuilder('someone@example.com')).toBe(false);
+  });
+
+  it('fails the fence when anything in faro belongs to another role, or the Faro role may run another app’s security definer function', async () => {
+    await db.exec(`create function faro.okr_stronger() returns int language sql as 'select 1'`);
+    expect((await report('faro_owner')).problems).toEqual(['1 thing in faro belongs to another role: run supabase/manual/faro-role.sql again.']);
+    await db.exec(withPassword);
+    expect((await report('faro_owner')).state).toBe('fenced');
+    await db.exec(`drop function faro.okr_stronger()`);
+    // The other app's function that runs as its owner, open to everyone (as functions are unless revoked): a way to its rows.
+    await db.exec(`create function public.family_all() returns setof public.chores language sql security definer as 'select * from public.chores'`);
+    expect(await report()).toMatchObject({ state: 'not-fenced', definer: 1 });
+    expect((await report()).warnings.join(' ')).toMatch(/1 security definer function outside faro/);
+    const leak = await report('faro_owner');
+    expect(leak.problems).toEqual(['faro_owner may run 1 security definer function outside faro and the platform’s schemas.'.replace('’', "'")]);
+    expect(JSON.stringify(leak)).not.toMatch(/family|chores/);
+    await db.exec(`revoke execute on function public.family_all() from public`);
+    expect((await report('faro_owner')).state).toBe('fenced');
+    await db.exec(`drop function public.family_all()`);
+  });
+
+  it('fails the fence when a pg_cron job runs Faro’s code as another role, where the Faro role can see the jobs', async () => {
+    // pg_cron's job list, as the extension keeps it (PGlite has no pg_cron).
+    await db.exec(`create schema cron; create table cron.job (jobid serial primary key, jobname text, command text, username text);
+      insert into cron.job (jobname, command, username) values ('okr-telemetry-nightly', 'select faro.okr_telemetry_nightly()', 'postgres'),
+        ('family-tidy', 'select 1', 'postgres');`);
+    expect(await report()).toMatchObject({ state: 'not-fenced', jobs: 1 });
+    expect((await report('faro_owner')).warnings.join(' ')).toMatch(/can't see pg_cron's jobs/);
+    await db.exec(`grant usage on schema cron to faro_owner; grant select on cron.job to faro_owner`);
+    // (Reading the job list is itself a table outside faro, so that counts too.)
+    expect((await report('faro_owner')).problems).toContain('1 pg_cron job runs Faro\'s code as another role.');
+    await db.exec(`update cron.job set username = 'faro_owner' where jobname = 'okr-telemetry-nightly'`);
+    expect((await report('faro_owner')).problems).toEqual(['faro_owner may read or write 1 table outside the faro schema.']);
+    await db.exec(`drop schema cron cascade`);
   });
 
   it('says there is nothing to fence before 0035', async () => {
