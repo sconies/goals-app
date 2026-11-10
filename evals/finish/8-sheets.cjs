@@ -52,7 +52,7 @@ module.exports = {
       await c.close();
     });
     await step('Goals filters 390', async () => {
-      const [c, p] = await open(390, 844, 'rhea', '/goals', true);
+      const [c, p] = await open(390, 844, 'rhea', '/goals?scope=all', true);
       await p.getByRole('button', { name: /^Filters/ }).click();
       await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
       const m = await footerEverywhere(p);
@@ -64,7 +64,7 @@ module.exports = {
       await c.close();
     });
     await step('Goals filters 360', async () => {
-      const [c, p] = await open(360, 740, 'rhea', '/goals', true);
+      const [c, p] = await open(360, 740, 'rhea', '/goals?scope=all', true);
       await p.getByRole('button', { name: /^Filters/ }).click();
       await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
       checkFooter(fails, 'Filter goals 360×740', await footerEverywhere(p));
@@ -74,7 +74,7 @@ module.exports = {
     // #2: tall sheets on a desktop end 24px above the window, and start 48px down on a short one.
     for (const [w, h, top] of [[1280, 800, 72], [1440, 700, 48], [1024, 768, 48]]) {
       await step(`tall sheet ${w}×${h}`, async () => {
-        const [c, p] = await open(w, h, 'rhea', '/goals');
+        const [c, p] = await open(w, h, 'rhea', '/goals?scope=all');
         await p.getByRole('button', { name: /^Filters/ }).click();
         await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
         await p.waitForTimeout(250);
@@ -99,7 +99,7 @@ module.exports = {
     // #4: a message raised with a sheet open shows inside the sheet, below its content, never over it.
     for (const [w, h] of [[1440, 700], [390, 844]]) {
       await step(`toast in sheet ${w}`, async () => {
-        const [c, p] = await open(w, h, 'amara', '/goals', w < 800);
+        const [c, p] = await open(w, h, 'amara', '/goals?scope=all', w < 800);
         // Export these goals (on a phone, in the Views menu: backlog G).
         if (w < 800) await p.locator('.show-menu > summary').click();
         await p.getByRole('button', { name: 'Export these goals' }).click();
@@ -123,7 +123,7 @@ module.exports = {
 
     // #18: with no sheet open, a desktop message is centred on the work area, 24px up.
     await step('toast centring', async () => {
-      const [c, p] = await open(1440, 900, 'rhea', '/goals');
+      const [c, p] = await open(1440, 900, 'rhea', '/goals?scope=all');
       await p.getByRole('button', { name: 'Send feedback' }).click();
       const sheet = p.getByRole('dialog', { name: 'How is the app working for you?' });
       // #27: Send is enabled and reachable; pressed with no answer, it says what's missing.
@@ -171,7 +171,7 @@ module.exports = {
 
     // #6: the Brief walkthrough waits for the brief to be copied or saved, and rings the Brief row.
     await step('Brief walkthrough', async () => {
-      const [c, p] = await open(1280, 800, 'amara', '/goals');
+      const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all');
       await setTour(p, { id: 'brief', step: 0 });
       await p.locator('.coach').waitFor();
       await p.getByRole('button', { name: 'Export these goals' }).click();
@@ -301,7 +301,7 @@ module.exports = {
 
     // #10: nothing matches: a card with a heading, a line and the way out; no legend under it.
     await step('empty state', async () => {
-      const [c, p] = await open(1280, 800, 'rhea', '/goals?q=zzzzqq');
+      const [c, p] = await open(1280, 800, 'rhea', '/goals?scope=all&q=zzzzqq');
       await p.locator('.empty-state').waitFor({ timeout: 3000 });
       const r = await p.evaluate(() => {
         const e = document.querySelector('.empty-state'), cs = getComputedStyle(e), t = getComputedStyle(e.querySelector('.empty-state-title'));

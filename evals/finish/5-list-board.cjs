@@ -16,7 +16,7 @@ module.exports = {
     // the title, beside New goal, so the header is one 44px row; which goals and how to see them are one row of two menus, the Views button saying the open
     // view and its count; search and Filters one row with a short placeholder; and the first goal within 240px.
     {
-      const [c, p] = await open(360, 740, 'amara', '/goals', true);
+      const [c, p] = await open(360, 740, 'amara', '/goals?scope=all', true);
       const m = await p.evaluate((src) => {
         const ban = (0, eval)('(' + src + ')')();
         const rect = (s) => document.querySelector(s)?.getBoundingClientRect();
@@ -76,7 +76,7 @@ module.exports = {
     // L&T 3, 26: the filter sheet on a phone. Its footer is inside the screen with the button 12px above the edge;
     // legends have no padding and checkboxes don't shrink.
     {
-      const [c, p] = await open(390, 844, 'amara', '/goals', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?scope=all', true);
       await p.getByRole('button', { name: /^Filters/ }).click();
       await p.waitForTimeout(400);
       const m = await p.evaluate(() => {
@@ -94,7 +94,7 @@ module.exports = {
     // L&T 23, 7, 6: the table on a phone with four filters. The active filters are one row, the table starts within
     // 360px; the sticky header sits under the top bar; three selected goals keep the bulk bar to one 56px row.
     {
-      const [c, p] = await open(390, 844, 'amara', '/goals?view=table&status=risk,off,stale&level=north-star,svp,team&team=cicd,sre,infra,sec&owner=rhea,mateo,bjorn,farah', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?scope=all&view=table&status=risk,off,stale&level=north-star,svp,team&team=cicd,sre,infra,sec&owner=rhea,mateo,bjorn,farah', true);
       await p.waitForTimeout(300);
       // Backlog N (8 Nov) replaced the one scrolling row: every active filter shows in full, wrapping, none cut off.
       const m = await p.evaluate(() => {
@@ -107,7 +107,7 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(390, 844, 'amara', '/goals?view=table', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?scope=all&view=table', true);
       await p.evaluate(() => window.scrollTo(0, 900));
       await p.waitForTimeout(300);
       const m = await p.evaluate(() => {
@@ -119,7 +119,7 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(360, 740, 'amara', '/goals?view=table', true);
+      const [c, p] = await open(360, 740, 'amara', '/goals?scope=all&view=table', true);
       const boxes = p.locator('.gtable tbody .selcol input');
       for (let i = 0; i < 3; i++) await boxes.nth(i).check();
       await p.waitForTimeout(200);
@@ -130,7 +130,7 @@ module.exports = {
 
     // L&T 8: a laptop at 150% zoom (853×533). Sort is in Filters, so search, Filters and Decision are one row.
     {
-      const [c, p] = await open(853, 533, 'amara', '/goals?view=table');
+      const [c, p] = await open(853, 533, 'amara', '/goals?scope=all&view=table');
       const m = await p.evaluate((src) => ({ sort: getComputedStyle(document.querySelector('.inline-sort')).display, row: document.querySelector('.filterbar-row').getBoundingClientRect().height, first: document.querySelector('.gtable tbody tr').getBoundingClientRect().top - (0, eval)('(' + src + ')')() }), bannerPx.toString());
       chk(m.sort === 'none' && m.row <= 44, `L&T 8: 853px filter row is ${r0(m.row)}px with Sort ${m.sort}`);
       // Backlog N (8 Nov): the line saying what the layout is costs about 36px (was ≤260).
@@ -141,7 +141,7 @@ module.exports = {
     // L&T 5, 9, 11, 13: a wide table. Goal ≥360, Now 136, Gap 232 on one line, tags on the name's line, cells top-aligned,
     // the story two lines at most within 72ch, and the sorted column marked from the shared Sort.
     {
-      const [c, p] = await open(1920, 1000, 'amara', '/goals?view=table&sort=gap');
+      const [c, p] = await open(1920, 1000, 'amara', '/goals?scope=all&view=table&sort=gap');
       const m = await p.evaluate(() => {
         const th = (t) => [...document.querySelectorAll('.gtable thead th')].find((x) => x.textContent.trim() === t);
         const w = (t) => th(t)?.getBoundingClientRect().width;
@@ -170,7 +170,7 @@ module.exports = {
     }
     // L&T 10, 29, 30, 24: selection fills both rows; opened stories have no divider; a child of a filtered-out parent isn't indented.
     {
-      const [c, p] = await open(1280, 800, 'amara', '/goals?view=table');
+      const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all&view=table');
       await p.getByLabel('Select Merge queue live for every monorepo').check();
       await p.waitForTimeout(200);
       const m = await p.evaluate(() => {
@@ -192,7 +192,7 @@ module.exports = {
     // L&T 14, 16, 25: a tablet. Tabs and layout buttons 44px; a 44px target round each 16px checkbox; the tab track only
     // as wide as its tabs; the decision toggle pressed is a light fill with a 2px outline, and not also a chip.
     {
-      const [c, p] = await open(1024, 768, 'amara', '/goals?view=table&needs=decision', true);
+      const [c, p] = await open(1024, 768, 'amara', '/goals?scope=all&view=table&needs=decision', true);
       const m = await p.evaluate(() => {
         const tab = document.querySelector('.goals-tabs [role="tab"]').getBoundingClientRect().height;
         const lay = Math.min(...[...document.querySelectorAll('.layout-switch button')].map((b) => b.getBoundingClientRect().height));
@@ -215,7 +215,7 @@ module.exports = {
     // one peeking; every lane the same height; a plain count; the level on its own right-aligned row; radius 8; hyphens
     // their natural width.
     {
-      const [c, p] = await open(1024, 768, 'amara', '/goals?view=board');
+      const [c, p] = await open(1024, 768, 'amara', '/goals?scope=all&view=board');
       const m = await p.evaluate(() => {
         const board = document.querySelector('.board'), b = board.getBoundingClientRect();
         const lanes = [...document.querySelectorAll('.board-col')].map((l) => l.getBoundingClientRect());
@@ -247,13 +247,13 @@ module.exports = {
     }
     // B&C 1: stacked on a phone. B&C 2: filtered, lanes stay ≤320px. B&C 17: dark lanes recede.
     {
-      const [c, p] = await open(390, 844, 'amara', '/goals?view=board', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?scope=all&view=board', true);
       const cols = await p.evaluate(() => new Set([...document.querySelectorAll('.board-col')].map((l) => Math.round(l.getBoundingClientRect().left))).size);
       chk(cols === 1, `B&C 1: phone board has ${cols} columns`);
       await c.close();
     }
     {
-      const [c, p] = await open(1440, 900, 'amara', '/goals?view=board&status=off,risk');
+      const [c, p] = await open(1440, 900, 'amara', '/goals?scope=all&view=board&status=off,risk');
       await p.emulateMedia({ colorScheme: 'dark' });
       await p.waitForTimeout(200);
       // The cards fade to their dark colour (.15s); under load that can still be running at 200ms, so wait for it to end.
@@ -269,7 +269,7 @@ module.exports = {
     // its parent. Filtered to Needs attention, the goals being handled are listed below the others, not hidden, and
     // the tab's count counts the first group and says so. Sorted, Trees is one list across every tree.
     {
-      const [c, p] = await open(1280, 800, 'amara', '/goals?view=cards');
+      const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all&view=cards');
       await p.locator('.tree').first().waitFor();
       const m = await p.evaluate(() => ({
         layouts: document.querySelectorAll('.layout-switch button').length,
@@ -285,7 +285,7 @@ module.exports = {
       await c.close();
     }
     {
-      const [c, p] = await open(1440, 900, 'amara', '/goals?view=board');
+      const [c, p] = await open(1440, 900, 'amara', '/goals?scope=all&view=board');
       await p.locator('.board').waitFor();
       const m = await p.evaluate(() => {
         const on = [...document.querySelectorAll('.board-col')].find((l) => /^On track/.test(l.getAttribute('aria-label')));
@@ -339,7 +339,7 @@ module.exports = {
     // or pasted, spaces included, and the address follows. OR 3: tabs and layouts are steps Back returns to, and Back
     // puts the box back as the address has it. OR 2: clearing keeps the tab, the layout and the sort.
     {
-      const [c, p] = await open(1440, 900, 'amara', '/goals');
+      const [c, p] = await open(1440, 900, 'amara', '/goals?scope=all');
       const box = p.locator('.filter-search input');
       const q = () => new URL(p.url()).searchParams;
       await box.click();
@@ -388,7 +388,7 @@ module.exports = {
     // OR 9 (second review, 9 Nov): search on Trees covers every goal, not only the top ones, and each match is shown
     // under its tree, as on By level.
     {
-      const [c, p] = await open(1440, 900, 'amara', '/goals');
+      const [c, p] = await open(1440, 900, 'amara', '/goals?scope=all');
       await p.locator('.filter-search input').pressSequentially('canary', { delay: 0 });
       await p.waitForFunction(() => /of \d+/.test(document.querySelector('.filter-count')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
       const trees = await p.evaluate(() => ({ count: document.querySelector('.filter-count')?.textContent ?? '', heads: [...document.querySelectorAll('.goals-page section.block h2')].map((h) => h.textContent), rows: document.querySelectorAll('.goals-page section.block .tree li').length }));
@@ -414,7 +414,7 @@ module.exports = {
     }
 
     // OR 7: every tab is whole beside the layouts, on a laptop and on a 1920px screen, in the list and the table.
-    for (const [w, route] of [[1440, '/goals'], [1920, '/goals'], [1920, '/goals?view=table']]) {
+    for (const [w, route] of [[1440, '/goals'], [1920, '/goals'], [1920, '/goals?scope=all&view=table']]) {
       const [c, p] = await open(w, 1000, 'rhea', route);
       const m = await p.evaluate(() => {
         const row = document.querySelector('.goals-tabs > .seg.tabs'), box = row.getBoundingClientRect();

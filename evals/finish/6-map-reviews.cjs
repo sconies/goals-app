@@ -1,5 +1,5 @@
 /* F6: fit and finish, map-reviews (per-area reports, 4 Nov). run({ open, url, browser }) returns a list of failures. */
-const MAP = '/goals?view=map';
+const MAP = '/goals?scope=all&view=map';
 const tour = (p, step) => p.evaluate((s) => { sessionStorage.setItem('goals-tour', JSON.stringify({ id: 'map', step: s })); window.dispatchEvent(new Event('goals-tour')); }, step);
 const rect = (p, sel) => p.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; }, sel);
 const hit = (a, b) => !!a && !!b && a.l < b.r - 0.5 && a.r > b.l + 0.5 && a.t < b.b - 0.5 && a.b > b.t + 0.5;
@@ -31,7 +31,7 @@ module.exports = {
 
     // ---------- Demo review, 8 Nov, item 15: from the moment Map is chosen, it says it's drawing or shows the goals ----------
     {
-      const [c, p] = await open(1280, 800, 'amara', '/goals');
+      const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all');
       await p.locator('[aria-label="Map"]').first().click();
       await p.waitForURL(/view=map/, { timeout: 3000 }).catch(() => {});
       const blank = [];
@@ -203,7 +203,7 @@ module.exports = {
     }, sel);
     for (const [w, h, touch] of [[1920, 1080, false], [390, 844, true]]) {
       const at = `at ${w}`;
-      const [c, p] = await open(w, h, 'amara', '/goals', touch);
+      const [c, p] = await open(w, h, 'amara', '/goals?scope=all', touch);
       // MAP 6: no staged "Drawing the map" wait: the goals are drawn soon after Map is chosen, and nothing says it's drawing.
       const t0 = Date.now();
       if (touch) await p.locator('.layout-menu > summary').click();

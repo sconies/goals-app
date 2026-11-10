@@ -170,7 +170,7 @@ module.exports = {
 
     // ---------- History ----------
     // [Hist 5, 6, 7, 8, 9] Quarter results on a laptop.
-    [c, p] = await open(1280, 800, 'amara', '/goals?view=history');
+    [c, p] = await open(1280, 800, 'amara', '/goals?scope=all&view=history');
     await p.locator('.qtable').first().waitFor();
     const qr = await p.evaluate(() => ({
       noShape: [...document.querySelectorAll('.qcell .q-result')].filter((x) => !x.querySelector('svg')).length,
@@ -187,7 +187,7 @@ module.exports = {
     await c.close();
 
     // [Hist 1, 20] Quarter results at 768: nothing clipped, phone cards.
-    [c, p] = await open(768, 1024, 'amara', '/goals?view=history', true);
+    [c, p] = await open(768, 1024, 'amara', '/goals?scope=all&view=history', true);
     await p.locator('.qtable').first().waitFor();
     const q768 = await p.evaluate(() => ({
       clipped: [...document.querySelectorAll('.table-wrap')].filter((t) => t.scrollWidth > t.clientWidth + 1).length,
@@ -200,7 +200,7 @@ module.exports = {
     await c.close();
 
     // [Hist 3, 4, 9, 10, 13, 14, 17, 18, 24] Weekly, this quarter, on a laptop.
-    [c, p] = await open(1440, 700, 'amara', '/goals?view=history&hist=weekly');
+    [c, p] = await open(1440, 700, 'amara', '/goals?scope=all&view=history&hist=weekly');
     await p.locator('.hgrid').first().waitFor();
     const wk = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
@@ -252,7 +252,7 @@ module.exports = {
     await c.close();
 
     // [Hist 15, 16] The whole year fits at 1280, with week numbers.
-    [c, p] = await open(1280, 800, 'amara', '/goals?view=history&hist=weekly&weeks=year');
+    [c, p] = await open(1280, 800, 'amara', '/goals?scope=all&view=history&hist=weekly&weeks=year');
     await p.locator('.hgrid-year').first().waitFor();
     const yr = await p.evaluate(() => {
       const w = document.querySelector('.hwrap');
@@ -265,7 +265,7 @@ module.exports = {
     await c.close();
 
     // [Hist 2, 3, 16, 21, 22] Touch: 44px squares, two-line names, a key hint only for keyboards, an edge cue.
-    [c, p] = await open(390, 844, 'amara', '/goals?view=history&hist=weekly', true);
+    [c, p] = await open(390, 844, 'amara', '/goals?scope=all&view=history&hist=weekly', true);
     await p.locator('.hgrid').first().waitFor();
     const tc = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
@@ -296,7 +296,7 @@ module.exports = {
     if (yc[0] < 24 || yc[1] < 12) fails.push(`390 touch whole year: ${yc[0]}px columns, ${yc[1]}px marks`);
     await c.close();
     // The smallest phone: the range buttons fit, nothing sideways.
-    [c, p] = await open(360, 740, 'amara', '/goals?view=history&hist=weekly&weeks=year', true);
+    [c, p] = await open(360, 740, 'amara', '/goals?scope=all&view=history&hist=weekly&weeks=year', true);
     await p.locator('.hgrid').first().waitFor();
     const s360 = await p.evaluate(() => { const g = document.querySelector('[aria-label="Weeks shown"]').getBoundingClientRect(); return [document.documentElement.scrollWidth - innerWidth, Math.round(g.right - innerWidth)]; });
     if (s360[0] > 0 || s360[1] > -16) fails.push(`360 whole year: ${s360[0]}px sideways, range buttons end ${s360[1]}px from the edge`);

@@ -139,7 +139,7 @@ module.exports = {
 
     /* ---------- tablet 768 and 1024: the toolbar fits, keys in the Goals table, the key link in any case ---------- */
     for (const w of [768, 1024]) {
-      [c, p] = await open(w, 1000, 'mateo', '/goals?view=table');
+      [c, p] = await open(w, 1000, 'mateo', '/goals?scope=all&view=table');
       const gk = await p.evaluate(() => [...document.querySelectorAll('.gtable .gt-name .gkey')].map((e) => e.innerText.trim()));
       if (gk.length !== 126 || new Set(gk).size !== 126) fails.push(`[READABLE-IDS] ${w} Goals table shows ${gk.length} keys, ${new Set(gk).size} different`);
       await p.goto(p.url().replace(/\/goals.*$/, '/goals/g-6?today=2026-11-05')); await p.waitForTimeout(400);

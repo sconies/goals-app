@@ -171,7 +171,7 @@ module.exports = {
       if (route === '/goals/lead-mq/print') fail(/Feeds Lead time for changes|Feeds /.test(await p.locator('.ps-head').innerText()), '[Print] a contributing goal does not say what it feeds');
       const pdf = await p.pdf({ format: 'A4', preferCSSPageSize: true });
       const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-      fail(route.startsWith('/goals') ? pages === 1 : pages >= 1 && pages <= 3, `[Print] ${route}: prints on ${pages} A4 pages`);
+      fail(route.startsWith('/goals?scope=all') ? pages === 1 : pages >= 1 && pages <= 3, `[Print] ${route}: prints on ${pages} A4 pages`);
       await c.close();
     }
 
@@ -218,7 +218,7 @@ module.exports = {
 
     // (The goal whose number counts is Pull requests with AI-assisted review: 72% to 73% this week. Lead time for changes was 37 hours both weeks, so it has nothing to count.)
     // ---------- [Motion] durations: animations happen, each 250ms at most, at phone and desktop ----------
-    for (const [w, h, who, route] of [[390, 844, 'rhea', '/'], [1440, 900, 'amara', '/goals/ns-ai'], [1440, 900, 'amara', '/reviews/weekly'], [768, 1024, 'amara', '/goals?view=board']]) {
+    for (const [w, h, who, route] of [[390, 844, 'rhea', '/'], [1440, 900, 'amara', '/goals/ns-ai'], [1440, 900, 'amara', '/reviews/weekly'], [768, 1024, 'amara', '/goals?scope=all&view=board']]) {
       const [c, p] = await at(w, h, who, route);
       const s = await sampled(p);
       const long = s.anims.filter((a) => a.total > LIMIT);
@@ -256,7 +256,7 @@ module.exports = {
 
     // ---------- [Motion] FLIP: sorting the table slides rows, which end where they belong; none under reduced motion ----------
     for (const [w, h, reduced] of [[1280, 800, false], [1024, 768, false], [1280, 800, true]]) {
-      const [c, p] = await at(w, h, 'amara', '/goals?view=table', { reduced });
+      const [c, p] = await at(w, h, 'amara', '/goals?scope=all&view=table', { reduced });
       await p.locator('.gtable tbody tr').first().waitFor();
       const order = () => p.$$eval('.gtable', (ts) => [...ts[0].querySelectorAll('tbody > tr:not(.story-row) .gt-name a')].map((a) => a.textContent));
       const before = await order();

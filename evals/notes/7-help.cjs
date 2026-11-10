@@ -86,7 +86,7 @@ module.exports = {
 
       // ---------- [HELP-GUIDE] reaching Help: sidebar, rail with a name on hover, or More ----------
       {
-        const [c, p] = await open(w, h, 'rhea', '/goals', touch);
+        const [c, p] = await open(w, h, 'rhea', '/goals?scope=all', touch);
         if (w < 761) {
           await p.locator('.tabbar').getByRole('button', { name: 'More' }).click();
           await p.getByRole('dialog', { name: 'More' }).getByRole('link', { name: /^Help/ }).click();
@@ -127,7 +127,7 @@ module.exports = {
       // ---------- [HELP-GUIDE] the Help link at the foot of a page opens that page's article ----------
       const pages = w < 761
         ? [['rhea', '/', 'Home and your week at a glance'], ['rhea', '/goals/ns-lead', 'A goal’s page'], ['grace', '/data', 'Data']]
-        : [['rhea', '/', 'Home and your week at a glance'], ['amara', '/goals?view=table', 'Goals and its layouts'], ['amara', '/goals?view=map', 'The goal map'], ['amara', '/goals?view=history', 'History: quarter results and weekly status'],
+        : [['rhea', '/', 'Home and your week at a glance'], ['amara', '/goals?scope=all&view=table', 'Goals and its layouts'], ['amara', '/goals?scope=all&view=map', 'The goal map'], ['amara', '/goals?scope=all&view=history', 'History: quarter results and weekly status'],
           ['rhea', '/goals/ns-lead', 'A goal’s page'], ['amara', '/reviews/weekly', 'Reviews'], ['mateo', '/check-in/mttr-pir', 'Checking in on a goal'], ['grace', '/data', 'Data'], ['rhea', '/settings', 'Settings'], ['grace', '/workspace', 'Workspace: about this one']];
       if (w === 768) pages.splice(3);
       for (const [who, route, title] of pages) {

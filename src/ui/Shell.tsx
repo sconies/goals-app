@@ -8,7 +8,7 @@ import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
 import { CORE_NAV, GROUP_NAMES, isLit, menuGroups, menuViews, moreFor, pageName, phoneTabs, type GoalsAt, type NavId } from '../domain/navigation';
 import { recentsOf, usePrefs } from '../app/search';
-import { DemoPanel } from './Demo';
+import { DemoEntry, DemoPanel } from './Demo';
 import { Coach } from './Coach';
 import { ResearchBar } from './ResearchBar';
 import { setAppearance, useAppearance } from '../app/appearance';
@@ -179,7 +179,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   // A release this person hasn't seen: a quiet dot beside Help (and on More, on a phone) until they open What's new.
   const unread = useUnreadNews().length > 0;
   // Presenting: the demo without its "Viewing as" bar or Demo tag. Start it with /demo?present (and ?present=0 to stop).
-  const [, setPresentState] = useState(() => {
+  const [present, setPresentState] = useState(() => {
     try {
       const q = new URLSearchParams(window.location.search).get('present');
       if (q !== null) sessionStorage.setItem('goals-present', q === '0' ? '' : '1');
@@ -233,6 +233,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   const goalTop = isGoalTop(pathname, search);
   const topControls = (
     <>
+      {app.mode === 'demo' && !present && <DemoEntry compact onOpen={() => setSheet('demo')} />}
       <button className="profilebtn" onClick={openPeople}>
         <Avatar p={app.viewer} />
         <span className="sr">{app.mode === 'demo' ? 'Switch person' : 'Not you?'} ({app.viewer.name}{app.viewer.admin ? ', admin here' : ''})</span>
@@ -283,7 +284,9 @@ function ShellBody({ children }: { children: ReactNode }) {
               {groups[g].map(row)}
             </div>
           ))}
-          {/* You: your name and role here; in the demo it opens the one Demo panel (switch person, walkthroughs, start over). */}
+          {/* The demo's controls, quietly, until "You" alone opens the Demo panel (navigation spec 2.1; kept for now, 12 Nov). */}
+          {app.mode === 'demo' && !present && <DemoEntry onOpen={() => setSheet('demo')} />}
+          {/* You: your name and role here; in the demo it switches person. */}
           <button className="me" onClick={openPeople} {...label(`${app.viewer.name}${app.viewer.admin ? ', admin here' : ''}: ${app.mode === 'demo' ? 'the demo, and switch person' : 'Not you?'}`)}>
             <Avatar p={app.viewer} />
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>

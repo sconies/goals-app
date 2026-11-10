@@ -388,7 +388,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   // question she asks in it is an ask, open on the owner's Home and goal page until they answer it.
   const p = h.use(await newPage(device, 'marisol'));
   // The goals view opens on the trees: each top goal with its forecast, then what feeds it, worst first.
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   await p.locator('.outcome-card').first().waitFor();
   const cards = await p.locator('.outcome-card').count();
   const firstRow = p.locator('.outcome').first().locator('.trow').first();
@@ -646,7 +646,7 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   const s = await p.evaluate((w) => JSON.parse(localStorage.getItem('goals-live-v1:' + w) || 'null'), ws);
   h.set('logged', !!s && s.goals.length === 4 && s.goals.some((g) => g.level === 'north-star' && g.title === 'Weekly active users') && s.people.find((x) => x.name === 'Rosa Lind')?.admin && s.changes.some((c) => c.action === 'imported'), 'the new workspace is not saved and logged with its outcome and goals');
   // The real app has no demo controls, and never shows the example.
-  await p.goto(live('/goals'));
+  await p.goto(live('/goals?scope=all'));
   await see(p, 'Weekly active users');
   if (await p.locator('.demo-entry').count()) fail('the real app shows the demo controls');
   if (await p.getByText('Example: Developer Platform').count()) fail('the real app shows the example');
@@ -840,7 +840,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   const link = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');
   if (!link.endsWith('/demo?workspace=' + encodeURIComponent(wsId))) fail('the invitation link doesn’t name the workspace: ' + link);
   // U6: on day one the first-check-in count agrees with Ready, and nothing is late.
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   const first = await p.locator('.first-reports').first().innerText().catch(() => '');
   if (!first.includes(`0 of ${readyGoals} goals`)) fail(`Goals says “${first}” after Ready said ${readyGoals} goals`);
   const late = await p.getByText(/\d+ weeks? late|up to \d+ weeks/).filter({ visible: true }).allInnerTexts();
@@ -1141,7 +1141,7 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
     localStorage.setItem('goals-app-viewer:ws_wrap', 'mateo');
   });
   const late = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-12-22';
-  await p.goto(late('/goals'));
+  await p.goto(late('/goals?scope=all'));
   await h.inView(p.getByRole('link', { name: 'Wrap up', exact: true }), 'entry', 'Wrap up');
   await h.click(p.getByRole('link', { name: 'Wrap up', exact: true }));
   await see(p, 'goals to wrap up');
@@ -1176,7 +1176,7 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   const carried = s.goals.filter((g) => g.cycleId === c2?.id);
   h.set('finish', !!c2 && carried.length === s.goals.filter((g) => g.cycleId === 'cycle').length - 1 && !carried.some((g) => g.title === 'Post-incident actions closed within 30 days'), 'the next cycle does not carry the right goals');
   h.set('logged', s.changes.some((c) => c.entity === 'cycle' && c.actorId === 'amara'), 'starting the cycle is not logged');
-  await p.goto(late('/goals'));
+  await p.goto(late('/goals?scope=all'));
   await see(p, 'Lead time for changes', 'the new cycle shows the carried goals');
   if (await p.getByText('Post-incident actions closed within 30 days').count()) fail('a stopped goal came into the new cycle');
   await p.context().close();
@@ -1244,7 +1244,7 @@ journey('U17', ['DEMO-MODE', 'WORKSPACES'], 'Demo data sets, presenting without 
   // Workspace is about this workspace (WR2): no Reset the example (Start over is in Demo controls) and no button about another workspace.
   h.set('entry', await p.getByRole('button', { name: 'Reset the example' }).count() === 0 && await p.locator('main').getByRole('link', { name: /Try it with your own team|Set up a workspace|Try the demo/ }).count() === 0, 'Workspace offers Reset the example, or a button about another workspace');
   await h.checkpoint('workspaces');
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   await see(p, 'Lead time for changes', 'the example has its goals');
   h.set('attention', await p.locator('.outcome-card').count() >= 1, 'the example has no trees');
   // Presenting: the demo without the "Viewing as" bar.
@@ -1311,7 +1311,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
 // 16 steps: on a phone each layout is two taps, the Layout menu then the layout (backlog G's trade-off, 9 Nov; it was 14).
 journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board or history grid, and export them', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   await h.inView(p.locator('.layout-switch, .layout-menu > summary').filter({ visible: true }), 'entry', 'the layout switch');
   // Table: sorting by status puts the off-track goal first.
   await chooseLayout(h, p, 'Table');
@@ -1420,7 +1420,7 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   // It lands on the check-in's own confirmation, with what was posted (deep review U12).
   await see(p, 'Posted from the table');
   // The table: select two goals and change their level together.
-  await p.goto(url('/goals?view=table'));
+  await p.goto(url('/goals?scope=all&view=table'));
   await h.click(p.getByLabel('Select Jenkins jobs still running').first());
   await h.click(p.getByLabel('Select Changes shipped with automated integration tests').first());
   await see(p, '2 selected');
@@ -1484,7 +1484,7 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
 
 journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter met or missed, and the year’s history', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   await see(p, 'Week 45 of 53 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
   await h.inView(p.getByText('Week 45 of 53 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
   await p.goto(url('/goals/cost-rightsize'));
@@ -1494,7 +1494,7 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   h.set('attention', cells.length === 4 && cells.slice(0, 3).every((t) => /Met/.test(t) && /against a plan of/.test(t)) && /In progress/.test(cells[3]), `the quarters read: ${cells.join(' | ')}`);
   await h.checkpoint('quarters');
   // The weekly history grid shows this quarter by default, or the whole year.
-  await p.goto(url('/goals?view=history&hist=weekly'));
+  await p.goto(url('/goals?scope=all&view=history&hist=weekly'));
   const grid = p.locator('.hgrid').first();
   await grid.waitFor();
   const quarterCols = await grid.locator('thead th:not(.h-value)').count();
@@ -1590,7 +1590,7 @@ journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust,
   h.set('logged', !s.checkIns.some((c) => c.goalId === 'cfr-tests' && c.value === 150), 'an impossible coverage was saved');
   await h.checkpoint('one table');
   // The map from the keyboard: Enter on a goal opens its story, which takes focus; Escape gives focus back.
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   await chooseLayout(h, p, 'Map');
   const node = p.locator('.react-flow__node[data-id="ns-lead"]');
   await node.waitFor();
@@ -1685,7 +1685,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
 
 journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link', 18, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   const search = p.getByRole('searchbox', { name: 'Find a goal' });
   await h.inView(search, 'entry', 'the search box');
   // Search finds goals by any word: a title, an owner, a reason.
@@ -1723,14 +1723,14 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   h.set('logged', (s.views ?? []).some((v) => v.name === 'Slipped dates' && v.params.includes('needs=slipped') && v.params.includes('view=table') && !v.deletedAt), 'the view was not saved with its filters and layout');
   // Back later: plain Goals, then the view, from the Views menu, brings it all back (saved views wait in one menu
   // rather than adding tabs that run off a phone's screen, L&T 2).
-  await p.goto(url('/goals?view=list'));
+  await p.goto(url('/goals?scope=all&view=list'));
   await h.click(p.locator('.views-menu:visible > summary'));
   await h.click(p.getByRole('button', { name: /Slipped dates/ }));
   await see(p, '25 of 126 goals', 'opening the saved view did not bring its filters back');
   // A shared link opens the same goals for anyone.
   const other = await newPage(device, 'rhea');
   // A link from before release 2 (needs=slipped, without attention=1) opens the same goals.
-  await other.goto(url('/goals?needs=slipped&sort=due'));
+  await other.goto(url('/goals?scope=all&needs=slipped&sort=due'));
   await see(other, '25 of 126 goals', 'a shared link does not open the same goals');
   await other.context().close();
   // Delete it: the tab goes.
@@ -1769,7 +1769,7 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
   const s1 = await h.snapshot();
   h.set('logged', (s1.requests || []).some((r) => r.kind === 'update' && r.goalIds[0] === 'env-search' && r.askedBy === 'amara' && r.status === 'open') && s1.changes.some((c) => c.goalId === 'env-search' && c.actorId === 'amara' && c.entity === 'request' && c.action === 'asked'), 'the ask for an update was not saved as an open ask and logged');
   // The table compares: one line of story per goal, Details to open it.
-  await p.goto(url('/goals?view=table'));
+  await p.goto(url('/goals?scope=all&view=table'));
   const row = p.locator('.story-row').first();
   await row.waitFor();
   const tall = await row.evaluate((r) => r.getBoundingClientRect().height);
@@ -1784,7 +1784,7 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
   // New goal with one left unpublished: asked first, not dropped into its last step.
   await p.goto(url('/goals/new'));
   await h.fill(p.getByRole('textbox').first(), 'Half-written goal');
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   await p.goto(url('/goals/new'));
   await see(p, 'You have a goal you didn’t publish', 'New goal reopens the old draft without asking');
   await h.click(p.getByRole('button', { name: 'Start another goal' }));
@@ -1795,7 +1795,7 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
 journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'tariq'));
   // The map's "Only what needs attention" is the status filter: in the link, in the count, and in Export.
-  await p.goto(url('/goals?view=map'));
+  await p.goto(url('/goals?scope=all&view=map'));
   await p.getByRole('region', { name: /Goal map/ }).waitFor();
   await h.click(p.getByLabel('Only what needs attention'));
   await p.waitForURL(/status=off(%2C|,)risk(%2C|,)stale/, { timeout: 3000 }).catch(() => {});
@@ -1808,7 +1808,7 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   await p.keyboard.press('Escape');
   await h.checkpoint('map attention');
   // History's range is part of the view: chosen, refreshed, still there.
-  await p.goto(url('/goals?view=history&hist=weekly'));
+  await p.goto(url('/goals?scope=all&view=history&hist=weekly'));
   await h.click(p.getByRole('group', { name: 'Weeks shown' }).getByRole('button', { name: 'Whole year' }));
   await p.waitForURL(/weeks=year/, { timeout: 3000 }).catch(() => {});
   await p.reload();
@@ -1983,7 +1983,7 @@ journey('U37', ['PATH-TO-GREEN', 'ATTENTION', 'CHANGE-LOG', 'ONE-ASK'], 'Several
 journey('U38', ['QUARTER-RESULTS', 'WEEK-INSPECTOR', 'NO-DOUBLE-POST', 'ASK-UNDO', 'STICKY-HEAD', 'ONE-ASK'], 'A leader reads the quarters, inspects a week, asks for an update and takes it back; an owner’s double press posts once', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   // History opens on each quarter's actual against plan, not the owners' weekly calls.
-  await p.goto(url('/goals?view=history'));
+  await p.goto(url('/goals?scope=all&view=history'));
   await p.locator('.qtable').first().waitFor();
   const met = await p.locator('.qcell.q-met').count();
   const missed = await p.locator('.qcell.q-missed').count();
@@ -2011,7 +2011,7 @@ journey('U38', ['QUARTER-RESULTS', 'WEEK-INSPECTOR', 'NO-DOUBLE-POST', 'ASK-UNDO
   h.set('progress', /27/.test(q3) && /(On track|At risk|Off track|Done|No check-in)/.test(said), `Q3 starts “${q3}”; the inspector said “${said.replace(/\n/g, ' ')}”`);
   await h.checkpoint('week inspector');
   // The Table's header stays in view while the goals scroll under it.
-  await p.goto(url('/goals?view=table'));
+  await p.goto(url('/goals?scope=all&view=table'));
   const head = p.locator('.gtable').first().locator('thead th').nth(1);
   await head.waitFor();
   await p.evaluate(() => { const t = document.querySelector('.gtable'); window.scrollBy(0, t.getBoundingClientRect().top + 220); });
@@ -2094,7 +2094,7 @@ journey('U39', ['ONE-ACCOUNT', 'PATH-TO-GREEN', 'WALKTHROUGHS'], 'Something chan
   h.set('attention', proj > 0, 'the projection is not labelled as the app’s estimate');
   // The map walkthrough: the coach sits beside the goal it points at, never on it.
   await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'amara'));
-  await p.goto(url('/goals?view=map'));
+  await p.goto(url('/goals?scope=all&view=map'));
   await p.locator('.react-flow__node').first().waitFor();
   await p.evaluate(() => { sessionStorage.setItem('goals-tour', JSON.stringify({ id: 'map', step: 1 })); window.dispatchEvent(new Event('goals-tour')); });
   const coach = p.locator('.coach');
@@ -2464,7 +2464,7 @@ journey('U47', ['CONNECT-CLAUDE', 'MARKUP-INBOX'], 'Someone else, in another bro
     elsewhere) and 30 pieces of feedback, from five people, over the last three weeks. */
 function seed75() {
   const people = [['rhea', 'Rhea Kapoor'], ['mateo', 'Mateo Silva'], ['amara', 'Amara Okafor'], ['jun', 'Jun Park'], ['oskar', 'Oskar Lind']];
-  const pages = ['/', '/goals', '/goals/:goalId', '/check-in/:goalId', '/reviews/:reviewId', '/activity', '/data', '/workspace/people'];
+  const pages = ['/', '/goals?scope=all', '/goals/:goalId', '/check-in/:goalId', '/reviews/:reviewId', '/activity', '/data', '/workspace/people'];
   const at = (i) => new Date(Date.parse('2026-11-05T09:00:00Z') - i * 6.5 * 3600e3).toISOString();
   const ctx = { viewport: { w: 1440, h: 900, dpr: 2 }, theme: 'light', themeChoice: 'light', accent: 'teal', appVersion: 'w', sessionId: 's' };
   const markups = [];
@@ -2563,7 +2563,7 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
 
 journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   const box = p.getByRole('searchbox', { name: 'Find a goal' });
   await h.inView(box, 'entry', 'the search');
   await h.fill(box, 'rolback'); await box.press('Enter');
@@ -3230,7 +3230,7 @@ async function writeWorkbook(sheets, file) {
 
 journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'IMPORT-UNDO'], 'An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   // Export these goals, from the Goals screen (on a phone, in the Views menu).
   const direct = await exportButton(h, p);
   await h.inView(direct, 'entry', 'Export these goals on the Goals screen');
@@ -3321,7 +3321,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.goto(url('/data'));
   await p.locator('.data-tools').waitFor();
   const dataGone = !(await p.locator('.data-export').count());
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   await p.locator('.goals-toolbar, .goals-phonebar').filter({ visible: true }).first().waitFor();
   const goalsGone = !(await p.getByRole('button', { name: 'Export these goals' }).count());
   await p.goto(url('/data/import'));
@@ -3361,7 +3361,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
 
 journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map, and read its story', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
-  await p.goto(url('/goals'));
+  await p.goto(url('/goals?scope=all'));
   await chooseLayout(h, p, 'Map');
   const canvas = p.getByRole('region', { name: /Goal map/ });
   await canvas.waitFor();
@@ -3720,7 +3720,7 @@ async function platformChecks() {
   for (const [device, vp] of want('P6') ? Object.entries(DEVICES) : []) {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?view=table'], ['rhea', '/goals?view=board'], ['rhea', '/goals?view=history'], ['rhea', '/goals?view=map'],
+    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?scope=all&view=table'], ['rhea', '/goals?scope=all&view=board'], ['rhea', '/goals?scope=all&view=history'], ['rhea', '/goals?scope=all&view=map'],
       ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
@@ -3763,7 +3763,7 @@ async function platformChecks() {
   for (const [w, hgt] of want('P7') ? [[1920, 1080], [2560, 1300]] : []) {
     const c5 = await browser.newContext({ viewport: { width: w, height: hgt } });
     const r = await c5.newPage();
-    for (const [who, route, kind] of [['amara', '/', 'split'], ['amara', '/goals?view=table', 'fill'], ['amara', '/goals?view=board', 'fill'], ['amara', '/goals?view=history', 'fill'], ['amara', '/goals?view=map', 'map'], ['tariq', '/goals/lead-review', 'split'], ['rhea', '/watching', 'split'], ['amara', '/activity', 'plain']]) {
+    for (const [who, route, kind] of [['amara', '/', 'split'], ['amara', '/goals?scope=all&view=table', 'fill'], ['amara', '/goals?scope=all&view=board', 'fill'], ['amara', '/goals?scope=all&view=history', 'fill'], ['amara', '/goals?scope=all&view=map', 'map'], ['tariq', '/goals/lead-review', 'split'], ['rhea', '/watching', 'split'], ['amara', '/activity', 'plain']]) {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();
@@ -3810,7 +3810,7 @@ async function platformChecks() {
     const c7 = await browser.newContext({ viewport: vp });
     const r = await c7.newPage();
     for (const v of ['list', 'table', 'board']) {
-      await r.goto(url('/goals?view=' + v));
+      await r.goto(url('/goals?scope=all&view=' + v));
       await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
       await r.reload();
       await r.locator('.outcome, .gtable tbody tr, .board-card').first().waitFor();
@@ -3831,7 +3831,7 @@ async function platformChecks() {
   for (const [w, hgt] of want('P9') ? [[360, 740], [768, 1024], [1024, 768], [1280, 800], [3440, 1440]] : []) {
     const c8 = await browser.newContext({ viewport: { width: w, height: hgt }, hasTouch: w <= 1024 });
     const r = await c8.newPage();
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['amara', '/goals'], ['amara', '/goals?view=table'], ['amara', '/goals?view=history'], ['amara', '/goals?view=history&hist=weekly&weeks=year'], ['amara', '/goals?view=board'],
+    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['amara', '/goals'], ['amara', '/goals?scope=all&view=table'], ['amara', '/goals?scope=all&view=history'], ['amara', '/goals?scope=all&view=history&hist=weekly&weeks=year'], ['amara', '/goals?scope=all&view=board'],
       ['rhea', '/goals/ns-lead'], ['mateo', '/check-in/mttr-pir'], ['amara', '/reviews/weekly'], ['oskar', '/watching'], ['amara', '/activity'], ['grace', '/data'], ['grace', '/workspace']]) {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
@@ -3877,7 +3877,7 @@ async function platformChecks() {
     const hs = await r.evaluate(() => [...new Set([...document.querySelectorAll('.page .btn:not(.sm):not(.big-btn), .page .input:not(textarea)')].filter((e) => e.getClientRects().length).map((e) => Math.round(e.getBoundingClientRect().height)))]);
     if (hs.length > 1) finish.push(`Activity controls come in ${hs.join(', ')}px`);
     await c.close();
-    [c, r] = await at(360, 740, 'amara', '/goals?view=table', true);
+    [c, r] = await at(360, 740, 'amara', '/goals?scope=all&view=table', true);
     const gw = await r.evaluate(() => Math.min(...[...document.querySelectorAll('.gtable td.gt-goal')].map((t) => t.getBoundingClientRect().width)));
     if (gw < 200) finish.push(`360px Goals table: a goal name gets ${Math.round(gw)}px`);
     await r.goto(url('/data')); await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'grace')); await r.reload(); await r.waitForTimeout(400);
@@ -3891,9 +3891,9 @@ async function platformChecks() {
     if (!rv.demo || rv.demo[0] > 48 || rv.demo[1] < 44) finish.push(`1024px rail Demo box is ${rv.demo}`);
     if (rv.titles) finish.push(`${rv.titles} rail icons have no name on hover`);
     await c.close();
-    [c, r] = await at(1440, 700, 'amara', '/goals');
+    [c, r] = await at(1440, 700, 'amara', '/goals?scope=all');
     const lx = await r.evaluate(() => Math.round(document.querySelector('.goals-head h1').getBoundingClientRect().left));
-    await r.goto(url('/goals?view=table')); await r.waitForTimeout(400);
+    await r.goto(url('/goals?scope=all&view=table')); await r.waitForTimeout(400);
     const tx = await r.evaluate(() => Math.round(document.querySelector('.goals-head h1').getBoundingClientRect().left));
     if (lx !== tx) finish.push(`Goals moves ${Math.abs(lx - tx)}px between List and Table`);
     await c.close();
