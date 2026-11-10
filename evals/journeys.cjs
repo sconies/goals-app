@@ -3591,6 +3591,9 @@ journey('U79', ['GOAL-HISTORY'], 'A goal’s history shows the weeks it missed, 
   // Portal search has had no check-in since week 39: History says so, week by week (a run of four or more is one entry).
   await p.goto(url('/goals/env-search') + '#history');
   const hist = p.locator('#history');
+  // The page scrolls there once it's drawn (and again after the shell puts a new page at its top).
+  await hist.waitFor();
+  await p.waitForFunction(() => { const e = document.getElementById('g-history'); if (!e) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom < innerHeight; }, null, { timeout: 3000 }).catch(() => {});
   await h.inView(hist.getByRole('heading', { name: 'History' }), 'entry', 'History, opened by #history');
   const first = (await hist.locator('.stream > li').first().innerText()).replace(/\s+/g, ' ').trim();
   h.set('attention', first === `Week ${NOW} · No check-in`, `History starts with “${first}”`);
