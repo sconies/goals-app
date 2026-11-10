@@ -263,3 +263,16 @@ Read against `docs/design/architecture.md` 1.2, section 2 (AR2) and 4.1 to 4.2. 
 **2. Low.** `ModuleFinder.things` (a kind's nouns) is declared but the picker keeps its own table of nouns per kind (`src/ui/Pick.tsx`, `KINDS`, which already names `metric`), so a module's own words wouldn't be used.
 
 Nothing else found. The filters-as-data shape matches 4.2; nothing applies a module's filter yet, which is GL1's and ML2's to do.
+
+### #97 WR3: admins and tokens where they are listed; Settings about you (track 3, merged 14:33 UTC)
+
+Read against `docs/design/workspace/spec.md` 2.2 (the admin controls on a person's page), 2.7, 2.11 and section 3. Tried in the demo as Amara: Access lists the admins A to Z with the right button on each row, the demo's line stands in for tokens, "Add an admin" picks through find-and-pick and shows someone who is one as "Already an admin", the toast offers Undo, and Settings opens on You with "Your page". Every change still goes through `savePerson`. The file noted as unused in #94 is used here, as this PR says.
+
+**1. Medium. Undo after "Stop being an admin" says it worked and does nothing.**
+
+- Where: `src/ui/AdminControls.tsx:22` (`useSetAdmin`'s toast). On your own row the toast "You’re no longer an admin" carries Undo. By then you are a member, Access has been replaced by "Access is for admins", and the Undo runs against the app as it was held by a component that has gone.
+- Reproduce: in the demo as Amara, Workspace, Access, "Stop being an admin", "Yes, remove", then Undo. The message says "Amara Nwosu is an admin again". The page still says "you’re a member here", Settings says "member of Platform Engineering", and the admins listed are the other three.
+- Why it matters: it tells someone they have their admin rights back when they haven't. And by R1's table it shouldn't be offered: only an admin may make an admin, and by then they aren't one.
+- Suggested fix: no Undo on your own removal (the confirm already says "Another admin can make you one again."); for anyone else's, run the Undo through the app as it is now and say "again" only when the save changed something. U60 should cover the own-row case.
+
+Nothing else found.
