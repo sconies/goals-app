@@ -34,6 +34,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['workspace-cycles', 'features', 'recording', 'removing', 'people'],
   },
   {
+    id: 'watch-and-comment-say',
+    date: '2026-11-10',
+    title: 'Watch and comments say what they do',
+    points: [
+      'Watch tells you what you’ll see and where before you choose, and says what it did, with Undo.',
+      'A comment says who can read it and who sees it on Home, and has a Cancel.',
+      'A goal’s printed page says its kind in plain words: “North star · a number to move”.',
+    ],
+    articles: ['goal-page', 'watching', 'print'],
+  },
+  {
     id: 'goal-history',
     date: '2026-11-10',
     title: 'A goal’s history shows the weeks it missed',
@@ -562,7 +573,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'Scrolled down, the bar is one line on a solid panel that stands off the page: status, number, the gap to plan and the “…” menu. “Since you looked” only appears when something has changed.',
       'On paper, a goal fits one A4 page again, and on a 360px phone nothing runs off the side.',
     ],
-    articles: ['goal-page', 'print'],
+    articles: ['goal-page', 'watching', 'print'],
   },
   {
     id: 'faro',

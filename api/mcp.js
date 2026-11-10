@@ -10740,7 +10740,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team).",
+					"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team). On a goal’s page, Watch first says what watching does: its check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email.",
 					"Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention (a goal with no recent update included), then what has nothing flagged, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.",
 					"For a goal with no recent update, ask its owner for an update. It’s an ask, open on their Home until they check in; whoever asked can withdraw it.",
 					"Stop watching from the same place you started."
@@ -10748,7 +10748,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Anyone can watch any goal."]
+				text: ["Anyone can watch any goal. A goal’s owner has no Watch: it is always on their Home."]
 			}
 		],
 		routes: ["/watching"],
@@ -10756,7 +10756,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"WATCHING",
 			"ASK-UNDO",
-			"ONE-WATCHING"
+			"ONE-WATCHING",
+			"GOAL-SAYS"
 		],
 		keywords: [
 			"follow",
@@ -11088,6 +11089,8 @@ var CORE_ARTICLES = [
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.",
 					"Last time we talked: the last review that discussed it and what was noted (what was agreed is in Next steps and asks), and when it’s next due.",
 					"What feeds it: what it feeds into, and how the goals directly feeding it stand, the one most likely to make it miss first.",
+					"The comment box is one line, Add a comment, until you press it. Open, it says who will see what you write before you post: everyone in the workspace can read it, and the owner and the people watching see it on Home. Cancel closes it and keeps what you typed.",
+					"Watch opens a sheet that says what watching does: the goal’s check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email. With goals feeding it, choose this goal, or it and everything feeding it. Watching, the same sheet has Done and Stop watching; each says what it did, with Undo.",
 					"This year by quarter, then History: every week from when the goal was set up to this one, newest first, with its check-in or “No check-in” (four or more missed in a row are one line, “Weeks 12 to 17 · No check-ins (6 weeks)”), and the goal’s comments, what reviews said and its changes, with a comment box at the top. This week’s check-in points to Why for its reason rather than saying it twice.",
 					"History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.",
 					"About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.",
@@ -11133,6 +11136,7 @@ var CORE_ARTICLES = [
 			"GOAL-ACT",
 			"GOAL-ASK-ONCE",
 			"GOAL-HISTORY",
+			"GOAL-SAYS",
 			"GOAL-PAGE",
 			"CHART-READ",
 			"GOAL-PAGE-BAR",
@@ -11176,6 +11180,9 @@ var CORE_ARTICLES = [
 			"history",
 			"missed weeks",
 			"no check-in",
+			"watch",
+			"comment",
+			"who sees it",
 			"about"
 		],
 		related: [
@@ -12538,6 +12545,21 @@ var WHATS_NEW = [
 		]
 	},
 	{
+		id: "watch-and-comment-say",
+		date: "2026-11-10",
+		title: "Watch and comments say what they do",
+		points: [
+			"Watch tells you what you’ll see and where before you choose, and says what it did, with Undo.",
+			"A comment says who can read it and who sees it on Home, and has a Cancel.",
+			"A goal’s printed page says its kind in plain words: “North star · a number to move”."
+		],
+		articles: [
+			"goal-page",
+			"watching",
+			"print"
+		]
+	},
+	{
 		id: "goal-history",
 		date: "2026-11-10",
 		title: "A goal’s history shows the weeks it missed",
@@ -13185,7 +13207,11 @@ var WHATS_NEW = [
 			"Scrolled down, the bar is one line on a solid panel that stands off the page: status, number, the gap to plan and the “…” menu. “Since you looked” only appears when something has changed.",
 			"On paper, a goal fits one A4 page again, and on a 360px phone nothing runs off the side."
 		],
-		articles: ["goal-page", "print"]
+		articles: [
+			"goal-page",
+			"watching",
+			"print"
+		]
 	},
 	{
 		id: "faro",

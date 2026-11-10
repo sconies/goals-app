@@ -345,6 +345,14 @@ A goal's history shows every week, checked in or not, tells reviews from changes
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N15, U79
 
+### GOAL-SAYS
+
+Watching and commenting say who will see what before you do them.
+
+- **Rule:** [Who a comment reaches](rules/comment-reach.md)
+- **Help:** “Watching goals” (`watching`), screens `Watching`; “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Journeys and checks:** U80
+
 ### GOAL-PAGE-SCORECARD
 
 Under a goal's status and number, a scorecard of labelled cells (two by two on a phone, in a row on a wider screen), each a value and one muted line: for a number goal vs plan, vs last week (the latest check-in against the one before, naming the week compared, worse or better by which way is good, with a drawn arrow), to target, and will it hit the target (Likely, Possible, Unlikely or Very unlikely, from where the target sits against the projected range, never a percentage); for a range vs the limit, vs last week, room to the limit and will it stay within; for dated stages stages done, stages late and when the next stage lands. The target is said once in the first screen; the chart marks the same numbers where they are (the gap to plan at now, the likely end, and what's left to the target) and nothing under it restates them, beyond one footnote on where the likely end comes from. Every section below the chart has a heading, one line on what it answers and a full-width rule above it; the owner's reason opens Why, and how the goals feeding it stand opens What feeds it.
