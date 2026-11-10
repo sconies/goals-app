@@ -276,3 +276,21 @@ Read against `docs/design/workspace/spec.md` 2.2 (the admin controls on a person
 - Suggested fix: no Undo on your own removal (the confirm already says "Another admin can make you one again."); for anyone else's, run the Undo through the app as it is now and say "again" only when the save changed something. U60 should cover the own-row case.
 
 Nothing else found.
+
+### #96 GT2: a goal's history shows the weeks it missed (track 2, merged 14:54 UTC)
+
+Read against `docs/design/goal/spec.md` section 1 (the address), 2.2 and rule 4. Opened in the demo on Lead time for changes and on "Days for a new engineer to merge a first change" (the spec's Developer onboarding example): the section is History with five filters and counts; the quiet goal lists "Week 46 · No check-in" and "Week 45 · No check-in" above week 44's check-in; the filter is in the address and survives a reload; `#activity` lands on History; this week's entry points to Why. The rule takes what it reads and uses `textMatches`.
+
+**1. Medium. A week's entry sits a week too early in the list, so each week's events appear above it.**
+
+- Where: `src/domain/goalPage.ts`, `weekEnd`: the start plus `w * 7` days, less a second. Weeks count from 0 at the cycle's start (`weekDate` in `plan.ts` is start plus `week * 7`), so that moment is the end of the week before, not of week `w`. It is the same slip as #94's Year line.
+- What the spec asks: "a week entry is placed at the end of its week", and "the current week is always its own entry at the top of All and Check-ins".
+- Reproduce in the demo (11 Nov, week 46):
+  - Lead time for changes, All: Daniel Okafor's comment from this week is the first row, above "Week 46"; add a comment and it goes above too.
+  - The quiet goal, All: "Week 46 · No check-in", then Amara's look of 5 Nov (week 45, which runs 2 to 8 Nov), then "Week 45 · No check-in". Her look reads as part of week 46.
+- Suggested fix: place a week's entry at the start plus `(w + 1) * 7` days less a second (or `weekDate(cycle, w + 1)`), and have U79 check that a comment made this week is listed under this week's entry.
+
+**2. Low.**
+
+- Whether an ask belongs under Reviews is decided by looking for " in {a review's name}" in the change's sentence (`historyKind`). Renaming a review moves its past asks to Comments, and a short review name can match other sentences. The ask records its review; the change could carry it.
+- An ask from outside a review, and marking a next step done, count under Comments ("Rhea Kapoor marked the action done"). The spec's four kinds don't say where these go.
