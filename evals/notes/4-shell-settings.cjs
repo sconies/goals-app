@@ -34,8 +34,8 @@ module.exports = {
       await p.locator('.side').getByRole('link', { name: 'Settings' }).click();
       await p.getByRole('heading', { name: 'Settings', level: 1 }).waitFor({ timeout: 3000 });
       fail(/\/demo\/settings/.test(p.url()), `[SETTINGS] the sidebar's Settings goes to ${p.url()}`);
-      fail(await p.getByText(/kept in this browser only/).isVisible(), '[SETTINGS] the page does not say its choices are kept in this browser');
-      for (const h of ['Appearance', 'Navigation', 'You', 'Your MCP access']) fail(await p.getByRole('heading', { name: h, exact: true }).isVisible(), `[SETTINGS] no "${h}" section`);
+      fail(await p.getByText(/Kept in this browser/).isVisible(), '[SETTINGS] the page does not say its choices are kept in this browser');
+      for (const h of ['Appearance', 'Navigation', 'You', /^Your MCP tokens/]) fail(await p.getByRole('heading', typeof h === 'string' ? { name: h, exact: true } : { name: h }).isVisible(), `[SETTINGS] no "${h}" section`);
       // The person menu holds Settings too.
       await p.goto(url('/goals?scope=all')); await p.waitForTimeout(300);
       await p.locator('.side .me').click();
@@ -311,7 +311,9 @@ module.exports = {
         const dlg = p.getByRole('dialog', { name: 'Remove Security Engineering' });
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
         fail(await dlg.getByRole('alert').filter({ hasText: 'Choose where they go' }).isVisible(), `[WORKSPACE-ADMIN] ${w}: removing a team with people, without saying where they go, is not explained`);
-        await dlg.getByLabel('Move them to').selectOption({ label: 'Insights Platform' });
+        await click(dlg.getByRole('button', { name: /Move them to/ }));
+        await dlg.getByRole('combobox').fill('Insights');
+        await click(dlg.getByRole('option', { name: /Insights Platform/ }));
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
         await p.waitForURL(/\/teams(\?|$)/); await p.locator('.team-row').first().waitFor();
         await p.waitForTimeout(300);

@@ -7,6 +7,7 @@ import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '..
 import { findPeople } from '../domain/people';
 import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
 import { scopeToCycle } from '../domain/cycle';
+import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
@@ -17,7 +18,7 @@ import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK,
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
 import { acceptRisk, teamPeople } from '../domain/actions';
-import { adminsLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
+import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
@@ -26,7 +27,7 @@ import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domai
 import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
-import { primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
+import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
 import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
@@ -80,6 +81,17 @@ function workspace(checkIns: Snapshot['checkIns'], requests: Ask[] = [], decisio
   };
 }
 const flagCodes = (s: Snapshot, today: string) => flagsFor(g3075, s, CYCLE, at(today)).flags.map((f) => f.kind).join(', ') || 'none';
+
+/* ---------- a workspace just set up, for day one's examples ---------- */
+const DAY_MADE = '2026-11-11T09:00:00Z';
+const DAY_NOW = new Date('2026-11-11T15:00:00Z');
+const DAY_WS = { name: 'Field Operations', kind: 'own', createdAt: DAY_MADE };
+const dayOneWs = (owners: string[]): Pick<Snapshot, 'people' | 'goals' | 'checkIns' | 'watches' | 'changes'> => ({
+  people: [{ id: 'ana', name: 'Ana Silva', role: '', initials: 'AS', teamId: 't', admin: true }, { id: 'ben', name: 'Ben Ortiz', role: '', initials: 'BO', teamId: 't', admin: false }],
+  goals: owners.map((ownerId, i) => ({ id: `g${i}`, ownerId, title: `Goal ${i}` } as unknown as Goal)),
+  checkIns: [], watches: [],
+  changes: [{ id: 'c', at: DAY_MADE, actorId: 'ana', goalId: null, entity: 'workspace', entityId: 'w', action: 'created', summary: 'Created “Field Operations” with 2 people', diffs: [] }],
+});
 
 /* ---------- the demo workspace on Wednesday 11 November, for the directory's examples ---------- */
 const DIR_NOW = new Date('2026-11-11T12:00:00Z');
@@ -631,14 +643,14 @@ For a range, better means further from the limit on its safe side.
       { file: 'src/domain/removal.ts', names: ['cycleStanding', 'cycleDeletable', 'leaveWorkspace'] },
       { file: 'src/domain/actions.ts', names: ['teamPeople'] },
       { file: 'src/domain/thresholds.ts', names: ['nameProblem', 'nameLength', 'MAX_WORKSPACE_NAME'] },
-      { file: 'src/domain/workspaceAttention.ts', names: ['workspaceNeeds', 'workspaceName', 'adminsLine', 'yearLine', 'cycleWhen', 'NEEDS_SHOWN', 'ONLY_ADMIN_FROM', 'LEAD_FROM'] },
+      { file: 'src/domain/workspaceAttention.ts', names: ['workspaceNeeds', 'workspaceName', 'adminsLine', 'yearLine', 'cycleLine', 'cycleWhen', 'NEEDS_SHOWN', 'ONLY_ADMIN_FROM', 'LEAD_FROM'] },
       { file: 'src/domain/people.ts', names: ['mergePeople'] },
       { file: 'src/domain/templates.ts', names: ['stagesFromJoining', 'stagesFromNow'] },
     ],
     tests: ['src/domain/workspace.test.ts', 'src/domain/setupTruth.test.ts'],
     reqs: ['WORKSPACE-ONE-PLACE', 'WORKSPACE-ABOUT'],
     body: `
-**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over.
+**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over; on Cycles as one word after its name (\`cycleLine\`), with its goals and check-ins (\"no check-ins yet\" for none).
 
 **A team's people** are everyone in it, and its lead even when the lead's own team is another; the lead counts once.
 
@@ -665,6 +677,7 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, for Pat, who isn’t an admin.', then: 'nothing', run: () => workspaceNeeds(workspace([]), CYCLE, false).map((x) => x.id).join(', ') || 'nothing' },
       { given: 'The example’s name in the demo, and a workspace called “Growth” in the real app.', then: 'Platform Engineering (example data) / Growth', run: () => [workspaceName({ name: 'Example: Platform Engineering', kind: 'example' }, 'demo'), workspaceName({ name: 'Growth', kind: 'own' }, 'live')].map((w) => w.name + (w.kind ? ` (${w.kind})` : '')).join(' / ') },
       { given: 'Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu.', then: 'Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others', run: () => [adminsLine(['Hamid Rezaei', 'Amara Nwosu', 'Grace Achterberg'].map((name) => ({ name, admin: true }))), adminsLine(['Aiko Suzuki', 'Akosua Owusu', ...Array.from({ length: 38 }, (_, i) => `Zed ${i}`)].map((name) => ({ name, admin: true })))].join(' / ') },
+      { given: 'Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; and for a 2027 cycle with nothing in it yet.', then: '2026 · running / Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet', run: () => { const a = cycleLine({ name: '2026', startDate: '2025-12-22', weeks: 53 }, true, 46, new Date('2026-11-11T12:00:00Z'), { goals: 126, checkIns: 3200 }); const b = cycleLine({ name: '2027', startDate: '2027-01-04', weeks: 52 }, false, 46, new Date('2026-11-11T12:00:00Z'), { goals: 0, checkIns: 0 }); return `${a.title} / ${a.when} / ${a.counts}; ${b.title} / ${b.counts}`; } },
       { given: 'A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 47), and on Tuesday 15 December (week 52) with 31 goals not wrapped up.', then: '2026, week 47 of 53. The wrap-up opens on 14 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.', run: () => { const c = { name: '2026', startDate: '2025-12-22', weeks: 53 }; return `${yearLine(c, 47, new Date('2026-11-11T12:00:00Z'), 30)} / ${yearLine(c, 52, new Date('2026-12-15T12:00:00Z'), 31)}`; } },
     ],
     unclear: ['When “You’re the only admin” starts to be said (five people) and when a team without a lead is (three people) are choices, not laws; the rebuild may tune them.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
@@ -699,6 +712,29 @@ For a range, better means further from the limit on its safe side.
       { given: 'Old addresses: /workspace/people?team=cicd, /workspace/people?team=-, /workspace/teams, /workspace#people.', then: '/teams/cicd, /people?team=-, /teams, /people', run: () => [movedTo('/workspace/people', '?team=cicd'), movedTo('/workspace/people', '?team=-'), movedTo('/workspace/teams'), movedTo('/workspace', '', '#people')].join(', ') },
     ],
     unclear: ['The page size (50) and the reading of “a word” (split at spaces and at & / ( ) , . -) are choices; a rebuild with a server search should keep the rule that every word typed starts a word.', 'Who leads a team is not a role: a lead is any person a team names, in any team.'],
+  },
+
+  /* ---------- day one (app redesign OB3) ---------- */
+  {
+    id: 'day-one',
+    title: 'Day one: set-up’s steps and “Getting started”',
+    summary: 'How many steps set-up counts for the path chosen, and what Home’s “Getting started” tells each person in a workspace’s first weeks.',
+    code: [{ file: 'src/domain/dayOne.ts', names: ['setupSteps', 'stepCounter', 'gettingStarted', 'creatorOf', 'DAY_ONE_DAYS', 'NEW_WORKSPACE_DAYS'] }],
+    tests: ['src/domain/dayOne.test.ts'],
+    reqs: ['DAY-ONE', 'ONBOARDING'],
+    body: `
+**Set-up’s steps.** A template or “Start blank”: seven (workspace, you, your team, starting point, outcome, goals, check). “Set goals up later” or a spreadsheet: five, without the outcome and the goals, so Check is “Step 5 of 5”.
+
+**Who set it up** is whoever the workspace’s “Created …” change names, or else its first admin. A goal set-up left with no owner is made theirs, and its id is kept for them (the Prefs port), so Home can ask them to give it one; nothing is added to the goal.
+
+**Getting started**, for one person, in this order, each left out when it doesn’t apply or is done. Whoever set it up: their first check-ins (goals they own with none); “Give {n} goals an owner” (the goals set-up left without one that they still own); “Add the people who own goals” while they’re alone, otherwise “Send your team the link” until they copy it; “Set up the first goal” while there are none. Anyone else: who set it up, when, and how many goals they were given; their first check-ins; and, owning none, the goals to see (until opened), to watch (until they watch one), and a goal of their own. Nothing at all when they hid it, ${DAY_ONE_DAYS} days after their first visit, in the example, or in a workspace more than ${NEW_WORKSPACE_DAYS} days old that they didn’t just join.`,
+    examples: [
+      { given: 'The counter on Check: a template; goals set up later.', then: 'Step 7 of 7 / Step 5 of 5', run: () => `${stepCounter('check', 'product')} / ${stepCounter('check', 'later')}` },
+      { given: 'Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees.', then: 'first-check-in, assign (Give 2 goals an owner.), invite', run: () => { const r = gettingStarted('ana', dayOneWs(['ana', 'ana', 'ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE, unowned: ['g1', 'g2'] }, DAY_NOW, 'Thursday'); return r.map((x) => (x.id === 'assign' ? `assign (${x.says})` : x.id)).join(', '); } },
+      { given: 'Ben opens it for the first time.', then: 'Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in', run: () => { const r = gettingStarted('ben', dayOneWs(['ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE }, DAY_NOW, 'Thursday'); return `${r[0]!.says} / ${r.slice(1).map((x) => x.id).join(', ')}`; } },
+      { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneWs(['ana']), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },
+    ],
+    unclear: ['Two weeks, and 28 days for a workspace to stop being new, are choices; the rebuild may tune them.', 'Which goals were left without an owner is kept per person (the Prefs port), not on the goal: a rebuild keeps it out of the goal’s record too.'],
   },
 
   /* ---------- the goal map ---------- */
@@ -783,6 +819,63 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
       ];
     })(),
     unclear: ['How many done rows show before “Show all” (three) is a choice about the page, not the rule.', '“3 weeks ago” counts weeks of the cycle between when it was asked and now, not days.'],
+  },
+
+  /* ---------- a goal's history (goal spec, rule 4; GT2) ---------- */
+  {
+    id: 'goal-history',
+    title: 'A goal’s history',
+    summary: 'Every week of a goal, checked in or not, its comments, what reviews said and its changes, under four filters with counts.',
+    code: [{ file: 'src/domain/goalPage.ts', names: ['goalHistory', 'historyKind', 'activityStream'] }],
+    tests: ['src/domain/goalHistory.test.ts'],
+    reqs: ['GOAL-HISTORY'],
+    body: `
+**Every week.** One entry for each week from the goal's first (the week it was created, or the first week it was checked in, if earlier) to this week, or to the week it stopped: its check-in, or "No check-in". Four or more weeks in a row with none are one entry ("Weeks 12 to 17 · No check-ins (6 weeks)"); fewer are a week each. This week is always its own entry. A goal with no check-in yet has one week entry, this week, "No check-in yet". Check-ins in a row that gave the same reason are one group, as before; every week is in it.
+
+**The kinds.** *Check-ins*: the week entries, missed weeks included. *Comments*: comments, and asks raised outside a review. *Reviews*: what a review said (looked at it, a note, a question or next step agreed in it, an ask answered in it). *Changes*: everything else the change log holds for the goal (its plan, target, owner, team, level, links, metric; stopped, restored).
+
+**Counts.** Per kind and for All, which is their sum; a run of missed weeks counts as its weeks, a group as its weeks.
+
+**Order.** Newest first; a week's entry sits at the end of its week, so this week's is at the top.
+
+**Searching** keeps the entries whose words match ([finding things](finding.md), rule 1).`,
+    examples: (() => {
+      const g = { ...g3075, createdAt: '2026-09-07T09:00:00Z' };
+      const run = (weeks: number[], now: number, filter: 'all' | 'checkins' = 'checkins') => goalHistory({ goal: g, checkIns: weeks.map((w) => ci(g.id, w, 40, { why: `Reason ${w}` })), changes: [], cycle: CYCLE, week: now, reviews: [] }, filter);
+      const say = (h: ReturnType<typeof run>) => h.entries.map((x) => (x.kind === 'missed' ? (x.from === x.to ? `${x.from}: ${x.yet ? 'none yet' : 'none'}` : `${x.from}–${x.to}: none (${x.weeks})`) : x.kind === 'checkin' ? `${x.checkIn.week}` : x.kind)).join(', ');
+      return [
+        { given: 'Created in week 1, checked in weeks 1 to 3; now week 5.', then: '5: none, 4: none, 3, 2, 1', run: () => say(run([1, 2, 3], 5)) },
+        { given: 'Checked in weeks 1 and 8; now week 9.', then: '9: none, 8, 2–7: none (6), 1', run: () => say(run([1, 8], 9)) },
+        { given: 'Checked in week 1 only; now week 6: the run reaching this week keeps this week apart.', then: '6: none, 2–5: none (4), 1', run: () => say(run([1], 6)) },
+        { given: 'No check-in yet, in week 3.', then: '3: none yet', run: () => say(run([], 3)) },
+        { given: 'The counts for checked in weeks 1 and 8, now week 9.', then: 'all 9, check-ins 9', run: () => { const h = run([1, 8], 9, 'all'); return `all ${h.counts.all}, check-ins ${h.counts.checkins}`; } },
+      ];
+    })(),
+    unclear: ['How long a run of missed weeks must be to fold into one line (four) is a choice about reading, not a law.'],
+  },
+
+  /* ---------- who a comment reaches (goal spec, rule 5; GT3) ---------- */
+  {
+    id: 'comment-reach',
+    title: 'Who a comment reaches',
+    summary: 'The line under a goal’s comment box: everyone in the workspace can read a comment, and the goal’s owner and the people watching it see it on Home.',
+    code: [{ file: 'src/domain/goalPage.ts', names: ['commentReach'] }],
+    tests: ['src/domain/goalAct.test.ts'],
+    reqs: ['GOAL-SAYS'],
+    body: `
+"Everyone in {workspace} can read this." Then, for anyone but the owner: "{owner} and the {n} people watching see it on Home." ("the 1 person"; with nobody watching, "{owner} sees it on Home."). For the owner: "The {n} people watching see it on Home." (with nobody watching, "Nobody is watching it yet, so it shows on no one else’s Home.").
+
+*The people watching* are those whose watches cover the goal: the goal itself, a tree it is in, or its level. The viewer and the owner are never counted among them.`,
+    examples: (() => {
+      const g = { ...g3075, ownerId: 'r' };
+      const say = (viewerId: string, watcherIds: string[]) => commentReach({ goal: g, viewerId, ownerFirst: 'Rhea', watcherIds, workspace: 'Platform Engineering' });
+      return [
+        { given: 'Oskar on Rhea’s goal, with six others watching it.', then: 'Everyone in Platform Engineering can read this. Rhea and the 6 people watching see it on Home.', run: () => say('o', ['a', 'b', 'c', 'd', 'e', 'f']) },
+        { given: 'Rhea on her own goal, the same six watching.', then: 'Everyone in Platform Engineering can read this. The 6 people watching see it on Home.', run: () => say('r', ['a', 'b', 'c', 'd', 'e', 'f']) },
+        { given: 'Oskar, nobody watching.', then: 'Everyone in Platform Engineering can read this. Rhea sees it on Home.', run: () => say('o', []) },
+        { given: 'Oskar, one other watching (and Oskar himself, who isn’t counted).', then: 'Everyone in Platform Engineering can read this. Rhea and the 1 person watching see it on Home.', run: () => say('o', ['a', 'o']) },
+      ];
+    })(),
   },
 
   /* ---------- finding things (the app redesign, AR1) ---------- */

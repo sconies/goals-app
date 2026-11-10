@@ -97,7 +97,7 @@ Anyone can comment on a goal; comments show in the goal’s activity and are log
 Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line.
 
 - **Help:** “The activity log” (`activity`), screens `Activity`
-- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37
+- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60
 
 ## Status rules
 
@@ -337,6 +337,22 @@ Everything asked and agreed on a goal is in one list, shown once, with the one b
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** F14, N15, U78
 
+### GOAL-HISTORY
+
+A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to.
+
+- **Rule:** [A goal’s history](rules/goal-history.md)
+- **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Journeys and checks:** N15, U79
+
+### GOAL-SAYS
+
+Watching and commenting say who will see what before you do them.
+
+- **Rule:** [Who a comment reaches](rules/comment-reach.md)
+- **Help:** “Watching goals” (`watching`), screens `Watching`; “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Journeys and checks:** U80
+
 ### GOAL-PAGE-SCORECARD
 
 Under a goal's status and number, a scorecard of labelled cells (two by two on a phone, in a row on a wider screen), each a value and one muted line: for a number goal vs plan, vs last week (the latest check-in against the one before, naming the week compared, worse or better by which way is good, with a drawn arrow), to target, and will it hit the target (Likely, Possible, Unlikely or Very unlikely, from where the target sits against the projected range, never a percentage); for a range vs the limit, vs last week, room to the limit and will it stay within; for dated stages stages done, stages late and when the next stage lands. The target is said once in the first screen; the chart marks the same numbers where they are (the gap to plan at now, the likely end, and what's left to the target) and nothing under it restates them, beyond one footnote on where the likely end comes from. Every section below the chart has a heading, one line on what it answers and a full-width rule above it; the owner's reason opens Why, and how the goals feeding it stand opens What feeds it.
@@ -484,10 +500,10 @@ There are no role labels: owners edit and check in on their goals; everyone else
 
 ### ADMIN
 
-Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed.
+Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** U5, U10, U14
+- **Journeys and checks:** U5, U10, U14, U60
 
 ### PEOPLE-DIRECTORY
 
@@ -697,10 +713,19 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 
 ### ONBOARDING
 
-An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone.
+An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).
 
+- **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** N10, U5, U11, U49, U54, U61
+- **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86
+
+### DAY-ONE
+
+In a workspace's first weeks Home tells each person, the second included, what is true and what to do first ("Getting started", app redesign OB3): whoever set it up sees their first check-ins, "Give {n} goals an owner" for the goals left without one, and the invite link (or Add people while alone); someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it goes after 14 days or when everything is done; the example never shows it. Home's old "Add your people" card is gone.
+
+- **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`
+- **Journeys and checks:** U86
 
 ### IDENTITY
 
@@ -897,11 +922,11 @@ Home opens with a slim dashboard (your goals by status, your on-time check-in st
 
 ### SETTINGS
 
-A Settings page holds personal choices that are remembered: light, dark or system, an accent colour, a collapsed or full side navigation, and your AI assistant tokens. Detail pages have a Back link to where you came from.
+Settings is about you (app redesign WR3): who you are here, with "Your page" leading to your person page (a member is told which admins change their name, job title or team); your remembered choices, kept in this browser (light, dark or system, an accent colour, a collapsed or full side navigation); your own MCP tokens with Revoke, and no way to make one there (an admin makes them on Access); one line on recording leading to Privacy; the Motion lab; and Leave, last. Detail pages have a Back link to where you came from.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Tests:** `evals/settings.eval.ts` (4)
-- **Journeys and checks:** N4
+- **Journeys and checks:** N4, U62
 
 ### NAV-GOALS
 
@@ -926,7 +951,7 @@ Admins can rename the workspace and add, rename and remove teams (a team with pe
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
 - **Tests:** `evals/workspace-admin.eval.ts` (6)
-- **Journeys and checks:** N4
+- **Journeys and checks:** N4, U60
 
 ### WORKSPACE-SECTIONS
 
@@ -963,7 +988,7 @@ The inbox of markups and feedback is its own page, Feedback (/feedback), beside 
 Anyone can leave a workspace from Settings (last, after a rule), with a confirm that first asks who takes over their goals and open asks; the only admin sees the button disabled and why. Resetting the example is the demo's Start over, for everyone, and says it only touches this browser; deleting a workspace of your own is for admins, at the foot of About. Set-up asks whether to record how the app is used (off unless ticked), its "Who are you?" step starts as the person you are, and steps skipped on the "Set goals up later" path say so.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
-- **Journeys and checks:** U53
+- **Journeys and checks:** U53, U62
 
 ## Navigation
 
@@ -1051,7 +1076,7 @@ After a deploy, a tab still running the old build that fails to load a part of i
 
 ### TELEMETRY-PRIVACY
 
-Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, in Settings and a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them.
+Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, on Workspace, Privacy (which Settings leads to) and in a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them.
 
 - **Help:** “What the app records” (`recording`)
 - **Tests:** `evals/telemetry.eval.ts` (2)

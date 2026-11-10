@@ -194,7 +194,12 @@
     {
       "id": "ONBOARDING",
       "area": "Onboarding",
-      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone."
+      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with \"No owner yet\"; one left so is made the setter's and remembered for Home; Check says each owner or \"No owner yet\" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet)."
+    },
+    {
+      "id": "DAY-ONE",
+      "area": "Onboarding",
+      "text": "In a workspace's first weeks Home tells each person, the second included, what is true and what to do first (\"Getting started\", app redesign OB3): whoever set it up sees their first check-ins, \"Give {n} goals an owner\" for the goals left without one, and the invite link (or Add people while alone); someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it goes after 14 days or when everything is done; the example never shows it. Home's old \"Add your people\" card is gone."
     },
     {
       "id": "IDENTITY",
@@ -229,7 +234,7 @@
     {
       "id": "ADMIN",
       "area": "People",
-      "text": "Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed."
+      "text": "Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try."
     },
     {
       "id": "RETRO",
@@ -437,6 +442,16 @@
       "text": "Everything asked and agreed on a goal is in one list, shown once, with the one button each person may press."
     },
     {
+      "id": "GOAL-HISTORY",
+      "area": "Goals",
+      "text": "A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to."
+    },
+    {
+      "id": "GOAL-SAYS",
+      "area": "Goals",
+      "text": "Watching and commenting say who will see what before you do them."
+    },
+    {
       "id": "GOAL-PAGE-SCORECARD",
       "area": "Goals",
       "text": "Under a goal's status and number, a scorecard of labelled cells (two by two on a phone, in a row on a wider screen), each a value and one muted line: for a number goal vs plan, vs last week (the latest check-in against the one before, naming the week compared, worse or better by which way is good, with a drawn arrow), to target, and will it hit the target (Likely, Possible, Unlikely or Very unlikely, from where the target sits against the projected range, never a percentage); for a range vs the limit, vs last week, room to the limit and will it stay within; for dated stages stages done, stages late and when the next stage lands. The target is said once in the first screen; the chart marks the same numbers where they are (the gap to plan at now, the likely end, and what's left to the target) and nothing under it restates them, beyond one footnote on where the likely end comes from. Every section below the chart has a heading, one line on what it answers and a full-width rule above it; the owner's reason opens Why, and how the goals feeding it stand opens What feeds it."
@@ -479,7 +494,7 @@
     {
       "id": "SETTINGS",
       "area": "Interface",
-      "text": "A Settings page holds personal choices that are remembered: light, dark or system, an accent colour, a collapsed or full side navigation, and your AI assistant tokens. Detail pages have a Back link to where you came from."
+      "text": "Settings is about you (app redesign WR3): who you are here, with \"Your page\" leading to your person page (a member is told which admins change their name, job title or team); your remembered choices, kept in this browser (light, dark or system, an accent colour, a collapsed or full side navigation); your own MCP tokens with Revoke, and no way to make one there (an admin makes them on Access); one line on recording leading to Privacy; the Motion lab; and Leave, last. Detail pages have a Back link to where you came from."
     },
     {
       "id": "NAV-GOALS",
@@ -519,7 +534,7 @@
     {
       "id": "LIST-BAR",
       "area": "Finding",
-      "text": "Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says \u201c{n} {things} match.\u201d; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles."
+      "text": "Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says “{n} {things} match.”; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles."
     },
     {
       "id": "FIND-AND-PICK",
@@ -604,7 +619,7 @@
     {
       "id": "TELEMETRY-PRIVACY",
       "area": "Observability",
-      "text": "Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, in Settings and a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them."
+      "text": "Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, on Workspace, Privacy (which Settings leads to) and in a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them."
     },
     {
       "id": "TELEMETRY-FLOWS",

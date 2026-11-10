@@ -20,7 +20,7 @@ function files(root, dir) {
 }
 
 /** Lists that are fixed by the app, not by the workspace: a CONSTANT_CASE name, a literal list, or one of these. */
-const FIXED_NAMES = new Set(['levels', 'weeks', 'head', 'choices', 'OPS']);
+const FIXED_NAMES = new Set(['levels', 'weeks', 'weeksWithEntries', 'kinds', 'head', 'choices', 'OPS']);
 /** Whether every list this <select> maps is fixed (weeks, levels, sort orders), so it isn't a list of everything. */
 function mapsOnlyFixed(select) {
   const roots = [...select.matchAll(/\.map\(/g)].map((m) => {

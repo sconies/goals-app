@@ -933,15 +933,15 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   h.set('attention', await p.locator('.goal-bar[data-tone=off] .bar-status.off').isVisible() && /^[1-9]\d*$/.test((await p.locator('.goal-bar .sc-late .sc-value').innerText()).trim()) && (await p.locator('.why-block .why-text').innerText()).length > 10, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
   // Check-ins, comments and changes are one stream; Changes shows only the changes.
-  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Changes', exact: true }));
-  await h.click(p.locator('#activity').getByRole('button', { name: /Show .*change/ }).first());
+  await h.click(p.locator('#history .history-filters').getByRole('link', { name: /^Changes \d+$/ }));
+  await h.click(p.locator('#history').getByRole('button', { name: /Show .*change/ }).first());
   h.set('logged', await p.locator('.diffs ins').first().isVisible(), 'a change does not show its before and after');
   h.set('finish', true);
   h.set('progress', await p.locator('.stagelist').isVisible(), 'the stages are not shown');
   // Anyone can comment; it goes straight into the goal's activity, logged like every other save.
-  await h.fill(p.getByLabel('Add a comment'), 'The vendor confirmed their December date holds.');
+  await p.getByRole('button', { name: 'Add a comment' }).click(); await h.fill(p.getByLabel('Add a comment'), 'The vendor confirmed their December date holds.');
   await h.click(p.getByRole('button', { name: 'Post comment' }));
-  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Comments', exact: true }));
+  await h.click(p.locator('#history .history-filters').getByRole('link', { name: /^Comments \d+$/ }));
   await see(p, 'The vendor confirmed their December date holds.', 'the comment shows in the activity');
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.actorId === 'santiago' && c.goalId === 'fresh-kafka' && c.diffs.some((d) => /December date/.test(d.to))), 'the comment is not in the change log');
@@ -1042,8 +1042,11 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   await h.checkpoint('home');
   // Watch a whole tree from a goal page.
   await p.goto(url('/goals/ns-lead'));
-  await h.click(p.getByRole('button', { name: 'Watch', exact: true }));
-  await h.click(p.getByRole('button', { name: /Watch it and everything feeding it/ }));
+  // Watch opens a sheet that says what watching does; with feeders, this goal or it and everything feeding it (GT3).
+  await h.click(p.locator('.goal-bar').getByRole('button', { name: 'Watch', exact: true }));
+  const watchSheet = p.getByRole('dialog', { name: /^Watch / });
+  await h.click(watchSheet.getByRole('radio', { name: /^It and the \d+ goals? feeding it$/ }));
+  await h.click(watchSheet.getByRole('button', { name: 'Watch', exact: true }));
   await see(p, 'Watching all');
   // And a whole level from Watching.
   await toWatching(h, p);
@@ -1113,12 +1116,16 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
   await h.fill(p.getByRole('dialog').getByLabel('Name'), 'Ines Karim');
   await h.fill(p.getByRole('dialog').getByLabel(/^Email/), 'ines.karim@example.com');
   await h.fill(p.getByRole('dialog').getByLabel(/Job title/), 'Head of SRE');
-  await h.click(p.getByRole('dialog').getByRole('checkbox', { name: /Admin/ }));
+  h.set('attention', await p.getByRole('dialog').getByRole('checkbox', { name: /Admin/ }).count() === 0, 'adding a person still has an Admin tick box (it moved to their page and Access, WR3)');
   await h.checkpoint('add person');
   await h.click(p.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }));
   await see(p, 'Added Ines Karim');
-  // The new person's page opens (WR1): it says they're an admin, and People lists them as one.
+  // The new person's page opens (WR1); Make an admin is there, under For admins (WR3), with Undo.
   await p.getByRole('heading', { level: 1, name: 'Ines Karim' }).waitFor();
+  await h.click(p.getByRole('button', { name: 'Make an admin' }));
+  await see(p, 'Ines Karim is an admin');
+  h.set('errors', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'making someone an admin has no Undo');
+  await p.getByText('Admin.', { exact: false }).first().waitFor();
   const role = await p.locator('.person-facts').innerText().catch(() => '');
   await p.goto(url('/people?q=Ines'));
   const row = await p.locator('.people-row', { hasText: 'Ines Karim' }).innerText().catch(() => '');
@@ -1467,11 +1474,13 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
   });
   await p.goto(live('/workspace/access'));
   // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
-  await p.getByRole('heading', { name: 'MCP access' }).scrollIntoViewIfNeeded();
-  h.set('attention', /Connect Claude or another AI tool to Faro through MCP/.test(await p.locator('.ai-block').innerText()) && /builder token/.test(await p.locator('.ai-block').getByText('Inbox on my phone').first().innerText()), 'MCP access does not say what it is, or does not label the builder token apart');
-  await h.click(p.getByRole('button', { name: 'Make an MCP token' }));
+  await p.getByRole('heading', { name: /^MCP tokens/ }).scrollIntoViewIfNeeded();
+  h.set('attention', /A token lets Claude or another AI tool act as one person here/.test(await p.locator('.access-tokens').innerText()) && /builder token/.test(await p.locator('.access-tokens').getByText('Inbox on my phone').first().innerText()), 'MCP tokens do not say what they are, or do not label the builder token apart');
+  await h.click(p.getByRole('button', { name: 'Make a token' }));
   const dlg = p.getByRole('dialog');
-  await dlg.getByLabel('Who it acts as').selectOption({ label: 'Mateo Fernández' });
+  await dlg.getByRole('button', { name: /^Who it acts as: .*Change$/ }).click();
+  await dlg.getByRole('combobox').fill('Mateo');
+  await dlg.getByRole('option', { name: /Mateo Fernández/ }).click();
   h.set('errors', await dlg.getByRole('button', { name: 'Make the token' }).isDisabled(), 'a token can be made without saying what it is for');
   await h.fill(dlg.getByLabel('What it’s for'), 'Claude on Mateo’s laptop');
   await h.checkpoint('make token');
@@ -2714,13 +2723,13 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   const told = await see(p, 'Access is for admins. The admins here are Amara Nwosu, Grace Achterberg and Hamid Rezaei.').then(() => true, () => false);
   // Privacy reads for everyone, what the app records about them; only admins have its switch (re-review, 8 Nov, backlog T).
   await p.goto(url('/workspace/privacy'));
-  const reads = await see(p, 'Only admins change it').then(() => true, () => false);
+  const reads = await see(p, 'Admins change it').then(() => true, () => false);
   const noSwitch = await p.getByRole('checkbox', { name: /Record how the app is used/ }).count() === 0;
   // Cycles reads for everyone, with nothing to delete; Recently removed lists only what they removed (8 Nov).
   await p.goto(url('/workspace/cycles'));
-  const cyclesRead = await see(p, 'Only admins delete a cycle').then(() => true, () => false) && await p.getByRole('button', { name: /^Delete the cycle/ }).count() === 0;
+  const cyclesRead = await see(p, 'Admins start the next cycle and delete an empty one.').then(() => true, () => false) && await p.getByRole('button', { name: /^Delete the cycle/ }).count() === 0;
   await p.goto(url('/workspace/removed'));
-  const ownOnly = await see(p, 'Admins see what everyone has removed.').then(() => true, () => false);
+  const ownOnly = await see(p, 'Admins see everyone’s.').then(() => true, () => false);
   h.set('attention', JSON.stringify(theirs) === JSON.stringify(want(['About', 'Cycles', 'Privacy', 'Recently removed'])) && told && reads && noSwitch && cyclesRead && ownOnly && await p.getByRole('button', { name: 'Make an MCP token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}; Cycles read-only ${cyclesRead}; Recently removed their own ${ownOnly}`);
   await p.context().close();
 }, ['logged']);
@@ -2733,7 +2742,7 @@ journey('U58', ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'], 'Anyone finds a person and
   await p.waitForURL(/\/demo\/people(\?|$)/);
   await p.locator('.people-row').first().waitFor();
   await h.inView(p.getByPlaceholder('Find by name, job title or team'), 'entry', 'Find a person');
-  const count = (await p.locator('.people-count').innerText()).trim();
+  const count = (await p.locator('.count-line').innerText()).trim();
   h.set('progress', /^\d+ people, A to Z\. Showing 1 to 50\.$/.test(count), `People’s count line says “${count}”`);
   await h.checkpoint('people');
   await h.fill(p.getByPlaceholder('Find by name, job title or team'), 'rhea');
@@ -2874,6 +2883,142 @@ journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a tw
   h.set('errors', true);
   await p.context().close();
 }, ['logged']);
+
+/* App redesign WR3: admins and tokens where they are listed; Settings about you. */
+journey('U60', ['ADMIN', 'WORKSPACE-ADMIN', 'CHANGE-LOG'], 'An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; the only admin has no button; each change is logged', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/access'));
+  const add = p.getByRole('button', { name: 'Add an admin' });
+  await h.inView(add, 'entry', 'Add an admin');
+  await h.checkpoint('access');
+  await h.click(add);
+  const dlg = p.getByRole('dialog', { name: 'Add an admin' });
+  // Find-and-pick (FS1): open it, type, choose.
+  await h.click(dlg.getByRole('button', { name: /Choose a person/ }));
+  await h.fill(dlg.getByRole('combobox'), 'rhea');
+  await h.click(dlg.getByRole('option', { name: /Rhea Kapoor/ }));
+  await h.checkpoint('picked');
+  await h.click(dlg.getByRole('button', { name: 'Make Rhea an admin' }));
+  await see(p, 'Rhea Kapoor is an admin');
+  const rows = p.getByRole('list', { name: 'Admins' });
+  await rows.getByText('Rhea Kapoor').waitFor();
+  h.set('progress', await rows.getByRole('listitem').count() === 4, 'Rhea is not listed with the admins');
+  await p.goto(url('/people/rhea'));
+  h.set('attention', /Admin\./.test(await p.locator('.person-facts').innerText()), 'Rhea’s page does not say she is an admin');
+  // Undo, from the toast that said so: made again from Access, then undone.
+  await p.goto(url('/workspace/access'));
+  const s1 = await h.snapshot();
+  const madeLogged = s1.changes.some((c) => c.entity === 'person' && c.entityId === 'rhea' && c.diffs.some((d) => d.field === 'Admin' && d.to === 'Yes'));
+  await h.click(p.getByRole('button', { name: 'Remove as admin: Rhea Kapoor' }));
+  await h.click(p.getByRole('group', { name: 'Remove as admin: Rhea Kapoor' }).getByRole('button', { name: 'Yes, remove' }));
+  await see(p, 'Rhea Kapoor is no longer an admin');
+  await h.click(p.locator('.toast-action').filter({ hasText: 'Undo' }).first());
+  await see(p, 'Rhea Kapoor is an admin again');
+  // Remove Grace, asked in place first.
+  await h.click(p.getByRole('button', { name: 'Remove as admin: Grace Achterberg' }));
+  await see(p, 'Stop Grace being an admin? They keep their goals and history.');
+  await h.checkpoint('remove');
+  await h.click(p.getByRole('group', { name: 'Remove as admin: Grace Achterberg' }).getByRole('button', { name: 'Yes, remove' }));
+  await see(p, 'Grace Achterberg is no longer an admin');
+  const s2 = await h.snapshot();
+  h.set('logged', madeLogged && !s2.people.find((x) => x.id === 'grace').admin && s2.people.find((x) => x.id === 'rhea').admin && s2.changes.filter((c) => c.entity === 'person' && c.diffs.some((d) => d.field === 'Admin')).length >= 4, `admin changes are not saved and logged: made logged ${madeLogged}, Grace admin ${s2.people.find((x) => x.id === 'grace').admin}, Rhea admin ${s2.people.find((x) => x.id === 'rhea').admin}, ${s2.changes.filter((c) => c.entity === 'person' && c.diffs.some((d) => d.field === 'Admin')).length} logged`);
+  // The only admin has no button: leave Amara alone as admin.
+  await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    await window.__goalsStore.commit('platform-org', { people: s.people.filter((x) => x.admin && x.id !== 'amara').map((x) => ({ ...x, admin: false })), changes: [] });
+  });
+  await p.reload();
+  const only = p.getByRole('list', { name: 'Admins' }).getByRole('listitem');
+  await only.first().waitFor();
+  h.set('finish', await only.count() === 1 && /The only admin/.test(await only.first().innerText()) && await only.first().getByRole('button').count() === 0, 'the only admin is offered a way to stop being one');
+  h.set('errors', true);
+  await p.context().close();
+});
+
+journey('U62', ['LEAVE-WORKSPACE', 'SETTINGS'], 'Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/settings'));
+  const yours = p.getByRole('link', { name: 'Your page' });
+  await h.inView(yours, 'entry', 'Your page');
+  const tokens = await p.locator('.ai-block').innerText();
+  const rec = p.locator('section[aria-labelledby="set-rec"]');
+  h.set('attention', await p.getByRole('button', { name: /^Make/ }).count() === 0 && /Your MCP tokens/.test(tokens) && await rec.getByRole('link', { name: /What’s recorded|Privacy/ }).count() === 1, 'Settings offers to make a token, or its recording line does not lead to Privacy');
+  await h.checkpoint('settings');
+  await h.click(yours);
+  await p.getByRole('heading', { level: 1, name: 'Rhea Kapoor' }).waitFor();
+  h.set('progress', /\/people\/rhea/.test(p.url()), `Your page opened ${p.url()}`);
+  await p.goto(url('/settings'));
+  await h.click(p.getByRole('button', { name: 'Leave this workspace…' }));
+  const leave = p.getByRole('dialog', { name: /Leave .*Platform Engineering/ });
+  await leave.waitFor();
+  h.set('finish', /takes over/i.test(await leave.innerText()), 'leaving does not ask who takes over');
+  await p.keyboard.press('Escape');
+  await p.goto(url('/workspace'));
+  await p.locator('.ws-facts').waitFor();
+  h.set('errors', await p.getByRole('button', { name: /Leave this workspace/ }).count() === 0, 'Workspace still has Leave');
+  // The only admin sees why not.
+  await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    await window.__goalsStore.commit('platform-org', { people: s.people.filter((x) => x.admin || x.id === 'rhea').map((x) => ({ ...x, admin: x.id === 'rhea' })), changes: [] });
+  });
+  await p.goto(url('/settings'));
+  const btn = p.getByRole('button', { name: 'Leave this workspace…' });
+  await btn.waitFor();
+  h.set('logged', await btn.isDisabled() && await p.getByText('You’re the only admin. Make someone else an admin first').isVisible(), 'the only admin is not told why they can’t leave');
+  await p.context().close();
+});
+
+/* App redesign OB3: set-up's owners and day one. */
+journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/'));
+  const sw = await openSwitcher(p, h);
+  await h.click(sw.getByRole('button', { name: /Set up a new workspace/ }));
+  await p.locator('.steps').first().waitFor();
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Field Operations');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'Who else is on it?');
+  await p.getByLabel('Person 1: name').fill('Ben Ortiz');
+  await p.getByLabel('Person 1: email').fill('ben.ortiz@example.com');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Product team/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'What outcome are you after?');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'What feeds it?');
+  // Each goal feeding the outcome starts with no owner; give Ben the first and leave the rest.
+  const owners = p.getByRole('combobox', { name: /^Owner/ });
+  const firstOwner = await owners.nth(1).inputValue();
+  await owners.nth(1).selectOption({ label: 'Ben Ortiz' });
+  const left = (await owners.evaluateAll((els) => els.map((e) => e.value))).filter((v) => v === '').length;
+  await h.checkpoint('owners');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, `${left === 1 ? '1 goal has' : `${left} goals have`} no owner yet. You can choose them now, or from Home afterwards.`, 'Check does not say how many goals have no owner');
+  h.set('progress', firstOwner === '' && /Step 7 of 7/.test(await p.locator('.steps').innerText()), `a goal’s owner started as “${firstOwner}”`);
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  await p.waitForURL(/\/ready/);
+  await p.goto(url('/'));
+  const block = p.getByRole('region', { name: 'Getting started' }).or(p.locator('section.getting-started'));
+  await block.first().waitFor();
+  await h.inView(block.first(), 'entry', 'Getting started');
+  const rows = await block.first().locator('.gs-row').evaluateAll((rs) => rs.map((r) => r.getAttribute('data-row')));
+  const said = await block.first().innerText();
+  h.set('finish', JSON.stringify(rows) === JSON.stringify(['first-check-in', 'assign', 'invite']) && said.includes(`Give ${left === 1 ? '1 goal' : `${left} goals`} an owner.`) && !/Add your people/.test(await p.locator('main').innerText()), `Home’s Getting started: ${rows.join(', ')} · “${said.replace(/\s+/g, ' ').slice(0, 200)}”`);
+  await h.checkpoint('home');
+  // Ben, on his first visit: who set it up and what's his.
+  await viewAs(p, 'Ben');
+  await p.goto(url('/'));
+  await block.first().waitFor();
+  const ben = await block.first().innerText();
+  h.set('attention', /set up Field Operations on \d+ \w+ and gave you 1 goal\./.test(ben) && /Post your first check-in/.test(ben), `Ben’s Getting started: “${ben.replace(/\s+/g, ' ').slice(0, 200)}”`);
+  await h.click(block.first().getByRole('button', { name: 'Hide this' }));
+  await p.reload();
+  await p.locator('.page-head').first().waitFor();
+  h.set('errors', await p.locator('section.getting-started').count() === 0, 'Hide this does not keep the block away');
+  h.set('logged', true);
+  await p.context().close();
+});
 
 journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-PAGE-ONCE'], 'The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation', 26, async (h, device) => {
   // Chen has two goals due (Jenkins jobs, integration tests); Jenkins was behind last week, with a reason and a plan.
@@ -3036,7 +3181,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   // An admin: Admin on her badge, every section, and Cycles with dates and what's running.
   const g = await newPage(device, 'grace');
   await g.goto(url('/workspace/cycles'));
-  await see(g, 'Running: week 45 of 53', 'Cycles does not say which cycle is running');
+  await see(g, 'Week 45 of 53', 'Cycles does not say which cycle is running');
   h.set('attention', /22 Dec 2025 to 27 Dec 2026/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
   await g.goto(url('/teams'));
   await g.locator('.team-row', { hasText: 'CI/CD' }).click();
@@ -3175,7 +3320,7 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   // Gone from the directory; on Recently removed (its own section), with Restore.
   await see(p, 'Left Platform Engineering on', 'his page does not say he left');
   await p.goto(url('/people?q=Mateo'));
-  await see(p, 'No one matches', 'Mateo is still in the directory');
+  await see(p, 'No person matches “Mateo”.', 'Mateo is still in the directory');
   await p.goto(url('/workspace/removed'));
   const removed = p.locator('.removed-block');
   await see(removed, 'Person who left', 'Recently removed does not list him');
@@ -3666,6 +3811,108 @@ journey('U78', ['GOAL-ASK-ONCE', 'ONE-ASK'], 'An ask is said once on a goal, und
   await p.context().close();
 }, ['progress']);
 
+journey('U79', ['GOAL-HISTORY'], 'A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  // Portal search has had no check-in since week 39: History says so, week by week (a run of four or more is one entry).
+  await p.goto(url('/goals/env-search') + '#history');
+  const hist = p.locator('#history');
+  // The page scrolls there once it's drawn (and again after the shell puts a new page at its top).
+  await hist.waitFor();
+  await p.waitForFunction(() => { const e = document.getElementById('g-history'); if (!e) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom < innerHeight; }, null, { timeout: 3000 }).catch(() => {});
+  await h.inView(hist.getByRole('heading', { name: 'History' }), 'entry', 'History, opened by #history');
+  const first = (await hist.locator('.stream > li').first().innerText()).replace(/\s+/g, ' ').trim();
+  h.set('attention', first === `Week ${NOW} · No check-in`, `History starts with “${first}”`);
+  await see(hist, 'No check-ins (', 'a run of missed weeks is not said');
+  await h.checkpoint('history');
+  // Changes and Reviews are filters with counts, each count the rows it shows; the filter is in the address.
+  await p.goto(url('/goals/ns-lead'));
+  await hist.waitFor();
+  const filter = (name) => hist.locator('.history-filters').getByRole('link', { name: new RegExp(`^${name} \\d+$`) });
+  // The page can open scrolled to History, under the one-line bar: bring a filter to the middle before pressing it.
+  const press = async (loc) => { await loc.evaluate((e) => e.scrollIntoView({ block: 'center' })); await h.click(loc); };
+  // A filter has taken effect once it is the current one and its list is drawn.
+  const shown = async (name) => { await hist.locator('.history-filter[aria-current="true"]', { hasText: name }).waitFor(); await p.waitForTimeout(150); };
+  // Every row of the filter: Show all when there are more than 12.
+  const showEvery = async (n) => { if (n > 12) { await press(hist.getByRole('link', { name: /^Show all \d+$/ })); await p.waitForURL(/all=1/); await p.waitForTimeout(150); } };
+  const counted = async (name) => Number((await filter(name).innerText()).match(/\d+$/)[0]);
+  await press(filter('Changes'));
+  await p.waitForURL(/history=changes/);
+  await shown('Changes');
+  const changes = await counted('Changes');
+  await showEvery(changes);
+  const rows = await hist.locator('.stream > li').count();
+  const reviewWords = await hist.locator('.stream > li').filter({ hasText: /looked at it|added a note/ }).count();
+  h.set('finish', rows === changes && reviewWords === 0, `Changes says ${changes} and shows ${rows} rows, ${reviewWords} of them from a review`);
+  await p.reload();
+  await hist.waitFor();
+  h.set('progress', (await hist.locator('.history-filter[aria-current="true"]').innerText()).startsWith('Changes'), 'a reload lost the filter');
+  await press(filter('Reviews'));
+  await p.waitForURL(/history=reviews/);
+  await shown('Reviews');
+  const reviews = await counted('Reviews');
+  await showEvery(reviews);
+  const rrows = await hist.locator('.stream > li').count();
+  h.set('errors', rrows === reviews && reviews > 0, `Reviews says ${reviews} and shows ${rrows} rows`);
+  // This week's check-in is one entry, and points to Why for its reason rather than saying it again.
+  await press(filter('All'));
+  await shown('All');
+  await see(hist, 'The reason is above, under Why.', 'this week’s check-in repeats the reason Why gives');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.goalId === 'ns-lead'), 'nothing in the change log for the goal');
+  await p.context().close();
+}, []);
+
+journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do them; an owner has no Watch, and About says why', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/goals/ns-lead'));
+  await p.locator('.goal-bar').waitFor();
+  // Watch opens a sheet with what watching does; Watch in it, and the button says Watching, with Undo in the message.
+  const bar = p.locator('.goal-bar .bar-actions');
+  await h.inView(bar.getByRole('button', { name: 'Watch', exact: true }), 'entry', 'Watch');
+  await h.click(bar.getByRole('button', { name: 'Watch', exact: true }));
+  const sheet = p.getByRole('dialog', { name: 'Watch Lead time for changes' });
+  await see(sheet, 'show on your Home and under Watching in Goals', 'the Watch sheet does not say what watching does');
+  await see(sheet, 'Faro sends no email');
+  await h.checkpoint('watch sheet');
+  await h.click(sheet.getByRole('button', { name: 'Watch', exact: true }));
+  await see(p, 'Watching Lead time for changes');
+  h.set('finish', await bar.getByRole('button', { name: 'Watching' }).isVisible(), 'the button does not say Watching');
+  // Watching: the sheet has Done and Stop watching; stopping says so, with Undo.
+  await h.click(bar.getByRole('button', { name: 'Watching' }));
+  const again = p.getByRole('dialog', { name: 'You’re watching Lead time for changes' });
+  await h.click(again.getByRole('button', { name: 'Stop watching' }));
+  await see(p, 'Undo', 'stopping has no Undo');
+  // The comment box opens with who reads it and who sees it on Home; Cancel closes it.
+  await h.click(p.getByRole('button', { name: 'Add a comment' }));
+  await see(p, /Everyone in .+ can read this\. Rhea and the \d+ (people|person) watching see it on Home\./, 'the comment box does not say who sees it');
+  await h.click(p.locator('.note-compose').getByRole('button', { name: 'Cancel' }));
+  h.set('errors', !(await p.locator('.note-compose').count()) && await p.getByRole('button', { name: 'Add a comment' }).isVisible(), 'Cancel did not close the comment box');
+  // Ask Rhea a question: a row in Next steps and asks.
+  await h.click(p.getByRole('button', { name: 'Ask Rhea a question' }));
+  const ask = p.getByRole('dialog', { name: /^Ask Rhea a question about/ });
+  await h.fill(ask.getByLabel('Your question'), 'Is week 49 still the date for every monorepo?');
+  await h.click(ask.getByRole('button', { name: 'Ask', exact: true }));
+  await p.locator('.step-row', { hasText: 'Is week 49 still the date for every monorepo?' }).waitFor();
+  // Add a next step, as someone who doesn't own the goal: nobody chosen to start with.
+  await h.click(p.locator('.next-steps').getByRole('button', { name: 'Add a next step' }));
+  const step = p.getByRole('dialog', { name: /^Add a next step/ });
+  const empty = !(await step.locator('.pick-field').count());
+  await step.locator('.pick-open').click();
+  h.set('attention', empty && await step.getByRole('option', { name: /Oskar .*\(you\)/ }).isVisible() && await step.getByRole('option', { name: /Rhea .*who owns this goal/ }).isVisible(), 'Add a next step starts with someone chosen, or without the suggestions');
+  await p.keyboard.press('Escape');
+  await step.getByRole('button', { name: 'Cancel' }).click();
+  const s = await h.snapshot();
+  h.set('logged', s.requests.some((r) => r.kind === 'question' && r.askedBy === 'oskar' && /week 49 still/.test(r.ask)) && s.changes.some((c) => c.actorId === 'oskar' && c.entity === 'watch'), 'the question or the watch is not saved and logged');
+  // As Rhea, the owner: no Watch, and About says why.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  await p.goto(url('/'));
+  await p.goto(url('/goals/ns-lead') + '#about');
+  await p.locator('.goal-bar').waitFor();
+  h.set('progress', !(await bar.getByRole('button', { name: /^Watch/ }).count()), 'the owner is offered Watch');
+  await see(p.locator('.about'), 'Owners don’t need to watch their own goals.', 'About does not say why an owner has no Watch');
+  await p.context().close();
+}, []);
+
 async function finishChecks(add) {
   {
     const open = async (w, h, who, route, touch) => {
@@ -3730,7 +3977,7 @@ async function platformChecks() {
     await q.goto(url('/'));
     await q.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'oskar'));
     await q.goto(url('/goals/ns-lead'));
-    await q.getByLabel('Add a comment').fill('Kept after a reload, P15');
+    await q.getByRole('button', { name: 'Add a comment' }).click(); await q.getByLabel('Add a comment').fill('Kept after a reload, P15');
     await q.getByRole('button', { name: 'Post comment' }).click();
     await q.getByText('Kept after a reload, P15').first().waitFor().catch(() => {});
     await q.reload();
@@ -3740,7 +3987,7 @@ async function platformChecks() {
     const note = await q.locator('.save-note').count();
     // A browser that refuses to store: the next change says it lasts only for this visit.
     await q.evaluate(() => { Storage.prototype.setItem = function () { throw new DOMException('full', 'QuotaExceededError'); }; });
-    await q.getByLabel('Add a comment').fill('Only for this visit, P15');
+    await q.getByRole('button', { name: 'Add a comment' }).click(); await q.getByLabel('Add a comment').fill('Only for this visit, P15');
     await q.getByRole('button', { name: 'Post comment' }).click();
     let said = false;
     try { await q.locator('.save-note').filter({ hasText: /last only until you reload/ }).waitFor({ timeout: 5000 }); said = true; } catch { /* not said */ }

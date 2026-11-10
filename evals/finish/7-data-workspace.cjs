@@ -189,9 +189,10 @@ module.exports = {
     if (ws.title !== 'People' || ws.add.length !== 1 || ws.add[0][0] !== 'Add a person' || ws.add[0][1] > 740) fails.push(`[W19] 360 People: heading “${ws.title}”, main actions ${JSON.stringify(ws.add)}`);
     await r.getByRole('button', { name: 'Add a person' }).click(); await r.waitForTimeout(300);
     await r.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click(); await r.waitForTimeout(200);
-    const ap = await r.evaluate(() => { const dlg = document.querySelector('[role="dialog"]'); const inp = dlg.querySelector('input.input').getBoundingClientRect(), al = dlg.querySelector('[role="alert"]').getBoundingClientRect(), cb = dlg.querySelector('.check input').getBoundingClientRect(), w = getComputedStyle(dlg.querySelector('.admin-word')); return { gap: al.top - inp.bottom, cb: [cb.width, cb.height], word: `${w.fontSize} ${w.fontWeight}` }; });
+    const ap = await r.evaluate(() => { const dlg = document.querySelector('[role="dialog"]'); const inp = dlg.querySelector('input.input').getBoundingClientRect(), al = dlg.querySelector('[role="alert"]').getBoundingClientRect(); return { gap: al.top - inp.bottom, admin: !!dlg.querySelector('.admin-check') }; });
     if (!near(ap.gap, 8, 2)) fails.push(`[W12] "Add a name." is ${Math.round(ap.gap)}px under Name`);
-    if (ap.cb[0] < 17 || ap.cb[1] < 17 || ap.word !== '14px 600') fails.push(`[W12] Admin checkbox ${ap.cb.join('x')}, label ${ap.word}`);
+    // Making someone an admin moved to their page and to Access (WR3): adding a person has no Admin tick box.
+    if (ap.admin) fails.push('[W12] Add a person still has an Admin tick box');
     await c.close();
     [c, r] = await open(2560, 1440, 'grace', '/workspace');
     const pw = await box(r, '.page.workspace');

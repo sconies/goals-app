@@ -10276,6 +10276,7 @@ var CORE_ARTICLES = [
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
+					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it also goes by itself after two weeks, or once everything is done. The example in the demo never shows it.",
 					"After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross."
 				]
 			},
@@ -10289,7 +10290,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"HOME-DASHBOARD",
 			"PROFILES",
-			"SHAPE-MATCHES-WORD"
+			"SHAPE-MATCHES-WORD",
+			"DAY-ONE"
 		],
 		keywords: [
 			"dashboard",
@@ -10441,7 +10443,8 @@ var CORE_ARTICLES = [
 					"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
 					"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
 					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
-					"Check each goal’s owner, where it starts and its target before you create the workspace.",
+					"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
+					"Check each goal’s owner (or “No owner yet”), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
 					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
@@ -10741,7 +10744,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team).",
+					"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team). On a goal’s page, Watch first says what watching does: its check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email.",
 					"Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention (a goal with no recent update included), then what has nothing flagged, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.",
 					"For a goal with no recent update, ask its owner for an update. It’s an ask, open on their Home until they check in; whoever asked can withdraw it.",
 					"Stop watching from the same place you started."
@@ -10749,7 +10752,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Anyone can watch any goal."]
+				text: ["Anyone can watch any goal. A goal’s owner has no Watch: it is always on their Home."]
 			}
 		],
 		routes: ["/watching"],
@@ -10757,7 +10760,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"WATCHING",
 			"ASK-UNDO",
-			"ONE-WATCHING"
+			"ONE-WATCHING",
+			"GOAL-SAYS"
 		],
 		keywords: [
 			"follow",
@@ -11087,14 +11091,17 @@ var CORE_ARTICLES = [
 			{
 				heading: "In order, on a computer and a phone",
 				list: [
-					"Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, Activity and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.",
+					"Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, History and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.",
 					"Next steps and asks: everything asked and agreed on the goal, in one list, shown once. What waits on you comes first, under For you; then the rest that is open, overdue steps first; then the last three answered or done, with Show all for the others. Respond, Answer and Mark done open the Respond panel right in the row.",
 					"If the goal is behind and nobody has said what happens next, the list says so, with the warning mark: “No next step yet.” Add a next step asks what, who (find them by name or team; it starts with you, and the owner) and the week it’s due by. Anyone but the owner can Ask the owner a question; the owner’s Ask for a decision or help opens this week’s check-in, where a decision or help is raised.",
 					"Why: the owner’s reason from their latest check-in, its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.",
 					"Last time we talked: the last review that discussed it and what was noted (what was agreed is in Next steps and asks), and when it’s next due.",
 					"What feeds it: what it feeds into, and how the goals directly feeding it stand, the one most likely to make it miss first.",
-					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top.",
+					"The comment box is one line, Add a comment, until you press it. Open, it says who will see what you write before you post: everyone in the workspace can read it, and the owner and the people watching see it on Home. Cancel closes it and keeps what you typed.",
+					"Watch opens a sheet that says what watching does: the goal’s check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email. With goals feeding it, choose this goal, or it and everything feeding it. Watching, the same sheet has Done and Stop watching; each says what it did, with Undo.",
+					"This year by quarter, then History: every week from when the goal was set up to this one, newest first, with its check-in or “No check-in” (four or more missed in a row are one line, “Weeks 12 to 17 · No check-ins (6 weeks)”), and the goal’s comments, what reviews said and its changes, with a comment box at the top. This week’s check-in points to Why for its reason rather than saying it twice.",
+					"History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.",
 					"About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.",
 					"On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order."
 				]
@@ -11137,6 +11144,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"GOAL-ACT",
 			"GOAL-ASK-ONCE",
+			"GOAL-HISTORY",
+			"GOAL-SAYS",
 			"GOAL-PAGE",
 			"CHART-READ",
 			"GOAL-PAGE-BAR",
@@ -11177,6 +11186,12 @@ var CORE_ARTICLES = [
 			"next step",
 			"for you",
 			"check in again",
+			"history",
+			"missed weeks",
+			"no check-in",
+			"watch",
+			"comment",
+			"who sees it",
 			"about"
 		],
 		related: [
@@ -11796,7 +11811,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Add a person is the page’s main action; the new person’s page opens once they are added. Everyone new needs an email, and no two people share one.",
 					"When some people have no email yet, a line above the list says how many, with Add them: type the emails you know and save them together.",
-					"On a person’s page, under For admins: Change details (name, email, job title, team, and whether they are an admin; there is always at least one admin), and, apart, Mark as left. Marking someone as left asks who takes over their goals and open asks first; history keeps their name as “Name (left)”. Someone with no history is deleted instead.",
+					"On a person’s page, under For admins: Change details (name, email, job title and team), Make an admin or Remove as admin (there is always at least one admin), Make an MCP token in the real app, and, apart, Mark as left (on your own page: to leave, use Settings). Marking someone as left asks who takes over their goals and open asks first; history keeps their name as “Name (left)”. Someone with no history is deleted instead.",
 					"Two people can have the same name: the email is who someone is, and wherever both could be on screen each shows their team or job title beside the name."
 				]
 			},
@@ -11903,9 +11918,10 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Each cycle shows its dates, whether it’s running (and which week it’s in), not started or over, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.",
-				"The running cycle leads to its wrap-up: See the wrap-up, or Wrap it up once it’s open.",
-				"An admin can delete a cycle nobody has checked in to, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays. Anyone else reads the list, without Delete, and is told who the admins are.",
+				"Each cycle says where it stands in a word (running, over, or starts on a date), then its week and dates (the running one) or only its dates, then how many goals and check-ins it has (“no check-ins yet” for none).",
+				"The running cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up.",
+				"Its one action: See the wrap-up, before it opens (once any goal has a check-in); Wrap it up, once it’s open; and for admins, once every goal is wrapped up, Start the next cycle.",
+				"An admin can delete a cycle nobody has checked in to, with its goals: Delete… asks first (“Delete 2027 and its 4 goals? Nobody has checked in to it.”). It’s listed in Recently removed and can be restored for 30 days. One with check-ins stays, and the only cycle always stays.",
 				"A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped."
 			]
 		}, {
@@ -11932,9 +11948,11 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Admins lists everyone who is one. Make someone an admin, or stop them being one, from their entry in People. There is always at least one.",
-				"In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so, and its line in Workspace for Access counts only the admins.",
-				"MCP access: Make an MCP token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access."
+				"Admins lists everyone who is one, A to Z. Add an admin is the page’s main action: find someone by name, job title or team, then Make them an admin. The message that says so has Undo.",
+				"Remove as admin, on anyone’s row, asks first (“They keep their goals and history”); on your own row it’s Stop being an admin. There is always at least one admin: the only one has no button, and their row says The only admin.",
+				"The same two are on a person’s page in People, under For admins, with Make an MCP token for that person.",
+				"MCP tokens: Make a token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access.",
+				"In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so in place of the list."
 			]
 		}, {
 			heading: "Who can",
@@ -11946,6 +11964,9 @@ var CORE_ARTICLES = [
 		keywords: [
 			"access",
 			"admins",
+			"add an admin",
+			"make admin",
+			"remove admin",
 			"who is an admin",
 			"revoke",
 			"assistant access"
@@ -11959,7 +11980,7 @@ var CORE_ARTICLES = [
 	{
 		id: "settings",
 		title: "Settings",
-		summary: "Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your MCP tokens. It also says what the app records.",
+		summary: "About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace.",
 		group: "you",
 		sections: [
 			{
@@ -11969,9 +11990,9 @@ var CORE_ARTICLES = [
 					"Accent colour: Faro’s teal (the default), or the earlier cobalt, violet, petrol or graphite. Each is readable in light and dark. Status colours never change.",
 					"Motion lab, at the bottom: play with how a goal’s page moves. It is off by default, so a goal’s page shows its chart and number the moment it opens; switch on “Play the story when a goal’s page opens” to watch the chart draw itself in and the number land. Then speed and impact sliders, a landing style (thump, spring, wobble or drop), switches for each effect, an optional “tock” and phone buzz when it lands, and a preview.",
 					"Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.",
-					"You: your name, job title and team. An admin changes these.",
-					"What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.",
-					"Your MCP access: the MCP tokens that act as you, which you can revoke.",
+					"You, first: your name, job title, team and whether you’re an admin or a member here, with Your page (your page in People). An admin changes your name, job title or team; Settings names the admins.",
+					"Recording: one line, whether it’s on here, leading to Workspace, Privacy for what is and isn’t recorded.",
+					"Your MCP tokens: the tokens that act as you, which you can revoke. An admin makes them, on Workspace, Access or from your page.",
 					"Detail pages have a Back link to where you came from.",
 					"Leave, at the very end: leave the workspace that’s open. Someone takes over your goals and open asks first, and your history stays; an admin can bring you back for 30 days. The only admin can’t leave until someone else is an admin, and is told so."
 				]
@@ -12031,7 +12052,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Untick one to switch it off for everyone here; tick it to switch it back on.",
+					"On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Each has a switch with On or Off beside it; switch one off for everyone here; tick it to switch it back on.",
 					"Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
 					"Nothing a feature saved is deleted. Switch it back on and everything is as it was.",
 					"Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.",
@@ -12109,7 +12130,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Turning it off",
-				list: ["A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says whether it is on where you are.", "Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first, and turning it off says so with Undo. While it is off, nothing is recorded or sent from that workspace, by the app or through MCP."]
+				list: ["A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says in one line whether it is on where you are, and leads to Privacy.", "Anyone can read what is recorded, and whether it is on (On or Off, in a word), on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first, and turning it off says so with Undo. While it is off, nothing is recorded or sent from that workspace, by the app or through MCP."]
 			}
 		],
 		routes: ["/workspace/privacy"],
@@ -12531,13 +12552,78 @@ var WHATS_NEW = [
 			"How they’re arranged is its own choice, Group (as trees, by team, by level, or one list), and Needs attention is a switch that works on any tab.",
 			"One line under the bar counts the goals shown and their statuses.",
 			"The menu is four groups: your work, things to look up, New goal, and this workspace and you. Collapsed, each icon names itself. On a phone, More holds the rest in the same groups.",
-			"Feedback and Send feedback are one item: Feedback’s page has Send feedback, and from there you can mark up the screen you came from."
+			"Feedback and Send feedback are one item: Feedback’s page has Send feedback, and from there you can mark up the screen you came from.",
+			"Activity and Help search the way Goals does: each word you type starts a word in what they find, a goal’s key finds its changes, a near miss shows the nearest match, and Back after a search returns to the list as it was."
 		],
 		articles: [
 			"goals",
 			"any-device",
-			"feedback"
+			"feedback",
+			"activity"
 		]
+	},
+	{
+		id: "getting-started",
+		date: "2026-11-10",
+		title: "A first week that tells you what to do",
+		points: [
+			"After setting up a workspace, Home lists what’s left: first check-ins, goals to give an owner, and the link to send your team.",
+			"Someone you add sees who set it up and what’s theirs to do.",
+			"Set-up lets you leave a goal’s owner for later, and its step counter counts the path you chose."
+		],
+		articles: ["home", "set-up"]
+	},
+	{
+		id: "cycles-plainer",
+		date: "2026-11-10",
+		title: "Cycles says where the year stands",
+		points: [
+			"Each cycle shows its week, its dates and when the wrap-up opens, with one action: see the wrap-up, wrap it up, or start the next cycle.",
+			"Deleting an empty cycle asks first.",
+			"Features and Privacy say On or Off in words beside each switch.",
+			"A long Recently removed list can be searched by name and narrowed to one kind.",
+			"People and Teams search and count like every other list: the same bar, and the filters in words with Remove."
+		],
+		articles: [
+			"workspace-cycles",
+			"features",
+			"recording",
+			"removing",
+			"people"
+		]
+	},
+	{
+		id: "watch-and-comment-say",
+		date: "2026-11-10",
+		title: "Watch and comments say what they do",
+		points: [
+			"Watch tells you what you’ll see and where before you choose, and says what it did, with Undo.",
+			"A comment says who can read it and who sees it on Home, and has a Cancel.",
+			"A goal’s printed page says its kind in plain words: “North star · a number to move”."
+		],
+		articles: [
+			"goal-page",
+			"watching",
+			"print"
+		]
+	},
+	{
+		id: "goal-history",
+		date: "2026-11-10",
+		title: "A goal’s history shows the weeks it missed",
+		points: ["Activity on a goal is now History: every week is listed, with “No check-in” where there was none.", "Reviews and Changes are separate filters, with counts, and a filter can be linked to."],
+		articles: ["goal-page"]
+	},
+	{
+		id: "admins-on-access",
+		date: "2026-11-10",
+		title: "Admins are managed where they are listed",
+		points: [
+			"Add or remove an admin on Workspace, Access, or from a person’s page. Removing one asks first, and both say what they did, with Undo.",
+			"Settings is about you: who you are here and your page, your own choices, the MCP tokens that act as you, and leaving the workspace.",
+			"Admins make MCP tokens on Access, or from a person’s page; Settings shows your own."
+		],
+		articles: ["workspace-access", "settings"]
 	},
 	{
 		id: "one-list-bar",
@@ -13169,7 +13255,11 @@ var WHATS_NEW = [
 			"Scrolled down, the bar is one line on a solid panel that stands off the page: status, number, the gap to plan and the “…” menu. “Since you looked” only appears when something has changed.",
 			"On paper, a goal fits one A4 page again, and on a 360px phone nothing runs off the side."
 		],
-		articles: ["goal-page", "print"]
+		articles: [
+			"goal-page",
+			"watching",
+			"print"
+		]
 	},
 	{
 		id: "faro",

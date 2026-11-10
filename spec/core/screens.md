@@ -13,7 +13,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your first check-in is next week”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “For you (region)”, “Your week at a glance (region)”
+- **Named parts:** “Your first check-in is next week”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “Getting started”, “For you (region)”, “Your week at a glance (region)”
 - **Main action:** The week’s one main thing: your check-ins when they’re due, then the wrap-up at the end of the year, then the review you’re in.
 - **Primary buttons in its markup:** “Start the wrap-up”, “Find goals to watch”, “Set up the first goal”
 - **AI tools:** `get_my_work`, `get_overview`
@@ -119,7 +119,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/goals/:goalId` (`GoalScreen`): Everything about one goal: how it’s doing, why, what’s being done, where it’s heading, and what has happened. Help: “A goal’s page” (`goal-page`).
 
-- **Named parts:** “Chart and recent check-ins”, “For you”, “Done lately”, “About this goal”, “First check-in (region)”, “Next steps and asks (region)”, “On this page (region)”, “Respond (region)”, “Chart (region)”
+- **Named parts:** “Chart and recent check-ins”, “For you”, “Done lately”, “About this goal”, “First check-in (region)”, “Next steps and asks (region)”, “On this page (region)”, “Respond (region)”, “Chart (region)”, “Show (region)”
 - **Main action:** The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.
 - **Primary buttons in its markup:** “Post the first check-in”
 - **AI tools:** `get_goal`, `add_comment`, `ask_question`, `ask_for_update`, `undo_update_ask`, `withdraw_request`, `mark_action_done`, `watch`, `unwatch`, `stop_goal`, `delete_goal`, `delete_check_in`, `edit_comment`, `delete_comment`
@@ -208,7 +208,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - **Named parts:** “People”, “For admins”, “What it is here to do”, “Goals”, “People and teams (region)”, “Pages (region)”
 - **Main action:** Find a person or a team and go to their goals; for admins, Add a person on People and Add a team on Teams.
 - **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `list_people`, `save_person`, `save_team`, `remove_team`, `mark_person_left`, `delete_person`, `find_goals`
+- **AI tools:** `list_people`, `save_person`, `save_team`, `remove_team`, `mark_person_left`, `delete_person`, `create_token`, `find_goals`
 
 ## Feedback
 
@@ -225,12 +225,12 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/Settings.tsx](../../src/screens/Settings.tsx)
 
-- `/settings` (`Settings`): Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your MCP tokens. It also says what the app records. Help: “Settings” (`settings`).
+- `/settings` (`Settings`): About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace. Help: “Settings” (`settings`).
 
-- **Named parts:** “Settings”, “Appearance”, “Navigation”, “You”, “Motion lab”, “What the app records”
-- **Main action:** Change your own settings.
+- **Named parts:** “Settings”, “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”
+- **Main action:** Change your own choices; see who you are here and go to your page.
 - **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `list_tokens`, `revoke_token`, `create_token`, `get_help`, `set_recording`
+- **AI tools:** `list_tokens`, `revoke_token`, `get_help`
 
 ## Help
 

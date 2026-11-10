@@ -83,7 +83,7 @@ module.exports = {
         try {
           await checkIn(p);
           await go(p, '/goals/dep-jenkins');
-          await p.getByLabel('Add a comment').fill(SECRET + ' said the vendor');
+          await p.getByRole('button', { name: 'Add a comment' }).click(); await p.getByLabel('Add a comment').fill(SECRET + ' said the vendor');
           await p.getByRole('button', { name: 'Post comment' }).click();
           await p.getByText(SECRET + ' said the vendor').first().waitFor({ timeout: 3000 });
           await go(p, '/goals?scope=all&q=' + encodeURIComponent(SECRET));
@@ -127,7 +127,7 @@ module.exports = {
           await p.waitForTimeout(150);
           const off = Date.now();
           await p.goto(url('/goals/ns-lead'));
-          await p.getByLabel('Add a comment').fill('Checked with the team');
+          await p.getByRole('button', { name: 'Add a comment' }).click(); await p.getByLabel('Add a comment').fill('Checked with the team');
           await p.getByRole('button', { name: 'Post comment' }).click();
           await p.goto(url('/settings'));
           const said = await p.locator('#set-rec').locator('..').innerText().catch(() => '');

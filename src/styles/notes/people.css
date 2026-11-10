@@ -48,3 +48,14 @@
   .person-facts dd { margin-bottom: var(--s2); }
   .person-head { flex-direction: column; }
 }
+
+/* The list bar's row: the search, then the filters beside it. */
+.people-page .list-bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.people-page .list-bar-row .list-search { flex: 2 1 260px; }
+
+/* On a phone, the search and Filter share one row (F10: the first person within 380 px of the top). */
+@container page (max-width: 620px) {
+  .people-page .list-bar-row { flex-wrap: nowrap; }
+  .people-page .list-bar-row .list-search { flex: 1 1 auto; min-width: 0; }
+  .people-page .list-bar-row > .btn { flex: none; }
+}

@@ -63,7 +63,9 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U57 | The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation | A goal owner | `HONEST-CHECKIN` `REASON-BEHIND` `DRAFTS` `BULK-EDIT` `GOAL-PAGE-ONCE` | 26 | `evals/journeys.cjs` |
 | U58 | Anyone finds a person and a team: as Oskar, People from the sidebar (More on a phone), search, open Rhea, see her goals; Teams, open CI/CD, whose counts are Goals’ By team, and see its goals; no button changes anything; every old address lands |  | `PEOPLE-DIRECTORY` `OLD-ADDRESSES` | 12 | `evals/journeys.cjs` |
 | U59 | Workspace opens on About: one line under the title, the facts each leading to their section, nothing about another workspace; a member sees the same facts with whom to ask and nothing to sort out, and an admins’ section says who the admins are; on a phone About comes first, then the other sections |  | `WORKSPACE-ABOUT` `WORKSPACE-SECTIONS` | 8 | `evals/journeys.cjs` |
+| U60 | An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; the only admin has no button; each change is logged |  | `ADMIN` `WORKSPACE-ADMIN` `CHANGE-LOG` | 10 | `evals/journeys.cjs` |
 | U61 | Day one tells the truth: a two-person workspace just set up has nothing to sort out and its team says No lead without a warning; with 12 people and still one admin, About says “You’re the only admin” with Choose someone |  | `WORKSPACE-ABOUT` `ONBOARDING` | 6 | `evals/journeys.cjs` |
+| U62 | Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave |  | `LEAVE-WORKSPACE` `SETTINGS` | 6 | `evals/journeys.cjs` |
 | U63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone |  | `FIND-AND-PICK` | 9 | `evals/journeys.cjs` |
 | U64 | One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them |  | `LIST-BAR` | 10 | `evals/journeys.cjs` |
 | U66 | A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back |  | `LIST-BAR` | 4 | `evals/journeys.cjs` |
@@ -71,6 +73,9 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U73 | Goals opens on yours: Rhea lands on Mine with her tabs and counts, the line counts what is shown, Group is its own choice, Needs attention is a switch on any tab, and old links open what they meant |  | `GOALS-SCOPE` `GOALS-ATTENTION` `GOALS-ADDRESS` | 8 | `evals/journeys.cjs` |
 | U77 | The owner can act on a goal: Check in again always, and Add a next step when it is behind with none |  | `GOAL-ACT` | 10 | `evals/journeys.cjs` |
 | U78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press |  | `GOAL-ASK-ONCE` `ONE-ASK` | 6 | `evals/journeys.cjs` |
+| U79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to |  | `GOAL-HISTORY` | 6 | `evals/journeys.cjs` |
+| U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why |  | `GOAL-SAYS` | 10 | `evals/journeys.cjs` |
+| U86 | Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block |  | `DAY-ONE` `ONBOARDING` | 24 | `evals/journeys.cjs` |
 
 ## Platform checks
 
@@ -119,7 +124,7 @@ Checks that Lane’s review notes stay fixed.
 | N8 | Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send | `TELEMETRY-SIGNALS` `TELEMETRY-PRIVACY` `TELEMETRY-FLOWS` `TELEMETRY-SWITCH` `STALE-RELOAD` | `evals/notes/8-telemetry.cjs` |
 | N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
 | N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-DASHBOARD` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
-| N15 | Said once: an ask’s words, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` | `evals/notes/11-said-once.cjs` |
+| N15 | Said once: an ask’s words, this week’s reason, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` `GOAL-HISTORY` | `evals/notes/11-said-once.cjs` |
 
 ## The ease test
 

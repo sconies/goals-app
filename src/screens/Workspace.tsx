@@ -16,10 +16,12 @@ import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
 import { sectionsFor } from '../core/module';
-import { Avatar } from '../ui/bits';
-import { adminsLine, cycleWhen, NEEDS_SHOWN, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
+import { Avatar, Sheet } from '../ui/bits';
+import { adminsLine, cycleLine, NEEDS_SHOWN, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { canRestore, cycleStanding } from '../domain/removal';
-import { AiAssistants } from '../ui/AiAssistants';
+import { AccessTokens } from '../ui/AiAssistants';
+import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
+import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
 import { wrapUpOpen } from '../domain/cycle';
@@ -256,74 +258,124 @@ function AboutSection() {
 
 /* ---------- the admins' sections ---------- */
 
-/** The workspace's cycles (goal years), newest first: their dates, which is running and how far in, their goals and
-    check-ins, and what can be done with each: the running one's wrap-up, and deleting one nobody has checked in to. */
+/** The workspace's cycles (goal years), newest first (WR4): each says where it stands in a word, its week and dates,
+    its goals and check-ins, and its one action: the running one's wrap-up (or, for admins once every goal is wrapped
+    up, the next cycle); deleting one nobody has checked in to is an admin's, asked first. */
 function CyclesSection() {
   const app = useApp();
-  // Everyone reads the cycles; only admins delete one (8 Nov). The wrap-up is open to everyone, for their own goals.
   const admin = app.viewer.admin;
-  const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
+  const [asking, setAsking] = useState<string | null>(null);
   const cycles = app.full.cycles.filter((c) => !c.removedAt).sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
+  const anyCheckIn = app.snapshot.checkIns.length > 0;
   return (
     <>
-      <SectionHead id="cycles">A cycle is a goal year. One nobody has checked in to yet can be deleted with its goals; one with check-ins stays. The next one starts from the wrap-up at the end of the running one.{admin ? '' : ` Only admins delete a cycle or start the next${admins.length ? `: ${admins.join(', ')}` : ''}.`}</SectionHead>
+      <SectionHead id="cycles">A cycle is a goal year: its goals, plans and check-ins.</SectionHead>
       <section className="block cycles-block" aria-label="Cycles">
         <ul className="removed-list" aria-label="Cycles">
           {cycles.map((c) => {
             const st = cycleStanding(app.full, c.id);
             const current = c.id === app.cycle.id;
-            const when = cycleWhen(c, current, app.week, app.today);
+            const line = cycleLine(c, current, app.week, app.today, st);
+            const open = current && wrapUpOpen(c, app.week);
+            const action = !current ? null
+              : open && admin && left === 0 ? <Link className="btn sm primary" to="/retro">Start the next cycle</Link>
+              : open ? <Link className="btn sm primary" to="/retro">Wrap it up</Link>
+              : anyCheckIn ? <Link className="btn sm" to="/retro">See the wrap-up</Link> : null;
             return (
-              <li key={c.id} className="removed-row">
+              <li key={c.id} className="removed-row cycle-row">
                 <span className="removed-text cycle-when">
-                  <span className="removed-name">{c.name}</span>
-                  <span className="small">{when.now} · {when.dates}</span>
-                  <span className="hint">{st.says}</span>
+                  <span className="removed-name">{line.title}</span>
+                  <span className="small">{line.when}</span>
+                  <span className="hint">{line.counts}</span>
+                  {current && <span className="hint">{yearLine(c, app.week, app.today, left).replace(/^.*?\.\s/, '')}</span>}
                 </span>
                 <span className="team-actions">
-                  {current && <Link className="btn sm" to="/retro">{wrapUpOpen(c, app.week) ? 'Wrap it up' : 'See the wrap-up'}</Link>}
-                  {admin && st.deletable && <button type="button" className="btn sm" onClick={() => void app.deleteCycle(c.id).catch(() => undefined)} aria-label={`Delete the cycle ${c.name}`}>Delete</button>}
+                  {action}
+                  {admin && st.deletable && asking !== c.id && <button type="button" className="btn sm ghost" onClick={() => setAsking(c.id)} aria-label={`Delete the cycle ${c.name}`}>Delete…</button>}
                 </span>
+                {asking === c.id && (
+                  <span className="admin-confirm" role="group" aria-label={`Delete the cycle ${c.name}`}>
+                    <span className="small">Delete {c.name} and its {st.goals} {st.goals === 1 ? 'goal' : 'goals'}? Nobody has checked in to it.</span>
+                    <span className="row" style={{ gap: 'var(--s2)' }}>
+                      <button type="button" className="btn sm danger" onClick={() => { setAsking(null); void app.deleteCycle(c.id).catch(() => undefined); }}>Yes, delete it</button>
+                      <button type="button" className="btn sm ghost" onClick={() => setAsking(null)}>Cancel</button>
+                    </span>
+                  </span>
+                )}
               </li>
             );
           })}
         </ul>
+        {!admin && <p className="hint">Admins start the next cycle and delete an empty one.</p>}
       </section>
     </>
   );
 }
 
+/** Access (admins, WR3): the admins, where they are made and taken back, then every MCP token. */
 function AccessSection() {
   const app = useApp();
-  const admins = app.snapshot.people.filter((p) => p.admin);
+  const [adding, setAdding] = useState(false);
+  const setAdmin = useSetAdmin();
+  const admins = app.snapshot.people.filter((p) => p.admin).sort((a, b) => a.name.localeCompare(b.name, 'en-GB', { sensitivity: 'base' }));
   return (
     <>
-      <SectionHead id="access" />
-      <section className="block admins-block" aria-labelledby="ws-admins">
-        <h3 className="label" id="ws-admins">Admins · {admins.length}</h3>
-        <ul className="optlist" aria-label="Admins">
-          {admins.map((p) => <li key={p.id} className="opt static person-opt"><Avatar p={p} size="sm" /><span className="person-text"><span className="person-name">{p.name}</span>{p.role && <span className="hint">{p.role}</span>}</span></li>)}
+      <SectionHead id="access">Who the admins are, and the MCP tokens that let an AI tool act as someone here.</SectionHead>
+      <section className="stack admins-block" style={{ gap: 'var(--s2)' }} aria-labelledby="ws-admins">
+        <div className="row between">
+          <h3 className="block-title" id="ws-admins">Admins · {admins.length}</h3>
+          <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add an admin</button>
+        </div>
+        <p className="hint">Admins add people, change teams and settings, and make MCP tokens. There is always at least one.</p>
+        <ul className="admin-list" aria-label="Admins">
+          {admins.map((p) => (
+            <li key={p.id} className="admin-row">
+              <Avatar p={p} size="sm" />
+              <span className="person-text"><span><Link className="person-name" to={`/people/${encodeURIComponent(p.id)}`}>{p.name}</Link>{p.id === app.viewer.id && <span className="hint"> · you</span>}</span>{p.role && <span className="hint">{p.role}</span>}</span>
+              <RemoveAdmin p={p} setAdmin={setAdmin} />
+            </li>
+          ))}
         </ul>
-        <p className="hint">Make someone an admin, or stop them being one, from their page in <Link to="/people">People</Link> (Change details). There is always at least one.</p>
       </section>
-      <AiAssistants />
+      <AccessTokens />
+      {adding && <AddAdminSheet setAdmin={setAdmin} onClose={() => setAdding(false)} />}
     </>
+  );
+}
+
+/** "Add an admin": find a person (FS1's find-and-pick; anyone already an admin is refused, saying so), then make them one. */
+function AddAdminSheet({ onClose, setAdmin }: { onClose: () => void; setAdmin: ReturnType<typeof useSetAdmin> }) {
+  const app = useApp();
+  const [pick, setPick] = useState<string | null>(null);
+  const chosen = pick ? app.person(pick) : undefined;
+  return (
+    <Sheet open onClose={onClose} title="Add an admin">
+      <div className="stack" style={{ gap: 'var(--s4)' }}>
+        <PickOne kind="person" label="Who" value={pick} onChange={setPick} refuse={(row) => (app.person(row.id)?.admin ? 'Already an admin' : null)} />
+        <div className="foot-row">
+          <button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn primary big-btn" disabled={!chosen} onClick={() => { if (chosen) { onClose(); void setAdmin(chosen, true); } }}>{chosen ? `Make ${chosen.name.split(/\s+/)[0]} an admin` : 'Make them an admin'}</button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 
 function FeaturesSection() {
   return (
     <>
-      <SectionHead id="features" />
+      <SectionHead id="features">The optional parts of Faro, for everyone here. Switching one off hides it and keeps what it saved.</SectionHead>
       <Features />
     </>
   );
 }
 
 function PrivacySection() {
+  const app = useApp();
   return (
     <>
-      <SectionHead id="privacy" />
+      <SectionHead id="privacy">What Faro records about how the app is used in {workspaceName(app.ws, app.mode).name}.</SectionHead>
       <Recording />
     </>
   );
@@ -405,16 +457,15 @@ function Recording() {
   };
   return (
     <section className="block recording-block" aria-label="What the app records">
-      <p className="hint">How people use the app here: the pages they open, the buttons they press, where they stop in a task, errors and slow pages. Never anything anyone types. Kept for 90 days, then only daily totals; only the people who build the app can read it.</p>
-      {app.viewer.admin ? (
-        <label className="check record-check">
-          <input type="checkbox" checked={on} disabled={busy} onChange={(e) => void flip(e.target.checked)} />
-          <span className="stack" style={{ gap: 0 }}>
-            <span>Record how the app is used in {app.ws.name}</span>
-            <span className="hint">{on ? 'On for everyone here. Turn it off and nothing more is sent.' : 'Off: nothing is recorded or sent from this workspace.'}</span>
-          </span>
-        </label>
-      ) : null}
+      <label className="switch-row record-check">
+        <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
+          <span>Record how the app is used here</span>
+          <span className="hint">Pages opened, buttons pressed, errors and slow pages. Never anything anyone types. Kept 90 days, then daily totals. Only the people who build Faro can read it.</span>
+        </span>
+        <span className="switch-word">{on ? 'On' : 'Off'}</span>
+        {app.viewer.admin && <input type="checkbox" className="switch" checked={on} disabled={busy} onChange={(e) => void flip(e.target.checked)} aria-label="Record how the app is used here" />}
+      </label>
+      {!app.viewer.admin && <p className="hint">Admins change it{admins.length ? `: ${admins.join(', ')}` : ''}.</p>}
       {app.viewer.admin && asking ? (
         <div className="reset-confirm" role="group" aria-label="Turn recording on">
           <span className="small">Record how everyone in {app.ws.name} uses the app, from now on? Nothing anyone types is recorded.</span>
@@ -424,12 +475,6 @@ function Recording() {
           </span>
         </div>
       ) : null}
-      {app.viewer.admin ? null : (
-        <p className="record-state">
-          <span className="strong">{on ? `Recording is on in ${app.ws.name}.` : `Recording is off in ${app.ws.name}: nothing is recorded or sent.`}</span>{' '}
-          <span className="hint">Only admins change it{admins.length ? `: ${admins.join(', ')}` : ''}.</span>
-        </p>
-      )}
       <p className="hint"><Link to="/help/recording">What’s recorded, exactly</Link></p>
     </section>
   );
@@ -440,7 +485,7 @@ function Features() {
   const app = useApp();
   const { installed, on, off } = useModules();
   const [busy, setBusy] = useState<string | null>(null);
-  if (!installed.length) return null;
+  if (!installed.length) return <p className="hint">This build has no optional features.</p>;
   const nameOf = (id: string) => installed.find((m) => m.id === id)?.name ?? id;
   const flip = async (id: string, next: boolean) => {
     if (busy) return;
@@ -457,19 +502,19 @@ function Features() {
   };
   return (
     <section className="block features-block" aria-label="Features">
-      <p className="hint">Switch one off and it leaves every screen here, for everyone; nothing it saved is lost, and switching it back on brings it all back.</p>
       {installed.map((m) => {
         const why = off.get(m.id);
         const switched = (app.ws.modulesOff ?? []).includes(m.id);
         return (
-          <label key={m.id} className="check feature-check">
-            <input type="checkbox" checked={!switched} disabled={!!busy} onChange={(e) => void flip(m.id, e.target.checked)} />
-            <span className="stack" style={{ gap: 0 }}>
+          <label key={m.id} className="switch-row feature-check">
+            <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}>
               <span>{m.name}</span>
               <span className="hint">{m.summary}</span>
-              {!switched && why?.kind === 'needs' && <span className="hint">Off until {why.missing.map(nameOf).join(' and ')} is on: it needs {why.missing.length === 1 ? 'it' : 'them'}.</span>}
-              {on.has(m.id) && m.needs.length > 0 && <span className="hint">Needs {m.needs.map(nameOf).join(' and ')}.</span>}
+              {!switched && why?.kind === 'needs' && <span className="hint">Off until {why.missing.map(nameOf).join(' and ')} is on.</span>}
             </span>
+            {/* The state in a word beside the switch, never only its position (WR4, P6). */}
+            <span className="switch-word" aria-hidden="true">{on.has(m.id) ? 'On' : 'Off'}</span>
+            <input type="checkbox" className="switch" checked={!switched} disabled={!!busy} onChange={(e) => void flip(m.id, e.target.checked)} aria-label={m.name} />
           </label>
         );
       })}

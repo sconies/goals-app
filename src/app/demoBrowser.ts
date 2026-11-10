@@ -5,7 +5,7 @@
 
    Cleared: drafts (check-ins, new goals, the step a check-in was on), What's new "seen", when each goal was last looked
    at, a walkthrough in progress, a review's goal order, moved map cards, Goals' layout and Data's column layouts, the
-   back trail, and the research bar's "skipped" screens.
+   back trail, the research bar's "skipped" screens, and the Prefs port's values (recents, Getting started).
    Kept, because they are about the viewer rather than the example: who you are viewing as (Start over keeps the
    person; switch in the Demo panel), appearance (theme, accent, motion, sound), consent and ids for research and
    telemetry, the token an older inbox kept, and the markups you raised (the inbox still has them). */
@@ -20,6 +20,8 @@ export const DEMO_LOCAL = [
   'goals-app-layout',
   'goals-data-layout:',
   'goals-data-cols:',
+  // The Prefs port (src/app/search.ts): recents, and what Getting started has told each person (OB3).
+  'faro-prefs:',
 ] as const;
 
 /** sessionStorage keys, the same way. */

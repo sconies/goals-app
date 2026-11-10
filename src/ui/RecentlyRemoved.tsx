@@ -13,8 +13,13 @@ export function RecentlyRemoved({ bare = false }: { bare?: boolean } = {}) {
   const app = useApp();
   const [busy, setBusy] = useState<string | null>(null);
   const [limit, setLimit] = useState(8);
+  const [q, setQ] = useState('');
+  const [kind, setKind] = useState('');
   // An admin sees everything removed; anyone else what they removed themselves, which they can restore (8 Nov).
-  const list = app.recentlyRemoved().filter((r) => canRestore(app.viewer, r));
+  const all = app.recentlyRemoved().filter((r) => canRestore(app.viewer, r));
+  // A long list can be searched by name and narrowed to one kind (WR4).
+  const list = all.filter((r) => (!kind || r.kind === kind) && (!q.trim() || r.name.toLowerCase().includes(q.trim().toLowerCase())));
+  const kinds = [...new Set(all.map((r) => r.kind))];
   const who = (id: string | null) => app.person(id ?? '')?.name ?? app.full.people.find((p) => p.id === id)?.name ?? 'Someone';
   const restore = async (r: Removed) => {
     if (busy) return;
@@ -25,8 +30,19 @@ export function RecentlyRemoved({ bare = false }: { bare?: boolean } = {}) {
   return (
     <section className="block removed-block" aria-labelledby={bare ? undefined : 'ws-removed'} aria-label={bare ? 'Recently removed' : undefined}>
       {!bare && <h2 className="block-title" id="ws-removed">Recently removed{list.length > 0 && <span className="hint count-after">· {list.length}</span>}</h2>}
-      <p className="hint">{app.viewer.admin ? 'Anything' : 'What you’ve'} removed, stopped, ended or marked as left in the last {RESTORE_DAYS} days. Restore brings it back as it was. After {RESTORE_DAYS} days it leaves this list, but it’s never erased.{app.viewer.admin ? '' : ' Admins see what everyone has removed.'}</p>
-      {!list.length ? <p className="hint">{app.viewer.admin ? 'Nothing has been removed recently.' : 'You haven’t removed anything recently.'}</p> : (
+      <p className="hint">{app.viewer.admin ? `Anything removed, stopped, ended or marked as left in the last ${RESTORE_DAYS} days. After ${RESTORE_DAYS} days it leaves this list; it is never erased.` : `What you removed in the last ${RESTORE_DAYS} days. Admins see everyone’s.`}</p>
+      {all.length > 20 && (
+        <div className="row removed-find">
+          <label className="field" style={{ flex: '2 1 200px' }}><span className="sr">Find by name</span><input className="input" type="search" placeholder="Find by name" value={q} onChange={(e) => setQ(e.target.value)} /></label>
+          <label className="field" style={{ flex: '1 1 160px' }}><span className="sr">Kind</span>
+            <select className="input" value={kind} onChange={(e) => setKind(e.target.value)}>
+              <option value="">Kind: every kind</option>
+              {kinds.map((k) => <option key={k} value={k}>{REMOVED_LABEL[k]}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
+      {!all.length ? <p className="hint">{app.viewer.admin ? `Nothing was removed in the last ${RESTORE_DAYS} days.` : `You removed nothing in the last ${RESTORE_DAYS} days.`}</p> : !list.length ? <p className="hint">Nothing removed matches.</p> : (
         <ul className="removed-list" aria-label="Recently removed">
           {list.slice(0, limit).map((r) => (
             <li key={r.kind + r.id} className="removed-row">

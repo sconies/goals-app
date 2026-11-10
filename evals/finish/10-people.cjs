@@ -40,6 +40,12 @@ module.exports = {
     const fact = await p.locator('.ws-facts dt').first().evaluate((e) => Math.round(e.getBoundingClientRect().top + scrollY));
     if (fact > 260) fail(`390px: About’s first fact is ${fact}px from the top (at most 260)`);
 
+    // Features and Privacy (WR4): every switch that acts at once has its state as a word beside it.
+    await p.goto(p.url().replace(/\/demo\/[^?]*/, '/demo/workspace/privacy'));
+    await p.locator('.switch-row').first().waitFor();
+    const words = await p.locator('.switch-row .switch-word').allInnerTexts();
+    if (!words.length || !words.every((w) => w === 'On' || w === 'Off')) fail(`390px: Privacy’s state is not a word beside it (${JSON.stringify(words)})`);
+
     const sideways = [];
     for (const path of ['/people', '/teams', '/people/rhea', '/teams/cicd', '/teams/portal', '/workspace', '/workspace/cycles', '/workspace/privacy', '/workspace/removed']) {
       await p.goto(p.url().replace(/\/demo\/[^?]*/, '/demo' + path));

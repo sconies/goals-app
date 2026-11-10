@@ -35,6 +35,62 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goals', 'any-device', 'feedback', 'activity'],
   },
   {
+    id: 'getting-started',
+    date: '2026-11-10',
+    title: 'A first week that tells you what to do',
+    points: [
+      'After setting up a workspace, Home lists what’s left: first check-ins, goals to give an owner, and the link to send your team.',
+      'Someone you add sees who set it up and what’s theirs to do.',
+      'Set-up lets you leave a goal’s owner for later, and its step counter counts the path you chose.',
+    ],
+    articles: ['home', 'set-up'],
+  },
+  {
+    id: 'cycles-plainer',
+    date: '2026-11-10',
+    title: 'Cycles says where the year stands',
+    points: [
+      'Each cycle shows its week, its dates and when the wrap-up opens, with one action: see the wrap-up, wrap it up, or start the next cycle.',
+      'Deleting an empty cycle asks first.',
+      'Features and Privacy say On or Off in words beside each switch.',
+      'A long Recently removed list can be searched by name and narrowed to one kind.',
+      'People and Teams search and count like every other list: the same bar, and the filters in words with Remove.',
+    ],
+    articles: ['workspace-cycles', 'features', 'recording', 'removing', 'people'],
+  },
+  {
+    id: 'watch-and-comment-say',
+    date: '2026-11-10',
+    title: 'Watch and comments say what they do',
+    points: [
+      'Watch tells you what you’ll see and where before you choose, and says what it did, with Undo.',
+      'A comment says who can read it and who sees it on Home, and has a Cancel.',
+      'A goal’s printed page says its kind in plain words: “North star · a number to move”.',
+    ],
+    articles: ['goal-page', 'watching', 'print'],
+  },
+  {
+    id: 'goal-history',
+    date: '2026-11-10',
+    title: 'A goal’s history shows the weeks it missed',
+    points: [
+      'Activity on a goal is now History: every week is listed, with “No check-in” where there was none.',
+      'Reviews and Changes are separate filters, with counts, and a filter can be linked to.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
+    id: 'admins-on-access',
+    date: '2026-11-10',
+    title: 'Admins are managed where they are listed',
+    points: [
+      'Add or remove an admin on Workspace, Access, or from a person’s page. Removing one asks first, and both say what they did, with Undo.',
+      'Settings is about you: who you are here and your page, your own choices, the MCP tokens that act as you, and leaving the workspace.',
+      'Admins make MCP tokens on Access, or from a person’s page; Settings shows your own.',
+    ],
+    articles: ['workspace-access', 'settings'],
+  },
+  {
     id: 'one-list-bar',
     date: '2026-11-10',
     title: 'Searching works the same on Goals, Activity and Help',
@@ -542,7 +598,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'Scrolled down, the bar is one line on a solid panel that stands off the page: status, number, the gap to plan and the “…” menu. “Since you looked” only appears when something has changed.',
       'On paper, a goal fits one A4 page again, and on a 360px phone nothing runs off the side.',
     ],
-    articles: ['goal-page', 'print'],
+    articles: ['goal-page', 'watching', 'print'],
   },
   {
     id: 'faro',

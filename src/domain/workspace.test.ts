@@ -7,7 +7,7 @@ import { NotAllowed, teamPeople, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
 import { currentWeek } from './plan';
 import { cycleStanding, leaveWorkspace } from './removal';
-import { adminsLine, cycleWhen, workspaceName, workspaceNeeds, yearLine } from './workspaceAttention';
+import { adminsLine, cycleLine, cycleWhen, workspaceName, workspaceNeeds, yearLine } from './workspaceAttention';
 import { MAX_WORKSPACE_NAME, nameLength, nameProblem } from './thresholds';
 import type { Snapshot } from './types';
 
@@ -140,3 +140,13 @@ describe('a cycle’s dates (backlog WS)', () => {
     expect(cycleWhen({ startDate: '2024-12-23', weeks: 52 }, false, 45, today).now).toBe('Over');
   });
 });
+
+describe('a cycle’s row on Cycles (WR4)', () => {
+  it('says where it stands in a word, its week and dates, and its goals and check-ins', () => {
+    const c = { name: '2026', startDate: '2025-12-22', weeks: 53 };
+    expect(cycleLine(c, true, 46, new Date('2026-11-11T12:00:00Z'), { goals: 126, checkIns: 3200 })).toEqual({ title: '2026 · running', when: 'Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026', counts: '126 goals · 3,200 check-ins' });
+    expect(cycleLine({ name: '2025', startDate: '2024-12-23', weeks: 52 }, false, 46, new Date('2026-11-11T12:00:00Z'), { goals: 1, checkIns: 0 })).toEqual({ title: '2025 · over', when: '23 Dec 2024 to 21 Dec 2025', counts: '1 goal · no check-ins yet' });
+    expect(cycleLine({ name: '2027', startDate: '2027-01-04', weeks: 52 }, false, 46, new Date('2026-11-11T12:00:00Z'), { goals: 0, checkIns: 0 }).title).toBe('2027 · starts 4 Jan 2027');
+  });
+});
+
