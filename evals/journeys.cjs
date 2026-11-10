@@ -421,6 +421,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     // A goal behind asks what happens next before it moves on (deep review P2): a next step with an owner and a date.
     const decideNext = async () => {
       const add = p.locator('.decide').getByRole('button', { name: 'Add the next step' });
+      await add.or(reviewedNext).first().waitFor();
       if (!(await add.isVisible().catch(() => false))) return;
       await h.click(add);
       await h.fill(p.getByPlaceholder('What needs doing'), 'Owner to bring a recovery plan to the next session');

@@ -294,6 +294,8 @@ module.exports = {
     // A goal behind is decided before it's marked reviewed (deep review P2): here, by accepting the risk.
     const decide = async (p) => {
       const accept = p.locator('.decide').getByRole('button', { name: 'We accept the risk' });
+      // Wait until the bar has drawn one or the other: straight after a move it can still be on its way.
+      await accept.or(p.locator('.decide').getByRole('button', { name: /^Reviewed & / })).first().waitFor();
       if (!(await accept.isVisible().catch(() => false))) return;
       await accept.click();
       await p.getByRole('dialog').locator('textarea').fill('Waiting on the Q4 runner budget, decided above this review.');
