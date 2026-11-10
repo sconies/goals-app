@@ -26,6 +26,14 @@ describe('a goal’s history (rule 4)', () => {
     expect(first.at(-1)).toMatch(new RegExp(`^Weeks? .*${lastWeek}`));
   });
 
+  it('a week’s entry sits at the end of its week: a comment made this week is listed under it', () => {
+    const h = goalHistory(input(goal('ns-lead'))).entries;
+    const at = (w: number) => h.findIndex((x) => x.kind === 'checkin' && x.checkIn.week === w);
+    const comment = h.findIndex((x) => x.kind === 'comment' && currentWeek(cycle, new Date(x.at)) === week);
+    expect(comment).toBeGreaterThan(-1);
+    expect([at(week) < comment, comment < at(week - 1)]).toEqual([true, true]);
+  });
+
   it('Changes holds only edits; Reviews only what reviews said; the counts add up to All', () => {
     const h = goalHistory(input(goal('ns-lead')));
     expect(goalHistory(input(goal('ns-lead')), 'changes').entries.every((x) => x.kind === 'change' && x.change.entity !== 'decision')).toBe(true);

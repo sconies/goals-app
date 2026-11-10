@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'history-week-order',
+    date: '2026-11-10',
+    title: 'History puts each week in its place',
+    points: [
+      'A goal’s History listed some comments and changes above the week they belonged to.',
+      'Each week’s entry now comes after everything said or changed that week, so this week’s comments sit under this week.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
     id: 'cycles-plainer',
     date: '2026-11-10',
     title: 'Cycles says where the year stands',
