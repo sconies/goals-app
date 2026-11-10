@@ -5,15 +5,15 @@
      (files.ts), then the markup itself;
    - "You raised this" asks the database which of a person's markups and feedback were fixed;
    - the inbox reads and triages markups and feedback (markups.ts, feedback.ts). */
-import { createClient } from '@supabase/supabase-js';
 import type { Pictures } from '../../markup/ink';
 import { markupToRow, type Markup, type Raised } from '../../markup/model';
 import { openFeedback } from './feedback';
+import { faroClient } from './client';
 import { supabaseFiles } from './files';
 import { openMarkups } from './markups';
 
 export function supabaseMarkups(url: string, key: string) {
-  const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  const db = faroClient(url, key);
   const files = supabaseFiles(db, 'markups');
   return {
     async newId(): Promise<string> {

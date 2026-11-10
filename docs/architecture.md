@@ -109,6 +109,16 @@ Every change a person makes goes one way: `app.run(action, input)` (`src/app/sta
 
 Everything Faro needs from outside its own code sits behind one interface in `src/ports/`, each with a contract test any replacement must pass (`src/ports/contracts/`): the goals store (`Store`), markups (`MarkupStore`), feedback (`FeedbackStore`), who is viewing (`Identity`), the time (`Clock`), files (`Files`) and where a metric's numbers come from (`NumberSource`). The adapters live in `src/adapters/`: `supabase/` (the real app's, and the only code that imports Supabase), `postgres/` (the goals store on plain Postgres, after `bootstrap.sql` and the same migrations), `demo/` (the demo's number source) and `local.ts` (the picker, the clocks, files in memory). `src/adapters/stores.test.ts` and `parts.test.ts` run every contract on Faro's adapters; Supabase's run on a stand-in for its client over real Postgres (PGlite), so they need no network. How to write one for another platform: `spec/rebuild/adapters.md`.
 
+## The database: fenced off in a shared project (item 0c, 10 Nov)
+
+Faro's Supabase project (family-hq) also holds another app's real family data, so Faro keeps to its own schema:
+
+- **Its own schema.** Every table, view and function is in `faro` (migration 0035). Later migrations use plain names: they run with `search_path` faro, as the Faro role.
+- **Its own role.** `faro_owner` (`supabase/manual/faro-role.sql`) owns `faro` and has no rights on any table outside it, nor on storage or auth. CI's `DATABASE_URL` is that role, and CI's migrate job runs `scripts/check-fence.mjs` before migrating: it fails if the role can read or write any table outside `faro`. It reads the catalog only and prints counts, never another app's names. Two functions read outside Faro and stay with postgres: `okr_markup_pictures_open` (storage.buckets) and the old builder sign-in ones (auth.jwt()).
+- **Its own requests.** The app and the MCP server use the public key only, never the service role key, and ask the Data API for `faro` (`src/adapters/supabase/client.ts`). Until the Data API offers `faro`, they fall back to the redirects 0035 left under the old names in `public` (views with `security_invoker`, and functions that call the ones in `faro`, all marked `faro: redirect`). Backlog 0c2 removes both.
+- **Reset and export.** `npm run faro:reset -- --yes` writes every row of `faro` to `faro-exports/` and then deletes every workspace by the database's own rule (the builders' inbox stays). `npm run faro:export` writes the rows only. Each workspace also downloads as a spreadsheet from Data.
+- **The pictures' bucket** stays in Supabase's `storage` schema with every other bucket (a bucket can't move). Its rules admit only Faro's markup ids.
+
 ## Where it stands
 
 - **Done (item 0, 8 Nov):**

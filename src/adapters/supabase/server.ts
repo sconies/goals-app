@@ -1,10 +1,11 @@
 /* The AI tools' endpoint on Supabase (backlog 8c: Supabase only in its adapters): everything server/mcp.ts needs from
-   the outside world (its Deps), from Supabase. It reads and writes with SUPABASE_SERVICE_ROLE_KEY when set, otherwise
-   the app's public key (either works: markup pictures are in a public-read bucket since migration 0031, read by their
-   address), and records a span per tool call in the telemetry tables (migration 0022) when the workspace records.
-   Tokens are found, noted as used and made through the database's functions (migration 0024), which work with either
-   key. To run the endpoint on another platform, write the same Deps from your own adapters. */
-import { createClient } from '@supabase/supabase-js';
+   the outside world (its Deps), from Supabase. It reads and writes with the app's public key only, in Faro's own schema
+   (faro, backlog 0c), exactly as the browser does: tokens are found, noted as used and made through the database's
+   functions (migration 0024), markup pictures are read by their public address (migration 0031), and it records a span
+   per tool call in the telemetry tables (migration 0022) when the workspace records. It never uses
+   SUPABASE_SERVICE_ROLE_KEY, the key that passes every rule in the whole shared database. To run the endpoint on
+   another platform, write the same Deps from your own adapters. */
+import { faroClient } from './client';
 import { SupabaseStore } from './goalsStore';
 import { tokenFromRow, type TokenRow } from '../../data/rows';
 import type { Deps } from '../../../server/mcp';
@@ -17,15 +18,14 @@ import { tokenFeedback } from './feedback';
 
 export function supabaseDeps(origin: string, env: Record<string, string | undefined> = process.env): Deps {
   const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
-  const service = env.SUPABASE_SERVICE_ROLE_KEY;
-  const key = service ?? env.VITE_SUPABASE_KEY;
-  if (!url || !key) throw new Error('The server has no database settings (SUPABASE_URL and a key).');
-  const db = createClient(url, key, { auth: { persistSession: false } });
+  const key = env.SUPABASE_KEY ?? env.VITE_SUPABASE_KEY;
+  if (!url || !key) throw new Error('The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).');
+  const db = faroClient(url, key);
   const store = new SupabaseStore(url, key, db);
   // The hash of the token this request came with, to note when it was used.
   let seen: string | null = null;
   return {
-    // Through okr_token_find (migration 0024), which works with either key; before it, from the table.
+    // Through okr_token_find (migration 0024); before it, from the table.
     async findToken(hash) {
       let { data, error } = await db.rpc('okr_token_find', { hash });
       if (error && /okr_token_find|PGRST202|Could not find the function/.test(`${error.code} ${error.message}`)) {
@@ -50,7 +50,7 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
     },
     issueToken: (ws, c) => store.issueToken(ws, c),
     // The inbox's tools, for any token, through the database's functions for it (no new secret). Pictures are read by
-    // their public address (migration 0031), with either key.
+    // their public address (migration 0031).
     markups: (hash) => markupOps({
       store: tokenMarkups(db, hash), entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO,
       inboxLink: (id) => `${origin}/feedback?markup=${id}`,
@@ -81,8 +81,8 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
       const off = error ? null : (data as { modules_off?: string[] | null } | null)?.modules_off;
       return Array.isArray(off) ? off : [];
     },
-    // The server's own spans, with the service role key when it's set (otherwise the public key, which can add rows
-    // but not read them). A missing table or a refusal is ignored: telemetry never changes an answer.
+    // The server's own spans, with the public key, which can add rows but not read them. A missing table or a refusal is
+    // ignored: telemetry never changes an answer.
     async telemetry(spans) { await db.from('okr_telemetry_spans').insert(spans); },
   };
 }

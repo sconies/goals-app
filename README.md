@@ -72,7 +72,7 @@ evals/          requirements, scenarios, journeys, runner, latest report
 
 The app has two stores behind one contract, `Store` in `src/data/store.ts`:
 
-- **Shared data (Supabase).** Used when `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` are set; copy `.env.example` to `.env` to use them. The data lives in the `okr_` tables of the family-hq project, and every row carries its workspace. The first load into empty tables seeds the example. Reads are paged past Supabase's 1,000-row limit, requests time out after 12 seconds with a Try again screen, and failed saves say so. Add `?store=browser` to the URL to work on a private copy instead.
+- **Shared data (Supabase).** Used when `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` are set; copy `.env.example` to `.env` to use them. The data lives in the `okr_` tables of the family-hq project, in Faro's own schema, `faro`, fenced off from the other app there (backlog 0c, `docs/architecture.md`), and every row carries its workspace. The first load into empty tables seeds the example. Reads are paged past Supabase's 1,000-row limit, requests time out after 12 seconds with a Try again screen, and failed saves say so. Add `?store=browser` to the URL to work on a private copy instead.
 - **Browser only (`BrowserStore`).** Used when those values are not set, and always by the evals.
 
 The schema in `supabase/migrations/` enforces these invariants itself:
