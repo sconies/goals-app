@@ -68,7 +68,7 @@ On scroll the bar becomes one sticky line (status, title, number, gap, the prima
 2. When the goal is off track or at risk and has no open next step (rule 3's `gap`): the warning mark and "No next step yet. Nobody has said what happens next, who does it and by when."
 3. "For you" (a small label), when rule 2 puts rows there: those rows.
 4. The other open rows, then "Done lately" (a small label) with up to three done or answered rows, then, when there are more, the link "Show all {n}", which lists them all in place (`?steps=all`).
-5. The buttons: **"Add a next step"** (plain; anyone); and for anyone but the owner **"Ask {owner} a question"** (plain). For the owner: "Ask for a decision or help" (plain; opens today's request form from the check-in, on its own).
+5. The buttons: **"Add a next step"** (plain; anyone); and for anyone but the owner **"Ask {owner} a question"** (plain). For the owner: "Ask for a decision or help" (plain; it opens this week's check-in at its "What do you need?" step, where a decision or help is raised today: one way to raise it, and no new action; `docs/design/architecture.md`, 4.5).
 
 **A row** (rule 2 gives its words):
 
@@ -206,7 +206,7 @@ Consistent with R1; each line names the action that already enforces it. Nothing
 | "Mark done" on a next step | No | Only if they do it or asked for it | Yes | Yes | `markActionDone`, `canMarkDone` |
 | "Ask {owner} a question" | Yes | Not on their own goal | — | Yes | `askQuestion` |
 | "Ask {owner} for an update" | Yes | No | — | Yes | `askForUpdate` |
-| "Ask for a decision or help" | No | Yes | — | Yes | `linkRequest` and the check-in's request |
+| "Ask for a decision or help" (opens the check-in) | No | Yes | — | Yes | `planChanges` (the check-in's request), `linkRequest` |
 | "Respond" / "Answer" | For an ask to no one in particular | When asked | Yes | Yes | `answerRequest`, `canAnswer` |
 | "Withdraw" | Whoever asked | Also on a decision raised on their goal | — | Yes | `withdrawRequest`, `canWithdraw` |
 | Comment; edit or remove their own | Yes | Yes | — | Removes any | `addNote`, `editComment`, `deleteComment` |
@@ -309,8 +309,8 @@ Returns the sentence of 2.2's item 2 from the owner and the number of people wat
 ## 5. Extension points
 
 - `PLACES` gains **`goal.facts`** (given the goal; rendered as a line in the summary) beside `goal.sections`, which now renders inside About, after "What it measures" (it was before Activity). `docs/architecture.md`'s table is updated. The metric library uses `goal.facts` for "Measured by …" and `goal.sections` for its block.
-- A module adds a row kind to Next steps and asks through a new list in its `app.tsx`: `steps: [{ kind, rows(goal, snapshot, viewer) }]` returning rule 2's row shape (3a's sent markups will use it). The manifest test checks it.
-- A module adds an entry kind to History the same way: `history: [{ kind: 'changes' | 'reviews' | 'comments', entries(goal, snapshot) }]` (the metric library: "Rhea linked it to the metric Lead time for changes").
+- Nothing else is added (`docs/design/architecture.md`, 4.1). A module's changes to a goal are entries in the core's change log, so History shows them under Changes with no new mechanism (the metric library: "Rhea linked it to the metric Lead time for changes"). A way for a module to add rows to Next steps and asks is left to backlog 3a, its first user.
+- The new rules below take what they read, not the whole workspace (`docs/design/architecture.md`, 4.4): where a signature in section 4 says `snapshot`, read it as the inputs `src/app/reads.ts` gives it.
 
 ## 6. Evals
 

@@ -243,7 +243,7 @@ Section 1's table as one function, returning the new search string and any line 
 
 - `goals.tools` (a place) is unchanged; it is rendered inside the Views menu on every width (`inMenu` always true).
 - A module adds a filter to Goals through the find spec's `filters` list (`list: 'goals'`). The metric library adds "Measured by" (`?metric=<id>`).
-- A module adds a group through a new list in its `app.tsx`: `groups: [{ id, label, hint, of(goal, snapshot) → { key, title } }]` (the metric library could add "By metric"; not built now). `docs/architecture.md`'s table gains both.
+- Modules can't add a group: the four are the core's. (A `groups` list was considered and cut: `docs/design/architecture.md`, 4.1.) `docs/architecture.md`'s table gains the filter.
 
 ## 6. Evals
 

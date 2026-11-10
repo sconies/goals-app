@@ -142,7 +142,7 @@ Wireframe 5. Seven steps as today; every step is an address and behaves as 2.1 s
 - **Step 5, "What outcome are you after?"** (templates): above the fields, one line: "Example numbers. Change them to yours, or leave them and correct them at the first check-in." Owner: find-and-pick over the people entered in steps 2 and 3, starting as you.
 - **Step 6, "What feeds it?":** the same line once at the top; each goal's Owner is find-and-pick over the same people, **starting empty**, with the hint under the first: "Give a teammate one, so they have something to check in on." Leaving one empty is allowed.
 - **Step 7, Check:** each goal's row says its owner or "No owner yet"; with any unowned: "{n} goals have no owner yet. You can choose them now, or from Home afterwards." "Change" links are 44 px high, as are "Start over" and "Change people" (0u).
-- A goal with no owner is created owned by the person setting up and marked for day one's "Give {n} goals an owner" (rule 7); nothing is created without an owner in the records.
+- A goal with no owner chosen is created owned by the person setting up. Its id is remembered for that person in the `Prefs` port (`docs/design/architecture.md`, 1.1 and 4.3), which is what day one's "Give {n} goals an owner" counts (rule 7). No field is added to a goal, and nothing is created without an owner in the records.
 
 `/ready` is unchanged except its third line: "Then send your team the link below. Faro doesn’t send any email." and the link field with "Copy".
 
@@ -275,7 +275,7 @@ Returns the steps for the starting point chosen: a template: all seven; "Start b
 In `src/domain/home.ts`. `facts` is per person and workspace: `firstSeenAt`, `hidden`, `inviteCopied`, kept behind the identity port's storage. Returns the rows of 2.9 that apply and aren't done, in the table's order; nothing when hidden, when 14 days have passed since `firstSeenAt`, or when the workspace is more than 28 days old and the viewer isn't new to it.
 
 - "Whoever set it up" is the workspace's creator (`Workspace.createdBy`; the first admin where unset).
-- A goal "marked" for `assign` is one created at set-up with no owner chosen (a flag on the set-up's commit, cleared when its owner is changed or confirmed).
+- The goals counted by `assign` are those whose ids set-up remembered in the `Prefs` port as left without a chosen owner, and that the person who set up still owns. Changing a goal's owner, or choosing "Keep it as mine" on the row, takes it off the list.
 
 | Given | Then |
 |---|---|
@@ -290,7 +290,7 @@ In `src/domain/home.ts`. `facts` is per person and workspace: `firstSeenAt`, `hi
 ## 5. Extension points
 
 - `goal.measure` (exists): now rendered first on the measure step, given the owner's team. Its props gain `team` at render time on New goal (it had the form's team only once step 3 was reached).
-- The `check` rows of New goal are a new small list a module can add to: `newGoalCheck: [(draft, pick) → { label, text } | null]` in `app.tsx`; the metric library adds "Measured by". `docs/architecture.md` gains the row; the manifest test checks it.
+- New goal's Check step prints one line from the `goal.measure` place: the place's `onChange(pick)` gains an optional second value, the words for Check ("Measured by Pipeline queue wait (p90), for CI/CD."). No new extension point (`docs/design/architecture.md`, 4.1).
 - `home.blocks` (exists) is unchanged; "Getting started" is core and sits above it.
 
 ## 6. Evals
@@ -357,7 +357,7 @@ New: `NEW-GOAL-STEPS` ("New goal asks what, who and where, how it's measured, th
 
 | # | Item | What | Effort | Depends on |
 |---|---|---|---|---|
-| OB1 | **New goal: the order, the pickers, steps in the address** | 2.1 to 2.5; rules 1, 2, 5; the `newGoalCheck` list; U84, F16 | M | FS1 (find-and-pick). "Measured by" as find-and-pick needs ML2; until then the place renders what Wednesday built, first on the step |
+| OB1 | **New goal: the order, the pickers, steps in the address** | 2.1 to 2.5; rules 1, 2, 5; U84, F16 | M | FS1 (find-and-pick). "Measured by" as find-and-pick needs ML2; until then the place renders what Wednesday built, first on the step |
 | OB2 | **Not born late: past stages and the first check-in** | 2.4's stage question, 2.6, 2.7; rules 3, 4; U85, N17 | S–M | Nothing (it can go before OB1) |
 | OB3 | **Set-up's owners and day one** | 2.8, 2.9; rules 6, 7; U86 | S–M | FS1 for the pickers; WR1 for `/people` (until then "Add people" goes where it goes today) |
 

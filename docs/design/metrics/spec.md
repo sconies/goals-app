@@ -291,10 +291,10 @@ What the module uses, and what must exist first. A row marked "new" is added to 
 | `goal.facts` | 2.6's line | New: GT1 |
 | `people.person`, `people.team` | 2.7 | New: the Workspace spec (WR1) |
 | `finders` | The kind `metric` in find-and-pick and Find | New: the find spec (FS1) |
-| `filters` with `list: 'goals'` | `?metric=` on Goals | New: the find spec (FS2) |
+| `filters` with `list: 'goals'`, declared as data (column `metricId`) | `?metric=` on Goals | New: AR2 (`docs/design/architecture.md`) |
 | Module-level `needs(snapshot, viewer)` | 2.8 | New here (ML3): the Workspace spec gives `needs` to a section; a module with no section needs it at module level. `workspaceNeeds` lists modules' needs after the core's |
-| `history` (a goal's History) | "Rhea linked it to the metric …" as a Changes entry | New: GT2 |
-| Records (tables, mappers, commit keys) | The module's own records out of the core | AS part 2. Not required to build this; cleaner after |
+| A goal's History | "Rhea linked it to the metric …" shows under Changes because linking is already an entry in the core's change log | Nothing new (`docs/design/architecture.md`, 4.1) |
+| Records (tables, mappers, commit keys) | The module's own records and rules out of the core | AS part 2, built just before ML1 (`docs/design/architecture.md`, 1.3) |
 | Help, tools, requirements, journeys | As today | Exists |
 
 Until a new point exists, its part of this spec waits; nothing is wired by editing a core screen.

@@ -11,6 +11,7 @@
 | The metric library | [metrics/README.md](metrics/README.md) | [metrics/spec.md](metrics/spec.md) | 5 |
 | Goal onboarding | [onboarding/README.md](onboarding/README.md) | [onboarding/spec.md](onboarding/spec.md) | 6 |
 | Workspace and People (done first, PR #81) | `workspace/README.md` | `workspace/spec.md` | — |
+| What all of it needs from the architecture | [architecture.md](architecture.md) | In the same file | — |
 
 Why that order, and a verdict on each area: [`docs/reviews/2026-11-10-app-redesign-priorities.md`](../reviews/2026-11-10-app-redesign-priorities.md). The Workspace files are on the branch `workspace-redesign` until PR #81 merges; this set is written to sit beside them.
 
@@ -130,44 +131,50 @@ Backlog-sized items across the six areas and Workspace, in order. Effort: **S** 
 | # | Item | What | Effort | Depends on | Spec |
 |---|---|---|---|---|---|
 | 0 | **WR0** The warning mark, fixed | Done: PR #82, 10 Nov (the mark sized; F7 measures it). The wider design check for icon size (the Workspace spec's P16) rides with WR2 | — | — | workspace |
-| 1 | **FS1** Find-and-pick, everywhere a person, team or goal is chosen | The control, its rules and port, and every select of everything replaced | M | Nothing | find |
-| 2 | **GT1** Act on a goal | One list of next steps and asks, the owner's buttons, one order at every width, section links | M | Nothing hard (FS1 for "who") | goal |
-| 3 | **OB2** Not born late | A stage in the past is asked about; a first number can restart the plan; a new goal's page says less | S–M | Nothing | onboarding |
-| 4 | **NV2** Where you are | Page names in the title, one lit item, one back link, one way out of a form | S–M | Nothing | navigation |
-| 5 | **NV3** The check-in queue | Check-in opens on the week's list | S | Nothing | navigation |
-| 6 | **FS2** The list bar, on Goals, Activity, Data, Help and Feedback | The bar, the Filters sheet, the count and filter lines, none found, near misses, the address | M | FS1 | find |
-| 7 | **WR1** People has its own place | `/people`, `/teams`, a person, a team | M | Uses FS1 and FS2 | workspace |
-| 8 | **GL1** with **NV1** Goals opens on yours; the menu in groups | Scope, group, the Needs attention switch, one line; the new sidebar, the collapsed rail, the phone's tabs and More (with WR5: one Feedback, one name, one Demo panel) | M + M | FS2; WR1 for People's row | goals, navigation |
-| 9 | **GL2** Goals' menus, the Map's search, the phone's View sheet | Layout and Views as menus on every width | S–M | GL1 | goals |
-| 10 | **FS3** Find from anywhere | The sheet, its key, its door in the menu and the phone's bar | S | FS1, NV1 | find |
-| 11 | **GT2** A goal's history shows its gaps | Every week, four filters with counts, the address | S–M | GT1 | goal |
-| 12 | **GT3** Watch and comments say what they do; one door to change a goal | The Watch sheet, the comment box, the edit page | S | GT1, FS1 | goal |
-| 13 | **WR2** Workspace opens on About | The facts, "To sort out", the switcher | S–M | WR1 | workspace |
-| 14 | **WR3** Admins and tokens where they are listed; Settings about you | Access, Settings, Leave | S–M | WR1, WR2 | workspace |
-| 15 | **WR4** Cycles, Features, Privacy, Recently removed, plainer | — | S | WR2 | workspace |
-| 16 | **OB1** New goal: the order, the pickers, steps in the address | — | M | FS1 | onboarding |
-| 17 | **ML1** The metric library as a place, and a page per metric | `/metrics`, the goals table, the people places | M | Wednesday's build merged; FS2, NV1, GT1, WR1; cleaner after AS part 2 | metrics |
-| 18 | **ML2** "Measured by", found by typing | The picker, what it fills in, the Goals filter | S–M | FS1, OB1 | metrics |
-| 19 | **ML3** Looking after metrics | What's missing, the close-name question, Remove's confirm, the line on About | S–M | ML1, WR2 | metrics |
-| 20 | **OB3** Set-up's owners and day one | Owners per template goal, the counter, "Getting started" | S–M | FS1, WR1 | onboarding |
-| 21 | **FS4** Held at company size | The 15,000-person, 30,000-goal check and the lint (this is also WR6 and 0a (4)) | S | FS1, FS2 | find |
+| 1 | **AR1** with **AR4** The `Search` and `Prefs` ports; new rules take what they need | The search function behind a port with its contract, shaped as the query port; recents and remembered choices behind a port; `find_goals` through it; the clock banned in the rules; a lint that no new rule takes the whole workspace. `[no news]` | S–M | Nothing (8c's pattern) | architecture |
+| 2 | **FS1** Find-and-pick, everywhere a person, team or goal is chosen | The control and its rules, and every select of everything replaced | M | AR1 | find |
+| 3 | **AR3** One way to run an action | `app.run(action, input)` and the action table: the command port's shape in Faro. `[no news]` | S–M | Nothing | architecture |
+| 4 | **GT1** Act on a goal | One list of next steps and asks, the owner's buttons, one order at every width, section links | M | AR3; FS1 for "who" | goal |
+| 5 | **OB2** Not born late | A stage in the past is asked about; a first number can restart the plan; a new goal's page says less | S–M | Nothing | onboarding |
+| 6 | **NV2** Where you are | Page names in the title, one lit item, one back link, one way out of a form | S–M | Nothing | navigation |
+| 7 | **NV3** The check-in queue | Check-in opens on the week's list | S | Nothing | navigation |
+| 8 | **FS2** The list bar, on Goals, Activity, Data, Help and Feedback | The bar, the Filters sheet, the count and filter lines, none found, near misses, the address | M | FS1 | find |
+| 9 | **WR1** People has its own place | `/people`, `/teams`, a person, a team, with the two people places | M | Uses FS1 and FS2 | workspace |
+| 10 | **AR2** Seven additions to the module contract | A menu item's group, a page's name, `goal.facts`, finders, filters as data, a module's things to sort out; the menu, title and lit item as rules. `[no news]` | S–M | AR1 | architecture |
+| 11 | **GL1** with **NV1** Goals opens on yours; the menu in groups | Scope, group, the Needs attention switch, one line; the new sidebar, the collapsed rail, the phone's tabs and More (with WR5: one Feedback, one name, one Demo panel) | M + M | FS2, AR2; WR1 for People's row | goals, navigation |
+| 12 | **GL2** Goals' menus, the Map's search, the phone's View sheet | Layout and Views as menus on every width | S–M | GL1 | goals |
+| 13 | **FS3** Find from anywhere | The sheet, its key, its door in the menu and the phone's bar | S | FS1, NV1 | find |
+| 14 | **GT2** A goal's history shows its gaps | Every week, four filters with counts, the address | S–M | GT1 | goal |
+| 15 | **GT3** Watch and comments say what they do; one door to change a goal | The Watch sheet, the comment box, the edit page | S | GT1, FS1 | goal |
+| 16 | **WR2** Workspace opens on About | The facts, "To sort out", the switcher | S–M | WR1 | workspace |
+| 17 | **WR3** Admins and tokens where they are listed; Settings about you | Access, Settings, Leave | S–M | WR1, WR2 | workspace |
+| 18 | **WR4** Cycles, Features, Privacy, Recently removed, plainer | — | S | WR2 | workspace |
+| 19 | **OB1** New goal: the order, the pickers, steps in the address | — | M | FS1 | onboarding |
+| 20 | **AS part 2** The records extension point | A module declares its records; the metric library's records and rules move out of the core into its folder. One migration only if `okr_commit` names the metric tables. `[no news]` | M | AR3; Wednesday's build merged | architecture; backlog AS |
+| 21 | **ML1** The metric library as a place, and a page per metric | `/metrics`, the goals table, the people places | M | AS part 2, AR2, FS2, NV1, GT1, WR1 | metrics |
+| 22 | **ML2** "Measured by", found by typing | The picker, what it fills in, the Goals filter | S–M | FS1, OB1 | metrics |
+| 23 | **ML3** Looking after metrics | What's missing, the close-name question, Remove's confirm, the line on About | S–M | ML1, WR2 | metrics |
+| 24 | **OB3** Set-up's owners and day one | Owners per template goal, the counter, "Getting started" | S–M | FS1, AR1 (`Prefs`), WR1 | onboarding |
+| 25 | **AS part 3**, the rest | Scorecard words split from codes in conformance; one schema file in the kit; the "don't copy this" list; `api/mcp.js` built in CI. `[no news]` | S–M | Nothing | architecture; backlog AS |
+| 26 | **FS4** Held at company size | The 15,000-person, 30,000-goal check and the lint (this is also WR6 and 0a (4)) | S | FS1, FS2 | find |
 
-**About fifteen releases of work**: eight M, nine S–M, four S.
+**About eighteen releases of work**: fifteen for the screens (eight M, nine S–M, four S) and three for the architecture under them (one M, four S–M), which is placed just before the first screens that need each piece (`architecture.md`).
 
 **Three tracks can run side by side** (one build at a time per area, as `CLAUDE.md` asks), because they share almost no screen code:
 
-- **Lists and the frame:** FS1 → FS2 → GL1 with NV1 → GL2 → FS3 → FS4.
-- **One goal:** GT1 → GT2 → GT3, then OB2 → OB1.
-- **People, Workspace, Metrics:** WR1 → WR2 → WR3 → WR4, then ML1 → ML2 → ML3, then OB3.
+- **Lists and the frame:** AR1 with AR4 → FS1 → FS2 → AR2 → GL1 with NV1 → GL2 → FS3 → FS4.
+- **One goal:** AR3 → GT1 → GT2 → GT3, then OB2 → OB1.
+- **People, Workspace, Metrics:** WR1 → WR2 → WR3 → WR4, then AS part 2 → ML1 → ML2 → ML3, then OB3; AS part 3's remainder last.
 
-**The first cut that changes how the app feels** is items 1 to 8: about six releases. After it nothing is chosen from a list of everything, Goals opens on yours, the menu fits, a goal's owner can act, and People exists.
+**The first cut that changes how the app feels** is items 1 to 11: about eight releases, two of them architecture. After it nothing is chosen from a list of everything, Goals opens on yours, the menu fits, a goal's owner can act, and People exists.
 
 ### Where it sits in the backlog
 
 - **Replaces:** 0a (all of it), GD (2) to (7), NAV (all of it), 0u's leftovers, LV's leftovers, SU's leftover, and R5's Cmd-K if Find is built.
 - **Builds on, and keeps:** GP, G, MAP, WS, SU, LP's built parts, check-in honesty, Decide in the review, 0b.
-- **Leaves alone:** 0c, AS, L, LP's U20 and U22, R5's other requirements, 3a (which gains a home in Next steps and asks), 0t, 11.
-- **Recommended place:** after 0c and AS, as the Workspace design already recommended for itself; L's remaining parts can run in the "one goal" track's gaps since they touch Home and reviews, not these screens.
+- **Takes in:** AS parts 2 and 3 (placed in the plan above; AS part 1 was built in #72).
+- **Leaves alone:** 0c, L, LP's U20 and U22, R5's other requirements, 3a (which gains a home in Next steps and asks), 0t, 11.
+- **Recommended place:** after 0c (AS is now inside the plan), as the Workspace design already recommended for itself; L's remaining parts can run in the "one goal" track's gaps since they touch Home and reviews, not these screens.
 - **The rebuild kit:** each item adds its stage notes; the three seams worth copying are the `Search` port (find, rule 7), the menu as one function of the viewer (navigation, rule 1) and scope as R6a's scope (goals, rule 1).
 
 ## Evals and requirements, numbered once
@@ -191,7 +198,7 @@ Dark mode; a screen-reader pass; the real shared database (the demo and a browse
 
 ## Decisions for Lane
 
-One batch; the recommended answer is first. Each area's README has its own finer list, and its spec says what changes for each other answer; these nine are the ones that shape the set. Workspace's eight (PR #81) stand as asked there, less its first (the warning mark), which PR #82 settled.
+One batch; the recommended answer is first. Each area's README has its own finer list, and its spec says what changes for each other answer; these twelve are the ones that shape the set (the last three are about the architecture: `architecture.md`). Workspace's eight (PR #81) stand as asked there, less its first (the warning mark), which PR #82 settled.
 
 1. **Find from anywhere** (find, 1).
    - (a) Build it in Faro: it is the picker with a door, and the menu and the phone are designed around it. *Recommended.*
@@ -223,7 +230,17 @@ One batch; the recommended answer is first. Each area's README has its own finer
    - (a) Set-up asks who owns each template goal; Home gets one "Getting started" block for the first week that fits each person, the teammate included. *Recommended.*
    - (b) Only the teammate's welcome line and the true condition on "Add your people".
 9. **When, and in what order.**
-    - (a) After 0c and AS, in the plan's order, as three tracks; the first cut is items 1 to 8. This replaces 0a, GD, NAV and 0u in the backlog. *Recommended.*
-    - (b) After 0c and AS, one track only (slower, simpler to follow).
+    - (a) After 0c, in the plan's order, as three tracks; the first cut is items 1 to 11. This replaces 0a, GD, NAV and 0u in the backlog and takes in AS parts 2 and 3. *Recommended.*
+    - (b) After 0c, one track only (slower, simpler to follow).
     - (c) Only the first cut for now; decide the rest after Wednesday's feedback.
     - (d) Hold all of it until Wednesday's feedback is in.
+10. **The architecture items** (architecture, A).
+    - (a) Build AR1 to AR4 and AS part 2 where the plan places them, each just before the screens that need it. *Recommended.*
+    - (b) Build the screens first on what exists, and the architecture after (faster to see; the metric module reaches further into the core before it is moved out).
+    - (c) All the architecture first, then the screens.
+11. **One way to run an action in Faro** (architecture, B).
+    - (a) Build the dispatcher before the goal page's buttons: it is the command port's shape in code a team will copy. *Recommended.*
+    - (b) Leave Faro's per-action methods; the command port stays a sketch.
+12. **Where the design gives way to the architecture** (architecture, C).
+    - (a) Take all five changes: four proposed extension points cut, a module's filter declared as data, no new field for a template goal's owner, new rules take only what they read, and "Ask for a decision or help" opens the check-in instead of being a new action. *Recommended; the specs already say so.*
+    - (b) The same, but keep "Ask for a decision or help" as its own action on the goal page.

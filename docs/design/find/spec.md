@@ -305,7 +305,8 @@ Calls rule 7 for goal, person, team and metric with `size: 3` and returns the gr
 
 - `PLACES` gains nothing. Modules use the parts directly (`src/ui` is core; a module may import it).
 - A module adds a kind to find-and-pick and to Find by registering a **finder** in its `app.tsx`: `finders: [{ kind, things, row(thing), search(ask, snapshot), open(thing) }]`. The metric library registers `metric`; with the module off, the kind is gone from Find and from every picker. `docs/architecture.md`'s extension-point table gains this row; the manifest test checks a module that lists `finders` in `module.json`.
-- A module adds a filter to a core list by the new place-like list `filters` in `app.tsx`: `{ list: 'goals', id, label, param, control, matches(row, value) }` (the metric library adds "Measured by" to Goals: `?metric=`).
+- A module adds a filter to a core list by the new list `filters` in `app.tsx`, declared as data so a server can apply it (`docs/design/architecture.md`, 4.2): `{ list: 'goals', id, label, param, column, pick }`, where `column` is a column the module adds to the goal's summary and says how to fill. The metric library adds "Measured by" to Goals: `?metric=`, column `metricId`, picked with the metric picker.
+- The search function of rule 7 sits behind the `Search` port, and recents behind the `Prefs` port (`docs/design/architecture.md`, 1.1: item AR1, built just before FS1).
 
 ## 7. Evals
 
