@@ -167,10 +167,15 @@ function descendantsOf(goal: Goal, app: App): Goal[] {
   return out;
 }
 
-/** Watch this goal, or it and everything feeding it; or stop. Says what else is covering it. */
+/**
+ * Watch (goal spec, 2.5; GT3): the button opens a sheet that says what watching does before you choose: what you'll see
+ * and where, that your name is listed, and that Faro sends no email. With feeders, this goal or it and everything feeding
+ * it. Watching, the sheet has Done and Stop watching. Each says what it did, with Undo.
+ */
 export function WatchButton({ goal, primary }: { goal: Goal; primary?: boolean }) {
   const app = useApp();
   const [open, setOpen] = useState(false);
+  const [scope, setScope] = useState<'goal' | 'tree'>('goal');
   const w = watchOf(app.viewer.id, goal, app.snapshot);
   const covers = coveringWatches(app.viewer.id, goal, app.snapshot);
   const coverText = (x: Watch) => x.kind === 'level' ? `every ${LEVEL_LABEL[x.ref as Level]} goal` : `${app.goal(x.ref)?.title ?? 'a goal'} and what feeds it`;
@@ -178,9 +183,10 @@ export function WatchButton({ goal, primary }: { goal: Goal; primary?: boolean }
   const label = w === null ? 'Watch' : w !== 'via' && w.kind === 'tree' ? 'Watching all' : 'Watching';
   const doWatch = async (kind: 'goal' | 'tree') => {
     try {
-      await app.watch(kind, goal.id);
+      const c = await app.run('watch', { kind, ref: goal.id });
       if (kind === 'tree' && w && w !== 'via' && w.kind === 'goal') await app.unwatch(w.id);
-      app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`);
+      const made = c?.watches?.[0]?.id;
+      app.toast(kind === 'tree' ? `Watching ${goal.title} and everything feeding it` : `Watching ${goal.title}`, 'success', made ? { label: 'Undo', run: () => { void app.run('unwatch', { watchId: made }).catch(() => undefined); } } : undefined);
       setOpen(false);
     } catch { /* the save already said what went wrong */ }
   };
@@ -193,17 +199,25 @@ export function WatchButton({ goal, primary }: { goal: Goal; primary?: boolean }
   };
   return (
     <>
-      <button className={'btn' + (w ? ' watching' : primary ? ' primary' : '')} aria-pressed={!!w} onClick={() => (w === null && !feeding ? void doWatch('goal') : setOpen(true))}>
+      <button className={'btn' + (w ? ' watching' : primary ? ' primary' : '')} aria-pressed={!!w} onClick={() => { setScope('goal'); setOpen(true); }}>
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 8s2.2-4.5 6-4.5S14 8 14 8s-2.2 4.5-6 4.5S2 8 2 8z" /><circle cx="8" cy="8" r="1.8" /></svg>{label}
       </button>
-      <Sheet open={open} onClose={() => setOpen(false)} title={goal.title}>
+      <Sheet open={open} onClose={() => setOpen(false)} title={w ? `You’re watching ${goal.title}` : `Watch ${goal.title}`}>
         <div className="stack" style={{ gap: 'var(--s3)' }}>
+          <p className="watch-says">Its check-ins, changes of status and new asks show on your Home and under Watching in Goals. Your name is listed under “Watched by” on this page. Faro sends no email.</p>
           {covers.length > 0 && <p className="hint">You’re watching it as part of {covers.map(coverText).join(' and ')}.</p>}
-          <div className="optlist">
-            {w === null && <button className="opt" onClick={() => void doWatch('goal')}><span>Watch this goal</span><span className="hint">See its changes on Watching</span></button>}
-            {feeding > 0 && !(w && w !== 'via' && w.kind === 'tree') && <button className="opt" onClick={() => void doWatch('tree')}><span>{w ? 'Also watch everything feeding it' : 'Watch it and everything feeding it'}</span><span className="hint">{feeding} more {feeding === 1 ? 'goal' : 'goals'}</span></button>}
-            {w && w !== 'via' && <button className="opt" onClick={() => void stop(w)}><span>Stop watching {w.kind === 'tree' ? 'it and what feeds it' : 'this goal'}</span></button>}
-            {covers.map((c) => <button key={c.id} className="opt" onClick={() => void stop(c)}><span>Stop watching {coverText(c)}</span></button>)}
+          {w === null && feeding > 0 && (
+            <div className="optlist" role="radiogroup" aria-label="What to watch">
+              <button type="button" role="radio" className="opt" aria-checked={scope === 'goal'} onClick={() => setScope('goal')}><span>This goal</span></button>
+              <button type="button" role="radio" className="opt" aria-checked={scope === 'tree'} onClick={() => setScope('tree')}><span>It and the {feeding} {feeding === 1 ? 'goal' : 'goals'} feeding it</span></button>
+            </div>
+          )}
+          {w && w !== 'via' && w.kind === 'goal' && feeding > 0 && <button type="button" className="linkish small" onClick={() => void doWatch('tree')}>Also watch the {feeding} {feeding === 1 ? 'goal' : 'goals'} feeding it</button>}
+          {covers.map((c) => <button key={c.id} type="button" className="linkish small" onClick={() => void stop(c)}>Stop watching {coverText(c)}</button>)}
+          <div className="foot-row">
+            {w === null
+              ? <><button type="button" className="btn ghost big-btn" onClick={() => setOpen(false)}>Cancel</button><button type="button" className="btn primary big-btn" onClick={() => void doWatch(scope)}>Watch</button></>
+              : <>{w !== 'via' && <button type="button" className="btn ghost big-btn" onClick={() => void stop(w)}>Stop watching</button>}<button type="button" className="btn primary big-btn" onClick={() => setOpen(false)}>Done</button></>}
           </div>
         </div>
       </Sheet>

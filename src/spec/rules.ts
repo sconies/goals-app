@@ -26,7 +26,7 @@ import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domai
 import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
-import { goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
+import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
 import { litItem, menuFor, pageName, sideFor } from '../domain/navigation';
@@ -814,6 +814,30 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
       ];
     })(),
     unclear: ['How long a run of missed weeks must be to fold into one line (four) is a choice about reading, not a law.'],
+  },
+
+  /* ---------- who a comment reaches (goal spec, rule 5; GT3) ---------- */
+  {
+    id: 'comment-reach',
+    title: 'Who a comment reaches',
+    summary: 'The line under a goal’s comment box: everyone in the workspace can read a comment, and the goal’s owner and the people watching it see it on Home.',
+    code: [{ file: 'src/domain/goalPage.ts', names: ['commentReach'] }],
+    tests: ['src/domain/goalAct.test.ts'],
+    reqs: ['GOAL-SAYS'],
+    body: `
+"Everyone in {workspace} can read this." Then, for anyone but the owner: "{owner} and the {n} people watching see it on Home." ("the 1 person"; with nobody watching, "{owner} sees it on Home."). For the owner: "The {n} people watching see it on Home." (with nobody watching, "Nobody is watching it yet, so it shows on no one else’s Home.").
+
+*The people watching* are those whose watches cover the goal: the goal itself, a tree it is in, or its level. The viewer and the owner are never counted among them.`,
+    examples: (() => {
+      const g = { ...g3075, ownerId: 'r' };
+      const say = (viewerId: string, watcherIds: string[]) => commentReach({ goal: g, viewerId, ownerFirst: 'Rhea', watcherIds, workspace: 'Platform Engineering' });
+      return [
+        { given: 'Oskar on Rhea’s goal, with six others watching it.', then: 'Everyone in Platform Engineering can read this. Rhea and the 6 people watching see it on Home.', run: () => say('o', ['a', 'b', 'c', 'd', 'e', 'f']) },
+        { given: 'Rhea on her own goal, the same six watching.', then: 'Everyone in Platform Engineering can read this. The 6 people watching see it on Home.', run: () => say('r', ['a', 'b', 'c', 'd', 'e', 'f']) },
+        { given: 'Oskar, nobody watching.', then: 'Everyone in Platform Engineering can read this. Rhea sees it on Home.', run: () => say('o', []) },
+        { given: 'Oskar, one other watching (and Oskar himself, who isn’t counted).', then: 'Everyone in Platform Engineering can read this. Rhea and the 1 person watching see it on Home.', run: () => say('o', ['a', 'o']) },
+      ];
+    })(),
   },
 
   /* ---------- finding things (the app redesign, AR1) ---------- */

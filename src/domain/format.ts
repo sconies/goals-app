@@ -46,6 +46,13 @@ export function rangeText(p: { low: number; high: number }, g: Numeric, share = 
 
 export const weekLabel =(w: number, weeks: number) => (w >= weeks ? (weeks >= 48 ? 'year end' : 'cycle end') : 'week ' + w);
 
+/** A goal's kind as words that follow its level ("North star · a number to move"): the print page (goal spec, 2.8). */
+export function kindWords(g: Goal): string {
+  if (g.kind === 'milestone') return 'dated stages';
+  if (g.kind === 'range') return 'a number to keep in range';
+  return 'a number to move';
+}
+
 export function kindLabel(g: Goal): string {
   if (g.kind === 'milestone') return 'Hit dated stages';
   if (g.kind === 'range') return 'Keep a number in range';

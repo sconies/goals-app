@@ -398,3 +398,8 @@
 .goal-page .stream-missed { padding: 10px 0; border-top: 1px solid var(--line-2); }
 .goal-page .anchor-alias { display: block; height: 0; }
 @media (pointer: coarse) { .goal-page .history-filter { min-height: 44px; } }
+
+/* ---------- the comment box and the Watch sheet say what they do (goal spec, 2.2, 2.5; GT3) ---------- */
+.goal-page .note-open { align-self: flex-start; }
+.goal-page .note-reach { margin: var(--s1) 0 0; }
+.watch-says { margin: 0; }

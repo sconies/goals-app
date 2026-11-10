@@ -39,7 +39,7 @@ export function NextStepSheet({ goal, existing, onClose }: { goal: Goal; existin
         <div className="pair">
           <span className="stack" style={{ gap: 'var(--s1)' }}>
             <PersonPick value={who} onChange={setWho} label="Who" invalid={tried && bad.who}
-              suggest={[{ id: app.viewer.id, note: 'you' }, ...(goal.ownerId !== app.viewer.id ? [{ id: goal.ownerId, note: 'who owns this goal' }] : [])]} />
+              suggest={[{ id: app.viewer.id, note: '' }, ...(goal.ownerId !== app.viewer.id ? [{ id: goal.ownerId, note: 'who owns this goal' }] : [])]} />
             {tried && bad.who && <span className="hint tone-off" role="alert">Choose who does it.</span>}
           </span>
           <label className="field"><span className="field-label">By</span>

@@ -5,7 +5,7 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { attentionFor } from './attention';
 import { asksOf } from './asks';
 import { currentCycle, scopeToCycle } from './cycle';
-import { primaryAction, standingAction, stepsAndAsks, whyPointer } from './goalPage';
+import { commentReach, primaryAction, standingAction, stepsAndAsks, whyPointer } from './goalPage';
 import { currentWeek } from './plan';
 import type { Ask, Goal, Snapshot } from './types';
 
@@ -117,5 +117,16 @@ describe('what Why says about an ask (rule 3)', () => {
   it('to no one in particular: no name', () => {
     const asks = asksOf(s).map((r) => (r.kind === 'decision' && r.goalIds.includes(lead) ? { ...r, recipientId: null } : r));
     expect(whyPointer(goal(lead), asks, s.people)).toBe('Waiting on a decision: see Next steps and asks');
+  });
+});
+
+describe('who a comment reaches (rule 5)', () => {
+  const g = goal(lead);
+  const say = (viewerId: string, watcherIds: string[]) => commentReach({ goal: g, viewerId, ownerFirst: 'Rhea', watcherIds, workspace: 'Platform Engineering' });
+  it('says the owner and how many watch, never counting the viewer or the owner', () => {
+    expect(say('oskar', ['a', 'b', 'c', 'd', 'e', 'f', 'oskar', 'rhea'])).toBe('Everyone in Platform Engineering can read this. Rhea and the 6 people watching see it on Home.');
+    expect(say('rhea', ['a', 'b', 'c', 'd', 'e', 'f'])).toBe('Everyone in Platform Engineering can read this. The 6 people watching see it on Home.');
+    expect(say('oskar', [])).toBe('Everyone in Platform Engineering can read this. Rhea sees it on Home.');
+    expect(say('oskar', ['a'])).toBe('Everyone in Platform Engineering can read this. Rhea and the 1 person watching see it on Home.');
   });
 });

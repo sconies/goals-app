@@ -4,6 +4,7 @@
 import { Link, useParams } from 'react-router';
 import { ArchivedGoalScope, useApp } from '../app/state';
 import { goalSheet, reviewSheet, type Fact, type Said } from '../domain/onePager';
+import { kindWords } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { projects } from '../domain/scorecard';
 import { assessPosted } from '../domain/status';
@@ -88,7 +89,7 @@ function GoalPrintView() {
         <header className="ps-head">
           <span className="ps-eyebrow">{app.ws.name.replace(/^Example:\s*/, '')} · {periodLabel(app.cycle, app.week)}</span>
           <h1 className="ps-title">{goal.title}</h1>
-          <span className="ps-meta">{s.owner}{s.team !== '—' ? `, ${s.team}` : ''} · <LevelTag level={goal.level} always /> · {s.type}</span>
+          <span className="ps-meta">{s.owner}{s.team !== '—' ? `, ${s.team}` : ''} · <LevelTag level={goal.level} always /> · {kindWords(goal)}</span>
           {sh.feeds && <span className="ps-meta">Feeds {sh.feeds.title}{sh.feeds.why ? `: ${sh.feeds.why}` : ''}</span>}
         </header>
 
