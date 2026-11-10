@@ -35,6 +35,33 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['check-in', 'check-in-table', 'goal-page', 'home'],
   },
   {
+    id: 'talk-path-polish',
+    date: '2026-11-10',
+    title: 'Find a goal by its key, and counts that open their goals',
+    points: [
+      'Search Goals for a goal’s key and it finds it, however you type it: G-48, g48 or 48.',
+      'On Home, each count of goals by status opens just those goals: “11 off track” lists the 11.',
+      'By team lists the teams worst first, each with how many of its goals are off track, at risk, on track and so on.',
+      'Board cards start with their own status, a shape and its word, so a card says where it stands on a phone too.',
+      'Decision or help needed names the same goals in the filter, its saved view, the Table and the Board. On a phone, what someone asked of you wraps to two lines instead of being cut mid-word, and set-up’s small links are easier to hit.',
+      'The example workspace no longer contradicts itself: a note no longer answers a question that is still open, an ask names the right week, and late check-ins are dated in their own week.',
+    ],
+    articles: ['goals-filters', 'home', 'goals', 'keys'],
+  },
+  {
+    id: 'decide-in-review',
+    date: '2026-11-10',
+    title: 'Decide in the review',
+    points: [
+      'In a review, a goal off track or at risk asks “What happens next, who, by when?” before it’s marked reviewed: a next step with an owner and a date, or “We accept the risk” with a reason.',
+      'Who does it is found by searching for a name or a team, never chosen from a list of everyone.',
+      'A goal’s page shows its next steps with who and the date. Anyone can add one, and whoever agreed it can change it there. An overdue one is flagged.',
+      'The next session opens with what the last one agreed, and asks if it’s done. Finish review says what was decided and who owns what, with Undo.',
+      'A new workspace no longer says a review is to do before anything is due, and Home’s “Not held yet” mark is the right size again.',
+    ],
+    articles: ['reviews', 'goal-page'],
+  },
+  {
     id: 'setup-tells-the-truth',
     date: '2026-11-10',
     title: 'Set-up that tells the truth',

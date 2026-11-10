@@ -58,7 +58,7 @@ module.exports = {
         const head = await box(p, '.page.home > .page-head'), dash = await box(p, '.page.home > .dash'), grid = await box(p, '.page.home > .home-grid');
         check(dash && head && grid && dash.y >= head.b && dash.b <= grid.y, `[HOME-DASHBOARD] ${at}: the strip is not between the heading and the rest of Home`);
         check(dash && grid && Math.abs(dash.x - grid.x) <= 1 && Math.abs(dash.w - grid.w) <= 1, `[HOME-DASHBOARD] ${at}: the strip is not on the page's one left edge and width`);
-        const cells = await p.$$eval('.dash .dash-cell', (els) => els.map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { x: Math.round(r.x), y: Math.round(r.y), h: r.height, bg: cs.backgroundColor, text: e.innerText, href: e.getAttribute('href') || '' }; }));
+        const cells = await p.$$eval('.dash .dash-cell', (els) => els.map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { x: Math.round(r.x), y: Math.round(r.y), h: r.height, bg: cs.backgroundColor, text: e.innerText, href: e.getAttribute('href') || e.querySelector('a.dash-all')?.getAttribute('href') || '' }; }));
         const owner = who !== 'amara';
         // (One Watching: the strip no longer has a Watching cell; what you watch is the “Goals you watch” block under it.)
         check(cells.length === (owner ? 3 : 2), `[HOME-DASHBOARD] ${at}: ${cells.length} cells`);
@@ -159,12 +159,14 @@ module.exports = {
       const strip0 = await stripCounts();
       await p.goto(url('/goals/lead-merge?review=weekly'));
       await p.locator('.decide').waitFor();
-      await p.getByRole('button', { name: 'Add an action' }).click();
+      // An off-track goal asks what happens next (deep review P2): a next step, its owner found by searching.
+      await p.getByRole('button', { name: 'Add the next step' }).click();
       const dlg = p.getByRole('dialog');
       await dlg.getByPlaceholder('What needs doing').fill('Chase the vendor for the batching fix date');
-      await dlg.getByLabel('Who').selectOption('pavel');
+      await dlg.getByRole('searchbox', { name: /^Who/ }).fill('Pavel');
+      await dlg.getByRole('radio', { name: /Pavel/ }).click();
       await dlg.getByLabel(/^By/).selectOption('46');
-      await dlg.getByRole('button', { name: 'Save action' }).click();
+      await dlg.getByRole('button', { name: 'Save the next step' }).click();
       await p.locator('.said').getByText('Chase the vendor').waitFor();
       const after = await watchState();
       check(!after.needs && /Off track/.test(after.handled) && /Action: Pavel, due week 46/.test(after.handled), `[ATTENTION-HANDLED] after the action the red goal is not being handled with "Action: Pavel, due week 46" and its status ("${after.handled.replace(/\n/g, ' ')}")`);
@@ -203,6 +205,9 @@ module.exports = {
       const t = await p.locator('main').innerText();
       check(!/[A-Z][a-z]+day’s review|before the review|in the review as you wrote/.test(t), `T4 ${who}: Home calls the deadline a review: "${(t.match(/[^\n]*(day’s review|before the review|in the review as you wrote)[^\n]*/) || [''])[0]}"`);
       check(/Check-ins (are|were) due/.test(await p.locator('.home-hero').innerText()), `T4 ${who}: the main action doesn't say when check-ins are due`);
+      // The "Not held yet" tile's warning mark is a small sign beside its words, not a picture filling the tile.
+      const mark = await box(p, '.dash-missed .dash-label svg');
+      if (who === 'rhea') check(!!mark && mark.w <= 16 && mark.h <= 16, `Home: the "Not held yet" warning mark is ${mark ? `${Math.round(mark.w)}×${Math.round(mark.h)}px` : 'missing'}`);
       await c.close();
     }
     // T5: Rhea posts on-plan numbers, as the script's step 2 does. No "Getting worse" says three equal steps, and none

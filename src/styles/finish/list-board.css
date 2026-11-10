@@ -206,6 +206,10 @@
 @container app (min-width: 761px) { .goals-page .trow { grid-template-columns: 136px minmax(0, 1fr) auto; } }
 .goals-page .trow-icon { white-space: nowrap; }
 /* A team's objective wraps to two lines rather than being cut off (22). */
+.team-counts { display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0; }
+/* A team's goals by status (U24): a shape and a word each, worst first, as Home counts them. */
+.team-count { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); line-height: 1.375rem; font-weight: 600; white-space: nowrap; }
+.team-count svg { flex: none; width: 14px; height: 14px; }
 .team-objective { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* Phones: the status, then the title full width, then the number and its gap on one line, left-aligned (22). */
 @container app (max-width: 600px) {
@@ -236,6 +240,11 @@
 .board-title { font-size: 0.9375rem; line-height: 1.25rem; font-weight: 600; }
 /* The level on a 20px row of its own, right-aligned, as on Cards (6); a result tag starts at the card's edge (5). */
 .board-level { display: flex; justify-content: flex-end; min-height: 20px; align-items: center; }
+/* The card's own status (D2): shape and word on the first row, the level on the right of it. */
+.board-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
+.board-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-xs); line-height: 1rem; font-weight: 650; white-space: nowrap; }
+.board-status svg { flex: none; width: 12px; height: 12px; }
+.board-top .board-level { margin-left: auto; }
 .board-level .level { font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; }
 .board-card .result-tag { margin-left: 0; }
 /* Show all: a full-size target below desktop, a hover you can see, and Show fewer once open (10). */

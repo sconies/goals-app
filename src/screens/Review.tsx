@@ -3,7 +3,7 @@
    (see Inspect). */
 import { useMemo, useState } from 'react';
 import { useDraft } from '../app/drafts';
-import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { weekDates } from '../domain/plan';
@@ -13,12 +13,14 @@ import { outcomeTrees } from '../domain/tree';
 import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
 import { Avatar, Chip, Empty, ProgressRing, Sheet, WarnMark } from '../ui/bits';
-import { saveReviewOrder } from './Inspect';
+import { byDay, CarriedState, saveReviewOrder } from './Inspect';
+import { lastTime, sessionDecisions } from '../domain/decide';
+import { canMarkDone } from '../domain/asks';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
 import { EndedReview, EndReview } from '../ui/RemoveControls';
-import { ASK_STATUS, lower } from '../domain/vocabulary';
+import { ASK_STATUS, DECIDED, lower } from '../domain/vocabulary';
 
 const cadence = (r: ReviewT) => `${r.everyWeeks === 1 ? 'Every week' : `Every ${r.everyWeeks} weeks`}, ${WEEKDAY[r.weekday]}s`;
 const goalsN = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
@@ -169,6 +171,9 @@ export function ReviewHome() {
   // Marking the goals with nothing flagged asks first (deep review T3): 'mark' while goals to discuss are left, 'finish'
   // when it is the last step and so ends the session.
   const [confirming, setConfirming] = useState<'mark' | 'finish' | null>(null);
+  // The walk's last goal comes here to finish (`?finish=<goal>`), so the summary of what was decided is said in one place.
+  const [params, setParams] = useSearchParams();
+  const finishFrom = params.get('finish');
   // An ended review keeps its page: what it was, that it ended, and (for its owner or an admin) Reopen.
   const ended = !review ? app.snapshot.archive?.reviews.find((r) => r.id === reviewId) : undefined;
   if (ended) return <EndedReview review={ended} />;
@@ -188,16 +193,24 @@ export function ReviewHome() {
     if (first) nav(`/goals/${first.goal.id}?review=${review.id}`);
   };
   const healthyLeft = healthy.filter((a) => !s.covered.has(a.goal.id));
+  const done = st.kind === 'held';
+  // Finishing marks every goal not yet reviewed (the ones with nothing flagged, or the walk's last goal) and so holds the
+  // session; marking the healthy goals while goals to discuss are left doesn't.
+  const finishOpen = confirming === 'finish' || (!!finishFrom && !done);
+  const toMark = finishOpen ? s.items.filter((a) => !s.covered.has(a.goal.id)) : healthyLeft;
+  const closeSheet = () => { setConfirming(null); if (finishFrom) setParams({}, { replace: true }); };
   const ackHealthy = async () => {
     setBusy(true);
-    // One save, with Undo on its message. Marking the last of them finishes the session: only from Finish review.
+    // One save, with Undo on its message.
     try {
-      await app.markReviewed(healthyLeft.map((a) => a.goal), review, s.week);
-      setConfirming(null);
+      await app.markReviewed(toMark.map((a) => a.goal), review, s.week, finishOpen ? `Finished ${review.name}` : undefined);
+      closeSheet();
     } catch { /* the save already said what went wrong */ }
     setBusy(false);
   };
-  const done = st.kind === 'held';
+  const decided = sessionDecisions(s);
+  const last = !done ? lastTime(review, app.snapshot, s.week, app.week) : null;
+  const firstName2 = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
   const people = review.people.map((id) => app.person(id)).filter((p) => !!p);
   const inIt = review.people.includes(app.viewer.id);
   const canChange = inIt || app.viewer.admin;
@@ -233,6 +246,19 @@ export function ReviewHome() {
           </div>
         </div>
       </section>
+      {/* What the last session agreed, and how each stands, first, before the agenda (deep review P2, backlog L(2)). */}
+      {last && (
+        <section className="block last-time" data-part="Last time">
+          <h2 className="block-title">Last time · {dayText(last.on)}</h2>
+          <ul className="record">{last.actions.map((a) => (
+            <li key={a.ask.id}>
+              <span className="strong">{firstName2(a.who)} agreed: {a.ask.ask}</span>
+              <span className="hint">{a.dueWeek ? `${byDay(app.cycle, a.dueWeek)} · ` : ''}<Link className="linkish" to={`/goals/${a.goalId}`}>{app.goal(a.goalId)?.title}</Link></span>
+              <span className="small row" style={{ gap: 'var(--s3)' }}><CarriedState state={a.state} />{a.state !== 'done' && canMarkDone(a.ask, app.viewer) && <button type="button" className="linkish small" onClick={() => void app.markActionDone(a.ask).then(() => app.toast('Marked done')).catch(() => undefined)}>Done?</button>}</span>
+            </li>
+          ))}</ul>
+        </section>
+      )}
       {/* Held: what was said comes first, with every goal reviewed. */}
       {done && <SessionRecord s={s} title="What was said" reviewed="open" />}
       {!done && remaining.length > 0 && (
@@ -269,13 +295,26 @@ export function ReviewHome() {
       </section>
       <EndReview review={review} />
       {/* Asked first, said plainly, with Undo on the message after (deep review T3). Only Finish ends the session. */}
-      <Sheet open={!!confirming} onClose={() => setConfirming(null)} title={confirming === 'finish' ? `Finish ${review.name}?` : `Mark ${goalsN(healthyLeft.length)} reviewed?`}>
-        <div className="stack" style={{ gap: 'var(--s4)' }}>
-          <p>{confirming === 'finish'
-            ? `The ${goalsN(healthyLeft.length)} with nothing flagged ${healthyLeft.length === 1 ? 'is' : 'are'} marked reviewed, and the session is recorded as held today. This page then leads with what was said.`
-            : `The ${goalsN(healthyLeft.length)} with nothing flagged ${healthyLeft.length === 1 ? 'is' : 'are'} marked reviewed. The ${goalsN(remaining.length)} to discuss stay${remaining.length === 1 ? 's' : ''} open, and the review carries on.`}</p>
+      <Sheet open={!!confirming || finishOpen} onClose={closeSheet} title={finishOpen ? `Finish ${review.name}?` : `Mark ${goalsN(healthyLeft.length)} reviewed?`}>
+        <div className="stack finish-summary" style={{ gap: 'var(--s4)' }}>
+          {finishOpen ? (
+            <>
+              {/* What was decided and who owns what, said before the session is recorded (deep review P2). */}
+              {(decided.byOwner.length > 0 || decided.accepted.length > 0) ? (
+                <div className="stack" style={{ gap: 'var(--s2)' }}>
+                  <h3 className="field-label">Decided</h3>
+                  <ul className="record">
+                    {decided.byOwner.map((o) => <li key={o.who}><span className="strong">{app.person(o.who)?.name ?? 'Someone'}</span>{o.steps.map((d) => <span key={d.id} className="small">{d.note}{d.dueWeek ? `, ${byDay(app.cycle, d.dueWeek)}` : ''} · {app.goal(d.goalId)?.title}</span>)}</li>)}
+                    {decided.accepted.map((a) => <li key={a.goalId}><span className="strong">{DECIDED['accept-risk'].label}: {app.goal(a.goalId)?.title}</span><span className="small">{a.reason}</span></li>)}
+                  </ul>
+                </div>
+              ) : <p className="muted">No next steps or accepted risks were recorded in this session.</p>}
+              {decided.questions.length > 0 && <p className="small">{decided.questions.length === 1 ? '1 question for an owner stays' : `${decided.questions.length} questions for owners stay`} open until answered.</p>}
+              <p>{toMark.length ? `${goalsN(toMark.length)} ${toMark.length === 1 ? 'is' : 'are'} marked reviewed${healthyLeft.length && toMark.length === healthyLeft.length ? ' (nothing flagged)' : ''}, ` : ''}and the session is recorded as held today. This page then leads with what was said.</p>
+            </>
+          ) : <p>{`The ${goalsN(healthyLeft.length)} with nothing flagged ${healthyLeft.length === 1 ? 'is' : 'are'} marked reviewed. The ${goalsN(remaining.length)} to discuss stay${remaining.length === 1 ? 's' : ''} open, and the review carries on.`}</p>}
           <p className="hint">You can undo it from the message that follows.</p>
-          <div className="foot-row"><button className="btn ghost big-btn" onClick={() => setConfirming(null)}>Not yet</button><button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>{busy ? 'Saving…' : confirming === 'finish' ? 'Mark them and finish' : `Mark ${goalsN(healthyLeft.length)} reviewed`}</button></div>
+          <div className="foot-row"><button className="btn ghost big-btn" onClick={closeSheet}>Not yet</button><button className="btn primary big-btn" disabled={busy} onClick={() => void ackHealthy()}>{busy ? 'Saving…' : finishOpen ? 'Finish the review' : `Mark ${goalsN(healthyLeft.length)} reviewed`}</button></div>
         </div>
       </Sheet>
     </div>

@@ -170,6 +170,13 @@ export function attentionGroup(a: GoalAttention): 'needs' | 'handled' | null {
   return a.handled ? 'handled' : null;
 }
 
+/**
+ * Waiting on a decision or help (the `decision` flag): an open ask on the goal, its own or one it's linked to, and the
+ * goal isn't done. The one rule for "Decision or help needed": the Goals filter and the saved view built on it, Table's
+ * story line, the Board's order and Home's asks all ask it, so they name the same goals (U25).
+ */
+export const waitingOnDecision = (a: { flags: Flag[] }) => a.flags.some((f) => f.kind === 'decision');
+
 /** On the Needs attention list: it needs attention, or it is being handled (listed below those that do). */
 export const onAttentionList = (a: GoalAttention) => attentionGroup(a) !== null;
 
