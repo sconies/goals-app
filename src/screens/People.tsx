@@ -21,7 +21,10 @@ import { newId } from '../data/store';
 import { Avatar, Sheet, StatusShape } from '../ui/bits';
 import { BackLink } from '../ui/BackLink';
 import { LeaveSheet, leaveLabel } from '../ui/RemoveSheets';
+import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
+import { TokenSheet } from '../ui/AiAssistants';
 import { useWidth } from '../ui/useWidth';
+import { PickOne } from '../ui/Pick';
 
 /** Below this width the filters fold into one Filter button (a phone). */
 const NARROW = 620;
@@ -104,13 +107,10 @@ export function PeopleList() {
     : teamId === '-' ? 'Everyone is in a team.' : teamId ? `No one in ${teamName} yet.` : admins ? 'There are no admins.' : 'No one is here yet.';
   const filters = (
     <>
-      <label className="field people-team"><span className={narrow ? 'field-label' : 'sr'}>Team</span>
-        <select className="input" value={teamId} onChange={(e) => { set({ team: e.target.value || null }); setFiltering(false); }}>
-          <option value="">Team: every team</option>
-          {[...app.snapshot.teams].sort((a, b) => a.name.localeCompare(b.name)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          <option value="-">No team</option>
-        </select>
-      </label>
+      {/* The team, found by typing (FS1's find-and-pick); "no team" comes from a link (About's "in no team") and says so. */}
+      {teamId === '-'
+        ? <p className="field people-team small">Team: no team <button type="button" className="linkish" onClick={() => set({ team: null })}>Remove</button></p>
+        : <div className="people-team"><PickOne kind="team" label="Team" none="Every team" value={teamId || null} onChange={(id) => { set({ team: id }); setFiltering(false); }} /></div>}
       <label className="check people-admins">
         <input type="checkbox" checked={admins} onChange={(e) => { set({ admins: e.target.checked ? '1' : null }); setFiltering(false); }} />
         <span>Admins only</span>
@@ -179,6 +179,8 @@ export function PersonPage() {
   const { personId = '' } = useParams();
   const [editing, setEditing] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [token, setToken] = useState(false);
+  const setAdmin = useSetAdmin();
   const p = app.person(personId);
   if (!p || p.removedAt) {
     return (
@@ -235,12 +237,17 @@ export function PersonPage() {
       {app.viewer.admin && !left && (
         <section className="people-admin stack" aria-labelledby="person-admin">
           <h2 className="label" id="person-admin">For admins</h2>
-          <div className="row"><button type="button" className="btn" onClick={() => setEditing(true)}>Change details</button></div>
-          {!you && <div className="people-admin-quiet"><button type="button" className="btn ghost" onClick={() => setLeaving(true)}>{leaveLabel(app, p)}…</button></div>}
+          <div className="row people-admin-actions">
+            <button type="button" className="btn" onClick={() => setEditing(true)}>Change details</button>
+            {p.admin ? <RemoveAdmin p={p} quiet={false} setAdmin={setAdmin} /> : <button type="button" className="btn" onClick={() => void setAdmin(p, true)}>Make an admin</button>}
+            {app.mode === 'live' && <button type="button" className="btn" onClick={() => setToken(true)}>Make an MCP token</button>}
+          </div>
+          {you ? <p className="hint">To leave, use <Link to="/settings">Settings</Link>.</p> : <div className="people-admin-quiet"><button type="button" className="btn ghost" onClick={() => setLeaving(true)}>{leaveLabel(app, p)}…</button></div>}
         </section>
       )}
       {editing && <PersonSheet person={p} onClose={() => setEditing(false)} />}
       {leaving && <LeaveSheet person={p} onClose={() => setLeaving(false)} />}
+      {token && <TokenSheet personId={p.id} onClose={() => setToken(false)} />}
     </div>
   );
 }
@@ -387,12 +394,7 @@ export function TeamSheet({ team, onClose, onSaved }: { team: Team | null; onClo
           {tried && !clean && <span className="hint tone-off" role="alert">Give the team a name.</span>}
           {tried && dup && <span className="hint tone-off" role="alert">There’s already a team called {dup.name}.</span>}
         </div>
-        <label className="field"><span className="field-label">Team lead <span className="hint">optional</span></span>
-          <select className="input" value={leadId} onChange={(e) => setLeadId(e.target.value)}>
-            <option value="">No lead</option>
-            {app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}
-          </select>
-        </label>
+        <PickOne kind="person" label="Team lead (optional)" none="No lead" value={leadId || null} onChange={(id) => setLeadId(id ?? '')} />
         <label className="field"><span className="field-label">What it is here to do <span className="hint">optional</span></span>
           <textarea className="input" rows={2} maxLength={280} value={objective} onChange={(e) => setObjective(e.target.value)} />
         </label>
@@ -433,12 +435,7 @@ function RemoveTeamSheet({ team, onClose }: { team: Team; onClose: () => void })
           <>
             <p className="small">{team.name} has {has}{m.goals.some((g) => g.cycleId !== app.cycle.id) ? ', some in earlier cycles' : ''}. They move to another team first, in the same step, and each goal’s history says so.</p>
             <div className="field">
-              <label className="field"><span className="field-label">Move them to</span>
-                <select className={'input' + (tried && !to ? ' invalid' : '')} aria-invalid={tried && !to ? true : undefined} value={to} onChange={(e) => setTo(e.target.value)}>
-                  <option value="">Choose a team</option>
-                  {others.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </label>
+              <PickOne kind="team" label="Move them to" value={to || null} onChange={(id) => setTo(id ?? '')} hide={[team.id]} invalid={tried && !to} />
               {tried && !to && <span className="hint tone-off" role="alert">Choose where they go.</span>}
             </div>
           </>
@@ -499,15 +496,14 @@ function MissingEmails() {
   );
 }
 
-/** Adding a person, or changing one (admins). Marking someone as left is on their page. */
+/** Adding a person, or changing one (admins): name, email, job title and team. Making them an admin is on their page
+    and on Workspace, Access (WR3); marking someone as left is on their page. */
 export function PersonSheet({ person, onClose, onSaved }: { person: Person | null; onClose: () => void; onSaved?: (id: string) => void }) {
   const app = useApp();
   const [p, setP] = useState<Person>(person ?? { id: newId('p'), name: '', role: '', initials: '', teamId: app.viewer.teamId ?? app.snapshot.teams[0]?.id ?? null, admin: false, email: '' });
   const [tried, setTried] = useState(false);
-  const self = person?.id === app.viewer.id;
   // A shared name is allowed (the email is who someone is), and said, so a second record for one person is noticed.
   const twin = sameNameNote(p, app.snapshot.people, (id) => app.team(id)?.name ?? '');
-  const lastAdmin = !!person?.admin && app.snapshot.people.filter((x) => x.admin).length === 1;
   // An email is needed for anyone new; someone added before emails existed can be saved without one until it's known.
   const clean: Person = { ...p, name: p.name.trim(), role: p.role.trim(), initials: initials(p.name.trim()), ...(normalEmail(p.email) ? { email: normalEmail(p.email) } : person?.email ? {} : { email: undefined }) };
   const emailProblem = personProblems(clean, app.snapshot.people, person).find((x) => /email/i.test(x));
@@ -538,16 +534,7 @@ export function PersonSheet({ person, onClose, onSaved }: { person: Person | nul
         <label className="field"><span className="field-label">Job title <span className="hint">optional</span></span>
           <input className="input" value={p.role} onChange={(e) => setP({ ...p, role: e.target.value })} />
         </label>
-        <label className="field"><span className="field-label">Team</span>
-          <select className="input" value={p.teamId ?? ''} onChange={(e) => setP({ ...p, teamId: e.target.value || null })}>
-            {app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            <option value="">No team</option>
-          </select>
-        </label>
-        <label className="check admin-check">
-          <input type="checkbox" checked={p.admin} disabled={lastAdmin} onChange={(e) => setP({ ...p, admin: e.target.checked })} />
-          <span className="stack" style={{ gap: 0 }}><span className="admin-word">Admin</span><span className="hint">{lastAdmin ? (self ? 'You’re the only admin, so you stay one.' : 'The only admin stays one.') : 'Can add people, change settings and make others admins.'}</span></span>
-        </label>
+        <PickOne kind="team" label="Team" none="No team" value={p.teamId} onChange={(id) => setP({ ...p, teamId: id })} />
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={onClose}>Cancel</button><button className="btn primary big-btn" type="submit">{person ? 'Save' : 'Add'}</button></div>
       </form>
     </Sheet>

@@ -21,7 +21,7 @@ export const MAIN_ACTION: Record<string, string> = {
   People: 'Find a person or a team and go to their goals; for admins, Add a person on People and Add a team on Teams.',
   Feedback: 'Handle the open markup or feedback (in hand, fixed or won’t fix) and go on to the next.',
   Onboarding: 'Set up a workspace, one question a screen.',
-  Settings: 'Change your own settings.',
+  Settings: 'Change your own choices; see who you are here and go to your page.',
   Help: 'Find an answer: search, or open an article.',
   Start: 'Say who you are, then go on to Home.',
 };

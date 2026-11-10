@@ -174,9 +174,9 @@ function GoalView({ goal }: { goal: Goal }) {
   useEffect(() => {
     const id = window.location.hash.slice(1);
     if (!/^(now|next|why|chart|feeds|history|activity|about)$/.test(id)) return;
-    // Twice: once drawn, and again after the shell has put a new page at its top.
+    // Once drawn, and again after the shell has put a new page at its top (which can come later on a slow load).
     const go = () => document.getElementById(id === 'activity' ? 'history' : id)?.scrollIntoView({ block: 'start' });
-    const t = [setTimeout(go, 60), setTimeout(go, 400)];
+    const t = [60, 400, 900].map((ms) => setTimeout(go, ms));
     return () => t.forEach(clearTimeout);
   }, []);
   const share = useShare(goal, figures.now, figures.against, why.text ?? '', status);

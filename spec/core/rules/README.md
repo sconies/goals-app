@@ -23,6 +23,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Who a comment reaches](comment-reach.md) | The line under a goal’s comment box: everyone in the workspace can read a comment, and the goal’s owner and the people watching it see it on Home. |
 | [A goal not born late](not-born-late.md) | A stage already past when a goal is set up is asked about, and one said to be done counts as on time; a goal’s first number may restart its plan. |
 | [Finding things](finding.md) | What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls. |
+| [Navigation: the menu, the lit item and a page’s name](navigation.md) | Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says. |
 
 ## The numbers the rules turn on
 
